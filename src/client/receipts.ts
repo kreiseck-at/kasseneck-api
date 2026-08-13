@@ -253,7 +253,7 @@ export function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptO
     // Monatsbericht, und zu werfen machte solche Belege unstornierbar).
     ...(paymentMethod != null
       ? { paymentMethod }
-      : { paymentMethodFromServer: typeof receipt.paymentMethod === 'object' ? receipt.paymentMethod.value : receipt.paymentMethod }),
+      : { paymentMethodFromServer: zahlungsartAusBeleg(receipt.paymentMethod) }),
   });
 }
 
@@ -525,6 +525,21 @@ function alsNutzlast<T, P>(werte: T[], wandeln: (wert: T) => P): P[] {
   }
 }
 
+/**
+ * Zahlungsart eines **gelesenen** Belegs als roher Nutzlast-Wert. Drei Faelle:
+ * bekannter Eintrag, unbekannter Schluessel (geht roh mit, siehe
+ * [cancelReceipt]) und **gar keiner** — Start- und Nullbelege tragen keine,
+ * das Backend sendet dann `null`. Da `typeof null === 'object'` ist, ergab das
+ * beim Lesen von `.value` einen nackten TypeError; jetzt geht schlicht keine
+ * Zahlungsart mit, statt einer leeren.
+ */
+function zahlungsartAusBeleg(wert: Receipt['paymentMethod']): string | undefined {
+  if (wert != null && typeof wert === 'object') {
+    return wert.value;
+  }
+  return typeof wert === 'string' && wert !== '' ? wert : undefined;
+}
+
 /** Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht. */
 function gepruefteZahlungsart(wert: KeckPaymentMethod | KeckPaymentMethodKey): string {
   if (typeof wert === 'object') {
@@ -563,11 +578,27 @@ function antwortfehler(functionName: string, grund: string): KasseneckValidation
  * `…WithCompany`-Varianten.
  */
 function belegAusHuelle(daten: unknown, functionName: string): Receipt {
-  const huelle = daten as { receipt?: ReceiptPayloadRead } | null | undefined;
+  const huelle = daten as { receipt?: unknown } | null | undefined;
   if (huelle == null || typeof huelle !== 'object' || huelle.receipt == null) {
     throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt fehlt)');
   }
-  return fromReceiptPayload(huelle.receipt);
+  const beleg = huelle.receipt;
+  if (typeof beleg !== 'object' || Array.isArray(beleg)) {
+    throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt ist kein Objekt)');
+  }
+  // Positionen und Gutscheine werden gleich mit `.map` gelesen. Eine Antwort,
+  // die dort etwas anderes als eine Liste fuehrt, ergab bis hierher einen
+  // nackten TypeError ("… .map is not a function") und fiel damit aus der
+  // Fehler-Union. Fehlend und `null` bleiben erlaubt: Nullbelege haben keine
+  // Positionen.
+  const roh = beleg as { items?: unknown; vouchers?: unknown };
+  for (const feld of ['items', 'vouchers'] as const) {
+    const wert = roh[feld];
+    if (wert != null && !Array.isArray(wert)) {
+      throw antwortfehler(functionName, `Antwort enthaelt einen Beleg mit unbrauchbarem Feld "${feld}"`);
+    }
+  }
+  return fromReceiptPayload(beleg as ReceiptPayloadRead);
 }
 
 /**

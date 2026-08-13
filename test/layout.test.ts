@@ -10,6 +10,7 @@ import {
   type LayoutLine,
   type ReceiptLayout,
 } from '../src/receipt/index.js';
+import { isKasseneckValidationError } from '../src/client/errors.js';
 
 /**
  * Das Beleg-Layout ist der Bauplan eines Kasseneck-Belegs: welche Angabe steht
@@ -556,4 +557,46 @@ test('ESC/POS: jede Spaltenzeile des Layouts belegt zusammen zwoelf Zwoelftel', 
     const summe = zeile.columns.reduce((acc, s) => acc + s.width, 0);
     assert.equal(summe, 12, `Zeile "${zeile.columns.map((s) => s.text).join('|')}" ergibt ${summe}`);
   }
+});
+
+// ------------------------------------------------- Fehler-Union des Layouts
+
+/**
+ * `errors.ts` sagt zu: "Alle Fehler, die dieses Paket wirft". Diese Zusage muss
+ * auch fuer das Layout gelten — ein Verbraucher, der nach den Waechtern
+ * verzweigt (`isKasseneckValidationError` & Co.), darf hier nicht in den
+ * "unbekannt"-Zweig fallen.
+ */
+test('Layout: ein unlesbarer Belegzeitstempel kommt als KasseneckValidationError', () => {
+  const beleg: Receipt = { ...BELEG, timeStamp: 'gestern frueh' };
+  assert.throws(
+    () => buildReceiptLayout(beleg, FIRMA),
+    (fehler: unknown) => {
+      assert.ok(isKasseneckValidationError(fehler), `erwartet KasseneckValidationError, bekam ${String(fehler)}`);
+      assert.equal(fehler.scope, 'response');
+      // Der Zeitstempel stammt aus einer fremden Antwort und gehoert nicht in
+      // die Meldung — dieselbe Zusage wie bei getFirstReceiptDate.
+      assert.ok(!fehler.message.includes('gestern frueh'), 'der rohe Zeitstempel darf nicht in der Meldung stehen');
+      return true;
+    },
+  );
+});
+
+test('Layout: eine fehlende Zahlungsart laesst sich anzeigen, statt zu werfen', () => {
+  // Start- und Nullbelege tragen keine Zahlungsart; das Backend sendet dann
+  // `paymentMethod: null`, und `typeof null === 'object'` machte daraus einen
+  // nackten TypeError beim Lesen von `.label`.
+  const beleg = { ...BELEG, paymentMethod: null } as unknown as Receipt;
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  const zeile = layout.lines.find((z) => z.kind === 'columns' && z.columns[0]?.text === 'Zahlungsart:');
+  assert.ok(zeile?.kind === 'columns');
+  assert.equal(zeile.columns[1]?.text, '');
+});
+
+test('Layout: eine unbekannte Zahlungsart steht weiterhin roh da', () => {
+  const beleg = { ...BELEG, paymentMethod: 'klarna' } as unknown as Receipt;
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  const zeile = layout.lines.find((z) => z.kind === 'columns' && z.columns[0]?.text === 'Zahlungsart:');
+  assert.ok(zeile?.kind === 'columns');
+  assert.equal(zeile.columns[1]?.text, 'klarna');
 });

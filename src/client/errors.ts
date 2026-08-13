@@ -205,7 +205,10 @@ export type ValidationScope = 'request' | 'response';
  */
 export class KasseneckValidationError extends Error {
   readonly name = 'KasseneckValidationError';
-  /** Betroffene Backend-Funktion. */
+  /**
+   * Betroffener Vorgang — meist die Backend-Funktion, bei Pruefungen ohne
+   * Aufruf der Name der Paketfunktion (z. B. `buildReceiptLayout`).
+   */
   readonly functionName: string;
   /** Vom Paket formulierter Grund. */
   readonly reason: string;

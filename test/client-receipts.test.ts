@@ -32,7 +32,7 @@ import {
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import { ReceiptType, VatRate, KeckPaymentMethod, type KeckPaymentMethodKey, CreditCardProvider, VoucherAction, VoucherType } from '../src/enums/index.js';
 import type { Receipt, ReceiptItem, ReceiptPayload, Voucher } from '../src/models/index.js';
-import { receiptItemIsValid, receiptSumCents, toReceiptItemPayload } from '../src/models/index.js';
+import { fromReceiptPayload, receiptItemIsValid, receiptSumCents, toReceiptItemPayload } from '../src/models/index.js';
 import { buildReceiptLayout, formatCents } from '../src/receipt/layout.js';
 
 /**
@@ -772,4 +772,64 @@ test('eine gebrochene Menge ist keine sendbare Position (Modellpruefung)', () =>
   }
   // Ganze Mengen bleiben unveraendert gueltig.
   assert.equal(receiptItemIsValid({ name: 'Käse', quantity: 2, vat: VatRate.vat20, priceCents: 1990 }), true);
+});
+
+/**
+ * Die Fehler-Union endete an der Endpunkt-Schicht: unterhalb davon kamen
+ * nackte `TypeError` heraus, obwohl errors.ts zusagt, alle Fehler dieses
+ * Pakets aufzuzaehlen.
+ */
+test('cancelReceipt: ein Beleg ohne Zahlungsart wirft keinen nackten TypeError', async () => {
+  // Start- und Nullbelege tragen keine; das Backend sendet dann null, und
+  // `typeof null === 'object'` liess `.value` daran scheitern.
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  const beleg = { ...fromReceiptPayload(BELEG_NUTZLAST), paymentMethod: null } as unknown as Receipt;
+
+  await cancelReceipt(rufen, { receipt: beleg });
+  const gesendet = JSON.parse(aufrufe[0]!.init.body) as { params: Record<string, unknown> };
+  assert.equal(
+    'paymentMethod' in gesendet.params,
+    false,
+    'ohne Zahlungsart darf keine gesendet werden — auch keine leere',
+  );
+  assert.equal(gesendet.params['receiptType'], 'cancellation');
+});
+
+test('cancelReceipt: eine unbekannte Zahlungsart des Servers geht weiterhin roh mit', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  const beleg = { ...fromReceiptPayload(BELEG_NUTZLAST), paymentMethod: 'klarna' } as unknown as Receipt;
+  await cancelReceipt(rufen, { receipt: beleg });
+  const gesendet = JSON.parse(aufrufe[0]!.init.body) as { params: Record<string, unknown> };
+  assert.equal(gesendet.params['paymentMethod'], 'klarna');
+});
+
+test('getReceipt: ein Beleg mit unbrauchbaren Positionen ist ein Antwortfehler, kein TypeError', async () => {
+  const faelle: Array<[string, unknown]> = [
+    ['items als Zeichenkette', { ...BELEG_NUTZLAST, items: 'text' }],
+    ['items als Zahl', { ...BELEG_NUTZLAST, items: 7 }],
+    ['vouchers als Zeichenkette', { ...BELEG_NUTZLAST, vouchers: 'text' }],
+    ['receipt als Zeichenkette', 'kein Beleg'],
+    ['receipt als Liste', []],
+  ];
+  for (const [name, beleg] of faelle) {
+    const { holen } = fetchFake(erfolg({ receipt: beleg }));
+    const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
+    const fehler = await getReceipt(rufen, 'r-1').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    assert.ok(isKasseneckValidationError(fehler), `${name}: erwartet KasseneckValidationError, bekam ${inspect(fehler)}`);
+    assert.equal(fehler.scope, 'response', name);
+    assert.equal(fehler.functionName, 'getReceipt', name);
+  }
+});
+
+test('getReceipt: ein Nullbeleg ohne Positionen bleibt lesbar', async () => {
+  // Die Verschaerfung oben darf den Normalfall nicht treffen: Nullbelege
+  // tragen weder items noch vouchers.
+  const { holen } = fetchFake(erfolg({ receipt: { ...BELEG_NUTZLAST, items: null, vouchers: null } }));
+  const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
+  const beleg = await getReceipt(rufen, 'r-1');
+  assert.deepEqual(beleg.items, []);
+  assert.deepEqual(beleg.vouchers, []);
 });

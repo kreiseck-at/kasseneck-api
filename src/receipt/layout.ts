@@ -11,6 +11,7 @@ import {
   type Voucher,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
+import { KasseneckValidationError } from '../client/errors.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 
 /**
@@ -116,11 +117,39 @@ export function formatCents(cents: number): string {
  * `KasseneckReceipt.readableTime`. Der Server liefert seine Zeitstempel
  * uneinheitlich; gedeutet wird deshalb ueber `parseServerTimeStamp` und nie
  * ueber `new Date(text)` (siehe ../vienna-time.ts).
+ *
+ * Ist der Zeitstempel unlesbar, wirft die Deutung ein gewoehnliches `Error`.
+ * Das ist ein Antwortproblem und gehoert in die Fehler-Union dieses Pakets —
+ * sonst faellt ein Aufrufer, der nach den Waechtern verzweigt, aus allen
+ * heraus (dieselbe Umwandlung wie in client/receipts.ts bei
+ * getFirstReceiptDate).
  */
 function belegZeit(timeStamp: string): string {
-  const t = toViennaWallClock(parseServerTimeStamp(timeStamp));
+  let t;
+  try {
+    t = toViennaWallClock(parseServerTimeStamp(timeStamp));
+  } catch {
+    // Der Zeitstempel selbst wandert NICHT in die Meldung: er kommt aus einer
+    // fremden Antwort, und was dort steht, ist nicht unsere Zusage.
+    throw new KasseneckValidationError('buildReceiptLayout', 'Beleg enthaelt keinen lesbaren Zeitstempel', 'response');
+  }
   const zwei = (n: number): string => String(n).padStart(2, '0');
   return `${zwei(t.day)}.${zwei(t.month)}.${t.year} ${zwei(t.hour)}:${zwei(t.minute)}:${zwei(t.second)}`;
+}
+
+/**
+ * Zahlungsart als Anzeigetext. Drei Faelle, und alle drei kommen vor:
+ * bekannter Eintrag (Beschriftung), unbekannter Schluessel (roh — besser als
+ * ein Beleg, der sich nicht anzeigen laesst), und **gar keiner**: Start- und
+ * Nullbelege tragen keine Zahlungsart, das Backend sendet dann `null`. Da
+ * `typeof null === 'object'` ist, ergab das beim Lesen von `.label` einen
+ * nackten TypeError.
+ */
+function zahlungsartText(wert: Receipt['paymentMethod']): string {
+  if (wert != null && typeof wert === 'object') {
+    return wert.label;
+  }
+  return typeof wert === 'string' ? wert : '';
 }
 
 // -------------------------------------------------------- Kleinunternehmer
@@ -411,14 +440,7 @@ export function buildReceiptLayout(
     lines.push({ kind: 'rule', char: '-' });
   }
   lines.push(paarZeile('Gesamt:', `${formatCents(summeCents)} €`));
-  lines.push(
-    paarZeile(
-      'Zahlungsart:',
-      // Eine Zahlungsart, die dieses Paket noch nicht kennt, steht roh da —
-      // besser als ein Beleg, der sich nicht anzeigen laesst.
-      typeof receipt.paymentMethod === 'object' ? receipt.paymentMethod.label : receipt.paymentMethod,
-    ),
-  );
+  lines.push(paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod)));
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis
