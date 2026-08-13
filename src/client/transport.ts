@@ -91,15 +91,17 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
       // des Transports gemerkt (Ablaufzeiten siehe auth.ts).
       let anmeldung: AuthCredentials;
       try {
-        anmeldung = await Promise.race([Promise.resolve(options.auth()), abbruchAlsAblehnung(abbruch.signal)]);
+        const ergebnis = await Promise.race([Promise.resolve(options.auth()), abbruchAlsAblehnung(abbruch.signal)]);
+        anmeldung = gepruefteAnmeldung(ergebnis);
       } catch (ursache) {
         if (abbruch.signal.aborted) {
-          throw new KasseneckNetworkError(functionName, true, zeitlimitMs, causeDigest(ursache));
+          throw new KasseneckNetworkError(functionName, true, zeitlimitMs);
         }
-        // Eigene Pruefungen tragen ihren geheimnisfreien Grund weiter; eine
-        // fremde Meldung (Firebase & Co.) bleibt draussen.
+        // Eigene Pruefungen tragen ihren geheimnisfreien Grund weiter; von einer
+        // fremden Ursache (Firebase & Co.) bleibt nichts uebrig — weder Meldung
+        // noch Verdichtung, siehe Klassenkommentar zu KasseneckAuthError.
         const grund = ursache instanceof KasseneckAuthError ? ursache.reason : 'Anmeldung fehlgeschlagen';
-        throw new KasseneckAuthError(grund, { functionName, cause: causeDigest(ursache) });
+        throw new KasseneckAuthError(grund, { functionName });
       }
 
       // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen.
@@ -181,6 +183,36 @@ function nutzlast(authParams: Record<string, unknown>, params: Record<string, un
     }
   }
   return zusammen;
+}
+
+/**
+ * Prueft, was eine Anmeldung geliefert hat. Die Typen verlangen
+ * `{headers, params}` — `auth()` ist aber der Erweiterungspunkt fuer fremden
+ * Code, und zur Laufzeit kommt an, was ankommt. Ohne diese Pruefung flogen
+ * `undefined`, ein String oder ein Objekt ohne `headers` als roher `TypeError`
+ * an allen Fehlerarten dieses Pakets vorbei, waehrend ein fehlendes `params`
+ * still durchlief. Der gelieferte Wert selbst taucht in der Meldung **nicht**
+ * auf — er kann der api_key sein.
+ */
+function gepruefteAnmeldung(wert: unknown): AuthCredentials {
+  if (typeof wert !== 'object' || wert === null) {
+    throw new KasseneckAuthError('Anmeldung lieferte keine Zugangsdaten');
+  }
+  const { headers, params } = wert as { headers?: unknown; params?: unknown };
+  if (!istKopfzeilen(headers)) {
+    throw new KasseneckAuthError('Anmeldung lieferte keine brauchbaren Kopfzeilen');
+  }
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+    throw new KasseneckAuthError('Anmeldung lieferte keine brauchbaren Zusatzparameter');
+  }
+  return { headers, params: params as Record<string, unknown> };
+}
+
+function istKopfzeilen(wert: unknown): wert is Record<string, string> {
+  if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) {
+    return false;
+  }
+  return Object.values(wert).every((eintrag) => typeof eintrag === 'string');
 }
 
 /** Lehnt ab, sobald das Zeitlimit die Anfrage abbricht. */

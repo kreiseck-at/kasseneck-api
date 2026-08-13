@@ -31,9 +31,18 @@
  * Fehlern: `console.error(err)` und `util.inspect` drucken die Ursachenkette
  * mit, und fremde HTTP-Bibliotheken haengen ihre Anfrage an ihre Fehler (axios
  * `config.headers`, got `options.headers`) — mit dem Bearer-Schluessel darin.
- * Statt der Ursache selbst tragen die Fehler ihre **verdichtete** Form:
- * `causeName`/`causeCode`, beide nur, wenn sie wie ein Bezeichner aussehen und
- * mit keinem der gesendeten Geheimnisse ueberlappen (siehe `causeDigest`).
+ * Statt der Ursache selbst traegt `KasseneckNetworkError` ihre **verdichtete**
+ * Form: `causeName`/`causeCode`, beide nur, wenn sie wie ein Bezeichner
+ * aussehen **und** mit keinem der gesendeten Geheimnisse ueberlappen (siehe
+ * `causeDigest`).
+ *
+ * Der Formfilter allein traegt diese Zusage naemlich nicht: der
+ * Sitzungsbezeichner der Browser-Kasse ist selbst bezeichner-foermig und kaeme
+ * durch. Verdichtet werden darf nur, wo die gesendeten Geheimnisse bekannt
+ * sind — also nach dem Bauen der Anfrage. `KasseneckAuthError` traegt darum
+ * **gar keine** Ursachen-Verdichtung: dort ist noch nichts gesendet, es gibt
+ * keine Liste zum Abgleichen, und Diagnose ist an dieser Stelle weniger wert
+ * als die Zusage.
  */
 
 /** Verdichtete, geheimnisfreie Form einer fremden Fehlerursache. */
@@ -50,9 +59,13 @@ const BEZEICHNER = /^[A-Za-z][A-Za-z0-9_./-]{0,63}$/;
 /**
  * Reduziert eine fremde Ursache auf Name und Code — und verwirft beides, wenn
  * es kein Bezeichner ist oder mit einem der uebergebenen Geheimnisse
- * ueberlappt (ein Sitzungsbezeichner kann durchaus bezeichner-artig aussehen).
+ * ueberlappt (ein Sitzungsbezeichner sieht durchaus bezeichner-artig aus).
+ *
+ * `geheimnisse` hat bewusst **keinen** Vorgabewert: eine Verdichtung ohne
+ * Abgleichliste waere nur ein Formfilter und damit keine Zusage. Wo die
+ * gesendeten Werte nicht bekannt sind, wird gar nicht verdichtet.
  */
-export function causeDigest(ursache: unknown, geheimnisse: readonly string[] = []): CauseDigest {
+export function causeDigest(ursache: unknown, geheimnisse: readonly string[]): CauseDigest {
   const roh = ursache as { name?: unknown; code?: unknown } | null | undefined;
   return {
     causeName: unbedenklich(roh?.name, geheimnisse),
@@ -143,25 +156,28 @@ export class KasseneckNetworkError extends Error {
   }
 }
 
-/** Die Anmeldung scheiterte — es ging keine Anfrage raus. */
+/**
+ * Die Anmeldung scheiterte — es ging keine Anfrage raus.
+ *
+ * Dieser Fehler traegt **nichts** aus der fremden Ursache: weder ihre Meldung
+ * (ein Token-Geber fuehrt gern den Token mit, den er gerade nicht erneuern
+ * konnte) noch eine Verdichtung ihres Namens/Codes. Zum Zeitpunkt des
+ * Anmeldefehlers ist noch nichts gesendet, es gibt also keine Liste der
+ * Geheimnisse, gegen die verdichtete Werte geprueft werden koennten — und ein
+ * reiner Formfilter laesst genau die Form durch, die ein Sitzungsbezeichner
+ * hat.
+ */
 export class KasseneckAuthError extends Error {
   readonly name = 'KasseneckAuthError';
   /** Betroffene Backend-Funktion, falls der Fehler bei einem Aufruf entstand. */
   readonly functionName: string | undefined;
   /** Vom Paket formulierter Grund — geheimnisfrei, anders als fremde Meldungen. */
   readonly reason: string;
-  readonly causeName: string | undefined;
-  readonly causeCode: string | undefined;
 
-  constructor(reason: string, options: { functionName?: string; cause?: CauseDigest } = {}) {
-    // Die Meldung eines fremden Token-Gebers (Firebase & Co.) bleibt bewusst
-    // draussen: sie fuehrt gern den Token mit, den sie gerade nicht erneuern
-    // konnte.
+  constructor(reason: string, options: { functionName?: string } = {}) {
     super(options.functionName ? `${options.functionName} fehlgeschlagen: ${reason}` : reason);
     this.functionName = options.functionName;
     this.reason = reason;
-    this.causeName = options.cause?.causeName;
-    this.causeCode = options.cause?.causeCode;
   }
 }
 

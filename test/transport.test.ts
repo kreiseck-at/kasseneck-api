@@ -273,13 +273,62 @@ test('Zeitueberschreitung bricht die Anfrage ab und meldet sich als solche', asy
   assert.equal(gesehenerSignal?.aborted, true, 'die Anfrage muss wirklich abgebrochen werden');
 });
 
-test('erfolgreicher Aufruf laesst keinen Wecker offen (Prozess darf enden)', async () => {
-  const { holen } = fetchFake(erfolg({}));
-  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen, timeoutMs: 60_000 });
-  const vorher = process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
-  await rufen('getReceipt');
-  const nachher = process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
-  assert.equal(nachher, vorher, 'der Zeitlimit-Wecker muss abgeraeumt werden');
+const offeneWecker = () => process.getActiveResourcesInfo().filter((eintrag) => eintrag === 'Timeout').length;
+
+test('kein Aufruf laesst einen Wecker offen — auf keinem Pfad (Prozess darf enden)', async () => {
+  // Zieht jemand das clearTimeout aus dem finally in den Erfolgszweig, faellt
+  // genau hier auf, dass jeder Fehlerpfad den Prozess bis zum Zeitlimit
+  // wachhaelt.
+  const pfade: Array<[string, () => Promise<unknown>]> = [
+    [
+      'erfolg',
+      () => createTransport({ auth: apiSchluesselWeg(), fetch: fetchFake(erfolg({})).holen, timeoutMs: 60_000 })('getReceipt'),
+    ],
+    [
+      'fachlich',
+      () =>
+        createTransport({ auth: apiSchluesselWeg(), fetch: fetchFake(fachfehler('gesperrt')).holen, timeoutMs: 60_000 })(
+          'getReceipt',
+        ),
+    ],
+    [
+      'http',
+      () =>
+        createTransport({
+          auth: apiSchluesselWeg(),
+          fetch: fetchFake(antwort('<html>500</html>', { status: 500, contentType: 'text/html' })).holen,
+          timeoutMs: 60_000,
+        })('getReceipt'),
+    ],
+    [
+      'netz',
+      () =>
+        createTransport({
+          auth: apiSchluesselWeg(),
+          fetch: async () => {
+            throw new TypeError('fetch failed');
+          },
+          timeoutMs: 60_000,
+        })('getReceipt'),
+    ],
+    [
+      'anmeldung',
+      () =>
+        createTransport({
+          auth: () => {
+            throw new Error('kaputt');
+          },
+          fetch: fetchFake(erfolg({})).holen,
+          timeoutMs: 60_000,
+        })('getReceipt'),
+    ],
+  ];
+
+  for (const [name, pfad] of pfade) {
+    const vorher = offeneWecker();
+    await pfad().catch(() => undefined);
+    assert.equal(offeneWecker(), vorher, `Pfad ${name}: der Zeitlimit-Wecker muss abgeraeumt werden`);
+  }
 });
 
 // --- Kein Geheimnis in der Fehlermeldung -------------------------------
@@ -324,7 +373,7 @@ function proxyFehler(kopfzeilen: Record<string, string>): Error {
   });
 }
 
-test('kein Geheimnis in Fehlern des api_key-Wegs (alle drei Fehlerarten)', async () => {
+test('kein Geheimnis in Fehlern des api_key-Wegs (alle vier Fehlerarten)', async () => {
   const faelle: Array<[string, FetchLike]> = [
     ['fachlich', async () => fachfehler('Kasse ist gesperrt')],
     ['http', async () => antwort('<html>500</html>', { status: 500, contentType: 'text/html' })],
@@ -342,9 +391,19 @@ test('kein Geheimnis in Fehlern des api_key-Wegs (alle drei Fehlerarten)', async
       keineGeheimnisse(fehler, `Fall ${name}: `),
     );
   }
+
+  // Vierte Fehlerart: die Anmeldung selbst scheitert und traegt die Geheimnisse
+  // in Meldung und Code mit sich.
+  const anmeldeFehler = createTransport({
+    auth: () => {
+      throw Object.assign(new Error(`Schluessel ${API_KEY} abgelehnt`), { name: 'KeyStoreError', code: KASSEN_TOKEN });
+    },
+    fetch: async () => erfolg({}),
+  });
+  await assert.rejects(anmeldeFehler('createReceipt'), (fehler: unknown) => keineGeheimnisse(fehler, 'Fall anmeldung: '));
 });
 
-test('kein Geheimnis in Fehlern des Kassen-Benutzer-Wegs (alle drei Fehlerarten)', async () => {
+test('kein Geheimnis in Fehlern des Kassen-Benutzer-Wegs (alle vier Fehlerarten)', async () => {
   const faelle: FetchLike[] = [
     async () => fachfehler('Sitzung abgelaufen'),
     async () => antwort('nicht json', { status: 404, contentType: 'text/plain' }),
@@ -356,6 +415,74 @@ test('kein Geheimnis in Fehlern des Kassen-Benutzer-Wegs (alle drei Fehlerarten)
   for (const holen of faelle) {
     const rufen = createTransport({ auth: kassenBenutzerWeg(), fetch: holen });
     await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) => keineGeheimnisse(fehler));
+  }
+
+  const anmeldeFehler = createTransport({
+    auth: registerUserAuth({
+      getIdToken: () => {
+        throw Object.assign(new Error(`refresh fuer ${ID_TOKEN} fehlgeschlagen`), { name: 'FirebaseError', code: SITZUNG });
+      },
+      getSessionId: () => SITZUNG,
+      cashregisterId: 'kasse-1',
+    }),
+    fetch: async () => erfolg({}),
+  });
+  await assert.rejects(anmeldeFehler('createReceipt'), (fehler: unknown) => keineGeheimnisse(fehler, 'Fall anmeldung: '));
+});
+
+test('der Anmeldepfad verdichtet keine fremde Ursache — dort ist kein Geheimnis bekannt', async () => {
+  // Der Sitzungsbezeichner der Browser-Kasse ist bezeichner-foermig und kaeme
+  // durch jeden reinen Formfilter. Auf dem Anmeldepfad liegt aber gar keine
+  // Geheimnisliste vor (es wurde noch nichts gesendet), also gibt es dort
+  // ueberhaupt keine Ursachen-Verdichtung.
+  const rufen = createTransport({
+    auth: registerUserAuth({
+      getIdToken: () => {
+        throw Object.assign(new Error('token refresh failed'), { name: 'FirebaseError', code: SITZUNG });
+      },
+      getSessionId: () => SITZUNG,
+      cashregisterId: 'kasse-1',
+    }),
+    fetch: async () => erfolg({}),
+  });
+
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckAuthError);
+    const felder = fehler as unknown as Record<string, unknown>;
+    assert.equal(felder['causeCode'], undefined, 'ein bezeichner-foermiges Geheimnis darf nicht durchkommen');
+    assert.equal(felder['causeName'], undefined);
+    keineGeheimnisse(fehler);
+    return true;
+  });
+});
+
+// --- Eine unbrauchbare Anmeldung faellt nicht an der Union vorbei ------
+
+test('eine unbrauchbare Anmeldung wird zum KasseneckAuthError, nicht zum rohen TypeError', async () => {
+  // `auth()` ist der Erweiterungspunkt fuer fremden Code — die Typen verbieten
+  // das hier zwar, zur Laufzeit kommt trotzdem an, was ankommt.
+  const unbrauchbar: Array<[string, unknown]> = [
+    ['undefined', undefined],
+    ['null', null],
+    ['String', API_KEY],
+    ['ohne headers', { params: {} }],
+    ['ohne params', { headers: { Authorization: `Bearer ${API_KEY}` } }],
+    ['headers mit Zahl', { headers: { Authorization: 42 }, params: {} }],
+  ];
+
+  for (const [name, ergebnis] of unbrauchbar) {
+    const { holen, aufrufe } = fetchFake(erfolg({}));
+    const rufen = createTransport({ auth: () => ergebnis as never, fetch: holen });
+    await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+      assert.ok(fehler instanceof KasseneckAuthError, `Fall ${name}: muss KasseneckAuthError sein`);
+      assert.ok(!(fehler instanceof TypeError), `Fall ${name}: kein roher TypeError`);
+      assert.match(fehler.message, /createReceipt/);
+      // Der zurueckgegebene Wert selbst darf nicht in die Meldung wandern —
+      // im Fall 'String' waere das der api_key.
+      keineGeheimnisse(fehler, `Fall ${name}: `);
+      return true;
+    });
+    assert.equal(aufrufe.length, 0, `Fall ${name}: ohne brauchbare Anmeldung geht nichts raus`);
   }
 });
 
@@ -447,7 +574,9 @@ test('scheiternde Anmeldung ist eine eigene Fehlerart, kein blanker Error', asyn
     assert.ok(!(fehler instanceof KasseneckNetworkError));
     assert.ok(isKasseneckAuthError(fehler) && !isKasseneckNetworkError(fehler));
     assert.equal(fehler.functionName, 'createReceipt');
-    assert.equal(fehler.causeCode, 'auth/internal-error');
+    // Die fremde Meldung bleibt draussen; eine Ursachen-Verdichtung gibt es auf
+    // diesem Pfad nicht (siehe Test zum Anmeldepfad weiter unten).
+    assert.match(fehler.message, /Anmeldung fehlgeschlagen/);
     keineGeheimnisse(fehler);
     return true;
   });
