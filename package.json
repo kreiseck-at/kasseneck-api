@@ -4,6 +4,21 @@
   "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
   "license": "Apache-2.0",
   "author": "Kreiseck",
+  "homepage": "https://github.com/kreiseck-at/kasseneck-api#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kreiseck-at/kasseneck-api.git"
+  },
+  "bugs": "https://github.com/kreiseck-at/kasseneck-api/issues",
+  "keywords": [
+    "kasseneck",
+    "rksv",
+    "registrierkasse",
+    "österreich",
+    "austria",
+    "beleg",
+    "pos"
+  ],
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",

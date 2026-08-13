@@ -19,6 +19,7 @@ test('Belegtyp deckt sich mit dem Flutter-Paket', () => {
   assert.deepEqual(Object.keys(ReceiptType).sort(), Object.keys(abzug.ReceiptType).sort());
   for (const [k, v] of Object.entries(abzug.ReceiptType)) {
     const eintrag = ReceiptType[k as keyof typeof ReceiptType];
+    assert.equal(eintrag.value, k, `Belegtyp ${k}: value weicht vom Schluessel ab — das ist die Nutzlast ans Backend`);
     assert.deepEqual(
       { needsItems: eintrag.needsItems, isZero: eintrag.isZero, allowsVouchers: eintrag.allowsVouchers },
       v,
@@ -31,6 +32,7 @@ test('Steuersaetze decken sich mit dem Flutter-Paket', () => {
   assert.deepEqual(Object.keys(VatRate).sort(), Object.keys(abzug.VatRate).sort());
   for (const [k, v] of Object.entries(abzug.VatRate)) {
     const eintrag = VatRate[k as keyof typeof VatRate];
+    assert.equal(eintrag.value, k, `Steuersatz ${k}: value weicht vom Schluessel ab — das ist die Nutzlast ans Backend`);
     assert.deepEqual(
       { rate: eintrag.rate, category: eintrag.category },
       v,
@@ -43,6 +45,7 @@ test('Zahlungsarten decken sich mit dem Flutter-Paket', () => {
   assert.deepEqual(Object.keys(KeckPaymentMethod).sort(), Object.keys(abzug.KeckPaymentMethod).sort());
   for (const [k, v] of Object.entries(abzug.KeckPaymentMethod)) {
     const eintrag = KeckPaymentMethod[k as keyof typeof KeckPaymentMethod];
+    assert.equal(eintrag.value, k, `Zahlungsart ${k}: value weicht vom Schluessel ab — das ist die Nutzlast ans Backend`);
     assert.deepEqual(
       { needsCreditCard: eintrag.needsCreditCard, label: eintrag.label },
       v,

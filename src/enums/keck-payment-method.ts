@@ -1,3 +1,5 @@
+import { defineEnum } from './define-enum.js';
+
 /**
  * Zahlungsart — Zwilling von `KeckPaymentMethod` in
  * kasseneck_api/lib/enums/keck_payment_method.dart.
@@ -6,7 +8,7 @@
  * Muss 1:1 mit dem Backend-Mapping `paymentMethodToString` (functions/helper.js)
  * uebereinstimmen.
  */
-export const KeckPaymentMethod = {
+export const KeckPaymentMethod = defineEnum({
   cash: { value: 'cash', needsCreditCard: false, label: 'Barzahlung' },
   creditCard: { value: 'creditCard', needsCreditCard: true, label: 'Kartenzahlung' },
   online: { value: 'online', needsCreditCard: false, label: 'Onlinezahlung' },
@@ -16,7 +18,7 @@ export const KeckPaymentMethod = {
   boltApp: { value: 'boltApp', needsCreditCard: false, label: 'Bolt App' },
   boltCash: { value: 'boltCash', needsCreditCard: false, label: 'Bolt Cash' },
   boltCard: { value: 'boltCard', needsCreditCard: true, label: 'Bolt Card' },
-} as const;
+});
 
 export type KeckPaymentMethodKey = keyof typeof KeckPaymentMethod;
 export type KeckPaymentMethod = (typeof KeckPaymentMethod)[KeckPaymentMethodKey];
