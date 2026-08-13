@@ -42,7 +42,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\"",
-    "test": "tsc -p tsconfig.test.json && node --test $(find test-dist -name '*.test.js')",
+    "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
