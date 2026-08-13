@@ -51,4 +51,28 @@ export {
   hobexReceiptNeedsSignature,
 } from './models/index.js';
 
+export {
+  type AuthCredentials,
+  type KasseneckAuth,
+  type ApiKeyAuthOptions,
+  type RegisterUserAuthOptions,
+  apiKeyAuth,
+  registerUserAuth,
+  DEFAULT_BASE_URL,
+  DEFAULT_TIMEOUT_MS,
+  type HttpResponseLike,
+  type HttpRequestInit,
+  type FetchLike,
+  type TransportOptions,
+  type KasseneckTransport,
+  createTransport,
+  KasseneckApiError,
+  KasseneckHttpError,
+  KasseneckNetworkError,
+  type KasseneckError,
+  isKasseneckApiError,
+  isKasseneckHttpError,
+  isKasseneckNetworkError,
+} from './client/index.js';
+
 export { parseServerTimeStamp } from './vienna-time.js';
