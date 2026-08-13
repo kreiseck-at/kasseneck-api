@@ -33,7 +33,15 @@ const HAT_ZEITZONE = /Z$|[+-]\d{2}:?\d{2}$/;
 export function parseServerTimeStamp(raw: string): Date {
   const trimmed = raw.trim();
   if (HAT_ZEITZONE.test(trimmed)) {
-    return new Date(trimmed);
+    const zeitpunkt = new Date(trimmed);
+    // `new Date` macht aus '2026-99-99T00:00:00Z' klaglos ein Invalid Date:
+    // eine Zeitzone allein macht noch kein Datum. Ohne diese Pruefung wandert
+    // der Unsinn still weiter und wird erst in einer Ableitung zu NaN — dort,
+    // wo niemand mehr auf den Zeitstempel schaut.
+    if (Number.isNaN(zeitpunkt.getTime())) {
+      throw new Error(`Zeitstempel: unlesbares Format "${raw}"`);
+    }
+    return zeitpunkt;
   }
   const match = NAIVER_ZEITSTEMPEL.exec(trimmed);
   if (!match) {
@@ -72,6 +80,11 @@ type WanduhrFelder = ViennaWallClock;
  */
 export function toViennaWallClock(zeitpunkt: Date): ViennaWallClock {
   const utcMs = zeitpunkt.getTime();
+  // Ein Invalid Date wuerde hier lautlos zu NaN in jedem Feld — und damit zu
+  // einem NaN-Berichtsmonat beim Aufrufer.
+  if (Number.isNaN(utcMs)) {
+    throw new Error('Zeitpunkt: unbrauchbarer Wert (Invalid Date)');
+  }
   const versatzMs = (istSommerzeit(utcMs) ? 2 : 1) * STUNDE_MS;
   const verschoben = new Date(utcMs + versatzMs);
   return {

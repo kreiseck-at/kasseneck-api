@@ -66,13 +66,17 @@ export interface ReceiptCommonOptions {
 /** Belegtyp und Inhalt — die vollstaendige Eingabe von [createReceipt]. */
 export interface CreateReceiptOptions extends ReceiptCommonOptions {
   receiptType: ReceiptType | ReceiptTypeKey;
+  /** Zahlungsart des Aufrufers — wird vor dem Senden geprueft. */
+  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
   /**
-   * Bekannter Eintrag, bekannter Schluessel — oder ein roher String. Letzteres
-   * gilt nur fuer Werte, die vom Server stammen (Storno eines gelesenen
-   * Belegs, siehe [cancelReceipt]); die benannten Aufrufe darueber lassen nur
-   * die bekannten Zahlungsarten zu.
+   * Zahlungsart, die aus einer **Serverantwort** stammt (Storno eines
+   * gelesenen Belegs, siehe [cancelReceipt]). Geht ungeprueft hinaus: der
+   * Server hat den Wert selbst vergeben und weist unbekannte selbst ab —
+   * ergaenzt er eine Zahlungsart vor dem naechsten Paket-Update, waeren sonst
+   * alle Belege damit unstornierbar. Nur fuer diesen einen Weg gedacht; eine
+   * ausdruecklich uebergebene `paymentMethod` sticht.
    */
-  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey | string;
+  paymentMethodFromServer?: string;
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
@@ -142,12 +146,13 @@ export async function createReceipt(rufen: KasseneckTransport, options: CreateRe
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
   }
 
-  if (options.paymentMethod != null) {
-    // Roher String statt strenger Aufloesung: die gueltigen Zahlungsarten
-    // kennt das Backend, und es weist unbekannte selbst ab. Ergaenzt es eine
-    // neue, bevor dieses Paket sie kennt, waere sonst jeder Beleg mit dieser
-    // Zahlungsart unstornierbar — obwohl der Server ihn angenommen haette.
-    const zahlungsart = typeof options.paymentMethod === 'object' ? options.paymentMethod.value : options.paymentMethod;
+  // Vom Aufrufer kommt sie geprueft, vom Server roh — siehe die beiden Felder
+  // in [CreateReceiptOptions]. Die Typpruefung allein reicht dafuer nicht: ein
+  // Verbraucher ohne Typen faellt durch dieses Netz, und ein Tippfehler in der
+  // Zahlungsart faellt sonst erst am Server auf.
+  const zahlungsart =
+    options.paymentMethod != null ? gepruefteZahlungsart(options.paymentMethod) : options.paymentMethodFromServer;
+  if (zahlungsart != null) {
     params['paymentMethod'] = zahlungsart;
     const anbieter = options.creditCardProvider ?? CreditCardProvider.custom;
     if (zahlungsart === KeckPaymentMethod.creditCard.value) {
@@ -196,12 +201,15 @@ export function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptO
     receiptType: ReceiptType.cancellation,
     customerDetails: receipt.customerDetails,
     items: receipt.items.map(negateReceiptItem),
-    // Der gelesene Beleg kann eine Zahlungsart tragen, die dieses Paket noch
-    // nicht kennt (roher String, siehe models/receipt.ts). Sie geht
-    // unveraendert hinaus: still auf 'cash' zurueckzufallen verfaelschte die
-    // Zahlungsartenaufteilung im Tages- und Monatsbericht, und zu werfen
-    // machte solche Belege unstornierbar.
-    paymentMethod: paymentMethod ?? receipt.paymentMethod,
+    // Eine ausdruecklich uebergebene Zahlungsart ist eine Aussage des
+    // Aufrufers und wird geprueft. Ohne sie gilt die des stornierten Belegs —
+    // die stammt vom Server und geht roh durch (sie kann eine Zahlungsart
+    // sein, die dieses Paket noch nicht kennt; still auf 'cash'
+    // zurueckzufallen verfaelschte die Zahlungsartenaufteilung im Tages- und
+    // Monatsbericht, und zu werfen machte solche Belege unstornierbar).
+    ...(paymentMethod != null
+      ? { paymentMethod }
+      : { paymentMethodFromServer: typeof receipt.paymentMethod === 'object' ? receipt.paymentMethod.value : receipt.paymentMethod }),
   });
 }
 
@@ -253,8 +261,18 @@ export async function getFirstReceiptDate(rufen: KasseneckTransport): Promise<Re
   // Ueber die Wiener Wanduhrzeit statt ueber getMonth(): der erste Beleg eines
   // Monats liegt gern kurz nach Mitternacht, und der eingebaute Monat waere der
   // des ausfuehrenden Rechners (siehe vienna-time.ts).
-  const wanduhr = toViennaWallClock(parseServerTimeStamp(roh));
-  return { month: wanduhr.month, year: wanduhr.year };
+  //
+  // Die Deutung wirft ein gewoehnliches Error, wenn der Zeitstempel unlesbar
+  // ist. Das ist hier ein Antwortproblem und gehoert in die Fehler-Union, die
+  // dieser Endpunkt zusagt — sonst faellt der Aufrufer aus allen Waechtern.
+  try {
+    const wanduhr = toViennaWallClock(parseServerTimeStamp(roh));
+    return { month: wanduhr.month, year: wanduhr.year };
+  } catch {
+    // Der Zeitstempel selbst wandert NICHT in die Meldung: er kommt aus einer
+    // fremden Antwort, und was dort steht, ist nicht unsere Zusage.
+    throw antwortfehler('getFirstReceiptDate', 'Antwort enthaelt keinen lesbaren Zeitstempel');
+  }
 }
 
 /**
@@ -332,6 +350,17 @@ function alsNutzlast<T, P>(werte: T[], wandeln: (wert: T) => P): P[] {
     // (sie nennen den unbekannten Steuersatz bzw. Schluessel, sonst nichts).
     throw eingabefehler(ursache instanceof Error ? ursache.message : 'Ungueltige Nutzlast uebergeben.');
   }
+}
+
+/** Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht. */
+function gepruefteZahlungsart(wert: KeckPaymentMethod | KeckPaymentMethodKey): string {
+  if (typeof wert === 'object') {
+    return wert.value;
+  }
+  if (!Object.prototype.hasOwnProperty.call(KeckPaymentMethod, wert)) {
+    throw eingabefehler(`Zahlungsart: unbekannter Schluessel "${wert}"`);
+  }
+  return KeckPaymentMethod[wert as KeckPaymentMethodKey].value;
 }
 
 /** Kartenanbieter pruefen — er stammt vom Aufrufer, nicht aus Serverdaten. */

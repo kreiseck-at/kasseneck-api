@@ -1,10 +1,3 @@
-// Zeitzone des Testlaufs festnageln: Der Berichtsmonat wird nach Wiener Zeit
-// gebildet, und auf einer Maschine, die ohnehin in Wien steht, liefe auch die
-// falsche Umsetzung (die eingebauten getMonth()/getFullYear()) gruen durch.
-// Unter UTC faellt der Unterschied auf — hier laeuft der Waechter also
-// unabhaengig davon, wo entwickelt wird.
-process.env.TZ = 'UTC';
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { VatRate, ReceiptType, KeckPaymentMethod, CreditCardProvider, VoucherType, VoucherAction } from '../src/enums/index.js';
@@ -90,19 +83,28 @@ test('Belegposition: v1 ohne Cent-Feld faellt exakt auf die Euro-Rundung zurueck
   assert.deepEqual(fromReceiptItemPayload(v1), { name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 320 });
 });
 
-test('Belegposition: traegt die Nutzlast beide Formen, gewinnt die Cent-Angabe', () => {
-  // Gemischte Form: so sieht ein Beleg aus, den ein v2-Client erzeugt hat.
+test('Belegposition: tragen beide Formen widersprechende Werte, gewinnt v2 vor v1 und Cent vor Euro', () => {
+  // Bewusst widerspruechlich befuellt: mit gleichen Werten auf beiden Seiten
+  // haelt der Test die Reihenfolge gar nicht fest — er bliebe auch dann gruen,
+  // wenn die Kette auf v1-vor-v2 gedreht waere.
   const beide = {
     name: 'Kaffee',
     quantity: 3,
     unitPriceCents: 333,
     vatRate: 13,
-    amount: 3,
-    vat: 13,
-    priceOne: 3.33,
-    priceOneCents: 333,
+    amount: 7,
+    vat: 20,
+    priceOne: 99.99,
+    priceOneCents: 999,
   };
   assert.deepEqual(fromReceiptItemPayload(beide), { name: 'Kaffee', quantity: 3, vat: VatRate.vat13, priceCents: 333 });
+});
+
+test('Belegposition: fehlt das v2-Cent-Feld, gewinnt die v1-Cent-Angabe vor der v1-Euro-Angabe', () => {
+  // Zweite Stufe der Kette, ebenfalls widerspruechlich befuellt: exakt vor
+  // gerundet, auch innerhalb von v1.
+  const v1 = { name: 'Kaffee', amount: 1, vat: 10, priceOne: 99.99, priceOneCents: 320 };
+  assert.deepEqual(fromReceiptItemPayload(v1), { name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 320 });
 });
 
 test('Belegposition: ein v1-Beleg bleibt stornierbar — die gelesene Position ist gueltig', () => {
@@ -521,4 +523,10 @@ test('Hobex-Beleg: toCardPaymentData liefert die vom Beleg-Rendering erwarteten 
     cvm: '1',
   });
   assert.equal(hobexReceiptNeedsSignature(beleg), true);
+});
+
+test('Berichtsmonat: ein unbrauchbarer Zeitpunkt wirft statt NaN zu liefern', () => {
+  // Ein NaN-Berichtsmonat wanderte sonst ungebremst in die Monatsberichtslogik
+  // des Aufrufers und faellt dort erst viel spaeter auf.
+  assert.throws(() => reportMonthFromDate(new Date(NaN)), /Zeitpunkt/);
 });

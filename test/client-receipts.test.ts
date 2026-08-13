@@ -29,7 +29,7 @@ import {
   type KasseneckTransport,
 } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
-import { ReceiptType, VatRate, KeckPaymentMethod, CreditCardProvider, VoucherAction, VoucherType } from '../src/enums/index.js';
+import { ReceiptType, VatRate, KeckPaymentMethod, type KeckPaymentMethodKey, CreditCardProvider, VoucherAction, VoucherType } from '../src/enums/index.js';
 import type { Receipt, ReceiptItem, ReceiptPayload, Voucher } from '../src/models/index.js';
 
 /**
@@ -601,4 +601,79 @@ test('kein Geheimnis wandert in einen Fehler der Beleg-Endpunkte', async () => {
   for (const geheim of [API_KEY, KASSEN_TOKEN, ID_TOKEN, SITZUNG]) {
     assert.ok(!gedruckt.includes(geheim), `Geheimnis im Fehler sichtbar: ${geheim}`);
   }
+});
+
+test('getFirstReceiptDate: unlesbarer Zeitstempel kommt als KasseneckValidationError, nicht als nacktes Error', async () => {
+  for (const roh of ['gestern', '2026-99-99T00:00:00Z', '']) {
+    const { rufen } = apiSchluesselWeg(roh);
+    const fehler = await getFirstReceiptDate(rufen).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    assert.ok(isKasseneckValidationError(fehler), `"${roh}": erwartet KasseneckValidationError, bekam ${String(fehler)}`);
+    assert.equal(fehler.scope, 'response');
+    assert.equal(fehler.functionName, 'getFirstReceiptDate');
+    assert.ok(istKasseneckFehler(fehler), `"${roh}": faellt aus der Fehler-Union`);
+  }
+});
+
+test('getFirstReceiptDate liefert nie einen NaN-Berichtsmonat', async () => {
+  // '2026-99-99T00:00:00Z' trug frueher still ein Invalid Date bis in den
+  // Berichtsmonat durch: {month: NaN, year: NaN} ohne einen einzigen Fehler.
+  const { rufen } = apiSchluesselWeg('2026-99-99T00:00:00Z');
+  const monat = await getFirstReceiptDate(rufen).then(
+    (m) => m,
+    () => null,
+  );
+  assert.equal(monat, null, 'ein unlesbarer Zeitstempel darf keinen Berichtsmonat ergeben');
+});
+
+// --- Zahlungsart: Aufrufer streng, Serverwert roh ------------------------
+
+test('benannte Aufrufe pruefen die Zahlungsart auch ohne Typpruefung des Aufrufers', async () => {
+  // Ein JS-Verbraucher ohne Typen faellt durch das Typnetz. Ohne
+  // Laufzeitpruefung ginge 'klarna' hinaus und faellt erst am Server auf.
+  const faelle: Array<{ name: string; aufruf: (r: KasseneckTransport) => Promise<unknown> }> = [
+    { name: 'sellReceipt', aufruf: (r) => sellReceipt(r, { paymentMethod: 'klarna' as KeckPaymentMethodKey, items: [KAFFEE] }) },
+    { name: 'createCancelReceipt', aufruf: (r) => createCancelReceipt(r, { paymentMethod: 'klarna' as KeckPaymentMethodKey, items: [KAFFEE] }) },
+  ];
+
+  for (const fall of faelle) {
+    const { rufen, aufrufe } = apiSchluesselWeg();
+    const fehler = await fall.aufruf(rufen).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    assert.ok(isKasseneckValidationError(fehler), `${fall.name}: erwartet KasseneckValidationError, bekam ${String(fehler)}`);
+    assert.equal(fehler.scope, 'request');
+    assert.match(fehler.reason, /Zahlungsart/);
+    assert.equal(aufrufe.length, 0, `${fall.name}: es darf nichts gesendet werden`);
+  }
+});
+
+test('cancelReceipt prueft eine ausdruecklich uebergebene Zahlungsart ebenfalls', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  const beleg: Receipt = {
+    receiptId: 'r-1',
+    cashregisterId: KASSEN_ID,
+    timeStamp: '2026-08-13T10:15:00',
+    items: [KAFFEE],
+    vouchers: [],
+    paymentMethod: KeckPaymentMethod.cash,
+    turnoverCounterAES256ICM: 'ZAEHLER',
+    signaturePreviousReceipt: 'VORGAENGER',
+    certificateSerialNumber: '6F0404F0',
+    receiptType: ReceiptType.standard,
+    sig: 'SIGNATUR',
+    qr: 'QR',
+    fullReceiptId: 'ENC-FULL-ID',
+    customerDetails: [],
+    legalMessage: [],
+  };
+
+  await assert.rejects(
+    () => cancelReceipt(rufen, { receipt: beleg, paymentMethod: 'klarna' as KeckPaymentMethodKey }),
+    /Zahlungsart/,
+  );
+  assert.equal(aufrufe.length, 0);
 });

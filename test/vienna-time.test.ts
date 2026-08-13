@@ -100,3 +100,15 @@ test('toViennaWallClock: kehrt parseServerTimeStamp exakt um (beide Jahreszeiten
     assert.equal(zurueck, roh);
   }
 });
+
+test('parseServerTimeStamp: Unsinn hinter einem Z wird nicht still zu einem unbrauchbaren Zeitpunkt', () => {
+  // '2026-99-99T00:00:00Z' hat eine Zeitzone, ist aber kein Datum. `new Date`
+  // macht daraus klaglos ein Invalid Date — und jede Ableitung daraus (Monat,
+  // Jahr) wird NaN, ohne dass irgendwo etwas auffaellt.
+  assert.throws(() => parseServerTimeStamp('2026-99-99T00:00:00Z'), /Zeitstempel/);
+  assert.throws(() => parseServerTimeStamp('gestern Z'), /Zeitstempel/);
+});
+
+test('toViennaWallClock: unbrauchbarer Zeitpunkt wirft statt NaN-Felder zu liefern', () => {
+  assert.throws(() => toViennaWallClock(new Date(NaN)), /Zeitpunkt/);
+});

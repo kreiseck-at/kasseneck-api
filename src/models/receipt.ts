@@ -83,6 +83,16 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   vouchers?: VoucherPayload[] | null;
 }
 
+/**
+ * Schreibt die Nutzlast in der **neuen** Form — sie **normalisiert, statt zu
+ * spiegeln**: ein Beleg, der in der v1-Positionsform gelesen wurde, geht hier
+ * in der v2-Form wieder hinaus (wie im Flutter-Vorbild, dessen `toJson` v2
+ * schreibt und dessen `fromJson` beide Formen liest). Nutzlast rein -> Beleg
+ * -> Nutzlast raus ist deshalb kein Rundtrip, wenn die Eingabe v1 war.
+ *
+ * Fuer dieses Paket ohne Folgen: Belege gehen ausschliesslich ueber
+ * `createReceipt` an den Server, das seine Nutzlast selbst baut.
+ */
 export function toReceiptPayload(receipt: Receipt): ReceiptPayload {
   // Schreibpfad bleibt streng: ReceiptType/KeckPaymentMethod sind bekannt am
   // Objekt-Charakter erkennbar (defineEnum-Eintraege); ein roher String muss
