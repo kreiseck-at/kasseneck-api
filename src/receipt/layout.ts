@@ -123,6 +123,23 @@ function belegZeit(timeStamp: string): string {
   return `${zwei(t.day)}.${zwei(t.month)}.${t.year} ${zwei(t.hour)}:${zwei(t.minute)}:${zwei(t.second)}`;
 }
 
+// -------------------------------------------------------- Kleinunternehmer
+
+/**
+ * Hinweis auf die Steuerbefreiung, den ein Kleinunternehmerbeleg tragen muss —
+ * ohne ihn stuende in der USt-Tabelle „D 0 %" ohne jede Begruendung, und ab
+ * 400 € greift § 11 UStG voll.
+ *
+ * Wortlaut **woertlich** aus dem Backend (`INVOICE_TAX_NOTE.smallBusiness` in
+ * functions/index.js), damit auf Beleg und Rechnung derselbe Satz steht. Er
+ * traegt einen Gedankenstrich (U+2013), kein Bindestrich; der Bondrucker
+ * bekommt ihn ueber die Ersetzung der ESC/POS-Bruecke.
+ *
+ * Weder `print_paper.dart` noch das Beleg-PDF des Backends drucken den Hinweis
+ * heute — hier liegt das Kennzeichen vor, also steht er hier.
+ */
+export const KLEINUNTERNEHMER_HINWEIS = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
+
 // ------------------------------------------------------------------ Signatur
 
 /** Text, den das Backend statt einer Signatur ablegt, wenn die Karte ausfaellt. */
@@ -171,6 +188,22 @@ function satzText(rate: number): string {
 interface Steuergruppe {
   satz: Steuersatz;
   bruttoCents: number;
+}
+
+/**
+ * Netto in ganzen Cent aus einem Brutto-Betrag.
+ *
+ * Gerundet wird **von der Null weg** — nicht mit `Math.round`, das `.5` immer
+ * Richtung +unendlich schiebt. Sonst spiegelt ein Stornobeleg seinen
+ * Originalbeleg nicht: 99 Cent zu 20 % liegen mit 82,5 Cent Netto genau auf der
+ * Rundungsgrenze, der Beleg zeigte „0,83 / 0,16", der Storno aber
+ * „-0,82 / -0,17" — Beleg und Storno heben sich in der Netto- und
+ * MwSt-Spalte nicht auf. Bei 20 % trifft das jeden sechsten Cent-Betrag.
+ * (Dieselbe Regel gilt in printing/escpos.ts und in Darts `toStringAsFixed`.)
+ */
+function nettoAusBrutto(bruttoCents: number, rate: number): number {
+  const betrag = Math.round((Math.abs(bruttoCents) * 100) / (100 + rate));
+  return bruttoCents < 0 ? -betrag : betrag;
 }
 
 // -------------------------------------------------------------- Gutscheine
@@ -350,7 +383,7 @@ export function buildReceiptLayout(
     // Vorbild rundet beide Werte einzeln aus einer Gleitkommazahl und kann
     // dabei um einen Cent auseinanderlaufen.)
     const bruttoCents = gruppe.bruttoCents;
-    const nettoCents = Math.round((bruttoCents * 100) / (100 + gruppe.satz.rate));
+    const nettoCents = nettoAusBrutto(bruttoCents, gruppe.satz.rate);
     lines.push(
       tabellenZeile(
         [
@@ -389,8 +422,11 @@ export function buildReceiptLayout(
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis
-  if (receipt.legalMessage.length > 0) {
-    for (const zeile of receipt.legalMessage) {
+  const hinweise = company.isSmallBusiness
+    ? [KLEINUNTERNEHMER_HINWEIS, ...receipt.legalMessage]
+    : receipt.legalMessage;
+  if (hinweise.length > 0) {
+    for (const zeile of hinweise) {
       lines.push(textZeile(zeile, 'center'));
     }
     lines.push({ kind: 'space', lines: 1 });

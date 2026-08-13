@@ -11,6 +11,7 @@ export {
   type BuildReceiptLayoutOptions,
   buildReceiptLayout,
   receiptSignatureFailed,
+  KLEINUNTERNEHMER_HINWEIS,
   formatCents,
 } from './layout.js';
 

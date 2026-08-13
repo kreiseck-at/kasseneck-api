@@ -260,6 +260,33 @@ test('Layout: ein Beleg ohne gueltige Signatur traegt den Ausfallhinweis', () =>
   assert.ok(!textZeilen(buildReceiptLayout(BELEG, FIRMA)).includes('Sicherheitseinrichtung ausgefallen'));
 });
 
+test('Layout: ein Kleinunternehmer-Beleg traegt den Hinweis auf die Steuerbefreiung', () => {
+  // Wortlaut aus dem Backend (functions/index.js, INVOICE_TAX_NOTE.smallBusiness).
+  // Ohne den Hinweis stuende in der USt-Tabelle "D 0%" ohne jede Begruendung.
+  const hinweis = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
+  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true, uid: '' };
+  const layout = buildReceiptLayout(BELEG, firma);
+
+  assert.ok(textZeilen(layout).includes(hinweis), 'Kleinunternehmer-Hinweis fehlt');
+  // Er steht bei den uebrigen Rechtshinweisen, nach den Summen und vor dem QR.
+  assert.ok(stelleVon(layout, hinweis) > stelleVon(layout, 'Gesamt:'));
+  assert.ok(stelleVon(layout, hinweis) < stelleVon(layout, 'Reverse Charge'));
+  assert.ok(stelleVon(layout, hinweis) < stelleVon(layout, '<qr '));
+
+  // Wer keiner ist, bekommt ihn nicht.
+  assert.ok(!textZeilen(buildReceiptLayout(BELEG, FIRMA)).includes(hinweis));
+});
+
+test('Layout: der Kleinunternehmer-Hinweis steht auch ohne weitere Rechtshinweise', () => {
+  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true };
+  const beleg: Receipt = { ...BELEG, legalMessage: [] };
+  assert.ok(
+    textZeilen(buildReceiptLayout(beleg, firma)).includes(
+      'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.',
+    ),
+  );
+});
+
 // ------------------------------------------------------------------ Betraege
 
 test('Betraege: Cent werden mit Komma und zwei Stellen ausgegeben', () => {
@@ -300,6 +327,51 @@ test('Betraege: mehrere Steuersaetze behalten ihre Summen', () => {
     bruttoSumme += alsCent(brutto);
   }
   assert.equal(bruttoSumme, 4296);
+});
+
+/** Die Zeilen der USt-Tabelle (ohne Kopfzeile) als Cent-Werte je Spalte. */
+function tabelleInCent(layout: ReceiptLayout): number[][] {
+  return spaltenZeilen(layout)
+    .filter((s) => /^[A-G?] /.test(s[0] ?? ''))
+    .map((s) => s.slice(1).map((betrag) => Math.round(Number(betrag.replace(',', '.')) * 100)));
+}
+
+function belegMitPreis(preisCents: number, menge = 1): Receipt {
+  return { ...BELEG, items: [{ name: 'Position', quantity: menge, vat: VatRate.vat20, priceCents: preisCents }] };
+}
+
+test('Betraege: der Stornobeleg spiegelt die USt-Aufteilung des Belegs', () => {
+  // 99 Cent zu 20 %: das Netto liegt bei genau 82,5 Cent — hier entscheidet
+  // die Rundungsrichtung. Nachgemessen: Netto 83, MwSt 16.
+  const verkauf = buildReceiptLayout(belegMitPreis(33, 3), FIRMA);
+  const storno = buildReceiptLayout(belegMitPreis(-33, 3), FIRMA);
+  assert.deepEqual(
+    spaltenZeilen(verkauf).find((s) => s[0] === 'A 20%'),
+    ['A 20%', '0,16', '0,83', '0,99'],
+  );
+  assert.deepEqual(
+    spaltenZeilen(storno).find((s) => s[0] === 'A 20%'),
+    ['A 20%', '-0,16', '-0,83', '-0,99'],
+  );
+});
+
+test('Betraege: Beleg und Storno heben sich in jeder Spalte der USt-Tabelle auf', () => {
+  // Der Rundungsfehler trifft nur Betraege, deren Netto genau auf einem halben
+  // Cent liegt — bei 20 % jeden sechsten. Ein einzelner Beispielwert wuerde
+  // ihn also meistens verfehlen; deshalb eine Schleife.
+  const schief: string[] = [];
+  for (let cents = 1; cents <= 600; cents++) {
+    const verkauf = tabelleInCent(buildReceiptLayout(belegMitPreis(cents), FIRMA));
+    const storno = tabelleInCent(buildReceiptLayout(belegMitPreis(-cents), FIRMA));
+    assert.equal(verkauf.length, 1);
+    assert.equal(storno.length, 1);
+    const links = verkauf[0] as number[];
+    const rechts = storno[0] as number[];
+    if (links.some((wert, i) => wert + (rechts[i] as number) !== 0)) {
+      schief.push(`${cents} Cent: ${links.join('/')} gegen ${rechts.join('/')}`);
+    }
+  }
+  assert.deepEqual(schief.slice(0, 5), [], `${schief.length} Betraege gehen zwischen Beleg und Storno nicht auf`);
 });
 
 test('Betraege: ein eingeloester Promo-Gutschein mindert die USt-Aufteilung anteilig', () => {
@@ -423,6 +495,22 @@ test('ESC/POS: ein Artikelname mit "€" druckt durch — das Layout fuehrt das 
 test('ESC/POS: die Gesamtsumme steht im Bytestrom mit EUR statt mit dem Zeichen', () => {
   const bytes = escPosLayoutBytes(buildReceiptLayout(BELEG, FIRMA));
   assert.ok(enthaeltText(bytes, '7,70 EUR'));
+});
+
+test('ESC/POS: der Kleinunternehmer-Hinweis druckt durch — der Gedankenstrich wird ersetzt', () => {
+  // Der Wortlaut des Backends traegt einen Gedankenstrich (U+2013). Der liegt
+  // ausserhalb von Latin-1: ohne die Ersetzung aus Task 6 wuerfe die Kodierung
+  // und der gesamte Beleg fiele aus — wegen eines Strichs.
+  const layout = buildReceiptLayout(BELEG, { ...FIRMA, isSmallBusiness: true });
+  assert.ok(
+    textZeilen(layout).some((z) => z.includes('–')),
+    'im Layout muss der Gedankenstrich stehen bleiben',
+  );
+  const bytes = escPosLayoutBytes(layout);
+  assert.ok(
+    enthaeltText(bytes, 'Umsatzsteuerbefreit - Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.'),
+    'Hinweis fehlt im Bytestrom',
+  );
 });
 
 test('ESC/POS: Umlaute bleiben erhalten und werden als ein Byte kodiert', () => {
