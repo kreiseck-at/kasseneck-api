@@ -15,7 +15,9 @@ export {
   type FetchLike,
   type TransportOptions,
   type KasseneckTransport,
+  type KasseneckBinaryTransport,
   createTransport,
+  createBinaryTransport,
 } from './transport.js';
 
 export {
@@ -49,5 +51,14 @@ export {
   getFirstReceiptDate,
   checkVoucherCombinationError,
 } from './receipts.js';
+
+export { downloadDailyReport, downloadMonthlyReport } from './reports.js';
+
+export {
+  type CashboxStatus,
+  type SignatureStatus,
+  getCashboxStatus,
+  getSignatureStatus,
+} from './status.js';
 
 export { type KasseneckApi, createKasseneckApi } from './api.js';

@@ -4,6 +4,7 @@ import {
   KasseneckAuthError,
   KasseneckHttpError,
   KasseneckNetworkError,
+  KasseneckValidationError,
   causeDigest,
 } from './errors.js';
 
@@ -16,6 +17,12 @@ import {
  * von der Anmeldung, Nutzlast aus Auth-Parametern und Aufruferparametern),
  * Zeitlimit ueberwachen, und die Antworthuelle aufloesen. Er kennt keine
  * einzelne Backend-Funktion und keine Firebase-Details.
+ *
+ * Es gibt **zwei Einstiegspunkte** auf demselben Kern: [createTransport] fuer
+ * die JSON-Aufrufe und [createBinaryTransport] fuer die beiden Bericht-
+ * Downloads, die ein PDF liefern. Anmeldung, Zeitlimit, Rumpfaufbau und die
+ * Fehlerarten sind bei beiden dieselben; sie unterscheiden sich nur darin, wie
+ * der Antwortrumpf gelesen und ausgewertet wird.
  *
  * **Kein Wiederholen fehlgeschlagener Aufrufe.** Ein Beleg ist nicht folgenlos
  * wiederholbar; ohne entschiedene Idempotenz waere ein automatischer zweiter
@@ -41,6 +48,13 @@ export interface HttpResponseLike {
   status: number;
   headers: { get(name: string): string | null };
   text(): Promise<string>;
+  /**
+   * Rohe Bytes der Antwort — nur der Binaerweg ([createBinaryTransport])
+   * braucht sie, deshalb optional: eine schon vorhandene Fake-Antwort eines
+   * JSON-Aufrufs bleibt damit gueltig. Jede `fetch`-Antwort bringt die Methode
+   * mit; fehlt sie, wirft der Binaerweg statt zu raten.
+   */
+  arrayBuffer?(): Promise<ArrayBuffer>;
 }
 
 export interface HttpRequestInit {
@@ -72,15 +86,71 @@ export interface TransportOptions {
  * Ruft eine Backend-Funktion auf und liefert deren Nutzlast **ohne Huelle**.
  * Ein Verbraucher prueft nie selbst auf `status`: Misserfolg kommt als
  * geworfener Fehler.
+ *
+ * `extraBodyFields` legt zusaetzliche Felder **neben** `params` auf die oberste
+ * Rumpfebene. Genau ein Endpunkt braucht das: `financeWebService` erwartet
+ * seine `method` neben `params` und nicht darin (siehe Flutter-Vorbild
+ * `_financeWebServicePostRequest`). Fuer alle anderen Aufrufe bleibt der Rumpf
+ * unveraendert `{params:{…}}`.
  */
-export type KasseneckTransport = <T = unknown>(functionName: string, params?: Record<string, unknown>) => Promise<T>;
+export type KasseneckTransport = <T = unknown>(
+  functionName: string,
+  params?: Record<string, unknown>,
+  extraBodyFields?: Record<string, unknown>,
+) => Promise<T>;
+
+/**
+ * Ruft eine Backend-Funktion auf, die **Binaerdaten** liefert (die beiden
+ * Bericht-PDFs), und gibt sie als `Uint8Array` zurueck.
+ */
+export type KasseneckBinaryTransport = (
+  functionName: string,
+  params?: Record<string, unknown>,
+) => Promise<Uint8Array>;
+
+/** Liest den Antwortrumpf in seiner Rohform (Text bzw. Bytes). */
+type Koerperleser<R> = (antwort: HttpResponseLike, functionName: string) => Promise<R>;
+
+/** Macht aus dem Rohrumpf das Ergebnis des Aufrufs — oder wirft. */
+type Auswertung<R, T> = (koerper: R, functionName: string, statusCode: number, contentType: string | undefined) => T;
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
+  const kern = createCore(options);
+  return <T>(functionName: string, params?: Record<string, unknown>, extraBodyFields?: Record<string, unknown>) =>
+    kern<string, T>(functionName, params, extraBodyFields, alsText, jsonAuswerten as Auswertung<string, T>);
+}
+
+/**
+ * Zweiter Einstiegspunkt fuer die Bericht-Downloads. Er liest die Antwort als
+ * Bytes und **nie** als Zeichenkette: ein PDF ist keine UTF-8-Folge, und eine
+ * Textdeutung ersetzt jedes Byte ueber 0x7F durch U+FFFD — die Datei waere
+ * kaputt, ohne dass es jemand merkt. (Das Flutter-Vorbild nimmt hier
+ * `response.body.codeUnits`; das ist eine bewusste Abweichung, siehe
+ * reports.ts.)
+ */
+export function createBinaryTransport(options: TransportOptions): KasseneckBinaryTransport {
+  const kern = createCore(options);
+  return (functionName: string, params?: Record<string, unknown>) =>
+    kern<Uint8Array, Uint8Array>(functionName, params, undefined, alsBytes, pdfAuswerten);
+}
+
+/**
+ * Gemeinsamer Kern beider Einstiegspunkte: Anmeldung, Zeitlimit, Anfrage und
+ * HTTP-Status. Was danach mit dem Rumpf geschieht, entscheiden `lesen` und
+ * `auswerten`.
+ */
+function createCore(options: TransportOptions) {
   const basis = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
   const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
 
-  return async function aufrufen<T>(functionName: string, params: Record<string, unknown> = {}): Promise<T> {
+  return async function aufrufen<R, T>(
+    functionName: string,
+    params: Record<string, unknown> = {},
+    extraBodyFields: Record<string, unknown> | undefined,
+    lesen: Koerperleser<R>,
+    auswerten: Auswertung<R, T>,
+  ): Promise<T> {
     // Das Zeitlimit laeuft ab HIER — es deckt die Anmeldung mit ab. Haengt die
     // Token-Erneuerung auf flauem Netz, haette der Aufruf sonst weder Ergebnis
     // noch Fehler, und die Kasse stuende still.
@@ -107,10 +177,10 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
       // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen.
       const geheimnisse = Object.values(anmeldung.headers);
       const url = `${basis}/${encodeURIComponent(functionName)}`;
-      const rumpf = JSON.stringify({ params: nutzlast(anmeldung.params, params) });
+      const rumpf = JSON.stringify({ params: nutzlast(anmeldung.params, params), ...extraBodyFields });
 
       let antwort: HttpResponseLike;
-      let text: string;
+      let koerper: R;
       try {
         antwort = await holen(url, {
           method: 'POST',
@@ -118,8 +188,13 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
           body: rumpf,
           signal: abbruch.signal,
         });
-        text = await antwort.text();
+        koerper = await lesen(antwort, functionName);
       } catch (ursache) {
+        // Ein Formfehler des Pakets ist kein Netzfehler und behaelt seine Art
+        // (der Binaerweg wirft ihn, wenn die fetch-Antwort keine Bytes liefert).
+        if (ursache instanceof KasseneckValidationError) {
+          throw ursache;
+        }
         // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
         throw new KasseneckNetworkError(
           functionName,
@@ -135,35 +210,123 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
       if (antwort.status !== 200) {
         throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'server-error');
       }
-      if (!text.trim()) {
-        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'empty-body');
-      }
 
-      let huelle: unknown;
-      try {
-        huelle = JSON.parse(text);
-      } catch {
-        // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
-        // der Single-Page-App — HTTP 200, aber kein JSON.
-        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'not-json');
-      }
-      if (typeof huelle !== 'object' || huelle === null || !('status' in huelle)) {
-        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'missing-status');
-      }
-
-      const { status, message, data } = huelle as { status: unknown; message?: unknown; data?: unknown };
-      if (status === 'success') {
-        return data as T;
-      }
-      // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
-      // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
-      const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
-      throw new KasseneckApiError(functionName, meldung);
+      return auswerten(koerper, functionName, antwort.status, inhaltstyp);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
     }
   };
+}
+
+/** JSON-Weg: der Rumpf ist Text. */
+const alsText: Koerperleser<string> = (antwort) => antwort.text();
+
+/**
+ * Binaerweg: der Rumpf sind Bytes. `text()` wird hier bewusst **nicht**
+ * angefasst — es wuerde die Bytes als UTF-8 deuten.
+ */
+const alsBytes: Koerperleser<Uint8Array> = async (antwort, functionName) => {
+  if (typeof antwort.arrayBuffer !== 'function') {
+    // Lieber laut scheitern als still auf text() ausweichen: das waere genau
+    // der Bytefehler, den dieser Weg verhindern soll.
+    throw new KasseneckValidationError(
+      functionName,
+      'Die fetch-Antwort liefert keine Bytes (arrayBuffer fehlt)',
+      'response',
+    );
+  }
+  return new Uint8Array(await antwort.arrayBuffer());
+};
+
+/** Auswertung des JSON-Wegs: Huelle aufloesen, Nutzlast zurueckgeben. */
+function jsonAuswerten<T>(text: string, functionName: string, statusCode: number, inhaltstyp: string | undefined): T {
+  if (!text.trim()) {
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+  }
+  let roh: unknown;
+  try {
+    roh = JSON.parse(text);
+  } catch {
+    // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
+    // der Single-Page-App — HTTP 200, aber kein JSON.
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
+  }
+  const huelle = alsHuelle(roh);
+  if (huelle === null) {
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
+  }
+  if (huelle.status === 'success') {
+    return huelle.data as T;
+  }
+  // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
+  // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
+  throw fachfehler(functionName, huelle.message);
+}
+
+/**
+ * Auswertung des Binaerwegs. Der Kern der Zusage: **ein Aufrufer bekommt nie
+ * ein "PDF", das in Wahrheit eine Fehlermeldung ist.** Das Backend antwortet
+ * auch im Fehlerfall mit HTTP 200 und schickt dann seine JSON-Huelle statt des
+ * PDF; wer die Bytes ungeprueft durchreicht, gibt dem Kassier eine kaputte
+ * Datei ohne jeden Hinweis.
+ *
+ * Entschieden wird an den **ersten Bytes**, nicht am Inhaltstyp: der Inhaltstyp
+ * ist die Aussage der Gegenstelle (oder eines Proxys davor) und kann fehlen
+ * oder falsch sein, die PDF-Kennung `%PDF` steht dagegen in jeder Datei, die
+ * das Backend hier erzeugt (pdf-lib). Alles, was nicht so anfaengt, ist kein
+ * Bericht — und wird dann daraufhin angesehen, ob es die Fehlerhuelle ist.
+ */
+function pdfAuswerten(
+  bytes: Uint8Array,
+  functionName: string,
+  statusCode: number,
+  inhaltstyp: string | undefined,
+): Uint8Array {
+  if (bytes.length === 0) {
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+  }
+  if (istPdf(bytes)) {
+    return bytes;
+  }
+  // Ab hier ist nichts mehr zu retten; die Bytes werden nur noch **zur
+  // Fehlerdeutung** als Text gelesen, nie als Ergebnis zurueckgegeben.
+  let roh: unknown;
+  try {
+    roh = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  } catch {
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-pdf');
+  }
+  const huelle = alsHuelle(roh);
+  if (huelle === null) {
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-pdf');
+  }
+  if (huelle.status === 'success') {
+    // Erfolg gemeldet, aber kein PDF geliefert: die Antwort traegt nicht, was
+    // der Aufruf zusagt.
+    throw new KasseneckValidationError(functionName, 'Antwort ist ein Erfolgsrumpf statt eines PDF', 'response');
+  }
+  // Derselbe fachliche Fehler wie auf dem JSON-Weg — fuer den Aufrufer macht
+  // es keinen Unterschied, ob er ein PDF oder eine Nutzlast erwartet hat.
+  throw fachfehler(functionName, huelle.message);
+}
+
+/** `%PDF` am Anfang — die Kennung jeder PDF-Datei. */
+function istPdf(bytes: Uint8Array): boolean {
+  return bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+}
+
+/** Antworthuelle `{status, message, data}` — oder `null`, wenn es keine ist. */
+function alsHuelle(wert: unknown): { status: unknown; message?: unknown; data?: unknown } | null {
+  if (typeof wert !== 'object' || wert === null || !('status' in wert)) {
+    return null;
+  }
+  return wert as { status: unknown; message?: unknown; data?: unknown };
+}
+
+function fachfehler(functionName: string, message: unknown): KasseneckApiError {
+  const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
+  return new KasseneckApiError(functionName, meldung);
 }
 
 /**
