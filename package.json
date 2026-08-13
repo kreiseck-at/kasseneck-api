@@ -1,0 +1,37 @@
+{
+  "name": "@kreiseck/kasseneck-api",
+  "version": "0.1.0",
+  "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
+  "license": "Apache-2.0",
+  "author": "Kreiseck",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\"",
+    "test": "tsc -p tsconfig.test.json && node --test $(find test-dist -name '*.test.js')",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^22.0.0"
+  }
+}

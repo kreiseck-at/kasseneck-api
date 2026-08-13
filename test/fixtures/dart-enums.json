@@ -1,0 +1,41 @@
+{
+  "_quelle": "kasseneck_api/lib/enums (Flutter-Paket, pubspec.yaml version: 4.8.0) — von Hand uebertragen, nicht generiert",
+  "ReceiptType": {
+    "start": { "needsItems": false, "isZero": true, "allowsVouchers": false },
+    "standard": { "needsItems": true, "isZero": false, "allowsVouchers": true },
+    "zero": { "needsItems": false, "isZero": true, "allowsVouchers": false },
+    "cancellation": { "needsItems": true, "isZero": false, "allowsVouchers": true },
+    "training": { "needsItems": true, "isZero": false, "allowsVouchers": true }
+  },
+  "VatRate": {
+    "vat0": { "rate": 0, "category": "D" },
+    "vat4komma9": { "rate": 4.9, "category": "G" },
+    "vat10": { "rate": 10, "category": "B" },
+    "vat13": { "rate": 13, "category": "C" },
+    "vat19": { "rate": 19, "category": "E" },
+    "vat20": { "rate": 20, "category": "A" }
+  },
+  "KeckPaymentMethod": {
+    "cash": { "needsCreditCard": false, "label": "Barzahlung" },
+    "creditCard": { "needsCreditCard": true, "label": "Kartenzahlung" },
+    "online": { "needsCreditCard": false, "label": "Onlinezahlung" },
+    "uberApp": { "needsCreditCard": false, "label": "Uber App" },
+    "uberCash": { "needsCreditCard": false, "label": "Uber Cash" },
+    "uberCard": { "needsCreditCard": true, "label": "Uber Card" },
+    "boltApp": { "needsCreditCard": false, "label": "Bolt App" },
+    "boltCash": { "needsCreditCard": false, "label": "Bolt Cash" },
+    "boltCard": { "needsCreditCard": true, "label": "Bolt Card" }
+  },
+  "CreditCardProvider": [
+    "gpTomAndroid",
+    "gpTomIos",
+    "hobexCloudApi",
+    "hobexHps",
+    "sumup",
+    "myposPro",
+    "stripe",
+    "custom"
+  ],
+  "VoucherType": ["value", "promo"],
+  "VoucherAction": ["sell", "redeem"]
+}
