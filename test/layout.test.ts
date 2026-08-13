@@ -9,6 +9,7 @@ import {
   escPosLayoutBytes,
   type LayoutLine,
   type ReceiptLayout,
+  SMALL_BUSINESS_NOTICE,
 } from '../src/receipt/index.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 
@@ -599,4 +600,13 @@ test('Layout: eine unbekannte Zahlungsart steht weiterhin roh da', () => {
   const zeile = layout.lines.find((z) => z.kind === 'columns' && z.columns[0]?.text === 'Zahlungsart:');
   assert.ok(zeile?.kind === 'columns');
   assert.equal(zeile.columns[1]?.text, 'klarna');
+});
+
+test('Layout: der Kleinunternehmer-Hinweis ist als Konstante zugaenglich', () => {
+  // Der Wortlaut steht woertlich im Backend (INVOICE_TAX_NOTE.smallBusiness);
+  // eine Kassenoberflaeche, die ihn vorab anzeigen will, soll ihn nicht
+  // abschreiben muessen.
+  assert.equal(SMALL_BUSINESS_NOTICE, 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.');
+  const layout = buildReceiptLayout(BELEG, { ...FIRMA, isSmallBusiness: true });
+  assert.ok(textZeilen(layout).includes(SMALL_BUSINESS_NOTICE));
 });

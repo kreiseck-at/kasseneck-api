@@ -5,8 +5,16 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    // Keine Sourcemaps: Sie zeigen auf `src/`, und `src/` wird nicht
+    // ausgeliefert (files: dist, README, NOTICE) — kein Debugger haette je
+    // etwas gefunden. Gemessen am Tarball: 332 Dateien und 854 kB entpackt
+    // mit Maps, 168 Dateien und 569 kB ohne. Die Alternative waere, `src/`
+    // mitzuliefern; dagegen spricht der Zweck des Pakets: es wird im Browser
+    // von Vite gebuendelt, und die Doku, die ein Verbraucher wirklich sieht,
+    // steht in den .d.ts (tsc uebernimmt die Kommentare dorthin). Wer den
+    // Quelltext lesen will, findet ihn im oeffentlichen Repository.
+    "declarationMap": false,
+    "sourceMap": false,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,

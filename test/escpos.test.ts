@@ -812,3 +812,20 @@ test('printing: laesst sich in einem eigenen Node-Prozess allein laden', () => {
   });
   assert.equal(ausgabe, '27,64,27,116,16,27,36,0,0,28,46,27,116,16,252,10');
 });
+
+test('Bau: der Tarball traegt keine Sourcemaps, die ins Leere zeigen', () => {
+  // `files` liefert kein src/ aus; Maps darin faenden nichts und machten den
+  // Tarball nur schwerer (gemessen: 332 Dateien/854 kB mit, 168/569 kB ohne).
+  // Wer die Entscheidung umdreht, muss src/ mit ausliefern — dieser Test
+  // haelt beides zusammen.
+  const ohneKommentare = (roh: string): string => roh.replace(/^\s*\/\/.*$/gm, '');
+  const tsconfig = JSON.parse(
+    ohneKommentare(readFileSync(new URL('../../tsconfig.json', import.meta.url), 'utf8')),
+  ) as { compilerOptions: { sourceMap?: boolean; declarationMap?: boolean } };
+  const paket = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+    files: string[];
+  };
+  const liefertQuellen = paket.files.some((eintrag) => eintrag === 'src' || eintrag.startsWith('src/'));
+  assert.equal(tsconfig.compilerOptions.sourceMap, liefertQuellen);
+  assert.equal(tsconfig.compilerOptions.declarationMap, liefertQuellen);
+});

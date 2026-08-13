@@ -86,7 +86,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\" && node scripts/check-build-exports.mjs",
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\" && node scripts/check-build-exports.mjs",
     "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
     "check:consumer": "node scripts/check-consumer-types.mjs",
     "prepublishOnly": "npm run build"

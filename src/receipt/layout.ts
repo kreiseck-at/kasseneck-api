@@ -166,8 +166,12 @@ function zahlungsartText(wert: Receipt['paymentMethod']): string {
  *
  * Weder `print_paper.dart` noch das Beleg-PDF des Backends drucken den Hinweis
  * heute — hier liegt das Kennzeichen vor, also steht er hier.
+ *
+ * Der **Name** ist englisch wie die uebrige Oberflaeche (`DEFAULT_BASE_URL`,
+ * `formatCents`, `buildReceiptLayout`); der **Wortlaut** ist selbstverstaendlich
+ * deutsch — er steht so auf oesterreichischen Belegen.
  */
-export const KLEINUNTERNEHMER_HINWEIS = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
+export const SMALL_BUSINESS_NOTICE = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
 
 // ------------------------------------------------------------------ Signatur
 
@@ -445,7 +449,7 @@ export function buildReceiptLayout(
 
   // --- Rechtshinweise und Ausfallhinweis
   const hinweise = company.isSmallBusiness
-    ? [KLEINUNTERNEHMER_HINWEIS, ...receipt.legalMessage]
+    ? [SMALL_BUSINESS_NOTICE, ...receipt.legalMessage]
     : receipt.legalMessage;
   if (hinweise.length > 0) {
     for (const zeile of hinweise) {
