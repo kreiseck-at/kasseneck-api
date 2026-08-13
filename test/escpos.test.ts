@@ -225,14 +225,25 @@ test('Kodierung: einzelne Umlaute sind ein Byte, nicht zwei (kein UTF-8)', () =>
 test('Kodierung: typografische Zeichen werden wie im Vorbild ersetzt', () => {
   const doc = createEscPosDocument();
   escPosReset(doc);
-  escPosText(doc, 'a’b´c»d•e');
+  escPosText(doc, 'a’b´c•d');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
     27, 36, 0, 0,
     28, 46, 27, 116, 16,
-    97, 39, 98, 39, 99, 34, 100, 42, 101, // a ' b ' c " d * e
+    97, 39, 98, 39, 99, 42, 100, // a ' b ' c * d
     10,
   ]);
+});
+
+test('Kodierung: die franzoesischen Anfuehrungszeichen bleiben beide stehen', () => {
+  // Bewusste Abweichung vom Vorbild: `generator.dart` ersetzt `»` durch `"`,
+  // laesst `«` aber unangetastet. Auf Papier ergibt das ein schiefes Paar
+  // (»«"«), und noetig ist die Ersetzung nicht: CP1252 hat beide Zeichen auf
+  // 0xAB und 0xBB, und die Umschaltung `ESC t 16` steht vor jedem Textblock.
+  // Am Geraet nachgeprueft — 0xAB kam korrekt heraus, 0xBB kam nur deshalb
+  // nicht, weil die Ersetzung davor griff.
+  assert.equal(escPosPrintableText('«»'), '«»');
+  gleicheBytes(encodeEscPosText('«»'), [0xab, 0xbb]);
 });
 
 test('Kodierung: der Aufzaehlungspunkt hat genau eine Antwort — auf jedem Ausgabeweg', () => {

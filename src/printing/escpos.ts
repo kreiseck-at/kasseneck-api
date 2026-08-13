@@ -201,7 +201,6 @@ const ZEICHEN_JE_ZEILE: Readonly<Record<PosPaperSize, Readonly<Record<PosFont, n
 const ZEICHEN_ERSATZ: ReadonlyArray<readonly [string, string]> = [
   ['’', "'"], // typografisches Apostroph
   ['´', "'"], // Akut
-  ['»', '"'], // franzoesisches Anfuehrungszeichen
   ['•', '*'], // Aufzaehlungspunkt (siehe Kommentar oben)
 ];
 
