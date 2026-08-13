@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
+import { KasseneckAuthError } from '../src/client/errors.js';
 
 const API_KEY = 'kr_live_GEHEIMERAPIKEY';
 const KASSEN_TOKEN = 'cb_live_GEHEIMESKASSENTOKEN';
@@ -26,7 +27,8 @@ test('apiKeyAuth: setzt keine Kopfzeile des Kassen-Benutzer-Wegs', async () => {
 test('apiKeyAuth: fehlender Schluessel faellt sofort auf, ohne den Wert zu nennen', () => {
   assert.throws(
     () => apiKeyAuth({ apiKey: '', cashregisterToken: KASSEN_TOKEN }),
-    (fehler: Error) => fehler.message.includes('apiKey') && !fehler.message.includes(KASSEN_TOKEN),
+    (fehler: Error) =>
+      fehler instanceof KasseneckAuthError && fehler.message.includes('apiKey') && !fehler.message.includes(KASSEN_TOKEN),
   );
   assert.throws(() => apiKeyAuth({ apiKey: API_KEY, cashregisterToken: '' }), /cashregisterToken/);
 });
@@ -104,6 +106,7 @@ test('registerUserAuth: leeres Token/leere Sitzung fallen auf, ohne Geheimnisse 
     cashregisterId: 'kasse-1',
   });
   await assert.rejects(async () => ohneToken(), (fehler: Error) => {
+    assert.ok(fehler instanceof KasseneckAuthError, 'Anmeldefehler haben eine eigene Fehlerart');
     assert.match(fehler.message, /getIdToken/);
     assert.ok(!fehler.message.includes('sess-GEHEIM'), 'Sitzung darf nicht in der Meldung stehen');
     return true;

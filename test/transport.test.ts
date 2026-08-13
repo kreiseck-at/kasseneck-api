@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { inspect } from 'node:util';
 import {
   createTransport,
   DEFAULT_BASE_URL,
@@ -10,13 +11,15 @@ import {
 } from '../src/client/transport.js';
 import {
   KasseneckApiError,
+  KasseneckAuthError,
   KasseneckHttpError,
   KasseneckNetworkError,
   isKasseneckApiError,
+  isKasseneckAuthError,
   isKasseneckHttpError,
   isKasseneckNetworkError,
 } from '../src/client/errors.js';
-import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
+import { apiKeyAuth, registerUserAuth, type KasseneckAuth } from '../src/client/auth.js';
 
 const API_KEY = 'kr_live_GEHEIMERAPIKEY';
 const KASSEN_TOKEN = 'cb_live_GEHEIMESKASSENTOKEN';
@@ -36,7 +39,6 @@ function antwort(
   { status = 200, contentType = 'application/json' }: { status?: number; contentType?: string | null } = {},
 ): HttpResponseLike {
   return {
-    ok: status >= 200 && status < 300,
     status,
     headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
     text: async () => rumpf,
@@ -282,10 +284,44 @@ test('erfolgreicher Aufruf laesst keinen Wecker offen (Prozess darf enden)', asy
 
 // --- Kein Geheimnis in der Fehlermeldung -------------------------------
 
-/** Alles, was ueblicherweise in Protokollen/Fehlerdiensten landet. */
+/**
+ * Alles, was ueblicherweise in Protokollen/Fehlerdiensten landet. `inspect`
+ * ist dabei der wichtigste Fall: genau das druckt `console.error(err)` — und
+ * es folgt der `cause`-Kette, die weder `message` noch `JSON.stringify` sieht.
+ */
 function protokollSpuren(fehler: unknown): string[] {
   const err = fehler as Error;
-  return [err.message, String(err), err.toString(), JSON.stringify(err), String(err.stack ?? '')];
+  return [
+    err.message,
+    String(err),
+    err.toString(),
+    JSON.stringify(err),
+    String(err.stack ?? ''),
+    inspect(err, { depth: 5 }),
+  ];
+}
+
+/** Wirft, wenn irgendeine Spur eines der Geheimnisse traegt. */
+function keineGeheimnisse(fehler: unknown, hinweis = ''): true {
+  for (const spur of protokollSpuren(fehler)) {
+    for (const geheim of geheimnisse) {
+      assert.ok(!spur.includes(geheim), `${hinweis}Geheimnis "${geheim.slice(0, 12)}…" steckt in "${spur}"`);
+    }
+  }
+  return true;
+}
+
+/**
+ * Fehler, wie ihn eine fremde fetch-Umsetzung wirft: axios haengt seine
+ * `config` (samt Kopfzeilen!) an den Fehler, got seine `options`. Genau der
+ * Erweiterungspunkt, den dieses Paket mit `options.fetch` anbietet.
+ */
+function proxyFehler(kopfzeilen: Record<string, string>): Error {
+  return Object.assign(new Error('connect ECONNREFUSED 10.0.0.7:443'), {
+    name: 'AxiosError',
+    code: 'ECONNREFUSED',
+    config: { url: 'https://api.kasseneck.at/v1/createReceipt', headers: kopfzeilen },
+  });
 }
 
 test('kein Geheimnis in Fehlern des api_key-Wegs (alle drei Fehlerarten)', async () => {
@@ -302,14 +338,9 @@ test('kein Geheimnis in Fehlern des api_key-Wegs (alle drei Fehlerarten)', async
 
   for (const [name, holen] of faelle) {
     const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
-    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) => {
-      for (const spur of protokollSpuren(fehler)) {
-        for (const geheim of geheimnisse) {
-          assert.ok(!spur.includes(geheim), `Fall ${name}: Geheimnis "${geheim.slice(0, 12)}…" steckt in "${spur}"`);
-        }
-      }
-      return true;
-    });
+    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) =>
+      keineGeheimnisse(fehler, `Fall ${name}: `),
+    );
   }
 });
 
@@ -324,14 +355,7 @@ test('kein Geheimnis in Fehlern des Kassen-Benutzer-Wegs (alle drei Fehlerarten)
 
   for (const holen of faelle) {
     const rufen = createTransport({ auth: kassenBenutzerWeg(), fetch: holen });
-    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) => {
-      for (const spur of protokollSpuren(fehler)) {
-        for (const geheim of geheimnisse) {
-          assert.ok(!spur.includes(geheim), `Geheimnis "${geheim.slice(0, 12)}…" steckt in "${spur}"`);
-        }
-      }
-      return true;
-    });
+    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) => keineGeheimnisse(fehler));
   }
 });
 
@@ -349,4 +373,206 @@ test('kein Geheimnis in den eigenen Feldern eines Fehlers', async () => {
     }
     return true;
   });
+});
+
+test('kein Geheimnis, wenn die fremde fetch-Umsetzung die Kopfzeilen an ihren Fehler haengt', async () => {
+  // Der Pfad, auf dem die Zusage wirklich brechen kann: `console.error(err)`
+  // druckt die Ursachenkette mit — eine angehaengte axios-`config` traegt den
+  // Bearer-Schluessel dann direkt ins Protokoll.
+  const wege: Array<{ name: string; auth: KasseneckAuth; kopf: Record<string, string> }> = [
+    { name: 'api_key', auth: apiSchluesselWeg(), kopf: { Authorization: `Bearer ${API_KEY}`, 'cashregister-token': KASSEN_TOKEN } },
+    { name: 'kassenbenutzer', auth: kassenBenutzerWeg(), kopf: { Authorization: `Bearer ${ID_TOKEN}`, 'register-session': SITZUNG } },
+  ];
+
+  for (const weg of wege) {
+    const rufen = createTransport({
+      auth: weg.auth,
+      fetch: async () => {
+        throw proxyFehler(weg.kopf);
+      },
+    });
+    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }), (fehler: unknown) => {
+      assert.ok(fehler instanceof KasseneckNetworkError);
+      keineGeheimnisse(fehler, `Weg ${weg.name}: `);
+      // Die Ursache bleibt in verdichteter, geheimnisfreier Form erkennbar.
+      assert.equal(fehler.causeName, 'AxiosError');
+      assert.equal(fehler.causeCode, 'ECONNREFUSED');
+      return true;
+    });
+  }
+});
+
+test('die verdichtete Ursache verwirft alles, was ein Geheimnis sein koennte', async () => {
+  const rufen = createTransport({
+    auth: kassenBenutzerWeg(),
+    fetch: async () => {
+      // Ein Fehlercode, der zufaellig (oder boswillig) den Sitzungsbezeichner
+      // traegt, und ein Name, der gar kein Bezeichner ist.
+      throw Object.assign(new Error('kaputt'), { name: `Fehler bei ${ID_TOKEN}`, code: SITZUNG });
+    },
+  });
+
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckNetworkError);
+    keineGeheimnisse(fehler);
+    assert.equal(fehler.causeName, undefined, 'freier Text ist kein verwertbarer Name');
+    assert.equal(fehler.causeCode, undefined, 'ein Code, der ein Geheimnis traegt, wird verworfen');
+    return true;
+  });
+});
+
+// --- Die Anmeldung als eigene, vierte Fehlerart ------------------------
+
+test('scheiternde Anmeldung ist eine eigene Fehlerart, kein blanker Error', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg({}));
+  const rufen = createTransport({
+    auth: registerUserAuth({
+      getIdToken: () => {
+        // So wirft Firebase: Meldung samt Kontext, hier mitsamt Token.
+        throw Object.assign(new Error(`auth/internal-error: refresh fuer ${ID_TOKEN} fehlgeschlagen`), {
+          name: 'FirebaseError',
+          code: 'auth/internal-error',
+        });
+      },
+      getSessionId: () => SITZUNG,
+      cashregisterId: 'kasse-1',
+    }),
+    fetch: holen,
+  });
+
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckAuthError, 'muss KasseneckAuthError sein');
+    assert.ok(!(fehler instanceof KasseneckApiError));
+    assert.ok(!(fehler instanceof KasseneckHttpError));
+    assert.ok(!(fehler instanceof KasseneckNetworkError));
+    assert.ok(isKasseneckAuthError(fehler) && !isKasseneckNetworkError(fehler));
+    assert.equal(fehler.functionName, 'createReceipt');
+    assert.equal(fehler.causeCode, 'auth/internal-error');
+    keineGeheimnisse(fehler);
+    return true;
+  });
+  assert.equal(aufrufe.length, 0, 'ohne Anmeldung darf keine Anfrage rausgehen');
+});
+
+test('die eigenen Anmelde-Pruefungen kommen als KasseneckAuthError mit Funktionsname', async () => {
+  const rufen = createTransport({
+    auth: registerUserAuth({ getIdToken: () => '', getSessionId: () => SITZUNG, cashregisterId: 'kasse-1' }),
+    fetch: async () => erfolg({}),
+  });
+
+  await assert.rejects(rufen('zeroReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckAuthError);
+    assert.match(fehler.message, /zeroReceipt/);
+    assert.match(fehler.message, /getIdToken/);
+    keineGeheimnisse(fehler);
+    return true;
+  });
+});
+
+test('das Zeitlimit deckt auch die Anmeldung ab', async () => {
+  // Haengt die Token-Erneuerung auf flauem Netz, darf der Aufruf nicht
+  // unbegrenzt haengen — sonst steht die Kasse ohne Ergebnis und ohne Fehler da.
+  const { holen, aufrufe } = fetchFake(erfolg({}));
+  const rufen = createTransport({
+    auth: registerUserAuth({
+      getIdToken: () => new Promise<string>(() => {}),
+      getSessionId: () => SITZUNG,
+      cashregisterId: 'kasse-1',
+    }),
+    fetch: holen,
+    timeoutMs: 20,
+  });
+
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckNetworkError, 'haengende Anmeldung ist eine Zeitueberschreitung');
+    assert.equal(fehler.timedOut, true);
+    assert.equal(fehler.timeoutMs, 20);
+    return true;
+  });
+  assert.equal(aufrufe.length, 0);
+});
+
+// --- Nutzlast: die Kassenbindung darf nicht still verschwinden ---------
+
+test('ein anwesender undefined-Parameter loescht die Kassenbindung nicht', async () => {
+  // `{ …, cashregisterId: opts.cashregisterId }` ist in der Endpunkt-Schicht
+  // das natuerlichste Muster der Welt — ist der Wert undefined, wuerde ein
+  // reines Spread die Kasse aus der Nutzlast werfen (JSON.stringify laesst
+  // undefined weg) und der Aufruf ginge ohne Kassenbindung raus.
+  const { holen, aufrufe } = fetchFake(erfolg({}));
+  const rufen = createTransport({ auth: kassenBenutzerWeg(), fetch: holen });
+
+  await rufen('createReceipt', { receiptId: 'r1', cashregisterId: undefined });
+
+  assert.deepEqual(JSON.parse(aufrufe[0]!.init.body), {
+    params: { cashregisterId: 'kasse-1', receiptId: 'r1' },
+  });
+});
+
+test('ein ausdruecklich gesetzter Aufruferwert sticht den Auth-Parameter', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg({}));
+  const rufen = createTransport({ auth: kassenBenutzerWeg(), fetch: holen });
+
+  await rufen('createReceipt', { cashregisterId: 'kasse-9' });
+
+  assert.deepEqual(JSON.parse(aufrufe[0]!.init.body), { params: { cashregisterId: 'kasse-9' } });
+});
+
+test('ein null-Parameter bleibt erhalten (null ist eine Aussage, undefined nicht)', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg({}));
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+
+  await rufen('createReceipt', { customProjectId: null });
+
+  assert.deepEqual(JSON.parse(aufrufe[0]!.init.body), { params: { customProjectId: null } });
+});
+
+// --- Kein Wiederholen --------------------------------------------------
+
+test('kein Aufruf wird wiederholt — auch nicht auf dem Fehlerpfad', async () => {
+  // Der teure Fall waere der doppelte Beleg: ohne entschiedene Idempotenz
+  // darf dieses Paket nie von sich aus ein zweites Mal senden.
+  const faelle: Array<[string, FetchLike]> = [
+    ['fachlich', async () => fachfehler('Kasse ist gesperrt')],
+    ['http-500', async () => antwort('<html>500</html>', { status: 500, contentType: 'text/html' })],
+    ['html-200', async () => antwort('<!doctype html>', { contentType: 'text/html' })],
+    [
+      'netz',
+      async () => {
+        throw new TypeError('fetch failed');
+      },
+    ],
+  ];
+
+  for (const [name, antwortGeber] of faelle) {
+    let versuche = 0;
+    const holen: FetchLike = (url, init) => {
+      versuche += 1;
+      return antwortGeber(url, init);
+    };
+    const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+    await assert.rejects(rufen('createReceipt', { receiptId: 'r1' }));
+    assert.equal(versuche, 1, `Fall ${name}: genau ein Versuch, kein zweiter Beleg`);
+  }
+});
+
+// --- Grund des HTTP-Fehlers maschinenlesbar ----------------------------
+
+test('der HTTP-Fehler nennt seinen Grund als eigenes Feld, nicht nur im Text', async () => {
+  const faelle: Array<[string, HttpResponseLike]> = [
+    ['server-error', antwort('<html>500</html>', { status: 500, contentType: 'text/html' })],
+    ['not-json', antwort('<!doctype html><html></html>', { contentType: 'text/html' })],
+    ['empty-body', antwort('')],
+    ['missing-status', antwort(JSON.stringify({ irgendwas: true }))],
+  ];
+
+  for (const [grund, antwortWert] of faelle) {
+    const { holen } = fetchFake(antwortWert);
+    const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+    await assert.rejects(rufen('getReceipt'), (fehler: unknown) => {
+      assert.ok(fehler instanceof KasseneckHttpError);
+      assert.equal(fehler.reason, grund, 'der Rewrite-Fall muss ohne Textparsen vom 500er trennbar sein');
+      return true;
+    });
+  }
 });

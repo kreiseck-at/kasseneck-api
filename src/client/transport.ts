@@ -1,5 +1,11 @@
-import type { KasseneckAuth } from './auth.js';
-import { KasseneckApiError, KasseneckHttpError, KasseneckNetworkError } from './errors.js';
+import type { AuthCredentials, KasseneckAuth } from './auth.js';
+import {
+  KasseneckApiError,
+  KasseneckAuthError,
+  KasseneckHttpError,
+  KasseneckNetworkError,
+  causeDigest,
+} from './errors.js';
 
 /**
  * Transport zum Kasseneck-Backend: ein Aufruf ist ein POST an
@@ -32,7 +38,6 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
  * globale `fetch` erfuellt diese Form.
  */
 export interface HttpResponseLike {
-  ok: boolean;
   status: number;
   headers: { get(name: string): string | null };
   text(): Promise<string>;
@@ -76,65 +81,117 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
   const holen = options.fetch ?? globalesFetch();
 
   return async function aufrufen<T>(functionName: string, params: Record<string, unknown> = {}): Promise<T> {
-    // Die Anmeldung wird bei JEDEM Aufruf befragt — nichts wird beim Anlegen
-    // des Transports gemerkt (Ablaufzeiten siehe auth.ts).
-    const anmeldung = await options.auth();
-    const url = `${basis}/${encodeURIComponent(functionName)}`;
-    // Auth-Parameter bilden die Grundlage; ein ausdruecklich uebergebener
-    // Aufruferwert sticht (der Server prueft ihn ohnehin gegen die Sitzung).
-    const rumpf = JSON.stringify({ params: { ...anmeldung.params, ...params } });
-
+    // Das Zeitlimit laeuft ab HIER — es deckt die Anmeldung mit ab. Haengt die
+    // Token-Erneuerung auf flauem Netz, haette der Aufruf sonst weder Ergebnis
+    // noch Fehler, und die Kasse stuende still.
     const abbruch = new AbortController();
     const wecker = setTimeout(() => abbruch.abort(), zeitlimitMs);
-    let antwort: HttpResponseLike;
-    let text: string;
     try {
-      antwort = await holen(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...anmeldung.headers },
-        body: rumpf,
-        signal: abbruch.signal,
-      });
-      text = await antwort.text();
-    } catch (ursache) {
-      // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
-      throw new KasseneckNetworkError(functionName, abbruch.signal.aborted, zeitlimitMs, ursache);
+      // Die Anmeldung wird bei JEDEM Aufruf befragt — nichts wird beim Anlegen
+      // des Transports gemerkt (Ablaufzeiten siehe auth.ts).
+      let anmeldung: AuthCredentials;
+      try {
+        anmeldung = await Promise.race([Promise.resolve(options.auth()), abbruchAlsAblehnung(abbruch.signal)]);
+      } catch (ursache) {
+        if (abbruch.signal.aborted) {
+          throw new KasseneckNetworkError(functionName, true, zeitlimitMs, causeDigest(ursache));
+        }
+        // Eigene Pruefungen tragen ihren geheimnisfreien Grund weiter; eine
+        // fremde Meldung (Firebase & Co.) bleibt draussen.
+        const grund = ursache instanceof KasseneckAuthError ? ursache.reason : 'Anmeldung fehlgeschlagen';
+        throw new KasseneckAuthError(grund, { functionName, cause: causeDigest(ursache) });
+      }
+
+      // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen.
+      const geheimnisse = Object.values(anmeldung.headers);
+      const url = `${basis}/${encodeURIComponent(functionName)}`;
+      const rumpf = JSON.stringify({ params: nutzlast(anmeldung.params, params) });
+
+      let antwort: HttpResponseLike;
+      let text: string;
+      try {
+        antwort = await holen(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...anmeldung.headers },
+          body: rumpf,
+          signal: abbruch.signal,
+        });
+        text = await antwort.text();
+      } catch (ursache) {
+        // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
+        throw new KasseneckNetworkError(
+          functionName,
+          abbruch.signal.aborted,
+          zeitlimitMs,
+          causeDigest(ursache, geheimnisse),
+        );
+      }
+
+      const inhaltstyp = antwort.headers.get('content-type') ?? undefined;
+      // Das Backend antwortet auf jeden fachlichen Ausgang mit HTTP 200; alles
+      // andere kommt nicht von ihm (Proxy, Rewrite-Luecke, Infrastruktur).
+      if (antwort.status !== 200) {
+        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'server-error');
+      }
+      if (!text.trim()) {
+        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'empty-body');
+      }
+
+      let huelle: unknown;
+      try {
+        huelle = JSON.parse(text);
+      } catch {
+        // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
+        // der Single-Page-App — HTTP 200, aber kein JSON.
+        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'not-json');
+      }
+      if (typeof huelle !== 'object' || huelle === null || !('status' in huelle)) {
+        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'missing-status');
+      }
+
+      const { status, message, data } = huelle as { status: unknown; message?: unknown; data?: unknown };
+      if (status === 'success') {
+        return data as T;
+      }
+      // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
+      // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
+      const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
+      throw new KasseneckApiError(functionName, meldung);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
     }
-
-    const inhaltstyp = antwort.headers.get('content-type') ?? undefined;
-    // Das Backend antwortet auf jeden fachlichen Ausgang mit HTTP 200; alles
-    // andere kommt nicht von ihm (Proxy, Rewrite-Luecke, Infrastruktur).
-    if (antwort.status !== 200) {
-      throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'Server-Fehler');
-    }
-    if (!text.trim()) {
-      throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'leere Antwort');
-    }
-
-    let huelle: unknown;
-    try {
-      huelle = JSON.parse(text);
-    } catch {
-      // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
-      // der Single-Page-App — HTTP 200, aber kein JSON.
-      throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'Antwort ist kein JSON');
-    }
-    if (typeof huelle !== 'object' || huelle === null || !('status' in huelle)) {
-      throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'Antwort ohne Statusfeld');
-    }
-
-    const { status, message, data } = huelle as { status: unknown; message?: unknown; data?: unknown };
-    if (status === 'success') {
-      return data as T;
-    }
-    // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
-    // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
-    const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
-    throw new KasseneckApiError(functionName, meldung);
   };
+}
+
+/**
+ * Nutzlast aus Auth- und Aufruferparametern. Auth-Parameter bilden die
+ * Grundlage; ein ausdruecklich gesetzter Aufruferwert sticht (der Server prueft
+ * ihn ohnehin gegen die Sitzung). Ein **anwesender, aber undefinierter**
+ * Schluessel sticht dagegen nicht: `{ …, cashregisterId: opts.cashregisterId }`
+ * ist in der Endpunkt-Schicht das natuerlichste Muster der Welt, und ein reines
+ * Spread wuerde die Kassenbindung damit still loeschen (`JSON.stringify` wirft
+ * undefined danach weg). `null` bleibt erhalten — das ist eine Aussage.
+ */
+function nutzlast(authParams: Record<string, unknown>, params: Record<string, unknown>): Record<string, unknown> {
+  const zusammen: Record<string, unknown> = { ...authParams };
+  for (const [schluessel, wert] of Object.entries(params)) {
+    if (wert !== undefined) {
+      zusammen[schluessel] = wert;
+    }
+  }
+  return zusammen;
+}
+
+/** Lehnt ab, sobald das Zeitlimit die Anfrage abbricht. */
+function abbruchAlsAblehnung(signal: AbortSignal): Promise<never> {
+  return new Promise((_erfuellen, ablehnen) => {
+    if (signal.aborted) {
+      ablehnen(new Error('abgebrochen'));
+      return;
+    }
+    signal.addEventListener('abort', () => ablehnen(new Error('abgebrochen')), { once: true });
+  });
 }
 
 /** Das globale `fetch`; fehlt es, faellt das sofort und deutlich auf. */

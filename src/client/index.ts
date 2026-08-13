@@ -20,10 +20,14 @@ export {
 
 export {
   KasseneckApiError,
+  KasseneckAuthError,
   KasseneckHttpError,
   KasseneckNetworkError,
   type KasseneckError,
+  type HttpFailureReason,
+  type CauseDigest,
   isKasseneckApiError,
+  isKasseneckAuthError,
   isKasseneckHttpError,
   isKasseneckNetworkError,
 } from './errors.js';

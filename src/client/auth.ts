@@ -21,6 +21,8 @@
  * 30 Sekunden erneuert; ein einmal gemerkter Wert waere also bald tot.
  */
 
+import { KasseneckAuthError } from './errors.js';
+
 /** Was eine Anmeldung zu einer Anfrage beisteuert. */
 export interface AuthCredentials {
   /** Kopfzeilen der Anfrage (mindestens `Authorization`). */
@@ -56,10 +58,10 @@ export function apiKeyAuth(options: ApiKeyAuthOptions): KasseneckAuth {
   // Fehlende Zugangsdaten fallen hier auf und nicht erst als 401 vom Backend.
   // Die Meldung nennt nur das leere Feld, nie einen Wert.
   if (!options.apiKey) {
-    throw new Error('apiKeyAuth: apiKey fehlt');
+    throw new KasseneckAuthError('apiKeyAuth: apiKey fehlt');
   }
   if (!options.cashregisterToken) {
-    throw new Error('apiKeyAuth: cashregisterToken fehlt');
+    throw new KasseneckAuthError('apiKeyAuth: cashregisterToken fehlt');
   }
   const { apiKey, cashregisterToken } = options;
   // Pro Aufruf ein frisches Objekt: der Transport (oder ein Aufrufer) darf
@@ -76,17 +78,17 @@ export function apiKeyAuth(options: ApiKeyAuthOptions): KasseneckAuth {
 /** Anmeldung eines Kassen-Benutzers der Browser-Kasse (ID-Token + Sitzung). */
 export function registerUserAuth(options: RegisterUserAuthOptions): KasseneckAuth {
   if (!options.cashregisterId) {
-    throw new Error('registerUserAuth: cashregisterId fehlt');
+    throw new KasseneckAuthError('registerUserAuth: cashregisterId fehlt');
   }
   const { getIdToken, getSessionId, cashregisterId } = options;
   return async () => {
     // Beides bei JEDEM Aufruf frisch — siehe Modulkommentar (Ablaufzeiten).
     const [idToken, sessionId] = await Promise.all([getIdToken(), getSessionId()]);
     if (!idToken) {
-      throw new Error('registerUserAuth: getIdToken lieferte kein Token');
+      throw new KasseneckAuthError('registerUserAuth: getIdToken lieferte kein Token');
     }
     if (!sessionId) {
-      throw new Error('registerUserAuth: getSessionId lieferte keine Sitzung');
+      throw new KasseneckAuthError('registerUserAuth: getSessionId lieferte keine Sitzung');
     }
     return {
       headers: {
