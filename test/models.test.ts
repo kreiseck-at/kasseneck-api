@@ -6,8 +6,10 @@ import {
   toReceiptItemPayload,
   fromReceiptItemPayload,
   receiptItemTotalCents,
+  receiptItemIsValid,
+  negateReceiptItem,
 } from '../src/models/receipt-item.js';
-import { type Voucher, toVoucherPayload, fromVoucherPayload } from '../src/models/voucher.js';
+import { type Voucher, toVoucherPayload, fromVoucherPayload, voucherIsValid } from '../src/models/voucher.js';
 import {
   type Receipt,
   type ReceiptPayload,
@@ -83,6 +85,25 @@ test('Belegposition: unbekannter Steuersatz wirft beim Schreiben weiterhin', () 
   assert.throws(() => toReceiptItemPayload(item), /Steuersatz/);
 });
 
+test('Belegposition: gueltig heisst Name da und Menge positiv — negativer Preis bleibt gueltig', () => {
+  assert.equal(receiptItemIsValid({ name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 320 }), true);
+  // Storno: der negative Preis ist der Normalfall, kein Fehler.
+  assert.equal(receiptItemIsValid({ name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: -320 }), true);
+  assert.equal(receiptItemIsValid({ name: '', quantity: 1, vat: VatRate.vat20, priceCents: 320 }), false);
+  assert.equal(receiptItemIsValid({ name: 'Kaffee', quantity: 0, vat: VatRate.vat20, priceCents: 320 }), false);
+  assert.equal(receiptItemIsValid({ name: 'Kaffee', quantity: -1, vat: VatRate.vat20, priceCents: 320 }), false);
+});
+
+test('Belegposition: Negation kehrt den Preis um und laesst die Menge positiv', () => {
+  const item: ReceiptItem = { name: 'Kaffee', quantity: 2, vat: VatRate.vat20, priceCents: 320 };
+  const storno = negateReceiptItem(item);
+  assert.deepEqual(storno, { name: 'Kaffee', quantity: 2, vat: VatRate.vat20, priceCents: -320 });
+  // Die Ausgangsposition bleibt unberuehrt — sonst waere der Originalbeleg
+  // nach dem Storno im Speicher veraendert.
+  assert.equal(item.priceCents, 320);
+  assert.deepEqual(negateReceiptItem(storno), item);
+});
+
 // --- Gutschein -----------------------------------------------------------
 
 test('Gutschein: Nutzlast hin und zurueck ergibt denselben Wert', () => {
@@ -108,6 +129,20 @@ test('Gutschein: unbekannte Aktion aus der Nutzlast bleibt beim Lesen erhalten s
 test('Gutschein: unbekannte Aktion wirft beim Schreiben weiterhin', () => {
   const voucher: Voucher = { action: 'teleport', type: VoucherType.promo, valueCents: 100 };
   assert.throws(() => toVoucherPayload(voucher), /Aktion/);
+});
+
+test('Gutschein: Gueltigkeitsregeln des Vorbilds', () => {
+  const wert = (valueCents?: number): Voucher => ({ action: VoucherAction.sell, type: VoucherType.value, ...(valueCents == null ? {} : { valueCents }) });
+  assert.equal(voucherIsValid(wert(500)), true);
+  // Wertgutschein ohne Wert ergibt keinen Umsatz.
+  assert.equal(voucherIsValid(wert()), false);
+  // Ein Promotionsgutschein wird eingeloest, nie verkauft.
+  assert.equal(voucherIsValid({ action: VoucherAction.redeem, type: VoucherType.promo, valueCents: 500 }), true);
+  assert.equal(voucherIsValid({ action: VoucherAction.sell, type: VoucherType.promo, valueCents: 500 }), false);
+  assert.equal(voucherIsValid({ action: VoucherAction.redeem, type: VoucherType.promo }), false);
+  // Ein gesetzter Wert muss positiv sein — 0 und negativ sind Unsinn.
+  assert.equal(voucherIsValid(wert(0)), false);
+  assert.equal(voucherIsValid(wert(-100)), false);
 });
 
 // --- Beleg -----------------------------------------------------------------

@@ -49,6 +49,28 @@ export function toVoucherPayload(voucher: Voucher): VoucherPayload {
   };
 }
 
+/**
+ * Ist der Gutschein an das Backend sendbar? Zwilling von `KeckVoucher.isValid`
+ * im Flutter-Vorbild: Wert- und Promotionsgutscheine brauchen einen Wert,
+ * Promotionsgutscheine duerfen nur eingeloest (nicht verkauft) werden, und ein
+ * gesetzter Wert muss positiv sein.
+ */
+export function voucherIsValid(voucher: Voucher): boolean {
+  if (voucher.type === VoucherType.value && voucher.valueCents == null) {
+    return false;
+  }
+  if (voucher.type === VoucherType.promo && voucher.action !== VoucherAction.redeem) {
+    return false;
+  }
+  if (voucher.type === VoucherType.promo && voucher.valueCents == null) {
+    return false;
+  }
+  if (voucher.valueCents != null && voucher.valueCents <= 0) {
+    return false;
+  }
+  return true;
+}
+
 export function fromVoucherPayload(payload: VoucherPayload): Voucher {
   const valueCents =
     payload.valueCents != null

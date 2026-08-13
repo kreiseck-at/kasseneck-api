@@ -1,10 +1,16 @@
 /**
  * Deutung von Server-Zeitstempeln in der Geschaeftszeitzone Europe/Vienna —
  * Zwilling von `ViennaTime.parseServerTimeStamp` in
- * kasseneck_api/lib/services/vienna_time.dart (nur die Deutungsrichtung
- * Nutzlast -> Zeitpunkt; Anzeige-/Wanduhr-Hilfen wie `toWallClock`,
- * `dayKey`, `now()` sind reine Anzeigehilfen des Dart-Vorbilds und nicht
- * Teil dieses Pakets).
+ * kasseneck_api/lib/services/vienna_time.dart.
+ *
+ * Zwei Richtungen: `parseServerTimeStamp` deutet die Nutzlast als Zeitpunkt,
+ * `toViennaWallClock` liest zu einem Zeitpunkt die Wiener Wanduhrzeit zurueck.
+ * Die Rueckrichtung braucht jeder, der aus einem Zeitpunkt einen fachlichen
+ * Kalenderwert ableitet (Berichtsmonat, Tagesabgrenzung): die eingebauten
+ * `getMonth()`/`getFullYear()` liefern die Zeitzone des ausfuehrenden
+ * Rechners, und ein Beleg vom 1. Maerz 00:30 Wiener Zeit faellt damit auf
+ * einer UTC-Maschine in den Februar. Weitere Anzeigehilfen des Dart-Vorbilds
+ * (`dayKey`, `now()`) sind nicht Teil dieses Pakets.
  *
  * Der Kasseneck-Server liefert Zeitstempel uneinheitlich: neue Belege als
  * Wiener Wanduhrzeit ohne Offset (`getLokalAustriaTimeFinanzamtFormat()` im
@@ -45,7 +51,8 @@ export function parseServerTimeStamp(raw: string): Date {
   });
 }
 
-interface WanduhrFelder {
+/** Wiener Wanduhrzeit: die Ziffern, die eine Uhr in Wien anzeigt. `month` ist 1-12. */
+export interface ViennaWallClock {
   year: number;
   month: number;
   day: number;
@@ -53,6 +60,29 @@ interface WanduhrFelder {
   minute: number;
   second: number;
   millisecond: number;
+}
+
+type WanduhrFelder = ViennaWallClock;
+
+/**
+ * Echter Zeitpunkt -> Wiener Wanduhrzeit (Gegenstueck zu
+ * [parseServerTimeStamp]). Der Versatz kommt aus derselben Sommerzeitregel wie
+ * die Hinrichtung; hier ist er direkt anwendbar, weil der Zeitpunkt schon
+ * feststeht.
+ */
+export function toViennaWallClock(zeitpunkt: Date): ViennaWallClock {
+  const utcMs = zeitpunkt.getTime();
+  const versatzMs = (istSommerzeit(utcMs) ? 2 : 1) * STUNDE_MS;
+  const verschoben = new Date(utcMs + versatzMs);
+  return {
+    year: verschoben.getUTCFullYear(),
+    month: verschoben.getUTCMonth() + 1,
+    day: verschoben.getUTCDate(),
+    hour: verschoben.getUTCHours(),
+    minute: verschoben.getUTCMinutes(),
+    second: verschoben.getUTCSeconds(),
+    millisecond: verschoben.getUTCMilliseconds(),
+  };
 }
 
 /** Wiener Wanduhrzeit (Ziffern wie angezeigt) -> echter Zeitpunkt (UTC). */

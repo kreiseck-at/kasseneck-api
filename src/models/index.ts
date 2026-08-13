@@ -1,5 +1,13 @@
-export { type ReceiptItem, type ReceiptItemPayload, toReceiptItemPayload, fromReceiptItemPayload, receiptItemTotalCents } from './receipt-item.js';
-export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
+export {
+  type ReceiptItem,
+  type ReceiptItemPayload,
+  toReceiptItemPayload,
+  fromReceiptItemPayload,
+  receiptItemTotalCents,
+  receiptItemIsValid,
+  negateReceiptItem,
+} from './receipt-item.js';
+export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid } from './voucher.js';
 export {
   type Receipt,
   type ReceiptPayload,

@@ -55,3 +55,21 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayload): ReceiptItem
 export function receiptItemTotalCents(item: ReceiptItem): number {
   return item.priceCents * item.quantity;
 }
+
+/**
+ * Ist die Position an das Backend sendbar? Zwilling von `KasseneckItem.isValid`
+ * im Flutter-Vorbild: ein Name muss da sein und die Menge positiv. Der Preis
+ * darf negativ sein — genau das ist eine Stornoposition.
+ */
+export function receiptItemIsValid(item: ReceiptItem): boolean {
+  return item.name.length > 0 && item.quantity > 0;
+}
+
+/**
+ * Stornoposition zu dieser Position — Zwilling von `KasseneckItem.negative`:
+ * gleicher Name, gleiche Menge, gleicher Steuersatz, **negierter** Einzelpreis.
+ * Die Menge bleibt positiv; das Vorzeichen sitzt ausschliesslich im Preis.
+ */
+export function negateReceiptItem(item: ReceiptItem): ReceiptItem {
+  return { ...item, priceCents: -item.priceCents };
+}

@@ -31,3 +31,20 @@ export {
   isKasseneckHttpError,
   isKasseneckNetworkError,
 } from './errors.js';
+
+export {
+  type ReceiptCommonOptions,
+  type SellReceiptOptions,
+  type CancelReceiptOptions,
+  type CreateCancelReceiptOptions,
+  sellReceipt,
+  cancelReceipt,
+  createCancelReceipt,
+  zeroReceipt,
+  getReceipt,
+  generateFullReceiptId,
+  getFirstReceiptDate,
+  checkVoucherCombinationError,
+} from './receipts.js';
+
+export { type KasseneckApi, createKasseneckApi } from './api.js';
