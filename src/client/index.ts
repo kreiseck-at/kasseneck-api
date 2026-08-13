@@ -53,8 +53,14 @@ export {
   getReceiptWithCompany,
   generateFullReceiptId,
   getFirstReceiptDate,
+  listMyReceipts,
+  type ListMyReceiptsOptions,
+  type ReceiptList,
+  type ReceiptListStats,
   checkVoucherCombinationError,
 } from './receipts.js';
+
+export { listMyCashregisters } from './cashregisters.js';
 
 export { downloadDailyReport, downloadMonthlyReport } from './reports.js';
 

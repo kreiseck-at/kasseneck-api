@@ -1,4 +1,4 @@
-import type { HobexReceipt, Receipt, ReportMonth, StripeUrlSession } from '../models/index.js';
+import type { Cashregister, HobexReceipt, Receipt, ReportMonth, StripeUrlSession } from '../models/index.js';
 import {
   createStripeLink,
   stripeCaptureIntent,
@@ -19,11 +19,15 @@ import {
   getReceiptWithCompany,
   generateFullReceiptId,
   getFirstReceiptDate,
+  listMyReceipts,
+  type ListMyReceiptsOptions,
+  type ReceiptList,
   type ReceiptWithCompany,
   type SellReceiptOptions,
   type CancelReceiptOptions,
   type CreateCancelReceiptOptions,
 } from './receipts.js';
+import { listMyCashregisters } from './cashregisters.js';
 
 /**
  * Schlichte Factory ueber den Endpunkt-Funktionen: bindet einen Transport
@@ -59,6 +63,10 @@ export interface KasseneckApi {
   generateFullReceiptId(receiptId: string): Promise<string>;
   /** Berichtsmonat des ersten Belegs (nicht fuer den Kassen-Benutzer-Weg). */
   getFirstReceiptDate(): Promise<ReportMonth>;
+  /** Belegliste einer Kasse samt Kennzahlen (nur mit ID-Token, siehe receipts.ts). */
+  listMyReceipts(options: ListMyReceiptsOptions): Promise<ReceiptList>;
+  /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
+  listMyCashregisters(): Promise<Cashregister[]>;
   /** Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
   downloadDailyReport(date: Date): Promise<Uint8Array>;
   /** Monatsbericht als PDF (Endpunkt `downloadReport`). */
@@ -92,6 +100,8 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     getReceiptWithCompany: (receiptId) => getReceiptWithCompany(rufen, receiptId),
     generateFullReceiptId: (receiptId) => generateFullReceiptId(rufen, receiptId),
     getFirstReceiptDate: () => getFirstReceiptDate(rufen),
+    listMyReceipts: (o) => listMyReceipts(rufen, o),
+    listMyCashregisters: () => listMyCashregisters(rufen),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
     getCashboxStatus: () => getCashboxStatus(rufen),

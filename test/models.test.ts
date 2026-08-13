@@ -19,11 +19,10 @@ import {
   receiptSumCents,
 } from '../src/models/receipt.js';
 import {
-  type Cashregister,
   type CashregisterPayload,
-  toCashregisterPayload,
   fromCashregisterPayload,
 } from '../src/models/cashregister.js';
+import { fromReceiptSummaryPayload } from '../src/models/receipt-summary.js';
 import {
   type ReportMonth,
   previousReportMonth,
@@ -347,42 +346,124 @@ test('Beleg: liest eine woertliche, dem Flutter-Vorbild nachgebaute Nutzlast ueb
 
 // --- Kasse -----------------------------------------------------------------
 
-test('Kasse: Nutzlast hin und zurueck ergibt denselben Wert', () => {
-  const kasse: Cashregister = {
-    userId: 'u1',
-    id: 'cr1',
-    createTime: new Date('2026-01-05T09:00:00.000Z'),
-    token: 'tok',
-    aesKey: 'aes-key',
-    signatureId: 'sig1',
-  };
-  const payload = toCashregisterPayload(kasse);
-  assert.equal(payload.create_time, '2026-01-05T09:00:00.000Z');
-  assert.deepEqual(fromCashregisterPayload(payload, kasse.id, kasse.userId), kasse);
-});
-
-test('Kasse: fehlende signatureId bleibt nach der Nutzlast-Runde undefined', () => {
-  const kasse: Cashregister = { userId: 'u1', id: 'cr1', createTime: new Date('2026-01-05T09:00:00.000Z'), token: 'tok', aesKey: 'aes-key' };
-  const rundtrip = fromCashregisterPayload(toCashregisterPayload(kasse), kasse.id, kasse.userId);
-  assert.equal(rundtrip.signatureId, undefined);
-});
-
-test('Kasse: liest eine woertliche, dem Flutter-Vorbild nachgebaute Nutzlast ueber alle Felder', () => {
-  // Von Hand aus cashregister.dart::fromJson() abgeschrieben (snake_case
-  // Firestore-Feldnamen), nicht ueber toCashregisterPayload erzeugt.
+test('Kasse: liest die woertliche Antwort von listMyCashregisters (Kassen-Benutzer)', () => {
+  // Von Hand aus dem Antwortblock von `listMyCashregisters` in
+  // functions/index.js (origin/main) abgeschrieben — nicht aus dieser
+  // Umsetzung erzeugt. Fuer einen Kassen-Benutzer sendet das Backend `token`
+  // ausdruecklich als null, und `aes_key` steht in dieser Antwort gar nicht.
   const payload: CashregisterPayload = {
+    id: 'cr7',
+    label: 'Schank',
+    description: 'Kasse im Gastgarten',
     create_time: '2026-01-05T09:00:00.000Z',
-    token: 'kasse-token-123',
-    aes_key: 'base64-aes-key==',
     signature_id: 'sig-42',
+    token: null,
+    onboarding: {
+      cashbox_registered: true,
+      startbeleg_created: true,
+      startbeleg_transmitted: false,
+      cashbox_registered_at: '2026-01-05T09:05:00.000Z',
+      startbeleg_created_at: '2026-01-05T09:06:00.000Z',
+      startbeleg_transmitted_at: null,
+    },
   };
-  const kasse = fromCashregisterPayload(payload, 'cr7', 'user9');
+  const kasse = fromCashregisterPayload(payload, 'ignoriert');
   assert.equal(kasse.id, 'cr7');
-  assert.equal(kasse.userId, 'user9');
-  assert.equal(kasse.createTime.toISOString(), '2026-01-05T09:00:00.000Z');
-  assert.equal(kasse.token, 'kasse-token-123');
-  assert.equal(kasse.aesKey, 'base64-aes-key==');
+  assert.equal(kasse.label, 'Schank');
+  assert.equal(kasse.description, 'Kasse im Gastgarten');
+  assert.equal(kasse.createTime?.toISOString(), '2026-01-05T09:00:00.000Z');
   assert.equal(kasse.signatureId, 'sig-42');
+  assert.equal(kasse.token, undefined, 'ein null-Token darf keine Zeichenkette werden');
+  assert.deepEqual(kasse.onboarding, {
+    cashboxRegistered: true,
+    startbelegCreated: true,
+    startbelegTransmitted: false,
+    cashboxRegisteredAt: new Date('2026-01-05T09:05:00.000Z'),
+    startbelegCreatedAt: new Date('2026-01-05T09:06:00.000Z'),
+  });
+});
+
+test('Kasse: ein fehlender Zeitstempel wird nicht still zur Epoche', () => {
+  // `isoTs` im Backend liefert null, wenn das Dokument keinen Zeitstempel
+  // traegt. `new Date(null)` ergaebe den 1.1.1970 — ein erfundenes Datum, das
+  // in einer Kassenliste als echtes Anlagedatum durchginge.
+  const kasse = fromCashregisterPayload({ id: 'cr1', create_time: null, token: null }, 'cr1');
+  assert.equal(kasse.createTime, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call(kasse, 'createTime'), false);
+  assert.equal(kasse.token, undefined);
+  assert.deepEqual(kasse.onboarding, {
+    cashboxRegistered: false,
+    startbelegCreated: false,
+    startbelegTransmitted: false,
+  });
+});
+
+test('Kasse: der Kassen-Token kommt durch, wenn das Backend ihn sendet', () => {
+  // Nur der api_key-Pfad bekommt ihn; fuer Kassen-Benutzer ist er null.
+  const kasse = fromCashregisterPayload({ id: 'cr1', token: 'cb_live_ABC', create_time: null }, 'cr1');
+  assert.equal(kasse.token, 'cb_live_ABC');
+});
+
+test('Kasse: ein unlesbarer Zeitstempel laesst die uebrigen Angaben stehen', () => {
+  // Tolerante Leserichtung wie beim Enum-Lesen: eine Kassenliste darf nicht an
+  // einem einzelnen kaputten Datum scheitern.
+  const kasse = fromCashregisterPayload({ id: 'cr1', create_time: 'gestern frueh' }, 'cr1');
+  assert.equal(kasse.createTime, undefined);
+  assert.equal(kasse.id, 'cr1');
+});
+
+test('Kasse: ein offsetloser Zeitstempel gilt als Wiener Wanduhrzeit', () => {
+  // Nicht `new Date(text)`: das deutete ihn als lokale Zeit des ausfuehrenden
+  // Rechners. 09:00 Wiener Winterzeit sind 08:00 UTC.
+  const kasse = fromCashregisterPayload({ id: 'cr1', create_time: '2026-01-05T09:00:00' }, 'cr1');
+  assert.equal(kasse.createTime?.toISOString(), '2026-01-05T08:00:00.000Z');
+});
+
+// --- Belegzeile der Liste ----------------------------------------------------
+
+test('Belegzeile: liest die woertliche Antwort von listMyReceipts', () => {
+  // Von Hand aus `projectReceiptForCustomer` in functions/index.js
+  // (origin/main) abgeschrieben.
+  const zeile = fromReceiptSummaryPayload({
+    receiptId: 'r-9',
+    counter: 42,
+    receiptType: 'standard',
+    timeStamp: '2026-08-13T10:15:00',
+    total: 19.9,
+    paymentMethod: 'cash',
+    transmission_status: 'success',
+    ts_transmission: '2026-08-13T10:16:00',
+    signature_ok: true,
+  });
+  assert.equal(zeile.receiptId, 'r-9');
+  assert.equal(zeile.counter, 42);
+  assert.equal(zeile.receiptType, ReceiptType.standard);
+  assert.equal(zeile.timeStamp, '2026-08-13T10:15:00');
+  // Euro der Antwort, ganze Cent im Modell — und 19.9 * 100 ist in
+  // Gleitkomma 1989.9999999999998, deshalb wird gerundet und nicht gekuerzt.
+  assert.equal(zeile.totalCents, 1990);
+  assert.equal(zeile.paymentMethod, KeckPaymentMethod.cash);
+  assert.equal(zeile.transmissionStatus, 'success');
+  assert.equal(zeile.transmissionTime, '2026-08-13T10:16:00');
+  assert.equal(zeile.signatureOk, true);
+});
+
+test('Belegzeile: ein Storno behaelt sein Vorzeichen in ganzen Cent', () => {
+  assert.equal(fromReceiptSummaryPayload({ total: -19.9 }).totalCents, -1990);
+  // Von der Null weg runden — sonst heben sich Beleg und Storno nicht auf.
+  assert.equal(fromReceiptSummaryPayload({ total: 0.005 }).totalCents, 1);
+  assert.equal(fromReceiptSummaryPayload({ total: -0.005 }).totalCents, -1);
+});
+
+test('Belegzeile: unbekannte Schluessel bleiben roh, statt die Liste zu kippen', () => {
+  const zeile = fromReceiptSummaryPayload({ receiptType: 'sonderbeleg', paymentMethod: 'klarna' });
+  assert.equal(zeile.receiptType, 'sonderbeleg');
+  assert.equal(zeile.paymentMethod, 'klarna');
+});
+
+test('Belegzeile: nur ein ausdrueckliches false heisst "Signatur ausgefallen"', () => {
+  assert.equal(fromReceiptSummaryPayload({}).signatureOk, true);
+  assert.equal(fromReceiptSummaryPayload({ signature_ok: false }).signatureOk, false);
 });
 
 // --- Berichtsmonat -----------------------------------------------------------

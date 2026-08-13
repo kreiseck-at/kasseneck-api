@@ -21,6 +21,9 @@ import {
   receiptItemIsValid,
   negateReceiptItem,
   voucherIsValid,
+  fromReceiptSummaryPayload,
+  type ReceiptSummary,
+  type ReceiptSummaryPayload,
   type ReportMonth,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
@@ -42,8 +45,8 @@ import type { KasseneckTransport } from './transport.js';
  * Beleg ist nicht folgenlos wiederholbar.
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Von den
- * Endpunkten dieser Datei setzen `listMyReceipts`, `getReceipt`,
- * `createReceipt` und `generateFullReceiptId` ein `allowRegisterUser` — der
+ * Endpunkten dieser Datei setzen [listMyReceipts], [getReceipt],
+ * [createReceipt] und [generateFullReceiptId] ein `allowRegisterUser` — der
  * Browser-Kasse steht hier also alles offen ausser [getFirstReceiptDate];
  * siehe den Hinweis dort. Dieses Paket bildet das **nicht** nach — wer darf,
  * entscheidet allein das Backend. Der Hinweis steht hier, damit ein Leser
@@ -266,6 +269,122 @@ export function createCancelReceipt(rufen: KasseneckTransport, options: CreateCa
 /** Nullbeleg (RKSV-Pruefbeleg) — ohne Positionen und ohne Zahlungsart. */
 export function zeroReceipt(rufen: KasseneckTransport): Promise<Receipt> {
   return createReceipt(rufen, { receiptType: ReceiptType.zero });
+}
+
+/** Belegliste einer Kasse samt der Kennzahlen, die dieselbe Antwort mitliefert. */
+export interface ReceiptList {
+  /** Letzte Belege, neueste zuerst (Backend: nach `counter` absteigend). */
+  receipts: ReceiptSummary[];
+  stats: ReceiptListStats;
+}
+
+/**
+ * Kennzahlen zur Kasse, die `listMyReceipts` neben der Liste liefert. Sie
+ * kommen aus den Tages-Aggregaten des Backends, nicht aus den gelisteten
+ * Belegen — die Reihe umfasst sieben Tage, die Liste nur die letzten `limit`
+ * Belege.
+ */
+export interface ReceiptListStats {
+  /** Heutiger Umsatz in Cent und Belegzahl (Wiener Kalendertag). */
+  today: { revenueCents: number; count: number };
+  /** Veraenderung gegenueber gestern in Prozent; `null`, wenn gestern 0 war. */
+  trendPercent: number | null;
+  /** Sieben Tage, aeltester zuerst; `date` als `YYYY-MM-DD` (Wiener Kalender). */
+  days: Array<{ date: string; revenueCents: number }>;
+}
+
+export interface ListMyReceiptsOptions {
+  /**
+   * Kasse, deren Belege gelistet werden. Geht als Parameter **`cashregisterid`**
+   * hinaus — klein geschrieben, anders als das `cashregisterId` der Anmeldung:
+   * so heisst der Pflichtparameter dieses Endpunkts im Backend, und ein
+   * Tippfehler faellt sonst erst im Betrieb auf.
+   */
+  cashregisterId: string;
+  /**
+   * Anzahl Belege; ohne Angabe nimmt das Backend 50. Es begrenzt den Wert
+   * selbst auf 1 bis 200 — ein groesserer Wunsch wird still gekappt.
+   */
+  limit?: number;
+}
+
+/**
+ * Belege einer Kasse auflisten — die Grundlage jeder Belegliste in der
+ * Browser-Kasse (Nachdruck, Storno, Tagesuebersicht).
+ *
+ * Die Eintraege sind **Zusammenfassungen**, keine vollstaendigen Belege (siehe
+ * [ReceiptSummary]); fuer Nachdruck oder Storno gehoert der Beleg ueber
+ * [getReceipt] bzw. [getReceiptWithCompany] einzeln geholt.
+ *
+ * **Anmeldeweg:** Der Endpunkt laeuft im Backend unter
+ * `checkRequest(req, 'customer', …, {allowRegisterUser: true})`, der Bearer
+ * muss also ein Firebase-ID-Token sein — mit `apiKeyAuth` ist er nicht
+ * erreichbar. Ausserdem prueft das Backend die Kassenzuweisung hier im Rumpf
+ * (der Endpunkt laeuft mit `checkCashRegister: false`), ein Kassen-Benutzer
+ * bekommt also nur die ihm zugewiesenen Kassen.
+ */
+export async function listMyReceipts(rufen: KasseneckTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
+  if (typeof options.cashregisterId !== 'string' || options.cashregisterId.trim() === '') {
+    throw new KasseneckValidationError('listMyReceipts', 'cashregisterId fehlt', 'request');
+  }
+  if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1)) {
+    throw new KasseneckValidationError(
+      'listMyReceipts',
+      `limit muss eine ganze Zahl ab 1 sein, war "${options.limit}"`,
+      'request',
+    );
+  }
+  const daten = await rufen<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
+    cashregisterid: options.cashregisterId,
+    limit: options.limit,
+  });
+  const liste = daten?.receipts;
+  if (!Array.isArray(liste)) {
+    throw antwortfehler('listMyReceipts', 'Antwort enthaelt keine Belegliste (data.receipts fehlt)');
+  }
+  return {
+    receipts: liste.map((eintrag) =>
+      fromReceiptSummaryPayload((typeof eintrag === 'object' && eintrag !== null ? eintrag : {}) as ReceiptSummaryPayload),
+    ),
+    stats: kennzahlen(daten?.stats),
+  };
+}
+
+/**
+ * Kennzahlen aus der Antwort. Sie duerfen Luecken haben, ohne die Belegliste
+ * unbrauchbar zu machen — eine fehlende Wochenreihe ist kein Grund, dem
+ * Kassier die Belege vorzuenthalten.
+ */
+function kennzahlen(roh: unknown): ReceiptListStats {
+  const quelle = (typeof roh === 'object' && roh !== null ? roh : {}) as {
+    today?: { umsatz?: unknown; count?: unknown } | null;
+    trendPct?: unknown;
+    days?: unknown;
+  };
+  const tage = Array.isArray(quelle.days) ? quelle.days : [];
+  return {
+    today: {
+      revenueCents: euroInCent(quelle.today?.umsatz),
+      count: typeof quelle.today?.count === 'number' ? quelle.today.count : 0,
+    },
+    trendPercent: typeof quelle.trendPct === 'number' ? quelle.trendPct : null,
+    days: tage.map((tag: unknown) => {
+      const eintrag = (typeof tag === 'object' && tag !== null ? tag : {}) as { date?: unknown; umsatz?: unknown };
+      return {
+        date: typeof eintrag.date === 'string' ? eintrag.date : '',
+        revenueCents: euroInCent(eintrag.umsatz),
+      };
+    }),
+  };
+}
+
+/** Euro der Antwort in ganze Cent — dieselbe Grenze wie in den Modellen. */
+function euroInCent(wert: unknown): number {
+  if (typeof wert !== 'number' || !Number.isFinite(wert)) {
+    return 0;
+  }
+  const cents = Math.round(Math.abs(wert) * 100);
+  return wert < 0 ? -cents : cents;
 }
 
 /** Einzelnen Beleg der angemeldeten Kasse holen. */

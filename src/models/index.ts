@@ -24,7 +24,14 @@ export {
   fromReceiptCompanyPayload,
   receiptCompanyTaxInfo,
 } from './receipt-company.js';
-export { type Cashregister, type CashregisterPayload, toCashregisterPayload, fromCashregisterPayload } from './cashregister.js';
+export {
+  type Cashregister,
+  type CashregisterOnboarding,
+  type CashregisterPayload,
+  type CashregisterOnboardingPayload,
+  fromCashregisterPayload,
+} from './cashregister.js';
+export { type ReceiptSummary, type ReceiptSummaryPayload, fromReceiptSummaryPayload } from './receipt-summary.js';
 export {
   type ReportMonth,
   reportMonthFromDate,
