@@ -1,7 +1,5 @@
 import { CreditCardProvider } from '../enums/index.js';
-
-/** Cent -> Euro, an der einen Stelle, die alle drei Umwandlungsstellen dieser Datei teilen. */
-const centsToEuro = (cents: number): number => cents / 100;
+import { centsToEuro } from '../money.js';
 
 /**
  * Hobex-Kartenzahlungsbeleg — Zwilling von `HobexReceipt` in

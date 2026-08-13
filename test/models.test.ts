@@ -23,6 +23,7 @@ import {
   fromCashregisterPayload,
 } from '../src/models/cashregister.js';
 import { fromReceiptSummaryPayload } from '../src/models/receipt-summary.js';
+import { centsToEuro, euroToCents } from '../src/money.js';
 import {
   type ReportMonth,
   previousReportMonth,
@@ -610,4 +611,29 @@ test('Berichtsmonat: ein unbrauchbarer Zeitpunkt wirft statt NaN zu liefern', ()
   // Ein NaN-Berichtsmonat wanderte sonst ungebremst in die Monatsberichtslogik
   // des Aufrufers und faellt dort erst viel spaeter auf.
   assert.throws(() => reportMonthFromDate(new Date(NaN)), /Zeitpunkt/);
+});
+
+// --- Geld-Grenze ------------------------------------------------------------
+
+test('Geld: Euro der Antwort werden von der Null weg auf ganze Cent gerundet', () => {
+  // Die Regel steht seit dem Zusammenziehen an genau einer Stelle (src/money.ts)
+  // und gilt damit fuer die Belegzeile wie fuer die Kennzahlen der Liste.
+  assert.equal(euroToCents(19.9), 1990);
+  assert.equal(euroToCents(-19.9), -1990);
+  // Von der Null weg — mit Math.round allein ergaebe -0.005 hier -0.
+  assert.equal(euroToCents(0.005), 1);
+  assert.equal(euroToCents(-0.005), -1);
+  assert.equal(euroToCents(0), 0);
+});
+
+test('Geld: ein unbrauchbarer Betrag ergibt 0, statt die Liste zu kippen', () => {
+  for (const wert of [null, undefined, 'zehn', Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.equal(euroToCents(wert), 0, `${String(wert)} muss 0 ergeben`);
+  }
+});
+
+test('Geld: Cent -> Euro ist die Gegenrichtung fuer fremde Schnittstellen', () => {
+  assert.equal(centsToEuro(1990), 19.9);
+  assert.equal(centsToEuro(0), 0);
+  assert.equal(centsToEuro(-250), -2.5);
 });

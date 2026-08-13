@@ -27,6 +27,7 @@ import {
   type ReportMonth,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
+import { euroToCents } from '../money.js';
 import { KasseneckValidationError } from './errors.js';
 import type { KasseneckTransport } from './transport.js';
 
@@ -364,7 +365,7 @@ function kennzahlen(roh: unknown): ReceiptListStats {
   const tage = Array.isArray(quelle.days) ? quelle.days : [];
   return {
     today: {
-      revenueCents: euroInCent(quelle.today?.umsatz),
+      revenueCents: euroToCents(quelle.today?.umsatz),
       count: typeof quelle.today?.count === 'number' ? quelle.today.count : 0,
     },
     trendPercent: typeof quelle.trendPct === 'number' ? quelle.trendPct : null,
@@ -372,19 +373,10 @@ function kennzahlen(roh: unknown): ReceiptListStats {
       const eintrag = (typeof tag === 'object' && tag !== null ? tag : {}) as { date?: unknown; umsatz?: unknown };
       return {
         date: typeof eintrag.date === 'string' ? eintrag.date : '',
-        revenueCents: euroInCent(eintrag.umsatz),
+        revenueCents: euroToCents(eintrag.umsatz),
       };
     }),
   };
-}
-
-/** Euro der Antwort in ganze Cent — dieselbe Grenze wie in den Modellen. */
-function euroInCent(wert: unknown): number {
-  if (typeof wert !== 'number' || !Number.isFinite(wert)) {
-    return 0;
-  }
-  const cents = Math.round(Math.abs(wert) * 100);
-  return wert < 0 ? -cents : cents;
 }
 
 /** Einzelnen Beleg der angemeldeten Kasse holen. */

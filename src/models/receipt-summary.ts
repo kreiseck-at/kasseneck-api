@@ -1,4 +1,5 @@
 import { KeckPaymentMethod, ReceiptType } from '../enums/index.js';
+import { euroToCents } from '../money.js';
 import { readEnumKey } from './enum-payload.js';
 
 /**
@@ -62,7 +63,7 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     ...(typeof payload.counter === 'number' ? { counter: payload.counter } : {}),
     receiptType: readEnumKey(ReceiptType, payload.receiptType ?? ''),
     timeStamp: payload.timeStamp ?? '',
-    totalCents: euroInCent(payload.total),
+    totalCents: euroToCents(payload.total),
     paymentMethod: readEnumKey(KeckPaymentMethod, payload.paymentMethod ?? ''),
     ...(payload.transmission_status ? { transmissionStatus: payload.transmission_status } : {}),
     ...(payload.ts_transmission ? { transmissionTime: payload.ts_transmission } : {}),
@@ -70,18 +71,4 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     // Backend, das hier `signatureSuccess !== false` sendet.
     signatureOk: payload.signature_ok !== false,
   };
-}
-
-/**
- * Euro-Betrag der Antwort in ganze Cent. Die einzige Stelle, an der dieses
- * Modell eine Gleitkommazahl anfasst; danach ist alles ganzzahlig.
- */
-function euroInCent(euro: number | null | undefined): number {
-  if (typeof euro !== 'number' || !Number.isFinite(euro)) {
-    return 0;
-  }
-  // Von der Null weg runden, damit Beleg und Storno sich aufheben (dieselbe
-  // Regel wie in receipt/layout.ts).
-  const cents = Math.round(Math.abs(euro) * 100);
-  return euro < 0 ? -cents : cents;
 }

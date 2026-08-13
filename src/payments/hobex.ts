@@ -2,6 +2,7 @@ import { type HobexReceipt, type HobexReceiptPayload, fromHobexReceiptPayload } 
 import { KasseneckValidationError } from '../client/errors.js';
 import type { KasseneckTransport } from '../client/transport.js';
 import { toViennaWallClock } from '../vienna-time.js';
+import { centsToEuro } from '../money.js';
 
 /**
  * Hobex-Kartenzahlung ueber die **Cloud-API** — Zwilling der Hobex-Aufrufe in
@@ -44,7 +45,6 @@ const ENDPUNKT_REFUND = 'hobexRefundApi';
  * aendern, weil die Addition erst danach passiert; die saubere Loesung waere
  * ein Cent-Feld am Backend.
  */
-const centsToEuro = (cents: number): number => cents / 100;
 
 export interface HobexPayOptions {
   /** Kennung der Zahlung — siehe [newHobexTransactionId]. */
