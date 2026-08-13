@@ -90,8 +90,6 @@ export interface EscPosTextOptions {
   styles?: PosStyles;
   /** Zusaetzliche Leerzeilen nach dem Text (der eine Zeilenumbruch kommt immer). */
   linesAfter?: number;
-  /** Ueberschreibt die Zeichen-je-Zeile-Annahme fuer die Positionsrechnung. */
-  maxCharsPerLine?: number;
 }
 
 export interface EscPosHrOptions {
@@ -275,23 +273,14 @@ function groessenByte(height: PosTextSize, width: PosTextSize): number {
   return 16 * (width - 1) + (height - 1);
 }
 
-function zeichenProZeile(
-  doc: EscPosDocument,
-  stile: AktuelleStile,
-  maxCharsPerLine?: number,
-): number {
-  if (maxCharsPerLine !== undefined) return maxCharsPerLine;
+function zeichenProZeile(doc: EscPosDocument, stile: AktuelleStile): number {
   if (stile.fontType !== null) return escPosMaxCharsPerLine(doc.paperSize, stile.fontType);
   return doc.maxCharsPerLine ?? escPosMaxCharsPerLine(doc.paperSize, doc.styles.fontType);
 }
 
 /** Breite eines Zeichens in Punkten, inklusive Vergroesserungsfaktor. */
-function zeichenBreite(
-  doc: EscPosDocument,
-  stile: AktuelleStile,
-  maxCharsPerLine?: number,
-): number {
-  const proZeile = zeichenProZeile(doc, stile, maxCharsPerLine);
+function zeichenBreite(doc: EscPosDocument, stile: AktuelleStile): number {
+  const proZeile = zeichenProZeile(doc, stile);
   return (PAPIER_BREITE[doc.paperSize] / proZeile) * stile.width;
 }
 
@@ -453,14 +442,13 @@ function textIntern(
     styles?: PosStyles;
     colInd?: number;
     colWidth?: number;
-    maxCharsPerLine?: number;
   } = {},
 ): void {
   const stile = vollstaendigeStile(optionen.styles);
   const colInd = optionen.colInd ?? 0;
   const colWidth = optionen.colWidth ?? 12;
 
-  const breiteJeZeichen = zeichenBreite(doc, stile, optionen.maxCharsPerLine);
+  const breiteJeZeichen = zeichenBreite(doc, stile);
   let von = spaltenPosition(doc, colInd);
 
   if (colWidth !== 12) {
@@ -489,11 +477,7 @@ export function escPosText(doc: EscPosDocument, text: string, options: EscPosTex
   if (!istGanzzahl(zusaetzlich) || zusaetzlich < 0) {
     throw new Error('linesAfter muss eine Ganzzahl >= 0 sein');
   }
-  const textOptionen: Parameters<typeof textIntern>[2] = { styles: options.styles };
-  if (options.maxCharsPerLine !== undefined) {
-    textOptionen.maxCharsPerLine = options.maxCharsPerLine;
-  }
-  textIntern(doc, encodeEscPosText(text), textOptionen);
+  textIntern(doc, encodeEscPosText(text), { styles: options.styles });
   escPosEmptyLines(doc, zusaetzlich + 1);
 }
 
@@ -565,45 +549,50 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
     throw new Error(`Die Spaltenbreiten muessen zusammen 12 ergeben (waren ${summe})`);
   }
 
-  let hatFolgezeile = false;
-  const folgezeile: PosColumn[] = [];
-  let spaltenIndex = 0;
+  // Schleife statt Rekursion: bei sehr langem Spalteninhalt (und erst recht,
+  // wenn die Untergrenze von einem Zeichen je Zeile greift) waeren es sonst
+  // ebenso viele Aufrufrahmen wie Folgezeilen.
+  let aktuelle: readonly PosColumn[] = columns;
+  for (;;) {
+    let hatFolgezeile = false;
+    const folgezeile: PosColumn[] = [];
+    let spaltenIndex = 0;
 
-  for (const spalte of columns) {
-    const stile = vollstaendigeStile(spalte.styles);
-    const breiteJeZeichen = zeichenBreite(doc, stile);
-    const von = spaltenPosition(doc, spaltenIndex);
-    const bis = spaltenPosition(doc, spaltenIndex + spalte.width) - doc.spaceBetweenRows;
-    // Mindestens ein Zeichen je Zeile, sonst kaeme die Folgezeile nie voran.
-    const maxZeichen = Math.max(1, Math.floor((bis - von) / breiteJeZeichen));
+    for (const spalte of aktuelle) {
+      const stile = vollstaendigeStile(spalte.styles);
+      const breiteJeZeichen = zeichenBreite(doc, stile);
+      const von = spaltenPosition(doc, spaltenIndex);
+      const bis = spaltenPosition(doc, spaltenIndex + spalte.width) - doc.spaceBetweenRows;
+      // Mindestens ein Zeichen je Zeile, sonst kaeme die Folgezeile nie voran.
+      const maxZeichen = Math.max(1, Math.floor((bis - von) / breiteJeZeichen));
 
-    let zuDrucken = spalte.textEncoded ?? encodeEscPosText(spalte.text ?? '');
-    const folge: PosColumn = { width: spalte.width };
-    if (spalte.styles !== undefined) folge.styles = spalte.styles;
+      let zuDrucken = spalte.textEncoded ?? encodeEscPosText(spalte.text ?? '');
+      const folge: PosColumn = { width: spalte.width };
+      if (spalte.styles !== undefined) folge.styles = spalte.styles;
 
-    if (zuDrucken.length > maxZeichen) {
-      folge.textEncoded = zuDrucken.slice(maxZeichen);
-      zuDrucken = zuDrucken.slice(0, maxZeichen);
-      hatFolgezeile = true;
-    } else {
-      folge.text = '';
+      if (zuDrucken.length > maxZeichen) {
+        folge.textEncoded = zuDrucken.slice(maxZeichen);
+        zuDrucken = zuDrucken.slice(0, maxZeichen);
+        hatFolgezeile = true;
+      } else {
+        folge.text = '';
+      }
+      folgezeile.push(folge);
+
+      const textOptionen: Parameters<typeof textIntern>[2] = {
+        colInd: spaltenIndex,
+        colWidth: spalte.width,
+      };
+      if (spalte.styles !== undefined) textOptionen.styles = spalte.styles;
+      textIntern(doc, zuDrucken, textOptionen);
+
+      spaltenIndex += spalte.width;
     }
-    folgezeile.push(folge);
 
-    const textOptionen: Parameters<typeof textIntern>[2] = {
-      colInd: spaltenIndex,
-      colWidth: spalte.width,
-    };
-    if (spalte.styles !== undefined) textOptionen.styles = spalte.styles;
-    textIntern(doc, zuDrucken, textOptionen);
+    escPosEmptyLines(doc, 1);
 
-    spaltenIndex += spalte.width;
-  }
-
-  escPosEmptyLines(doc, 1);
-
-  if (hatFolgezeile) {
-    escPosRow(doc, folgezeile);
+    if (!hatFolgezeile) return;
+    aktuelle = folgezeile;
   }
 }
 

@@ -31,3 +31,5 @@ export {
   qrCodeBytes,
   escPosMaxCharsPerLine,
 } from './escpos.js';
+
+export { escPosPrintableText } from './printable.js';

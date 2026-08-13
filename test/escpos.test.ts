@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
   createEscPosDocument,
@@ -19,6 +21,7 @@ import {
   escPosSetGlobalFont,
   escPosText,
   encodeEscPosText,
+  escPosPrintableText,
   qrCodeBytes,
   type QrSize,
 } from '../src/printing/index.js';
@@ -236,6 +239,78 @@ test('Kodierung: ein Zeichen ausserhalb Latin-1 wird gemeldet statt verstuemmelt
   assert.throws(() => encodeEscPosText('5 €'), /€/);
 });
 
+// ------------------------------------------------------- druckbare Fassung
+// Erwartungen aus einem Dart-Lauf der woertlich kopierten Vorlage
+// `_printable`/`_isEmojiOrZeroWidth` aus print_paper.dart (Zeilen 53-88).
+
+test('printableText: Gedankenstrich, typografische Anfuehrungszeichen, Euro', () => {
+  assert.equal(escPosPrintableText('Kaffee – gross'), 'Kaffee - gross');
+  assert.equal(escPosPrintableText('Cafe „Mozart“'), 'Cafe "Mozart"');
+  assert.equal(escPosPrintableText('Cola 2,50 €'), 'Cola 2,50 EUR');
+});
+
+test('printableText: Umlaute bleiben unveraendert', () => {
+  assert.equal(escPosPrintableText('Grüße Öl'), 'Grüße Öl');
+});
+
+test('printableText: alle Strichvarianten werden zum Bindestrich', () => {
+  assert.equal(escPosPrintableText('a—b‑c−d'), 'a-b-c-d');
+});
+
+test('printableText: Apostrophe und einfache Anfuehrungszeichen', () => {
+  assert.equal(escPosPrintableText('‘x’ ‚y‘ 3′'), "'x' 'y' 3'");
+});
+
+test('printableText: Auslassungspunkte, Haken, Marken- und Waehrungszeichen', () => {
+  assert.equal(escPosPrintableText('Espresso…'), 'Espresso...');
+  assert.equal(escPosPrintableText('Bio ✓ geprüft'), 'Bio x geprüft');
+  assert.equal(escPosPrintableText('Kreiseck™ 5₺'), 'KreiseckTM 5TL');
+  assert.equal(escPosPrintableText('• Punkt'), '* Punkt');
+});
+
+test('printableText: Emoji und Nullbreiten-Zeichen verschwinden ersatzlos', () => {
+  assert.equal(escPosPrintableText('Danke \u{1F600}!'), 'Danke !');
+  assert.equal(escPosPrintableText('Set \u{1F468}‍\u{1F469}‍\u{1F466} Familie'), 'Set  Familie');
+  assert.equal(escPosPrintableText('a‍b'), 'ab');
+  assert.equal(escPosPrintableText('⌚ Uhr ⭐ Stern'), ' Uhr  Stern');
+});
+
+test('printableText: sonstiges unbekanntes Zeichen wird zum Fragezeichen', () => {
+  assert.equal(escPosPrintableText('あ'), '?');
+});
+
+test('printableText: der aufbereitete Text laeuft durch den Erzeuger', () => {
+  // Der eigentliche Zweck: was vorher den ganzen Ausdruck verhindert haette,
+  // wird jetzt gedruckt.
+  for (const roh of ['Kaffee – gross', 'Cafe „Mozart“', 'Cola 2,50 €', 'Danke \u{1F600}!']) {
+    assert.throws(() => encodeEscPosText(roh), /U\+/, `${roh} sollte roh noch werfen`);
+    const doc = createEscPosDocument();
+    escPosReset(doc);
+    escPosText(doc, escPosPrintableText(roh));
+    assert.ok(escPosBytes(doc).length > 5);
+  }
+});
+
+test('printableText: Ersetzung aendert die Laenge und damit die Spaltenbreite', () => {
+  // "€" wird zu drei Zeichen — deshalb gehoert die Ersetzung vor die
+  // Spaltenrechnung und nicht in den Erzeuger.
+  assert.equal(escPosPrintableText('2,50 €').length, 8);
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosRow(doc, [
+    { text: 'Cola', width: 6 },
+    { text: escPosPrintableText('2,50 €'), width: 6, styles: { align: 'right' } },
+  ]);
+  gleicheBytes(escPosBytes(doc), [
+    27, 64, 27, 116, 16,
+    27, 36, 0, 0, 28, 46, 27, 116, 16, 67, 111, 108, 97, // "Cola"
+    27, 36, 17, 1, // ESC $ 273 — acht Zeichen rechtsbuendig
+    27, 97, 50, 28, 46, 27, 116, 16,
+    50, 44, 53, 48, 32, 69, 85, 82, // "2,50 EUR"
+    10,
+  ]);
+});
+
 // ---------------------------------------------------------------- Trennlinien
 
 test('hr: 58 mm fuellt 32 Zeichen', () => {
@@ -396,6 +471,23 @@ test('row: zu langer Spalteninhalt laeuft in eine Folgezeile statt verloren zu g
   ]);
 });
 
+test('row: sehr viele Folgezeilen sprengen den Aufrufstapel nicht', () => {
+  // Passt rechnerisch kein Zeichen in die Spalte, greift die Untergrenze von
+  // einem Zeichen je Zeile — hier also 5000 Folgezeilen. Als Rekursion waeren
+  // das 5000 Rahmen und ein "Maximum call stack size exceeded".
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosRow(doc, [
+    { text: 'A'.repeat(5000), width: 1, styles: { width: 8 } },
+    { text: '', width: 11 },
+  ]);
+  const bytes = escPosBytes(doc);
+  // je Folgezeile genau ein 'A' (0x41)
+  assert.equal(bytes.filter((b) => b === 0x41).length, 5000);
+  // und genau 5000 Zeilenumbrueche
+  assert.equal(bytes.filter((b) => b === 0x0a).length, 5000);
+});
+
 test('row: Spaltenbreiten muessen zusammen 12 ergeben', () => {
   const doc = createEscPosDocument();
   assert.throws(
@@ -487,7 +579,7 @@ test('qrCodeBytes: lange Nutzlast setzt pL/pH korrekt (RKSV-Code kann > 252 Byte
   const kopf = 8 + 8; // Modulgroesse + Korrektur
   gleicheBytes(bytes.slice(kopf, kopf + 8), [
     29, 40, 107,
-    (303 & 0xff), ((303 >> 8) & 0xff), // pL = 47, pH = 1
+    47, 1, // pL/pH fuer 300 Nutzbytes + 3
     49, 80, 48,
   ]);
   assert.equal(bytes.length, kopf + 8 + 300 + 8 + 8);
@@ -517,6 +609,40 @@ test('setGlobalFont: Schrift B setzt ESC M 1 und aendert die Zeilenbreite auf 42
     10,
   ];
   gleicheBytes(escPosBytes(doc), erwartet);
+});
+
+test('setGlobalFont: eigene Zeilenbreite wirkt auf die Trennlinie', () => {
+  // Anders als die frueher angebotene Angabe an escPosText hat diese hier eine
+  // messbare Wirkung: 20 statt der 42 Zeichen von Schrift B.
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosSetGlobalFont(doc, 'fontB', { maxCharsPerLine: 20 });
+  escPosHr(doc);
+  gleicheBytes(escPosBytes(doc), [
+    27, 64, 27, 116, 16,
+    27, 77, 1,
+    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    ...new Array<number>(20).fill(45),
+    10,
+  ]);
+});
+
+test('Stile: invertiert und um 90 Grad gedreht, danach wieder zurueck', () => {
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosText(doc, 'INV', { styles: { reverse: true, turn90: true } });
+  escPosText(doc, 'normal');
+  gleicheBytes(escPosBytes(doc), [
+    27, 64, 27, 116, 16,
+    27, 36, 0, 0,
+    27, 86, 1, // ESC V 1 (90 Grad)
+    29, 66, 1, // GS B 1 (invertiert)
+    28, 46, 27, 116, 16, 73, 78, 86, 10,
+    27, 36, 0, 0,
+    27, 86, 0, // ESC V 0
+    29, 66, 0, // GS B 0
+    28, 46, 27, 116, 16, 110, 111, 114, 109, 97, 108, 10,
+  ]);
 });
 
 test('reset: globale Codepage und Schrift werden danach erneut gesendet', () => {
@@ -556,6 +682,50 @@ test('package.json: Unterpfad ./printing ist wie der Haupteintrag deklariert', (
   assert.equal(eintrag.types, './dist/esm/printing/index.d.ts');
   assert.equal(eintrag.import, './dist/esm/printing/index.js');
   assert.equal(eintrag.require, './dist/cjs/printing/index.js');
+});
+
+test('package.json: die Unterpfad-Ziele passen zu den outDir der Bau-Configs', () => {
+  // Ohne diese Kopplung koennte jemand outDir oder die Verzeichnisstruktur
+  // aendern, ohne dass ein Test faellt — der Bau liefe durch und
+  // require('@kreiseck/kasseneck-api/printing') braeche bei jedem Verbraucher.
+  const lies = (pfad: string): string => readFileSync(new URL(pfad, import.meta.url), 'utf8');
+  const ohneKommentare = (roh: string): string => roh.replace(/^\s*\/\/.*$/gm, '');
+  const paket = JSON.parse(lies('../../package.json')) as {
+    exports: Record<string, { types: string; import: string; require: string }>;
+  };
+  const esm = JSON.parse(ohneKommentare(lies('../../tsconfig.json'))) as {
+    compilerOptions: { outDir: string; rootDir: string };
+  };
+  const cjs = JSON.parse(ohneKommentare(lies('../../tsconfig.cjs.json'))) as {
+    compilerOptions: { outDir: string };
+  };
+  const eintrag = paket.exports['./printing'];
+  assert.ok(eintrag);
+  assert.equal(esm.compilerOptions.rootDir, 'src');
+  assert.equal(eintrag.import, `./${esm.compilerOptions.outDir}/printing/index.js`);
+  assert.equal(eintrag.types, `./${esm.compilerOptions.outDir}/printing/index.d.ts`);
+  assert.equal(eintrag.require, `./${cjs.compilerOptions.outDir}/printing/index.js`);
+});
+
+test('Bauwerkzeug: der Waechter meldet einen fehlenden Bau-Pfad', () => {
+  // Der Bau selbst prueft ueber scripts/check-build-exports.mjs, dass jeder in
+  // exports genannte Pfad wirklich entstanden ist. Hier wird der Waechter
+  // gegen ein Wurzelverzeichnis ohne dist/ gefahren: er muss anschlagen.
+  const waechter = fileURLToPath(new URL('../../scripts/check-build-exports.mjs', import.meta.url));
+  const leer = mkdtempSync(join(tmpdir(), 'keck-exports-'));
+  writeFileSync(
+    join(leer, 'package.json'),
+    JSON.stringify({ exports: { './printing': { import: './dist/esm/printing/index.js' } } }),
+  );
+  try {
+    execFileSync(process.execPath, [waechter], { cwd: leer, encoding: 'utf8', stdio: 'pipe' });
+    assert.fail('Der Waechter haette anschlagen muessen');
+  } catch (fehler) {
+    const meldung = String((fehler as { stderr?: string }).stderr ?? '');
+    assert.match(meldung, /dist\/esm\/printing\/index\.js/);
+  } finally {
+    rmSync(leer, { recursive: true, force: true });
+  }
 });
 
 test('printing: kein Quelltext des Unterpfads greift auf den Rest des Pakets zu', () => {
