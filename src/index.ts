@@ -11,6 +11,8 @@ export {
   type VoucherTypeKey,
   VoucherAction,
   type VoucherActionKey,
+  StripeLinkMode,
+  type StripeLinkModeKey,
 } from './enums/index.js';
 
 export {

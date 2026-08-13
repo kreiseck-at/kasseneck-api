@@ -8,6 +8,7 @@ import {
   CreditCardProvider,
   VoucherType,
   VoucherAction,
+  StripeLinkMode,
 } from '../src/enums/index.js';
 
 // Gleichheits-Waechter: vergleicht die TypeScript-Enums gegen den eingecheckten
@@ -72,5 +73,14 @@ test('Gutschein-Aktionen decken sich mit dem Flutter-Paket', () => {
   assert.deepEqual(Object.keys(VoucherAction).sort(), [...abzug.VoucherAction].sort());
   for (const k of abzug.VoucherAction) {
     assert.equal(VoucherAction[k as keyof typeof VoucherAction], k, `Gutschein-Aktion ${k} weicht ab`);
+  }
+});
+
+test('Stripe-Link-Modi decken sich mit dem Flutter-Paket', () => {
+  assert.deepEqual(Object.keys(StripeLinkMode).sort(), [...abzug.StripeLinkMode].sort());
+  for (const k of abzug.StripeLinkMode) {
+    // Der Wert IST die Nutzlast: das Vorbild sendet `mode.name`, das Backend
+    // prueft auf 'payment' bzw. 'authorization'.
+    assert.equal(StripeLinkMode[k as keyof typeof StripeLinkMode], k, `Stripe-Link-Modus ${k} weicht ab`);
   }
 });

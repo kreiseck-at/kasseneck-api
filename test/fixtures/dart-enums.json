@@ -37,5 +37,6 @@
     "custom"
   ],
   "VoucherType": ["value", "promo"],
-  "VoucherAction": ["sell", "redeem"]
+  "VoucherAction": ["sell", "redeem"],
+  "StripeLinkMode": ["payment", "authorization"]
 }
