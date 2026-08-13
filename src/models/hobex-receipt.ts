@@ -1,5 +1,8 @@
 import { CreditCardProvider } from '../enums/index.js';
 
+/** Cent -> Euro, an der einen Stelle, die alle drei Umwandlungsstellen dieser Datei teilen. */
+const centsToEuro = (cents: number): number => cents / 100;
+
 /**
  * Hobex-Kartenzahlungsbeleg — Zwilling von `HobexReceipt` in
  * kasseneck_api/lib/models/hobex_receipt.dart.
@@ -70,8 +73,8 @@ export function toHobexReceiptPayload(beleg: HobexReceipt): HobexReceiptPayload 
     transactionType: beleg.transactionType,
     currency: beleg.currency,
     // Euro-Umwandlung nur hier, an der Terminal-API-Grenze — siehe Kommentar oben.
-    amount: beleg.amountCents / 100,
-    tip: beleg.tipCents / 100,
+    amount: centsToEuro(beleg.amountCents),
+    tip: centsToEuro(beleg.tipCents),
     cvm: beleg.cvm,
   };
 }
@@ -125,7 +128,7 @@ export function hobexReceiptToCardPaymentData(beleg: HobexReceipt): Record<strin
     data.approvalCode = beleg.approvalCode;
     data.cardExpiry = beleg.cardExpiry;
     data.cardIssuer = beleg.cardIssuer;
-    data.amount = (beleg.amountCents / 100).toFixed(2);
+    data.amount = centsToEuro(beleg.amountCents).toFixed(2);
     data.currency = beleg.currency;
   }
   return data;

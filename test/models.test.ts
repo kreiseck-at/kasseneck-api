@@ -10,12 +10,18 @@ import {
 import { type Voucher, toVoucherPayload, fromVoucherPayload } from '../src/models/voucher.js';
 import {
   type Receipt,
+  type ReceiptPayload,
   toReceiptPayload,
   fromReceiptPayload,
   receiptSubSumCents,
   receiptSumCents,
 } from '../src/models/receipt.js';
-import { type Cashregister, toCashregisterPayload, fromCashregisterPayload } from '../src/models/cashregister.js';
+import {
+  type Cashregister,
+  type CashregisterPayload,
+  toCashregisterPayload,
+  fromCashregisterPayload,
+} from '../src/models/cashregister.js';
 import {
   type ReportMonth,
   previousReportMonth,
@@ -60,9 +66,21 @@ test('Belegposition: Betraege bleiben ganzzahlig ueber drei krumme Positionen', 
   assert.notEqual(0.29 + 0.29 + 0.29, 0.87);
 });
 
-test('Belegposition: unbekannter Steuersatz aus der Nutzlast wird erkannt statt still zu undefined', () => {
+test('Belegposition: unbekannter Steuersatz aus der Nutzlast bleibt beim Lesen erhalten statt zu werfen', () => {
+  // Lesepfad muss tolerant sein: ein Steuersatz, den dieses Paket noch nicht
+  // kennt (z. B. weil das Backend inzwischen einen neuen eingefuehrt hat),
+  // darf eine bestehende Belegliste nicht zum Absturz bringen.
   const bogus = { name: 'X', quantity: 1, unitPriceCents: 100, vatRate: 999 };
-  assert.throws(() => fromReceiptItemPayload(bogus), /Steuersatz/);
+  const item = fromReceiptItemPayload(bogus);
+  // Roher Nutzlast-Wert bleibt exakt erhalten (nie `undefined`) und ist am
+  // Typ erkennbar: eine Zahl statt des bekannten Steuersatz-Objekts.
+  assert.equal(item.vat, 999);
+  assert.equal(typeof item.vat, 'number');
+});
+
+test('Belegposition: unbekannter Steuersatz wirft beim Schreiben weiterhin', () => {
+  const item: ReceiptItem = { name: 'X', quantity: 1, vat: 999, priceCents: 100 };
+  assert.throws(() => toReceiptItemPayload(item), /Steuersatz/);
 });
 
 // --- Gutschein -----------------------------------------------------------
@@ -81,9 +99,15 @@ test('Gutschein: Wert ohne valueCents faellt exakt auf Euro-Rundung zurueck', ()
   assert.equal(voucher.valueCents, 500);
 });
 
-test('Gutschein: unbekannte Aktion aus der Nutzlast wird erkannt statt still zu undefined', () => {
+test('Gutschein: unbekannte Aktion aus der Nutzlast bleibt beim Lesen erhalten statt zu werfen', () => {
   const bogus = { name: null, code: null, action: 'teleport', type: 'promo', value: null, valueCents: null };
-  assert.throws(() => fromVoucherPayload(bogus), /Aktion/);
+  const voucher = fromVoucherPayload(bogus);
+  assert.equal(voucher.action, 'teleport');
+});
+
+test('Gutschein: unbekannte Aktion wirft beim Schreiben weiterhin', () => {
+  const voucher: Voucher = { action: 'teleport', type: VoucherType.promo, valueCents: 100 };
+  assert.throws(() => toVoucherPayload(voucher), /Aktion/);
 });
 
 // --- Beleg -----------------------------------------------------------------
@@ -148,10 +172,85 @@ test('Beleg: eingeloester Wertgutschein senkt die Gesamtsumme, nicht die Zwische
   assert.equal(receiptSumCents(beleg), 250);
 });
 
-test('Beleg: unbekannter Belegtyp aus der Nutzlast wird erkannt statt still zu undefined', () => {
+test('Beleg: unbekannter Belegtyp aus der Nutzlast bleibt beim Lesen erhalten statt zu werfen', () => {
   const beleg = baueBeleg([{ name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 350 }]);
   const payload = { ...toReceiptPayload(beleg), receiptType: 'unbekannt' };
-  assert.throws(() => fromReceiptPayload(payload), /Belegtyp/);
+  const gelesen = fromReceiptPayload(payload);
+  assert.equal(gelesen.receiptType, 'unbekannt');
+  // Der Rest des Belegs bleibt vollstaendig lesbar.
+  assert.equal(gelesen.items.length, 1);
+  assert.equal(gelesen.sig, 'sig');
+});
+
+test('Beleg: unbekannter Belegtyp wirft beim Schreiben weiterhin', () => {
+  const beleg = baueBeleg([{ name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 350 }]);
+  const mitUnbekanntemTyp: Receipt = { ...beleg, receiptType: 'unbekannt' };
+  assert.throws(() => toReceiptPayload(mitUnbekanntemTyp), /Belegtyp/);
+});
+
+test('Beleg: unbekannter Steuersatz in einer Position laesst die uebrigen Positionen und den Beleg unversehrt', () => {
+  const beleg = baueBeleg([{ name: 'Bekannt', quantity: 1, vat: VatRate.vat10, priceCents: 300 }]);
+  const payload = toReceiptPayload(beleg);
+  // Simuliert: das Backend kennt inzwischen einen Steuersatz, den dieses
+  // Paket noch nicht kennt — genau der Fall, der frueher die ganze Liste
+  // ueber `.map()` zum Werfen gebracht haette.
+  payload.items.push({ name: 'Unbekannt', quantity: 1, unitPriceCents: 500, vatRate: 999 });
+  const gelesen = fromReceiptPayload(payload);
+  assert.equal(gelesen.items.length, 2);
+  assert.deepEqual(gelesen.items[0]?.vat, VatRate.vat10);
+  assert.equal(gelesen.items[1]?.vat, 999);
+  assert.equal(gelesen.sig, 'sig');
+});
+
+test('Beleg: liest eine woertliche, dem Flutter-Vorbild nachgebaute Nutzlast ueber alle Felder', () => {
+  // Nicht ueber toReceiptPayload erzeugt — bewusst von Hand aus
+  // kasseneck_receipt.dart::toReceiptJson() abgeschrieben, damit ein falsch
+  // benannter Nutzlast-Schluessel auffaellt (der selbstreferenzielle
+  // Rundtrip wuerde einen solchen Fehler auf beiden Seiten gleich falsch
+  // machen und ihn dadurch verdecken).
+  const payload: ReceiptPayload = {
+    qr: 'https://kasseneck.at/beleg/AT1-r1',
+    sig: 'c2ln',
+    certificateSerialNumber: '1234567890',
+    signaturePreviousReceipt: 'c2lnLXByZXY=',
+    turnoverCounterAES256ICM: 'dW1zYXR6emFlaGxlcg==',
+    paymentMethod: 'cash',
+    items: [{ name: 'Kaffee', quantity: 2, unitPriceCents: 350, vatRate: 10 }],
+    vouchers: [{ name: 'Weihnachten', code: 'XMAS', action: 'sell', type: 'value', value: 5, valueCents: 500 }],
+    timeStamp: '2026-08-13T10:00:00',
+    cashregisterId: 'cr1',
+    receiptType: 'standard',
+    receiptId: 'r1',
+    fullReceiptId: 'AT1-r1',
+    creditCardProvider: null,
+    cardPaymentId: null,
+    cardPaymentData: null,
+    customerDetails: 'Mustermann GmbH\nHauptstrasse 1',
+    legalMessage: 'Dieser Beleg dient als Zahlungsbeleg.',
+    signatureSuccess: true,
+    customProjectId: null,
+  };
+  const beleg = fromReceiptPayload(payload);
+  assert.equal(beleg.receiptId, 'r1');
+  assert.equal(beleg.cashregisterId, 'cr1');
+  assert.equal(beleg.timeStamp, '2026-08-13T10:00:00');
+  assert.deepEqual(beleg.items, [{ name: 'Kaffee', quantity: 2, vat: VatRate.vat10, priceCents: 350 }]);
+  assert.deepEqual(beleg.vouchers, [{ name: 'Weihnachten', code: 'XMAS', action: VoucherAction.sell, type: VoucherType.value, valueCents: 500 }]);
+  assert.equal(beleg.paymentMethod, KeckPaymentMethod.cash);
+  assert.equal(beleg.turnoverCounterAES256ICM, 'dW1zYXR6emFlaGxlcg==');
+  assert.equal(beleg.signaturePreviousReceipt, 'c2lnLXByZXY=');
+  assert.equal(beleg.certificateSerialNumber, '1234567890');
+  assert.equal(beleg.receiptType, ReceiptType.standard);
+  assert.equal(beleg.sig, 'c2ln');
+  assert.equal(beleg.qr, 'https://kasseneck.at/beleg/AT1-r1');
+  assert.equal(beleg.fullReceiptId, 'AT1-r1');
+  assert.equal(beleg.creditCardProvider, undefined);
+  assert.equal(beleg.cardPaymentId, undefined);
+  assert.equal(beleg.cardPaymentData, undefined);
+  assert.deepEqual(beleg.customerDetails, ['Mustermann GmbH', 'Hauptstrasse 1']);
+  assert.deepEqual(beleg.legalMessage, ['Dieser Beleg dient als Zahlungsbeleg.']);
+  assert.equal(beleg.signatureSuccess, true);
+  assert.equal(beleg.customProjectId, undefined);
 });
 
 // --- Kasse -----------------------------------------------------------------
@@ -174,6 +273,24 @@ test('Kasse: fehlende signatureId bleibt nach der Nutzlast-Runde undefined', () 
   const kasse: Cashregister = { userId: 'u1', id: 'cr1', createTime: new Date('2026-01-05T09:00:00.000Z'), token: 'tok', aesKey: 'aes-key' };
   const rundtrip = fromCashregisterPayload(toCashregisterPayload(kasse), kasse.id, kasse.userId);
   assert.equal(rundtrip.signatureId, undefined);
+});
+
+test('Kasse: liest eine woertliche, dem Flutter-Vorbild nachgebaute Nutzlast ueber alle Felder', () => {
+  // Von Hand aus cashregister.dart::fromJson() abgeschrieben (snake_case
+  // Firestore-Feldnamen), nicht ueber toCashregisterPayload erzeugt.
+  const payload: CashregisterPayload = {
+    create_time: '2026-01-05T09:00:00.000Z',
+    token: 'kasse-token-123',
+    aes_key: 'base64-aes-key==',
+    signature_id: 'sig-42',
+  };
+  const kasse = fromCashregisterPayload(payload, 'cr7', 'user9');
+  assert.equal(kasse.id, 'cr7');
+  assert.equal(kasse.userId, 'user9');
+  assert.equal(kasse.createTime.toISOString(), '2026-01-05T09:00:00.000Z');
+  assert.equal(kasse.token, 'kasse-token-123');
+  assert.equal(kasse.aesKey, 'base64-aes-key==');
+  assert.equal(kasse.signatureId, 'sig-42');
 });
 
 // --- Berichtsmonat -----------------------------------------------------------

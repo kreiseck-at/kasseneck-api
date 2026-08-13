@@ -1,5 +1,5 @@
 import { VatRate } from '../enums/index.js';
-import { requireVatRateByRate } from './enum-payload.js';
+import { readVatRateByRate, requireVatRateByRate } from './enum-payload.js';
 
 /**
  * Belegposition — Zwilling von `KasseneckItem` in
@@ -9,11 +9,16 @@ import { requireVatRateByRate } from './enum-payload.js';
  * keine Gleitkomma-Rundungsfehler). Eine Euro-Variante gibt es hier bewusst
  * nicht — anders als beim Gutschein oder Hobex-Beleg sendet die Nutzlast
  * (v2-Format) den Preis bereits als ganze Cent.
+ *
+ * `vat` ist beim Lesen entweder der bekannte Steuersatz (Objekt) oder — falls
+ * die Nutzlast einen Satz traegt, den dieses Paket noch nicht kennt — der
+ * rohe `rate`-Wert als Zahl (siehe [readVatRateByRate]). Ein Aufrufer erkennt
+ * den unbekannten Fall am `typeof`: ein Objekt ist bekannt, eine Zahl nicht.
  */
 export interface ReceiptItem {
   name: string;
   quantity: number;
-  vat: VatRate;
+  vat: VatRate | number;
   priceCents: number;
 }
 
@@ -26,11 +31,14 @@ export interface ReceiptItemPayload {
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
+  // Schreibpfad bleibt streng: ein unaufgeloester (unbekannter) Steuersatz
+  // darf nicht unbesehen wieder hinausgehen.
+  const vat = typeof item.vat === 'number' ? requireVatRateByRate(item.vat) : item.vat;
   return {
     name: item.name,
     quantity: item.quantity,
     unitPriceCents: item.priceCents,
-    vatRate: item.vat.rate,
+    vatRate: vat.rate,
   };
 }
 
@@ -38,7 +46,7 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayload): ReceiptItem
   return {
     name: payload.name,
     quantity: payload.quantity,
-    vat: requireVatRateByRate(payload.vatRate),
+    vat: readVatRateByRate(payload.vatRate),
     priceCents: payload.unitPriceCents,
   };
 }

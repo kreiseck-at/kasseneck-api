@@ -1,16 +1,15 @@
 import { VatRate } from '../enums/index.js';
 
 /**
- * Liest einen Enum-Eintrag anhand seines Nutzlast-Schluessels (z. B.
- * `receiptType: 'standard'` oder `paymentMethod: 'cash'` — bei den mit
- * `defineEnum()` gebauten Enums ist der Objekt-Schluessel selbst die Nutzlast).
+ * Loest einen Enum-Eintrag anhand seines Nutzlast-Schluessels auf (z. B.
+ * `receiptType: 'standard'` — bei den mit `defineEnum()` gebauten Enums ist
+ * der Objekt-Schluessel selbst die Nutzlast).
  *
- * Anders als das Dart-Vorbild (`Enum.values.firstWhere(..., orElse: () =>
- * Default)`) faellt das hier NICHT still auf einen Default-Wert zurueck,
- * sondern wirft. Ein unbekannter Schluessel aus der Nutzlast (z. B. ein
- * Steuersatz oder Belegtyp, den dieses Paket noch nicht kennt) soll auffallen
- * statt eine falsche Kategorie vorzutaeuschen — bei RKSV-relevanten Feldern
- * waere ein stiller Default schlimmer als ein Fehler.
+ * Nur fuer den **Schreibpfad**: bevor dieses Paket selbst einen Wert nach
+ * aussen traegt, muss er bekannt sein — ein unbekannter Schluessel wirft.
+ * Fuer den Lesepfad (Daten, die vom Backend hereinkommen) siehe
+ * [readEnumKey]: dort darf ein einzelner unbekannter Wert nicht die ganze
+ * Belegliste zum Absturz bringen.
  */
 export function requireEnumKey<T extends Record<string, unknown>>(enumObj: T, key: string, label: string): T[keyof T] {
   if (!Object.prototype.hasOwnProperty.call(enumObj, key)) {
@@ -20,14 +19,31 @@ export function requireEnumKey<T extends Record<string, unknown>>(enumObj: T, ke
 }
 
 /**
- * Loest einen Steuersatz anhand seines numerischen `rate`-Werts auf (die
- * Nutzlast traegt z. B. `vatRate: 20`, nicht den Enum-Schluessel `vat20`).
- * Wirft bei unbekanntem Satz statt still zu `undefined` zu werden.
+ * Lesepfad-Pendant zu [requireEnumKey]: ein unbekannter Schluessel (z. B. ein
+ * neuer Belegtyp oder eine neue Zahlungsart, die dieses Paket noch nicht
+ * kennt) wirft nicht und wird auch nicht still zu `undefined` — der rohe
+ * Nutzlast-Schluessel bleibt als String erhalten. Ein Aufrufer, der eine
+ * Belegliste anzeigt, kann so alle Positionen weiterlesen; nur die unbekannte
+ * bleibt (erkennbar) unaufgeloest.
  */
+export function readEnumKey<T extends Record<string, unknown>>(enumObj: T, key: string): T[keyof T] | string {
+  return Object.prototype.hasOwnProperty.call(enumObj, key) ? enumObj[key as keyof T] : key;
+}
+
+function findVatRate(rate: number): VatRate | undefined {
+  return (Object.values(VatRate) as VatRate[]).find((v) => v.rate === rate);
+}
+
+/** Schreibpfad: loest einen Steuersatz anhand seines `rate`-Werts auf, wirft bei unbekanntem Satz. */
 export function requireVatRateByRate(rate: number): VatRate {
-  const eintrag = (Object.values(VatRate) as VatRate[]).find((v) => v.rate === rate);
+  const eintrag = findVatRate(rate);
   if (!eintrag) {
     throw new Error(`Steuersatz: unbekannter Satz "${rate}" in der Nutzlast`);
   }
   return eintrag;
+}
+
+/** Lesepfad: unbekannter Satz bleibt als roher `rate`-Wert erhalten statt zu werfen oder `undefined` zu werden. */
+export function readVatRateByRate(rate: number): VatRate | number {
+  return findVatRate(rate) ?? rate;
 }
