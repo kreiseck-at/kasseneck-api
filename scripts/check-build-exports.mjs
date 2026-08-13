@@ -82,9 +82,53 @@ for (const [eintrag, ziele] of Object.entries(paket.exports ?? {})) {
   }
 }
 
+/**
+ * Die Pfade koennen alle stimmen und der Bau trotzdem unbenutzbar sein: Was
+ * die `.js`-Dateien in `dist/cjs/` ueberhaupt erst zu CommonJS macht, ist die
+ * kleine `package.json` mit `{"type":"commonjs"}` daneben — die Wurzel fuehrt
+ * `"type": "module"`. Fehlt sie, meldet die Pfadpruefung nichts (genau so
+ * gemessen: Rueckgabewert 0), und ein CommonJS-Verbraucher bekommt an jedem
+ * Unterpfad denselben TS1479, gegen den die getrennten types-Bedingungen
+ * gerade gebaut wurden. Fuer den ESM-Bau gilt dasselbe spiegelbildlich.
+ */
+function modulTyp(verzeichnis) {
+  const eigenes = resolve(wurzel, verzeichnis, 'package.json');
+  if (existsSync(eigenes)) {
+    return { eigen: true, typ: JSON.parse(readFileSync(eigenes, 'utf8')).type };
+  }
+  // Ohne eigene package.json gilt die der Wurzel.
+  return { eigen: false, typ: paket.type };
+}
+
+const benutzteBedingungen = new Set();
+for (const ziele of Object.values(paket.exports ?? {})) {
+  if (ziele === null || typeof ziele !== 'object') continue;
+  for (const bedingung of Object.keys(BAU)) {
+    if (ziele[bedingung] !== undefined) {
+      benutzteBedingungen.add(bedingung);
+    }
+  }
+}
+
+for (const bedingung of benutzteBedingungen) {
+  const verzeichnis = BAU[bedingung].replace(/\/$/, '');
+  const erwartet = bedingung === 'require' ? 'commonjs' : 'module';
+  const { eigen, typ } = modulTyp(verzeichnis);
+  if (typ !== erwartet) {
+    const geltend = typ ?? 'commonjs (Vorgabe)';
+    fehler.push(
+      eigen
+        ? `${verzeichnis}/package.json fuehrt "type": "${geltend}", noetig ist "${erwartet}"`
+        : `${verzeichnis}/package.json fehlt — noetig ist {"type":"${erwartet}"}, sonst gilt die Wurzel mit "${geltend}"`,
+    );
+  }
+}
+
 if (fehler.length > 0) {
   process.stderr.write(`exports sind nicht in Ordnung:\n  ${fehler.join('\n  ')}\n`);
   process.exit(1);
 }
 
-process.stdout.write(`exports: ${geprueft} Bau-Pfade vorhanden, Typen je Bedingung im richtigen Bau\n`);
+process.stdout.write(
+  `exports: ${geprueft} Bau-Pfade vorhanden, Typen je Bedingung im richtigen Bau, Modultyp je Bau gesetzt\n`,
+);

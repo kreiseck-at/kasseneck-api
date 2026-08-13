@@ -829,3 +829,59 @@ test('Bau: der Tarball traegt keine Sourcemaps, die ins Leere zeigen', () => {
   assert.equal(tsconfig.compilerOptions.sourceMap, liefertQuellen);
   assert.equal(tsconfig.compilerOptions.declarationMap, liefertQuellen);
 });
+
+test('Bauwerkzeug: der Waechter meldet den fehlenden CommonJS-Marker', () => {
+  // dist/cjs/package.json mit {"type":"commonjs"} ist das, was die .js-Dateien
+  // dort ueberhaupt erst zu CommonJS macht — die Wurzel-package.json fuehrt
+  // "type": "module". Fehlt der Marker, sind alle exports-Pfade trotzdem da
+  // (gemessen: der Waechter meldete rc 0), aber ein CJS-Verbraucher bekommt
+  // an jedem Unterpfad denselben TS1479, den die exports-Umstellung gerade
+  // behoben hat. Der Waechter muss das sehen.
+  const waechter = fileURLToPath(new URL('../../scripts/check-build-exports.mjs', import.meta.url));
+  const ordner = mkdtempSync(join(tmpdir(), 'keck-exports-marker-'));
+  for (const datei of [
+    'dist/esm/printing/index.js',
+    'dist/esm/printing/index.d.ts',
+    'dist/cjs/printing/index.js',
+    'dist/cjs/printing/index.d.ts',
+  ]) {
+    mkdirSync(join(ordner, dirname(datei)), { recursive: true });
+    writeFileSync(join(ordner, datei), '');
+  }
+  writeFileSync(
+    join(ordner, 'package.json'),
+    JSON.stringify({
+      type: 'module',
+      exports: {
+        './printing': {
+          import: { types: './dist/esm/printing/index.d.ts', default: './dist/esm/printing/index.js' },
+          require: { types: './dist/cjs/printing/index.d.ts', default: './dist/cjs/printing/index.js' },
+        },
+      },
+    }),
+  );
+  // Alles richtig — bis auf den fehlenden Marker.
+  try {
+    execFileSync(process.execPath, [waechter], { cwd: ordner, encoding: 'utf8', stdio: 'pipe' });
+    assert.fail('Der Waechter haette anschlagen muessen');
+  } catch (fehler) {
+    const meldung = String((fehler as { stderr?: string }).stderr ?? '');
+    assert.match(meldung, /dist\/cjs\/package\.json/);
+  }
+
+  // Mit Marker laeuft derselbe Baum durch.
+  writeFileSync(join(ordner, 'dist/cjs/package.json'), JSON.stringify({ type: 'commonjs' }));
+  const ausgabe = execFileSync(process.execPath, [waechter], { cwd: ordner, encoding: 'utf8', stdio: 'pipe' });
+  assert.match(ausgabe, /Bau-Pfade vorhanden/);
+
+  // Und ein falscher Marker ist so schlimm wie keiner.
+  writeFileSync(join(ordner, 'dist/cjs/package.json'), JSON.stringify({ type: 'module' }));
+  try {
+    execFileSync(process.execPath, [waechter], { cwd: ordner, encoding: 'utf8', stdio: 'pipe' });
+    assert.fail('Der Waechter haette bei type: module anschlagen muessen');
+  } catch (fehler) {
+    assert.match(String((fehler as { stderr?: string }).stderr ?? ''), /commonjs/);
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
+  }
+});
