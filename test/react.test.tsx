@@ -119,17 +119,18 @@ test('package.json: React ist Peer-Abhaengigkeit, keine Abhaengigkeit', () => {
 
 test('package.json: die neuen Unterpfade ./receipt und ./react sind deklariert', () => {
   const paket = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
-    exports: Record<string, { types: string; import: string; require: string }>;
+    exports: Record<string, Record<string, Record<string, string>>>;
   };
+  // Die types-Angabe steht in JEDEM Zweig, nicht daneben: eine gemeinsame gilt
+  // fuer beide Aufloesungen, und ein CommonJS-Verbraucher mit module: Node16
+  // bekaeme dann an jedem Import TS1479 (siehe scripts/check-build-exports.mjs).
   assert.deepEqual(paket.exports['./receipt'], {
-    types: './dist/esm/receipt/index.d.ts',
-    import: './dist/esm/receipt/index.js',
-    require: './dist/cjs/receipt/index.js',
+    import: { types: './dist/esm/receipt/index.d.ts', default: './dist/esm/receipt/index.js' },
+    require: { types: './dist/cjs/receipt/index.d.ts', default: './dist/cjs/receipt/index.js' },
   });
   assert.deepEqual(paket.exports['./react'], {
-    types: './dist/esm/react/index.d.ts',
-    import: './dist/esm/react/index.js',
-    require: './dist/cjs/react/index.js',
+    import: { types: './dist/esm/react/index.d.ts', default: './dist/esm/react/index.js' },
+    require: { types: './dist/cjs/react/index.d.ts', default: './dist/cjs/react/index.js' },
   });
 });
 

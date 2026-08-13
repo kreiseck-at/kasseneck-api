@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 import {
   createEscPosDocument,
@@ -674,14 +674,14 @@ test('escPosMaxCharsPerLine: 32/42 bei 58 mm, 48/64 bei 80 mm', () => {
 
 test('package.json: Unterpfad ./printing ist wie der Haupteintrag deklariert', () => {
   const roh = readFileSync(new URL('../../package.json', import.meta.url), 'utf8');
-  const paket = JSON.parse(roh) as {
-    exports: Record<string, { types: string; import: string; require: string }>;
-  };
+  const paket = JSON.parse(roh) as { exports: Record<string, Record<string, Record<string, string>>> };
   const eintrag = paket.exports['./printing'];
   assert.ok(eintrag, 'exports["./printing"] fehlt');
-  assert.equal(eintrag.types, './dist/esm/printing/index.d.ts');
-  assert.equal(eintrag.import, './dist/esm/printing/index.js');
-  assert.equal(eintrag.require, './dist/cjs/printing/index.js');
+  // types je Zweig, nicht daneben — siehe scripts/check-build-exports.mjs.
+  assert.deepEqual(eintrag, {
+    import: { types: './dist/esm/printing/index.d.ts', default: './dist/esm/printing/index.js' },
+    require: { types: './dist/cjs/printing/index.d.ts', default: './dist/cjs/printing/index.js' },
+  });
 });
 
 test('package.json: die Unterpfad-Ziele passen zu den outDir der Bau-Configs', () => {
@@ -691,7 +691,7 @@ test('package.json: die Unterpfad-Ziele passen zu den outDir der Bau-Configs', (
   const lies = (pfad: string): string => readFileSync(new URL(pfad, import.meta.url), 'utf8');
   const ohneKommentare = (roh: string): string => roh.replace(/^\s*\/\/.*$/gm, '');
   const paket = JSON.parse(lies('../../package.json')) as {
-    exports: Record<string, { types: string; import: string; require: string }>;
+    exports: Record<string, Record<string, Record<string, string>>>;
   };
   const esm = JSON.parse(ohneKommentare(lies('../../tsconfig.json'))) as {
     compilerOptions: { outDir: string; rootDir: string };
@@ -702,9 +702,12 @@ test('package.json: die Unterpfad-Ziele passen zu den outDir der Bau-Configs', (
   const eintrag = paket.exports['./printing'];
   assert.ok(eintrag);
   assert.equal(esm.compilerOptions.rootDir, 'src');
-  assert.equal(eintrag.import, `./${esm.compilerOptions.outDir}/printing/index.js`);
-  assert.equal(eintrag.types, `./${esm.compilerOptions.outDir}/printing/index.d.ts`);
-  assert.equal(eintrag.require, `./${cjs.compilerOptions.outDir}/printing/index.js`);
+  assert.equal(eintrag['import']?.['default'], `./${esm.compilerOptions.outDir}/printing/index.js`);
+  assert.equal(eintrag['import']?.['types'], `./${esm.compilerOptions.outDir}/printing/index.d.ts`);
+  assert.equal(eintrag['require']?.['default'], `./${cjs.compilerOptions.outDir}/printing/index.js`);
+  // Die Deklarationen des require-Zweigs muessen aus dem CJS-Bau kommen; aus
+  // dem ESM-Bau haelt TypeScript sie fuer ESM und lehnt jeden require-Import ab.
+  assert.equal(eintrag['require']?.['types'], `./${cjs.compilerOptions.outDir}/printing/index.d.ts`);
 });
 
 test('Bauwerkzeug: der Waechter meldet einen fehlenden Bau-Pfad', () => {
@@ -725,6 +728,46 @@ test('Bauwerkzeug: der Waechter meldet einen fehlenden Bau-Pfad', () => {
     assert.match(meldung, /dist\/esm\/printing\/index\.js/);
   } finally {
     rmSync(leer, { recursive: true, force: true });
+  }
+});
+
+test('Bauwerkzeug: der Waechter meldet eine types-Bedingung neben import/require', () => {
+  // Genau die Form, die dieses Paket bis zur Abschlusspruefung hatte: die
+  // Dateien existieren alle, `require` laeuft zur Laufzeit — und trotzdem
+  // uebersetzt kein CommonJS-Verbraucher mit module: Node16 (TS1479). Der
+  // Waechter muss das an der Form erkennen, nicht an einer fehlenden Datei.
+  const waechter = fileURLToPath(new URL('../../scripts/check-build-exports.mjs', import.meta.url));
+  const ordner = mkdtempSync(join(tmpdir(), 'keck-exports-typen-'));
+  const dateien = [
+    'dist/esm/printing/index.js',
+    'dist/esm/printing/index.d.ts',
+    'dist/cjs/printing/index.js',
+    'dist/cjs/printing/index.d.ts',
+  ];
+  for (const datei of dateien) {
+    mkdirSync(join(ordner, dirname(datei)), { recursive: true });
+    writeFileSync(join(ordner, datei), '');
+  }
+  writeFileSync(
+    join(ordner, 'package.json'),
+    JSON.stringify({
+      exports: {
+        './printing': {
+          types: './dist/esm/printing/index.d.ts',
+          import: './dist/esm/printing/index.js',
+          require: './dist/cjs/printing/index.js',
+        },
+      },
+    }),
+  );
+  try {
+    execFileSync(process.execPath, [waechter], { cwd: ordner, encoding: 'utf8', stdio: 'pipe' });
+    assert.fail('Der Waechter haette anschlagen muessen');
+  } catch (fehler) {
+    const meldung = String((fehler as { stderr?: string }).stderr ?? '');
+    assert.match(meldung, /types.*neben import\/require/);
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
   }
 });
 

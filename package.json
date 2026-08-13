@@ -25,29 +25,54 @@
   "types": "./dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/esm/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     },
     "./receipt": {
-      "types": "./dist/esm/receipt/index.d.ts",
-      "import": "./dist/esm/receipt/index.js",
-      "require": "./dist/cjs/receipt/index.js"
+      "import": {
+        "types": "./dist/esm/receipt/index.d.ts",
+        "default": "./dist/esm/receipt/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/receipt/index.d.ts",
+        "default": "./dist/cjs/receipt/index.js"
+      }
     },
     "./payments": {
-      "types": "./dist/esm/payments/index.d.ts",
-      "import": "./dist/esm/payments/index.js",
-      "require": "./dist/cjs/payments/index.js"
+      "import": {
+        "types": "./dist/esm/payments/index.d.ts",
+        "default": "./dist/esm/payments/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/payments/index.d.ts",
+        "default": "./dist/cjs/payments/index.js"
+      }
     },
     "./printing": {
-      "types": "./dist/esm/printing/index.d.ts",
-      "import": "./dist/esm/printing/index.js",
-      "require": "./dist/cjs/printing/index.js"
+      "import": {
+        "types": "./dist/esm/printing/index.d.ts",
+        "default": "./dist/esm/printing/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/printing/index.d.ts",
+        "default": "./dist/cjs/printing/index.js"
+      }
     },
     "./react": {
-      "types": "./dist/esm/react/index.d.ts",
-      "import": "./dist/esm/react/index.js",
-      "require": "./dist/cjs/react/index.js"
+      "import": {
+        "types": "./dist/esm/react/index.d.ts",
+        "default": "./dist/esm/react/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/react/index.d.ts",
+        "default": "./dist/cjs/react/index.js"
+      }
     }
   },
   "files": [
@@ -63,6 +88,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\" && node scripts/check-build-exports.mjs",
     "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
+    "check:consumer": "node scripts/check-consumer-types.mjs",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
