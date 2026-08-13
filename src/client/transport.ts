@@ -203,13 +203,24 @@ function createCore(options: TransportOptions) {
       let antwort: HttpResponseLike;
       let koerper: R;
       try {
-        antwort = await holen(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...anmeldung.headers },
-          body: rumpf,
-          signal: abbruch.signal,
-        });
-        koerper = await lesen(antwort, fehlerName);
+        // Auch der Aufruf laeuft gegen den Abbruch — nicht nur die Anmeldung.
+        // Das `AbortSignal` geht zwar mit, aber ob eine fetch-Umsetzung es
+        // beachtet, ist keine Zusage dieses Pakets: `options.fetch` ist ein
+        // dokumentierter Erweiterungspunkt fuer Proxys, und eine Umsetzung,
+        // die das Signal ignoriert, liesse den Aufruf sonst fuer immer offen —
+        // weder Ergebnis noch Fehler. Das Lesen des Rumpfs haengt genauso mit
+        // darunter: eine Gegenstelle kann die Kopfzeilen schicken und den
+        // Rumpf offen lassen.
+        antwort = await Promise.race([
+          holen(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...anmeldung.headers },
+            body: rumpf,
+            signal: abbruch.signal,
+          }),
+          abbruchAlsAblehnung(abbruch.signal),
+        ]);
+        koerper = await Promise.race([lesen(antwort, fehlerName), abbruchAlsAblehnung(abbruch.signal)]);
       } catch (ursache) {
         // Ein Formfehler des Pakets ist kein Netzfehler und behaelt seine Art
         // (der Binaerweg wirft ihn, wenn die fetch-Antwort keine Bytes liefert).

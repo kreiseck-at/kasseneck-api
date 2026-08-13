@@ -708,3 +708,70 @@ test('der HTTP-Fehler nennt seinen Grund als eigenes Feld, nicht nur im Text', a
     });
   }
 });
+
+/**
+ * Das Zeitlimit muss auch dann greifen, wenn die `fetch`-Umsetzung das
+ * `AbortSignal` **ignoriert**.
+ *
+ * `options.fetch` ist ein dokumentierter Erweiterungspunkt (Proxys, Tests) —
+ * es ist fremder Code, und ob er das Signal beachtet, ist keine Zusage dieses
+ * Pakets. Der Waechter weiter oben ("Zeitueberschreitung bricht die Anfrage
+ * ab") kann das nicht sehen: seine Attrappe lehnt bei `abort` selbst ab und
+ * beweist damit nur, dass das Signal ankommt. Hier ignoriert die Attrappe es
+ * vollstaendig; ohne eigene Ueberwachung im Transport haengt der Aufruf fuer
+ * immer — weder Ergebnis noch Fehler, genau der Zustand, den der Kommentar bei
+ * DEFAULT_TIMEOUT_MS auszuschliessen verspricht.
+ */
+function ergebnisOderHaengt(versprechen: Promise<unknown>, geduldMs: number): Promise<string> {
+  return Promise.race([
+    versprechen.then(
+      () => 'erfuellt',
+      (fehler: unknown) => (fehler instanceof KasseneckNetworkError && fehler.timedOut ? 'zeitueberschreitung' : `anderer Fehler: ${String(fehler)}`),
+    ),
+    new Promise<string>((erfuellen) => {
+      const wecker = setTimeout(() => erfuellen('haengt'), geduldMs);
+      // Der Testwecker darf den Prozess nicht wachhalten, wenn das Rennen
+      // laengst entschieden ist.
+      wecker.unref();
+    }),
+  ]);
+}
+
+test('Zeitlimit greift auch bei einer fetch-Umsetzung, die das Signal ignoriert', async () => {
+  // Kein abort-Listener, kein Abbruch: dieses fetch antwortet schlicht nie.
+  const ignorierendesFetch: FetchLike = () => new Promise(() => {});
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: ignorierendesFetch, timeoutMs: 50 });
+
+  assert.equal(await ergebnisOderHaengt(rufen('createReceipt'), 1500), 'zeitueberschreitung');
+});
+
+test('Zeitlimit greift auch, wenn erst das Lesen des Antwortrumpfs haengt', async () => {
+  // Antwort da, Rumpf nie: eine Gegenstelle, die die Kopfzeilen schickt und
+  // den Rumpf offen laesst (oder ein Proxy, der auf halbem Weg einschlaeft).
+  const haengenderRumpf: FetchLike = async () => ({
+    status: 200,
+    headers: { get: () => 'application/json' },
+    text: () => new Promise<string>(() => {}),
+    arrayBuffer: () => new Promise<ArrayBuffer>(() => {}),
+  });
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: haengenderRumpf, timeoutMs: 50 });
+
+  assert.equal(await ergebnisOderHaengt(rufen('getReceipt'), 1500), 'zeitueberschreitung');
+});
+
+test('das Zeitlimit meldet sich als solches — mit Funktionsname und Grenze', async () => {
+  const ignorierendesFetch: FetchLike = () => new Promise(() => {});
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: ignorierendesFetch, timeoutMs: 40 });
+
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckNetworkError, `erwartet KasseneckNetworkError, bekam ${inspect(fehler)}`);
+    assert.equal(fehler.timedOut, true);
+    assert.equal(fehler.timeoutMs, 40);
+    assert.equal(fehler.functionName, 'createReceipt');
+    // Auch hier gilt die Zusage: kein Geheimnis in der Meldung.
+    for (const geheim of geheimnisse) {
+      assert.ok(!inspect(fehler, { depth: 8 }).includes(geheim), `Geheimnis in der Fehlerausgabe: ${geheim}`);
+    }
+    return true;
+  });
+});
