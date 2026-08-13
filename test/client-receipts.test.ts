@@ -15,6 +15,7 @@ import {
   createCancelReceipt,
   zeroReceipt,
   getReceipt,
+  getReceiptWithCompany,
   generateFullReceiptId,
   getFirstReceiptDate,
   createReceipt,
@@ -688,13 +689,16 @@ test('cancelReceipt prueft eine ausdruecklich uebergebene Zahlungsart ebenfalls'
  * Das Backend speichert Positionen in der v1-Form (`normalizeMoneyInputs` in
  * functions/index.js: quantity->amount, unitPriceCents->priceOneCents) und
  * prueft nur `unitPriceCents` auf Ganzzahligkeit — eine gebrochene Menge
- * kaeme durch und wuerde mitsigniert. Der Lesepfad schneidet sie danach ab
- * (Math.trunc, wie im Dart-Vorbild, wo `quantity` ein `int` ist). Damit stuende
- * auf dem gedruckten Beleg ein anderer Betrag als im signierten.
+ * kaeme durch und wuerde mitsigniert. Aus diesem Paket geht sie deshalb gar
+ * nicht erst hinaus.
  *
  * Der Waechter formuliert genau diese Zusage: **entweder** wird der Verkauf
  * abgelehnt, bevor etwas rausgeht, **oder** der gelayoutete Beleg traegt exakt
  * den Betrag, der gesendet (und damit signiert) wurde.
+ *
+ * Fuer Belege aus **fremder** Hand gilt die Gegenprobe am Ende dieser Datei:
+ * die kommen unveraendert durch den Lesepfad und werden gedruckt, wie sie
+ * signiert wurden.
  */
 function backendMitV1Speicherung(): { rufen: KasseneckTransport; gesendet: Array<Record<string, unknown>> } {
   const gesendet: Array<Record<string, unknown>> = [];
@@ -832,4 +836,58 @@ test('getReceipt: ein Nullbeleg ohne Positionen bleibt lesbar', async () => {
   const beleg = await getReceipt(rufen, 'r-1');
   assert.deepEqual(beleg.items, []);
   assert.deepEqual(beleg.vouchers, []);
+});
+
+/**
+ * Gegenprobe zum Durchstich weiter oben: derselbe Weg (lesen, layouten), aber
+ * mit einem Beleg, den **dieses Paket nicht erzeugt hat**.
+ *
+ * Die Schreibpfad-Ablehnung schuetzt nur unsere eigenen Belege. Am HTTP-API
+ * haengt aber auch fremde Software, und das Backend prueft bei den Positionen
+ * allein `unitPriceCents` auf Ganzzahligkeit — eine gebrochene Menge ist dort
+ * also ausstellbar und wird mitsigniert. Schnitte der Lesepfad sie ab, zeigte
+ * unser Ausdruck einen anderen Betrag als die Signatur, und zwar lautlos.
+ *
+ * Lesen bleibt tolerant, schreiben streng: der Wert kommt herein, wie er ist.
+ */
+test('ein fremd erzeugter Beleg wird gedruckt, wie er signiert wurde', async () => {
+  const MENGE = 0.35;
+  const EINZELPREIS_CENT = 1990;
+  // v1-Positionsform, wie das Backend sie ablegt (normalizeMoneyInputs).
+  const { holen } = fetchFake(
+    erfolg({
+      ...BELEG_ANTWORT,
+      receipt: {
+        ...BELEG_NUTZLAST,
+        items: [
+          {
+            name: 'Käse',
+            amount: MENGE,
+            priceOneCents: EINZELPREIS_CENT,
+            priceOne: EINZELPREIS_CENT / 100,
+            vat: 20,
+          },
+        ],
+      },
+    }),
+  );
+  const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
+  const { receipt, company } = await getReceiptWithCompany(rufen, 'r-1');
+
+  // Die Menge kommt herein, wie sie signiert wurde — nicht abgeschnitten.
+  assert.equal(receipt.items[0]?.quantity, MENGE);
+
+  const signiertCents = MENGE * EINZELPREIS_CENT;
+  assert.equal(receiptSumCents(receipt), signiertCents);
+
+  const layout = buildReceiptLayout(receipt, company);
+  const gesamtZeile = layout.lines.find(
+    (zeile): zeile is Extract<typeof zeile, { kind: 'columns' }> =>
+      zeile.kind === 'columns' && zeile.columns[0]?.text === 'Gesamt:',
+  );
+  assert.equal(
+    gesamtZeile?.columns[1]?.text,
+    `${formatCents(signiertCents)} €`,
+    'die gedruckte Summe muss die signierte sein',
+  );
 });

@@ -15,9 +15,13 @@ import { readVatRateByRate, requireVatRateByRate } from './enum-payload.js';
  * rohe `rate`-Wert als Zahl (siehe [readVatRateByRate]). Ein Aufrufer erkennt
  * den unbekannten Fall am `typeof`: ein Objekt ist bekannt, eine Zahl nicht.
  *
- * `quantity` ist eine **ganze** Menge (im Dart-Vorbild ein `int`). TypeScript
- * kennt keinen Ganzzahltyp, deshalb prueft der Schreibpfad sie zur Laufzeit —
- * siehe [receiptItemIsValid] und [toReceiptItemPayload].
+ * `quantity` ist beim **Schreiben** eine ganze Menge; TypeScript kennt keinen
+ * Ganzzahltyp, deshalb prueft der Schreibpfad sie zur Laufzeit (siehe
+ * [receiptItemIsValid] und [toReceiptItemPayload]). Beim **Lesen** steht hier,
+ * was in der Nutzlast stand — auch eine gebrochene Menge aus fremder Hand:
+ * lesen tolerant, schreiben streng. `receiptItemTotalCents` liefert dann
+ * folgerichtig einen gebrochenen Cent-Betrag; das ist die Wahrheit des
+ * Belegs, nicht ein Fehler dieses Pakets.
  */
 export interface ReceiptItem {
   name: string;
@@ -95,8 +99,16 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
   const satz = ersteZahl(payload.vatRate, payload.vat);
   return {
     name: payload.name ?? '',
-    // Manche Quellen liefern 1.0 statt 1 — auf eine ganze Menge festlegen.
-    quantity: menge != null ? Math.trunc(menge) : 0,
+    // Die Menge kommt herein, wie sie in der Nutzlast steht — auch eine
+    // gebrochene. Sie abzuschneiden (das Dart-Vorbild tut es mit `toInt()`)
+    // waere hier falsch: dort erzwingt es das `int`-Modell der Sprache, hier
+    // gaebe es lautlos einen anderen Betrag als den signierten. Am HTTP-API
+    // haengt auch fremde Software, und das Backend prueft bei den Positionen
+    // allein `unitPriceCents` auf Ganzzahligkeit — ein solcher Beleg ist also
+    // ausstellbar. Er muss sich dann anzeigen und drucken lassen, wie er
+    // signiert wurde. Streng ist stattdessen der Schreibpfad (siehe
+    // [pruefeMenge]): aus diesem Paket geht keine gebrochene Menge hinaus.
+    quantity: menge ?? 0,
     // Fehlt der Steuersatz voellig, gibt es keinen rohen Wert zum Erhalten;
     // dann gilt wie im Dart-Vorbild 0 % (das Backend prueft `vat` als Pflicht,
     // der Fall entsteht also nur bei einer kaputten Nutzlast).
@@ -115,7 +127,12 @@ function ersteZahl(...werte: Array<number | null | undefined>): number | undefin
   return undefined;
 }
 
-/** Zeilensumme in Cent (exakt, ohne Gleitkomma). */
+/**
+ * Zeilensumme in Cent. Bei einer selbst erzeugten Position ist sie exakt:
+ * ganze Menge mal ganze Cent. Bei einem fremd erzeugten Beleg mit gebrochener
+ * Menge ist sie folgerichtig gebrochen — das ist der signierte Betrag, und ihn
+ * zu runden hiesse, einen anderen zu drucken.
+ */
 export function receiptItemTotalCents(item: ReceiptItem): number {
   return item.priceCents * item.quantity;
 }
@@ -138,11 +155,13 @@ export function receiptItemIsValid(item: ReceiptItem): boolean {
  * Der Grund ist keine Formstrenge, sondern die Belegwahrheit: Das Backend
  * prueft **nur** `unitPriceCents` auf Ganzzahligkeit (`checkItemsIsValid` in
  * functions/index.js), eine gebrochene Menge kaeme also durch und wuerde
- * mitsigniert. Der Lesepfad dieses Pakets schneidet sie danach ab (`Math.trunc`
- * weiter oben, wie im Dart-Vorbild, wo `quantity` ein `int` ist) — der
- * gedruckte Beleg wiese dann einen anderen Betrag aus als der signierte, und
- * ein Storno auf so einem Beleg traegt eine Menge, die es nie gab. Deshalb
+ * mitsigniert. Der gedruckte Beleg wiese dann einen anderen Betrag aus als der
+ * signierte, und ein Storno darauf traegt eine Menge, die es nie gab. Deshalb
  * faellt die Menge hier, vor dem Senden, und nicht spaeter still.
+ *
+ * Der Lesepfad tut das ausdruecklich **nicht** (siehe
+ * [fromReceiptItemPayload]): ein fremd erzeugter Beleg muss sich anzeigen
+ * lassen, wie er signiert wurde.
  *
  * `Number.isInteger` faengt Bruchteile, NaN und Unendlich in einem.
  */
