@@ -14,9 +14,14 @@ import { readVatRateByRate, requireVatRateByRate } from './enum-payload.js';
  * die Nutzlast einen Satz traegt, den dieses Paket noch nicht kennt — der
  * rohe `rate`-Wert als Zahl (siehe [readVatRateByRate]). Ein Aufrufer erkennt
  * den unbekannten Fall am `typeof`: ein Objekt ist bekannt, eine Zahl nicht.
+ *
+ * `quantity` ist eine **ganze** Menge (im Dart-Vorbild ein `int`). TypeScript
+ * kennt keinen Ganzzahltyp, deshalb prueft der Schreibpfad sie zur Laufzeit —
+ * siehe [receiptItemIsValid] und [toReceiptItemPayload].
  */
 export interface ReceiptItem {
   name: string;
+  /** Ganze Menge, > 0 zum Senden (siehe Klassenkommentar). */
   quantity: number;
   vat: VatRate | number;
   priceCents: number;
@@ -69,6 +74,7 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   // Schreibpfad bleibt streng: ein unaufgeloester (unbekannter) Steuersatz
   // darf nicht unbesehen wieder hinausgehen.
   const vat = typeof item.vat === 'number' ? requireVatRateByRate(item.vat) : item.vat;
+  pruefeMenge(item.quantity);
   return {
     name: item.name,
     quantity: item.quantity,
@@ -116,11 +122,34 @@ export function receiptItemTotalCents(item: ReceiptItem): number {
 
 /**
  * Ist die Position an das Backend sendbar? Zwilling von `KasseneckItem.isValid`
- * im Flutter-Vorbild: ein Name muss da sein und die Menge positiv. Der Preis
- * darf negativ sein — genau das ist eine Stornoposition.
+ * im Flutter-Vorbild: ein Name muss da sein und die Menge positiv **und ganz**.
+ * Der Preis darf negativ sein — genau das ist eine Stornoposition.
+ *
+ * Zur Ganzzahligkeit siehe [pruefeMenge]: im Dart-Vorbild ist `quantity` ein
+ * `int`, hier traegt der Typ das nicht, also muss es die Laufzeit tun.
  */
 export function receiptItemIsValid(item: ReceiptItem): boolean {
-  return item.name.length > 0 && item.quantity > 0;
+  return item.name.length > 0 && Number.isInteger(item.quantity) && item.quantity > 0;
+}
+
+/**
+ * Wirft, wenn die Menge keine ganze Zahl ist.
+ *
+ * Der Grund ist keine Formstrenge, sondern die Belegwahrheit: Das Backend
+ * prueft **nur** `unitPriceCents` auf Ganzzahligkeit (`checkItemsIsValid` in
+ * functions/index.js), eine gebrochene Menge kaeme also durch und wuerde
+ * mitsigniert. Der Lesepfad dieses Pakets schneidet sie danach ab (`Math.trunc`
+ * weiter oben, wie im Dart-Vorbild, wo `quantity` ein `int` ist) — der
+ * gedruckte Beleg wiese dann einen anderen Betrag aus als der signierte, und
+ * ein Storno auf so einem Beleg traegt eine Menge, die es nie gab. Deshalb
+ * faellt die Menge hier, vor dem Senden, und nicht spaeter still.
+ *
+ * `Number.isInteger` faengt Bruchteile, NaN und Unendlich in einem.
+ */
+function pruefeMenge(quantity: number): void {
+  if (!Number.isInteger(quantity)) {
+    throw new Error(`Menge: "${quantity}" ist keine ganze Zahl`);
+  }
 }
 
 /**

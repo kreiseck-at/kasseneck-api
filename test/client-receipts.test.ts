@@ -10,6 +10,7 @@ import {
 } from '../src/client/errors.js';
 import {
   sellReceipt,
+  sellReceiptWithCompany,
   cancelReceipt,
   createCancelReceipt,
   zeroReceipt,
@@ -31,6 +32,8 @@ import {
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import { ReceiptType, VatRate, KeckPaymentMethod, type KeckPaymentMethodKey, CreditCardProvider, VoucherAction, VoucherType } from '../src/enums/index.js';
 import type { Receipt, ReceiptItem, ReceiptPayload, Voucher } from '../src/models/index.js';
+import { receiptItemIsValid, receiptSumCents, toReceiptItemPayload } from '../src/models/index.js';
+import { buildReceiptLayout, formatCents } from '../src/receipt/layout.js';
 
 /**
  * Vertragstests der Beleg-Endpunkte: welcher Endpunktname geht raus, mit
@@ -677,4 +680,96 @@ test('cancelReceipt prueft eine ausdruecklich uebergebene Zahlungsart ebenfalls'
     /Zahlungsart/,
   );
   assert.equal(aufrufe.length, 0);
+});
+
+/**
+ * Der ganze Weg: verkaufen, zuruecklesen, layouten.
+ *
+ * Das Backend speichert Positionen in der v1-Form (`normalizeMoneyInputs` in
+ * functions/index.js: quantity->amount, unitPriceCents->priceOneCents) und
+ * prueft nur `unitPriceCents` auf Ganzzahligkeit — eine gebrochene Menge
+ * kaeme durch und wuerde mitsigniert. Der Lesepfad schneidet sie danach ab
+ * (Math.trunc, wie im Dart-Vorbild, wo `quantity` ein `int` ist). Damit stuende
+ * auf dem gedruckten Beleg ein anderer Betrag als im signierten.
+ *
+ * Der Waechter formuliert genau diese Zusage: **entweder** wird der Verkauf
+ * abgelehnt, bevor etwas rausgeht, **oder** der gelayoutete Beleg traegt exakt
+ * den Betrag, der gesendet (und damit signiert) wurde.
+ */
+function backendMitV1Speicherung(): { rufen: KasseneckTransport; gesendet: Array<Record<string, unknown>> } {
+  const gesendet: Array<Record<string, unknown>> = [];
+  const holen: FetchLike = async (_url, init) => {
+    const rumpf = JSON.parse(init.body) as { params: Record<string, unknown> };
+    gesendet.push(rumpf.params);
+    const positionen = (rumpf.params['items'] ?? []) as Array<Record<string, number | string>>;
+    return erfolg({
+      ...BELEG_ANTWORT,
+      receipt: {
+        ...BELEG_NUTZLAST,
+        // genau die Abbildung des Backends
+        items: positionen.map((i) => ({
+          name: i['name'],
+          amount: i['quantity'],
+          priceOneCents: i['unitPriceCents'],
+          priceOne: (i['unitPriceCents'] as number) / 100,
+          vat: i['vatRate'],
+        })),
+      },
+    });
+  };
+  return { rufen: createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen }), gesendet };
+}
+
+test('gedruckter Beleg widerspricht nie dem signierten — auch nicht bei gebrochener Menge', async () => {
+  for (const menge of [1, 2, 0.35, 3.7, 12]) {
+    const { rufen, gesendet } = backendMitV1Speicherung();
+    const ergebnis = await sellReceiptWithCompany(rufen, {
+      paymentMethod: KeckPaymentMethod.cash,
+      items: [{ name: 'Käse', quantity: menge, vat: VatRate.vat20, priceCents: 1990 }],
+    }).then(
+      (wert) => ({ wert }),
+      (fehler: unknown) => ({ fehler }),
+    );
+
+    if ('fehler' in ergebnis) {
+      // Abgelehnt — dann darf auch nichts rausgegangen sein.
+      assert.ok(
+        isKasseneckValidationError(ergebnis.fehler),
+        `Menge ${menge}: erwartet KasseneckValidationError, bekam ${inspect(ergebnis.fehler)}`,
+      );
+      assert.equal(ergebnis.fehler.scope, 'request');
+      assert.equal(gesendet.length, 0, `Menge ${menge}: es darf nichts gesendet werden`);
+      continue;
+    }
+
+    // Angenommen — dann muss der gedruckte Betrag dem signierten entsprechen.
+    const gesendetePositionen = gesendet[0]?.['items'] as Array<{ quantity: number; unitPriceCents: number }>;
+    const signiertCents = gesendetePositionen.reduce((s, i) => s + i.quantity * i.unitPriceCents, 0);
+    const layout = buildReceiptLayout(ergebnis.wert.receipt, ergebnis.wert.company);
+    const gesamtZeile = layout.lines.find(
+      (zeile): zeile is Extract<typeof zeile, { kind: 'columns' }> =>
+        zeile.kind === 'columns' && zeile.columns[0]?.text === 'Gesamt:',
+    );
+    assert.equal(
+      gesamtZeile?.columns[1]?.text,
+      `${formatCents(signiertCents)} €`,
+      `Menge ${menge}: gedruckte Summe muss der signierten entsprechen`,
+    );
+    assert.equal(receiptSumCents(ergebnis.wert.receipt), signiertCents, `Menge ${menge}: Belegsumme`);
+  }
+});
+
+test('eine gebrochene Menge ist keine sendbare Position (Modellpruefung)', () => {
+  const brueche: ReceiptItem[] = [
+    { name: 'Käse', quantity: 0.35, vat: VatRate.vat20, priceCents: 1990 },
+    { name: 'Käse', quantity: 3.7, vat: VatRate.vat20, priceCents: 1990 },
+    { name: 'Käse', quantity: Number.NaN, vat: VatRate.vat20, priceCents: 1990 },
+    { name: 'Käse', quantity: Number.POSITIVE_INFINITY, vat: VatRate.vat20, priceCents: 1990 },
+  ];
+  for (const position of brueche) {
+    assert.equal(receiptItemIsValid(position), false, `Menge ${position.quantity} darf nicht gueltig sein`);
+    assert.throws(() => toReceiptItemPayload(position), /Menge/, `Menge ${position.quantity} darf nicht hinausgehen`);
+  }
+  // Ganze Mengen bleiben unveraendert gueltig.
+  assert.equal(receiptItemIsValid({ name: 'Käse', quantity: 2, vat: VatRate.vat20, priceCents: 1990 }), true);
 });
