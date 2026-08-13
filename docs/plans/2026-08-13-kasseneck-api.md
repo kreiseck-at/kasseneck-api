@@ -1,7 +1,5 @@
 # `@kreiseck/kasseneck-api` Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Der veröffentlichte JavaScript-Client für das Kasseneck-Backend — Zwilling von
 `kasseneck_api` (pub.dev), erster Verbraucher ist die Browser-Kasse.
 
@@ -22,7 +20,8 @@ zeichnet es als eigener Einstiegspunkt.
 ## Global Constraints
 
 - Code-Kommentare und Commit-Messages auf **Deutsch**; Commit-Stil `feat: …` / `fix: …` / `test: …`.
-- **Keine Hinweise auf KI, Claude oder Assistenten** in Code, Kommentaren, Commits oder Dokumenten.
+- Der Output soll ununterscheidbar von handgeschriebenem Code und handgeschriebener Doku sein
+  — keine Werkzeug- oder Generator-Hinweise in Code, Kommentaren, Commits oder Dokumenten.
 - **Wertgleichheit mit dem Flutter-Paket ist Pflicht**, nicht Absicht: Enum-Schlüssel und
   -Nutzlastwerte müssen identisch sein. Die RKSV-Kategorie-Buchstaben (`A`=20 %, `B`=10 %, `C`=13 %,
   `D`=0 %, `E`=19 %, `G`=4,9 %) hängen an der Signatur — sie sind **unantastbar**.
