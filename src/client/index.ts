@@ -23,6 +23,8 @@ export {
   KasseneckAuthError,
   KasseneckHttpError,
   KasseneckNetworkError,
+  KasseneckValidationError,
+  type ValidationScope,
   type KasseneckError,
   type HttpFailureReason,
   type CauseDigest,
@@ -30,6 +32,7 @@ export {
   isKasseneckAuthError,
   isKasseneckHttpError,
   isKasseneckNetworkError,
+  isKasseneckValidationError,
 } from './errors.js';
 
 export {

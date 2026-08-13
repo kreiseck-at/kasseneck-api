@@ -3,6 +3,7 @@ import { readEnumKey, requireEnumKey } from './enum-payload.js';
 import {
   type ReceiptItem,
   type ReceiptItemPayload,
+  type ReceiptItemPayloadRead,
   toReceiptItemPayload,
   fromReceiptItemPayload,
   receiptItemTotalCents,
@@ -71,6 +72,17 @@ export interface ReceiptPayload {
   customProjectId: string | null;
 }
 
+/**
+ * Nutzlast-Form, die dieses Paket **liest**. Unterscheidet sich von
+ * [ReceiptPayload] bei den Positionen: ein gespeicherter Beleg traegt sie in
+ * der v1-Form, die das Backend ablegt (siehe [ReceiptItemPayloadRead]).
+ * Nullbelege haben ueberhaupt keine Positionen.
+ */
+export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouchers'> {
+  items?: ReceiptItemPayloadRead[] | null;
+  vouchers?: VoucherPayload[] | null;
+}
+
 export function toReceiptPayload(receipt: Receipt): ReceiptPayload {
   // Schreibpfad bleibt streng: ReceiptType/KeckPaymentMethod sind bekannt am
   // Objekt-Charakter erkennbar (defineEnum-Eintraege); ein roher String muss
@@ -106,7 +118,7 @@ export function toReceiptPayload(receipt: Receipt): ReceiptPayload {
 // Nullbelege haben keine Positionen -> items kann fehlen/null sein (siehe Dart-Vorbild).
 const leereZeile = (text: string | null | undefined): string[] => (text ? text.split('\n') : []);
 
-export function fromReceiptPayload(payload: ReceiptPayload): Receipt {
+export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
   return {
     receiptId: payload.receiptId,
     cashregisterId: payload.cashregisterId,

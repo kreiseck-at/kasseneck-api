@@ -1,6 +1,15 @@
 /**
- * Die vier Fehlerarten des Kasseneck-Clients — bewusst getrennt, weil ein
+ * Die fuenf Fehlerarten des Kasseneck-Clients — bewusst getrennt, weil ein
  * Aufrufer auf jede anders reagieren muss:
+ *
+ * - `KasseneckValidationError` — die **Form** stimmt nicht: entweder ging
+ *   mangels brauchbarer Eingabe gar keine Anfrage raus, oder die Antwort war
+ *   nicht verwertbar. `scope` trennt die beiden Richtungen. `'request'`: die
+ *   Eingabe des Aufrufers verletzt eine Regel, die dieses Paket schon vor dem
+ *   Senden kennt (Beleg ohne Positionen, unmoegliche Gutscheinkombination) —
+ *   das ist ein Programmierfehler im Aufrufer, kein Betriebszustand.
+ *   `'response'`: das Backend meldete Erfolg, die Nutzlast enthielt aber
+ *   nicht, was der Aufruf zusagt.
  *
  * - `KasseneckApiError` — **fachlicher** Fehler. Das Backend antwortet immer
  *   mit HTTP 200 und legt Erfolg/Misserfolg in den Rumpf
@@ -181,8 +190,41 @@ export class KasseneckAuthError extends Error {
   }
 }
 
+/** Woran die Form haengt: an der Eingabe des Aufrufers oder an der Antwort. */
+export type ValidationScope = 'request' | 'response';
+
+/**
+ * Die Form stimmt nicht — bei `scope: 'request'` ging deshalb keine Anfrage
+ * raus, bei `scope: 'response'` kam eine unbrauchbare zurueck.
+ *
+ * Es gilt dieselbe Zusage wie fuer die uebrigen Fehlerarten: `reason` ist vom
+ * Paket formuliert und geheimnisfrei. Bei `'response'` wird insbesondere
+ * **nichts aus der Antwort** uebernommen — ein fremder Proxy koennte dort
+ * alles Moegliche zurueckspiegeln.
+ */
+export class KasseneckValidationError extends Error {
+  readonly name = 'KasseneckValidationError';
+  /** Betroffene Backend-Funktion. */
+  readonly functionName: string;
+  /** Vom Paket formulierter Grund. */
+  readonly reason: string;
+  readonly scope: ValidationScope;
+
+  constructor(functionName: string, reason: string, scope: ValidationScope) {
+    super(`${functionName} fehlgeschlagen: ${reason}`);
+    this.functionName = functionName;
+    this.reason = reason;
+    this.scope = scope;
+  }
+}
+
 /** Alle Fehler, die dieses Paket wirft. */
-export type KasseneckError = KasseneckApiError | KasseneckHttpError | KasseneckNetworkError | KasseneckAuthError;
+export type KasseneckError =
+  | KasseneckApiError
+  | KasseneckHttpError
+  | KasseneckNetworkError
+  | KasseneckAuthError
+  | KasseneckValidationError;
 
 export function isKasseneckApiError(fehler: unknown): fehler is KasseneckApiError {
   return fehler instanceof KasseneckApiError;
@@ -198,4 +240,8 @@ export function isKasseneckNetworkError(fehler: unknown): fehler is KasseneckNet
 
 export function isKasseneckAuthError(fehler: unknown): fehler is KasseneckAuthError {
   return fehler instanceof KasseneckAuthError;
+}
+
+export function isKasseneckValidationError(fehler: unknown): fehler is KasseneckValidationError {
+  return fehler instanceof KasseneckValidationError;
 }

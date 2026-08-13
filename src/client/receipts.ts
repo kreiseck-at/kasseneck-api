@@ -7,10 +7,9 @@ import {
   VoucherAction,
   VoucherType,
 } from '../enums/index.js';
-import { requireEnumKey } from '../models/enum-payload.js';
 import {
   type Receipt,
-  type ReceiptPayload,
+  type ReceiptPayloadRead,
   type ReceiptItem,
   type Voucher,
   fromReceiptPayload,
@@ -22,6 +21,7 @@ import {
   type ReportMonth,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
+import { KasseneckValidationError } from './errors.js';
 import type { KasseneckTransport } from './transport.js';
 
 /**
@@ -66,7 +66,13 @@ export interface ReceiptCommonOptions {
 /** Belegtyp und Inhalt — die vollstaendige Eingabe von [createReceipt]. */
 export interface CreateReceiptOptions extends ReceiptCommonOptions {
   receiptType: ReceiptType | ReceiptTypeKey;
-  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
+  /**
+   * Bekannter Eintrag, bekannter Schluessel — oder ein roher String. Letzteres
+   * gilt nur fuer Werte, die vom Server stammen (Storno eines gelesenen
+   * Belegs, siehe [cancelReceipt]); die benannten Aufrufe darueber lassen nur
+   * die bekannten Zahlungsarten zu.
+   */
+  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey | string;
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
@@ -93,7 +99,6 @@ export interface CreateCancelReceiptOptions extends ReceiptCommonOptions {
   paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey;
   /** Positionen, wie sie auf dem Storno stehen sollen — **nicht** negiert. */
   items: ReceiptItem[];
-  vouchers?: Voucher[];
 }
 
 /**
@@ -110,10 +115,10 @@ export async function createReceipt(rufen: KasseneckTransport, options: CreateRe
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
     const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell) ?? false;
     if ((items == null || items.length === 0) && !hatVerkaufsgutschein) {
-      throw new Error(`Positionen sind Pflicht bei receiptType "${typ.value}" und duerfen nicht leer sein.`);
+      throw eingabefehler(`Positionen sind Pflicht bei receiptType "${typ.value}" und duerfen nicht leer sein.`);
     }
     if (items?.some((item) => !receiptItemIsValid(item)) ?? false) {
-      throw new Error('Ungueltige Position uebergeben.');
+      throw eingabefehler('Ungueltige Position uebergeben.');
     }
   }
 
@@ -121,35 +126,41 @@ export async function createReceipt(rufen: KasseneckTransport, options: CreateRe
 
   if (vouchers != null && vouchers.length > 0) {
     if (!typ.allowsVouchers) {
-      throw new Error(`Gutscheine sind nicht erlaubt bei receiptType "${typ.value}".`);
+      throw eingabefehler(`Gutscheine sind nicht erlaubt bei receiptType "${typ.value}".`);
     }
     if (vouchers.some((voucher) => !voucherIsValid(voucher))) {
-      throw new Error('Ungueltiger Gutschein uebergeben.');
+      throw eingabefehler('Ungueltiger Gutschein uebergeben.');
     }
     const kombinationsfehler = checkVoucherCombinationError(vouchers, items ?? []);
     if (kombinationsfehler != null) {
-      throw new Error(kombinationsfehler);
+      throw eingabefehler(kombinationsfehler);
     }
-    params['vouchers'] = vouchers.map(toVoucherPayload);
+    params['vouchers'] = alsNutzlast(vouchers, toVoucherPayload);
   }
 
   if (items != null && items.length > 0) {
-    params['items'] = items.map(toReceiptItemPayload);
+    params['items'] = alsNutzlast(items, toReceiptItemPayload);
   }
 
   if (options.paymentMethod != null) {
-    const zahlungsart = zahlungsartEintrag(options.paymentMethod);
-    params['paymentMethod'] = zahlungsart.value;
+    // Roher String statt strenger Aufloesung: die gueltigen Zahlungsarten
+    // kennt das Backend, und es weist unbekannte selbst ab. Ergaenzt es eine
+    // neue, bevor dieses Paket sie kennt, waere sonst jeder Beleg mit dieser
+    // Zahlungsart unstornierbar — obwohl der Server ihn angenommen haette.
+    const zahlungsart = typeof options.paymentMethod === 'object' ? options.paymentMethod.value : options.paymentMethod;
+    params['paymentMethod'] = zahlungsart;
     const anbieter = options.creditCardProvider ?? CreditCardProvider.custom;
-    if (zahlungsart === KeckPaymentMethod.creditCard) {
+    if (zahlungsart === KeckPaymentMethod.creditCard.value) {
       if (options.cardPaymentId != null) {
         params['cardPaymentId'] = options.cardPaymentId;
-        params['creditCardProvider'] = requireEnumKey(CreditCardProvider, anbieter, 'Kartenanbieter');
+        // Der Kartenanbieter kommt dagegen vom Aufrufer, nicht vom Server —
+        // hier bleibt der Schreibpfad streng.
+        params['creditCardProvider'] = kartenanbieter(anbieter);
         // Bewusst auch als `null`, wenn der Anbieter keine Rohdaten liefert:
         // das Feld gehoert zur Kartenzahlung und das Backend nimmt null an.
         params['cardPaymentData'] = options.cardPaymentData ?? null;
       } else if (anbieter !== CreditCardProvider.custom) {
-        throw new Error(`cardPaymentId ist Pflicht bei creditCardProvider "${anbieter}".`);
+        throw eingabefehler(`cardPaymentId ist Pflicht bei creditCardProvider "${anbieter}".`);
       }
     }
   }
@@ -186,10 +197,11 @@ export function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptO
     customerDetails: receipt.customerDetails,
     items: receipt.items.map(negateReceiptItem),
     // Der gelesene Beleg kann eine Zahlungsart tragen, die dieses Paket noch
-    // nicht kennt (roher String, siehe models/receipt.ts). Fuer den Schreibweg
-    // muss sie aufloesbar sein — sonst ginge ein Storno mit unbekannter
-    // Zahlungsart hinaus.
-    paymentMethod: paymentMethod ?? zahlungsartEintrag(receipt.paymentMethod),
+    // nicht kennt (roher String, siehe models/receipt.ts). Sie geht
+    // unveraendert hinaus: still auf 'cash' zurueckzufallen verfaelschte die
+    // Zahlungsartenaufteilung im Tages- und Monatsbericht, und zu werfen
+    // machte solche Belege unstornierbar.
+    paymentMethod: paymentMethod ?? receipt.paymentMethod,
   });
 }
 
@@ -220,7 +232,7 @@ export async function generateFullReceiptId(rufen: KasseneckTransport, receiptId
   const daten = await rufen<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
   const id = daten?.fullReceiptId;
   if (typeof id !== 'string') {
-    throw new Error('generateFullReceiptId: Antwort enthaelt keine fullReceiptId');
+    throw antwortfehler('generateFullReceiptId', 'Antwort enthaelt keine fullReceiptId');
   }
   return id;
 }
@@ -236,7 +248,7 @@ export async function generateFullReceiptId(rufen: KasseneckTransport, receiptId
 export async function getFirstReceiptDate(rufen: KasseneckTransport): Promise<ReportMonth> {
   const roh = await rufen<unknown>('getFirstReceiptDate');
   if (typeof roh !== 'string') {
-    throw new Error('getFirstReceiptDate: Antwort enthaelt keinen Zeitstempel');
+    throw antwortfehler('getFirstReceiptDate', 'Antwort enthaelt keinen Zeitstempel');
   }
   // Ueber die Wiener Wanduhrzeit statt ueber getMonth(): der erste Beleg eines
   // Monats liegt gern kurz nach Mitternacht, und der eingebaute Monat waere der
@@ -290,14 +302,54 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
   return null;
 }
 
-/** Belegtyp aufloesen — Objekt-Eintrag oder Schluessel, unbekannt wirft. */
+/**
+ * Belegtyp aufloesen. Anders als bei der Zahlungsart bleibt es hier streng:
+ * den Belegtyp setzt kein Aufrufer aus Serverdaten, er kommt aus einem der
+ * benannten Aufrufe — ein unbekannter Wert waere ein Programmierfehler.
+ */
 function belegtyp(wert: ReceiptType | ReceiptTypeKey | string): ReceiptType {
-  return typeof wert === 'object' ? wert : requireEnumKey(ReceiptType, wert, 'Belegtyp');
+  if (typeof wert === 'object') {
+    return wert;
+  }
+  if (!Object.prototype.hasOwnProperty.call(ReceiptType, wert)) {
+    throw eingabefehler(`Belegtyp: unbekannter Schluessel "${wert}"`);
+  }
+  return ReceiptType[wert as ReceiptTypeKey];
 }
 
-/** Zahlungsart aufloesen — Objekt-Eintrag oder Schluessel, unbekannt wirft. */
-function zahlungsartEintrag(wert: KeckPaymentMethod | KeckPaymentMethodKey | string): KeckPaymentMethod {
-  return typeof wert === 'object' ? wert : requireEnumKey(KeckPaymentMethod, wert, 'Zahlungsart');
+/**
+ * Wandelt Positionen/Gutscheine in ihre Nutzlast und faengt dabei die strengen
+ * Schreibpfad-Pruefungen der Modelle ab (unbekannter Steuersatz, unbekannte
+ * Gutschein-Aktion). Die Modelle werfen dort ein nacktes `Error`; hier soll
+ * nur die Fehler-Union des Pakets herauskommen, damit ein Verbraucher, der
+ * nach den Waechtern verzweigt, nicht im "unbekannt"-Zweig landet.
+ */
+function alsNutzlast<T, P>(werte: T[], wandeln: (wert: T) => P): P[] {
+  try {
+    return werte.map(wandeln);
+  } catch (ursache) {
+    // Die Meldungen der Modelle sind vom Paket formuliert und geheimnisfrei
+    // (sie nennen den unbekannten Steuersatz bzw. Schluessel, sonst nichts).
+    throw eingabefehler(ursache instanceof Error ? ursache.message : 'Ungueltige Nutzlast uebergeben.');
+  }
+}
+
+/** Kartenanbieter pruefen — er stammt vom Aufrufer, nicht aus Serverdaten. */
+function kartenanbieter(wert: string): string {
+  if (!Object.prototype.hasOwnProperty.call(CreditCardProvider, wert)) {
+    throw eingabefehler(`Kartenanbieter: unbekannter Schluessel "${wert}"`);
+  }
+  return wert;
+}
+
+/** Fehler in der Eingabe des Aufrufers — es geht keine Anfrage raus. */
+function eingabefehler(grund: string): KasseneckValidationError {
+  return new KasseneckValidationError('createReceipt', grund, 'request');
+}
+
+/** Die Antwort meldete Erfolg, trug aber nicht, was der Aufruf zusagt. */
+function antwortfehler(functionName: string, grund: string): KasseneckValidationError {
+  return new KasseneckValidationError(functionName, grund, 'response');
 }
 
 /**
@@ -307,9 +359,9 @@ function zahlungsartEintrag(wert: KeckPaymentMethod | KeckPaymentMethodKey | str
  * Beleg-Rendering und gehoeren nicht zum RKSV-Kernbeleg (siehe models/receipt.ts).
  */
 function belegAusHuelle(daten: unknown, functionName: string): Receipt {
-  const huelle = daten as { receipt?: ReceiptPayload } | null | undefined;
+  const huelle = daten as { receipt?: ReceiptPayloadRead } | null | undefined;
   if (huelle == null || typeof huelle !== 'object' || huelle.receipt == null) {
-    throw new Error(`${functionName}: Antwort enthaelt keinen Beleg (data.receipt fehlt)`);
+    throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt fehlt)');
   }
   return fromReceiptPayload(huelle.receipt);
 }

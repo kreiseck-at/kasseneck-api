@@ -1,3 +1,10 @@
+// Zeitzone des Testlaufs festnageln: Der Berichtsmonat wird nach Wiener Zeit
+// gebildet, und auf einer Maschine, die ohnehin in Wien steht, liefe auch die
+// falsche Umsetzung (die eingebauten getMonth()/getFullYear()) gruen durch.
+// Unter UTC faellt der Unterschied auf — hier laeuft der Waechter also
+// unabhaengig davon, wo entwickelt wird.
+process.env.TZ = 'UTC';
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { VatRate, ReceiptType, KeckPaymentMethod, CreditCardProvider, VoucherType, VoucherAction } from '../src/enums/index.js';
@@ -66,6 +73,45 @@ test('Belegposition: Betraege bleiben ganzzahlig ueber drei krumme Positionen', 
   // 0.87 — genau der Rundungsfehler, den Cent-Integer-Arithmetik vermeidet.
   assert.equal(summe, 87);
   assert.notEqual(0.29 + 0.29 + 0.29, 0.87);
+});
+
+test('Belegposition: liest die woertliche v1-Nutzlast, wie das Backend sie speichert', () => {
+  // Das Backend bildet die v2-Felder am Eingang auf v1 ab und speichert v1
+  // (normalizeMoneyInputs in functions/index.js): amount, vat, priceOne,
+  // priceOneCents. Ein gespeicherter Beleg traegt v2 nur dann, wenn der
+  // erzeugende Client sie mitgesendet hat — v1 traegt er IMMER. Von Hand aus
+  // dieser Speicherform abgeschrieben, nicht ueber toReceiptItemPayload erzeugt.
+  const v1 = { name: 'Kaffee', amount: 2, vat: 20, priceOne: 3.2, priceOneCents: 320 };
+  assert.deepEqual(fromReceiptItemPayload(v1), { name: 'Kaffee', quantity: 2, vat: VatRate.vat20, priceCents: 320 });
+});
+
+test('Belegposition: v1 ohne Cent-Feld faellt exakt auf die Euro-Rundung zurueck', () => {
+  const v1 = { name: 'Kaffee', amount: 1, vat: 10, priceOne: 3.2 };
+  assert.deepEqual(fromReceiptItemPayload(v1), { name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 320 });
+});
+
+test('Belegposition: traegt die Nutzlast beide Formen, gewinnt die Cent-Angabe', () => {
+  // Gemischte Form: so sieht ein Beleg aus, den ein v2-Client erzeugt hat.
+  const beide = {
+    name: 'Kaffee',
+    quantity: 3,
+    unitPriceCents: 333,
+    vatRate: 13,
+    amount: 3,
+    vat: 13,
+    priceOne: 3.33,
+    priceOneCents: 333,
+  };
+  assert.deepEqual(fromReceiptItemPayload(beide), { name: 'Kaffee', quantity: 3, vat: VatRate.vat13, priceCents: 333 });
+});
+
+test('Belegposition: ein v1-Beleg bleibt stornierbar — die gelesene Position ist gueltig', () => {
+  // Regressionsschutz: kennt der Lesepfad v1 nicht, kommt quantity als
+  // undefined zurueck, receiptItemIsValid schlaegt fehl, und der Beleg laesst
+  // sich ueber dieses Paket nie stornieren.
+  const gelesen = fromReceiptItemPayload({ name: 'Kaffee', amount: 1, vat: 20, priceOne: 3.2, priceOneCents: 320 });
+  assert.equal(receiptItemIsValid(gelesen), true);
+  assert.deepEqual(negateReceiptItem(gelesen), { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: -320 });
 });
 
 test('Belegposition: unbekannter Steuersatz aus der Nutzlast bleibt beim Lesen erhalten statt zu werfen', () => {
@@ -237,6 +283,15 @@ test('Beleg: unbekannter Steuersatz in einer Position laesst die uebrigen Positi
   assert.equal(gelesen.sig, 'sig');
 });
 
+test('Beleg: ein gespeicherter Beleg in v1-Positionsform ergibt echte Summen statt NaN', () => {
+  const beleg = baueBeleg([{ name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 350 }]);
+  // So liegt der Beleg im Firestore: das Backend speichert die v1-Form.
+  const payload = { ...toReceiptPayload(beleg), items: [{ name: 'Kaffee', amount: 1, vat: 10, priceOne: 3.5, priceOneCents: 350 }] };
+  const gelesen = fromReceiptPayload(payload);
+  assert.deepEqual(gelesen.items, [{ name: 'Kaffee', quantity: 1, vat: VatRate.vat10, priceCents: 350 }]);
+  assert.equal(receiptSumCents(gelesen), 350);
+});
+
 test('Beleg: liest eine woertliche, dem Flutter-Vorbild nachgebaute Nutzlast ueber alle Felder', () => {
   // Nicht ueber toReceiptPayload erzeugt — bewusst von Hand aus
   // kasseneck_receipt.dart::toReceiptJson() abgeschrieben, damit ein falsch
@@ -348,6 +403,18 @@ test('Berichtsmonat: Schluessel- und Lesbar-Format stimmen mit dem Flutter-Paket
 
 test('Berichtsmonat: aus Datum abgeleitet trifft Monat und Jahr', () => {
   assert.deepEqual(reportMonthFromDate(new Date(2026, 7, 13)), { month: 8, year: 2026 });
+});
+
+test('Berichtsmonat: ein Zeitpunkt wird nach Wiener Zeit eingeordnet, nicht nach Rechnerzeit', () => {
+  // 28.02. 23:30 UTC ist in Wien bereits der 01.03. 00:30 (Winterzeit, +1) —
+  // der Berichtsmonat ist Maerz. Mit den eingebauten getMonth()/getFullYear()
+  // waere es auf einer UTC-Maschine Februar, und der Monatsbericht liefe auf
+  // den falschen Monat.
+  assert.deepEqual(reportMonthFromDate(new Date('2026-02-28T23:30:00Z')), { month: 3, year: 2026 });
+  // Dasselbe im Sommer (+2): 31.07. 22:30 UTC ist in Wien der 01.08. 00:30.
+  assert.deepEqual(reportMonthFromDate(new Date('2026-07-31T22:30:00Z')), { month: 8, year: 2026 });
+  // Und die Gegenrichtung: 01.03. 00:30 UTC ist in Wien 01:30 desselben Tages.
+  assert.deepEqual(reportMonthFromDate(new Date('2026-03-01T00:30:00Z')), { month: 3, year: 2026 });
 });
 
 // --- Stripe-Sitzung ----------------------------------------------------------

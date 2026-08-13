@@ -1,6 +1,7 @@
 export {
   type ReceiptItem,
   type ReceiptItemPayload,
+  type ReceiptItemPayloadRead,
   toReceiptItemPayload,
   fromReceiptItemPayload,
   receiptItemTotalCents,
@@ -11,6 +12,7 @@ export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload
 export {
   type Receipt,
   type ReceiptPayload,
+  type ReceiptPayloadRead,
   toReceiptPayload,
   fromReceiptPayload,
   receiptSubSumCents,

@@ -1,3 +1,5 @@
+import { toViennaWallClock } from '../vienna-time.js';
+
 /**
  * Berichtsmonat — Zwilling von `ReportMonth` in
  * kasseneck_api/lib/models/report_month.dart.
@@ -45,8 +47,19 @@ const MONTH_NAMES_DE = [
   'Dezember',
 ] as const;
 
+/**
+ * Berichtsmonat eines Zeitpunkts — eingeordnet nach **Wiener** Zeit, nicht
+ * nach der Zeitzone des ausfuehrenden Rechners.
+ *
+ * Der Geschaeftsmonat ist ein oesterreichischer Kalenderwert: ein Beleg vom
+ * 1. Maerz 00:30 Wiener Zeit gehoert in den Maerz, auch wenn derselbe
+ * Zeitpunkt in UTC noch im Februar liegt. Die eingebauten
+ * `getMonth()`/`getFullYear()` wuerden ihn auf einer UTC-Maschine in den
+ * Februar legen und den Monatsbericht auf den falschen Monat schicken.
+ */
 export function reportMonthFromDate(date: Date): ReportMonth {
-  return { month: date.getMonth() + 1, year: date.getFullYear() };
+  const wanduhr = toViennaWallClock(date);
+  return { month: wanduhr.month, year: wanduhr.year };
 }
 
 export function previousReportMonth(rm: ReportMonth): ReportMonth {

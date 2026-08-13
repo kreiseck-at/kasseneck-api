@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseServerTimeStamp } from '../src/vienna-time.js';
+import { parseServerTimeStamp, toViennaWallClock } from '../src/vienna-time.js';
 
 // Werte 1:1 aus kasseneck_api/test/vienna_time_test.dart uebernommen
 // (Primaerquelle statt Zusammenfassung) — Dart-Vorbild bereits gegen die
@@ -46,4 +46,57 @@ test('parseServerTimeStamp: ein offsetloser String wird NICHT als UTC gelesen', 
 
 test('parseServerTimeStamp: unlesbares Format wirft statt still ein falsches Datum zu liefern', () => {
   assert.throws(() => parseServerTimeStamp('nicht-mal-ein-datum'), /Zeitstempel/);
+});
+
+// --- Rueckrichtung: Zeitpunkt -> Wiener Wanduhrzeit ---------------------
+//
+// `toViennaWallClock` ist die Grundlage jedes fachlichen Kalenderwerts
+// (Berichtsmonat, Tagesabgrenzung). Vertauschte jemand den Versatz 2/1,
+// bliebe ohne diese Tests die ganze Suite gruen — und ein erster Beleg vom
+// 01.07. 00:30 Wiener Zeit fiele in den Juni.
+
+test('toViennaWallClock: Sommerzeit ist zwei Stunden vor UTC', () => {
+  assert.deepEqual(toViennaWallClock(new Date('2026-07-17T21:30:00Z')), {
+    year: 2026,
+    month: 7,
+    day: 17,
+    hour: 23,
+    minute: 30,
+    second: 0,
+    millisecond: 0,
+  });
+});
+
+test('toViennaWallClock: Winterzeit ist eine Stunde vor UTC', () => {
+  assert.deepEqual(toViennaWallClock(new Date('2026-01-10T11:00:00Z')), {
+    year: 2026,
+    month: 1,
+    day: 10,
+    hour: 12,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+});
+
+test('toViennaWallClock: Fruehjahrsgrenze — 29.03.2026 01:00 UTC springt von 01:59 auf 03:00', () => {
+  const davor = toViennaWallClock(new Date('2026-03-29T00:59:59Z'));
+  assert.deepEqual([davor.day, davor.hour, davor.minute, davor.second], [29, 1, 59, 59]);
+  const danach = toViennaWallClock(new Date('2026-03-29T01:00:00Z'));
+  assert.deepEqual([danach.day, danach.hour, danach.minute, danach.second], [29, 3, 0, 0]);
+});
+
+test('toViennaWallClock: Herbstgrenze — 25.10.2026 01:00 UTC faellt von 02:59 auf 02:00 zurueck', () => {
+  const davor = toViennaWallClock(new Date('2026-10-25T00:59:59Z'));
+  assert.deepEqual([davor.day, davor.hour, davor.minute, davor.second], [25, 2, 59, 59]);
+  const danach = toViennaWallClock(new Date('2026-10-25T01:00:00Z'));
+  assert.deepEqual([danach.day, danach.hour, danach.minute, danach.second], [25, 2, 0, 0]);
+});
+
+test('toViennaWallClock: kehrt parseServerTimeStamp exakt um (beide Jahreszeiten)', () => {
+  for (const roh of ['2026-07-17T23:30:00', '2026-01-10T12:00:00', '2026-03-01T00:30:00']) {
+    const wanduhr = toViennaWallClock(parseServerTimeStamp(roh));
+    const zurueck = `${String(wanduhr.year).padStart(4, '0')}-${String(wanduhr.month).padStart(2, '0')}-${String(wanduhr.day).padStart(2, '0')}T${String(wanduhr.hour).padStart(2, '0')}:${String(wanduhr.minute).padStart(2, '0')}:${String(wanduhr.second).padStart(2, '0')}`;
+    assert.equal(zurueck, roh);
+  }
 });

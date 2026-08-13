@@ -1,5 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { inspect } from 'node:util';
+import {
+  isKasseneckApiError,
+  isKasseneckAuthError,
+  isKasseneckHttpError,
+  isKasseneckNetworkError,
+  isKasseneckValidationError,
+} from '../src/client/errors.js';
 import {
   sellReceipt,
   cancelReceipt,
@@ -128,6 +136,17 @@ function kassenBenutzerWeg(daten: unknown = BELEG_ANTWORT): { rufen: KasseneckTr
     fetch: holen,
   });
   return { rufen, aufrufe };
+}
+
+/** Faellt der Fehler unter einen der Waechter des Pakets — ist die Union dicht? */
+function istKasseneckFehler(fehler: unknown): boolean {
+  return (
+    isKasseneckApiError(fehler) ||
+    isKasseneckHttpError(fehler) ||
+    isKasseneckNetworkError(fehler) ||
+    isKasseneckAuthError(fehler) ||
+    isKasseneckValidationError(fehler)
+  );
 }
 
 /** Liest Endpunktname und gesendete Parameter aus dem einzigen Aufruf. */
@@ -318,6 +337,37 @@ test('cancelReceipt storniert mit negierten Positionen und der Zahlungsart des B
   });
 });
 
+test('cancelReceipt reicht eine dem Paket unbekannte Zahlungsart roh durch', async () => {
+  // Das Backend kennt die gueltigen Zahlungsarten und weist unbekannte selbst
+  // ab. Ergaenzt es eine neue, bevor dieses Paket sie kennt, duerfen Belege mit
+  // dieser Zahlungsart nicht unstornierbar werden — und schon gar nicht still
+  // auf 'cash' umgebucht (das verfaelschte die Zahlungsartenaufteilung im
+  // Tages- und Monatsbericht).
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  const beleg: Receipt = {
+    receiptId: 'r-1',
+    cashregisterId: KASSEN_ID,
+    timeStamp: '2026-08-13T10:15:00',
+    items: [KAFFEE],
+    vouchers: [],
+    paymentMethod: 'klarna',
+    turnoverCounterAES256ICM: 'ZAEHLER',
+    signaturePreviousReceipt: 'VORGAENGER',
+    certificateSerialNumber: '6F0404F0',
+    receiptType: ReceiptType.standard,
+    sig: 'SIGNATUR',
+    qr: 'QR',
+    fullReceiptId: 'ENC-FULL-ID',
+    customerDetails: [],
+    legalMessage: [],
+  };
+
+  await cancelReceipt(rufen, { receipt: beleg });
+
+  const { params } = gesendet(aufrufe);
+  assert.equal(params['paymentMethod'], 'klarna');
+});
+
 test('cancelReceipt: uebergebene Zahlungsart sticht die des Belegs', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   const beleg: Receipt = {
@@ -480,4 +530,75 @@ test('createKasseneckApi bindet die Beleg-Aufrufe an einen Transport', async () 
   const { endpunkt } = gesendet(aufrufe);
   assert.equal(endpunkt, 'createReceipt');
   assert.equal(beleg.receiptId, 'r-1');
+});
+
+// --- Fehlerarten -------------------------------------------------------
+//
+// Die Fehler-Union des Pakets soll dicht bleiben: ein Verbraucher, der nach
+// den Waechtern verzweigt, darf mit keinem Fehler dieses Pakets im
+// "unbekannt"-Zweig landen.
+
+test('Aufrufer-Pruefungen werfen KasseneckValidationError, nicht nacktes Error', async () => {
+  const { rufen } = apiSchluesselWeg();
+
+  const faelle: Array<() => Promise<unknown>> = [
+    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [] }),
+    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [{ name: '', quantity: 1, vat: VatRate.vat20, priceCents: 1 }] }),
+    () =>
+      sellReceipt(rufen, {
+        paymentMethod: KeckPaymentMethod.creditCard,
+        items: [KAFFEE],
+        creditCardProvider: CreditCardProvider.stripe,
+      }),
+    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], vouchers: [{ action: VoucherAction.sell, type: VoucherType.value }] }),
+    () => createReceipt(rufen, { receiptType: ReceiptType.zero, vouchers: [{ action: VoucherAction.sell, type: VoucherType.value, valueCents: 500 }] }),
+    // Steuersatz, den dieses Paket nicht kennt: kommt aus dem Modell-Schreibpfad
+    // und darf ebenfalls nicht als nacktes Error durchschlagen.
+    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [{ name: 'X', quantity: 1, vat: 999, priceCents: 100 }] }),
+  ];
+
+  for (const [i, fall] of faelle.entries()) {
+    const fehler = await fall().then(
+      () => null,
+      (e: unknown) => e,
+    );
+    assert.ok(isKasseneckValidationError(fehler), `Fall ${i}: erwartet KasseneckValidationError, bekam ${String(fehler)}`);
+    assert.equal(fehler.scope, 'request');
+    assert.equal(fehler.functionName, 'createReceipt');
+    assert.ok(istKasseneckFehler(fehler), `Fall ${i}: faellt aus der Fehler-Union`);
+  }
+});
+
+test('unbrauchbare Antwortformen werfen KasseneckValidationError mit scope response', async () => {
+  const faelle: Array<{ daten: unknown; aufruf: (r: KasseneckTransport) => Promise<unknown>; name: string }> = [
+    { daten: { uid: 'ATU1' }, aufruf: (r) => getReceipt(r, 'r-1'), name: 'getReceipt' },
+    { daten: { uid: 'ATU1' }, aufruf: (r) => sellReceipt(r, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] }), name: 'createReceipt' },
+    { daten: {}, aufruf: (r) => generateFullReceiptId(r, 'r-1'), name: 'generateFullReceiptId' },
+    { daten: { nichts: true }, aufruf: (r) => getFirstReceiptDate(r), name: 'getFirstReceiptDate' },
+  ];
+
+  for (const fall of faelle) {
+    const { rufen } = apiSchluesselWeg(fall.daten);
+    const fehler = await fall.aufruf(rufen).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    assert.ok(isKasseneckValidationError(fehler), `${fall.name}: erwartet KasseneckValidationError, bekam ${String(fehler)}`);
+    assert.equal(fehler.scope, 'response');
+    assert.equal(fehler.functionName, fall.name);
+  }
+});
+
+test('kein Geheimnis wandert in einen Fehler der Beleg-Endpunkte', async () => {
+  const { rufen } = kassenBenutzerWeg({ uid: 'ATU1' });
+
+  const fehler = await getReceipt(rufen, 'r-1').then(
+    () => null,
+    (e: unknown) => e,
+  );
+
+  const gedruckt = `${String(fehler)} ${inspect(fehler, { depth: 10 })}`;
+  for (const geheim of [API_KEY, KASSEN_TOKEN, ID_TOKEN, SITZUNG]) {
+    assert.ok(!gedruckt.includes(geheim), `Geheimnis im Fehler sichtbar: ${geheim}`);
+  }
 });
