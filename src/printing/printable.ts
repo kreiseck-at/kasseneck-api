@@ -65,9 +65,9 @@ function istEmojiOderNullbreite(codepunkt: number): boolean {
  * druckbare Entsprechung. Reine Funktion, ohne Zustand und ohne Drucker.
  *
  * Vor `escPosText`/`escPosRow` anwenden, wenn der Text aus fremder Hand kommt
- * (Artikelstamm, ERP-Uebernahme, Kundenname). Beachten: `•` wird hier zu `*`
- * — laesst man diese Funktion weg, macht die Kodierung im Erzeuger daraus
- * ein `.` (so steht es in `generator.dart`).
+ * (Artikelstamm, ERP-Uebernahme, Kundenname). `•` wird hier zu `*`, und der
+ * Erzeuger sagt dasselbe — auch wer diese Funktion weglaesst, bekommt also
+ * dasselbe Zeichen (siehe ZEICHEN_ERSATZ in escpos.ts).
  */
 export function escPosPrintableText(text: string): string {
   let ergebnis = '';

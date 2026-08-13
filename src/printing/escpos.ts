@@ -187,12 +187,22 @@ const ZEICHEN_JE_ZEILE: Readonly<Record<PosPaperSize, Readonly<Record<PosFont, n
   mm80: { fontA: 48, fontB: 64 },
 };
 
-/** Zeichen, die das Vorbild vor dem Kodieren ersetzt (generator.dart `_encode`). */
+/**
+ * Zeichen, die das Vorbild vor dem Kodieren ersetzt (generator.dart `_encode`).
+ *
+ * **Eine bewusste Abweichung:** Fuer `•` sagt generator.dart `.`,
+ * print_paper.dart (portiert als `escPosPrintableText`) dagegen `*`. In Darts
+ * eigener Kette faellt das nie auf, weil print_paper vor dem Erzeuger ersetzt
+ * und der Erzeuger den Punkt nie zu sehen bekommt — die gedruckte Antwort ist
+ * dort also `*`. Ein Verbraucher dieses Pakets kann `escPosText` aber auch
+ * direkt aufrufen, und dann duerfen nicht zwei Zeichen fuer dasselbe Zeichen
+ * herauskommen. Deshalb gilt hier dieselbe Antwort wie dort.
+ */
 const ZEICHEN_ERSATZ: ReadonlyArray<readonly [string, string]> = [
   ['’', "'"], // typografisches Apostroph
   ['´', "'"], // Akut
   ['»', '"'], // franzoesisches Anfuehrungszeichen
-  ['•', '.'], // Aufzaehlungspunkt
+  ['•', '*'], // Aufzaehlungspunkt (siehe Kommentar oben)
 ];
 
 // ------------------------------------------------------------------ Helfer

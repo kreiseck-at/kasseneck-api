@@ -230,9 +230,20 @@ test('Kodierung: typografische Zeichen werden wie im Vorbild ersetzt', () => {
     27, 64, 27, 116, 16,
     27, 36, 0, 0,
     28, 46, 27, 116, 16,
-    97, 39, 98, 39, 99, 34, 100, 46, 101, // a ' b ' c " d . e
+    97, 39, 98, 39, 99, 34, 100, 42, 101, // a ' b ' c " d * e
     10,
   ]);
+});
+
+test('Kodierung: der Aufzaehlungspunkt hat genau eine Antwort — auf jedem Ausgabeweg', () => {
+  // Zwei Ports desselben Dart-Pakets sagten hier Verschiedenes: print_paper.dart
+  // macht aus `•` ein `*`, generator.dart ein `.`. In Darts eigener Kette
+  // kommt der Punkt nie beim Erzeuger an, weil print_paper vorher ersetzt —
+  // ein Verbraucher dieses Pakets kann escPosText aber auch direkt aufrufen,
+  // und dann duerfen nicht zwei verschiedene Zeichen herauskommen.
+  assert.equal(escPosPrintableText('•'), '*');
+  gleicheBytes(encodeEscPosText('•'), [0x2a]);
+  gleicheBytes(encodeEscPosText(escPosPrintableText('•')), [0x2a]);
 });
 
 test('Kodierung: ein Zeichen ausserhalb Latin-1 wird gemeldet statt verstuemmelt', () => {
