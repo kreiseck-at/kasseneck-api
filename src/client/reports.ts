@@ -15,12 +15,11 @@ import type { KasseneckBinaryTransport } from './transport.js';
  * ab: es liest `arrayBuffer()` und liefert `Uint8Array` (siehe
  * [createBinaryTransport] in transport.ts).
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu (`allowRegisterUser` in
- * functions/index.js) — keiner der beiden Downloads ist darunter. Sie
- * funktionieren nur mit `apiKeyAuth`. Dieses Paket bildet das **nicht** nach;
- * wer darf, entscheidet allein das Backend. Der Hinweis steht hier, damit ein
- * Leser nicht raten muss.
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Keiner der
+ * beiden Download-Endpunkte setzt `allowRegisterUser`; sie funktionieren nur
+ * mit `apiKeyAuth`. Dieses Paket bildet das **nicht** nach; wer darf,
+ * entscheidet allein das Backend. Der Hinweis steht hier, damit ein Leser
+ * nicht raten muss.
  */
 
 /**

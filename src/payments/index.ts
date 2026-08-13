@@ -18,12 +18,15 @@
  * Umgebung. Diese drei Wege gibt es im Flutter-Paket `kasseneck_api`, und dort
  * bleiben sie.
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu (`allowRegisterUser` in
- * functions/index.js — `listMyCashregisters`, `listMyReceipts`, `getReceipt`,
- * `createReceipt`, `generateFullReceiptId`). **Keiner** der vier Aufrufe dieses
- * Unterpfads ist darunter; alle laufen nur mit `apiKeyAuth`. Dieses Paket
- * bildet das nicht nach — wer darf, entscheidet allein das Backend.
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** **Keiner** der
+ * vier Zahlungs-Endpunkte setzt `allowRegisterUser`; sie laufen alle ueber
+ * `checkRequest(req, 'user', …)` und damit nur mit `apiKeyAuth`. Dieses Paket
+ * bildet das **nicht** nach — wer darf, entscheidet allein das Backend. Der
+ * Hinweis steht **hier** und gilt fuer beide Dateien dieses Unterpfads.
+ *
+ * Welche **anderen** Endpunkte den Weg offen haben, steht bewusst nirgends in
+ * diesem Paket: eine abgeschriebene Liste veraltet still, und sie hat hier
+ * nichts zu entscheiden.
  */
 
 export { StripeLinkMode, type StripeLinkModeKey } from '../enums/index.js';

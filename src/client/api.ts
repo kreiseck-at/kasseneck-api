@@ -1,4 +1,11 @@
-import type { Receipt, ReportMonth } from '../models/index.js';
+import type { HobexReceipt, Receipt, ReportMonth, StripeUrlSession } from '../models/index.js';
+import {
+  createStripeLink,
+  stripeCaptureIntent,
+  type CreateStripeLinkOptions,
+  type StripeCaptureResult,
+} from '../payments/stripe.js';
+import { hobexPay, hobexRefund, type HobexPayOptions, type HobexRefundOptions } from '../payments/hobex.js';
 import { createTransport, createBinaryTransport, type TransportOptions } from './transport.js';
 import { downloadDailyReport, downloadMonthlyReport } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
@@ -24,6 +31,14 @@ import {
  * Bewusst **keine** Klasse und keine Vererbung — die Aufrufe sind freie
  * Funktionen (siehe receipts.ts) und bleiben einzeln importierbar; wer sie
  * lieber einzeln nimmt, verliert nichts.
+ *
+ * Hier stehen **alle** Endpunkt-Aufrufe des Pakets: Belege, Berichte, Status
+ * und Zahlungen. Was kein Endpunkt-Aufruf ist (Druck, Beleg-Darstellung),
+ * gehoert nicht hierher. Der Grund fuer die Vollstaendigkeit ist der Zweck der
+ * Fassade: ein **einziger** Konstruktionsweg je Anmeldung. Fehlte eine
+ * Endpunkt-Familie, muesste ein Aufrufer fuer sie zusaetzlich
+ * [createTransport] mit denselben Optionen bauen und haette zwei Wege fuer
+ * dieselbe Anmeldung nebeneinander.
  */
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
@@ -52,6 +67,14 @@ export interface KasseneckApi {
   getCashboxStatus(): Promise<CashboxStatus>;
   /** Status der Signatureinheit bei FinanzOnline. */
   getSignatureStatus(zertifikatNrHex: string): Promise<SignatureStatus>;
+  /** Stripe-Zahlungslink erzeugen (Endpunkt `createPaymentLinkStripe`). */
+  createStripeLink(options: CreateStripeLinkOptions): Promise<StripeUrlSession>;
+  /** Reservierte Stripe-Zahlung einziehen. */
+  stripeCaptureIntent(stripeSessionId: string): Promise<StripeCaptureResult>;
+  /** Karte ueber die Hobex-Cloud belasten. */
+  hobexPay(options: HobexPayOptions): Promise<HobexReceipt>;
+  /** Hobex-Cloud-Zahlung erstatten (ohne Rueckgabewert, siehe payments/hobex.ts). */
+  hobexRefund(options: HobexRefundOptions): Promise<void>;
 }
 
 export function createKasseneckApi(options: TransportOptions): KasseneckApi {
@@ -73,5 +96,9 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
     getCashboxStatus: () => getCashboxStatus(rufen),
     getSignatureStatus: (zertifikatNrHex) => getSignatureStatus(rufen, zertifikatNrHex),
+    createStripeLink: (o) => createStripeLink(rufen, o),
+    stripeCaptureIntent: (stripeSessionId) => stripeCaptureIntent(rufen, stripeSessionId),
+    hobexPay: (o) => hobexPay(rufen, o),
+    hobexRefund: (o) => hobexRefund(rufen, o),
   };
 }

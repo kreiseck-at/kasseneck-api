@@ -11,6 +11,7 @@ import {
   type HttpResponseLike,
 } from '../src/client/transport.js';
 import { apiKeyAuth } from '../src/client/auth.js';
+import { createKasseneckApi } from '../src/client/api.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -494,6 +495,60 @@ test('newHobexTransactionId unterscheidet zwei Kennungen derselben Millisekunde'
 
 test('newHobexTransactionId ohne Angaben liefert eine gueltige Kennung', async () => {
   assert.match(newHobexTransactionId(), /^\d{19}$/);
+});
+
+// --- Fassade ------------------------------------------------------------
+
+test('createKasseneckApi bindet die vier Zahlungs-Aufrufe an denselben Transport', async () => {
+  // Der Zweck der Fassade ist ein EINZIGER Konstruktionsweg je Anmeldung. Fehlt
+  // eine Endpunkt-Familie, muesste ein Aufrufer fuer sie zusaetzlich
+  // `createTransport` mit denselben Optionen bauen und hielte zwei Wege fuer
+  // dieselbe Anmeldung.
+  const antworten: HttpResponseLike[] = [
+    erfolg(SITZUNG_NUTZLAST),
+    erfolg({ id: 'pi_1', status: 'succeeded', amount_received: 1234, currency: 'eur' }),
+    erfolg(HOBEX_NUTZLAST),
+    erfolg({ success: true }),
+  ];
+  const aufrufe: Aufruf[] = [];
+  const holen: FetchLike = async (url, init) => {
+    aufrufe.push({ url, init });
+    return antworten[aufrufe.length - 1]!;
+  };
+
+  const api = createKasseneckApi({
+    auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }),
+    fetch: holen,
+  });
+
+  const sitzung = await api.createStripeLink({
+    items: POSITIONEN,
+    createReceiptAfterPayment: true,
+    mode: StripeLinkMode.payment,
+  });
+  const einzug = await api.stripeCaptureIntent('cs_test_a1b2c3');
+  const beleg = await api.hobexPay({ transactionId: 'tx-1', amountCents: 1234, tipCents: 50 });
+  const nichts = await api.hobexRefund({ transactionId: 'tx-1', amountCents: 1234 });
+
+  assert.deepEqual(
+    aufrufe.map((a) => a.url),
+    [
+      `${DEFAULT_BASE_URL}/createPaymentLinkStripe`,
+      `${DEFAULT_BASE_URL}/stripeCaptureIntent`,
+      `${DEFAULT_BASE_URL}/hobexPayApi`,
+      `${DEFAULT_BASE_URL}/hobexRefundApi`,
+    ],
+    'die Fassade ruft dieselben Endpunkte wie die freien Funktionen',
+  );
+  // Eine Anmeldung fuer alle vier — die Fassade reicht dieselbe durch.
+  for (const aufruf of aufrufe) {
+    assert.equal(aufruf.init.headers['Authorization'], `Bearer ${API_KEY}`);
+    assert.equal(aufruf.init.headers['cashregister-token'], KASSEN_TOKEN);
+  }
+  assert.equal(sitzung.id, 'cs_test_a1b2c3');
+  assert.equal(einzug.amountReceivedCents, 1234);
+  assert.equal(beleg.amountCents, 1234);
+  assert.equal(nichts, undefined, 'auch ueber die Fassade gibt hobexRefund nichts zurueck');
 });
 
 // --- Zusagen des Pakets -------------------------------------------------

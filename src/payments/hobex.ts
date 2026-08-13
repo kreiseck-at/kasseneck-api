@@ -20,12 +20,10 @@ import { toViennaWallClock } from '../vienna-time.js';
  * Buendler-Problem, sondern eine Grenze der Umgebung. Wer diese drei Wege
  * braucht, braucht die Flutter-App, nicht dieses Paket.
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu (`allowRegisterUser` in
- * functions/index.js — `listMyCashregisters`, `listMyReceipts`, `getReceipt`,
- * `createReceipt`, `generateFullReceiptId`); keiner der beiden Aufrufe dieser
- * Datei ist darunter. Beide laufen nur mit `apiKeyAuth`. Dieses Paket bildet
- * das **nicht** nach — wer darf, entscheidet allein das Backend.
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Keiner der
+ * beiden Endpunkte dieser Datei setzt `allowRegisterUser`; beide laufen nur
+ * mit `apiKeyAuth`. Ausgefuehrt steht das in payments/index.ts — an einer
+ * Stelle statt an dreien.
  */
 
 /** Endpunktnamen aus dem Vorbild — beide mit Suffix `Api`. */
@@ -38,6 +36,13 @@ const ENDPUNKT_REFUND = 'hobexRefundApi';
  * Hobex-Schnittstelle erwartet dagegen Euro als Gleitkommazahl (`amount`,
  * `tip`), und das Backend reicht sie unveraendert an Hobex weiter. Das
  * Gegenstueck fuer die Antwortrichtung steht in models/hobex-receipt.ts.
+ *
+ * **Geerbte Ungenauigkeit, hier nicht behebbar:** das Backend addiert die
+ * beiden Euro-Werte serverseitig (`check.params.amount + check.params.tip`,
+ * functions/payment-endpoints.js) — aus 10,10 EUR und 0,20 EUR wird dort
+ * `10.299999999999999`. Jede Rundung auf dieser Seite wuerde daran nichts
+ * aendern, weil die Addition erst danach passiert; die saubere Loesung waere
+ * ein Cent-Feld am Backend.
  */
 const centsToEuro = (cents: number): number => cents / 100;
 

@@ -12,9 +12,8 @@ import type { KasseneckTransport } from './transport.js';
  * Backend). Die Antwort ist die uebliche Erfolgshuelle; darin liegt die
  * FinanzOnline-Meldung unter `data.rkdbMessage`.
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu (`allowRegisterUser` in
- * functions/index.js); `financeWebService` ist keiner davon. Beide Abfragen
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):**
+ * `financeWebService` setzt kein `allowRegisterUser`; beide Abfragen
  * funktionieren nur mit `apiKeyAuth`. Dieses Paket bildet das **nicht** nach —
  * wer darf, entscheidet allein das Backend.
  */

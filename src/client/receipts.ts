@@ -41,13 +41,13 @@ import type { KasseneckTransport } from './transport.js';
  * **Kein Wiederholen fehlgeschlagener Aufrufe** (siehe transport.ts): ein
  * Beleg ist nicht folgenlos wiederholbar.
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu — `listMyCashregisters`,
- * `listMyReceipts`, `getReceipt`, `createReceipt` und `generateFullReceiptId`
- * (`allowRegisterUser` in functions/index.js). Von den Aufrufen dieser Datei
- * sind also alle offen ausser [getFirstReceiptDate]; siehe den Hinweis dort.
- * Dieses Paket bildet das **nicht** nach — wer darf, entscheidet allein das
- * Backend. Der Hinweis steht hier, damit ein Leser nicht raten muss.
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Von den
+ * Endpunkten dieser Datei setzen `listMyReceipts`, `getReceipt`,
+ * `createReceipt` und `generateFullReceiptId` ein `allowRegisterUser` — der
+ * Browser-Kasse steht hier also alles offen ausser [getFirstReceiptDate];
+ * siehe den Hinweis dort. Dieses Paket bildet das **nicht** nach — wer darf,
+ * entscheidet allein das Backend. Der Hinweis steht hier, damit ein Leser
+ * nicht raten muss.
  */
 
 /** Gemeinsame Zusatzangaben aller Belegarten (Nutzlast von `createReceipt`). */

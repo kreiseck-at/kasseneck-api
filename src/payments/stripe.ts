@@ -19,13 +19,10 @@ import type { KasseneckTransport } from '../client/transport.js';
  * (`pay.kasseneck.at/…`), den der Gast oeffnet; [stripeCaptureIntent] zieht die
  * zuvor nur reservierte Zahlung eines `authorization`-Links spaeter ein.
  *
- * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Das Backend
- * laesst diese Identitaet nur bei fuenf Endpunkten zu (`allowRegisterUser` in
- * functions/index.js — `listMyCashregisters`, `listMyReceipts`, `getReceipt`,
- * `createReceipt`, `generateFullReceiptId`); keiner der beiden Aufrufe dieser
- * Datei ist darunter. Beide laufen nur mit `apiKeyAuth`. Dieses Paket bildet
- * das **nicht** nach — wer darf, entscheidet allein das Backend. Der Hinweis
- * steht hier, damit ein Leser nicht raten muss.
+ * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Keiner der
+ * beiden Endpunkte dieser Datei setzt `allowRegisterUser`; beide laufen nur
+ * mit `apiKeyAuth`. Ausgefuehrt steht das in payments/index.ts — an einer
+ * Stelle statt an dreien.
  */
 
 /** Endpunktname aus dem Vorbild — **nicht** `createStripeLink`. */
@@ -62,7 +59,14 @@ export interface StripeCaptureResult {
   id: string;
   /** Stripe-Status des Einzugs, z. B. `succeeded`. */
   status: string;
-  /** Tatsaechlich eingezogener Betrag in Cent (Stripe fuehrt die kleinste Waehrungseinheit). */
+  /**
+   * Tatsaechlich eingezogener Betrag in Cent. Stripe fuehrt Betraege in der
+   * kleinsten Waehrungseinheit; der Name unterstellt damit eine
+   * zweistellige Waehrung. Fuer diese Anlage stimmt das — das Backend legt
+   * `currency: 'eur'` fest (functions/payment-endpoints.js). Bei einer
+   * nullstelligen Waehrung (JPY) waere „Cent" der falsche Name; dann gehoert
+   * die Einheit aus `currency` abgeleitet und nicht in den Feldnamen.
+   */
   amountReceivedCents: number;
   /** Waehrungscode, wie Stripe ihn fuehrt (klein geschrieben, z. B. `eur`). */
   currency: string;
