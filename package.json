@@ -28,6 +28,11 @@
       "types": "./dist/esm/index.d.ts",
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
+    },
+    "./printing": {
+      "types": "./dist/esm/printing/index.d.ts",
+      "import": "./dist/esm/printing/index.js",
+      "require": "./dist/cjs/printing/index.js"
     }
   },
   "files": [
