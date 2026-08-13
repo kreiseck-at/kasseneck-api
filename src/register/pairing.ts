@@ -1,0 +1,356 @@
+import type { KasseneckAuth } from '../client/auth.js';
+import { KasseneckValidationError } from '../client/errors.js';
+import { createTransport, type KasseneckTransport, type TransportOptions } from '../client/transport.js';
+
+/**
+ * Die drei Aufrufe, die **ohne jede Identitaet** laufen: Kopplung eines
+ * Geraets, Benutzerliste dieses Geraets, PIN-Anmeldung. Sie sind der Weg, auf
+ * dem eine Identitaet ueberhaupt erst entsteht — vor ihnen gibt es weder
+ * ID-Token noch Sitzung noch `api_key`.
+ *
+ * **Warum sie keine Anmeldung und keinen Transport entgegennehmen.** Alle
+ * uebrigen Endpunkt-Aufrufe dieses Pakets bekommen einen fertigen
+ * [KasseneckTransport] als ersten Parameter. Hier ginge das nur mit einer
+ * anmeldungsfreien Anmeldung — und die muesste dann exportiert sein. Genau das
+ * waere ein Schlupfloch: mit ihr liesse sich `createTransport` bzw.
+ * `createKasseneckApi` bauen und damit **jeder** Aufruf des Pakets ohne
+ * Anmeldung absetzen, auch `createReceipt`. Das Backend wiese das ab, aber ein
+ * Paket, das den Weg anbietet, sagt damit, dass es ihn gibt.
+ *
+ * Deshalb nehmen diese drei nur die **Verbindungsangaben** (Basis-URL,
+ * Zeitlimit, `fetch`) entgegen und bauen ihren Transport selbst — mit einer
+ * Anmeldung, die diese Datei nicht verlaesst. Damit gibt es im ganzen Paket
+ * keinen Weg, einen anmeldungsfreien Transport in die Hand zu bekommen.
+ *
+ * **Geheimnisse in der Nutzlast.** Diese drei Aufrufe fuehren Kopplungs-Code,
+ * Geraetegeheimnis und PIN — nicht in Kopfzeilen, sondern im Rumpf. Der
+ * Transport schuetzt seine Fehler von sich aus nur gegen die Werte, die er als
+ * Kopfzeilen gesendet hat (siehe client/errors.ts, `causeDigest`); hier ist
+ * diese Liste leer. Die Aufrufe nennen ihm ihre Geheimnisse deshalb
+ * ausdruecklich, sonst kaeme ein bezeichner-foermiges Geraetegeheimnis ueber
+ * die verdichtete Ursache eines Netzfehlers doch noch ins Protokoll.
+ */
+
+/**
+ * Anmeldung, die keine ist: weder Kopfzeilen noch Zusatzparameter.
+ *
+ * **Nicht exportiert und niemals exportieren** — der Grund steht im
+ * Modulkommentar. Pro Aufruf ein frisches Objekt, wie die echten Anmeldungen
+ * es auch halten.
+ */
+const ohneAnmeldung: KasseneckAuth = () => ({ headers: {}, params: {} });
+
+/**
+ * Verbindungsangaben ohne Anmeldung — alles, was [TransportOptions] ausser der
+ * Anmeldung fuehrt. Alle Felder sind wahlfrei: ohne Angabe gelten Basis-URL und
+ * Zeitlimit der Produktion und das globale `fetch`.
+ */
+export type RegisterDeviceConnection = Omit<TransportOptions, 'auth'>;
+
+/** Ausweis eines gekoppelten Geraets — Nachweis der beiden Folgeaufrufe. */
+export interface RegisterDeviceCredentials {
+  /** Kunde, unter dem das Geraet haengt (aus der Kopplung). */
+  ownerUid: string;
+  /** Dieses Geraet (aus der Kopplung). */
+  deviceId: string;
+  /** Geheimnis dieses Geraets; das Backend liefert es genau einmal aus. */
+  deviceSecret: string;
+}
+
+export interface PairRegisterDeviceOptions extends RegisterDeviceConnection {
+  /**
+   * Achtstelliger Kopplungs-Code aus dem Panel. Er ist 15 Minuten gueltig,
+   * genau **einmal** verwendbar und gilt fuer eine bestimmte Kasse.
+   *
+   * Gross-/Kleinschreibung und Leerzeichen an den Raendern sind gleichgueltig:
+   * das Backend beschneidet und schreibt gross. Dieses Paket prueft das Format
+   * **nicht** — es kennt das Alphabet nicht und wuerde eine spaetere Erweiterung
+   * ausschliessen.
+   */
+  code: string;
+  /** Bezeichnung dieses Geraets in der Geraeteliste; ohne Angabe "Kasse". */
+  label?: string;
+}
+
+/** Ergebnis der Kopplung — der vollstaendige Ausweis dieses Geraets. */
+export interface PairedRegisterDevice extends RegisterDeviceCredentials {
+  /** Kasse, an die die Kopplung dieses Geraet gebunden hat. */
+  cashregisterId: string;
+  /** Firmenname des Betriebs (Backend: `betrieb`) — Anzeige, kann leer sein. */
+  companyName: string;
+  /** Bezeichnung der Kasse (Backend: `kasse`) — Anzeige, kann leer sein. */
+  cashregisterLabel: string;
+}
+
+/**
+ * Art eines Kassen-Benutzers: eine Person oder ein Geraet (Sammelkonto). Ein
+ * kuenftiger, hier noch unbekannter Wert kommt unveraendert durch, statt still
+ * zu "person" zu werden — beim Lesen ist dieses Paket tolerant.
+ */
+export type RegisterUserKind = 'person' | 'device' | (string & {});
+
+/** Ein Kassen-Benutzer, wie ihn der Anmeldebildschirm zeigt. */
+export interface RegisterUserSummary {
+  id: string;
+  /** Anzeigename; kann leer sein. */
+  name: string;
+  kind: RegisterUserKind;
+}
+
+/**
+ * Rechte eines Kassen-Benutzers (Backend: `perms`, Vorlagen `PERMS_KASSIER`
+ * und `PERMS_CHEF`). Der Inhaber kann einzelne Rechte abweichend setzen,
+ * deshalb sind weitere Schluessel zugelassen.
+ *
+ * **Ein fehlendes Recht gilt als nicht erteilt.** Die Oberflaeche soll im
+ * Zweifel weniger anbieten, nicht mehr; die tatsaechliche Grenze zieht ohnehin
+ * das Backend.
+ */
+export interface RegisterUserPerms {
+  /** Belege ausstellen. */
+  sell: boolean;
+  /** Belege stornieren. */
+  cancel: boolean;
+  /** Artikelstamm bearbeiten. */
+  articles: boolean;
+  /** Beleglayout bearbeiten. */
+  layout: boolean;
+  /** Berichte ansehen. */
+  reports: boolean;
+  /** Eine belegte Kasse uebernehmen (nur Kassen-Chef). */
+  takeover: boolean;
+  [weiteresRecht: string]: boolean;
+}
+
+/** Der angemeldete Kassen-Benutzer. */
+export interface RegisterUser {
+  id: string;
+  name: string;
+  perms: RegisterUserPerms;
+}
+
+/** Ergebnis der PIN-Anmeldung. */
+export interface RegisterUserSession {
+  /**
+   * Firebase-Custom-Token. Damit meldet der Verbraucher sich bei Firebase an
+   * und bekommt das ID-Token, das `registerUserAuth` braucht; dieses Paket
+   * kennt Firebase nicht.
+   */
+  customToken: string;
+  /** Laufende Sitzung — Kopfzeile `register-session` jedes weiteren Aufrufs. */
+  sessionId: string;
+  /**
+   * Ablauf der Sitzung in Millisekunden seit 1970 (das Backend rechnet hier mit
+   * `Date.now()`, nicht mit Wiener Wanduhrzeit). Die Sitzung lebt 90 Sekunden
+   * und will alle 30 Sekunden erneuert werden.
+   */
+  expiresAt: number;
+  user: RegisterUser;
+}
+
+export interface ListRegisterUsersForDeviceOptions
+  extends RegisterDeviceConnection,
+    RegisterDeviceCredentials {}
+
+export interface RegisterUserLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+  /** Kassen-Benutzer aus [listRegisterUsersForDevice]. */
+  userId: string;
+  /**
+   * PIN dieses Benutzers. Das Format prueft dieses Paket **nicht**: eine zu
+   * strenge Pruefung im Client sperrte Benutzer aus, deren PIN das Panel anders
+   * gesetzt hat.
+   */
+  pin: string;
+  /** Kasse, an der die Sitzung eroeffnet wird. */
+  cashregisterId: string;
+  /**
+   * Eine belegte Kasse uebernehmen. Nur mit dem Recht `takeover` (Kassen-Chef);
+   * die aelteste laufende Sitzung wird dabei verdraengt. Ohne das Recht bleibt
+   * es bei der Abweisung "Kasse wird gerade auf … verwendet".
+   */
+  takeover?: boolean;
+}
+
+/**
+ * Geraet koppeln: der Kopplungs-Code wird gegen den dauerhaften Ausweis dieses
+ * Geraets getauscht. **Ohne Anmeldung** — der Code ist der Nachweis.
+ *
+ * Er wird dabei verbraucht, auch wenn der Aufrufer das Ergebnis verliert: eine
+ * unvollstaendige Antwort ist deshalb ein Fehler und kein halbes Geraet (siehe
+ * [PairedRegisterDevice]).
+ */
+export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Promise<PairedRegisterDevice> {
+  const { code, label, ...verbindung } = options;
+  pflicht('pairRegisterDevice', 'code', code);
+
+  // Der Code ist das Geheimnis dieses Aufrufs — siehe Modulkommentar.
+  const daten = await transportFuer(verbindung)<Record<string, unknown>>(
+    'pairRegisterDevice',
+    { code, label },
+    undefined,
+    [code],
+  );
+
+  return {
+    deviceId: pflichtfeld('pairRegisterDevice', daten, 'deviceId'),
+    deviceSecret: pflichtfeld('pairRegisterDevice', daten, 'deviceSecret'),
+    ownerUid: pflichtfeld('pairRegisterDevice', daten, 'ownerUid'),
+    cashregisterId: pflichtfeld('pairRegisterDevice', daten, 'cashregisterId'),
+    companyName: text(daten?.['betrieb']),
+    cashregisterLabel: text(daten?.['kasse']),
+  };
+}
+
+/**
+ * Kassen-Benutzer dieses Betriebs auflisten — die Auswahl des
+ * Anmeldebildschirms. **Ohne Anmeldung**; der Ausweis des Geraets ist der
+ * Nachweis.
+ *
+ * Die Antwort traegt ausschliesslich Kennung, Name und Art: keine Rechte, keine
+ * Kassen, keine Hashes. Gesperrte Benutzer fehlen bereits in der Antwort.
+ */
+export async function listRegisterUsersForDevice(
+  options: ListRegisterUsersForDeviceOptions,
+): Promise<RegisterUserSummary[]> {
+  const { ownerUid, deviceId, deviceSecret, ...verbindung } = options;
+  const name = 'listRegisterUsersForDevice';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+
+  const daten = await transportFuer(verbindung)<{ users?: unknown }>(
+    name,
+    { ownerUid, deviceId, deviceSecret },
+    undefined,
+    [deviceSecret],
+  );
+
+  const liste = daten?.users;
+  if (!Array.isArray(liste)) {
+    throw antwortfehler(name, 'Antwort enthaelt keine Benutzerliste (data.users fehlt)');
+  }
+  return liste.map((eintrag) => {
+    const roh = (typeof eintrag === 'object' && eintrag !== null ? eintrag : {}) as Record<string, unknown>;
+    return {
+      // Ein Eintrag ohne Kennung ist nicht anmeldbar — ihn anzuzeigen hiesse,
+      // dem Kassier eine Schaltflaeche zu geben, die nichts tun kann.
+      id: pflichtfeld(name, roh, 'id'),
+      name: text(roh['name']),
+      kind: typeof roh['kind'] === 'string' && roh['kind'] ? (roh['kind'] as RegisterUserKind) : 'person',
+    };
+  });
+}
+
+/**
+ * Kassen-Benutzer per PIN anmelden. **Ohne Anmeldung** — dieser Aufruf
+ * erzeugt sie: das Custom Token der Antwort wird zum ID-Token, die `sessionId`
+ * zur Kopfzeile `register-session`. Beides zusammen ergibt `registerUserAuth`.
+ *
+ * Das Backend prueft in dieser Reihenfolge: Geraet, Benutzer, Sperre, PIN,
+ * Kassenzuweisung, Kopplungsbindung, Lizenzplatz. Fehlversuche zaehlen und
+ * sperren gestaffelt (ab dem fuenften 30 Sekunden, ab dem neunten 15 Minuten).
+ */
+export async function registerUserLogin(options: RegisterUserLoginOptions): Promise<RegisterUserSession> {
+  const { ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId, takeover, ...verbindung } = options;
+  const name = 'registerUserLogin';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+  pflicht(name, 'userId', userId);
+  pflicht(name, 'pin', pin);
+  pflicht(name, 'cashregisterId', cashregisterId);
+
+  const daten = await transportFuer(verbindung)<Record<string, unknown>>(
+    name,
+    {
+      ownerUid,
+      deviceId,
+      deviceSecret,
+      userId,
+      pin,
+      cashregisterId,
+      // Nur die ausdrueckliche Uebernahme geht mit: das Backend prueft auf
+      // `=== true`, und ein mitgesendetes `false` waere nur Rauschen.
+      takeover: takeover === true ? true : undefined,
+    },
+    undefined,
+    [pin, deviceSecret],
+  );
+
+  const roherBenutzer = daten?.['user'];
+  if (typeof roherBenutzer !== 'object' || roherBenutzer === null || Array.isArray(roherBenutzer)) {
+    throw antwortfehler(name, 'Antwort enthaelt keinen Benutzer (data.user fehlt)');
+  }
+  const benutzer = roherBenutzer as Record<string, unknown>;
+  const expiresAt = daten?.['expiresAt'];
+  if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
+    throw antwortfehler(name, 'Antwort enthaelt keinen Ablaufzeitpunkt (data.expiresAt fehlt)');
+  }
+
+  return {
+    customToken: pflichtfeld(name, daten, 'customToken'),
+    sessionId: pflichtfeld(name, daten, 'sessionId'),
+    expiresAt,
+    user: {
+      id: pflichtfeld(name, benutzer, 'id'),
+      name: text(benutzer['name']),
+      perms: rechte(benutzer['perms']),
+    },
+  };
+}
+
+/** Transport ohne Anmeldung; `auth` steht zuletzt und ist damit nicht zu ueberschreiben. */
+function transportFuer(verbindung: RegisterDeviceConnection): KasseneckTransport {
+  return createTransport({ ...verbindung, auth: ohneAnmeldung });
+}
+
+/**
+ * Pflichtangabe des Aufrufers. Die Meldung nennt das **Feld**, nie seinen Wert
+ * — das Feld heisst `pin`, `deviceSecret` oder `code`.
+ */
+function pflicht(functionName: string, feld: string, wert: unknown): void {
+  if (typeof wert !== 'string' || wert.trim() === '') {
+    throw new KasseneckValidationError(functionName, `${feld} fehlt`, 'request');
+  }
+}
+
+/**
+ * Pflichtfeld der Antwort. Auch hier wandert **nichts aus der Antwort** in die
+ * Meldung; genannt wird nur, welches Feld fehlt.
+ */
+function pflichtfeld(functionName: string, daten: Record<string, unknown> | null | undefined, feld: string): string {
+  const wert = daten?.[feld];
+  if (typeof wert !== 'string' || wert === '') {
+    throw antwortfehler(functionName, `Antwort enthaelt kein Feld "${feld}"`);
+  }
+  return wert;
+}
+
+/** Rechte lesen: nur Wahrheitswerte, alles Fehlende gilt als nicht erteilt. */
+function rechte(wert: unknown): RegisterUserPerms {
+  const roh = (typeof wert === 'object' && wert !== null && !Array.isArray(wert) ? wert : {}) as Record<
+    string,
+    unknown
+  >;
+  const gelesen: Record<string, boolean> = {};
+  for (const [name, inhalt] of Object.entries(roh)) {
+    gelesen[name] = inhalt === true;
+  }
+  return {
+    sell: false,
+    cancel: false,
+    articles: false,
+    layout: false,
+    reports: false,
+    takeover: false,
+    ...gelesen,
+  };
+}
+
+/** Leere Zeichenkette statt `undefined` — Anzeigefelder duerfen leer sein. */
+const text = (wert: unknown): string => (typeof wert === 'string' ? wert : '');
+
+/** Die Antwort meldete Erfolg, trug aber nicht, was der Aufruf zusagt. */
+function antwortfehler(functionName: string, grund: string): KasseneckValidationError {
+  return new KasseneckValidationError(functionName, grund, 'response');
+}

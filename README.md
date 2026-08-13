@@ -51,6 +51,27 @@ const kasse = registerUserAuth({
 });
 ```
 
+### Und ein dritter Fall: gar keine Anmeldung
+
+Drei Endpunkte laufen **ohne jede Identität** — sie sind der Weg, auf dem eine
+Identität überhaupt erst entsteht: ein Gerät koppeln, seine Kassen-Benutzer
+auflisten, einen davon per PIN anmelden. Sie stehen unter `…/register` und
+nehmen deshalb **keine Anmeldung** entgegen, sondern nur die Verbindungsangaben:
+
+```ts
+import { pairRegisterDevice, registerUserLogin } from '@kreiseck/kasseneck-api/register';
+
+const geraet = await pairRegisterDevice({ code: 'K7NPQR34', label: 'Schank' });
+const sitzung = await registerUserLogin({ ...geraet, userId: 'ru-1', pin: '1234' });
+```
+
+Mit `sitzung.customToken` meldet sich der Verbraucher bei Firebase an; das
+daraus entstehende ID-Token und `sitzung.sessionId` ergeben `registerUserAuth`.
+
+Eine anmeldungsfreie Anmeldung gibt es dafür **nicht** — sie wäre ein
+Schlupfloch, mit dem sich jeder andere Aufruf des Pakets ohne Anmeldung bauen
+ließe. Die drei bringen ihren Transport selbst mit.
+
 **Welcher Weg für welchen Endpunkt gilt, entscheidet das Backend, nicht dieses
 Paket.** Die Endpunkt-Module nennen im Kommentar jeweils, was dort gilt. Zwei
 Fälle, die regelmäßig überraschen:
@@ -122,6 +143,7 @@ Token, weder gesendete noch empfangene Rümpfe.
 | `…/receipt` | Beleg-Layout als Datenmodell (framework-frei) und die Brücke zu ESC/POS. |
 | `…/printing` | ESC/POS-Erzeugung: Bytefolgen für Bondrucker, ohne jeden Transport. |
 | `…/payments` | Stripe-Zahllinks und Hobex-Cloud (beides HTTP-Endpunkte des Backends). |
+| `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 
 So zieht sich niemand den React-Adapter in ein Node-Programm.

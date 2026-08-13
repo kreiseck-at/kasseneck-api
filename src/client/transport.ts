@@ -95,6 +95,14 @@ export interface TransportOptions {
  * `_financeWebServicePostRequest`). Fuer alle anderen Aufrufe bleibt der Rumpf
  * unveraendert `{params:{…}}`.
  *
+ * `secretParams` nennt Werte, die dieser Aufruf in der **Nutzlast** sendet und
+ * die in keinem Fehler auftauchen duerfen. Die gesendeten Kopfzeilen sind
+ * ohnehin geschuetzt (siehe unten); PIN, Geraetegeheimnis und Kopplungs-Code
+ * der Kassen-Anmeldung reisen dagegen im Rumpf, und ein Geraetegeheimnis ist
+ * bezeichner-foermig genug, um durch die Ursachen-Verdichtung zu kommen. Wer
+ * ein Geheimnis im Rumpf sendet, nennt es hier — sonst gilt es als
+ * unbedenklich.
+ *
  * Der Typ nennt darum genau dieses eine Feld und ist kein offener Beutel:
  * ein `params` von aussen wuerde die Nutzlast samt Auth-Parametern
  * ueberschreiben — mit `registerUserAuth` verschwaende dabei still die
@@ -110,6 +118,7 @@ export type KasseneckTransport = <T = unknown>(
   functionName: string,
   params?: Record<string, unknown>,
   extraBodyFields?: TransportBodyFields,
+  secretParams?: readonly string[],
 ) => Promise<T>;
 
 /**
@@ -129,8 +138,20 @@ type Auswertung<R, T> = (koerper: R, functionName: string, statusCode: number, c
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
   const kern = createCore(options);
-  return <T>(functionName: string, params?: Record<string, unknown>, extraBodyFields?: TransportBodyFields) =>
-    kern<string, T>(functionName, params, extraBodyFields, alsText, jsonAuswerten as Auswertung<string, T>);
+  return <T>(
+    functionName: string,
+    params?: Record<string, unknown>,
+    extraBodyFields?: TransportBodyFields,
+    secretParams?: readonly string[],
+  ) =>
+    kern<string, T>(
+      functionName,
+      params,
+      extraBodyFields,
+      secretParams,
+      alsText,
+      jsonAuswerten as Auswertung<string, T>,
+    );
 }
 
 /**
@@ -144,7 +165,7 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
 export function createBinaryTransport(options: TransportOptions): KasseneckBinaryTransport {
   const kern = createCore(options);
   return (functionName: string, params?: Record<string, unknown>) =>
-    kern<Uint8Array, Uint8Array>(functionName, params, undefined, alsBytes, pdfAuswerten);
+    kern<Uint8Array, Uint8Array>(functionName, params, undefined, undefined, alsBytes, pdfAuswerten);
 }
 
 /**
@@ -161,6 +182,7 @@ function createCore(options: TransportOptions) {
     functionName: string,
     params: Record<string, unknown> = {},
     extraBodyFields: TransportBodyFields | undefined,
+    secretParams: readonly string[] | undefined,
     lesen: Koerperleser<R>,
     auswerten: Auswertung<R, T>,
   ): Promise<T> {
@@ -192,8 +214,12 @@ function createCore(options: TransportOptions) {
         throw new KasseneckAuthError(grund, { functionName: fehlerName });
       }
 
-      // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen.
-      const geheimnisse = Object.values(anmeldung.headers);
+      // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen:
+      // die Kopfzeilen der Anmeldung — und die Werte, die dieser Aufruf als
+      // Geheimnis der Nutzlast benannt hat (Kassen-Anmeldung: Kopplungs-Code,
+      // Geraetegeheimnis, PIN). Ohne die zweite Haelfte greift die Zusage genau
+      // dort nicht, wo es gar keine Kopfzeilen gibt.
+      const geheimnisse = [...Object.values(anmeldung.headers), ...(secretParams ?? [])];
       const url = `${basis}/${encodeURIComponent(functionName)}`;
       // `params` steht ZULETZT: so kann kein Zusatzfeld die Nutzlast (und mit
       // ihr die Kassenbindung aus der Anmeldung) verdraengen — auch nicht von

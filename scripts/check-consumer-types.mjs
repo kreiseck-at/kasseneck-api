@@ -35,6 +35,7 @@ const VERBRAUCHER = `import { createKasseneckApi, apiKeyAuth, VatRate, KeckPayme
 import { buildReceiptLayout, formatCents } from '@kreiseck/kasseneck-api/receipt';
 import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printing';
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
+import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 
 export const api = createKasseneckApi({
@@ -47,6 +48,8 @@ export const layout = buildReceiptLayout;
 export const doc = createEscPosDocument;
 export const schreiben = escPosText;
 export type Zahlung = HobexPayOptions;
+export const koppeln = pairRegisterDevice;
+export type Geraet = PairedRegisterDevice;
 export const ansicht = ReceiptLayoutView;
 `;
 

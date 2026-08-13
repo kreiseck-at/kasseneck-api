@@ -28,6 +28,7 @@ import {
   type CreateCancelReceiptOptions,
 } from './receipts.js';
 import { listMyCashregisters } from './cashregisters.js';
+import { renewRegisterSession, endRegisterSession } from '../register/session.js';
 
 /**
  * Schlichte Factory ueber den Endpunkt-Funktionen: bindet einen Transport
@@ -36,13 +37,22 @@ import { listMyCashregisters } from './cashregisters.js';
  * Funktionen (siehe receipts.ts) und bleiben einzeln importierbar; wer sie
  * lieber einzeln nimmt, verliert nichts.
  *
- * Hier stehen **alle** Endpunkt-Aufrufe des Pakets: Belege, Berichte, Status
- * und Zahlungen. Was kein Endpunkt-Aufruf ist (Druck, Beleg-Darstellung),
- * gehoert nicht hierher. Der Grund fuer die Vollstaendigkeit ist der Zweck der
- * Fassade: ein **einziger** Konstruktionsweg je Anmeldung. Fehlte eine
- * Endpunkt-Familie, muesste ein Aufrufer fuer sie zusaetzlich
- * [createTransport] mit denselben Optionen bauen und haette zwei Wege fuer
- * dieselbe Anmeldung nebeneinander.
+ * Hier stehen **alle** Endpunkt-Aufrufe des Pakets: Belege, Berichte, Status,
+ * Zahlungen und die beiden Sitzungs-Aufrufe der Browser-Kasse. Was kein
+ * Endpunkt-Aufruf ist (Druck, Beleg-Darstellung), gehoert nicht hierher. Der
+ * Grund fuer die Vollstaendigkeit ist der Zweck der Fassade: ein **einziger**
+ * Konstruktionsweg je Anmeldung. Fehlte eine Endpunkt-Familie, muesste ein
+ * Aufrufer fuer sie zusaetzlich [createTransport] mit denselben Optionen bauen
+ * und haette zwei Wege fuer dieselbe Anmeldung nebeneinander.
+ *
+ * **Eine Ausnahme, und sie folgt aus genau diesem Grund:** Kopplung,
+ * Benutzerliste des Geraets und PIN-Anmeldung (`@kreiseck/kasseneck-api/register`)
+ * stehen **nicht** hier. Diese Fassade wird mit einer Anmeldung gebaut, jene
+ * drei laufen aber, **bevor** es eine gibt. Stuenden sie darin, sagte die
+ * Fassade eine Anmeldung zu, die fuer sie nicht gilt: ein Aufrufer riefe
+ * `pairRegisterDevice` an einer mit `apiKeyAuth` gebauten Fassade und glaubte,
+ * der Schluessel haette dabei etwas zu sagen. Sie bringen ihre
+ * Verbindungsangaben stattdessen selbst mit.
  */
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
@@ -83,6 +93,10 @@ export interface KasseneckApi {
   hobexPay(options: HobexPayOptions): Promise<HobexReceipt>;
   /** Hobex-Cloud-Zahlung erstatten (ohne Rueckgabewert, siehe payments/hobex.ts). */
   hobexRefund(options: HobexRefundOptions): Promise<void>;
+  /** Kassen-Sitzung verlaengern; liefert den neuen Ablauf (nur Kassen-Benutzer). */
+  renewRegisterSession(): Promise<number>;
+  /** Kassen-Sitzung beenden und den Lizenzplatz freigeben (nur Kassen-Benutzer). */
+  endRegisterSession(): Promise<void>;
 }
 
 export function createKasseneckApi(options: TransportOptions): KasseneckApi {
@@ -110,5 +124,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     stripeCaptureIntent: (stripeSessionId) => stripeCaptureIntent(rufen, stripeSessionId),
     hobexPay: (o) => hobexPay(rufen, o),
     hobexRefund: (o) => hobexRefund(rufen, o),
+    renewRegisterSession: () => renewRegisterSession(rufen),
+    endRegisterSession: () => endRegisterSession(rufen),
   };
 }
