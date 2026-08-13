@@ -29,10 +29,20 @@
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
     },
+    "./receipt": {
+      "types": "./dist/esm/receipt/index.d.ts",
+      "import": "./dist/esm/receipt/index.js",
+      "require": "./dist/cjs/receipt/index.js"
+    },
     "./printing": {
       "types": "./dist/esm/printing/index.d.ts",
       "import": "./dist/esm/printing/index.js",
       "require": "./dist/cjs/printing/index.js"
+    },
+    "./react": {
+      "types": "./dist/esm/react/index.d.ts",
+      "import": "./dist/esm/react/index.js",
+      "require": "./dist/cjs/react/index.js"
     }
   },
   "files": [
@@ -50,8 +60,20 @@
     "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
     "prepublishOnly": "npm run build"
   },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.4.0"
   }
 }

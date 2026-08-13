@@ -9,9 +9,12 @@ import {
 } from '../enums/index.js';
 import {
   type Receipt,
+  type ReceiptCompany,
+  type ReceiptCompanyPayload,
   type ReceiptPayloadRead,
   type ReceiptItem,
   type Voucher,
+  fromReceiptCompanyPayload,
   fromReceiptPayload,
   toReceiptItemPayload,
   toVoucherPayload,
@@ -106,11 +109,38 @@ export interface CreateCancelReceiptOptions extends ReceiptCommonOptions {
 }
 
 /**
+ * Beleg **und** die Firmen-/Druckdaten derselben Antwort — das Ergebnis der
+ * `…WithCompany`-Varianten. Das Backend liefert beides in einem Aufruf
+ * (functions/index.js); wer den Beleg drucken oder anzeigen will, braucht
+ * beides und soll dafuer keinen zweiten Aufruf machen muessen.
+ */
+export interface ReceiptWithCompany {
+  receipt: Receipt;
+  company: ReceiptCompany;
+}
+
+/**
  * Gemeinsame Umsetzung aller Belegarten (Zwilling von `_createReceipt`).
  * Bewusst **nicht** Teil der Paketoberflaeche: der Belegtyp gehoert nicht in
  * die Hand des Aufrufers, sondern zu einem der benannten Aufrufe darunter.
  */
 export async function createReceipt(rufen: KasseneckTransport, options: CreateReceiptOptions): Promise<Receipt> {
+  return belegAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
+}
+
+/** Wie [createReceipt], liest aus derselben Antwort zusaetzlich die Firmendaten. */
+async function createReceiptWithCompany(
+  rufen: KasseneckTransport,
+  options: CreateReceiptOptions,
+): Promise<ReceiptWithCompany> {
+  return belegMitFirmaAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
+}
+
+/**
+ * Baut die Nutzlast von `createReceipt` und prueft die Eingabe. Wirft, bevor
+ * irgendetwas rausgeht — ein Beleg ist nicht folgenlos wiederholbar.
+ */
+function createReceiptParams(options: CreateReceiptOptions): Record<string, unknown> {
   const typ = belegtyp(options.receiptType);
   const { items, vouchers } = options;
 
@@ -180,12 +210,23 @@ export async function createReceipt(rufen: KasseneckTransport, options: CreateRe
     params['legalMessage'] = options.legalMessage.join('\n');
   }
 
-  return belegAusHuelle(await rufen('createReceipt', params), 'createReceipt');
+  return params;
 }
 
 /** Normalbeleg (Verkauf) nach RKSV. */
 export function sellReceipt(rufen: KasseneckTransport, options: SellReceiptOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
+}
+
+/**
+ * Normalbeleg wie [sellReceipt], liefert zusaetzlich die Firmen-/Druckdaten
+ * aus derselben Antwort — alles, was ein Belegdruck braucht, in einem Aufruf.
+ */
+export function sellReceiptWithCompany(
+  rufen: KasseneckTransport,
+  options: SellReceiptOptions,
+): Promise<ReceiptWithCompany> {
+  return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
 }
 
 /**
@@ -230,6 +271,19 @@ export function zeroReceipt(rufen: KasseneckTransport): Promise<Receipt> {
 /** Einzelnen Beleg der angemeldeten Kasse holen. */
 export async function getReceipt(rufen: KasseneckTransport, receiptId: string): Promise<Receipt> {
   return belegAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
+}
+
+/**
+ * Wie [getReceipt], liefert zusaetzlich die Firmen-/Druckdaten aus derselben
+ * Antwort (Firma, Anschrift, Steuernummer, UID, Fusszeilen, Logo-Adresse,
+ * Kleinunternehmer-Kennzeichen) — die Angaben, die ein Beleg im Kopf und Fuss
+ * traegt (siehe models/receipt-company.ts).
+ */
+export async function getReceiptWithCompany(
+  rufen: KasseneckTransport,
+  receiptId: string,
+): Promise<ReceiptWithCompany> {
+  return belegMitFirmaAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
 }
 
 /**
@@ -383,9 +437,11 @@ function antwortfehler(functionName: string, grund: string): KasseneckValidation
 
 /**
  * `createReceipt` und `getReceipt` liefern den Beleg unter `data.receipt`,
- * daneben die Firmen-/Druck-Metadaten (Firma, Adresse, Fusszeilen). Dieses
- * Paket liest davon nur den Beleg: die Metadaten betreffen ausschliesslich das
- * Beleg-Rendering und gehoeren nicht zum RKSV-Kernbeleg (siehe models/receipt.ts).
+ * daneben die Firmen-/Druckdaten (Firma, Anschrift, Fusszeilen). Diese Lesart
+ * nimmt nur den Beleg: die Druckdaten gehoeren nicht zum RKSV-Kernbeleg (siehe
+ * models/receipt.ts), und die bestehenden Aufrufe sollen ihre Zusage behalten.
+ * Wer beides braucht, nimmt [belegMitFirmaAusHuelle] ueber die
+ * `…WithCompany`-Varianten.
  */
 function belegAusHuelle(daten: unknown, functionName: string): Receipt {
   const huelle = daten as { receipt?: ReceiptPayloadRead } | null | undefined;
@@ -393,4 +449,15 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
     throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt fehlt)');
   }
   return fromReceiptPayload(huelle.receipt);
+}
+
+/**
+ * Beleg **und** Firmendaten aus derselben Huelle. Der Beleg entscheidet:
+ * fehlt er, ist die Antwort unbrauchbar. Die Firmendaten duerfen dagegen
+ * luecken haben — ein Kundendokument ohne gepflegte Fusszeile ist kein Grund,
+ * einen ausgestellten Beleg nicht anzuzeigen (siehe models/receipt-company.ts).
+ */
+function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
+  const receipt = belegAusHuelle(daten, functionName);
+  return { receipt, company: fromReceiptCompanyPayload(daten as ReceiptCompanyPayload) };
 }

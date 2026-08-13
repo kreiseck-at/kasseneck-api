@@ -14,9 +14,10 @@ import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload
  * Beleg — Zwilling der Beleg-Nutzlast von `KasseneckReceipt` in
  * kasseneck_api/lib/models/kasseneck_receipt.dart (nur der signatur-/
  * positionsrelevante Teil, den `toReceiptJson()`/die `receipt`-Map von
- * `fromJson()` traegt — nicht die Firmen-/Druck-Metadaten wie Firma, Adresse
- * oder Footer-Texte: die betreffen ausschliesslich das Beleg-Rendering und
- * gehoeren nicht zum RKSV-Kernbeleg).
+ * `fromJson()` traegt — nicht die Firmen-/Druckdaten wie Firma, Adresse oder
+ * Fusszeilen: die betreffen ausschliesslich das Beleg-Rendering und gehoeren
+ * nicht zum RKSV-Kernbeleg. Sie stehen als eigenes Modell daneben, siehe
+ * `ReceiptCompany` in ./receipt-company.ts).
  *
  * `timeStamp` bleibt bewusst der rohe Zeitstempel-String aus der Nutzlast;
  * `parseServerTimeStamp` (`../vienna-time.js`) deutet ihn auf Wunsch in einen

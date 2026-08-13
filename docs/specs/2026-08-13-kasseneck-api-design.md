@@ -51,13 +51,19 @@ src/
   enums/       Belegtyp, Zahlungsart, Steuersatz, Kartenanbieter, Gutscheinart, …
   client/      API-Client + Anmeldung
   printing/    ESC/POS-Erzeugung (Bytefolgen, kein Transport)
-  receipt/     Beleg-Layout (ohne Framework)
+  receipt/     Beleg-Layout (ohne Framework) + Brücke zu ESC/POS
+  react/       dünner Adapter, eigener Einstiegspunkt
   payments/    Hobex Cloud, Stripe-Zahllinks
-react/         dünner Adapter, eigener Einstiegspunkt
 ```
 
-**Unterpfad-Exporte** wie bei `@kreiseck/rksv`: `.`, `./react`, `./printing`, `./payments`.
-So zieht sich niemand den React-Adapter in ein Node-Programm.
+**Unterpfad-Exporte** wie bei `@kreiseck/rksv`: `.`, `./receipt`, `./react`, `./printing`,
+`./payments`. So zieht sich niemand den React-Adapter in ein Node-Programm.
+
+Der Adapter liegt unter `src/react/` statt im Wurzelverzeichnis: nur so bleibt er im selben
+`tsc`-Lauf wie der Kern (gemeinsames `rootDir: src`) und darf dessen Typen relativ importieren. Ein
+eigenes Wurzelverzeichnis bräuchte zusätzliche Bau-Configs und entweder einen Selbstbezug auf
+`dist/` — die Tests liefen dann nur nach einem Bau — oder eine zweite Kopie des Kerns im
+Bau-Ergebnis. Am Unterpfad-Export `./react` ändert die Lage nichts.
 
 ## Anmeldung: zwei Wege, ein Client
 

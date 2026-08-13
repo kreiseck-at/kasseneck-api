@@ -4,12 +4,15 @@ import { downloadDailyReport, downloadMonthlyReport } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
 import {
   sellReceipt,
+  sellReceiptWithCompany,
   cancelReceipt,
   createCancelReceipt,
   zeroReceipt,
   getReceipt,
+  getReceiptWithCompany,
   generateFullReceiptId,
   getFirstReceiptDate,
+  type ReceiptWithCompany,
   type SellReceiptOptions,
   type CancelReceiptOptions,
   type CreateCancelReceiptOptions,
@@ -25,6 +28,8 @@ import {
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
   sellReceipt(options: SellReceiptOptions): Promise<Receipt>;
+  /** Normalbeleg samt Firmen-/Druckdaten fuer den Belegdruck. */
+  sellReceiptWithCompany(options: SellReceiptOptions): Promise<ReceiptWithCompany>;
   /** Storno eines vorliegenden Belegs (Positionen negiert). */
   cancelReceipt(options: CancelReceiptOptions): Promise<Receipt>;
   /** Storno aus frei uebergebenen Positionen. */
@@ -33,6 +38,8 @@ export interface KasseneckApi {
   zeroReceipt(): Promise<Receipt>;
   /** Einzelnen Beleg holen. */
   getReceipt(receiptId: string): Promise<Receipt>;
+  /** Einzelnen Beleg samt Firmen-/Druckdaten holen. */
+  getReceiptWithCompany(receiptId: string): Promise<ReceiptWithCompany>;
   /** Verschluesselte Volltext-Belegnummer erzeugen. */
   generateFullReceiptId(receiptId: string): Promise<string>;
   /** Berichtsmonat des ersten Belegs (nicht fuer den Kassen-Benutzer-Weg). */
@@ -54,10 +61,12 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
   const rufenBinaer = createBinaryTransport(options);
   return {
     sellReceipt: (o) => sellReceipt(rufen, o),
+    sellReceiptWithCompany: (o) => sellReceiptWithCompany(rufen, o),
     cancelReceipt: (o) => cancelReceipt(rufen, o),
     createCancelReceipt: (o) => createCancelReceipt(rufen, o),
     zeroReceipt: () => zeroReceipt(rufen),
     getReceipt: (receiptId) => getReceipt(rufen, receiptId),
+    getReceiptWithCompany: (receiptId) => getReceiptWithCompany(rufen, receiptId),
     generateFullReceiptId: (receiptId) => generateFullReceiptId(rufen, receiptId),
     getFirstReceiptDate: () => getFirstReceiptDate(rufen),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),

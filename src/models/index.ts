@@ -18,6 +18,12 @@ export {
   receiptSubSumCents,
   receiptSumCents,
 } from './receipt.js';
+export {
+  type ReceiptCompany,
+  type ReceiptCompanyPayload,
+  fromReceiptCompanyPayload,
+  receiptCompanyTaxInfo,
+} from './receipt-company.js';
 export { type Cashregister, type CashregisterPayload, toCashregisterPayload, fromCashregisterPayload } from './cashregister.js';
 export {
   type ReportMonth,
