@@ -19,9 +19,9 @@
  *   Parameter). Wiederholen hilft nicht.
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
  *   HTTP 500/404, leerer Rumpf, oder HTTP 200 mit HTML statt JSON (typisch,
- *   wenn ein Aufruf mangels Rewrite auf der Single-Page-App landet) — beim
- *   Bericht-Download auch: es kam etwas, das weder ein PDF noch eine deutbare
- *   Fehlerhuelle ist (`not-pdf`). `reason` trennt die Faelle maschinenlesbar.
+ *   wenn ein Aufruf mangels Rewrite auf der Single-Page-App landet). Beim
+ *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.
+ *   `reason` trennt die Faelle maschinenlesbar.
  * - `KasseneckNetworkError` — die Antwort kam gar nicht: Netz weg, DNS,
  *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`).
  * - `KasseneckAuthError` — es kam nicht einmal zur Anfrage, weil die Anmeldung
@@ -111,15 +111,13 @@ export class KasseneckApiError extends Error {
 }
 
 /** Warum die Antwort keine verwertbare Huelle war. */
-export type HttpFailureReason = 'server-error' | 'empty-body' | 'not-json' | 'missing-status' | 'not-pdf';
+export type HttpFailureReason = 'server-error' | 'empty-body' | 'not-json' | 'missing-status';
 
 const GRUND_TEXT: Record<HttpFailureReason, string> = {
   'server-error': 'Server-Fehler',
   'empty-body': 'leere Antwort',
   'not-json': 'Antwort ist kein JSON',
   'missing-status': 'Antwort ohne Statusfeld',
-  // Nur auf dem Binaerweg: es kam weder ein PDF noch eine deutbare Fehlerhuelle.
-  'not-pdf': 'Antwort ist kein PDF',
 };
 
 /** Antwort ohne verwertbare Huelle (HTTP-Fehler, leerer Rumpf, HTML statt JSON). */

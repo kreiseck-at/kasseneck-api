@@ -49,12 +49,14 @@ export interface HttpResponseLike {
   headers: { get(name: string): string | null };
   text(): Promise<string>;
   /**
-   * Rohe Bytes der Antwort — nur der Binaerweg ([createBinaryTransport])
-   * braucht sie, deshalb optional: eine schon vorhandene Fake-Antwort eines
-   * JSON-Aufrufs bleibt damit gueltig. Jede `fetch`-Antwort bringt die Methode
-   * mit; fehlt sie, wirft der Binaerweg statt zu raten.
+   * Rohe Bytes der Antwort — der Binaerweg ([createBinaryTransport]) liest
+   * ausschliesslich sie. Bewusst **verpflichtend**: jede `fetch`-Antwort bringt
+   * die Methode mit, betroffen sind nur Attrappen — und eine Attrappe ohne
+   * Bytes bringt einen Test dazu, den Binaerweg nie zu erreichen und trotzdem
+   * gruen zu melden. Dieser Fehler gehoert an die Bauzeit, nicht in die
+   * Laufzeit.
    */
-  arrayBuffer?(): Promise<ArrayBuffer>;
+  arrayBuffer(): Promise<ArrayBuffer>;
 }
 
 export interface HttpRequestInit {
@@ -92,11 +94,22 @@ export interface TransportOptions {
  * seine `method` neben `params` und nicht darin (siehe Flutter-Vorbild
  * `_financeWebServicePostRequest`). Fuer alle anderen Aufrufe bleibt der Rumpf
  * unveraendert `{params:{…}}`.
+ *
+ * Der Typ nennt darum genau dieses eine Feld und ist kein offener Beutel:
+ * ein `params` von aussen wuerde die Nutzlast samt Auth-Parametern
+ * ueberschreiben — mit `registerUserAuth` verschwaende dabei still die
+ * Kassenbindung. Zusaetzlich setzt der Rumpfaufbau `params` als letztes, damit
+ * auch ein Verbraucher ohne Typen nicht daran vorbeikommt.
  */
+export interface TransportBodyFields {
+  /** Vorgangsart von `financeWebService` (z. B. `status_cashbox`). */
+  method?: string;
+}
+
 export type KasseneckTransport = <T = unknown>(
   functionName: string,
   params?: Record<string, unknown>,
-  extraBodyFields?: Record<string, unknown>,
+  extraBodyFields?: TransportBodyFields,
 ) => Promise<T>;
 
 /**
@@ -116,7 +129,7 @@ type Auswertung<R, T> = (koerper: R, functionName: string, statusCode: number, c
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
   const kern = createCore(options);
-  return <T>(functionName: string, params?: Record<string, unknown>, extraBodyFields?: Record<string, unknown>) =>
+  return <T>(functionName: string, params?: Record<string, unknown>, extraBodyFields?: TransportBodyFields) =>
     kern<string, T>(functionName, params, extraBodyFields, alsText, jsonAuswerten as Auswertung<string, T>);
 }
 
@@ -147,10 +160,15 @@ function createCore(options: TransportOptions) {
   return async function aufrufen<R, T>(
     functionName: string,
     params: Record<string, unknown> = {},
-    extraBodyFields: Record<string, unknown> | undefined,
+    extraBodyFields: TransportBodyFields | undefined,
     lesen: Koerperleser<R>,
     auswerten: Auswertung<R, T>,
   ): Promise<T> {
+    // Die URL nennt die Backend-Funktion, die Fehler nennen den **Vorgang**:
+    // `financeWebService` fuehrt ein Dutzend verschiedener Vorgaenge unter einem
+    // Endpunkt, und ein Fehler, der nur "financeWebService" sagt, verschweigt
+    // dem Aufrufer, welcher davon scheiterte.
+    const fehlerName = extraBodyFields?.method ? `${functionName}/${extraBodyFields.method}` : functionName;
     // Das Zeitlimit laeuft ab HIER — es deckt die Anmeldung mit ab. Haengt die
     // Token-Erneuerung auf flauem Netz, haette der Aufruf sonst weder Ergebnis
     // noch Fehler, und die Kasse stuende still.
@@ -165,19 +183,22 @@ function createCore(options: TransportOptions) {
         anmeldung = gepruefteAnmeldung(ergebnis);
       } catch (ursache) {
         if (abbruch.signal.aborted) {
-          throw new KasseneckNetworkError(functionName, true, zeitlimitMs);
+          throw new KasseneckNetworkError(fehlerName, true, zeitlimitMs);
         }
         // Eigene Pruefungen tragen ihren geheimnisfreien Grund weiter; von einer
         // fremden Ursache (Firebase & Co.) bleibt nichts uebrig — weder Meldung
         // noch Verdichtung, siehe Klassenkommentar zu KasseneckAuthError.
         const grund = ursache instanceof KasseneckAuthError ? ursache.reason : 'Anmeldung fehlgeschlagen';
-        throw new KasseneckAuthError(grund, { functionName });
+        throw new KasseneckAuthError(grund, { functionName: fehlerName });
       }
 
       // Was wir gleich senden, darf spaeter in keiner Fehlermeldung auftauchen.
       const geheimnisse = Object.values(anmeldung.headers);
       const url = `${basis}/${encodeURIComponent(functionName)}`;
-      const rumpf = JSON.stringify({ params: nutzlast(anmeldung.params, params), ...extraBodyFields });
+      // `params` steht ZULETZT: so kann kein Zusatzfeld die Nutzlast (und mit
+      // ihr die Kassenbindung aus der Anmeldung) verdraengen — auch nicht von
+      // einem Verbraucher, der ohne Typen an TransportBodyFields vorbeikommt.
+      const rumpf = JSON.stringify({ ...extraBodyFields, params: nutzlast(anmeldung.params, params) });
 
       let antwort: HttpResponseLike;
       let koerper: R;
@@ -188,7 +209,7 @@ function createCore(options: TransportOptions) {
           body: rumpf,
           signal: abbruch.signal,
         });
-        koerper = await lesen(antwort, functionName);
+        koerper = await lesen(antwort, fehlerName);
       } catch (ursache) {
         // Ein Formfehler des Pakets ist kein Netzfehler und behaelt seine Art
         // (der Binaerweg wirft ihn, wenn die fetch-Antwort keine Bytes liefert).
@@ -197,7 +218,7 @@ function createCore(options: TransportOptions) {
         }
         // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
         throw new KasseneckNetworkError(
-          functionName,
+          fehlerName,
           abbruch.signal.aborted,
           zeitlimitMs,
           causeDigest(ursache, geheimnisse),
@@ -208,10 +229,10 @@ function createCore(options: TransportOptions) {
       // Das Backend antwortet auf jeden fachlichen Ausgang mit HTTP 200; alles
       // andere kommt nicht von ihm (Proxy, Rewrite-Luecke, Infrastruktur).
       if (antwort.status !== 200) {
-        throw new KasseneckHttpError(functionName, antwort.status, inhaltstyp, 'server-error');
+        throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error');
       }
 
-      return auswerten(koerper, functionName, antwort.status, inhaltstyp);
+      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
@@ -228,8 +249,10 @@ const alsText: Koerperleser<string> = (antwort) => antwort.text();
  */
 const alsBytes: Koerperleser<Uint8Array> = async (antwort, functionName) => {
   if (typeof antwort.arrayBuffer !== 'function') {
-    // Lieber laut scheitern als still auf text() ausweichen: das waere genau
-    // der Bytefehler, den dieser Weg verhindern soll.
+    // Der Typ verlangt die Methode; diese Pruefung gilt dem Verbraucher ohne
+    // Typen, der eine eigene fetch-Umsetzung mitbringt. Lieber laut scheitern
+    // als still auf text() ausweichen — das waere genau der Bytefehler, den
+    // dieser Weg verhindern soll.
     throw new KasseneckValidationError(
       functionName,
       'Die fetch-Antwort liefert keine Bytes (arrayBuffer fehlt)',
@@ -290,16 +313,20 @@ function pdfAuswerten(
     return bytes;
   }
   // Ab hier ist nichts mehr zu retten; die Bytes werden nur noch **zur
-  // Fehlerdeutung** als Text gelesen, nie als Ergebnis zurueckgegeben.
+  // Fehlerdeutung** als Text gelesen, nie als Ergebnis zurueckgegeben. Die
+  // Gruende sind dieselben wie auf dem JSON-Weg und heissen auch so: "kein
+  // JSON" ist betrieblich der fehlende Rewrite (die Antwort ist die HTML-Seite
+  // der Single-Page-App), "kein Statusfeld" ein geaenderter Backend-Vertrag.
+  // Ein eigener Sammelgrund fuer den Binaerweg wuerde die beiden verschmelzen.
   let roh: unknown;
   try {
     roh = JSON.parse(new TextDecoder('utf-8').decode(bytes));
   } catch {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-pdf');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
   }
   const huelle = alsHuelle(roh);
   if (huelle === null) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-pdf');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
   }
   if (huelle.status === 'success') {
     // Erfolg gemeldet, aber kein PDF geliefert: die Antwort traegt nicht, was

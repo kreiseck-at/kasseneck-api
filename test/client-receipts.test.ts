@@ -59,6 +59,7 @@ function antwort(rumpf: string): HttpResponseLike {
     status: 200,
     headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
     text: async () => rumpf,
+    arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
 }
 

@@ -42,6 +42,9 @@ function antwort(
     status,
     headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
     text: async () => rumpf,
+    // Dieselben Bytes wie der Text — eine Attrappe, die nur eine der beiden
+    // Seiten kennt, laesst den jeweils anderen Weg ins Leere laufen.
+    arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
 }
 

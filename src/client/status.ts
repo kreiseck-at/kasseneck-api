@@ -36,6 +36,17 @@ export type CashboxStatus = 'AKTIVIERT' | 'REGISTRIERT' | 'IN_BETRIEB' | 'AUSFAL
  */
 export type SignatureStatus = CashboxStatus | 'NOT_REGISTERED';
 
+/**
+ * Vorgangsnamen, unter denen Fehler dieser beiden Abfragen erscheinen. Beide
+ * laufen ueber denselben Endpunkt `financeWebService`; ein Fehler, der nur den
+ * Endpunkt nennt, verschweigt dem Aufrufer, ob der Kassen- oder der
+ * Signaturstatus scheiterte. Der Transport bildet denselben Namen aus
+ * `<funktion>/<method>` — hier stehen die Konstanten fuer die Fehler, die schon
+ * vor dem Senden entstehen.
+ */
+const VORGANG_KASSE = 'financeWebService/status_cashbox';
+const VORGANG_SIGNATUR = 'financeWebService/status_signature';
+
 /** FinanzOnline-Meldung, wie sie unter `data.rkdbMessage` ankommt. */
 interface RkdbAntwort {
   rkdbMessage?: { rc?: unknown; msg?: unknown; status?: unknown };
@@ -44,7 +55,7 @@ interface RkdbAntwort {
 /** Betriebsstatus der Kasse bei FinanzOnline. */
 export async function getCashboxStatus(rufen: KasseneckTransport): Promise<CashboxStatus> {
   const daten = await rufen<RkdbAntwort>('financeWebService', {}, { method: 'status_cashbox' });
-  return statusAusMeldung(daten, 'financeWebService');
+  return statusAusMeldung(daten, VORGANG_KASSE);
 }
 
 /**
@@ -60,7 +71,7 @@ export async function getSignatureStatus(
   zertifikatNrHex: string,
 ): Promise<SignatureStatus> {
   if (typeof zertifikatNrHex !== 'string' || !zertifikatNrHex.trim()) {
-    throw new KasseneckValidationError('financeWebService', 'zertifikatNrHex fehlt', 'request');
+    throw new KasseneckValidationError(VORGANG_SIGNATUR, 'zertifikatNrHex fehlt', 'request');
   }
   const daten = await rufen<RkdbAntwort>(
     'financeWebService',
@@ -70,7 +81,7 @@ export async function getSignatureStatus(
   if (daten?.rkdbMessage?.rc === 'B33') {
     return 'NOT_REGISTERED';
   }
-  return statusAusMeldung(daten, 'financeWebService');
+  return statusAusMeldung(daten, VORGANG_SIGNATUR);
 }
 
 function statusAusMeldung(daten: RkdbAntwort | null | undefined, functionName: string): string {

@@ -69,6 +69,7 @@ export {
   type HttpRequestInit,
   type FetchLike,
   type TransportOptions,
+  type TransportBodyFields,
   type KasseneckTransport,
   type KasseneckBinaryTransport,
   createTransport,

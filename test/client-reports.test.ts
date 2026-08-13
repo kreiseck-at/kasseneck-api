@@ -12,7 +12,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
-import { apiKeyAuth } from '../src/client/auth.js';
+import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -37,6 +37,9 @@ import type { ReportMonth } from '../src/models/index.js';
 
 const API_KEY = 'kr_live_GEHEIMERAPIKEY';
 const KASSEN_TOKEN = 'cb_live_GEHEIMESKASSENTOKEN';
+const ID_TOKEN = 'eyJ-GEHEIMESIDTOKEN';
+const SITZUNG = 'sess-GEHEIMESITZUNG';
+const KASSEN_ID = 'kasse-1';
 const GEHEIMNISSE = [API_KEY, KASSEN_TOKEN];
 
 interface Aufruf {
@@ -46,7 +49,14 @@ interface Aufruf {
 
 const apiSchluesselWeg = () => apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN });
 
-/** JSON-Antwort im Sinn von `HttpResponseLike` (Fake, kein echtes fetch). */
+/**
+ * JSON-Antwort im Sinn von `HttpResponseLike` (Fake, kein echtes fetch).
+ *
+ * Sie traegt **beide** Seiten desselben Rumpfs: Text und Bytes. Nur so laesst
+ * sich derselbe Fall ueber den JSON- **und** ueber den Binaerweg schicken. Eine
+ * Attrappe ohne Bytes brachte den Binaerweg schon beim Lesen zu Fall — die
+ * Auswertung, um die es in solchen Tests geht, lief dann nie.
+ */
 function jsonAntwort(
   rumpf: string,
   { status = 200, contentType = 'application/json' }: { status?: number; contentType?: string | null } = {},
@@ -55,6 +65,7 @@ function jsonAntwort(
     status,
     headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
     text: async () => rumpf,
+    arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
 }
 
@@ -256,11 +267,16 @@ test('eine Erfolgshuelle ohne PDF ist ein Antwortfehler, kein Bericht', async ()
   });
 });
 
-test('der Binaerweg trennt HTTP-Fehler, leere Antwort und Nicht-PDF maschinenlesbar', async () => {
+test('der Binaerweg trennt seine Fehlerfaelle mit denselben Gruenden wie der JSON-Weg', async () => {
+  // Kein eigener Sammelgrund fuer "kein PDF": der fehlende Rewrite (HTML-Seite
+  // der Single-Page-App) und ein geaenderter Backend-Vertrag (JSON ohne
+  // Statusfeld) bedeuten betrieblich Verschiedenes und heissen deshalb hier wie
+  // dort `not-json` und `missing-status`.
   const faelle: Array<[string, HttpResponseLike]> = [
     ['server-error', binaerAntwort(new Uint8Array([0x35, 0x30, 0x30]), { status: 500, contentType: 'text/html' })],
     ['empty-body', binaerAntwort(new Uint8Array())],
-    ['not-pdf', binaerAntwort(new TextEncoder().encode('<!doctype html><html></html>'), { contentType: 'text/html' })],
+    ['not-json', binaerAntwort(new TextEncoder().encode('<!doctype html><html></html>'), { contentType: 'text/html' })],
+    ['missing-status', binaerAntwort(new TextEncoder().encode('{"irgendwas":true}'))],
   ];
 
   for (const [grund, antwortWert] of faelle) {
@@ -345,30 +361,47 @@ const alleAufrufe: Array<[string, (holen: FetchLike) => Promise<unknown>]> = [
   ['getSignatureStatus', (holen) => getSignatureStatus(jsonWeg(holen), '6F0404F0')],
 ];
 
-test('aus keinem der vier Aufrufe faellt ein nacktes Error', async () => {
-  const stoerungen: Array<[string, FetchLike]> = [
-    [
-      'Netz weg',
-      async () => {
-        throw Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
-      },
-    ],
-    ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { status: 502, contentType: 'text/html' })],
-    ['leere Antwort', async () => jsonAntwort('')],
-    ['fachlicher Fehler', async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null }))],
-  ];
+/**
+ * Stoerungen, die **beide** Wege gleich treffen muessen: die Attrappen tragen
+ * Text und Bytes, ein Binaeraufruf laeuft damit wirklich durch `pdfAuswerten`
+ * und nicht in einen Lesefehler.
+ */
+const stoerungen: Array<[string, FetchLike, string]> = [
+  [
+    'Netz weg',
+    async () => {
+      throw Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+    },
+    'Network',
+  ],
+  ['HTTP 500', async () => jsonAntwort('<html>500</html>', { status: 500, contentType: 'text/html' }), 'Http:server-error'],
+  // HTTP 200 mit HTML: der Aufruf landete mangels Rewrite auf der Single-Page-App.
+  ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { contentType: 'text/html' }), 'Http:not-json'],
+  ['leere Antwort', async () => jsonAntwort(''), 'Http:empty-body'],
+  ['JSON ohne Statusfeld', async () => jsonAntwort('{"irgendwas":true}'), 'Http:missing-status'],
+  ['fachlicher Fehler', async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null })), 'Api'],
+];
 
+/** Kurzform eines Fehlers — `fremd:` fuer alles ausserhalb der Union. */
+function kennung(fehler: unknown): string {
+  if (fehler instanceof KasseneckHttpError) return `Http:${fehler.reason}`;
+  if (fehler instanceof KasseneckApiError) return 'Api';
+  if (fehler instanceof KasseneckNetworkError) return 'Network';
+  if (fehler instanceof KasseneckAuthError) return 'Auth';
+  if (fehler instanceof KasseneckValidationError) return `Validation:${fehler.reason}`;
+  return `fremd:${inspect(fehler)}`;
+}
+
+test('alle vier Aufrufe melden dieselbe Stoerung als denselben Fehler der Union', async () => {
+  // Zwei Aussagen in einer: aus keinem Aufruf faellt ein nacktes Error, und der
+  // Binaerweg ordnet dieselben Stoerungen genauso ein wie der JSON-Weg. Die
+  // erwartete Kennung steht neben der Stoerung — ein Aufruf, der stattdessen im
+  // Lesen scheitert (`Validation:… arrayBuffer …`), faellt damit auf, statt die
+  // Zusage nur scheinbar zu erfuellen.
   for (const [name, aufruf] of alleAufrufe) {
-    for (const [stoerung, holen] of stoerungen) {
+    for (const [stoerung, holen, erwartet] of stoerungen) {
       await assert.rejects(aufruf(holen), (fehler: unknown) => {
-        assert.ok(
-          fehler instanceof KasseneckApiError ||
-            fehler instanceof KasseneckHttpError ||
-            fehler instanceof KasseneckNetworkError ||
-            fehler instanceof KasseneckAuthError ||
-            fehler instanceof KasseneckValidationError,
-          `${name} / ${stoerung}: ${inspect(fehler)} gehoert nicht zur Fehler-Union`,
-        );
+        assert.equal(kennung(fehler), erwartet, `${name} / ${stoerung}`);
         return true;
       });
     }
@@ -376,31 +409,110 @@ test('aus keinem der vier Aufrufe faellt ein nacktes Error', async () => {
 });
 
 test('kein Geheimnis wandert in einen Fehler dieser vier Aufrufe', async () => {
-  const stoerungen: FetchLike[] = [
-    async () => {
-      // Eine fremde Bibliothek haengt gern die Anfrage samt Bearer an ihren Fehler.
-      throw Object.assign(new Error(`Anfrage fehlgeschlagen: Bearer ${API_KEY}`), {
-        code: 'ECONNRESET',
-        config: { headers: { Authorization: `Bearer ${API_KEY}`, 'cashregister-token': KASSEN_TOKEN } },
-      });
-    },
-    async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null })),
-    async () => jsonAntwort('<html>oops</html>', { status: 500, contentType: 'text/html' }),
+  const undichteStellen: Array<[string, FetchLike]> = [
+    [
+      'fremde Ursache mit Bearer',
+      async () => {
+        // Eine fremde Bibliothek haengt gern die Anfrage samt Bearer an ihren Fehler.
+        throw Object.assign(new Error(`Anfrage fehlgeschlagen: Bearer ${API_KEY}`), {
+          code: 'ECONNRESET',
+          config: { headers: { Authorization: `Bearer ${API_KEY}`, 'cashregister-token': KASSEN_TOKEN } },
+        });
+      },
+    ],
+    [
+      // Ein fremder Proxy kann die Anfrage zurueckspiegeln — der EMPFANGENE
+      // Rumpf gehoert deshalb genauso wenig in einen Fehler wie der gesendete.
+      'Antwortrumpf spiegelt die Anfrage',
+      async () =>
+        jsonAntwort(`<html>Authorization: Bearer ${API_KEY}\ncashregister-token: ${KASSEN_TOKEN}</html>`, {
+          contentType: 'text/html',
+        }),
+    ],
+    [
+      'Erfolgsrumpf mit Zugangsdaten',
+      async () => jsonAntwort(JSON.stringify({ status: 'success', message: '', data: { echo: API_KEY } })),
+    ],
+    ['fachlicher Fehler', async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null }))],
   ];
 
   for (const [name, aufruf] of alleAufrufe) {
-    for (const holen of stoerungen) {
+    for (const [stelle, holen] of undichteStellen) {
       try {
         await aufruf(holen);
-        assert.fail(`${name}: es haette werfen muessen`);
+        // Der Erfolgsrumpf mit Zugangsdaten geht bei den Statusabfragen nicht
+        // durch (kein Status), bei den Downloads nicht (kein PDF) — faellt einer
+        // dennoch durch, ist nichts zu pruefen und der Fall ist harmlos.
+        continue;
       } catch (fehler) {
         const abdruck = inspect(fehler, { depth: 10 }) + String((fehler as Error).message);
         for (const geheim of GEHEIMNISSE) {
-          assert.ok(!abdruck.includes(geheim), `${name}: Geheimnis im Fehler`);
+          assert.ok(!abdruck.includes(geheim), `${name} / ${stelle}: Geheimnis im Fehler: ${abdruck}`);
         }
+        assert.ok(!/arrayBuffer/.test(abdruck), `${name} / ${stelle}: der Aufruf erreicht die Auswertung gar nicht`);
       }
     }
   }
+});
+
+// --- Rumpfaufbau: params bleibt params ----------------------------------
+
+test('ein Zusatzfeld kann params nicht verdraengen — auch nicht ohne Typen', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg({ rkdbMessage: { rc: '0', status: 'IN_BETRIEB' } }));
+  const rufen = createTransport({
+    auth: registerUserAuth({ getIdToken: () => ID_TOKEN, getSessionId: () => SITZUNG, cashregisterId: KASSEN_ID }),
+    fetch: holen,
+  });
+
+  // Der Typ laesst nur `method` zu; ein Verbraucher ohne Typen kommt daran
+  // vorbei. Wuerde sein `params` gewinnen, verschwaende die Kassenbindung aus
+  // der Anmeldung still — genau der Fehler, der weiter unten im Rumpf schon
+  // einmal behoben wurde.
+  await rufen('financeWebService', { zertifikatnr_hex: '6F0404F0' }, {
+    method: 'status_signature',
+    params: { boese: true },
+  } as unknown as { method?: string });
+
+  assert.deepEqual(rumpfVon(aufrufe[0]!), {
+    params: { cashregisterId: KASSEN_ID, zertifikatnr_hex: '6F0404F0' },
+    method: 'status_signature',
+  });
+});
+
+// --- Fehler nennen den Vorgang ------------------------------------------
+
+test('ein Fehler nennt den Vorgang, nicht nur den geteilten Endpunkt financeWebService', async () => {
+  // Beide Statusabfragen laufen ueber denselben Endpunkt; ein Fehler, der nur
+  // "financeWebService" sagt, verschweigt, welche der beiden scheiterte.
+  const faelle: Array<[string, (holen: FetchLike) => Promise<unknown>, string]> = [
+    ['Kassenstatus', (holen) => getCashboxStatus(jsonWeg(holen)), 'financeWebService/status_cashbox'],
+    ['Signaturstatus', (holen) => getSignatureStatus(jsonWeg(holen), '6F0404F0'), 'financeWebService/status_signature'],
+  ];
+
+  for (const [name, aufruf, erwartet] of faelle) {
+    // Fachlicher Fehler (kommt aus dem Transport) …
+    const { holen } = fetchFake(jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null })));
+    await assert.rejects(aufruf(holen), (fehler: unknown) => {
+      assert.ok(fehler instanceof KasseneckApiError);
+      assert.equal(fehler.functionName, erwartet, `${name}: fachlicher Fehler`);
+      return true;
+    });
+    // … und Antwortfehler (kommt aus dem Endpunktmodul).
+    const { holen: holen2 } = fetchFake(erfolg({ rkdbMessage: { rc: '0' } }));
+    await assert.rejects(aufruf(holen2), (fehler: unknown) => {
+      assert.ok(fehler instanceof KasseneckValidationError);
+      assert.equal(fehler.functionName, erwartet, `${name}: Antwortfehler`);
+      return true;
+    });
+  }
+
+  // Und die Pruefung vor dem Senden nennt ihn ebenfalls.
+  const { holen } = fetchFake(erfolg({}));
+  await assert.rejects(getSignatureStatus(jsonWeg(holen), ''), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckValidationError);
+    assert.equal(fehler.functionName, 'financeWebService/status_signature');
+    return true;
+  });
 });
 
 test('createKasseneckApi bietet die vier Aufrufe gebunden an', async () => {
