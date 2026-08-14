@@ -95,6 +95,35 @@ export interface RegisterUserSummary {
   /** Anzeigename; kann leer sein. */
   name: string;
   kind: RegisterUserKind;
+  /**
+   * Die PIN dieses Benutzers wurde noch nicht unter der aktuellen Regel des
+   * Betriebs gesetzt: die Kasse zeigt ihm das Freifeld statt der Kaestchen.
+   * Das Backend sendet das Feld nur, wenn es zutrifft; gelesen ist es immer da.
+   */
+  altbestand: boolean;
+}
+
+/** PIN-Regel des Betriebs — daraus baut die Kasse Kaestchen und Tastatur. */
+export interface RegisterPinPolicy {
+  /** Feste Stellenzahl (Backend: 3 bis 6). */
+  stellen: number;
+  /** `ziffern` (nur 0-9) oder `zeichen` (0-9 plus Kopplungs-Alphabet). */
+  zeichen: 'ziffern' | 'zeichen' | (string & {});
+}
+
+/** Anmeldemodus des Geraets; ein unbekannter kuenftiger Wert kommt durch. */
+export type RegisterLoginMode = 'auswahl' | 'pin' | (string & {});
+
+/** Antwort von [listRegisterUsersForDevice]: Benutzer, Regel, Modus. */
+export interface RegisterDeviceUsers {
+  /** Im Modus `pin` bewusst leer — Namen haben am nur-PIN-Geraet nichts verloren. */
+  users: RegisterUserSummary[];
+  /**
+   * `null`, wenn das Backend (noch) keine Regel nennt — dann zeigt die Kasse
+   * das Freifeld, statt Kaestchen mit einer erratenen Stellenzahl.
+   */
+  policy: RegisterPinPolicy | null;
+  loginMode: RegisterLoginMode;
 }
 
 /**
@@ -171,6 +200,20 @@ export interface RegisterUserLoginOptions extends RegisterDeviceConnection, Regi
   takeover?: boolean;
 }
 
+export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+  /**
+   * Die PIN allein — sie identifiziert UND authentifiziert (Geraete-Modus
+   * `pin`; das Backend haelt PINs je Betrieb eindeutig). Das Format prueft
+   * dieses Paket **nicht** — dieselbe Zurueckhaltung wie bei
+   * [RegisterUserLoginOptions.pin].
+   */
+  pin: string;
+  /** Kasse, an der die Sitzung eroeffnet wird. */
+  cashregisterId: string;
+  /** Wie [RegisterUserLoginOptions.takeover]. */
+  takeover?: boolean;
+}
+
 /**
  * Geraet koppeln: der Kopplungs-Code wird gegen den dauerhaften Ausweis dieses
  * Geraets getauscht. **Ohne Anmeldung** — der Code ist der Nachweis.
@@ -211,14 +254,14 @@ export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Pr
  */
 export async function listRegisterUsersForDevice(
   options: ListRegisterUsersForDeviceOptions,
-): Promise<RegisterUserSummary[]> {
+): Promise<RegisterDeviceUsers> {
   const { ownerUid, deviceId, deviceSecret, ...verbindung } = options;
   const name = 'listRegisterUsersForDevice';
   pflicht(name, 'ownerUid', ownerUid);
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
 
-  const daten = await transportFuer(verbindung)<{ users?: unknown }>(
+  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown }>(
     name,
     { ownerUid, deviceId, deviceSecret },
     undefined,
@@ -229,7 +272,7 @@ export async function listRegisterUsersForDevice(
   if (!Array.isArray(liste)) {
     throw antwortfehler(name, 'Antwort enthaelt keine Benutzerliste (data.users fehlt)');
   }
-  return liste.map((eintrag) => {
+  const users = liste.map((eintrag): RegisterUserSummary => {
     const roh = (typeof eintrag === 'object' && eintrag !== null ? eintrag : {}) as Record<string, unknown>;
     return {
       // Ein Eintrag ohne Kennung ist nicht anmeldbar — ihn anzuzeigen hiesse,
@@ -237,8 +280,21 @@ export async function listRegisterUsersForDevice(
       id: pflichtfeld(name, roh, 'id'),
       name: text(roh['name']),
       kind: typeof roh['kind'] === 'string' && roh['kind'] ? (roh['kind'] as RegisterUserKind) : 'person',
+      altbestand: roh['altbestand'] === true,
     };
   });
+  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl' };
+}
+
+/** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */
+function regel(wert: unknown): RegisterPinPolicy | null {
+  if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return null;
+  const roh = wert as Record<string, unknown>;
+  const stellen = roh['stellen'];
+  const zeichen = roh['zeichen'];
+  if (typeof stellen !== 'number' || !Number.isInteger(stellen) || stellen < 1) return null;
+  if (typeof zeichen !== 'string' || zeichen === '') return null;
+  return { stellen, zeichen: zeichen as RegisterPinPolicy['zeichen'] };
 }
 
 /**
@@ -277,6 +333,44 @@ export async function registerUserLogin(options: RegisterUserLoginOptions): Prom
     [pin, deviceSecret],
   );
 
+  return sitzungAusAntwort(name, daten);
+}
+
+/**
+ * Kassen-Benutzer allein mit der PIN anmelden (Geraete-Modus `pin`). **Ohne
+ * Anmeldung** — wie [registerUserLogin], nur ohne Benutzerauswahl: das Backend
+ * ermittelt den Benutzer ueber die betriebsweit eindeutige PIN. Fehlversuche
+ * zaehlen und sperren dort am **Geraet**, nicht an einem Benutzer.
+ */
+export async function registerPinLogin(options: RegisterPinLoginOptions): Promise<RegisterUserSession> {
+  const { ownerUid, deviceId, deviceSecret, pin, cashregisterId, takeover, ...verbindung } = options;
+  const name = 'registerPinLogin';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+  pflicht(name, 'pin', pin);
+  pflicht(name, 'cashregisterId', cashregisterId);
+
+  const daten = await transportFuer(verbindung)<Record<string, unknown>>(
+    name,
+    {
+      ownerUid,
+      deviceId,
+      deviceSecret,
+      pin,
+      cashregisterId,
+      // Nur die ausdrueckliche Uebernahme geht mit — wie bei registerUserLogin.
+      takeover: takeover === true ? true : undefined,
+    },
+    undefined,
+    [pin, deviceSecret],
+  );
+
+  return sitzungAusAntwort(name, daten);
+}
+
+/** Die Sitzungsantwort beider Anmeldewege — ein Vertrag, eine Lesart. */
+function sitzungAusAntwort(name: string, daten: Record<string, unknown> | null | undefined): RegisterUserSession {
   const roherBenutzer = daten?.['user'];
   if (typeof roherBenutzer !== 'object' || roherBenutzer === null || Array.isArray(roherBenutzer)) {
     throw antwortfehler(name, 'Antwort enthaelt keinen Benutzer (data.user fehlt)');

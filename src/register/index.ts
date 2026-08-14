@@ -1,9 +1,10 @@
 /**
  * Unterpfad `@kreiseck/kasseneck-api/register` — die **Anmeldung der
  * Browser-Kasse**: ein Geraet koppeln, seine Kassen-Benutzer auflisten, einen
- * davon per PIN anmelden, und die entstandene Sitzung erneuern bzw. beenden.
+ * davon per PIN anmelden (mit oder ohne Benutzerauswahl), und die entstandene
+ * Sitzung erneuern bzw. beenden.
  *
- * Diese fuenf Aufrufe stehen vor allen anderen: ohne sie gibt es keine
+ * Diese Aufrufe stehen vor allen anderen: ohne sie gibt es keine
  * Identitaet, mit der ein Beleg entstehen koennte.
  *
  * **Sie zerfallen in zwei Haelften, und der Unterschied ist wesentlich:**
@@ -13,6 +14,7 @@
  * | [pairRegisterDevice] | **keine** — der Kopplungs-Code ist der Nachweis |
  * | [listRegisterUsersForDevice] | **keine** — der Ausweis des Geraets ist der Nachweis |
  * | [registerUserLogin] | **keine** — dieser Aufruf erzeugt sie |
+ * | [registerPinLogin] | **keine** — wie registerUserLogin, nur ohne Benutzerauswahl (Geraete-Modus `pin`) |
  * | [renewRegisterSession] | Kassen-Benutzer (`registerUserAuth`) |
  * | [endRegisterSession] | Kassen-Benutzer (`registerUserAuth`) |
  *
@@ -34,8 +36,10 @@
  * const geraet = await pairRegisterDevice({ code: 'K7NPQR34', label: 'Schank' });
  *
  * // Bei jedem Schichtwechsel: auswaehlen und per PIN anmelden.
- * const benutzer = await listRegisterUsersForDevice(geraet);
- * const sitzung = await registerUserLogin({ ...geraet, userId: benutzer[0]!.id, pin: '1234' });
+ * const { users } = await listRegisterUsersForDevice(geraet);
+ * const sitzung = await registerUserLogin({
+ *   ...geraet, userId: users[0]!.id, pin: '1234', cashregisterId: geraet.cashregisterId,
+ * });
  * ```
  *
  * Mit `sitzung.customToken` meldet sich der Verbraucher bei Firebase an; das
@@ -55,9 +59,14 @@ export {
   type RegisterUserSession,
   type ListRegisterUsersForDeviceOptions,
   type RegisterUserLoginOptions,
+  type RegisterPinLoginOptions,
+  type RegisterPinPolicy,
+  type RegisterLoginMode,
+  type RegisterDeviceUsers,
   pairRegisterDevice,
   listRegisterUsersForDevice,
   registerUserLogin,
+  registerPinLogin,
 } from './pairing.js';
 
 export { renewRegisterSession, endRegisterSession } from './session.js';
