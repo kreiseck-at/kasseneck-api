@@ -7,6 +7,7 @@ import {
   pairRegisterDevice,
   listRegisterUsersForDevice,
   registerUserLogin,
+  registerPinLogin,
   renewRegisterSession,
   endRegisterSession,
 } from '../src/register/index.js';
@@ -108,12 +109,16 @@ const KOPPLUNGS_ANTWORT = {
   kasse: 'Schanigarten',
 };
 
-/** `listRegisterUsersForDevice` — nur id, name, kind. */
+/** `listRegisterUsersForDevice` — users samt Regel und Geraete-Modus.
+ * `altbestand: true` steht NUR an Benutzern, deren PIN nicht unter der
+ * aktuellen Regel gesetzt wurde (Backend laesst das Feld sonst weg). */
 const BENUTZER_ANTWORT = {
   users: [
     { id: 'ru-1', name: 'Anna', kind: 'person' },
-    { id: 'ru-2', name: 'Terminal 2', kind: 'device' },
+    { id: 'ru-2', name: 'Terminal 2', kind: 'device', altbestand: true },
   ],
+  policy: { stellen: 4, zeichen: 'ziffern' },
+  loginMode: 'auswahl',
 };
 
 /** `registerUserLogin` — customToken, sessionId, expiresAt, user{id,name,perms}. */
@@ -249,18 +254,36 @@ test('listRegisterUsersForDevice: Endpunktname und die drei Geraeteangaben', asy
   assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
 });
 
-test('listRegisterUsersForDevice: liest Kennung, Name und Art', async () => {
+test('listRegisterUsersForDevice: liest Benutzer, Regel und Modus', async () => {
   const { holen } = fetchFake(erfolg(BENUTZER_ANTWORT));
-  const benutzer = await listRegisterUsersForDevice({
+  const geraet = await listRegisterUsersForDevice({
     ownerUid: OWNER_UID,
     deviceId: GERAET_ID,
     deviceSecret: GERAETE_GEHEIMNIS,
     fetch: holen,
   });
 
-  assert.equal(benutzer.length, 2);
-  assert.deepEqual(benutzer[0], { id: 'ru-1', name: 'Anna', kind: 'person' });
-  assert.deepEqual(benutzer[1], { id: 'ru-2', name: 'Terminal 2', kind: 'device' });
+  assert.equal(geraet.users.length, 2);
+  assert.deepEqual(geraet.users[0], { id: 'ru-1', name: 'Anna', kind: 'person', altbestand: false });
+  assert.deepEqual(geraet.users[1], { id: 'ru-2', name: 'Terminal 2', kind: 'device', altbestand: true });
+  assert.deepEqual(geraet.policy, { stellen: 4, zeichen: 'ziffern' });
+  assert.equal(geraet.loginMode, 'auswahl');
+});
+
+test('listRegisterUsersForDevice: eine Antwort ohne Regel bleibt lesbar (altes Backend)', async () => {
+  // policy fehlt -> null: die Kasse faellt aufs Freifeld zurueck, statt
+  // Kaestchen mit einer erratenen Stellenzahl zu zeigen.
+  const { holen } = fetchFake(erfolg({ users: [{ id: 'ru-1', name: 'Anna', kind: 'person' }] }));
+  const geraet = await listRegisterUsersForDevice({
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    fetch: holen,
+  });
+
+  assert.equal(geraet.policy, null);
+  assert.equal(geraet.loginMode, 'auswahl');
+  assert.equal(geraet.users[0]?.altbestand, false);
 });
 
 test('listRegisterUsersForDevice: eine Antwort ohne Liste ist ein Antwortfehler', async () => {
@@ -453,6 +476,108 @@ test('registerUserLogin: fehlende Pflichtangaben werden abgelehnt, bevor etwas r
   }
 });
 
+// --- registerPinLogin --------------------------------------------------
+
+test('registerPinLogin: Endpunktname und die fuenf Pflichtparameter — ohne userId', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerPinLogin({
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+    fetch: holen,
+  });
+
+  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/registerPinLogin`);
+  // Namen und Reihenfolge aus der Pflichtfeld-Schleife des Backends:
+  // ownerUid, deviceId, deviceSecret, pin, cashregisterId.
+  assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+  });
+  assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
+});
+
+test('registerPinLogin: takeover geht nur mit, wenn es ausdruecklich true ist', async () => {
+  const grund = {
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+  };
+  const mit = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerPinLogin({ ...grund, takeover: true, fetch: mit.holen });
+  assert.equal(rumpfVon(mit.aufrufe[0]!).params['takeover'], true);
+  const ohne = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerPinLogin({ ...grund, fetch: ohne.holen });
+  assert.equal('takeover' in rumpfVon(ohne.aufrufe[0]!).params, false);
+});
+
+test('registerPinLogin: liest dieselbe Sitzungsantwort wie registerUserLogin', async () => {
+  const { holen } = fetchFake(erfolg(ANMELDE_ANTWORT));
+  const sitzung = await registerPinLogin({
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+    fetch: holen,
+  });
+
+  assert.equal(sitzung.customToken, 'eyJ-CUSTOM-TOKEN');
+  assert.equal(sitzung.sessionId, 'sess-neu');
+  assert.equal(sitzung.expiresAt, 1_776_000_090_000);
+  assert.equal(sitzung.user.id, BENUTZER_ID);
+  assert.equal(sitzung.user.perms.sell, true);
+});
+
+test('registerPinLogin: fehlende Pflichtangaben werden abgelehnt, bevor etwas rausgeht', async () => {
+  const vollstaendig = {
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+  };
+  for (const feld of ['ownerUid', 'deviceId', 'deviceSecret', 'pin', 'cashregisterId'] as const) {
+    const { holen, aufrufe } = fetchFake(erfolg(ANMELDE_ANTWORT));
+    await assert.rejects(registerPinLogin({ ...vollstaendig, [feld]: '', fetch: holen }), (fehler: unknown) => {
+      assert.ok(isKasseneckValidationError(fehler), feld);
+      assert.equal(fehler.scope, 'request');
+      assert.equal(fehler.functionName, 'registerPinLogin');
+      return true;
+    });
+    assert.equal(aufrufe.length, 0, `${feld}: es darf nichts gesendet werden`);
+  }
+});
+
+test('registerPinLogin: PIN und Geraetegeheimnis landen in keinem Fehler', async () => {
+  const { holen } = fetchFake(fachfehler('Anmeldung fehlgeschlagen.'));
+  await assert.rejects(
+    registerPinLogin({
+      ownerUid: OWNER_UID,
+      deviceId: GERAET_ID,
+      deviceSecret: GERAETE_GEHEIMNIS,
+      pin: PIN,
+      cashregisterId: KASSEN_ID,
+      fetch: holen,
+    }),
+    (fehler: unknown) => {
+      assert.ok(isKasseneckApiError(fehler));
+      const abbild = inspect(fehler, { depth: 6 });
+      for (const geheim of geheimnisse) {
+        assert.equal(abbild.includes(geheim), false, 'Geheimnis im Fehlerabbild');
+      }
+      return true;
+    },
+  );
+});
+
 // --- renewRegisterSession / endRegisterSession -------------------------
 
 function kassenBenutzerWeg(antwortWert: HttpResponseLike) {
@@ -544,8 +669,8 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die fuenf Aufrufe — und keine Anmeldung', () => {
-  // Die drei anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
+test('der Unterpfad ./register exportiert genau die sechs Aufrufe — und keine Anmeldung', () => {
+  // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
   // Liste haelt genau das fest.
@@ -555,6 +680,7 @@ test('der Unterpfad ./register exportiert genau die fuenf Aufrufe — und keine 
       'endRegisterSession',
       'listRegisterUsersForDevice',
       'pairRegisterDevice',
+      'registerPinLogin',
       'registerUserLogin',
       'renewRegisterSession',
     ],
