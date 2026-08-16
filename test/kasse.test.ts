@@ -12,6 +12,8 @@ import {
   setMyRegisterDeviceSettings,
   listMyArticleGroups,
   listMyArticles,
+  mengenregelFuerEinheit,
+  mengenVorgabe,
 } from '../src/kasse/index.js';
 import { fromReceiptSummaryPayload } from '../src/models/index.js';
 import { listMyReceipts, createTransport, apiKeyAuth, type KasseneckTransport, type FetchLike, type HttpResponseLike } from '../src/client/index.js';
@@ -106,7 +108,7 @@ test('fromArticleGroupPayload / fromKasseArtikelPayload lesen die Backend-Form',
   const g = fromArticleGroupPayload({ id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   assert.deepEqual(g, { id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   const a = fromKasseArtikelPayload({ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', kasse: { sichtbar: true, sort: 2 }, active: true });
-  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', sichtbar: true, sort: 2, active: true });
+  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', sichtbar: true, sort: 2, active: true, mengenregel: null, mengeFragen: null });
   // Altbestand ohne Kachel-Felder
   const alt = fromKasseArtikelPayload({ id: 'a2', name: 'Alt', unitPriceCents: 100, vatRate: 20 });
   assert.equal(alt.groupId, null);
@@ -180,4 +182,18 @@ test('fromReceiptSummaryPayload ohne die neuen Felder bleibt wie bisher', () => 
   assert.deepEqual(s.items, []);
   assert.equal(s.operator, undefined);
   assert.equal(s.stornoStand, 'offen');
+});
+
+test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit Fragen; g/ml ganz mit Fragen), gespeicherte Angabe schlaegt', () => {
+  assert.deepEqual(mengenregelFuerEinheit('Stk'), { regel: 'stueck', fragen: false, stellen: 0 });
+  assert.deepEqual(mengenregelFuerEinheit('kg'), { regel: 'dezimal', fragen: true, stellen: 3 });
+  assert.deepEqual(mengenregelFuerEinheit('l'), { regel: 'dezimal', fragen: true, stellen: 2 });
+  assert.deepEqual(mengenregelFuerEinheit('g'), { regel: 'stueck', fragen: true, stellen: 0 });
+  assert.deepEqual(mengenregelFuerEinheit(''), { regel: 'stueck', fragen: false, stellen: 0 });
+  const wurst = fromKasseArtikelPayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg' });
+  assert.deepEqual(mengenVorgabe(wurst), { regel: 'dezimal', fragen: true, stellen: 3 });
+  const stueckwurst = fromKasseArtikelPayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg', mengenregel: 'stueck', mengeFragen: false });
+  assert.deepEqual(mengenVorgabe(stueckwurst), { regel: 'stueck', fragen: false, stellen: 0 });
+  // Rot-Probe: Unsinn im Payload faellt auf null zurueck
+  assert.equal(fromKasseArtikelPayload({ id: 'x', name: 'x', mengenregel: 'halb' }).mengenregel, null);
 });
