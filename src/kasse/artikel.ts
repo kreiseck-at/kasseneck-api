@@ -93,12 +93,19 @@ export interface KasseArtikel {
   mengenregel: Mengenregel | null;
   /** Gespeichert: Kasse fragt nach der Menge; null = Vorgabe der Einheit. */
   mengeFragen: boolean | null;
+  /** Hoechstmenge je Beleg; null = keine Grenze. */
+  maxMenge: number | null;
+}
+
+/** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
+export function mengeErlaubt(a: Pick<KasseArtikel, 'maxMenge'>, gewuenscht: number): number {
+  return a.maxMenge != null && a.maxMenge > 0 ? Math.min(gewuenscht, a.maxMenge) : gewuenscht;
 }
 
 export interface KasseArtikelPayload {
   id?: string | null; name?: string | null; unitPriceCents?: number | null; vatRate?: number | null; unit?: string | null;
   groupId?: string | null; kasse?: { sichtbar?: boolean | null; sort?: number | null } | null; active?: boolean | null;
-  mengenregel?: string | null; mengeFragen?: boolean | null;
+  mengenregel?: string | null; mengeFragen?: boolean | null; maxMenge?: number | null;
 }
 
 export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
@@ -114,6 +121,7 @@ export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
     active: p.active !== false,
     mengenregel: p.mengenregel === 'stueck' || p.mengenregel === 'dezimal' ? p.mengenregel : null,
     mengeFragen: typeof p.mengeFragen === 'boolean' ? p.mengeFragen : null,
+    maxMenge: Number.isInteger(p.maxMenge) && (p.maxMenge as number) > 0 ? (p.maxMenge as number) : null,
   };
 }
 
