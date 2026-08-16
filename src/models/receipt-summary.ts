@@ -22,6 +22,13 @@ import { readEnumKey } from './enum-payload.js';
  * enum-payload.ts): eine Liste darf nicht daran scheitern, dass ein einzelner
  * Beleg eine Zahlungsart traegt, die dieses Paket noch nicht kennt.
  */
+/** Anlass eines Nullbelegs (Backend: cashregister-lifecycle ZERO_KINDS). */
+export const ZERO_KINDS = ['monthly', 'annual', 'annual_replacement', 'outage_end', 'final', 'manual'] as const;
+export type ZeroKind = (typeof ZERO_KINDS)[number];
+export function istZeroKind(w: unknown): w is ZeroKind {
+  return typeof w === 'string' && (ZERO_KINDS as readonly string[]).includes(w);
+}
+
 export interface ReceiptSummary {
   receiptId: string;
   /** Fortlaufender Belegzaehler der Kasse; fehlt bei Alt-Belegen. */
@@ -51,6 +58,8 @@ export interface ReceiptSummary {
   cancellationReason?: string;
   /** offen | teil | voll -- Storno-Stand des Originals. */
   stornoStand: 'offen' | 'teil' | 'voll';
+  /** Nur am Nullbeleg, nur fuer Kassen-Benutzer: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
+  zeroKind?: ZeroKind;
 }
 
 export interface ReceiptSummaryPayload {
@@ -69,6 +78,7 @@ export interface ReceiptSummaryPayload {
   cancellationOf?: { receiptId?: string | null } | null;
   cancellationReason?: string | null;
   stornoStand?: string | null;
+  zeroKind?: string | null;
 }
 
 export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): ReceiptSummary {
@@ -89,5 +99,6 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId ?? null } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     stornoStand: payload.stornoStand === 'teil' || payload.stornoStand === 'voll' ? payload.stornoStand : 'offen',
+    ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
   };
 }
