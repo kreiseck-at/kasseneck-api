@@ -13,6 +13,7 @@
  * |---|---|
  * | [pairRegisterDevice] | **keine** — der Kopplungs-Code ist der Nachweis |
  * | [listRegisterUsersForDevice] | **keine** — der Ausweis des Geraets ist der Nachweis |
+ * | [unpairRegisterDevice] | **keine** — der Ausweis des Geraets; sperrt es im Backend (Entkoppeln) |
  * | [registerUserLogin] | **keine** — dieser Aufruf erzeugt sie |
  * | [registerPinLogin] | **keine** — wie registerUserLogin, nur ohne Benutzerauswahl (Geraete-Modus `pin`) |
  * | [renewRegisterSession] | Kassen-Benutzer (`registerUserAuth`) |
@@ -66,6 +67,7 @@ export {
   type RegisterDeviceUsers,
   pairRegisterDevice,
   listRegisterUsersForDevice,
+  unpairRegisterDevice,
   registerUserLogin,
   registerPinLogin,
 } from './pairing.js';

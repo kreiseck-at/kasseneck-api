@@ -286,6 +286,21 @@ export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Pr
  * Die Antwort traegt ausschliesslich Kennung, Name und Art: keine Rechte, keine
  * Kassen, keine Hashes. Gesperrte Benutzer fehlen bereits in der Antwort.
  */
+/**
+ * „Geraet entkoppeln“ an der Kasse selbst: das Geraet weist sich mit seinem
+ * Geheimnis aus und sperrt sich im Backend — damit sieht das Panel den
+ * Widerruf und keine Sitzung laeuft nach. Idempotent: ein schon gesperrtes
+ * Geraet meldet Erfolg. Danach das Geraet lokal vergessen.
+ */
+export async function unpairRegisterDevice(options: ListRegisterUsersForDeviceOptions): Promise<void> {
+  const { ownerUid, deviceId, deviceSecret, ...verbindung } = options;
+  const name = 'unpairRegisterDevice';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+  await transportFuer(verbindung)<Record<string, unknown>>(name, { ownerUid, deviceId, deviceSecret }, undefined, [deviceSecret]);
+}
+
 export async function listRegisterUsersForDevice(
   options: ListRegisterUsersForDeviceOptions,
 ): Promise<RegisterDeviceUsers> {
