@@ -5,7 +5,7 @@
  */
 export {
   type KasseStil, type KasseSchrift, type KasseWasserzeichen, type KasseMenge, type KasseTgModus,
-  type KasseKassierenModus, type KasseBelegAusgabe, type KasseLayout, type KasseKatpos, type KasseHoehe,
+  type KasseKassierenModus, type KasseKartenanbieter, KARTENANBIETER, type KasseBelegAusgabe, type KasseLayout, type KasseKatpos, type KasseHoehe,
   type KasseDruckerArt, type KassePapier, type KasseZeichensatz, type KasseSchnitt, type KasseLadeAuto,
   type Schalterkarte, type KasseSettingsBetrieb, type KasseSettingsGeraet, type KasseSettings,
   KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,

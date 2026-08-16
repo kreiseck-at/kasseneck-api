@@ -14,6 +14,9 @@ export type KasseWasserzeichen = 'aus' | 'anmeldung' | 'ueberall';
 export type KasseMenge = 'aus' | 'x' | 'kg';
 export type KasseTgModus = 'betrag' | 'gesamt' | 'beides';
 export type KasseKassierenModus = 'seite' | 'panel';
+/** Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'extern' = eigenes Terminal ohne Anbindung. */
+export type KasseKartenanbieter = 'keiner' | 'extern' | 'hobex' | 'mypos' | 'stripe';
+export const KARTENANBIETER: readonly KasseKartenanbieter[] = ['keiner', 'extern', 'hobex', 'mypos', 'stripe'];
 export type KasseBelegAusgabe = 'qr' | 'druck' | 'mail' | 'sms' | 'fragen';
 export type KasseLayout = 'rechts' | 'links' | 'vollbild';
 export type KasseKatpos = 'oben' | 'links';
@@ -33,7 +36,7 @@ export interface KasseSettingsBetrieb {
   sperrbild: boolean; foto: boolean; autoAbMin: 0 | 1 | 5 | 15 | 30; abNachVerkauf: boolean;
   preisAnzeigen: boolean; ustAnzeigen: boolean; emoji: boolean; katFarben: boolean; freiErlaubt: boolean;
   saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: 'aus' | 'an';
-  zahlBar: boolean; zahlKarte: boolean; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
+  zahlBar: boolean; zahlKarte: boolean; kartenanbieter: KasseKartenanbieter; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
   belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10;
 }
@@ -58,7 +61,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   preisAnzeigen: true, ustAnzeigen: false, emoji: true, katFarben: true, freiErlaubt: true,
   saetze: { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false },
   menge: 'x', notiz: false, suche: false, rabatt: 'aus',
-  zahlBar: true, zahlKarte: true, trinkgeld: false, tgModus: 'beides',
+  zahlBar: true, zahlKarte: false, kartenanbieter: 'keiner', trinkgeld: false, tgModus: 'beides',
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgSplit: true, rueckgeld: true,
   schnellbar: false, kassierenModus: 'seite',
   belegAusgabe: 'qr', fertigSekunden: 0,
