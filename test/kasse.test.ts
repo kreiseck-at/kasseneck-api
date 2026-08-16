@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   KASSE_BETRIEB_STANDARD,
+  KARTENANBIETER,
   KASSE_GERAET_STANDARD,
   mergeKasseSettings,
   verteileRabatt,
@@ -205,4 +206,10 @@ test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit 
   assert.deepEqual(mengenVorgabe(stueckwurst), { regel: 'stueck', fragen: false, stellen: 0 });
   // Rot-Probe: Unsinn im Payload faellt auf null zurueck
   assert.equal(fromKasseArtikelPayload({ id: 'x', name: 'x', mengenregel: 'halb' }).mengenregel, null);
+});
+
+test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
+  assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);
+  assert.deepEqual([...KARTENANBIETER], ['keiner', 'extern', 'hobex', 'mypos', 'stripe']);
 });
