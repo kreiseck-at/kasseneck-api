@@ -306,75 +306,90 @@ test('sellReceipt mit ungueltigem Gutschein wird abgelehnt', async () => {
 });
 
 // --- cancelReceipt / createCancelReceipt -------------------------------
+//
+// cancelReceipt geht seit der Storno-API an den eigenen Endpunkt cancelReceipt:
+// der Server negiert, prueft Restmengen und verkettet. Das Paket schickt nur
+// Bezug, Grund und (optional) Positionen -- und liest die Antwort mit
+// Storno-Beleg, Bezug und Restmengen.
 
-test('cancelReceipt storniert mit negierten Positionen und der Zahlungsart des Belegs', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
-  const beleg: Receipt = {
-    receiptId: 'r-1',
+const STORNO_ANTWORT = {
+  receipt: { ...BELEG_NUTZLAST, receiptType: 'cancellation', receiptId: 'kasse-1-ID-13' },
+  cancellationOf: { receiptId: 'kasse-1-ID-12', fullReceiptId: 'ENC-FULL-12' },
+  remaining: [0, 1],
+};
+
+test('cancelReceipt ruft den Storno-Endpunkt mit Bezug und Grund und liest Restmengen', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const ergebnis = await cancelReceipt(rufen, {
     cashregisterId: KASSEN_ID,
-    timeStamp: '2026-08-13T10:15:00',
-    items: [KAFFEE, { name: 'Kuchen', quantity: 2, vat: VatRate.vat10, priceCents: 450 }],
-    vouchers: [],
-    paymentMethod: KeckPaymentMethod.creditCard,
-    turnoverCounterAES256ICM: 'ZAEHLER',
-    signaturePreviousReceipt: 'VORGAENGER',
-    certificateSerialNumber: '6F0404F0',
-    receiptType: ReceiptType.standard,
-    sig: 'SIGNATUR',
-    qr: 'QR',
-    fullReceiptId: 'ENC-FULL-ID',
-    customerDetails: ['Musterfirma GmbH'],
-    legalMessage: [],
-  };
-
-  await cancelReceipt(rufen, { receipt: beleg });
-
+    originalReceiptId: 'kasse-1-ID-12',
+    reason: 'fehleingabe',
+    items: [{ index: 0, quantity: 1 }],
+    note: 'Kunde wollte nur eine',
+  });
   const { endpunkt, params } = gesendet(aufrufe);
-  assert.equal(endpunkt, 'createReceipt');
+  assert.equal(endpunkt, 'cancelReceipt');
   assert.deepEqual(params, {
-    receiptType: 'cancellation',
-    items: [
-      { name: 'Kaffee', quantity: 1, unitPriceCents: -320, vatRate: 20 },
-      { name: 'Kuchen', quantity: 2, unitPriceCents: -450, vatRate: 10 },
-    ],
-    paymentMethod: 'creditCard',
-    customerDetails: 'Musterfirma GmbH',
+    cashregisterId: KASSEN_ID,
+    originalReceiptId: 'kasse-1-ID-12',
+    reason: 'fehleingabe',
+    items: [{ index: 0, quantity: 1 }],
+    note: 'Kunde wollte nur eine',
+  });
+  assert.equal(ergebnis.receipt.receiptType, ReceiptType.cancellation);
+  assert.deepEqual(ergebnis.cancellationOf, { receiptId: 'kasse-1-ID-12', fullReceiptId: 'ENC-FULL-12' });
+  assert.deepEqual(ergebnis.remaining, [0, 1]);
+});
+
+test('cancelReceipt nimmt auch den Beleg selbst als Bezug (Kasse und ID daraus)', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const beleg = fromReceiptPayload({ ...BELEG_NUTZLAST, receiptId: 'kasse-1-ID-12' });
+  await cancelReceipt(rufen, { receipt: beleg, reason: 'kunde_storniert', paymentMethod: KeckPaymentMethod.cash });
+  const { params } = gesendet(aufrufe);
+  assert.deepEqual(params, {
+    cashregisterId: KASSEN_ID,
+    originalReceiptId: 'kasse-1-ID-12',
+    reason: 'kunde_storniert',
+    paymentMethod: 'cash',
   });
 });
 
-test('cancelReceipt reicht eine dem Paket unbekannte Zahlungsart roh durch', async () => {
-  // Das Backend kennt die gueltigen Zahlungsarten und weist unbekannte selbst
-  // ab. Ergaenzt es eine neue, bevor dieses Paket sie kennt, duerfen Belege mit
-  // dieser Zahlungsart nicht unstornierbar werden — und schon gar nicht still
-  // auf 'cash' umgebucht (das verfaelschte die Zahlungsartenaufteilung im
-  // Tages- und Monatsbericht).
-  const { rufen, aufrufe } = apiSchluesselWeg();
-  const beleg: Receipt = {
-    receiptId: 'r-1',
-    cashregisterId: KASSEN_ID,
-    timeStamp: '2026-08-13T10:15:00',
-    items: [KAFFEE],
-    vouchers: [],
-    paymentMethod: 'klarna',
-    turnoverCounterAES256ICM: 'ZAEHLER',
-    signaturePreviousReceipt: 'VORGAENGER',
-    certificateSerialNumber: '6F0404F0',
-    receiptType: ReceiptType.standard,
-    sig: 'SIGNATUR',
-    qr: 'QR',
-    fullReceiptId: 'ENC-FULL-ID',
-    customerDetails: [],
-    legalMessage: [],
-  };
+test('cancelReceipt prueft die Eingabe, bevor etwas hinausgeht', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'weil' as never }),
+    /Storno-Grund/,
+  );
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges', items: [{ index: 0, quantity: 0 }] }),
+    /Storno-Menge/,
+  );
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges', note: 'x'.repeat(201) }),
+    /Anmerkung/,
+  );
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: '', originalReceiptId: 'x', reason: 'sonstiges' }),
+    /cashregisterId/,
+  );
+  assert.equal(aufrufe.length, 0);
+});
 
-  await cancelReceipt(rufen, { receipt: beleg });
-
-  const { params } = gesendet(aufrufe);
-  assert.equal(params['paymentMethod'], 'klarna');
+test('cancelReceipt weist eine Antwort ohne Bezug oder ohne Restmengen zurueck', async () => {
+  const ohneBezug = apiSchluesselWeg({ receipt: BELEG_NUTZLAST, remaining: [0] });
+  await assert.rejects(
+    () => cancelReceipt(ohneBezug.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges' }),
+    /cancellationOf/,
+  );
+  const ohneReste = apiSchluesselWeg({ receipt: BELEG_NUTZLAST, cancellationOf: { receiptId: 'x', fullReceiptId: null } });
+  await assert.rejects(
+    () => cancelReceipt(ohneReste.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges' }),
+    /remaining/,
+  );
 });
 
 test('cancelReceipt: uebergebene Zahlungsart sticht die des Belegs', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   const beleg: Receipt = {
     receiptId: 'r-1',
     cashregisterId: KASSEN_ID,
@@ -393,9 +408,10 @@ test('cancelReceipt: uebergebene Zahlungsart sticht die des Belegs', async () =>
     legalMessage: [],
   };
 
-  await cancelReceipt(rufen, { receipt: beleg, paymentMethod: KeckPaymentMethod.cash });
+  await cancelReceipt(rufen, { receipt: beleg, reason: 'falsche_zahlart', paymentMethod: KeckPaymentMethod.cash });
 
-  const { params } = gesendet(aufrufe);
+  const { endpunkt, params } = gesendet(aufrufe);
+  assert.equal(endpunkt, 'cancelReceipt');
   assert.equal(params['paymentMethod'], 'cash');
 });
 
@@ -677,7 +693,7 @@ test('cancelReceipt prueft eine ausdruecklich uebergebene Zahlungsart ebenfalls'
   };
 
   await assert.rejects(
-    () => cancelReceipt(rufen, { receipt: beleg, paymentMethod: 'klarna' as KeckPaymentMethodKey }),
+    () => cancelReceipt(rufen, { receipt: beleg, reason: 'sonstiges', paymentMethod: 'klarna' as KeckPaymentMethodKey }),
     /Zahlungsart/,
   );
   assert.equal(aufrufe.length, 0);
@@ -783,28 +799,18 @@ test('eine gebrochene Menge ist keine sendbare Position (Modellpruefung)', () =>
  * nackte `TypeError` heraus, obwohl errors.ts zusagt, alle Fehler dieses
  * Pakets aufzuzaehlen.
  */
-test('cancelReceipt: ein Beleg ohne Zahlungsart wirft keinen nackten TypeError', async () => {
-  // Start- und Nullbelege tragen keine; das Backend sendet dann null, und
-  // `typeof null === 'object'` liess `.value` daran scheitern.
-  const { rufen, aufrufe } = apiSchluesselWeg();
-  const beleg = { ...fromReceiptPayload(BELEG_NUTZLAST), paymentMethod: null } as unknown as Receipt;
-
-  await cancelReceipt(rufen, { receipt: beleg });
-  const gesendet = JSON.parse(aufrufe[0]!.init.body) as { params: Record<string, unknown> };
-  assert.equal(
-    'paymentMethod' in gesendet.params,
-    false,
-    'ohne Zahlungsart darf keine gesendet werden — auch keine leere',
-  );
-  assert.equal(gesendet.params['receiptType'], 'cancellation');
-});
-
-test('cancelReceipt: eine unbekannte Zahlungsart des Servers geht weiterhin roh mit', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
+test('cancelReceipt: ohne eigene Zahlungsart geht keine mit -- der Server nimmt die des Originals', async () => {
+  // Frueher negierte das Paket lokal und musste die Zahlungsart des Belegs
+  // (auch null oder eine ihm unbekannte) selbst weiterreichen. Jetzt kennt der
+  // Server das Original; das Paket schickt nur, was der Aufrufer ausdruecklich
+  // will. Ein Beleg ohne Zahlungsart oder mit einer dem Paket unbekannten
+  // ist deshalb kein Sonderfall mehr.
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   const beleg = { ...fromReceiptPayload(BELEG_NUTZLAST), paymentMethod: 'klarna' } as unknown as Receipt;
-  await cancelReceipt(rufen, { receipt: beleg });
+  await cancelReceipt(rufen, { receipt: beleg, reason: 'sonstiges' });
   const gesendet = JSON.parse(aufrufe[0]!.init.body) as { params: Record<string, unknown> };
-  assert.equal(gesendet.params['paymentMethod'], 'klarna');
+  assert.equal('paymentMethod' in gesendet.params, false);
+  assert.equal(gesendet.params['originalReceiptId'], BELEG_NUTZLAST.receiptId);
 });
 
 test('getReceipt: ein Beleg mit unbrauchbaren Positionen ist ein Antwortfehler, kein TypeError', async () => {

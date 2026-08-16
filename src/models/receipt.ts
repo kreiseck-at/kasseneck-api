@@ -9,6 +9,7 @@ import {
   receiptItemTotalCents,
 } from './receipt-item.js';
 import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
+import type { Cancellation, CancellationOf, CancellationReason } from './cancellation.js';
 
 /**
  * Beleg — Zwilling der Beleg-Nutzlast von `KasseneckReceipt` in
@@ -48,6 +49,12 @@ export interface Receipt {
   legalMessage: string[];
   signatureSuccess?: boolean;
   customProjectId?: string;
+  /** Nur am Storno-Beleg: das stornierte Original. */
+  cancellationOf?: CancellationOf;
+  /** Nur am Storno-Beleg: Grund-Code aus [CANCELLATION_REASONS]. */
+  cancellationReason?: CancellationReason | string;
+  /** Nur am Original: alle (Teil-)Stornos, Quelle der Restmengen. */
+  cancellations?: Cancellation[];
 }
 
 export interface ReceiptPayload {
@@ -82,6 +89,9 @@ export interface ReceiptPayload {
 export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouchers'> {
   items?: ReceiptItemPayloadRead[] | null;
   vouchers?: VoucherPayload[] | null;
+  cancellationOf?: CancellationOf | null;
+  cancellationReason?: string | null;
+  cancellations?: Cancellation[] | null;
 }
 
 /**
@@ -151,6 +161,20 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     legalMessage: leereZeile(payload.legalMessage),
     signatureSuccess: payload.signatureSuccess ?? undefined,
     customProjectId: payload.customProjectId ?? undefined,
+    ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId, fullReceiptId: payload.cancellationOf.fullReceiptId ?? null } } : {}),
+    ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
+    ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
+  };
+}
+
+function leseStorno(eintrag: Cancellation): Cancellation {
+  return {
+    ...(eintrag.receiptId !== undefined ? { receiptId: eintrag.receiptId } : {}),
+    ...(eintrag.pending === true ? { pending: true } : {}),
+    at: Number(eintrag.at ?? 0),
+    by: eintrag.by ?? null,
+    note: eintrag.note ?? null,
+    items: (eintrag.items ?? []).map((p) => ({ index: Number(p.index), quantity: Number(p.quantity) })),
   };
 }
 

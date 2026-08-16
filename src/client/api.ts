@@ -25,6 +25,7 @@ import {
   type ReceiptWithCompany,
   type SellReceiptOptions,
   type CancelReceiptOptions,
+  type CancelReceiptResult,
   type CreateCancelReceiptOptions,
 } from './receipts.js';
 import { listMyCashregisters } from './cashregisters.js';
@@ -59,8 +60,8 @@ export interface KasseneckApi {
   sellReceipt(options: SellReceiptOptions): Promise<Receipt>;
   /** Normalbeleg samt Firmen-/Druckdaten fuer den Belegdruck. */
   sellReceiptWithCompany(options: SellReceiptOptions): Promise<ReceiptWithCompany>;
-  /** Storno eines vorliegenden Belegs (Positionen negiert). */
-  cancelReceipt(options: CancelReceiptOptions): Promise<Receipt>;
+  /** Storno eines bestehenden Belegs — voll oder in Teilen, ueber den Storno-Endpunkt. */
+  cancelReceipt(options: CancelReceiptOptions): Promise<CancelReceiptResult>;
   /** Storno aus frei uebergebenen Positionen. */
   createCancelReceipt(options: CreateCancelReceiptOptions): Promise<Receipt>;
   /** Nullbeleg (RKSV-Pruefbeleg). */
