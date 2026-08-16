@@ -34,6 +34,50 @@ export function fromArticleGroupPayload(p: ArticleGroupPayload): ArticleGroup {
   };
 }
 
+/**
+ * Mengenregel eines Artikels: `stueck` = ganze Stueck (1, 2, 3 ...),
+ * `dezimal` = Kommamenge in der Einheit (0,250 kg, 1,5 m). Beleg und DEP
+ * bleiben ganzzahlig: eine Kommamenge wird an der Kasse als EINE Position mit
+ * ausgerechnetem Betrag gebucht, die Bezeichnung traegt die Menge
+ * („Wurst 0,250 kg“). Siehe [mengenregelFuerEinheit] fuer die Vorgabe je Einheit.
+ */
+export type Mengenregel = 'stueck' | 'dezimal';
+
+export interface MengenVorgabe {
+  regel: Mengenregel;
+  /** Kasse fragt beim Antippen nach der Menge (Wurst nach Gewicht: ja; Semmel: nein). */
+  fragen: boolean;
+  /** Nachkommastellen bei `dezimal`. */
+  stellen: number;
+}
+
+/** Einheiten, die nach Menge verkauft werden (Kommazahl, Kasse fragt). */
+const DEZIMAL_EINHEITEN: Readonly<Record<string, number>> = {
+  kg: 3, g: 0, l: 2, ml: 0, m: 2, lfm: 2, km: 1, 'm²': 2, m2: 2, 'm³': 3, m3: 3, std: 2, h: 2, min: 0, t: 3,
+};
+
+/** Vorgabe je Einheit -- was der Betrieb bei einem neuen Artikel bekommt und aendern darf. */
+export function mengenregelFuerEinheit(unit: string | null | undefined): MengenVorgabe {
+  const u = (unit ?? '').trim().toLowerCase();
+  if (u in DEZIMAL_EINHEITEN) {
+    const stellen = DEZIMAL_EINHEITEN[u]!;
+    return stellen === 0
+      ? { regel: 'stueck', fragen: true, stellen: 0 }   // g, ml, min: ganze Zahl, aber die Menge wird gefragt
+      : { regel: 'dezimal', fragen: true, stellen };
+  }
+  return { regel: 'stueck', fragen: false, stellen: 0 };
+}
+
+/** Wirksame Regel eines Artikels: gespeicherte Angabe schlaegt die Vorgabe der Einheit. */
+export function mengenVorgabe(a: Pick<KasseArtikel, 'unit' | 'mengenregel' | 'mengeFragen'>): MengenVorgabe {
+  const v = mengenregelFuerEinheit(a.unit);
+  return {
+    regel: a.mengenregel ?? v.regel,
+    fragen: a.mengeFragen ?? v.fragen,
+    stellen: (a.mengenregel ?? v.regel) === 'dezimal' ? Math.max(1, v.stellen || 2) : 0,
+  };
+}
+
 /** Artikel, wie ihn die Kasse fuer Kacheln und Belegpositionen braucht. */
 export interface KasseArtikel {
   id: string;
@@ -45,11 +89,16 @@ export interface KasseArtikel {
   sichtbar: boolean;
   sort: number;
   active: boolean;
+  /** Gespeicherte Mengenregel; null = Vorgabe der Einheit. */
+  mengenregel: Mengenregel | null;
+  /** Gespeichert: Kasse fragt nach der Menge; null = Vorgabe der Einheit. */
+  mengeFragen: boolean | null;
 }
 
 export interface KasseArtikelPayload {
   id?: string | null; name?: string | null; unitPriceCents?: number | null; vatRate?: number | null; unit?: string | null;
   groupId?: string | null; kasse?: { sichtbar?: boolean | null; sort?: number | null } | null; active?: boolean | null;
+  mengenregel?: string | null; mengeFragen?: boolean | null;
 }
 
 export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
@@ -63,6 +112,8 @@ export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
     sichtbar: p.kasse?.sichtbar !== false,
     sort: typeof p.kasse?.sort === 'number' ? p.kasse.sort : 0,
     active: p.active !== false,
+    mengenregel: p.mengenregel === 'stueck' || p.mengenregel === 'dezimal' ? p.mengenregel : null,
+    mengeFragen: typeof p.mengeFragen === 'boolean' ? p.mengeFragen : null,
   };
 }
 

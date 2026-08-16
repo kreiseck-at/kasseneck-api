@@ -14,6 +14,7 @@ export {
   type ArticleGroup, type ArticleGroupPayload, fromArticleGroupPayload,
   type KasseArtikel, type KasseArtikelPayload, fromKasseArtikelPayload,
   listMyArticleGroups, listMyArticles,
+  type Mengenregel, type MengenVorgabe, mengenregelFuerEinheit, mengenVorgabe,
 } from './artikel.js';
 export { getKasseSettings, setMyKasseSettings, setMyRegisterDeviceSettings } from './client.js';
 export { verteileRabatt } from '../receipt/discount.js';
