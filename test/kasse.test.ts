@@ -168,6 +168,13 @@ test('listMyReceipts schickt from/to und liest Positionen, Bediener und Storno-S
   assert.equal(b.cancellationOf, undefined);
 });
 
+test('fromReceiptSummaryPayload liest den Anlass eines Nullbelegs, verwirft Unbekanntes', () => {
+  const m = fromReceiptSummaryPayload({ receiptId: 'z', receiptType: 'zero', timeStamp: 't', total: 0, paymentMethod: 'cash', zeroKind: 'monthly' });
+  assert.equal(m.zeroKind, 'monthly');
+  const u = fromReceiptSummaryPayload({ receiptId: 'z', receiptType: 'zero', timeStamp: 't', total: 0, paymentMethod: 'cash', zeroKind: 'quatsch' });
+  assert.equal(u.zeroKind, undefined);
+});
+
 test('fromReceiptSummaryPayload ohne die neuen Felder bleibt wie bisher', () => {
   const s = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash' });
   assert.deepEqual(s.items, []);

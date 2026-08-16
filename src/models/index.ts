@@ -41,7 +41,7 @@ export {
   type CashregisterOnboardingPayload,
   fromCashregisterPayload,
 } from './cashregister.js';
-export { type ReceiptSummary, type ReceiptSummaryPayload, fromReceiptSummaryPayload } from './receipt-summary.js';
+export { type ReceiptSummary, type ReceiptSummaryPayload, fromReceiptSummaryPayload, type ZeroKind, ZERO_KINDS, istZeroKind } from './receipt-summary.js';
 export {
   type ReportMonth,
   reportMonthFromDate,
