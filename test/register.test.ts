@@ -6,6 +6,7 @@ import * as registerModul from '../src/register/index.js';
 import {
   pairRegisterDevice,
   listRegisterUsersForDevice,
+  unpairRegisterDevice,
   registerUserLogin,
   registerPinLogin,
   renewRegisterSession,
@@ -252,6 +253,15 @@ test('listRegisterUsersForDevice: Endpunktname und die drei Geraeteangaben', asy
     deviceSecret: GERAETE_GEHEIMNIS,
   });
   assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
+});
+
+test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg({ id: GERAET_ID }));
+  await unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
+  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/unpairRegisterDevice`);
+  assert.deepEqual(rumpfVon(aufrufe[0]!).params, { ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS });
+  assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
+  await assert.rejects(() => unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: '', fetch: holen }));
 });
 
 test('listRegisterUsersForDevice: liest Benutzer, Regel und Modus', async () => {
@@ -669,7 +679,7 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die sechs Aufrufe — und keine Anmeldung', () => {
+test('der Unterpfad ./register exportiert genau die sieben Aufrufe — und keine Anmeldung', () => {
   // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
@@ -683,6 +693,7 @@ test('der Unterpfad ./register exportiert genau die sechs Aufrufe — und keine 
       'registerPinLogin',
       'registerUserLogin',
       'renewRegisterSession',
+      'unpairRegisterDevice',
     ],
   );
   for (const wert of Object.values(registerModul)) {
