@@ -19,6 +19,16 @@ export {
   receiptSumCents,
 } from './receipt.js';
 export {
+  type CancellationOf,
+  type CancellationItem,
+  type Cancellation,
+  type CancellationReason,
+  CANCELLATION_REASONS,
+  CANCELLATION_RESERVATION_MS,
+  isCancellationReason,
+  remainingQuantities,
+} from './cancellation.js';
+export {
   type ReceiptCompany,
   type ReceiptCompanyPayload,
   fromReceiptCompanyPayload,

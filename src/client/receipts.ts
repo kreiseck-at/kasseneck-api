@@ -25,6 +25,10 @@ import {
   type ReceiptSummary,
   type ReceiptSummaryPayload,
   type ReportMonth,
+  type CancellationItem,
+  type CancellationOf,
+  type CancellationReason,
+  isCancellationReason,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
@@ -35,12 +39,13 @@ import type { KasseneckTransport } from './transport.js';
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
  * kasseneck_api/lib/kasseneck_api.dart.
  *
- * **Alle Belegarten laufen ueber einen einzigen Backend-Endpunkt
- * `createReceipt`.** `sellReceipt`, `cancelReceipt`, `createCancelReceipt` und
+ * **Verkauf, freier Storno und Nullbeleg laufen ueber einen einzigen
+ * Backend-Endpunkt `createReceipt`.** `sellReceipt`, `createCancelReceipt` und
  * `zeroReceipt` sind — wie im Flutter-Vorbild — benannte Bequemlichkeits-
  * schichten ueber [createReceipt]; sie legen den Belegtyp fest und reichen den
- * Rest durch. Die Pruefungen und der Nutzlast-Aufbau stehen deshalb genau
- * einmal da und nicht viermal.
+ * Rest durch. **[cancelReceipt] geht an den eigenen Endpunkt `cancelReceipt`**:
+ * der Server negiert die Positionen des Originals, prueft Restmengen und
+ * Rechte und verkettet beide Belege (Storno-API).
  *
  * **Kein Wiederholen fehlgeschlagener Aufrufe** (siehe transport.ts): ein
  * Beleg ist nicht folgenlos wiederholbar.
@@ -77,7 +82,7 @@ export interface CreateReceiptOptions extends ReceiptCommonOptions {
   paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
   /**
    * Zahlungsart, die aus einer **Serverantwort** stammt (Storno eines
-   * gelesenen Belegs, siehe [cancelReceipt]). Geht ungeprueft hinaus: der
+   * gelesenen Belegs). Geht ungeprueft hinaus: der
    * Server hat den Wert selbst vergeben und weist unbekannte selbst ab —
    * ergaenzt er eine Zahlungsart vor dem naechsten Paket-Update, waeren sonst
    * alle Belege damit unstornierbar. Nur fuer diesen einen Weg gedacht; eine
@@ -99,11 +104,28 @@ export interface SellReceiptOptions extends ReceiptCommonOptions {
  * Kundendaten des Stornos sind die des stornierten Belegs, sonst stimmten
  * Beleg und Storno nicht mehr ueberein.
  */
-export interface CancelReceiptOptions extends Omit<ReceiptCommonOptions, 'customerDetails'> {
-  /** Der zu stornierende Beleg; seine Positionen gehen negiert hinaus. */
-  receipt: Receipt;
-  /** Abweichende Zahlungsart; ohne Angabe die des stornierten Belegs. */
+/**
+ * Storno ueber den Endpunkt `cancelReceipt` (Backend: storno-endpoints.js).
+ * Der Server negiert die Positionen, prueft Restmengen und Rechte, verkettet
+ * Original und Storno-Beleg. Bezug entweder als Beleg-Objekt (`receipt`) oder
+ * als Kasse + Beleg-ID.
+ */
+export type CancelReceiptOptions = {
+  /** Grund aus dem Katalog — Pflicht, nur der Anzeigetext landet am Bon. */
+  reason: CancellationReason;
+  /** Teilstorno: Positionen (Index im Original) und Mengen. Fehlt = Vollstorno der Restmengen. */
+  items?: CancellationItem[];
+  /** Interne Anmerkung (≤ 200 Zeichen), wird gespeichert, nie gedruckt. */
+  note?: string;
+  /** Rueckzahlweg; ohne Angabe die Zahlungsart des stornierten Belegs. */
   paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
+} & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
+
+/** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
+export interface CancelReceiptResult {
+  receipt: Receipt;
+  cancellationOf: CancellationOf;
+  remaining: number[];
 }
 
 export interface CreateCancelReceiptOptions extends ReceiptCommonOptions {
@@ -233,29 +255,59 @@ export function sellReceiptWithCompany(
   return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
 }
 
+const NOTE_MAX = 200;
+
 /**
- * Stornobeleg zu einem bereits ausgestellten Beleg: dessen Positionen gehen
- * negiert hinaus, Kundendaten und Zahlungsart werden uebernommen. Gutscheine
- * des Originalbelegs wandern **nicht** mit (wie im Flutter-Vorbild) — ein
- * Gutschein-Storno ist ein eigener fachlicher Vorgang.
+ * Storno-Beleg zu einem bestehenden Beleg — voll oder in Teilen. Prueft die
+ * Eingabe, bevor etwas hinausgeht; der Server haelt die Restmengen und die
+ * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
+ * signierten Storno-Beleg. Gutscheine des Originals wandern nicht mit.
  */
-export function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptOptions): Promise<Receipt> {
-  const { receipt, paymentMethod, ...rest } = options;
-  return createReceipt(rufen, {
-    ...rest,
-    receiptType: ReceiptType.cancellation,
-    customerDetails: receipt.customerDetails,
-    items: receipt.items.map(negateReceiptItem),
-    // Eine ausdruecklich uebergebene Zahlungsart ist eine Aussage des
-    // Aufrufers und wird geprueft. Ohne sie gilt die des stornierten Belegs —
-    // die stammt vom Server und geht roh durch (sie kann eine Zahlungsart
-    // sein, die dieses Paket noch nicht kennt; still auf 'cash'
-    // zurueckzufallen verfaelschte die Zahlungsartenaufteilung im Tages- und
-    // Monatsbericht, und zu werfen machte solche Belege unstornierbar).
-    ...(paymentMethod != null
-      ? { paymentMethod }
-      : { paymentMethodFromServer: zahlungsartAusBeleg(receipt.paymentMethod) }),
-  });
+export async function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
+  const cashregisterId = options.receipt?.cashregisterId ?? options.cashregisterId;
+  const originalReceiptId = options.receipt?.receiptId ?? options.originalReceiptId;
+  if (typeof cashregisterId !== 'string' || cashregisterId.trim() === '') {
+    throw new KasseneckValidationError('cancelReceipt', 'cashregisterId fehlt', 'request');
+  }
+  if (typeof originalReceiptId !== 'string' || originalReceiptId.trim() === '') {
+    throw new KasseneckValidationError('cancelReceipt', 'originalReceiptId fehlt', 'request');
+  }
+  if (!isCancellationReason(options.reason)) {
+    throw new KasseneckValidationError('cancelReceipt', 'Storno-Grund fehlt oder ist unbekannt', 'request');
+  }
+  if (options.items !== undefined) {
+    if (!Array.isArray(options.items) || options.items.length === 0) {
+      throw new KasseneckValidationError('cancelReceipt', 'items muss eine nicht leere Liste sein', 'request');
+    }
+    for (const pos of options.items) {
+      if (!Number.isInteger(pos.index) || pos.index < 0 || !Number.isInteger(pos.quantity) || pos.quantity < 1) {
+        throw new KasseneckValidationError('cancelReceipt', 'Storno-Menge muss eine ganze Zahl >= 1 sein', 'request');
+      }
+    }
+  }
+  if (options.note !== undefined && options.note.length > NOTE_MAX) {
+    throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
+  }
+  const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
+  if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
+  if (options.note !== undefined && options.note !== '') params.note = options.note;
+  if (options.paymentMethod != null) params.paymentMethod = gepruefteZahlungsart(options.paymentMethod);
+
+  const daten = await rufen('cancelReceipt', params);
+  const receipt = belegAusHuelle(daten, 'cancelReceipt');
+  const huelle = daten as { cancellationOf?: unknown; remaining?: unknown };
+  const bezug = huelle.cancellationOf as { receiptId?: unknown; fullReceiptId?: unknown } | undefined;
+  if (bezug == null || typeof bezug.receiptId !== 'string') {
+    throw antwortfehler('cancelReceipt', 'Antwort enthaelt keinen Bezug (data.cancellationOf fehlt)');
+  }
+  if (!Array.isArray(huelle.remaining) || !huelle.remaining.every((n) => Number.isInteger(n))) {
+    throw antwortfehler('cancelReceipt', 'Antwort enthaelt keine Restmengen (data.remaining fehlt)');
+  }
+  return {
+    receipt,
+    cancellationOf: { receiptId: bezug.receiptId, fullReceiptId: typeof bezug.fullReceiptId === 'string' ? bezug.fullReceiptId : null },
+    remaining: huelle.remaining as number[],
+  };
 }
 
 /**
@@ -515,21 +567,6 @@ function alsNutzlast<T, P>(werte: T[], wandeln: (wert: T) => P): P[] {
     // (sie nennen den unbekannten Steuersatz bzw. Schluessel, sonst nichts).
     throw eingabefehler(ursache instanceof Error ? ursache.message : 'Ungueltige Nutzlast uebergeben.');
   }
-}
-
-/**
- * Zahlungsart eines **gelesenen** Belegs als roher Nutzlast-Wert. Drei Faelle:
- * bekannter Eintrag, unbekannter Schluessel (geht roh mit, siehe
- * [cancelReceipt]) und **gar keiner** — Start- und Nullbelege tragen keine,
- * das Backend sendet dann `null`. Da `typeof null === 'object'` ist, ergab das
- * beim Lesen von `.value` einen nackten TypeError; jetzt geht schlicht keine
- * Zahlungsart mit, statt einer leeren.
- */
-function zahlungsartAusBeleg(wert: Receipt['paymentMethod']): string | undefined {
-  if (wert != null && typeof wert === 'object') {
-    return wert.value;
-  }
-  return typeof wert === 'string' && wert !== '' ? wert : undefined;
 }
 
 /** Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht. */

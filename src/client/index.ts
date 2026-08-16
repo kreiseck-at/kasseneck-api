@@ -47,6 +47,7 @@ export {
   sellReceipt,
   sellReceiptWithCompany,
   cancelReceipt,
+  type CancelReceiptResult,
   createCancelReceipt,
   zeroReceipt,
   getReceipt,

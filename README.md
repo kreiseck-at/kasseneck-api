@@ -135,6 +135,26 @@ HTTP-/Formfehler, Netz-/Zeitfehler, Anmeldefehler, Formfehler der Ein- oder
 Ausgabe. **In keinem davon steht je ein Geheimnis** — weder Schlüssel noch
 Token, weder gesendete noch empfangene Rümpfe.
 
+## Storno: voll oder in Teilen
+
+```ts
+const ergebnis = await api.cancelReceipt({
+  receipt: beleg,                       // oder: cashregisterId + originalReceiptId
+  reason: 'fehleingabe',                // Katalog: CANCELLATION_REASONS
+  items: [{ index: 0, quantity: 1 }],   // weglassen = Vollstorno der Restmengen
+  note: 'Kunde wollte nur eine',        // intern, wird nie gedruckt
+});
+ergebnis.receipt;         // der signierte Storno-Beleg (receiptType cancellation)
+ergebnis.cancellationOf;  // Bezug auf das Original
+ergebnis.remaining;       // Restmengen des Originals danach
+```
+
+Der Server negiert die Positionen, prüft Restmengen und Rechte („nur eigene
+Belege" oder „alle") und verkettet Original und Storno. Ein Storno-Beleg lässt
+sich nicht stornieren, ein voll stornierter Beleg nicht noch einmal. Am
+gelesenen Original liefert `remainingQuantities(receipt)` die Reste vorab (für
+den Storno-Dialog); die Wahrheit hat der Server.
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |
