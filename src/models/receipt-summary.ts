@@ -42,6 +42,15 @@ export interface ReceiptSummary {
    * nichts Gegenteiliges vermerkt ist.
    */
   signatureOk: boolean;
+  /** Nur fuer Kassen-Benutzer geliefert: Positionen kurz (Name, Menge). */
+  items: Array<{ name: string; quantity: number }>;
+  /** Bediener am Beleg, wenn bekannt. */
+  operator?: { uid: string | null; name: string };
+  /** Nur am Storno-Beleg: das Original. */
+  cancellationOf?: { receiptId: string | null };
+  cancellationReason?: string;
+  /** offen | teil | voll -- Storno-Stand des Originals. */
+  stornoStand: 'offen' | 'teil' | 'voll';
 }
 
 export interface ReceiptSummaryPayload {
@@ -55,6 +64,11 @@ export interface ReceiptSummaryPayload {
   transmission_status?: string | null;
   ts_transmission?: string | null;
   signature_ok?: boolean | null;
+  items?: Array<{ name?: string | null; quantity?: number | null }> | null;
+  operator?: { uid?: string | null; name?: string | null } | null;
+  cancellationOf?: { receiptId?: string | null } | null;
+  cancellationReason?: string | null;
+  stornoStand?: string | null;
 }
 
 export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): ReceiptSummary {
@@ -70,5 +84,10 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     // Nur ein ausdrueckliches `false` heisst "ausgefallen" — genau wie im
     // Backend, das hier `signatureSuccess !== false` sendet.
     signatureOk: payload.signature_ok !== false,
+    items: Array.isArray(payload.items) ? payload.items.map((i) => ({ name: i?.name ?? '', quantity: typeof i?.quantity === 'number' ? i.quantity : 0 })) : [],
+    ...(payload.operator ? { operator: { uid: payload.operator.uid ?? null, name: payload.operator.name ?? '' } } : {}),
+    ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId ?? null } } : {}),
+    ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
+    stornoStand: payload.stornoStand === 'teil' || payload.stornoStand === 'voll' ? payload.stornoStand : 'offen',
   };
 }

@@ -164,6 +164,7 @@ den Storno-Dialog); die Wahrheit hat der Server.
 | `…/printing` | ESC/POS-Erzeugung: Bytefolgen für Bondrucker, ohne jeden Transport. |
 | `…/payments` | Stripe-Zahllinks und Hobex-Cloud (beides HTTP-Endpunkte des Backends). |
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
+| `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 
 So zieht sich niemand den React-Adapter in ein Node-Programm.

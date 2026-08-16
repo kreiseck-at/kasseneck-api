@@ -1,6 +1,11 @@
 import type { KasseneckAuth } from '../client/auth.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { createTransport, type KasseneckTransport, type TransportOptions } from '../client/transport.js';
+import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
+import {
+  KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
+  type KasseSettings, type KasseSettingsBetrieb, type KasseSettingsGeraet,
+} from '../kasse/settings.js';
 
 /**
  * Die drei Aufrufe, die **ohne jede Identitaet** laufen: Kopplung eines
@@ -118,6 +123,10 @@ export type RegisterLoginMode = 'auswahl' | 'pin' | (string & {});
 export interface RegisterDeviceUsers {
   /** Im Modus `pin` bewusst leer — Namen haben am nur-PIN-Geraet nichts verloren. */
   users: RegisterUserSummary[];
+  /** Kassen-Einstellungen (betriebsweit + Geraet), gemischt mit den Standardwerten. */
+  settings: KasseSettings;
+  /** Belegkopf-Daten des Betriebs (Name, Anschrift, UID, Fusszeilen) -- ohne Geheimnisse. */
+  betriebsdaten: ReceiptCompany | null;
   /**
    * `null`, wenn das Backend (noch) keine Regel nennt — dann zeigt die Kasse
    * das Freifeld, statt Kaestchen mit einer erratenen Stellenzahl.
@@ -135,20 +144,45 @@ export interface RegisterDeviceUsers {
  * Zweifel weniger anbieten, nicht mehr; die tatsaechliche Grenze zieht ohnehin
  * das Backend.
  */
+/** Reichweite eines Rechts: keine | nur eigene Belege | alle. */
+export type RegisterScope = 'none' | 'own' | 'all';
+
 export interface RegisterUserPerms {
   /** Belege ausstellen. */
   sell: boolean;
-  /** Belege stornieren. */
+  /** Belege stornieren (Schalter, gespiegelt aus cancelScope !== 'none'). */
   cancel: boolean;
   /** Artikelstamm bearbeiten. */
   articles: boolean;
-  /** Beleglayout bearbeiten. */
+  /** Beleglayout/Kassen-Einstellungen bearbeiten (Chef). */
   layout: boolean;
   /** Berichte ansehen. */
   reports: boolean;
   /** Eine belegte Kasse uebernehmen (nur Kassen-Chef). */
   takeover: boolean;
-  [weiteresRecht: string]: boolean;
+  /** Storno-Reichweite; fehlt bei Altbestand (dann zaehlt `cancel`: true = all). */
+  cancelScope?: RegisterScope;
+  /** Belege ansehen; fehlt bei Altbestand (= all). */
+  receiptsScope?: RegisterScope;
+  /** Kassenlade ohne Verkauf oeffnen. */
+  drawer?: boolean;
+  /** Rabatt geben. */
+  discount?: boolean;
+  /** Trinkgeld anderen zuweisen. */
+  tipAssign?: boolean;
+  [weiteresRecht: string]: boolean | RegisterScope | undefined;
+}
+
+/** Reichweite lesen, mit der Migration des Backends (register-auth.js). */
+export function cancelScopeOf(perms: RegisterUserPerms | null | undefined): RegisterScope {
+  if (!perms) return 'none';
+  if (perms.cancelScope !== undefined) return ['none', 'own', 'all'].includes(perms.cancelScope) ? perms.cancelScope : 'none';
+  return perms.cancel === true ? 'all' : 'none';
+}
+export function receiptsScopeOf(perms: RegisterUserPerms | null | undefined): RegisterScope {
+  if (!perms) return 'none';
+  if (perms.receiptsScope === undefined) return 'all';
+  return ['none', 'own', 'all'].includes(perms.receiptsScope) ? perms.receiptsScope : 'none';
 }
 
 /** Der angemeldete Kassen-Benutzer. */
@@ -261,7 +295,7 @@ export async function listRegisterUsersForDevice(
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
 
-  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown }>(
+  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown }>(
     name,
     { ownerUid, deviceId, deviceSecret },
     undefined,
@@ -283,7 +317,14 @@ export async function listRegisterUsersForDevice(
       altbestand: roh['altbestand'] === true,
     };
   });
-  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl' };
+  const settingsRoh = (daten?.settings ?? {}) as { betrieb?: unknown; geraet?: unknown };
+  const settings: KasseSettings = {
+    betrieb: mergeKasseSettings(KASSE_BETRIEB_STANDARD, (settingsRoh.betrieb ?? null) as Partial<KasseSettingsBetrieb> | null),
+    geraet: mergeKasseSettings(KASSE_GERAET_STANDARD, (settingsRoh.geraet ?? null) as Partial<KasseSettingsGeraet> | null),
+  };
+  const bd = daten?.betriebsdaten;
+  const betriebsdaten = bd && typeof bd === 'object' ? fromReceiptCompanyPayload(bd as ReceiptCompanyPayload) : null;
+  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl', settings, betriebsdaten };
 }
 
 /** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */

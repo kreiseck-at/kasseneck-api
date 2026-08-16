@@ -359,6 +359,9 @@ export interface ListMyReceiptsOptions {
    * selbst auf 1 bis 200 — ein groesserer Wunsch wird still gekappt.
    */
   limit?: number;
+  /** Zeitfenster (Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel); der Server deckelt auf 90 Tage. */
+  from?: string;
+  to?: string;
 }
 
 /**
@@ -387,9 +390,17 @@ export async function listMyReceipts(rufen: KasseneckTransport, options: ListMyR
       'request',
     );
   }
+  for (const feld of ['from', 'to'] as const) {
+    const wert = options[feld];
+    if (wert !== undefined && !/^\d{4}-\d{2}-\d{2}/.test(wert)) {
+      throw new KasseneckValidationError('listMyReceipts', `${feld} muss mit YYYY-MM-DD beginnen, war "${wert}"`, 'request');
+    }
+  }
   const daten = await rufen<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
     cashregisterid: options.cashregisterId,
     limit: options.limit,
+    ...(options.from !== undefined ? { from: options.from } : {}),
+    ...(options.to !== undefined ? { to: options.to } : {}),
   });
   const liste = daten?.receipts;
   if (!Array.isArray(liste)) {

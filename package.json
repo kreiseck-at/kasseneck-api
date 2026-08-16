@@ -83,6 +83,16 @@
         "types": "./dist/cjs/react/index.d.ts",
         "default": "./dist/cjs/react/index.js"
       }
+    },
+    "./kasse": {
+      "import": {
+        "types": "./dist/esm/kasse/index.d.ts",
+        "default": "./dist/esm/kasse/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/kasse/index.d.ts",
+        "default": "./dist/cjs/kasse/index.js"
+      }
     }
   },
   "files": [
