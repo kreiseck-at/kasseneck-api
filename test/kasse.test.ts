@@ -7,6 +7,7 @@ import {
   verteileRabatt,
   fromArticleGroupPayload,
   fromKasseArtikelPayload,
+  mengeErlaubt,
   getKasseSettings,
   setMyKasseSettings,
   setMyRegisterDeviceSettings,
@@ -108,7 +109,15 @@ test('fromArticleGroupPayload / fromKasseArtikelPayload lesen die Backend-Form',
   const g = fromArticleGroupPayload({ id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   assert.deepEqual(g, { id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   const a = fromKasseArtikelPayload({ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', kasse: { sichtbar: true, sort: 2 }, active: true });
-  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', sichtbar: true, sort: 2, active: true, mengenregel: null, mengeFragen: null });
+  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', sichtbar: true, sort: 2, active: true, mengenregel: null, mengeFragen: null, maxMenge: null });
+  // Hoechstmenge je Beleg: nur positive ganze Zahlen zaehlen, sonst keine Grenze
+  assert.equal(fromKasseArtikelPayload({ id: 'a2', name: 'Torte', maxMenge: 3 }).maxMenge, 3);
+  assert.equal(fromKasseArtikelPayload({ id: 'a3', name: 'X', maxMenge: 0 }).maxMenge, null);
+  assert.equal(fromKasseArtikelPayload({ id: 'a4', name: 'X', maxMenge: 2.5 }).maxMenge, null);
+  assert.equal(mengeErlaubt({ maxMenge: 3 }, 2), 2);
+  assert.equal(mengeErlaubt({ maxMenge: 3 }, 5), 3);
+  assert.equal(mengeErlaubt({ maxMenge: null }, 500), 500);
+  assert.equal(mengeErlaubt({ maxMenge: 3 }, 0), 0);
   // Altbestand ohne Kachel-Felder
   const alt = fromKasseArtikelPayload({ id: 'a2', name: 'Alt', unitPriceCents: 100, vatRate: 20 });
   assert.equal(alt.groupId, null);
