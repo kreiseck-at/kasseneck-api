@@ -55,6 +55,7 @@ export {
   type RegisterUserKind,
   type RegisterUserSummary,
   type RegisterUserPerms,
+  type RegisterScope,
   type RegisterUser,
   type RegisterUserSession,
   type ListRegisterUsersForDeviceOptions,
