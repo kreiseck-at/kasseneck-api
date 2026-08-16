@@ -50,6 +50,7 @@ test('Standardwerte: klar, Korb rechts, Trinkgeld aus, QR-Beleg -- wie im Backen
   assert.deepEqual(KASSE_BETRIEB_STANDARD.saetze, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false });
   assert.equal(KASSE_GERAET_STANDARD.layout, 'rechts');
   assert.equal(KASSE_GERAET_STANDARD.druckerPort, 9100);
+  assert.equal(KASSE_GERAET_STANDARD.touch, false); // Standard: Tastatur, kein Ziffernfeld
   // Schluesselmengen sind getrennt
   const b = Object.keys(KASSE_BETRIEB_STANDARD), g = Object.keys(KASSE_GERAET_STANDARD);
   assert.deepEqual(b.filter((x) => g.includes(x)), []);

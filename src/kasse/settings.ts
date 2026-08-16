@@ -65,7 +65,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
 });
 
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({
-  layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: true,
+  layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
   druckerAn: false, druckerArt: 'netz', druckerIp: '', druckerPort: 9100, druckerBt: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
