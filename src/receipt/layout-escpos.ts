@@ -83,6 +83,10 @@ export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOp
       case 'qr':
         escPosQrCode(doc, zeile.data, qrOptionen);
         break;
+      case 'banner':
+        // Belegart/Warnung: fett, zentriert, doppelte Hoehe; Warnungen zusaetzlich invers.
+        escPosText(doc, escPosPrintableText(zeile.text), { styles: { align: 'center', bold: true, height: 2, reverse: zeile.ton === 'warnung' } });
+        break;
     }
   }
 

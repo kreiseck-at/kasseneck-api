@@ -54,6 +54,13 @@ function pfadePruefen(eintrag, ziele, spur) {
 }
 
 for (const [eintrag, ziele] of Object.entries(paket.exports ?? {})) {
+  // Muster-Eintraege (`./fixtures/*`) zeigen auf ein Verzeichnis, nicht auf einen Bau.
+  if (eintrag.includes('*')) {
+    geprueft += 1;
+    const verzeichnis = String(typeof ziele === 'string' ? ziele : '').replace(/\*.*$/, '');
+    if (!verzeichnis || !existsSync(resolve(wurzel, verzeichnis))) fehler.push(`${eintrag} -> Verzeichnis ${verzeichnis} fehlt`);
+    continue;
+  }
   if (typeof ziele === 'string') {
     pfadePruefen(eintrag, { default: ziele }, '');
     continue;

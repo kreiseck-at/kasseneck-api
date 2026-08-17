@@ -97,6 +97,8 @@ function alsText(layout: ReceiptLayout): string[] {
         return `<space ${zeile.lines}>`;
       case 'qr':
         return `<qr ${zeile.data}>`;
+      case 'banner':
+        return `<banner ${zeile.text}>`;
     }
   });
 }
@@ -431,7 +433,7 @@ test('Betraege: ein verkaufter Wertgutschein steht als Position mit 0 % Umsatzst
   assert.equal(spaltenZeilen(layout).find((s) => s[0] === 'D 0%')?.[3], '50,00');
 });
 
-test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — mit QR und Gesamtsumme', () => {
+test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — reduziert, mit QR und Betrag 0 (Regelwerk 1)', () => {
   const beleg: Receipt = {
     ...BELEG,
     receiptType: ReceiptType.zero,
@@ -440,8 +442,10 @@ test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — mit QR und Gesamts
     legalMessage: [],
   };
   const layout = buildReceiptLayout(beleg, FIRMA);
-  assert.deepEqual(zeileMitBeschriftung(layout, 'Gesamt:'), ['Gesamt:', '0,00 €']);
+  assert.ok(textZeilen(layout).includes('Betrag: 0,00 €'));
   assert.equal(layout.lines.filter((z) => z.kind === 'qr').length, 1);
+  // Reduziert: keine Gesamt-/Zahlungsart-Zeile, keine Fusszeilen (siehe layout-belegart.test)
+  assert.equal(spaltenZeilen(layout).some((s) => s[0] === 'Gesamt:'), false);
 });
 
 test('Layout: ein unbekannter Steuersatz verhindert den Beleg nicht', () => {

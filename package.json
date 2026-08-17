@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -93,10 +93,12 @@
         "types": "./dist/cjs/kasse/index.d.ts",
         "default": "./dist/cjs/kasse/index.js"
       }
-    }
+    },
+    "./fixtures/*": "./fixtures/*"
   },
   "files": [
     "dist",
+    "fixtures",
     "README.md",
     "NOTICE"
   ],
@@ -111,7 +113,8 @@
     "prepare": "npm run build",
     "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
     "check:consumer": "node scripts/check-consumer-types.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

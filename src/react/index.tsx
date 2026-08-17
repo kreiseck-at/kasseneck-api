@@ -117,6 +117,16 @@ function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutL
       return <hr className="keck-receipt-rule" data-char={zeile.char} />;
     case 'space':
       return <div className="keck-receipt-space" style={{ height: `${zeile.lines}em` }} />;
+    case 'banner':
+      return (
+        <div
+          className={`keck-receipt-banner keck-receipt-banner--${zeile.ton}`}
+          role={zeile.ton === 'warnung' ? 'alert' : undefined}
+          style={{ textAlign: 'center', fontWeight: 'bold', letterSpacing: '0.06em', padding: '0.2em 0.4em', border: '2px solid currentColor', margin: '0.3em 0' }}
+        >
+          {zeile.text}
+        </div>
+      );
     case 'qr':
       {
         const bild = renderQr !== undefined ? renderQr(zeile.data) : <div data-qr={zeile.data} aria-label="RKSV-QR-Code" />;
