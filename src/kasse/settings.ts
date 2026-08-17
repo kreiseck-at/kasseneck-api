@@ -34,10 +34,14 @@ export interface KasseSettingsBetrieb {
   logoText: string; logoAn: boolean; logoGroesse: 'S' | 'M' | 'L'; wasserzeichen: KasseWasserzeichen; farbe: string;
   stil: KasseStil; schrift: KasseSchrift; schriftEinst: 'S' | 'M' | 'L'; kachelstil: 'streifen' | 'voll'; uhr: boolean;
   sperrbild: boolean; foto: boolean; autoAbMin: 0 | 1 | 5 | 15 | 30; abNachVerkauf: boolean;
+  /** Schnelles Entsperren mit gemerkter PIN (lokal, Server-Login laeuft nach); aus = streng, jeder Login wartet. */
+  schnellLogin: boolean;
   preisAnzeigen: boolean; ustAnzeigen: boolean; emoji: boolean; katFarben: boolean; freiErlaubt: boolean;
   saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: 'aus' | 'an';
   zahlBar: boolean; zahlKarte: boolean; kartenanbieter: KasseKartenanbieter; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
+  /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
+  tgChips: number[];
   belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10;
 }
 
@@ -70,12 +74,12 @@ export interface KasseSettings {
 export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.freeze({
   logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#1B46F5',
   stil: 'klar', schrift: 'M', schriftEinst: 'S', kachelstil: 'streifen', uhr: true,
-  sperrbild: true, foto: true, autoAbMin: 0, abNachVerkauf: false,
+  sperrbild: true, foto: true, autoAbMin: 0, abNachVerkauf: false, schnellLogin: true,
   preisAnzeigen: true, ustAnzeigen: false, emoji: true, katFarben: true, freiErlaubt: true,
   saetze: { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false },
   menge: 'x', notiz: false, suche: false, rabatt: 'aus',
   zahlBar: true, zahlKarte: false, kartenanbieter: 'keiner', trinkgeld: false, tgModus: 'beides',
-  tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgSplit: true, rueckgeld: true,
+  tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
   schnellbar: false, kassierenModus: 'seite',
   belegAusgabe: 'qr', fertigSekunden: 0,
 });
