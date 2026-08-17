@@ -169,6 +169,7 @@ function paketMitReactFalle(): string {
     'export const jsxs = () => {};',
     'export const jsxDEV = () => {};',
     'export const createElement = () => {};',
+    'export const useState = () => {};',
     'export default {};',
     "throw new Error('REACT-WURDE-GELADEN');",
     '',
@@ -204,4 +205,17 @@ test('Kern: ein Import des Pakets laedt React nicht', () => {
   } finally {
     rmSync(wurzel, { recursive: true, force: true });
   }
+});
+
+test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die Nutzlast bleibt als data-qr', () => {
+  const layout = buildReceiptLayout(BELEG, FIRMA, { paperSize: 'mm80' });
+  const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrVerdeckt renderQr={(d) => <i data-qr-bild={d} />} />);
+  assert.match(html, /keck-receipt-qr-toggle/);
+  assert.match(html, /aria-pressed="false"/);
+  assert.match(html, /blur\(6px\)/);
+  assert.match(html, /Antippen zum Anzeigen/);
+  assert.match(html, new RegExp(`data-qr="${QR_INHALT.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}"`));
+  // Rot-Probe: ohne qrVerdeckt kein Knopf, kein Weichzeichner
+  const offen = renderToStaticMarkup(<ReceiptLayoutView layout={layout} renderQr={(d) => <i data-qr-bild={d} />} />);
+  assert.doesNotMatch(offen, /keck-receipt-qr-toggle|blur\(/);
 });

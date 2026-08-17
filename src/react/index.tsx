@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { LayoutAlign, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
 
 /**
@@ -26,6 +26,14 @@ export interface ReceiptLayoutViewProps {
   className?: string;
   /** Zeichnet den RKSV-QR-Code; ohne Angabe erscheint ein Platzhalter mit `data-qr`. */
   renderQr?: (data: string) => ReactNode;
+  /**
+   * QR zunaechst verdeckt (weichgezeichnet) zeigen; ein Tipp macht ihn lesbar.
+   * Fuer Bildschirme, auf denen der Beleg nur zur Kontrolle steht -- der
+   * Signatur-QR gehoert dem Kunden und wird erst auf Verlangen freigegeben.
+   */
+  qrVerdeckt?: boolean;
+  /** Text auf dem verdeckten QR (Vorgabe „Antippen zum Anzeigen“). */
+  qrVerdecktText?: string;
 }
 
 const AUSRICHTUNG: Readonly<Record<LayoutAlign, CSSProperties['textAlign']>> = {
@@ -34,18 +42,43 @@ const AUSRICHTUNG: Readonly<Record<LayoutAlign, CSSProperties['textAlign']>> = {
   right: 'right',
 };
 
-export function ReceiptLayoutView({ layout, className, renderQr }: ReceiptLayoutViewProps): ReactNode {
+export function ReceiptLayoutView({ layout, className, renderQr, qrVerdeckt = false, qrVerdecktText }: ReceiptLayoutViewProps): ReactNode {
   const klasse = className === undefined ? 'keck-receipt' : `keck-receipt ${className}`;
   return (
     <div className={klasse} data-paper-size={layout.paperSize}>
       {layout.lines.map((zeile, index) => (
-        <Zeile key={index} zeile={zeile} renderQr={renderQr} />
+        <Zeile key={index} zeile={zeile} renderQr={renderQr} qrVerdeckt={qrVerdeckt} qrVerdecktText={qrVerdecktText} />
       ))}
     </div>
   );
 }
 
-function Zeile({ zeile, renderQr }: { zeile: LayoutLine; renderQr?: (data: string) => ReactNode }): ReactNode {
+/**
+ * Verdeckter QR: weichgezeichnet und nicht scannbar, bis der Betrachter ihn
+ * antippt. Die Nutzlast bleibt trotzdem als `data-qr` am Element -- fuer Tests
+ * und Werkzeuge, nicht fuers Auge.
+ */
+export function QrVerdeckt({ data, text = 'Antippen zum Anzeigen', children }: { data: string; text?: string; children: ReactNode }): ReactNode {
+  const [offen, setOffen] = useState(false);
+  return (
+    <button
+      type="button"
+      className={offen ? 'keck-receipt-qr-toggle keck-receipt-qr-toggle--offen' : 'keck-receipt-qr-toggle'}
+      aria-pressed={offen}
+      aria-label={offen ? 'QR-Code verdecken' : 'QR-Code anzeigen'}
+      data-qr={data}
+      onClick={() => setOffen((o) => !o)}
+      style={{ position: 'relative', display: 'inline-block', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+    >
+      <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(6px)', transition: 'filter .15s ease' }} aria-hidden={!offen}>{children}</span>
+      {!offen && (
+        <span className="keck-receipt-qr-toggle-text" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: '0.75em', fontWeight: 700 }}>{text}</span>
+      )}
+    </button>
+  );
+}
+
+function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutLine; renderQr?: (data: string) => ReactNode; qrVerdeckt?: boolean; qrVerdecktText?: string }): ReactNode {
   switch (zeile.kind) {
     case 'text':
       return (
@@ -84,10 +117,13 @@ function Zeile({ zeile, renderQr }: { zeile: LayoutLine; renderQr?: (data: strin
     case 'space':
       return <div className="keck-receipt-space" style={{ height: `${zeile.lines}em` }} />;
     case 'qr':
-      return (
-        <div className="keck-receipt-qr" style={{ textAlign: 'center' }}>
-          {renderQr !== undefined ? renderQr(zeile.data) : <div data-qr={zeile.data} aria-label="RKSV-QR-Code" />}
-        </div>
-      );
+      {
+        const bild = renderQr !== undefined ? renderQr(zeile.data) : <div data-qr={zeile.data} aria-label="RKSV-QR-Code" />;
+        return (
+          <div className="keck-receipt-qr" style={{ textAlign: 'center' }}>
+            {qrVerdeckt ? <QrVerdeckt data={zeile.data} text={qrVerdecktText}>{bild}</QrVerdeckt> : bild}
+          </div>
+        );
+      }
   }
 }
