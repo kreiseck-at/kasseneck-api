@@ -62,7 +62,29 @@ export interface RegisterDeviceCredentials {
   deviceSecret: string;
 }
 
-export interface PairRegisterDeviceOptions extends RegisterDeviceConnection {
+/** Was das Geraet ueber sich sagt -- fuer das Panel (welches Geraet ist das?). Alles optional. */
+export interface RegisterClientInfo {
+  userAgent?: string;
+  platform?: string;
+  language?: string;
+  /** IANA-Zeitzone, z. B. Europe/Vienna. */
+  tz?: string;
+  screen?: { w: number; h: number };
+}
+/** Standort aus der Browser-Ortung (freiwillig); Grundlage der Standortsperre. */
+export interface RegisterGeo {
+  lat: number;
+  lng: number;
+  /** Genauigkeit in Metern. */
+  acc?: number;
+}
+/** Angaben, die Kopplung und Login zusaetzlich mitschicken duerfen. */
+export interface RegisterGeraeteAngaben {
+  client?: RegisterClientInfo;
+  geo?: RegisterGeo | null;
+}
+
+export interface PairRegisterDeviceOptions extends RegisterDeviceConnection, RegisterGeraeteAngaben {
   /**
    * Achtstelliger Kopplungs-Code aus dem Panel. Er ist 15 Minuten gueltig,
    * genau **einmal** verwendbar und gilt fuer eine bestimmte Kasse.
@@ -133,6 +155,8 @@ export interface RegisterDeviceUsers {
    */
   policy: RegisterPinPolicy | null;
   loginMode: RegisterLoginMode;
+  /** Der Betrieb verlangt die Ortung beim Login (Standortsperre an). */
+  standortsperre: boolean;
 }
 
 /**
@@ -215,7 +239,7 @@ export interface ListRegisterUsersForDeviceOptions
   extends RegisterDeviceConnection,
     RegisterDeviceCredentials {}
 
-export interface RegisterUserLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+export interface RegisterUserLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterGeraeteAngaben {
   /** Kassen-Benutzer aus [listRegisterUsersForDevice]. */
   userId: string;
   /**
@@ -234,7 +258,7 @@ export interface RegisterUserLoginOptions extends RegisterDeviceConnection, Regi
   takeover?: boolean;
 }
 
-export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterGeraeteAngaben {
   /**
    * Die PIN allein — sie identifiziert UND authentifiziert (Geraete-Modus
    * `pin`; das Backend haelt PINs je Betrieb eindeutig). Das Format prueft
@@ -257,13 +281,13 @@ export interface RegisterPinLoginOptions extends RegisterDeviceConnection, Regis
  * [PairedRegisterDevice]).
  */
 export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Promise<PairedRegisterDevice> {
-  const { code, label, ...verbindung } = options;
+  const { code, label, client, geo, ...verbindung } = options;
   pflicht('pairRegisterDevice', 'code', code);
 
   // Der Code ist das Geheimnis dieses Aufrufs — siehe Modulkommentar.
   const daten = await transportFuer(verbindung)<Record<string, unknown>>(
     'pairRegisterDevice',
-    { code, label },
+    { code, label, client, geo: geo ?? undefined },
     undefined,
     [code],
   );
@@ -310,7 +334,7 @@ export async function listRegisterUsersForDevice(
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
 
-  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown }>(
+  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown; standortsperre?: unknown }>(
     name,
     { ownerUid, deviceId, deviceSecret },
     undefined,
@@ -339,7 +363,7 @@ export async function listRegisterUsersForDevice(
   };
   const bd = daten?.betriebsdaten;
   const betriebsdaten = bd && typeof bd === 'object' ? fromReceiptCompanyPayload(bd as ReceiptCompanyPayload) : null;
-  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl', settings, betriebsdaten };
+  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl', settings, betriebsdaten, standortsperre: daten?.standortsperre === true };
 }
 
 /** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */
@@ -363,7 +387,7 @@ function regel(wert: unknown): RegisterPinPolicy | null {
  * sperren gestaffelt (ab dem fuenften 30 Sekunden, ab dem neunten 15 Minuten).
  */
 export async function registerUserLogin(options: RegisterUserLoginOptions): Promise<RegisterUserSession> {
-  const { ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId, takeover, ...verbindung } = options;
+  const { ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId, takeover, client, geo, ...verbindung } = options;
   const name = 'registerUserLogin';
   pflicht(name, 'ownerUid', ownerUid);
   pflicht(name, 'deviceId', deviceId);
@@ -384,6 +408,7 @@ export async function registerUserLogin(options: RegisterUserLoginOptions): Prom
       // Nur die ausdrueckliche Uebernahme geht mit: das Backend prueft auf
       // `=== true`, und ein mitgesendetes `false` waere nur Rauschen.
       takeover: takeover === true ? true : undefined,
+      client, geo: geo ?? undefined,
     },
     undefined,
     [pin, deviceSecret],
@@ -399,7 +424,7 @@ export async function registerUserLogin(options: RegisterUserLoginOptions): Prom
  * zaehlen und sperren dort am **Geraet**, nicht an einem Benutzer.
  */
 export async function registerPinLogin(options: RegisterPinLoginOptions): Promise<RegisterUserSession> {
-  const { ownerUid, deviceId, deviceSecret, pin, cashregisterId, takeover, ...verbindung } = options;
+  const { ownerUid, deviceId, deviceSecret, pin, cashregisterId, takeover, client, geo, ...verbindung } = options;
   const name = 'registerPinLogin';
   pflicht(name, 'ownerUid', ownerUid);
   pflicht(name, 'deviceId', deviceId);
@@ -417,6 +442,7 @@ export async function registerPinLogin(options: RegisterPinLoginOptions): Promis
       cashregisterId,
       // Nur die ausdrueckliche Uebernahme geht mit — wie bei registerUserLogin.
       takeover: takeover === true ? true : undefined,
+      client, geo: geo ?? undefined,
     },
     undefined,
     [pin, deviceSecret],

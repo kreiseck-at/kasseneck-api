@@ -278,6 +278,26 @@ test('listRegisterUsersForDevice: liest Benutzer, Regel und Modus', async () => 
   assert.deepEqual(geraet.users[1], { id: 'ru-2', name: 'Terminal 2', kind: 'device', altbestand: true });
   assert.deepEqual(geraet.policy, { stellen: 4, zeichen: 'ziffern' });
   assert.equal(geraet.loginMode, 'auswahl');
+  assert.equal(geraet.standortsperre, false); // altes Backend: keine Sperre
+});
+
+test('Geraetedaten reisen mit: client/geo bei Kopplung und Login, standortsperre aus der Geraete-Antwort', async () => {
+  const gesehen: Array<Record<string, unknown>> = [];
+  const holen: FetchLike = async (_url, init) => {
+    gesehen.push(JSON.parse(init.body).params);
+    return erfolg({ deviceId: 'd', deviceSecret: 's', ownerUid: OWNER_UID, cashregisterId: 'K', betrieb: 'B', kasse: 'K',
+      sessionId: 'sess', customToken: 'ct', expiresAt: 1, user: { id: 'u', name: 'A', perms: {} },
+      users: [], policy: { stellen: 4, zeichen: 'ziffern' }, standortsperre: true });
+  };
+  const client = { userAgent: 'UA', platform: 'MacIntel', language: 'de-AT', tz: 'Europe/Vienna', screen: { w: 1440, h: 900 } };
+  await pairRegisterDevice({ code: 'ABCD1234', client, geo: { lat: 48.2, lng: 16.3, acc: 10 }, fetch: holen });
+  await registerUserLogin({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, userId: 'u', pin: '1234', cashregisterId: 'K', geo: null, client, fetch: holen });
+  const liste = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
+  assert.deepEqual(gesehen[0]?.client, client);
+  assert.deepEqual(gesehen[0]?.geo, { lat: 48.2, lng: 16.3, acc: 10 });
+  assert.equal(gesehen[1]?.geo, undefined); // null geht als „nicht gesendet“
+  assert.deepEqual(gesehen[1]?.client, client);
+  assert.equal(liste.standortsperre, true);
 });
 
 test('listRegisterUsersForDevice: eine Antwort ohne Regel bleibt lesbar (altes Backend)', async () => {
