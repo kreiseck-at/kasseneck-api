@@ -34,6 +34,7 @@ import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckValidationError } from './errors.js';
 import type { KasseneckTransport } from './transport.js';
+import type { ReceiptLayout } from '../receipt/layout.js';
 
 /**
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
@@ -142,7 +143,16 @@ export interface CreateCancelReceiptOptions extends ReceiptCommonOptions {
  */
 export interface ReceiptWithCompany {
   receipt: Receipt;
+  /** Kopf/Fuss, wie sie fuer DIESEN Beleg gelten (eingefrorene Version des Backends). */
   company: ReceiptCompany;
+  /** Beleg einer Testumgebung (Aufdruck TESTKASSE). */
+  testKasse: boolean;
+  /** Produktionskonto mit Test-Signatureinheit (Aufdruck TESTSIGNATUR). */
+  testSignatur: boolean;
+  /** Kennung der Kopf-Version; null bei altem Backend/Altbeleg ohne Zuordnung. */
+  kopfId: string | null;
+  /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
+  layout: ReceiptLayout | null;
 }
 
 /**
@@ -649,5 +659,14 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
  */
 function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
   const receipt = belegAusHuelle(daten, functionName);
-  return { receipt, company: fromReceiptCompanyPayload(daten as ReceiptCompanyPayload) };
+  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown };
+  const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
+  return {
+    receipt,
+    company: fromReceiptCompanyPayload(daten as ReceiptCompanyPayload),
+    testKasse: d.testKasse === true,
+    testSignatur: d.testSignatur === true,
+    kopfId: typeof d.kopfId === 'string' ? d.kopfId : null,
+    layout,
+  };
 }
