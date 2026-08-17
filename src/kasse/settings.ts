@@ -42,7 +42,7 @@ export interface KasseSettingsBetrieb {
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
   tgChips: number[];
-  belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10;
+  belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10 | 15 | 30 | 60;
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
