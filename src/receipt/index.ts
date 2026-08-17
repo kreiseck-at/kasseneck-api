@@ -11,6 +11,11 @@ export {
   type BuildReceiptLayoutOptions,
   buildReceiptLayout,
   receiptSignatureFailed,
+  receiptSignatureIsTest,
+  receiptIsZero,
+  AKTUELLES_REGELWERK,
+  type LayoutBannerLine,
+  type LayoutRegelwerk,
   SMALL_BUSINESS_NOTICE,
   formatCents,
 } from './layout.js';
