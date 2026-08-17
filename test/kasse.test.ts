@@ -114,7 +114,9 @@ test('fromArticleGroupPayload / fromKasseArtikelPayload lesen die Backend-Form',
   // Hoechstmenge je Beleg: nur positive ganze Zahlen zaehlen, sonst keine Grenze
   assert.equal(fromKasseArtikelPayload({ id: 'a2', name: 'Torte', maxMenge: 3 }).maxMenge, 3);
   assert.equal(fromKasseArtikelPayload({ id: 'a3', name: 'X', maxMenge: 0 }).maxMenge, null);
-  assert.equal(fromKasseArtikelPayload({ id: 'a4', name: 'X', maxMenge: 2.5 }).maxMenge, null);
+  assert.equal(fromKasseArtikelPayload({ id: 'a4', name: 'X', maxMenge: 2.5 }).maxMenge, 2.5); // Kommazahl (2,5 kg)
+  assert.equal(fromKasseArtikelPayload({ id: 'a5', name: 'X', maxMenge: -1 }).maxMenge, null);
+  assert.equal(mengeErlaubt({ maxMenge: 2.5 }, 3), 2.5);
   assert.equal(mengeErlaubt({ maxMenge: 3 }, 2), 2);
   assert.equal(mengeErlaubt({ maxMenge: 3 }, 5), 3);
   assert.equal(mengeErlaubt({ maxMenge: null }, 500), 500);
