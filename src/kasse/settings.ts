@@ -41,8 +41,21 @@ export interface KasseSettingsBetrieb {
   belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10;
 }
 
+/** Aktionen der Kasse, die eine Taste bekommen koennen. */
+export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck';
+export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck'];
+/** Tastenkarte: Aktion -> Tasten (`Mod+F`, `Enter`, `Escape`, `F5` ...; `Mod` = ⌘ auf dem Mac, Strg sonst). */
+export type KasseTastenkarte = Record<KasseTastenAktion, string[]>;
+export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
+  kassieren: ['Enter'], abschliessen: ['Enter'], abbrechen: ['Escape'],
+  frei: ['Mod+F'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
+  belege: ['Mod+E'], letzteZurueck: ['Mod+Backspace'],
+});
+
 export interface KasseSettingsGeraet {
   layout: KasseLayout; katpos: KasseKatpos; spaltenExtra: number; hoehe: KasseHoehe; touch: boolean;
+  /** Tastenbelegung dieses Geraets (Vorgabe KASSE_TASTEN_STANDARD, je Aktion mischbar). */
+  tasten: KasseTastenkarte;
   druckerAn: boolean; druckerArt: KasseDruckerArt; druckerIp: string; druckerPort: number; druckerBt: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
@@ -69,6 +82,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
 
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({
   layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
+  tasten: { ...KASSE_TASTEN_STANDARD },
   druckerAn: false, druckerArt: 'netz', druckerIp: '', druckerPort: 9100, druckerBt: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
