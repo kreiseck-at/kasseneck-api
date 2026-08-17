@@ -70,7 +70,8 @@ export function QrVerdeckt({ data, text = 'Antippen zum Anzeigen', children }: {
       onClick={() => setOffen((o) => !o)}
       style={{ position: 'relative', display: 'inline-block', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
     >
-      <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(6px)', transition: 'filter .15s ease' }} aria-hidden={!offen}>{children}</span>
+      {/* Nur optisch verdeckt: Semantik (QR-Bild, Fehlermeldung) bleibt fuer Hilfsmittel und Tests erreichbar. */}
+      <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(6px)', transition: 'filter .15s ease' }}>{children}</span>
       {!offen && (
         <span className="keck-receipt-qr-toggle-text" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: '0.75em', fontWeight: 700 }}>{text}</span>
       )}
