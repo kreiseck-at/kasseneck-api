@@ -84,13 +84,32 @@ export interface LayoutQrLine {
   data: string;
 }
 
-export type LayoutLine = LayoutTextLine | LayoutColumnsLine | LayoutRuleLine | LayoutSpaceLine | LayoutQrLine;
+/**
+ * Hervorgehobene Zeile (Belegart, Testhinweise): fett, zentriert, vom
+ * Zeichner sichtbar abgesetzt (Rahmen, invers oder Groesse). Der Text ist
+ * bereits fertig (RKSV § 11 Abs. 3: Trainings- und Stornobuchungen sind
+ * ausdruecklich als solche zu bezeichnen).
+ */
+export interface LayoutBannerLine {
+  kind: 'banner';
+  text: string;
+  /** `warnung` fuer Testkasse/Testsignatur (nicht gueltiger Beleg), sonst `belegart`. */
+  ton: 'belegart' | 'warnung';
+}
+
+export type LayoutLine = LayoutTextLine | LayoutColumnsLine | LayoutRuleLine | LayoutSpaceLine | LayoutQrLine | LayoutBannerLine;
+
+/** Version des Layout-Regelwerks. Alte Belege werden mit ihrer gespeicherten Version gesetzt. */
+export type LayoutRegelwerk = 1;
+export const AKTUELLES_REGELWERK: LayoutRegelwerk = 1;
 
 /** Der fertige Bauplan eines Belegs. */
 export interface ReceiptLayout {
   lines: LayoutLine[];
   /** Papierbreite, nach der die Spaltenbreiten gewaehlt wurden. */
   paperSize: PosPaperSize;
+  /** Regelwerk, nach dem gesetzt wurde. */
+  regelwerk: LayoutRegelwerk;
 }
 
 export interface BuildReceiptLayoutOptions {
@@ -99,6 +118,16 @@ export interface BuildReceiptLayoutOptions {
    * der USt-Tabelle. Vorgabe `mm58`.
    */
   paperSize?: PosPaperSize;
+  /** Layout-Regelwerk (Vorgabe: aktuelles). Unbekannt -> Fehler, nie stumm anders setzen. */
+  regelwerk?: LayoutRegelwerk;
+  /** Beleg einer Testumgebung: Rahmen „TESTKASSE — kein gültiger Beleg“ oben und unten. */
+  testKasse?: boolean;
+  /**
+   * Produktionskonto hat mit einer Test-Signatureinheit signiert: Rahmen
+   * „TESTSIGNATUR — kein gültiger Beleg“. Der Aufrufer entscheidet (er kennt
+   * das Konto); [receiptSignatureIsTest] sagt nur, OB die Signatur eine Testsignatur ist.
+   */
+  testSignatur?: boolean;
 }
 
 // -------------------------------------------------------------- Formatierung
@@ -189,6 +218,16 @@ const SIGNATUR_AUSGEFALLEN_BASE64URL = 'U2ljaGVyaGVpdHNlaW5yaWNodHVuZyBhdXNnZWZh
 /** Wurde der Beleg ohne funktionierende Signatureinheit ausgestellt? */
 export function receiptSignatureFailed(receipt: Receipt): boolean {
   return receipt.sig.split('.')[2] === SIGNATUR_AUSGEFALLEN_BASE64URL;
+}
+
+/**
+ * Traegt der Beleg eine **Test**-Signatur? Erkannt am ZDA-Kennzeichen `AT100`
+ * im maschinenlesbaren Code (`_R1-AT100_...`) — der Testpfad der Testumgebungen.
+ * Ob das ein Problem ist, weiss nur der Aufrufer (Testkonto: normal;
+ * Produktionskonto: „TESTSIGNATUR“-Warnung).
+ */
+export function receiptSignatureIsTest(receipt: Pick<Receipt, 'qr'>): boolean {
+  return /^_R1-AT100_/.test(receipt.qr ?? '');
 }
 
 // ------------------------------------------------------------- Steuersaetze
@@ -321,6 +360,95 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine 
   };
 }
 
+// ---------------------------------------------------------------- Belegart
+
+const TESTKASSE_TEXT = 'TESTKASSE — kein gültiger Beleg';
+const TESTSIGNATUR_TEXT = 'TESTSIGNATUR — kein gültiger Beleg';
+/** Erklaerung am Trainingsbeleg (Wortlaut mit dem Betreiber abgestimmt). */
+const TRAINING_ERKLAERUNG = [
+  'Trainingsbuchung — kein Kauf, keine Zahlung, keine steuerliche Buchung.',
+  'Sollten Sie diesen Beleg als Kunde erhalten haben, sagen Sie bitte dem Betrieb Bescheid.',
+];
+
+function bannerZeile(text: string, ton: LayoutBannerLine['ton'] = 'belegart'): LayoutBannerLine {
+  return { kind: 'banner', text, ton };
+}
+
+/** Belegtyp als Zeichenkette (Enum-Objekt oder roher Serverwert). */
+function belegtyp(receipt: Receipt): string {
+  return typeof receipt.receiptType === 'object' ? receipt.receiptType.value : String(receipt.receiptType ?? '');
+}
+
+/** Ist das ein Nullbeleg (Start-, Monats-, Jahres-, Schluss-, Pruefbeleg)? */
+export function receiptIsZero(receipt: Receipt): boolean {
+  const t = belegtyp(receipt);
+  return t === 'zero' || t === 'start';
+}
+
+/** Monat/Jahr des Belegs in Wiener Zeit -- fuer „Nullbeleg 08/2026“. */
+function belegMonatJahr(timeStamp: string): { monat: string; jahr: string } {
+  try {
+    const t = toViennaWallClock(parseServerTimeStamp(timeStamp));
+    return { monat: String(t.month).padStart(2, '0'), jahr: String(t.year) };
+  } catch {
+    return { monat: '??', jahr: '????' };
+  }
+}
+
+/** Grund eines Stornos lesbar (Katalog-Code oder freier Text). */
+function stornoGrundText(code: string | undefined): string | null {
+  if (!code) return null;
+  const bekannt: Record<string, string> = {
+    kunde_storniert: 'Kunde hat storniert', falsch_erfasst: 'Falsch erfasst', ware_retour: 'Ware zurückgenommen',
+    doppelt: 'Doppelt erfasst', preis_falsch: 'Preis falsch', sonstiges: 'Sonstiges',
+  };
+  return bekannt[code] ?? code;
+}
+
+/**
+ * Belegart-Block unter dem Betriebskopf: Titel als Banner, Untertitel als
+ * zentrierte Textzeilen. Verkaufsbelege bekommen keinen Block.
+ */
+function belegartBlock(receipt: Receipt): LayoutLine[] {
+  const t = belegtyp(receipt);
+  const aus: LayoutLine[] = [];
+  if (t === 'cancellation') {
+    aus.push(bannerZeile('STORNOBELEG'));
+    aus.push(textZeile(receipt.cancellationOf ? `Stornobuchung zu Beleg ${receipt.cancellationOf.receiptId}` : 'Stornobuchung', 'center'));
+    const grund = stornoGrundText(typeof receipt.cancellationReason === 'string' ? receipt.cancellationReason : undefined);
+    if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
+  } else if (t === 'training') {
+    aus.push(bannerZeile('TRAININGSBELEG'));
+    for (const z of TRAINING_ERKLAERUNG) aus.push(textZeile(z, 'center'));
+  } else if (t === 'start') {
+    aus.push(bannerZeile('STARTBELEG'));
+    aus.push(textZeile('Nullbeleg zur Inbetriebnahme', 'center'));
+  } else if (t === 'zero') {
+    const { monat, jahr } = belegMonatJahr(receipt.timeStamp);
+    switch (receipt.zeroKind) {
+      case 'monthly':
+        aus.push(bannerZeile('MONATSBELEG'), textZeile(`Nullbeleg ${monat}/${jahr}`, 'center'));
+        break;
+      case 'annual':
+        aus.push(bannerZeile('JAHRESBELEG'), textZeile(`Nullbeleg ${jahr} — Prüfung mit BMF-App`, 'center'));
+        break;
+      case 'annual_replacement':
+        // Ersatz-Jahresbeleg wird im Folgejahr erzeugt und gilt fuer das Vorjahr.
+        aus.push(bannerZeile('JAHRESBELEG'), textZeile(`Nullbeleg ${String(Number(jahr) - 1)} — Prüfung mit BMF-App (Ersatzbeleg)`, 'center'));
+        break;
+      case 'final':
+        aus.push(bannerZeile('SCHLUSSBELEG'), textZeile('Nullbeleg zur Außerbetriebnahme', 'center'));
+        break;
+      case 'outage_end':
+        aus.push(bannerZeile('NULLBELEG'), textZeile('Prüfbeleg nach Signaturausfall', 'center'));
+        break;
+      default:
+        aus.push(bannerZeile('NULLBELEG'), textZeile('Prüfbeleg', 'center'));
+    }
+  }
+  return aus;
+}
+
 // ------------------------------------------------------------------- Aufbau
 
 /**
@@ -333,7 +461,18 @@ export function buildReceiptLayout(
   options: BuildReceiptLayoutOptions = {},
 ): ReceiptLayout {
   const paperSize = options.paperSize ?? 'mm58';
+  const regelwerk = options.regelwerk ?? AKTUELLES_REGELWERK;
+  if (regelwerk !== 1) {
+    throw new KasseneckValidationError('buildReceiptLayout', `Unbekanntes Layout-Regelwerk ${String(regelwerk)} — bitte Paket aktualisieren`, 'request');
+  }
   const lines: LayoutLine[] = [];
+  const nullbeleg = receiptIsZero(receipt);
+  const warnungen: LayoutBannerLine[] = [];
+  if (options.testKasse) warnungen.push(bannerZeile(TESTKASSE_TEXT, 'warnung'));
+  if (options.testSignatur) warnungen.push(bannerZeile(TESTSIGNATUR_TEXT, 'warnung'));
+
+  // --- Warnrahmen oben (Testkasse/Testsignatur): ueber dem Kopf, damit ihn niemand uebersieht.
+  lines.push(...warnungen);
 
   // --- Belegkopf: Firma, Anschrift, Steuerangabe, Telefon
   lines.push(textZeile(company.companyName, 'center', true));
@@ -341,6 +480,33 @@ export function buildReceiptLayout(
   lines.push(textZeile(`${company.zip} ${company.city}`, 'center'));
   lines.push(textZeile(receiptCompanyTaxInfo(company), 'center'));
   lines.push(textZeile(company.phone, 'center'));
+
+  // --- Belegart (Storno, Training, Nullbeleg-Arten) direkt unter dem Kopf
+  const belegart = belegartBlock(receipt);
+  if (belegart.length > 0) {
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(...belegart);
+  }
+
+  // --- Nullbeleg: reduziert (§ 132a Abs. 3 BAO / RKSV § 11 Abs. 1 -- Pflichtangaben
+  //     ja, Positionen/MwSt-Tabelle/Zahlungsart/Fusszeilen nein).
+  if (nullbeleg) {
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(paarZeile('Datum:', belegZeit(receipt.timeStamp), 4, 8));
+    lines.push(paarZeile('Kassen-ID:', receipt.cashregisterId));
+    lines.push(paarZeile('Beleg-ID:', receipt.receiptId));
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(textZeile('Betrag: 0,00 €', 'center', true));
+    lines.push({ kind: 'space', lines: 1 });
+    if (receiptSignatureFailed(receipt)) {
+      lines.push(textZeile(SIGNATUR_AUSGEFALLEN, 'center'));
+      lines.push({ kind: 'space', lines: 1 });
+    }
+    lines.push({ kind: 'qr', data: receipt.qr });
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(...warnungen);
+    return { lines, paperSize, regelwerk };
+  }
 
   // --- Kundendaten
   if (receipt.customerDetails.length > 0) {
@@ -481,7 +647,13 @@ export function buildReceiptLayout(
     }
   }
 
-  return { lines, paperSize };
+  // --- Warnrahmen unten (Testkasse/Testsignatur)
+  if (warnungen.length > 0) {
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(...warnungen);
+  }
+
+  return { lines, paperSize, regelwerk };
 }
 
 /**

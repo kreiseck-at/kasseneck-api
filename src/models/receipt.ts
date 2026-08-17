@@ -10,6 +10,7 @@ import {
 } from './receipt-item.js';
 import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
 import type { Cancellation, CancellationOf, CancellationReason } from './cancellation.js';
+import { istZeroKind, type ZeroKind } from './receipt-summary.js';
 
 /**
  * Beleg — Zwilling der Beleg-Nutzlast von `KasseneckReceipt` in
@@ -55,6 +56,8 @@ export interface Receipt {
   cancellationReason?: CancellationReason | string;
   /** Nur am Original: alle (Teil-)Stornos, Quelle der Restmengen. */
   cancellations?: Cancellation[];
+  /** Nur an Nullbelegen: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
+  zeroKind?: ZeroKind;
 }
 
 export interface ReceiptPayload {
@@ -91,6 +94,7 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   vouchers?: VoucherPayload[] | null;
   cancellationOf?: CancellationOf | null;
   cancellationReason?: string | null;
+  zeroKind?: string | null;
   cancellations?: Cancellation[] | null;
 }
 
@@ -163,6 +167,7 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     customProjectId: payload.customProjectId ?? undefined,
     ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId, fullReceiptId: payload.cancellationOf.fullReceiptId ?? null } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
+    ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
   };
 }
