@@ -897,3 +897,21 @@ test('ein fremd erzeugter Beleg wird gedruckt, wie er signiert wurde', async () 
     'die gedruckte Summe muss die signierte sein',
   );
 });
+
+test('getReceiptWithCompany: Testkasse/Testsignatur, kopfId und mitgeliefertes Zeilenmodell kommen durch (fehlen: false/null)', async () => {
+  const layout = { lines: [{ kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', ton: 'warnung' }], paperSize: 'mm80', regelwerk: 1 };
+  const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, testKasse: false, testSignatur: true, kopfId: 'v1', layout }));
+  const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
+  const antwort = await getReceiptWithCompany(rufen, 'r-1');
+  assert.equal(antwort.testKasse, false);
+  assert.equal(antwort.testSignatur, true);
+  assert.equal(antwort.kopfId, 'v1');
+  assert.deepEqual(antwort.layout, layout);
+  // Rot-Probe: altes Backend ohne die Felder
+  const { holen: alt } = fetchFake(erfolg({ ...BELEG_ANTWORT }));
+  const a2 = await getReceiptWithCompany(createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: alt }), 'r-1');
+  assert.equal(a2.testKasse, false);
+  assert.equal(a2.testSignatur, false);
+  assert.equal(a2.kopfId, null);
+  assert.equal(a2.layout, null);
+});
