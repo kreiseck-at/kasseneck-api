@@ -224,3 +224,9 @@ test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {
   assert.deepEqual(g.tasten.bar, ['Mod+G']);
   assert.deepEqual(g.tasten.karte, ['Mod+K']);
 });
+
+test('schnellLogin (Vorgabe an) und tgChips (Vorgabe 5/10) stehen im Betriebs-Standard', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.schnellLogin, true);
+  assert.deepEqual(KASSE_BETRIEB_STANDARD.tgChips, [5, 10]);
+  assert.deepEqual(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { tgChips: [7.5] }).tgChips, [7.5]);
+});
