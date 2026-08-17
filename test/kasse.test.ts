@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   KASSE_BETRIEB_STANDARD,
+  KASSE_TASTEN_STANDARD,
   KARTENANBIETER,
   KASSE_GERAET_STANDARD,
   mergeKasseSettings,
@@ -214,4 +215,12 @@ test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbiet
   assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
   assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);
   assert.deepEqual([...KARTENANBIETER], ['keiner', 'extern', 'hobex', 'mypos', 'stripe']);
+});
+
+test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {
+  assert.equal(KASSE_TASTEN_STANDARD.frei[0], 'Mod+F');
+  assert.ok(!Object.values(KASSE_TASTEN_STANDARD).flat().some((t) => /^F\d/.test(t)));
+  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: { ...KASSE_TASTEN_STANDARD, bar: ['Mod+G'] } });
+  assert.deepEqual(g.tasten.bar, ['Mod+G']);
+  assert.deepEqual(g.tasten.karte, ['Mod+K']);
 });
