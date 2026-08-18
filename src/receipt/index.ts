@@ -35,3 +35,4 @@ export {
   gridAlsText,
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
+export { type EposPrintXmlOptions, eposPrintXml, eposXmlEscape } from './epos.js';
