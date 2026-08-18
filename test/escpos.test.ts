@@ -17,6 +17,7 @@ import {
   escPosQrCode,
   escPosReset,
   escPosRow,
+  wortzeilenText,
   escPosSetGlobalCodeTable,
   escPosSetGlobalFont,
   escPosText,
@@ -485,12 +486,85 @@ test('row: zu langer Spalteninhalt laeuft in eine Folgezeile statt verloren zu g
     69, 105, 110, 32, 115, 101, 104, 114, 32, 108, 97, 110, 103, 101, 114, // "Ein sehr langer"
     27, 36, 185, 0, 28, 46, 27, 116, 16, 88,
     10,
-    // Fortsetzungszeile
+    // Fortsetzungszeile -- ohne das fuehrende Leerzeichen: der Umbruch ist
+    // wortweise, das Trennzeichen faellt an der Zeilengrenze weg.
     27, 36, 0, 0, 28, 46, 27, 116, 16,
-    32, 65, 114, 116, 105, 107, 101, 108, 110, 97, 109, 101, // " Artikelname"
+    65, 114, 116, 105, 107, 101, 108, 110, 97, 109, 101, // "Artikelname"
     27, 36, 185, 0, 28, 46, 27, 116, 16,
     10,
   ]);
+});
+
+// Textzeilen aus dem Bytestrom lesen: druckbare Bytes zwischen den Steuerfolgen,
+// getrennt an 0x0A. Reicht, um Umbrueche zu pruefen.
+function textzeilen(bytes: Uint8Array): string[] {
+  const zeilen: string[] = [];
+  let aktuell = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    const b = bytes[i]!;
+    if (b === 0x1c) { i += 1; continue; }              // FS . (Kanji aus), kein Parameter
+    if (b === 0x1b || b === 0x1d) {                    // ESC/GS + Parameter ueberspringen
+      const cmd = bytes[i + 1];
+      i += cmd === 0x24 ? 3 : cmd === 0x40 ? 1 : 2;    // ESC $ nL nH ; ESC @ ; sonst 1 Parameter
+      continue;
+    }
+    if (b === 0x0a) { zeilen.push(aktuell); aktuell = ''; continue; }
+    if (b >= 0x20) aktuell += String.fromCharCode(b);
+  }
+  if (aktuell) zeilen.push(aktuell);
+  return zeilen;
+}
+
+test('row: Spalteninhalt bricht wortweise um -- "je 0,79" bleibt zusammen statt "je 0,7 | 9"', () => {
+  const doc = createEscPosDocument(); // 58 mm
+  escPosReset(doc);
+  // Positionszeile wie im Beleg-Layout (7/12 + 5/12): bei 58 mm passen 18 Zeichen in die Namensspalte.
+  escPosRow(doc, [
+    { text: '4  x Semmel je 0,79', width: 7 },
+    { text: '3,16 B', width: 5, styles: { align: 'right' } },
+  ]);
+  const z = textzeilen(escPosBytes(doc));
+  assert.equal(z.length, 2, z.join('|'));
+  assert.ok(z[0]!.startsWith('4  x Semmel'), z[0]);
+  assert.ok(z[0]!.endsWith('3,16 B'), z[0]);
+  assert.ok(!/0,7$/.test(z[0]!.replace(/3,16 B$/, '').trim()), 'kein Schnitt mitten in 0,79: ' + z[0]);
+  assert.ok(z[1]!.trim() === '0,79' || z[1]!.trim() === 'je 0,79', 'Folgezeile: ' + z[1]);
+});
+
+test('row: ein Wort ohne Leerzeichen wird weiterhin hart geteilt (sonst kaeme die Zeile nie voran)', () => {
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosRow(doc, [{ text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', width: 6 }, { text: '', width: 6 }]);
+  const z = textzeilen(escPosBytes(doc));
+  assert.equal(z.length, 2);
+  assert.equal(z[0], 'ABCDEFGHIJKLMNO');
+  assert.equal(z[1], 'PQRSTUVWXYZ');
+});
+
+test('wortzeilenText: Zeichenketten-Zwilling von escPosWortzeilen', () => {
+  assert.deepEqual(wortzeilenText('TESTSIGNATUR - kein gültiger Beleg', 32), ['TESTSIGNATUR - kein gültiger', 'Beleg']);
+  assert.deepEqual(wortzeilenText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10), ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ']);
+  assert.deepEqual(wortzeilenText('Ein sehr langer Artikelname', 15), ['Ein sehr langer', 'Artikelname']);
+  assert.deepEqual(wortzeilenText('a  b', 3), ['a', 'b']);
+  assert.deepEqual(wortzeilenText('', 5), ['']);
+});
+
+test('text: laengere Texte werden wortweise auf die Zeilenbreite umbrochen (32 Zeichen bei 58 mm)', () => {
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosText(doc, 'TESTSIGNATUR - kein gueltiger Beleg', { styles: { align: 'center', bold: true } });
+  const z = textzeilen(escPosBytes(doc));
+  assert.deepEqual(z, ['TESTSIGNATUR - kein gueltiger', 'Beleg']);
+  const doc2 = createEscPosDocument();
+  escPosReset(doc2);
+  escPosText(doc2, 'Umsatzsteuerbefreit - Kleinunternehmer gemaess § 6 Abs. 1 Z 27 UStG.');
+  const z2 = textzeilen(escPosBytes(doc2));
+  assert.deepEqual(z2, ['Umsatzsteuerbefreit -', 'Kleinunternehmer gemaess § 6', 'Abs. 1 Z 27 UStG.']);
+  // Rot-Probe: kurzer Text bleibt eine Zeile, Bytes unveraendert (kein zusaetzlicher Umbruch)
+  const doc3 = createEscPosDocument();
+  escPosReset(doc3);
+  escPosText(doc3, 'Cola');
+  assert.deepEqual(textzeilen(escPosBytes(doc3)), ['Cola']);
 });
 
 test('row: sehr viele Folgezeilen sprengen den Aufrufstapel nicht', () => {

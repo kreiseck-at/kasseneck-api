@@ -444,6 +444,71 @@ export function escPosSetStyles(doc: EscPosDocument, styles: PosStyles = {}): vo
  * Interner Textdruck: absolute Position setzen (`ESC $`), Stil senden, Bytes
  * ausgeben. [colInd]/[colWidth] beschreiben die Spalte im Zwoelftel-Raster.
  */
+/**
+ * Wortweiser Umbruch von (kodierten) Text-Bytes auf hoechstens `max` Zeichen
+ * je Zeile: geschnitten wird am letzten Leerzeichen innerhalb der Grenze
+ * (das Leerzeichen selbst faellt weg); gibt es keines, hart bei `max` --
+ * sonst kaeme die Zeile nie voran. Ein Bondrucker bricht sonst hart mitten
+ * im Wort ("Kleinunter|nehmer", "0,7|9"); das soll nie aufs Papier.
+ */
+export function escPosWortzeilen(textBytes: Uint8Array, max: number): Uint8Array[] {
+  const grenze = Math.max(1, Math.floor(max));
+  const out: Uint8Array[] = [];
+  let rest = textBytes;
+  while (rest.length > grenze) {
+    let schnitt = grenze;
+    if (rest[grenze] === 0x20) {
+      schnitt = grenze;
+    } else {
+      let i = grenze - 1;
+      while (i > 0 && rest[i] !== 0x20) i -= 1;
+      if (i > 0) schnitt = i;
+    }
+    let ende = schnitt;
+    while (ende > 0 && rest[ende - 1] === 0x20) ende -= 1; // Leerzeichen am Zeilenende weg
+    out.push(rest.slice(0, ende));
+    let weiter = schnitt;
+    while (weiter < rest.length && rest[weiter] === 0x20) weiter += 1;
+    rest = rest.slice(weiter);
+  }
+  out.push(rest);
+  return out;
+}
+
+/** Zeilen wieder zu einem Text (mit Leerzeichen) -- fuer den Rest einer Spalte. */
+function verketten(teile: Uint8Array[]): Uint8Array {
+  const laenge = teile.reduce((n, t) => n + t.length, 0) + Math.max(0, teile.length - 1);
+  const out = new Uint8Array(laenge);
+  let pos = 0;
+  teile.forEach((t, i) => {
+    if (i > 0) { out[pos] = 0x20; pos += 1; }
+    out.set(t, pos);
+    pos += t.length;
+  });
+  return out;
+}
+
+/** Dieselbe Regel fuer Zeichenketten -- fuer Bildschirm-Vorschauen, die das Papier nachstellen. */
+export function wortzeilenText(text: string, max: number): string[] {
+  const grenze = Math.max(1, Math.floor(max));
+  const out: string[] = [];
+  let rest = text;
+  while (rest.length > grenze) {
+    let schnitt = grenze;
+    if (rest[grenze] !== ' ') {
+      let i = grenze - 1;
+      while (i > 0 && rest[i] !== ' ') i -= 1;
+      if (i > 0) schnitt = i;
+    }
+    out.push(rest.slice(0, schnitt).replace(/ +$/, ''));
+    let weiter = schnitt;
+    while (weiter < rest.length && rest[weiter] === ' ') weiter += 1;
+    rest = rest.slice(weiter);
+  }
+  out.push(rest);
+  return out;
+}
+
 function textIntern(
   doc: EscPosDocument,
   textBytes: Uint8Array,
@@ -486,7 +551,15 @@ export function escPosText(doc: EscPosDocument, text: string, options: EscPosTex
   if (!istGanzzahl(zusaetzlich) || zusaetzlich < 0) {
     throw new Error('linesAfter muss eine Ganzzahl >= 0 sein');
   }
-  textIntern(doc, encodeEscPosText(text), { styles: options.styles });
+  // Laengere Texte wortweise auf die Zeilenbreite brechen -- der Drucker
+  // selbst wuerde hart mitten im Wort umbrechen.
+  const stile = vollstaendigeStile(options.styles);
+  const zeichenJeZeile = Math.max(1, Math.floor(zeichenProZeile(doc, stile) / (stile.width === 2 ? 2 : 1)));
+  const zeilen = escPosWortzeilen(encodeEscPosText(text), zeichenJeZeile);
+  zeilen.forEach((z, i) => {
+    textIntern(doc, z, { styles: options.styles });
+    if (i < zeilen.length - 1) escPosEmptyLines(doc, 1);
+  });
   escPosEmptyLines(doc, zusaetzlich + 1);
 }
 
@@ -580,9 +653,13 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
       if (spalte.styles !== undefined) folge.styles = spalte.styles;
 
       if (zuDrucken.length > maxZeichen) {
-        folge.textEncoded = zuDrucken.slice(maxZeichen);
-        zuDrucken = zuDrucken.slice(0, maxZeichen);
-        hatFolgezeile = true;
+        // Wortweise: erste Zeile bis zum letzten Leerzeichen innerhalb der
+        // Spalte, der Rest (ohne fuehrende Leerzeichen) in die Folgezeile.
+        const [erste, ...weitere] = escPosWortzeilen(zuDrucken, maxZeichen);
+        const rest = weitere.length ? verketten(weitere) : new Uint8Array(0);
+        folge.textEncoded = rest;
+        zuDrucken = erste!;
+        hatFolgezeile = rest.length > 0;
       } else {
         folge.text = '';
       }
