@@ -34,7 +34,7 @@ import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckValidationError } from './errors.js';
 import type { KasseneckTransport } from './transport.js';
-import type { ReceiptLayout } from '../receipt/layout.js';
+import type { Pruefangaben, ReceiptLayout } from '../receipt/layout.js';
 
 /**
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
@@ -153,6 +153,11 @@ export interface ReceiptWithCompany {
   kopfId: string | null;
   /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
   layout: ReceiptLayout | null;
+  /**
+   * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2) --
+   * fuer Clients, die das Layout selbst bauen; null bei altem Backend.
+   */
+  pruefangaben: Pruefangaben | null;
 }
 
 /**
@@ -659,8 +664,10 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
  */
 function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
   const receipt = belegAusHuelle(daten, functionName);
-  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown };
+  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown; pruefangaben?: unknown };
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
+  const pa = d.pruefangaben && typeof d.pruefangaben === 'object' ? (d.pruefangaben as { karteRegistriertAm?: unknown; kasseRegistriertAm?: unknown }) : null;
+  const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
   return {
     receipt,
     company: fromReceiptCompanyPayload(daten as ReceiptCompanyPayload),
@@ -668,5 +675,6 @@ function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWi
     testSignatur: d.testSignatur === true,
     kopfId: typeof d.kopfId === 'string' ? d.kopfId : null,
     layout,
+    pruefangaben: pa ? { karteRegistriertAm: text(pa.karteRegistriertAm), kasseRegistriertAm: text(pa.kasseRegistriertAm) } : null,
   };
 }

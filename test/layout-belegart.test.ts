@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { KeckPaymentMethod, ReceiptType, VatRate } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { buildReceiptLayout, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
+import { AKTUELLES_REGELWERK, buildReceiptLayout, receiptAmountsAreZero, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
 
 /**
  * Belegart-Aufdruck (RKSV § 11 Abs. 3: Trainings- und Stornobuchungen sind
@@ -65,9 +65,9 @@ test('Trainingsbeleg: TRAININGSBELEG mit Erklaerung -- kein Kauf, keine Zahlung,
   assert.match(t, /Bescheid/);
 });
 
-test('Nullbeleg: reduziert -- Kopf, Aufdruck, Kennung, Betrag 0, QR; keine Positionen, MwSt-Tabelle, Zahlungsart, Fusszeilen', () => {
+test('Nullbeleg (Regelwerk 1, Altbelege): reduziert -- Kopf, Aufdruck, Kennung, Betrag 0, QR; keine Positionen, MwSt-Tabelle, Zahlungsart, Fusszeilen', () => {
   const null0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '' };
-  const l = buildReceiptLayout(null0, FIRMA);
+  const l = buildReceiptLayout(null0, FIRMA, { regelwerk: 1 });
   assert.deepEqual(banner(l), ['NULLBELEG']);
   const t = alsText(l);
   assert.ok(t.includes('Prüfbeleg'), t.join('\n'));
@@ -123,10 +123,66 @@ test('Testsignatur: erkannt am ZDA AT100 im QR; Aufdruck nur, wenn der Aufrufer 
   assert.deepEqual(banner(buildReceiptLayout({ ...BELEG, qr: testQr }, FIRMA)), []);
 });
 
-test('Regelwerk: 1 ist die Vorgabe und steht am Layout; unbekannt wirft', () => {
-  assert.equal(buildReceiptLayout(BELEG, FIRMA).regelwerk, 1);
+test('Regelwerk: 2 ist die Vorgabe und steht am Layout; 1 setzt Altbelege wie bisher; unbekannt wirft', () => {
+  assert.equal(AKTUELLES_REGELWERK, 2);
+  assert.equal(buildReceiptLayout(BELEG, FIRMA).regelwerk, 2);
   assert.equal(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 1 }).regelwerk, 1);
   assert.throws(() => buildReceiptLayout(BELEG, FIRMA, { regelwerk: 99 as 1 }), /Regelwerk/);
+  // Vollbelege sind in beiden Regelwerken zeilengleich -- Regelwerk 2 aendert nur den Nullbeleg.
+  assert.deepEqual(alsText(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 2 })), alsText(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 1 })));
+});
+
+// --- Regelwerk 2: Nullbeleg als Pruefbeleg -------------------------------------
+const NULL0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '', zeroKind: 'monthly', timeStamp: '2026-08-31T23:59:30',
+  qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR' };
+
+test('Regelwerk 2: Nullbeleg traegt einen Block "Prüfangaben" statt der Summenzeile', () => {
+  const l = buildReceiptLayout(NULL0, FIRMA, { pruefangaben: { karteRegistriertAm: '2024-03-12', kasseRegistriertAm: '2024-03-12' } });
+  const t = alsText(l);
+  assert.deepEqual(banner(l), ['MONATSBELEG']);
+  assert.ok(t.includes('Prüfangaben'), t.join('\n'));
+  assert.ok(!t.some((z) => z === 'Betrag: 0,00 €'), 'Summenzeile darf nicht mehr da sein');
+  assert.ok(t.some((z) => z === 'Barumsatz: 0,00 €'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Signatur: signiert'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Signaturkarte: 6F0404F0'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Zertifizierungsdienst: A-Trust (AT1)'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Karte registriert: 12.03.2024'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Kasse registriert: 12.03.2024'), t.join('\n'));
+  // Reihenfolge: Kennung -> Pruefangaben -> QR; nach wie vor keine Positionen/Fusszeilen
+  assert.ok(stelle(l, 'Beleg-ID:') < stelle(l, 'Prüfangaben'));
+  assert.ok(stelle(l, 'Prüfangaben') < l.lines.findIndex((z) => z.kind === 'qr'));
+  assert.ok(!t.some((z) => z.startsWith('MwSt%')));
+  assert.ok(!t.includes('Vielen Dank für Ihren Einkauf'));
+  assert.equal(l.lines.filter((z) => z.kind === 'qr').length, 1);
+});
+
+test('Regelwerk 2: unbekannte Registrierdaten lassen die Zeile weg; ZDA-Kennungen; Ausfall', () => {
+  const ohne = alsText(buildReceiptLayout(NULL0, FIRMA));
+  assert.ok(!ohne.some((z) => z.startsWith('Karte registriert:')));
+  assert.ok(!ohne.some((z) => z.startsWith('Kasse registriert:')));
+  assert.ok(ohne.some((z) => z === 'Signaturkarte: 6F0404F0'));
+  const zda = (kennung: string) => alsText(buildReceiptLayout({ ...NULL0, qr: NULL0.qr.replace('_R1-AT1_', `_R1-${kennung}_`) }, FIRMA)).find((z) => z.startsWith('Zertifizierungsdienst:'));
+  assert.equal(zda('AT0'), 'Zertifizierungsdienst: geschlossenes System (AT0)');
+  assert.equal(zda('AT2'), 'Zertifizierungsdienst: GlobalTrust (AT2)');
+  assert.equal(zda('AT3'), 'Zertifizierungsdienst: PrimeSign (AT3)');
+  assert.equal(zda('AT100'), 'Zertifizierungsdienst: Testsignatur (AT100)');
+  assert.equal(zda('AT7'), 'Zertifizierungsdienst: AT7');
+  // Signaturausfall: Zeile im Block UND der Pflichthinweis (§ 17 RKSV) bleiben
+  const ausfall = alsText(buildReceiptLayout({ ...NULL0, signatureSuccess: false, sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.U2ljaGVyaGVpdHNlaW5yaWNodHVuZyBhdXNnZWZhbGxlbg' }, FIRMA));
+  assert.ok(ausfall.some((z) => z === 'Signatur: ausgefallen'), ausfall.join('\n'));
+  assert.ok(ausfall.some((z) => z.includes('Sicherheitseinrichtung ausgefallen')), ausfall.join('\n'));
+});
+
+test('Regelwerk 2: "Nullbeleg" mit echten Betraegen wird NICHT reduziert -- die Zahlen stehen drauf', () => {
+  const falsch: Receipt = { ...NULL0, items: [{ name: 'Espresso', quantity: 1, vat: VatRate.vat20, priceCents: 250 }] };
+  const t = alsText(buildReceiptLayout(falsch, FIRMA));
+  assert.ok(!t.includes('Prüfangaben'));
+  assert.ok(t.some((z) => z.startsWith('MwSt%')));
+  assert.ok(t.some((z) => z.startsWith('Gesamt:')));
+  assert.equal(receiptAmountsAreZero(falsch), false);
+  assert.equal(receiptAmountsAreZero(NULL0), true);
+  // Gutschein-Einloesung ohne Positionen ist auch kein Nullbeleg
+  assert.equal(receiptAmountsAreZero({ ...NULL0, vouchers: [{ type: 'value', action: 'redeem', value: 5, name: null } as never] }), false);
 });
 
 test('Receipt-Modell: zeroKind wird auch am Vollbeleg gelesen', () => {

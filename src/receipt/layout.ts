@@ -99,9 +99,27 @@ export interface LayoutBannerLine {
 
 export type LayoutLine = LayoutTextLine | LayoutColumnsLine | LayoutRuleLine | LayoutSpaceLine | LayoutQrLine | LayoutBannerLine;
 
-/** Version des Layout-Regelwerks. Alte Belege werden mit ihrer gespeicherten Version gesetzt. */
-export type LayoutRegelwerk = 1;
-export const AKTUELLES_REGELWERK: LayoutRegelwerk = 1;
+/**
+ * Version des Layout-Regelwerks. Alte Belege werden mit ihrer gespeicherten
+ * Version gesetzt.
+ * - 1: Nullbeleg reduziert mit Summenzeile „Betrag: 0,00 €“.
+ * - 2: Nullbeleg als Pruefbeleg mit Block „Prüfangaben“ (Barumsatz, Signatur,
+ *   Signaturkarte, Zertifizierungsdienst, Registrierdaten); reduziert nur,
+ *   wenn alle Betraege wirklich 0 sind. Vollbelege unveraendert.
+ */
+export type LayoutRegelwerk = 1 | 2;
+export const AKTUELLES_REGELWERK: LayoutRegelwerk = 2;
+
+/**
+ * Registrierdaten fuer den Block „Prüfangaben“ auf Nullbelegen (Regelwerk 2).
+ * Kennt sie nur das Backend (FinanzOnline-Registrierung der Signaturkarte und
+ * der Kasse); fehlen sie, entfallen die Zeilen. Datum als „YYYY-MM-DD“ oder
+ * ISO-Zeitstempel (Wiener Kalendertag).
+ */
+export interface Pruefangaben {
+  karteRegistriertAm?: string | null;
+  kasseRegistriertAm?: string | null;
+}
 
 /** Der fertige Bauplan eines Belegs. */
 export interface ReceiptLayout {
@@ -128,6 +146,8 @@ export interface BuildReceiptLayoutOptions {
    * das Konto); [receiptSignatureIsTest] sagt nur, OB die Signatur eine Testsignatur ist.
    */
   testSignatur?: boolean;
+  /** Registrierdaten fuer den Block „Prüfangaben“ (nur Nullbelege, Regelwerk 2). */
+  pruefangaben?: Pruefangaben | null;
 }
 
 // -------------------------------------------------------------- Formatierung
@@ -385,6 +405,62 @@ export function receiptIsZero(receipt: Receipt): boolean {
   return t === 'zero' || t === 'start';
 }
 
+/**
+ * Sind alle Betraege des Belegs wirklich 0? (Keine Positionen mit Wert, keine
+ * Gutscheine.) Ein Nullbeleg, der das nicht erfuellt, ist ein Datenfehler --
+ * Regelwerk 2 setzt ihn dann als normalen Beleg.
+ */
+export function receiptAmountsAreZero(receipt: Receipt): boolean {
+  if (receipt.vouchers.length > 0) return false;
+  return receiptSumCents(receipt) === 0 && receipt.items.every((it) => it.priceCents === 0 || it.quantity === 0);
+}
+
+/**
+ * Zertifizierungsdienst aus der QR-Kennung `_R1-<ZDA>_` (RKSV-Detailspezifikation:
+ * AT0 geschlossenes System, AT1 A-Trust, AT2 GlobalTrust, AT3 PrimeSign,
+ * AT100 Testsignatur). Unbekannte Kennung: nur die Kennung.
+ */
+export function receiptZdaText(qr: string): string | null {
+  const m = /^_R1-(AT\d+)_/.exec(qr ?? '');
+  if (!m) return null;
+  const kennung = m[1] as string;
+  const namen: Record<string, string> = { AT0: 'geschlossenes System', AT1: 'A-Trust', AT2: 'GlobalTrust', AT3: 'PrimeSign', AT100: 'Testsignatur' };
+  const name = namen[kennung];
+  return name ? `${name} (${kennung})` : kennung;
+}
+
+/** „YYYY-MM-DD“ oder ISO -> „TT.MM.JJJJ“ (Wiener Kalendertag); Unlesbares -> null. */
+function pruefDatum(wert: string | null | undefined): string | null {
+  if (!wert) return null;
+  const nurTag = /^(\d{4})-(\d{2})-(\d{2})$/.exec(wert);
+  if (nurTag) return `${nurTag[3]}.${nurTag[2]}.${nurTag[1]}`;
+  try {
+    const t = toViennaWallClock(parseServerTimeStamp(wert));
+    const zwei = (n: number): string => String(n).padStart(2, '0');
+    return `${zwei(t.day)}.${zwei(t.month)}.${t.year}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Block „Prüfangaben“ des Nullbelegs (Regelwerk 2). Nichts Geheimes: alles steht auch im QR bzw. bei FinanzOnline. */
+function pruefangabenBlock(receipt: Receipt, angaben: Pruefangaben | null): LayoutLine[] {
+  const out: LayoutLine[] = [];
+  out.push({ kind: 'rule', char: '-' });
+  out.push(textZeile('Prüfangaben', 'center', true));
+  out.push(paarZeile('Barumsatz:', '0,00 €'));
+  out.push(paarZeile('Signatur:', receiptSignatureFailed(receipt) ? 'ausgefallen' : 'signiert'));
+  if (receipt.certificateSerialNumber) out.push(paarZeile('Signaturkarte:', receipt.certificateSerialNumber));
+  const zda = receiptZdaText(receipt.qr);
+  if (zda) out.push(paarZeile('Zertifizierungsdienst:', zda, 7, 5));
+  const karte = pruefDatum(angaben?.karteRegistriertAm);
+  if (karte) out.push(paarZeile('Karte registriert:', karte));
+  const kasse = pruefDatum(angaben?.kasseRegistriertAm);
+  if (kasse) out.push(paarZeile('Kasse registriert:', kasse));
+  out.push({ kind: 'rule', char: '-' });
+  return out;
+}
+
 /** Monat/Jahr des Belegs in Wiener Zeit -- fuer „Nullbeleg 08/2026“. */
 function belegMonatJahr(timeStamp: string): { monat: string; jahr: string } {
   try {
@@ -462,11 +538,13 @@ export function buildReceiptLayout(
 ): ReceiptLayout {
   const paperSize = options.paperSize ?? 'mm58';
   const regelwerk = options.regelwerk ?? AKTUELLES_REGELWERK;
-  if (regelwerk !== 1) {
+  if (regelwerk !== 1 && regelwerk !== 2) {
     throw new KasseneckValidationError('buildReceiptLayout', `Unbekanntes Layout-Regelwerk ${String(regelwerk)} — bitte Paket aktualisieren`, 'request');
   }
   const lines: LayoutLine[] = [];
-  const nullbeleg = receiptIsZero(receipt);
+  // Regelwerk 2: ein „Nullbeleg“ mit echten Betraegen wird nicht reduziert --
+  // die Zahlen stehen drauf, statt hinter einer Null zu verschwinden.
+  const nullbeleg = receiptIsZero(receipt) && (regelwerk === 1 || receiptAmountsAreZero(receipt));
   const warnungen: LayoutBannerLine[] = [];
   if (options.testKasse) warnungen.push(bannerZeile(TESTKASSE_TEXT, 'warnung'));
   if (options.testSignatur) warnungen.push(bannerZeile(TESTSIGNATUR_TEXT, 'warnung'));
@@ -496,7 +574,11 @@ export function buildReceiptLayout(
     lines.push(paarZeile('Kassen-ID:', receipt.cashregisterId));
     lines.push(paarZeile('Beleg-ID:', receipt.receiptId));
     lines.push({ kind: 'space', lines: 1 });
-    lines.push(textZeile('Betrag: 0,00 €', 'center', true));
+    if (regelwerk === 1) {
+      lines.push(textZeile('Betrag: 0,00 €', 'center', true));
+    } else {
+      lines.push(...pruefangabenBlock(receipt, options.pruefangaben ?? null));
+    }
     lines.push({ kind: 'space', lines: 1 });
     if (receiptSignatureFailed(receipt)) {
       lines.push(textZeile(SIGNATUR_AUSGEFALLEN, 'center'));
