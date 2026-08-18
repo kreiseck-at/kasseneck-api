@@ -36,12 +36,14 @@ for (const name of namen) {
 }
 
 test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe und Erwartung (Drift in fremden Repos erkennbar)', () => {
-  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, { eingabe: string; erwartet: string }> };
+  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, { eingabe: string; erwartet: string; grid32: string; grid48: string }> };
   assert.equal(manifest.regelwerk, 2);
   for (const name of namen) {
     const e = createHash('sha256').update(readFileSync(new URL(`belege/${name}.json`, wurzel))).digest('hex');
     const a = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel))).digest('hex');
-    assert.deepEqual(manifest.belege[name], { eingabe: e, erwartet: a }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
+    const g32 = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.grid32.txt`, wurzel))).digest('hex');
+    const g48 = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.grid48.txt`, wurzel))).digest('hex');
+    assert.deepEqual(manifest.belege[name], { eingabe: e, erwartet: a, grid32: g32, grid48: g48 }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
   }
 });
 
