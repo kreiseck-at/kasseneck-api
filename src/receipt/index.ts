@@ -14,6 +14,7 @@ export {
   receiptSignatureIsTest,
   receiptIsZero,
   receiptAmountsAreZero,
+  receiptIsSmallBusinessConsistent,
   receiptZdaText,
   type Pruefangaben,
   AKTUELLES_REGELWERK,

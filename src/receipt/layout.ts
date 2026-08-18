@@ -1,5 +1,7 @@
 import { VatRate, VoucherAction, VoucherType } from '../enums/index.js';
 import {
+  CANCELLATION_REASONS,
+  isCancellationReason,
   receiptCompanyTaxInfo,
   receiptItemTotalCents,
   receiptSubSumCents,
@@ -473,14 +475,23 @@ function belegMonatJahr(timeStamp: string): { monat: string; jahr: string } {
   }
 }
 
-/** Grund eines Stornos lesbar (Katalog-Code oder freier Text). */
+/**
+ * Grund eines Stornos lesbar -- aus dem EINEN Katalog des Modells
+ * (`CANCELLATION_REASONS`, derselbe, den die Kasse anbietet und das Backend
+ * annimmt). Unbekannter Code (Fremdclient): sichtbar, aber ohne zu werfen.
+ */
 function stornoGrundText(code: string | undefined): string | null {
   if (!code) return null;
-  const bekannt: Record<string, string> = {
-    kunde_storniert: 'Kunde hat storniert', falsch_erfasst: 'Falsch erfasst', ware_retour: 'Ware zurückgenommen',
-    doppelt: 'Doppelt erfasst', preis_falsch: 'Preis falsch', sonstiges: 'Sonstiges',
-  };
-  return bekannt[code] ?? code;
+  return isCancellationReason(code) ? CANCELLATION_REASONS[code] : code;
+}
+
+/**
+ * Kleinunternehmer (§ 6 Abs. 1 Z 27 UStG, unechte Befreiung): auf dem Beleg
+ * darf keine USt stehen -- jede Position 0 %. Sagt, ob der Beleg dazu passt;
+ * das Backend weist Widersprueche beim Ausstellen ab, hier ist es die Probe.
+ */
+export function receiptIsSmallBusinessConsistent(receipt: Receipt): boolean {
+  return receipt.items.every((it) => Number(steuersatz(it.vat).rate) === 0);
 }
 
 /**

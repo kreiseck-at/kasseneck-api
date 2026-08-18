@@ -6,7 +6,7 @@
                                                 
                   STORNOBELEG                   
       Stornobuchung zu Beleg AT0-KASSE1-42      
-             Grund: Falsch erfasst              
+               Grund: Fehleingabe               
                                                 
 Datum:                       13.08.2026 10:15:30
 Kassen-ID:                                KASSE1
