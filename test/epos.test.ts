@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { eposPrintXml, eposXmlEscape, ZEICHEN_JE_PAPIER } from '../src/receipt/index.js';
+import { eposDirectPrint, eposDirectStatus, eposParseResponse, eposPrintXml, eposServiceUrl, eposSoapEnvelope, eposXmlEscape, ZEICHEN_JE_PAPIER } from '../src/receipt/index.js';
 
 /**
  * ePOS-Print XML (Epson TM, Server Direct Print / ePOS-Print): aus dem
@@ -47,4 +47,46 @@ test('eposXmlEscape und Zeilen ohne Text; jede Textzeile hat einen Zeilenumbruch
   assert.equal(eposXmlEscape('a<b>&"\''), 'a&lt;b&gt;&amp;&quot;&apos;');
   const xml = eposPrintXml({ paperSize: 'mm58', regelwerk: 2, lines: [{ kind: 'text', text: 'Zeile', align: 'left', bold: false }] });
   assert.ok(/<text>Zeile {27}&#10;<\/text>/.test(xml), xml);
+});
+
+// ---------------------------------------------------------- ePOS direkt per IP
+
+test('ePOS direkt: Service-URL, SOAP-Huelle, Antwort lesen', () => {
+  // Nachgemessen am TM-T20 (ePOS-Print 5.0): POST https://<ip>/cgi-bin/epos/service.cgi?devid=..&timeout=..;
+  // Antwort <response success="true" code="" status="..."/>, dazu CORS- und Private-Network-Header.
+  assert.equal(eposServiceUrl('192.168.0.136'), 'https://192.168.0.136/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000');
+  assert.equal(eposServiceUrl(' 192.168.0.136 ', 'theke 1', 5000), 'https://192.168.0.136/cgi-bin/epos/service.cgi?devid=theke%201&timeout=5000');
+  assert.throws(() => eposServiceUrl(''), /IP/);
+  assert.throws(() => eposServiceUrl('192.168.0.136/x'), /IP/);
+  const huelle = eposSoapEnvelope('<epos-print xmlns="x"/>');
+  assert.equal(huelle, '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="x"/></s:Body></s:Envelope>');
+  assert.deepEqual(eposParseResponse('<?xml version="1.0"?><s:Envelope><s:Body><response success="true" code="" status="251658262" battery="0" xmlns="n"></response></s:Body></s:Envelope>'), { success: true, code: '', status: '251658262' });
+  assert.deepEqual(eposParseResponse('<response success="false" code="EPTR_COVER_OPEN" status="1"/>'), { success: false, code: 'EPTR_COVER_OPEN', status: '1' });
+  assert.deepEqual(eposParseResponse('kaputt'), { success: false, code: 'keine_antwort', status: '' });
+});
+
+test('ePOS direkt: drucken und Status ueber fetch; Netzfehler wird verstaendlich', async () => {
+  const aufrufe: { url: string; init: RequestInit }[] = [];
+  const fetchOk = (async (url: string, init: RequestInit) => { aufrufe.push({ url, init }); return { ok: true, status: 200, text: async () => '<response success="true" code="" status="1"/>' }; }) as unknown as typeof fetch;
+  const r = await eposDirectPrint(LAYOUT, { ip: '192.168.0.136', papier: 'mm58' }, fetchOk);
+  assert.deepEqual(r, { success: true, code: '', status: '1' });
+  assert.equal(aufrufe[0]!.url, 'https://192.168.0.136/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000');
+  assert.equal(aufrufe[0]!.init.method, 'POST');
+  assert.equal((aufrufe[0]!.init.headers as Record<string, string>)['SOAPAction'], '""');
+  const body = String(aufrufe[0]!.init.body);
+  assert.ok(body.startsWith('<?xml version="1.0" encoding="utf-8"?><s:Envelope'));
+  assert.ok(body.includes('<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'));
+  // 58 mm: dieselben Bytes wie das 32-Zeichen-Raster, nicht das 48er des Layouts
+  assert.ok(body.includes(eposPrintXml({ ...LAYOUT, paperSize: 'mm58' }, { zeichen: 32 })));
+  assert.ok(!body.includes(eposPrintXml(LAYOUT, { zeichen: 48 })));
+  // Statusabfrage: leeres Dokument, druckt nichts
+  const s = await eposDirectStatus({ ip: '192.168.0.136', devid: 'p1' }, fetchOk);
+  assert.deepEqual(s, { success: true, code: '', status: '1' });
+  assert.ok(String(aufrufe[1]!.init.body).includes('<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"/>'));
+  assert.ok(aufrufe[1]!.url.includes('devid=p1'));
+  // Netzfehler (Zertifikat nicht akzeptiert / nicht erreichbar)
+  const fetchNetz = (async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch;
+  await assert.rejects(eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetchNetz), /https:\/\/192\.168\.0\.136/);
+  const fetch500 = (async () => ({ ok: false, status: 500, text: async () => '' })) as unknown as typeof fetch;
+  await assert.rejects(eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetch500), /HTTP 500/);
 });
