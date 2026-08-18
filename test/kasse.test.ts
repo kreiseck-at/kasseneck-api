@@ -232,12 +232,12 @@ test('schnellLogin (Vorgabe an) und tgChips (Vorgabe 5/10) stehen im Betriebs-St
 });
 
 // --- Netzwerk-Bondrucker (Server Direct Print) --------------------------------
-import { listPrinters, createPrintJob, getPrintJob } from '../src/kasse/index.js';
+import { listMyPrinters, createPrintJob, getPrintJob } from '../src/kasse/index.js';
 import { KASSE_GERAET_STANDARD as GERAET_STD } from '../src/kasse/index.js';
 
-test('listPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-Einstellungen kennen sdp + druckerId', async () => {
+test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-Einstellungen kennen sdp + druckerId', async () => {
   const l = transportMit({ drucker: [{ id: 'd1', name: 'Theke', art: 'epson-sdp', papier: 'mm58', aktiv: true, erstellt: 1, zuletztGesehen: 5, zuletztErgebnis: null, druckerKennung: 'TM-m30III' }] });
-  const drucker = await listPrinters(l.rufen);
+  const drucker = await listMyPrinters(l.rufen);
   assert.equal(gesendet(l.aufrufe).fn, 'listMyPrinters');
   assert.deepEqual(drucker.map((d) => [d.id, d.name, d.papier, d.zuletztGesehen]), [['d1', 'Theke', 'mm58', 5]]);
   const c = transportMit({ jobId: 'j1', status: 'offen' });
