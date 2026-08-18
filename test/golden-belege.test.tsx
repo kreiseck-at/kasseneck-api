@@ -37,7 +37,7 @@ for (const name of namen) {
 
 test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe und Erwartung (Drift in fremden Repos erkennbar)', () => {
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, { eingabe: string; erwartet: string }> };
-  assert.equal(manifest.regelwerk, 1);
+  assert.equal(manifest.regelwerk, 2);
   for (const name of namen) {
     const e = createHash('sha256').update(readFileSync(new URL(`belege/${name}.json`, wurzel))).digest('hex');
     const a = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel))).digest('hex');

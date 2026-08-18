@@ -441,11 +441,16 @@ test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — reduziert, mit QR 
     customerDetails: [],
     legalMessage: [],
   };
-  const layout = buildReceiptLayout(beleg, FIRMA);
+  const layout = buildReceiptLayout(beleg, FIRMA, { regelwerk: 1 });
   assert.ok(textZeilen(layout).includes('Betrag: 0,00 €'));
   assert.equal(layout.lines.filter((z) => z.kind === 'qr').length, 1);
   // Reduziert: keine Gesamt-/Zahlungsart-Zeile, keine Fusszeilen (siehe layout-belegart.test)
   assert.equal(spaltenZeilen(layout).some((s) => s[0] === 'Gesamt:'), false);
+  // Regelwerk 2 (Vorgabe): Block Pruefangaben statt Summenzeile
+  const neu = buildReceiptLayout(beleg, FIRMA);
+  assert.ok(textZeilen(neu).includes('Prüfangaben'));
+  assert.ok(!textZeilen(neu).includes('Betrag: 0,00 €'));
+  assert.equal(spaltenZeilen(neu).some((s) => s[0] === 'Barumsatz:'), true);
 });
 
 test('Layout: ein unbekannter Steuersatz verhindert den Beleg nicht', () => {

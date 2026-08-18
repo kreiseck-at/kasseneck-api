@@ -121,6 +121,9 @@ const { receipt, company } = await api.sellReceiptWithCompany({
 });
 
 // Layout bauen (reines Datenmodell: Zeilen, Ausrichtung, Spalten, QR-Code) …
+// Layout-Regelwerk: gespeicherte Belege tragen ihre Version (`layoutRegeln`);
+// ohne Angabe gilt das aktuelle (2: Nullbelege mit Block „Prüfangaben“ —
+// die Registrierdaten dafür liefert `getReceiptWithCompany` als `pruefangaben`).
 const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58' });
 
 // … und daraus die Bytes für den Bondrucker. Der Transport zum Drucker ist
