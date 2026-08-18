@@ -230,3 +230,30 @@ test('schnellLogin (Vorgabe an) und tgChips (Vorgabe 5/10) stehen im Betriebs-St
   assert.deepEqual(KASSE_BETRIEB_STANDARD.tgChips, [5, 10]);
   assert.deepEqual(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { tgChips: [7.5] }).tgChips, [7.5]);
 });
+
+// --- Netzwerk-Bondrucker (Server Direct Print) --------------------------------
+import { listPrinters, createPrintJob, getPrintJob } from '../src/kasse/index.js';
+import { KASSE_GERAET_STANDARD as GERAET_STD } from '../src/kasse/index.js';
+
+test('listPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-Einstellungen kennen sdp + druckerId', async () => {
+  const l = transportMit({ drucker: [{ id: 'd1', name: 'Theke', art: 'epson-sdp', papier: 'mm58', aktiv: true, erstellt: 1, zuletztGesehen: 5, zuletztErgebnis: null, druckerKennung: 'TM-m30III' }] });
+  const drucker = await listPrinters(l.rufen);
+  assert.equal(gesendet(l.aufrufe).fn, 'listMyPrinters');
+  assert.deepEqual(drucker.map((d) => [d.id, d.name, d.papier, d.zuletztGesehen]), [['d1', 'Theke', 'mm58', 5]]);
+  const c = transportMit({ jobId: 'j1', status: 'offen' });
+  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
+  const job = await createPrintJob(c.rufen, { druckerId: 'd1', layout, receiptId: 'K1-ID-1', titel: 'Beleg', quelle: 'kasse' });
+  assert.equal(job.jobId, 'j1');
+  const g = gesendet(c.aufrufe);
+  assert.equal(g.fn, 'createPrintJob');
+  assert.deepEqual(g.params, { druckerId: 'd1', layout, receiptId: 'K1-ID-1', titel: 'Beleg', quelle: 'kasse' });
+  const s = transportMit({ jobId: 'j1', status: 'gedruckt', erstellt: 1, gesendetAt: 2, ergebnis: { erfolg: true, code: null, status: '0', zeit: 3 } });
+  const st = await getPrintJob(s.rufen, { druckerId: 'd1', jobId: 'j1' });
+  assert.equal(st.status, 'gedruckt');
+  assert.equal(st.ergebnis?.erfolg, true);
+  // Einstellungen: neue Verbindungsart und Drucker-Kennung
+  assert.equal(GERAET_STD.druckerId, '');
+  const rz = await getKasseSettings(transportMit({ geraet: { druckerArt: 'sdp', druckerId: 'd1' } }).rufen);
+  assert.equal(rz.geraet.druckerArt, 'sdp');
+  assert.equal(rz.geraet.druckerId, 'd1');
+});
