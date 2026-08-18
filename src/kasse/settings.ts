@@ -21,7 +21,8 @@ export type KasseBelegAusgabe = 'qr' | 'druck' | 'mail' | 'sms' | 'fragen';
 export type KasseLayout = 'rechts' | 'links' | 'vollbild';
 export type KasseKatpos = 'oben' | 'links';
 export type KasseHoehe = 'S' | 'M' | 'L';
-export type KasseDruckerArt = 'netz' | 'bt' | 'usb';
+/** `sdp` = Netzwerk ueber Epson Server Direct Print (der Drucker holt Jobs vom Backend, jeder Browser druckt). */
+export type KasseDruckerArt = 'sdp' | 'netz' | 'bt' | 'usb';
 export type KassePapier = 'mm58' | 'mm80';
 export type KasseZeichensatz = 'CP1252' | 'CP437';
 export type KasseSchnitt = 'partial' | 'full' | 'none';
@@ -61,6 +62,8 @@ export interface KasseSettingsGeraet {
   /** Tastenbelegung dieses Geraets (Vorgabe KASSE_TASTEN_STANDARD, je Aktion mischbar). */
   tasten: KasseTastenkarte;
   druckerAn: boolean; druckerArt: KasseDruckerArt; druckerIp: string; druckerPort: number; druckerBt: string;
+  /** Kennung des Netzwerk-Druckers (Server Direct Print) aus `listPrinters`; '' = keiner gewaehlt. */
+  druckerId: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
   terminalIp: string; terminalPort: number;
@@ -87,7 +90,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({
   layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
   tasten: { ...KASSE_TASTEN_STANDARD },
-  druckerAn: false, druckerArt: 'netz', druckerIp: '', druckerPort: 9100, druckerBt: '',
+  druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerId: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
   terminalIp: '', terminalPort: 20008,

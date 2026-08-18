@@ -22,3 +22,4 @@ export { verteileRabatt } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
 export { cancelScopeOf, receiptsScopeOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
+export { type NetzDrucker, type DruckJob, type DruckJobStatus, type CreatePrintJobOptions, listPrinters, createPrintJob, getPrintJob } from './drucker.js';
