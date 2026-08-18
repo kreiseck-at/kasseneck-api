@@ -3,22 +3,20 @@ import {
   escPosBytes,
   escPosCut,
   escPosFeed,
-  escPosHr,
   escPosPrintableText,
   escPosQrCode,
   escPosReset,
-  escPosRow,
   escPosText,
   type EscPosOptions,
   type EscPosQrOptions,
   type PosCodeTable,
-  type PosColumn,
   type PosCutMode,
   type PosPaperSize,
   type QrCorrection,
   type QrSize,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
+import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
 
 /**
  * Bruecke vom Layout-Modell zu ESC/POS-Bytes — der Bondrucker-Ausgabeweg.
@@ -48,8 +46,35 @@ export interface EscPosLayoutOptions {
   qrCorrection?: QrCorrection;
 }
 
+/**
+ * Druckbar gemachtes Layout: Texte durch [escPosPrintableText] (Codepage,
+ * "EUR" statt "€", Striche), damit das Raster mit den Zeichen rechnet, die
+ * wirklich aufs Papier gehen. Der QR-Inhalt bleibt unveraendert.
+ */
+function druckbaresLayout(layout: ReceiptLayout): ReceiptLayout {
+  return {
+    ...layout,
+    lines: layout.lines.map((z) => {
+      switch (z.kind) {
+        case 'text': return { ...z, text: escPosPrintableText(z.text) };
+        case 'banner': return { ...z, text: escPosPrintableText(z.text) };
+        case 'columns': return { ...z, columns: z.columns.map((c) => ({ ...c, text: escPosPrintableText(c.text) })) };
+        case 'rule': return { ...z, char: escPosPrintableText(z.char) || '-' };
+        default: return z;
+      }
+    }),
+  };
+}
+
+/**
+ * Bytes fuer den Bondrucker -- **aus dem Zeichenraster** ([renderReceiptGrid]):
+ * jede Rasterzeile geht als fertige, exakt N Zeichen breite Textzeile raus.
+ * Keine eigene Spaltenrechnung, keine `ESC $`-Positionierung: was das Raster
+ * zeigt, druckt der Drucker (Monospace, Font A: 32/48 Zeichen).
+ */
 export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOptions = {}): Uint8Array {
-  const dokumentOptionen: EscPosOptions = { paperSize: options.paperSize ?? layout.paperSize };
+  const paperSize = options.paperSize ?? layout.paperSize;
+  const dokumentOptionen: EscPosOptions = { paperSize };
   if (options.codeTable !== undefined) {
     dokumentOptionen.codeTable = options.codeTable;
   }
@@ -60,32 +85,22 @@ export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOp
   if (options.qrSize !== undefined) qrOptionen.size = options.qrSize;
   if (options.qrCorrection !== undefined) qrOptionen.correction = options.qrCorrection;
 
-  for (const zeile of layout.lines) {
+  const grid = renderReceiptGrid(druckbaresLayout(layout), { zeichen: ZEICHEN_JE_PAPIER[paperSize] });
+  for (const zeile of grid.lines) {
     switch (zeile.kind) {
-      case 'text':
-        escPosText(doc, escPosPrintableText(zeile.text), { styles: { align: zeile.align, bold: zeile.bold } });
-        break;
-      case 'columns': {
-        const spalten: PosColumn[] = zeile.columns.map((spalte) => ({
-          text: escPosPrintableText(spalte.text),
-          width: spalte.width,
-          styles: { align: spalte.align },
-        }));
-        escPosRow(doc, spalten);
-        break;
-      }
-      case 'rule':
-        escPosHr(doc, { ch: escPosPrintableText(zeile.char) || '-' });
-        break;
       case 'space':
-        escPosFeed(doc, zeile.lines);
+        escPosFeed(doc, 1);
         break;
       case 'qr':
-        escPosQrCode(doc, zeile.data, qrOptionen);
+        escPosQrCode(doc, zeile.qr ?? '', qrOptionen);
         break;
       case 'banner':
-        // Belegart/Warnung: fett, zentriert, doppelte Hoehe; Warnungen zusaetzlich invers.
-        escPosText(doc, escPosPrintableText(zeile.text), { styles: { align: 'center', bold: true, height: 2, reverse: zeile.ton === 'warnung' } });
+        // Belegart/Warnung: fett, doppelte Hoehe; Warnungen zusaetzlich invers.
+        // Der Text ist bereits zentriert aufgefuellt (Raster).
+        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: true, height: 2, reverse: zeile.ton === 'warnung' } });
+        break;
+      default:
+        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: zeile.bold } });
         break;
     }
   }

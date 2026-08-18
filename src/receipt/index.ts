@@ -24,3 +24,13 @@ export {
 } from './layout.js';
 
 export { type EscPosLayoutOptions, escPosLayoutBytes } from './layout-escpos.js';
+export {
+  type GridLine,
+  type GridLineKind,
+  type ReceiptGrid,
+  type RenderReceiptGridOptions,
+  renderReceiptGrid,
+  gridSpaltenBreiten,
+  gridAlsText,
+  ZEICHEN_JE_PAPIER,
+} from './grid.js';

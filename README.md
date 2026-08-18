@@ -105,7 +105,7 @@ import {
   KeckPaymentMethod,
   VatRate,
 } from '@kreiseck/kasseneck-api';
-import { buildReceiptLayout, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
+import { buildReceiptLayout, renderReceiptGrid, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
 
 const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' }),
@@ -126,8 +126,13 @@ const { receipt, company } = await api.sellReceiptWithCompany({
 // die Registrierdaten dafür liefert `getReceiptWithCompany` als `pruefangaben`).
 const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58' });
 
-// … und daraus die Bytes für den Bondrucker. Der Transport zum Drucker ist
-// bewusst nicht Teil dieses Pakets.
+// … das Zeichenraster (exakt 32/48 Zeichen je Zeile — die eine Wahrheit für
+// Bildschirm, Bondruck und PDF: Spalten in ganzen Zeichen, rechte Spalte bündig,
+// wortweiser Umbruch) …
+const grid = renderReceiptGrid(layout);          // grid.lines[i].text, .bold, .kind, .qr
+
+// … und daraus die Bytes für den Bondrucker (druckt genau die Rasterzeilen).
+// Der Transport zum Drucker ist bewusst nicht Teil dieses Pakets.
 const bytes = escPosLayoutBytes(layout);
 ```
 
