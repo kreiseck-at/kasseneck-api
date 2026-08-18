@@ -19,8 +19,10 @@
  * denselben Stellen wie in Latin-1, "ä" ist also genau 0xE4 — ein Byte, nicht
  * zwei. Waeren es zwei (UTF-8), verschoeben sich zusaetzlich alle
  * Spaltenbreiten, weil die Spaltenrechnung mit Byte-Laengen arbeitet.
- * CP437 ist als Codepage waehlbar, passt aber nicht zur Latin-1-Kodierung —
- * dort liegen die Umlaute auf anderen Positionen.
+ * CP437 ist ebenfalls waehlbar — manche (Bluetooth-)Drucker ignorieren
+ * `ESC t 16` und bleiben in CP437; dann werden die Umlaute auf ihre
+ * CP437-Plaetze umkodiert (ä = 0x84, ü = 0x81, ß = 0xE1, ...). Zeichen ohne
+ * CP437-Platz werden zu `?` — weiterhin ein Byte je Zeichen.
  *
  * Nicht enthalten (bewusst): Rasterbilder/Logos, Capability-Profile einzelner
  * Druckermodelle, Kassenlade, 1D-Barcodes.
@@ -246,13 +248,34 @@ function latin1(text: string): Uint8Array {
  * damit zu genau einem Byte — Voraussetzung dafuer, dass die Spaltenrechnung
  * stimmt.
  */
-export function encodeEscPosText(text: string): Uint8Array {
+export function encodeEscPosText(text: string, codeTable: PosCodeTable = 'CP1252'): Uint8Array {
   let aufbereitet = text;
   for (const [von, nach] of ZEICHEN_ERSATZ) {
     aufbereitet = aufbereitet.split(von).join(nach);
   }
-  return latin1(aufbereitet);
+  const bytes = latin1(aufbereitet);
+  if (codeTable !== 'CP437') return bytes;
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i] ?? 0;
+    if (b >= 0x80) bytes[i] = CP437_AUS_LATIN1.get(b) ?? 0x3f;
+  }
+  return bytes;
 }
+
+/**
+ * Latin-1-Byte -> CP437-Byte fuer die Zeichen, die CP437 kennt (deutsche
+ * Umlaute, ß, westeuropaeische Akzente, Waehrungs-/Sonderzeichen). Alles
+ * andere ab 0x80 hat in CP437 keinen Platz und wird zu "?".
+ */
+const CP437_AUS_LATIN1: ReadonlyMap<number, number> = new Map<number, number>([
+  [0xc7, 0x80], [0xfc, 0x81], [0xe9, 0x82], [0xe2, 0x83], [0xe4, 0x84], [0xe0, 0x85], [0xe5, 0x86], [0xe7, 0x87],
+  [0xea, 0x88], [0xeb, 0x89], [0xe8, 0x8a], [0xef, 0x8b], [0xee, 0x8c], [0xec, 0x8d], [0xc4, 0x8e], [0xc5, 0x8f],
+  [0xc9, 0x90], [0xe6, 0x91], [0xc6, 0x92], [0xf4, 0x93], [0xf6, 0x94], [0xf2, 0x95], [0xfb, 0x96], [0xf9, 0x97],
+  [0xff, 0x98], [0xd6, 0x99], [0xdc, 0x9a], [0xa2, 0x9b], [0xa3, 0x9c], [0xa5, 0x9d], [0xe1, 0xa0], [0xed, 0xa1],
+  [0xf3, 0xa2], [0xfa, 0xa3], [0xf1, 0xa4], [0xd1, 0xa5], [0xaa, 0xa6], [0xba, 0xa7], [0xbf, 0xa8], [0xac, 0xaa],
+  [0xbd, 0xab], [0xbc, 0xac], [0xa1, 0xad], [0xab, 0xae], [0xbb, 0xaf], [0xdf, 0xe1], [0xb5, 0xe6], [0xb1, 0xf1],
+  [0xf7, 0xf6], [0xb0, 0xf8], [0xb7, 0xfa], [0xb2, 0xfd], [0xa0, 0xff],
+]);
 
 /** Zeichen je Zeile fuer Papier und Schrift (`fontA`, wenn nichts gesetzt ist). */
 export function escPosMaxCharsPerLine(paperSize: PosPaperSize, font?: PosFont | null): number {
@@ -555,7 +578,7 @@ export function escPosText(doc: EscPosDocument, text: string, options: EscPosTex
   // selbst wuerde hart mitten im Wort umbrechen.
   const stile = vollstaendigeStile(options.styles);
   const zeichenJeZeile = Math.max(1, Math.floor(zeichenProZeile(doc, stile) / (stile.width === 2 ? 2 : 1)));
-  const zeilen = escPosWortzeilen(encodeEscPosText(text), zeichenJeZeile);
+  const zeilen = escPosWortzeilen(encodeEscPosText(text, doc.globalCodeTable ?? 'CP1252'), zeichenJeZeile);
   zeilen.forEach((z, i) => {
     textIntern(doc, z, { styles: options.styles });
     if (i < zeilen.length - 1) escPosEmptyLines(doc, 1);
@@ -648,7 +671,7 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
       // Mindestens ein Zeichen je Zeile, sonst kaeme die Folgezeile nie voran.
       const maxZeichen = Math.max(1, Math.floor((bis - von) / breiteJeZeichen));
 
-      let zuDrucken = spalte.textEncoded ?? encodeEscPosText(spalte.text ?? '');
+      let zuDrucken = spalte.textEncoded ?? encodeEscPosText(spalte.text ?? '', doc.globalCodeTable ?? 'CP1252');
       const folge: PosColumn = { width: spalte.width };
       if (spalte.styles !== undefined) folge.styles = spalte.styles;
 

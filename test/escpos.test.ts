@@ -223,6 +223,38 @@ test('Kodierung: einzelne Umlaute sind ein Byte, nicht zwei (kein UTF-8)', () =>
   assert.equal(new TextEncoder().encode('Grüße').length, 7);
 });
 
+test('Kodierung CP437: Umlaute liegen auf den CP437-Plaetzen (Bluetooth-Drucker ohne CP1252)', () => {
+  // Beobachtet: ein 58-mm-BLE-Drucker ignoriert ESC t 16 und bleibt in CP437 —
+  // Latin-1-Bytes ergaben dort "BΣckerei" (0xE4 = Σ) und "Prⁿfung" (0xFC = ⁿ).
+  gleicheBytes(encodeEscPosText('ä', 'CP437'), [0x84]);
+  gleicheBytes(encodeEscPosText('ö', 'CP437'), [0x94]);
+  gleicheBytes(encodeEscPosText('ü', 'CP437'), [0x81]);
+  gleicheBytes(encodeEscPosText('Ä', 'CP437'), [0x8e]);
+  gleicheBytes(encodeEscPosText('Ö', 'CP437'), [0x99]);
+  gleicheBytes(encodeEscPosText('Ü', 'CP437'), [0x9a]);
+  gleicheBytes(encodeEscPosText('ß', 'CP437'), [0xe1]);
+  gleicheBytes(encodeEscPosText('é', 'CP437'), [0x82]);
+  // Unbekanntes Zeichen -> Fragezeichen, aber weiterhin genau ein Byte je Zeichen.
+  gleicheBytes(encodeEscPosText('Ð', 'CP437'), [0x3f]);
+  assert.equal(encodeEscPosText('Grüße', 'CP437').length, 5);
+  // Vorgabe bleibt CP1252/Latin-1.
+  gleicheBytes(encodeEscPosText('ä'), [0xe4]);
+});
+
+test('Kodierung CP437: das Dokument kodiert Text und Spalten nach seiner Codepage', () => {
+  const doc = createEscPosDocument({ codeTable: 'CP437' });
+  escPosReset(doc);
+  escPosText(doc, 'Grüße');
+  escPosRow(doc, [{ text: 'Bäckerei', width: 6 }, { text: 'Süß', width: 6, styles: { align: 'right' } }]);
+  const bytes = Array.from(escPosBytes(doc));
+  const hat = (folge: number[]) => bytes.some((_, i) => folge.every((b, j) => bytes[i + j] === b));
+  assert.ok(hat([27, 116, 0]), 'ESC t 0 (CP437) gesetzt');
+  assert.ok(hat([71, 114, 0x81, 0xe1, 101]), 'Grüße in CP437');
+  assert.ok(hat([66, 0x84, 99, 107]), 'Bäck in CP437');
+  assert.ok(hat([83, 0x81, 0xe1]), 'Süß in CP437');
+  assert.ok(!hat([71, 114, 0xfc]), 'kein Latin-1-ü mehr');
+});
+
 test('Kodierung: typografische Zeichen werden wie im Vorbild ersetzt', () => {
   const doc = createEscPosDocument();
   escPosReset(doc);
