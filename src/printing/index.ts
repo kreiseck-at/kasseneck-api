@@ -30,6 +30,8 @@ export {
   encodeEscPosText,
   qrCodeBytes,
   escPosMaxCharsPerLine,
+  escPosWortzeilen,
+  wortzeilenText,
 } from './escpos.js';
 
 export { escPosPrintableText } from './printable.js';

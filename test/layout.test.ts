@@ -518,10 +518,15 @@ test('ESC/POS: der Kleinunternehmer-Hinweis druckt durch — der Gedankenstrich 
     'im Layout muss der Gedankenstrich stehen bleiben',
   );
   const bytes = escPosLayoutBytes(layout);
-  assert.ok(
-    enthaeltText(bytes, 'Umsatzsteuerbefreit - Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.'),
-    'Hinweis fehlt im Bytestrom',
-  );
+  // Der Hinweis wird wortweise auf die Zeilenbreite gebrochen (58 mm: 32
+  // Zeichen) -- er steht also in Teilen im Bytestrom, jeder Teil unverstuemmelt.
+  assert.ok(enthaeltText(bytes, 'Umsatzsteuerbefreit -'), 'Hinweis (Anfang) fehlt im Bytestrom');
+  assert.ok(enthaeltText(bytes, 'Kleinunternehmer gemäß § 6 Abs.'), 'Hinweis (Mitte) fehlt im Bytestrom');
+  assert.ok(enthaeltText(bytes, '1 Z 27 UStG.'), 'Hinweis (Ende) fehlt im Bytestrom');
+  // 80 mm (48 Zeichen): zwei Zeilen, kein Schnitt mitten im Wort
+  const bytes80 = escPosLayoutBytes(layout, { paperSize: 'mm80' });
+  assert.ok(enthaeltText(bytes80, 'Umsatzsteuerbefreit - Kleinunternehmer gemäß § 6'), 'Hinweis (80 mm, Zeile 1) fehlt');
+  assert.ok(!enthaeltText(bytes80, 'Kleinunter\n') && !enthaeltText(bytes80, 'Kleinunter\x0a'), 'kein Schnitt im Wort');
 });
 
 test('ESC/POS: Umlaute bleiben erhalten und werden als ein Byte kodiert', () => {
