@@ -62,8 +62,10 @@ export interface KasseSettingsGeraet {
   /** Tastenbelegung dieses Geraets (Vorgabe KASSE_TASTEN_STANDARD, je Aktion mischbar). */
   tasten: KasseTastenkarte;
   druckerAn: boolean; druckerArt: KasseDruckerArt; druckerIp: string; druckerPort: number; druckerBt: string;
-  /** Kennung des Netzwerk-Druckers (Server Direct Print) aus `listPrinters`; '' = keiner gewaehlt. */
+  /** Kennung des Netzwerk-Druckers (Server Direct Print) aus `listMyPrinters`; '' = keiner gewaehlt. */
   druckerId: string;
+  /** ePOS Device-ID bei `druckerArt 'netz'` (Epson direkt per IP), Vorgabe `local_printer`. */
+  druckerDevid: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
   terminalIp: string; terminalPort: number;
@@ -90,7 +92,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({
   layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
   tasten: { ...KASSE_TASTEN_STANDARD },
-  druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerId: '',
+  druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerId: '', druckerDevid: 'local_printer',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
   terminalIp: '', terminalPort: 20008,

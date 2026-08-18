@@ -253,6 +253,11 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   assert.equal(st.ergebnis?.erfolg, true);
   // Einstellungen: neue Verbindungsart und Drucker-Kennung
   assert.equal(GERAET_STD.druckerId, '');
+  // Epson direkt per IP (ePOS): Device-ID des Druckers, Vorgabe local_printer
+  assert.equal(GERAET_STD.druckerDevid, 'local_printer');
+  const rd = await getKasseSettings(transportMit({ geraet: { druckerArt: 'netz', druckerIp: '192.168.0.136', druckerDevid: 'theke' } }).rufen);
+  assert.equal(rd.geraet.druckerDevid, 'theke');
+  assert.equal(rd.geraet.druckerIp, '192.168.0.136');
   const rz = await getKasseSettings(transportMit({ geraet: { druckerArt: 'sdp', druckerId: 'd1' } }).rufen);
   assert.equal(rz.geraet.druckerArt, 'sdp');
   assert.equal(rz.geraet.druckerId, 'd1');
