@@ -450,7 +450,9 @@ function pruefangabenBlock(receipt: Receipt, angaben: Pruefangaben | null): Layo
   out.push(textZeile('Prüfangaben', 'center', true));
   out.push(paarZeile('Barumsatz:', '0,00 €'));
   out.push(paarZeile('Signatur:', receiptSignatureFailed(receipt) ? 'ausgefallen' : 'signiert'));
-  if (receipt.certificateSerialNumber) out.push(paarZeile('Signaturkarte:', receipt.certificateSerialNumber));
+  // Die Zertifikat-Seriennummer ist hexadezimal (RKSV-Detailspezifikation) --
+  // mit 0x gekennzeichnet, damit niemand sie fuer eine Dezimalzahl haelt.
+  if (receipt.certificateSerialNumber) out.push(paarZeile('Signaturkarte:', `0x${receipt.certificateSerialNumber}`));
   const zda = receiptZdaText(receipt.qr);
   if (zda) out.push(paarZeile('Zertifizierungsdienst:', zda, 7, 5));
   const karte = pruefDatum(angaben?.karteRegistriertAm);
