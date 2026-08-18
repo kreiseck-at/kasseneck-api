@@ -37,7 +37,7 @@ export interface DruckJob {
 const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-export async function listPrinters(rufen: KasseneckTransport): Promise<NetzDrucker[]> {
+export async function listMyPrinters(rufen: KasseneckTransport): Promise<NetzDrucker[]> {
   const daten = await rufen<{ drucker?: unknown[] }>('listMyPrinters', {});
   return (daten?.drucker ?? []).map((r) => {
     const d = (r ?? {}) as Record<string, unknown>;
