@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { KeckPaymentMethod, ReceiptType, VatRate } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { AKTUELLES_REGELWERK, buildReceiptLayout, receiptAmountsAreZero, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
+import { AKTUELLES_REGELWERK, buildReceiptLayout, receiptAmountsAreZero, receiptIsSmallBusinessConsistent, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
+import { CANCELLATION_REASONS } from '../src/models/index.js';
 
 /**
  * Belegart-Aufdruck (RKSV § 11 Abs. 3: Trainings- und Stornobuchungen sind
@@ -191,4 +192,28 @@ test('Receipt-Modell: zeroKind wird auch am Vollbeleg gelesen', () => {
     turnoverCounterAES256ICM: 'u', signaturePreviousReceipt: 'v', certificateSerialNumber: 'c', receiptType: 'zero', sig: 'a.b.c', qr: QR, fullReceiptId: 'f',
     customerDetails: '', legalMessage: '', zeroKind: 'monthly' } as never);
   assert.equal(r.zeroKind, 'monthly');
+});
+
+test('Storno-Grund: jeder Katalogwert (CANCELLATION_REASONS) wird als Text gedruckt, nie als roher Code', () => {
+  for (const [code, text] of Object.entries(CANCELLATION_REASONS)) {
+    const l = buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.cancellation, cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null }, cancellationReason: code }, FIRMA);
+    const t = alsText(l).join('\n');
+    assert.ok(t.includes(`Grund: ${text}`), `${code}: ${t}`);
+    assert.ok(!t.includes(`Grund: ${code}`), `${code} roh gedruckt`);
+  }
+  // unbekannter Code (Fremdclient): kommt sichtbar, aber ohne zu werfen
+  const fremd = alsText(buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.cancellation, cancellationOf: { receiptId: 'x', fullReceiptId: null }, cancellationReason: 'xyz' }, FIRMA)).join('\n');
+  assert.ok(fremd.includes('Grund: xyz'));
+});
+
+test('Kleinunternehmer: alle Positionen 0 % -> USt-Tabelle nur mit der 0 %-Zeile, Hinweis; receiptIsSmallBusinessConsistent', () => {
+  const ku: ReceiptCompany = { ...FIRMA, isSmallBusiness: true };
+  const beleg0: Receipt = { ...BELEG, items: [{ name: 'Espresso', quantity: 2, vat: VatRate.vat0, priceCents: 250 }, { name: 'Kuchen', quantity: 1, vat: VatRate.vat0, priceCents: 390 }] };
+  const t = alsText(buildReceiptLayout(beleg0, ku));
+  const tabelle = t.filter((z) => /^[A-G] \d+(,\d)?%/.test(z));
+  assert.deepEqual(tabelle.map((z) => z.split(' ')[0]), ['D']);
+  assert.ok(t.some((z) => z.includes('Kleinunternehmer')));
+  assert.equal(receiptIsSmallBusinessConsistent(beleg0), true);
+  // Widerspruch: KU-Konto, aber 20 %-Position -> als solcher erkennbar (der Aufrufer/Backend weist ab)
+  assert.equal(receiptIsSmallBusinessConsistent(BELEG), false);
 });
