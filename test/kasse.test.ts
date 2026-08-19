@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -261,4 +262,13 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   const rz = await getKasseSettings(transportMit({ geraet: { druckerArt: 'sdp', druckerId: 'd1' } }).rufen);
   assert.equal(rz.geraet.druckerArt, 'sdp');
   assert.equal(rz.geraet.druckerId, 'd1');
+});
+
+test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
+  // Die Datei ist die Zusage an die Zwillinge (Backend, Flutter-Kasse). Weicht
+  // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu
+  // veroeffentlichen — oder umgekehrt.
+  const datei = JSON.parse(readFileSync(new URL('../../fixtures/kasse-settings-standard.json', import.meta.url), 'utf8'));
+  assert.deepEqual(datei, JSON.parse(JSON.stringify({ betrieb: KASSE_BETRIEB_STANDARD, geraet: KASSE_GERAET_STANDARD })),
+    'fixtures/kasse-settings-standard.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
 });
