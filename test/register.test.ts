@@ -19,6 +19,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
+import { cancelScopeOf, receiptsScopeOf } from '../src/register/pairing.js';
 import { registerUserAuth } from '../src/client/auth.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import {
@@ -453,6 +454,50 @@ test('registerUserLogin: ein fehlendes Recht gilt als nicht erteilt', async () =
   assert.equal(sitzung.user.perms.sell, true);
   assert.equal(sitzung.user.perms.takeover, false, 'im Zweifel weniger anbieten, nicht mehr');
   assert.equal(sitzung.user.perms.cancel, false);
+});
+
+test('registerUserLogin: Storno- und Beleg-Reichweite kommen als Text durch (nicht als Wahrheitswert)', async () => {
+  // Das Backend schickt die Rechte eines Kassiers so (register-auth.js PERMS_KASSIER):
+  // cancelScope/receiptsScope sind Texte, nicht ja/nein. Wer sie zu Wahrheitswerten
+  // macht, nimmt jedem Kassier die eigenen Belege UND dem Chef das Stornieren.
+  const { holen } = fetchFake(
+    erfolg({
+      ...ANMELDE_ANTWORT,
+      user: {
+        id: BENUTZER_ID,
+        name: 'Anna',
+        perms: { sell: true, cancel: true, cancelScope: 'own', receiptsScope: 'own', discount: true, drawer: false },
+      },
+    }),
+  );
+  const sitzung = await registerUserLogin({
+    ownerUid: OWNER_UID,
+    deviceId: GERAET_ID,
+    deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID,
+    pin: PIN,
+    cashregisterId: KASSEN_ID,
+    fetch: holen,
+  });
+
+  assert.equal(sitzung.user.perms.cancelScope, 'own');
+  assert.equal(sitzung.user.perms.receiptsScope, 'own');
+  assert.equal(cancelScopeOf(sitzung.user.perms), 'own');
+  assert.equal(receiptsScopeOf(sitzung.user.perms), 'own');
+  // Wahrheitswerte bleiben Wahrheitswerte, Fehlendes gilt weiter als nicht erteilt.
+  assert.equal(sitzung.user.perms.discount, true);
+  assert.equal(sitzung.user.perms.drawer, false);
+  assert.equal(sitzung.user.perms.layout, false);
+  // Ein unbekannter Text wird nicht zur Reichweite erhoben.
+  const { holen: holen2 } = fetchFake(
+    erfolg({ ...ANMELDE_ANTWORT, user: { id: BENUTZER_ID, name: 'A', perms: { cancelScope: 'alles', receiptsScope: 'all' } } }),
+  );
+  const zweite = await registerUserLogin({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID, pin: PIN, cashregisterId: KASSEN_ID, fetch: holen2,
+  });
+  assert.equal(cancelScopeOf(zweite.user.perms), 'none');
+  assert.equal(receiptsScopeOf(zweite.user.perms), 'all');
 });
 
 test('registerUserLogin: eine unvollstaendige Antwort ist ein Antwortfehler', async () => {

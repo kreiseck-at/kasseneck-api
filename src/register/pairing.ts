@@ -502,15 +502,27 @@ function pflichtfeld(functionName: string, daten: Record<string, unknown> | null
   return wert;
 }
 
-/** Rechte lesen: nur Wahrheitswerte, alles Fehlende gilt als nicht erteilt. */
+/**
+ * Rechte lesen: Schalter werden zu Wahrheitswerten, alles Fehlende gilt als
+ * nicht erteilt.
+ *
+ * **Reichweiten sind keine Schalter.** `cancelScope` und `receiptsScope`
+ * tragen `none | own | all`; wer sie mit `=== true` liest, macht aus jedem
+ * `own` ein `false` — und [cancelScopeOf] liest daraus dann `none`. Der Kassier
+ * saehe seine eigenen Belege nicht mehr und der Chef koennte nicht stornieren,
+ * obwohl das Backend beides erlaubt. Diese beiden Felder kommen deshalb als
+ * Text durch, aber nur mit bekanntem Inhalt: ein unbekannter Wert wird nicht
+ * zur Reichweite erhoben (die Grenze zieht ohnehin das Backend, die Oberflaeche
+ * soll im Zweifel weniger anbieten).
+ */
 function rechte(wert: unknown): RegisterUserPerms {
   const roh = (typeof wert === 'object' && wert !== null && !Array.isArray(wert) ? wert : {}) as Record<
     string,
     unknown
   >;
-  const gelesen: Record<string, boolean> = {};
+  const gelesen: Record<string, boolean | RegisterScope> = {};
   for (const [name, inhalt] of Object.entries(roh)) {
-    gelesen[name] = inhalt === true;
+    gelesen[name] = REICHWEITEN_FELDER.has(name) ? reichweite(inhalt) : inhalt === true;
   }
   return {
     sell: false,
@@ -521,6 +533,14 @@ function rechte(wert: unknown): RegisterUserPerms {
     takeover: false,
     ...gelesen,
   };
+}
+
+/** Felder, die eine Reichweite tragen statt eines Schalters. */
+const REICHWEITEN_FELDER: ReadonlySet<string> = new Set(['cancelScope', 'receiptsScope']);
+
+/** Bekannte Reichweite oder `none` — dieselbe Zurueckhaltung wie [cancelScopeOf]. */
+function reichweite(wert: unknown): RegisterScope {
+  return wert === 'own' || wert === 'all' || wert === 'none' ? wert : 'none';
 }
 
 /** Leere Zeichenkette statt `undefined` — Anzeigefelder duerfen leer sein. */
