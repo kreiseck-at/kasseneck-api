@@ -712,7 +712,9 @@ export function buildReceiptLayout(
     .filter((it) => isTipItem(it) && it.recipient?.owner !== true)
     .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
   if (durchlaufendesTrinkgeldCents !== 0) {
-    lines.push(paarZeile('davon Trinkgeld (kein Umsatz):', formatCents(durchlaufendesTrinkgeldCents)));
+    // Breite 9:3 — auf 58 mm (32 Zeichen) passt die Beschriftung so in eine
+    // Zeile; der Betrag braucht rechts hoechstens acht Zeichen.
+    lines.push(paarZeile('Trinkgeld, kein Umsatz:', formatCents(durchlaufendesTrinkgeldCents), 9, 3));
   }
   lines.push({ kind: 'rule', char: '-' });
 
