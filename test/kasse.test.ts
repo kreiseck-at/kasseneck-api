@@ -264,6 +264,16 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   assert.equal(rz.geraet.druckerId, 'd1');
 });
 
+test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merge nimmt sie an, unbekannte Schluessel bleiben draussen', () => {
+  assert.equal(KASSE_GERAET_STANDARD.connectDruckerId, '');
+  assert.equal(KASSE_GERAET_STANDARD.terminalVia, 'direkt');
+  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { druckerArt: 'connect', connectDruckerId: 'p_x', terminalVia: 'connect', unsinn: 'weg' } as never);
+  assert.equal(g.druckerArt, 'connect');
+  assert.equal(g.connectDruckerId, 'p_x');
+  assert.equal(g.terminalVia, 'connect');
+  assert.ok(!('unsinn' in g));
+});
+
 test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
   // Die Datei ist die Zusage an die Zwillinge (Backend, Flutter-Kasse). Weicht
   // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu

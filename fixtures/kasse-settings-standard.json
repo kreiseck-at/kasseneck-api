@@ -96,12 +96,14 @@
     "druckerBt": "",
     "druckerId": "",
     "druckerDevid": "local_printer",
+    "connectDruckerId": "",
     "papier": "mm80",
     "zeichensatz": "CP1252",
     "schnitt": "partial",
     "ladeAn": false,
     "ladeAuto": "bar",
     "terminalIp": "",
-    "terminalPort": 20008
+    "terminalPort": 20008,
+    "terminalVia": "direkt"
   }
 }
