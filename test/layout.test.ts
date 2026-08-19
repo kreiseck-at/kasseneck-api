@@ -176,10 +176,11 @@ test('Layout: jede Position zeigt Menge und Bezeichnung, rechts Summe und Steuer
   // Vorbild: Menge auf zwei Zeichen aufgefuellt, dann ' x ', dann der Name;
   // ab Menge 2 zusaetzlich der Einzelpreis.
   const espresso = spalten.find((s) => (s[0] ?? '').includes('Espresso'));
-  assert.deepEqual(espresso, ['2  x Espresso je 2,50', '5,00 A']);
+  // "je" + Preis mit geschuetztem Leerzeichen (bleibt beim Umbruch zusammen)
+  assert.deepEqual(espresso, ['2  x Espresso je\u00a02,50', '5,00 A']);
 
   const semmel = spalten.find((s) => (s[0] ?? '').includes('Semmel'));
-  assert.deepEqual(semmel, ['3  x Semmel je 0,90', '2,70 B']);
+  assert.deepEqual(semmel, ['3  x Semmel je\u00a00,90', '2,70 B']);
 });
 
 test('Layout: bei Menge 1 steht kein Einzelpreis in der Positionszeile', () => {

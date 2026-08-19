@@ -70,7 +70,7 @@ test('React: aus dem Layout-Modell entsteht Text mit allen Pflichtangaben', () =
   assert.match(html, /1010 Wien/);
   assert.match(html, /AT0-KASSE1-42/);
   assert.match(html, /13\.08\.2026 00:30:00/);
-  assert.match(html, /2 {2}x Espresso je 2,50/);
+  assert.match(html, /2 {2}x Espresso je\u00a02,50/);
   assert.match(html, /Gesamt:/);
   assert.match(html, /7,70 €/);
   assert.match(html, /A 20%/);

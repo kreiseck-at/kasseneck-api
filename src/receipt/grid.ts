@@ -14,7 +14,11 @@ import type { PosPaperSize } from '../printing/escpos.js';
  *   mindestens ein Leerzeichen (letztes Zeichen jeder nicht-letzten Spalte).
  *   Die letzte Spalte endet buendig am rechten Rand.
  * - Text/Aufdruck/Spalteninhalt bricht **wortweise** um (`wortzeilenText`,
- *   dieselbe Regel wie der ESC/POS-Kern); ueberlange Woerter hart.
+ *   dieselbe Regel wie der ESC/POS-Kern); ueberlange Woerter nach einem
+ *   Bindestrich, sonst hart; geschuetztes Leerzeichen bricht nie.
+ * - Fliessregel: laeuft in einer Spaltenzeile nur eine Spalte ueber die erste
+ *   Zeile hinaus, bekommt ihr Rest die volle Breite (lange Artikelnamen auf
+ *   58 mm); laufen mehrere weiter, bleibt das Raster.
  * - Trennlinie ueber die volle Breite, Leerraum als Leerzeilen, QR als eigene
  *   Zeile mit Nutzlast (der Zeichner setzt das Bild).
  */
@@ -70,6 +74,13 @@ function ausrichten(text: string, breite: number, align: LayoutAlign): string {
 
 const QR_PLATZHALTER = '[QR-Code]';
 
+/** Text hinter der ersten Umbruchzeile (die ist ein Praefix des Textes, ohne Endleerzeichen). */
+function restNach(text: string, erste: string): string {
+  let i = erste.length;
+  while (i < text.length && text[i] === ' ') i += 1;
+  return text.slice(i);
+}
+
 export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptGridOptions = {}): ReceiptGrid {
   const zeichen = Math.max(8, Math.floor(options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize] ?? 32));
   const leer = ' '.repeat(zeichen);
@@ -96,7 +107,12 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         // Inhalt jeder nicht-letzten Spalte um 1 Zeichen schmaler: garantierter Abstand.
         const inhalt = breiten.map((b, i) => (i < breiten.length - 1 ? Math.max(1, b - 1) : b));
         const teile = z.columns.map((c, i) => wortzeilenText(c.text, inhalt[i]!));
-        const zeilen = Math.max(1, ...teile.map((t) => t.length));
+        // Fliessregel: laeuft nach der ersten Zeile nur noch EINE Spalte weiter (die anderen sind
+        // fertig), bekommt ihr Rest die volle Breite -- auf 58 mm sonst 18-Zeichen-Schnipsel.
+        // Laufen mehrere weiter, bleibt das Raster (sonst verschoeben sich die Nachbarn).
+        const weiterlaufend = teile.map((t, i) => (t.length > 1 ? i : -1)).filter((i) => i >= 0);
+        const fliesst = weiterlaufend.length === 1 && z.columns.length > 1;
+        const zeilen = fliesst ? 1 : Math.max(1, ...teile.map((t) => t.length));
         for (let r = 0; r < zeilen; r += 1) {
           let text = '';
           z.columns.forEach((c, i) => {
@@ -104,6 +120,13 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
             text += i < breiten.length - 1 ? zelle + ' '.repeat(breiten[i]! - inhalt[i]!) : zelle;
           });
           lines.push({ text: text.length === zeichen ? text : ausrichten(text, zeichen, 'left'), kind: 'columns', bold: false });
+        }
+        if (fliesst) {
+          const i = weiterlaufend[0]!;
+          // Rest aus dem Originaltext (nicht aus den schmal umbrochenen Stuecken), damit
+          // Bindestrich-/Hartbrueche der schmalen Spalte nicht als Leerzeichen zurueckbleiben.
+          const rest = restNach(z.columns[i]!.text, teile[i]![0]!);
+          for (const t of wortzeilenText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
         }
         break;
       }
