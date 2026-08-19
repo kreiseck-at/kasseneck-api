@@ -118,6 +118,10 @@ const { receipt, company } = await api.sellReceiptWithCompany({
     { name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 },
     { name: 'Marmeladeweckerl', quantity: 1, vat: VatRate.vat10, priceCents: 250 },
   ],
+  // Trinkgeld in Cent (optional): das Backend bucht daraus eine signierte
+  // Position „Trinkgeld“ — Mitarbeiter 0 % als Durchläufer, Inhaber als Umsatz.
+  // Als Objekt mit eigener Zahlart/Empfängern: { cents, paymentMethod, recipients }.
+  tip: 100,
 });
 
 // Layout bauen (reines Datenmodell: Zeilen, Ausrichtung, Spalten, QR-Code) …

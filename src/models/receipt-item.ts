@@ -29,6 +29,30 @@ export interface ReceiptItem {
   quantity: number;
   vat: VatRate | number;
   priceCents: number;
+  /**
+   * Trinkgeld-Position (vom Backend aus dem Parameter `tip` erzeugt, siehe
+   * [ReceiptCommonOptions.tip]). Mitarbeiter-Trinkgeld ist Durchlaeufer
+   * (0 %, kein Umsatz), Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Ein
+   * Client schreibt das Feld nur beim Storno einer gelesenen Position mit.
+   */
+  kind?: 'tip';
+  /** Empfaenger der Trinkgeld-Position; `null` = nicht zugeordnet. */
+  recipient?: TipRecipient | null;
+  /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
+  paymentMethod?: string;
+}
+
+/** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
+export interface TipRecipient {
+  registerUserId: string;
+  name: string;
+  /** true: Inhaber — das Trinkgeld ist Umsatz mit USt. */
+  owner?: boolean;
+}
+
+/** Trinkgeld-Position? Die eine Erkennungsstelle — niemand prueft `kind` selbst. */
+export function isTipItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'tip';
 }
 
 /**
@@ -40,6 +64,10 @@ export interface ReceiptItemPayload {
   quantity: number;
   unitPriceCents: number;
   vatRate: number;
+  /** Nur bei Trinkgeld-Positionen (Storno-Spiegelung), siehe [ReceiptItem.kind]. */
+  kind?: 'tip';
+  recipient?: TipRecipient | null;
+  paymentMethod?: string;
 }
 
 /**
@@ -58,6 +86,10 @@ export interface ReceiptItemPayload {
  */
 export interface ReceiptItemPayloadRead {
   name?: string | null;
+  /** Trinkgeld-Position (Backend), siehe [ReceiptItem.kind]. */
+  kind?: string | null;
+  recipient?: TipRecipient | null;
+  paymentMethod?: string | null;
   /** v2: Menge */
   quantity?: number | null;
   /** v2: Einzelpreis in Cent */
@@ -79,12 +111,21 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   // darf nicht unbesehen wieder hinausgehen.
   const vat = typeof item.vat === 'number' ? requireVatRateByRate(item.vat) : item.vat;
   pruefeMenge(item.quantity);
-  return {
+  const nutzlast: ReceiptItemPayload = {
     name: item.name,
     quantity: item.quantity,
     unitPriceCents: item.priceCents,
     vatRate: vat.rate,
   };
+  // Trinkgeld-Kennzeichnung reist mit — sonst wuerde ein Storno dieser
+  // Position am Backend als Warenzeile ankommen und aus den Trinkgeld-
+  // Aggregaten nicht wieder herausgerechnet.
+  if (item.kind === 'tip') {
+    nutzlast.kind = 'tip';
+    nutzlast.recipient = item.recipient ?? null;
+    if (item.paymentMethod != null) nutzlast.paymentMethod = item.paymentMethod;
+  }
+  return nutzlast;
 }
 
 /**
@@ -114,6 +155,15 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
     // der Fall entsteht also nur bei einer kaputten Nutzlast).
     vat: satz != null ? readVatRateByRate(satz) : VatRate.vat0,
     priceCents: cents != null ? Math.round(cents) : euro != null ? Math.round(euro * 100) : 0,
+    // Trinkgeld-Felder nur, wenn es wirklich eine Tip-Position ist: eine
+    // Warenzeile bleibt so schlank wie bisher (Golden-Belege, deepEqual).
+    ...(payload.kind === 'tip'
+      ? {
+          kind: 'tip' as const,
+          recipient: payload.recipient ?? null,
+          ...(payload.paymentMethod != null ? { paymentMethod: payload.paymentMethod } : {}),
+        }
+      : {}),
   };
 }
 

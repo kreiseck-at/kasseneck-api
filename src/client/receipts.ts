@@ -74,6 +74,27 @@ export interface ReceiptCommonOptions {
   customProjectId?: string;
   /** Rohdaten der Kartenzahlung (Terminal-/Anbieterantwort). */
   cardPaymentData?: Record<string, unknown>;
+  /**
+   * Trinkgeld in Cent — als Zahl (an den angemeldeten Kassen-Benutzer, Zahlart
+   * des Belegs) oder als [TipOptions]. Das Backend bucht daraus signierte
+   * Positionen `kind:'tip'` (Mitarbeiter 0 % als Durchlaeufer, Inhaber
+   * anteilig je Steuersatz). Nur auf `standard` und `training`.
+   */
+  tip?: number | TipOptions;
+}
+
+/** Trinkgeld mit eigener Zahlart und/oder Empfaengern (Kassen-Benutzer-IDs, Summe = cents). */
+export interface TipOptions {
+  cents: number;
+  /** Zahlart des Trinkgelds; ohne Angabe gilt die des Belegs. */
+  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
+  /** Empfaenger; ohne Angabe der angemeldete Kassen-Benutzer. Summe der cents = cents. */
+  recipients?: TipRecipientShare[];
+}
+
+export interface TipRecipientShare {
+  registerUserId: string;
+  cents: number;
 }
 
 /** Belegtyp und Inhalt — die vollstaendige Eingabe von [createReceipt]. */
@@ -239,6 +260,13 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
         throw eingabefehler(`cardPaymentId ist Pflicht bei creditCardProvider "${anbieter}".`);
       }
     }
+  }
+
+  if (options.tip != null) {
+    if (typ.value !== ReceiptType.standard.value && typ.value !== ReceiptType.training.value) {
+      throw eingabefehler(`Trinkgeld ist nur bei receiptType standard oder training moeglich, nicht bei "${typ.value}".`);
+    }
+    params['tip'] = gepruefterTip(options.tip);
   }
 
   if (options.customProjectId != null) {
@@ -593,6 +621,49 @@ function alsNutzlast<T, P>(werte: T[], wandeln: (wert: T) => P): P[] {
     // (sie nennen den unbekannten Steuersatz bzw. Schluessel, sonst nichts).
     throw eingabefehler(ursache instanceof Error ? ursache.message : 'Ungueltige Nutzlast uebergeben.');
   }
+}
+
+/** Positive ganze Cent? */
+function istCentBetrag(wert: unknown): wert is number {
+  return typeof wert === 'number' && Number.isInteger(wert) && wert > 0;
+}
+
+/**
+ * Trinkgeld pruefen und in die Nutzlast-Form bringen (Zahl bleibt Zahl; das
+ * Objekt geht mit geprueftem Zahlart-Wert und Empfaengern hinaus). Dieselben
+ * Regeln wie das Backend (tip-core.normalizeTip) — nur frueher.
+ */
+function gepruefterTip(tip: number | TipOptions): number | Record<string, unknown> {
+  if (typeof tip === 'number') {
+    if (!istCentBetrag(tip)) throw eingabefehler('Trinkgeld: Betrag muss eine ganze Zahl in Cent > 0 sein.');
+    return tip;
+  }
+  if (tip == null || typeof tip !== 'object' || !istCentBetrag(tip.cents)) {
+    throw eingabefehler('Trinkgeld: Betrag muss eine ganze Zahl in Cent > 0 sein.');
+  }
+  const nutzlast: Record<string, unknown> = { cents: tip.cents };
+  if (tip.paymentMethod != null) nutzlast['paymentMethod'] = gepruefteZahlungsart(tip.paymentMethod);
+  if (tip.recipients != null) {
+    if (!Array.isArray(tip.recipients) || tip.recipients.length === 0) {
+      throw eingabefehler('Trinkgeld: recipients darf nicht leer sein.');
+    }
+    let summe = 0;
+    const gesehen = new Set<string>();
+    for (const r of tip.recipients) {
+      if (r == null || typeof r.registerUserId !== 'string' || r.registerUserId === '') {
+        throw eingabefehler('Trinkgeld: recipients[].registerUserId fehlt.');
+      }
+      if (!istCentBetrag(r.cents)) throw eingabefehler('Trinkgeld: recipients[].cents muss eine ganze Zahl > 0 sein.');
+      if (gesehen.has(r.registerUserId)) throw eingabefehler(`Trinkgeld: Kassen-Benutzer ${r.registerUserId} doppelt.`);
+      gesehen.add(r.registerUserId);
+      summe += r.cents;
+    }
+    if (summe !== tip.cents) {
+      throw eingabefehler(`Trinkgeld: Summe der Empfaenger (${summe}) entspricht nicht dem Betrag (${tip.cents}).`);
+    }
+    nutzlast['recipients'] = tip.recipients.map((r) => ({ registerUserId: r.registerUserId, cents: r.cents }));
+  }
+  return nutzlast;
 }
 
 /** Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht. */

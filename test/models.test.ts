@@ -8,6 +8,7 @@ import {
   receiptItemTotalCents,
   receiptItemIsValid,
   negateReceiptItem,
+  isTipItem,
 } from '../src/models/receipt-item.js';
 import { type Voucher, toVoucherPayload, fromVoucherPayload, voucherIsValid } from '../src/models/voucher.js';
 import {
@@ -636,4 +637,43 @@ test('Geld: Cent -> Euro ist die Gegenrichtung fuer fremde Schnittstellen', () =
   assert.equal(centsToEuro(1990), 19.9);
   assert.equal(centsToEuro(0), 0);
   assert.equal(centsToEuro(-250), -2.5);
+});
+
+// --- Trinkgeld-Positionen (kind:'tip') -----------------------------------------
+
+test('Belegposition: Tip-Kennzeichnung, Empfaenger und Zahlart ueberleben Lesen und Schreiben', () => {
+  const gelesen = fromReceiptItemPayload({
+    kind: 'tip', name: 'Trinkgeld', amount: 1, priceOneCents: 200, vat: 0,
+    paymentMethod: 'creditCard', recipient: { registerUserId: 'ru_7', name: 'Anna', owner: true },
+  });
+  assert.equal(gelesen.kind, 'tip');
+  assert.deepEqual(gelesen.recipient, { registerUserId: 'ru_7', name: 'Anna', owner: true });
+  assert.equal(gelesen.paymentMethod, 'creditCard');
+  assert.equal(isTipItem(gelesen), true);
+  // Zurueck in die Nutzlast (z. B. Storno der gelesenen Position): die
+  // Kennzeichnung muss mit, sonst saehe das Backend eine Warenzeile.
+  const zurueck = toReceiptItemPayload(negateReceiptItem(gelesen));
+  assert.equal(zurueck.kind, 'tip');
+  assert.equal(zurueck.unitPriceCents, -200);
+  assert.deepEqual(zurueck.recipient, { registerUserId: 'ru_7', name: 'Anna', owner: true });
+  assert.equal(zurueck.paymentMethod, 'creditCard');
+});
+
+test('Belegposition: Warenzeilen bekommen keine Tip-Felder angehaengt', () => {
+  const ware = fromReceiptItemPayload({ name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 });
+  assert.equal('kind' in ware, false);
+  assert.equal(isTipItem(ware), false);
+  const nutzlast = toReceiptItemPayload(ware);
+  assert.deepEqual(nutzlast, { name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 });
+});
+
+test('Beleg: tipCents wird gelesen, fehlt ohne Trinkgeld', () => {
+  const basis: ReceiptPayload = {
+    receiptId: 'r', cashregisterId: 'k', timeStamp: '2026-08-19T10:00:00', paymentMethod: 'cash', receiptType: 'standard',
+    sig: 's', qr: 'q', turnoverCounterAES256ICM: 't', signaturePreviousReceipt: 'p', certificateSerialNumber: 'c',
+    items: [], vouchers: null, fullReceiptId: '', creditCardProvider: null, cardPaymentId: null, cardPaymentData: null,
+    customerDetails: '', legalMessage: '', signatureSuccess: true, customProjectId: null,
+  };
+  assert.equal(fromReceiptPayload({ ...basis, tipCents: 200 }).tipCents, 200);
+  assert.equal('tipCents' in fromReceiptPayload(basis), false);
 });

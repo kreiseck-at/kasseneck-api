@@ -50,6 +50,11 @@ export interface Receipt {
   legalMessage: string[];
   signatureSuccess?: boolean;
   customProjectId?: string;
+  /**
+   * Summe aller Trinkgeld-Positionen in Cent (Storno negativ) — abgeleitetes
+   * Lesefeld des Backends, nur vorhanden, wenn der Beleg Trinkgeld traegt.
+   */
+  tipCents?: number;
   /** Nur am Storno-Beleg: das stornierte Original. */
   cancellationOf?: CancellationOf;
   /** Nur am Storno-Beleg: Grund-Code aus [CANCELLATION_REASONS]. */
@@ -81,6 +86,8 @@ export interface ReceiptPayload {
   legalMessage: string;
   signatureSuccess: boolean | null;
   customProjectId: string | null;
+  /** Nur bei Belegen mit Trinkgeld (siehe [Receipt.tipCents]). */
+  tipCents?: number | null;
 }
 
 /**
@@ -137,6 +144,7 @@ export function toReceiptPayload(receipt: Receipt): ReceiptPayload {
     legalMessage: receipt.legalMessage.join('\n'),
     signatureSuccess: receipt.signatureSuccess ?? null,
     customProjectId: receipt.customProjectId ?? null,
+    ...(receipt.tipCents != null ? { tipCents: receipt.tipCents } : {}),
   };
 }
 
@@ -165,6 +173,7 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     legalMessage: leereZeile(payload.legalMessage),
     signatureSuccess: payload.signatureSuccess ?? undefined,
     customProjectId: payload.customProjectId ?? undefined,
+    ...(typeof payload.tipCents === 'number' ? { tipCents: payload.tipCents } : {}),
     ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId, fullReceiptId: payload.cancellationOf.fullReceiptId ?? null } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
