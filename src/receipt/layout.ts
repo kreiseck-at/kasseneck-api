@@ -4,6 +4,7 @@ import {
   isCancellationReason,
   receiptCompanyTaxInfo,
   receiptItemTotalCents,
+  isTipItem,
   receiptSubSumCents,
   receiptSumCents,
   voucherIsValid,
@@ -368,6 +369,18 @@ function tabellenZeile(werte: [string, string, string, string], paperSize: PosPa
 
 /** Positionszeile: Menge, Bezeichnung, ab Menge 2 der Einzelpreis. */
 function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine {
+  if (isTipItem(item)) {
+    // Trinkgeld ist keine Ware: keine Menge, kein Einzelpreis — nur die
+    // Bezeichnung und der Betrag mit der Steuer-Kategorie (D bei 0 % =
+    // Durchlaeufer, sonst Inhaber-Trinkgeld als Umsatz).
+    return {
+      kind: 'columns',
+      columns: [
+        { text: item.name, width: 7, align: 'left' },
+        { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 5, align: 'right' },
+      ],
+    };
+  }
   const menge = String(item.quantity);
   // Vorbild: Menge auf zwei Zeichen auffuellen, danach ' x ' — bei drei- und
   // mehrstelligen Mengen faellt das Leerzeichen dahinter weg.
@@ -690,6 +703,16 @@ export function buildReceiptLayout(
         paperSize,
       ),
     );
+  }
+  // Mitarbeiter-Trinkgeld ist als Null-%-Umsatz erfasst (Erlass 2.4.2.1), aber
+  // kein Umsatz des Betriebs — die Klarstellung steht direkt unter der
+  // 0-%-Zeile, damit der Beleg (auch als Rechnung) nicht nach steuerfreiem
+  // Umsatz aussieht. Inhaber-Trinkgeld ist Umsatz und bekommt keine Zeile.
+  const durchlaufendesTrinkgeldCents = receipt.items
+    .filter((it) => isTipItem(it) && it.recipient?.owner !== true)
+    .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
+  if (durchlaufendesTrinkgeldCents !== 0) {
+    lines.push(paarZeile('davon Trinkgeld (kein Umsatz):', formatCents(durchlaufendesTrinkgeldCents)));
   }
   lines.push({ kind: 'rule', char: '-' });
 
