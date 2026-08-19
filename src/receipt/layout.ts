@@ -367,22 +367,40 @@ function tabellenZeile(werte: [string, string, string, string], paperSize: PosPa
   };
 }
 
-/** Positionszeile: Menge, Bezeichnung, ab Menge 2 der Einzelpreis. */
-function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine {
-  if (isTipItem(item)) {
-    // Trinkgeld ist keine Ware: keine Menge, kein Einzelpreis — nur die
-    // Bezeichnung und der Betrag mit der Steuer-Kategorie (D bei 0 % =
-    // Durchlaeufer, sonst Inhaber-Trinkgeld als Umsatz).
-    // Breite 8:4 statt 7:5: „Trinkgeld Personal“ (18 Zeichen) muss auf 58 mm
-    // in die Zeile passen; rechts reichen zehn Zeichen auch fuer „-123,45 D“.
-    return {
+/**
+ * Trinkgeld auf dem Bon: keine Menge, kein Einzelpreis — Bezeichnung und
+ * Summe. Eine Steuer-Kategorie steht hinter dem Betrag (D = Durchlaeufer,
+ * sonst Inhaber-Trinkgeld als Umsatz); bei mehreren steht die Aufteilung in
+ * einer zweiten, eingerueckten Zeile. Breite 8:4: „Trinkgeld Personal“ (18
+ * Zeichen) muss auf 58 mm in die Zeile passen, rechts reichen zehn Zeichen
+ * auch fuer „-123,45 D“.
+ */
+function trinkgeldZeilen(name: string, teile: Array<{ satz: Steuersatz; cents: number }>): LayoutLine[] {
+  const summe = teile.reduce((s, t) => s + t.cents, 0);
+  if (teile.length === 1) {
+    return [{
       kind: 'columns',
       columns: [
-        { text: item.name, width: 8, align: 'left' },
-        { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 4, align: 'right' },
+        { text: name, width: 8, align: 'left' },
+        { text: `${formatCents(summe)} ${teile[0]!.satz.category}`, width: 4, align: 'right' },
       ],
-    };
+    }];
   }
+  const sortiert = [...teile].sort((a, b) => a.satz.category.localeCompare(b.satz.category));
+  return [
+    {
+      kind: 'columns',
+      columns: [
+        { text: name, width: 8, align: 'left' },
+        { text: formatCents(summe), width: 4, align: 'right' },
+      ],
+    },
+    { kind: 'text', text: ` davon ${sortiert.map((t) => `${formatCents(t.cents)} ${t.satz.category}`).join(', ')}`, align: 'left', bold: false },
+  ];
+}
+
+/** Positionszeile: Menge, Bezeichnung, ab Menge 2 der Einzelpreis. */
+function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine {
   const menge = String(item.quantity);
   // Vorbild: Menge auf zwei Zeichen auffuellen, danach ' x ' — bei drei- und
   // mehrstelligen Mengen faellt das Leerzeichen dahinter weg.
@@ -647,10 +665,35 @@ export function buildReceiptLayout(
     return neu;
   };
 
-  for (const item of receipt.items) {
-    const satz = steuersatz(item.vat);
-    gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
-    lines.push(positionsZeile(item, satz));
+  // Trinkgeld-Positionen gleichen Namens werden auf dem Bon zu EINER Zeile
+  // mit der Summe zusammengefasst (die Aufteilung des Inhaber-Trinkgelds auf
+  // mehrere Steuersaetze bzw. mehrere Empfaenger ist fiskalisch notwendig,
+  // fuer den Gast aber nur Rauschen); bei mehr als einer Steuer-Kategorie
+  // steht die Aufteilung darunter. USt-Tabelle und DEP bleiben positionsgenau.
+  let i = 0;
+  while (i < receipt.items.length) {
+    const item = receipt.items[i]!;
+    if (!isTipItem(item)) {
+      const satz = steuersatz(item.vat);
+      gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
+      lines.push(positionsZeile(item, satz));
+      i += 1;
+      continue;
+    }
+    const gruppe: ReceiptItem[] = [];
+    while (i < receipt.items.length && isTipItem(receipt.items[i]!) && receipt.items[i]!.name === item.name) {
+      gruppe.push(receipt.items[i]!);
+      i += 1;
+    }
+    const teile: Array<{ satz: Steuersatz; cents: number }> = [];
+    for (const tip of gruppe) {
+      const satz = steuersatz(tip.vat);
+      gruppeVon(satz).bruttoCents += receiptItemTotalCents(tip);
+      const vorhanden = teile.find((t) => t.satz.category === satz.category);
+      if (vorhanden) vorhanden.cents += receiptItemTotalCents(tip);
+      else teile.push({ satz, cents: receiptItemTotalCents(tip) });
+    }
+    lines.push(...trinkgeldZeilen(item.name, teile));
   }
 
   // --- Gutscheine: verkaufte Wertgutscheine sind Umsatz zu 0 %, eingeloeste
