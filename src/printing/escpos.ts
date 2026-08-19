@@ -486,16 +486,27 @@ export function escPosWortzeilen(textBytes: Uint8Array, max: number): Uint8Array
       let i = grenze - 1;
       while (i > 0 && rest[i] !== 0x20) i -= 1;
       if (i > 0) schnitt = i;
+      else {
+        let h = grenze - 1;
+        while (h > 0 && rest[h] !== 0x2d) h -= 1; // Bindestrich
+        if (h > 0) schnitt = h + 1;
+      }
     }
     let ende = schnitt;
     while (ende > 0 && rest[ende - 1] === 0x20) ende -= 1; // Leerzeichen am Zeilenende weg
-    out.push(rest.slice(0, ende));
+    out.push(ohneNbsp(rest.slice(0, ende)));
     let weiter = schnitt;
     while (weiter < rest.length && rest[weiter] === 0x20) weiter += 1;
     rest = rest.slice(weiter);
   }
-  out.push(rest);
+  out.push(ohneNbsp(rest));
   return out;
+}
+
+/** Geschuetztes Leerzeichen (0xA0, Latin-1) -> normales Leerzeichen fuer die Ausgabe. */
+function ohneNbsp(b: Uint8Array): Uint8Array {
+  if (!b.some((x) => x === 0xa0)) return b;
+  return b.map((x) => (x === 0xa0 ? 0x20 : x));
 }
 
 /** Zeilen wieder zu einem Text (mit Leerzeichen) -- fuer den Rest einer Spalte. */
@@ -511,7 +522,14 @@ function verketten(teile: Uint8Array[]): Uint8Array {
   return out;
 }
 
-/** Dieselbe Regel fuer Zeichenketten -- fuer Bildschirm-Vorschauen, die das Papier nachstellen. */
+/**
+ * Dieselbe Regel fuer Zeichenketten -- fuer Bildschirm-Vorschauen, die das
+ * Papier nachstellen, und fuer das Zeichenraster. Zusaetzlich:
+ * - geschuetztes Leerzeichen (U+00A0) ist kein Umbruchpunkt ("je 0,79" bleibt
+ *   zusammen) und wird als normales Leerzeichen ausgegeben;
+ * - ein ueberlanges Wort bricht nach einem Bindestrich, wenn es einen hat
+ *   ("Bio-" / "Dinkelvollkornsemmel"), sonst hart.
+ */
 export function wortzeilenText(text: string, max: number): string[] {
   const grenze = Math.max(1, Math.floor(max));
   const out: string[] = [];
@@ -522,13 +540,19 @@ export function wortzeilenText(text: string, max: number): string[] {
       let i = grenze - 1;
       while (i > 0 && rest[i] !== ' ') i -= 1;
       if (i > 0) schnitt = i;
+      else {
+        // kein Leerzeichen: nach dem letzten Bindestrich innerhalb der Grenze brechen
+        let h = grenze - 1;
+        while (h > 0 && rest[h] !== '-') h -= 1;
+        if (h > 0) schnitt = h + 1;
+      }
     }
-    out.push(rest.slice(0, schnitt).replace(/ +$/, ''));
+    out.push(rest.slice(0, schnitt).replace(/ +$/, '').replace(/\u00a0/g, ' '));
     let weiter = schnitt;
     while (weiter < rest.length && rest[weiter] === ' ') weiter += 1;
     rest = rest.slice(weiter);
   }
-  out.push(rest);
+  out.push(rest.replace(/\u00a0/g, ' '));
   return out;
 }
 

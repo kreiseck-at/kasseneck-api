@@ -87,6 +87,33 @@ test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', 
   assert.deepEqual(t.slice(7), ['ABCDEFGHIJKLMNOPQRSTUVWXYZ012345', '6789ABCDEF']);
 });
 
+test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die anderen Spalten leer sind; geschuetztes Leerzeichen haelt "je 0,79" zusammen; ueberlange Woerter brechen am Bindestrich', () => {
+  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
+    // Artikelname laenger als die Spalte: Rest ueber die volle Breite statt in der schmalen Spalte
+    { kind: 'columns', columns: [{ text: '2  x Hausgemachte Bio-Dinkelvollkornsemmel mit Kürbiskernen je\u00a01,49', width: 7, align: 'left' }, { text: '2,98 B', width: 5, align: 'right' }] },
+    // beide Spalten lang: bleibt im Raster (kein Fliessen, sonst verschoebe sich die rechte)
+    { kind: 'columns', columns: [{ text: 'Linke Spalte mit viel Text drin', width: 6, align: 'left' }, { text: 'Rechte Spalte auch lang', width: 6, align: 'right' }] },
+    // ueberlanges Wort mit Bindestrich: nach dem Bindestrich brechen, nicht mitten im Wort
+    { kind: 'text', text: 'Bio-Dinkelvollkornsemmelbrotaufstrich', align: 'left', bold: false },
+    // "je 0,79" bleibt zusammen (geschuetztes Leerzeichen), gedruckt als normales Leerzeichen
+    { kind: 'columns', columns: [{ text: '4  x Semmel je\u00a00,79', width: 7, align: 'left' }, { text: '3,16 B', width: 5, align: 'right' }] },
+  ] };
+  const g = renderReceiptGrid(layout);
+  const t = g.lines.map((z) => z.text);
+  assert.ok(g.lines.every((z) => z.text.length === 32));
+  assert.ok(!t.some((z) => z.includes('\u00a0')), 'kein NBSP im Raster');
+  assert.equal(t[0], '2  x Hausgemachte         2,98 B');
+  assert.deepEqual(t.slice(1, 3).map((z) => z.trimEnd()), ['Bio-Dinkelvollkornsemmel mit', 'Kürbiskernen je 1,49']);
+  // zwei lange Spalten: Rasterbreiten bleiben (linke 15+1, rechte 16)
+  assert.equal(t[3], 'Linke Spalte       Rechte Spalte');
+  assert.ok(t[4]!.startsWith('mit viel Text') && t[4]!.endsWith('auch lang'), t[4]);
+  assert.equal(t[5]!.trimEnd(), 'drin');
+  assert.deepEqual(t.slice(6, 8).map((z) => z.trimEnd()), ['Bio-', 'Dinkelvollkornsemmelbrotaufstrich'.slice(0, 32)]);
+  assert.equal(t[8]!.trimEnd(), 'Dinkelvollkornsemmelbrotaufstrich'.slice(32));
+  assert.equal(t[9], '4  x Semmel               3,16 B');
+  assert.equal(t[10]!.trimEnd(), 'je 0,79');
+});
+
 test('Stile und Sonderzeilen: Banner fett + Ton, QR traegt die Nutzlast, Leerraum als Leerzeilen', () => {
   const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
     { kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' },

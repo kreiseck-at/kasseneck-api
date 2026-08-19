@@ -372,7 +372,8 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine 
   // Vorbild: Menge auf zwei Zeichen auffuellen, danach ' x ' — bei drei- und
   // mehrstelligen Mengen faellt das Leerzeichen dahinter weg.
   const kopf = menge.padEnd(2) + (menge.length > 2 ? ' x' : ' x ');
-  const einzelpreis = item.quantity > 1 ? ` je ${formatCents(item.priceCents)}` : '';
+  // "je" und Preis mit geschuetztem Leerzeichen: bricht die Zeile, bleibt "je 0,79" zusammen.
+  const einzelpreis = item.quantity > 1 ? ` je\u00a0${formatCents(item.priceCents)}` : '';
   return {
     kind: 'columns',
     columns: [
