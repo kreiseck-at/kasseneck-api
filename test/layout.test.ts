@@ -642,7 +642,7 @@ test('Layout: Trinkgeld-Position steht ohne Menge, und die USt-Tabelle weist den
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '1,00 D'), inspect(spalten));
   assert.ok(!spalten.some((z) => z[0]?.includes('x Trinkgeld')), inspect(spalten));
   // Klarstellung unter der USt-Tabelle: der 0-%-Betrag ist kein Umsatz.
-  assert.ok(spalten.some((z) => z[0] === 'davon Trinkgeld (kein Umsatz):' && z[1] === '1,00'), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '1,00'), inspect(spalten));
   // Gesamt enthaelt das Trinkgeld (so wurde signiert).
   assert.ok(spalten.some((z) => z[0] === 'Gesamt:' && z[1] === '11,00 €'), inspect(spalten));
 });
@@ -657,7 +657,7 @@ test('Layout: Inhaber-Trinkgeld ist Umsatz — Position ohne Menge, aber keine D
   };
   const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '1,00 A'), inspect(spalten));
-  assert.ok(!spalten.some((z) => z[0]?.startsWith('davon Trinkgeld')), inspect(spalten));
+  assert.ok(!spalten.some((z) => z[0]?.startsWith('Trinkgeld, kein Umsatz')), inspect(spalten));
 });
 
 test('Layout: Storno einer Trinkgeld-Position zeigt den negativen Durchlaeufer', () => {
@@ -667,10 +667,10 @@ test('Layout: Storno einer Trinkgeld-Position zeigt den negativen Durchlaeufer',
     items: [{ kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat0, priceCents: -100, paymentMethod: 'cash', recipient: null }],
   };
   const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
-  assert.ok(spalten.some((z) => z[0] === 'davon Trinkgeld (kein Umsatz):' && z[1] === '-1,00'), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '-1,00'), inspect(spalten));
 });
 
 test('Layout: ohne Trinkgeld bleibt der Beleg unveraendert (keine Durchlaeufer-Zeile)', () => {
   const spalten = spaltenZeilen(buildReceiptLayout(BELEG, FIRMA));
-  assert.ok(!spalten.some((z) => z[0]?.startsWith('davon Trinkgeld')));
+  assert.ok(!spalten.some((z) => z[0]?.startsWith('Trinkgeld, kein Umsatz')));
 });
