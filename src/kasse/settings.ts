@@ -21,8 +21,13 @@ export type KasseBelegAusgabe = 'qr' | 'druck' | 'mail' | 'sms' | 'fragen';
 export type KasseLayout = 'rechts' | 'links' | 'vollbild';
 export type KasseKatpos = 'oben' | 'links';
 export type KasseHoehe = 'S' | 'M' | 'L';
-/** `sdp` = Netzwerk ueber Epson Server Direct Print (der Drucker holt Jobs vom Backend, jeder Browser druckt). */
-export type KasseDruckerArt = 'sdp' | 'netz' | 'bt' | 'usb';
+/**
+ * `sdp` = Netzwerk ueber Epson Server Direct Print (der Drucker holt Jobs vom Backend, jeder Browser druckt).
+ * `connect` = Kasseneck Connect (lokaler Agent auf dem Kassen-Rechner druckt fuer die Browser-Kasse).
+ */
+export type KasseDruckerArt = 'sdp' | 'netz' | 'bt' | 'usb' | 'connect';
+/** Terminal-Ansprache: direkt per IP (wie bisher) oder ueber Kasseneck Connect (Agent leitet weiter). */
+export type KasseTerminalVia = 'direkt' | 'connect';
 export type KassePapier = 'mm58' | 'mm80';
 export type KasseZeichensatz = 'CP1252' | 'CP437';
 export type KasseSchnitt = 'partial' | 'full' | 'none';
@@ -66,9 +71,11 @@ export interface KasseSettingsGeraet {
   druckerId: string;
   /** ePOS Device-ID bei `druckerArt 'netz'` (Epson direkt per IP), Vorgabe `local_printer`. */
   druckerDevid: string;
+  /** Kennung des Druckers im lokalen Kasseneck-Connect-Agenten, bei `druckerArt 'connect'`. */
+  connectDruckerId: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
-  terminalIp: string; terminalPort: number;
+  terminalIp: string; terminalPort: number; terminalVia: KasseTerminalVia;
 }
 
 export interface KasseSettings {
@@ -93,9 +100,10 @@ export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freez
   layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
   tasten: { ...KASSE_TASTEN_STANDARD },
   druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerId: '', druckerDevid: 'local_printer',
+  connectDruckerId: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
-  terminalIp: '', terminalPort: 20008,
+  terminalIp: '', terminalPort: 20008, terminalVia: 'direkt',
 });
 
 /**
