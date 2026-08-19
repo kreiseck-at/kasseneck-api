@@ -917,3 +917,94 @@ test('getReceiptWithCompany: Testkasse/Testsignatur, kopfId und mitgeliefertes Z
   assert.equal(a2.pruefangaben, null);
   assert.equal(a2.layout, null);
 });
+
+// --- Trinkgeld (Backend keck#201: Positionen kind:'tip', Parameter tip) -----
+
+test('sellReceipt: tip als Zahl geht unveraendert als Cent hinaus', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 200 });
+  const { params } = gesendet(aufrufe);
+  assert.equal(params['tip'], 200);
+});
+
+test('sellReceipt: tip als Objekt mit Zahlart (geprueft) und Empfaengern', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await sellReceipt(rufen, {
+    paymentMethod: KeckPaymentMethod.cash,
+    items: [KAFFEE],
+    tip: {
+      cents: 300,
+      paymentMethod: KeckPaymentMethod.creditCard,
+      recipients: [{ registerUserId: 'ru_7', cents: 200 }, { registerUserId: 'ru_9', cents: 100 }],
+    },
+  });
+  const { params } = gesendet(aufrufe);
+  assert.deepEqual(params['tip'], {
+    cents: 300,
+    paymentMethod: 'creditCard',
+    recipients: [{ registerUserId: 'ru_7', cents: 200 }, { registerUserId: 'ru_9', cents: 100 }],
+  });
+});
+
+test('sellReceipt: ohne tip steht kein tip-Feld in der Nutzlast', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  const { params } = gesendet(aufrufe);
+  assert.equal('tip' in params, false);
+});
+
+test('sellReceipt: ungueltiges Trinkgeld wird VOR dem Senden abgewiesen', async () => {
+  const faelle: unknown[] = [
+    0,
+    -100,
+    1.5,
+    { cents: 100, paymentMethod: 'bitcoin' },
+    { cents: 100, recipients: [] },
+    { cents: 100, recipients: [{ registerUserId: 'a', cents: 60 }, { registerUserId: 'b', cents: 60 }] },
+    { cents: 100, recipients: [{ registerUserId: 'a', cents: 0 }, { registerUserId: 'b', cents: 100 }] },
+    { cents: 100, recipients: [{ registerUserId: '', cents: 100 }] },
+  ];
+  for (const tip of faelle) {
+    const { rufen, aufrufe } = apiSchluesselWeg();
+    await assert.rejects(
+      () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: tip as never }),
+      (e: unknown) => isKasseneckValidationError(e),
+      `erwartet Ablehnung fuer ${inspect(tip)}`,
+    );
+    assert.equal(aufrufe.length, 0, `nichts gesendet fuer ${inspect(tip)}`);
+  }
+});
+
+test('createReceipt: Trinkgeld nur auf standard und training', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await assert.rejects(
+    () => createReceipt(rufen, { receiptType: ReceiptType.zero, tip: 100 }),
+    (e: unknown) => isKasseneckValidationError(e),
+  );
+  await assert.rejects(
+    () => createReceipt(rufen, { receiptType: ReceiptType.cancellation, paymentMethod: KeckPaymentMethod.cash, items: [{ ...KAFFEE, priceCents: -320 }], tip: 100 }),
+    (e: unknown) => isKasseneckValidationError(e),
+  );
+  assert.equal(aufrufe.length, 0);
+  await createReceipt(rufen, { receiptType: ReceiptType.training, paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 50 });
+  assert.equal(gesendet(aufrufe).params['tip'], 50);
+});
+
+test('sellReceipt: der zurueckgelesene Beleg traegt tipCents und die Tip-Position mit Kennzeichnung', async () => {
+  // Wie das Backend ihn speichert: Tip-Zeile in v1-Form mit Kennzeichnung.
+  const nutzlast = {
+    ...BELEG_NUTZLAST,
+    items: [
+      { name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 },
+      { kind: 'tip', name: 'Trinkgeld', amount: 1, priceOneCents: 200, vat: 0, paymentMethod: 'cash', recipient: { registerUserId: 'ru_7', name: 'Anna' } },
+    ],
+    tipCents: 200,
+  };
+  const { rufen } = apiSchluesselWeg({ ...BELEG_ANTWORT, receipt: nutzlast });
+  const beleg = await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 200 });
+  assert.equal(beleg.tipCents, 200);
+  assert.equal(beleg.items[1]?.kind, 'tip');
+  assert.deepEqual(beleg.items[1]?.recipient, { registerUserId: 'ru_7', name: 'Anna' });
+  assert.equal(beleg.items[1]?.paymentMethod, 'cash');
+  assert.equal(receiptSumCents(beleg), 520);
+});

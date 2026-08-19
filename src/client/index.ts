@@ -41,6 +41,8 @@ export {
 export {
   type ReceiptCommonOptions,
   type SellReceiptOptions,
+  type TipOptions,
+  type TipRecipientShare,
   type CancelReceiptOptions,
   type CreateCancelReceiptOptions,
   type ReceiptWithCompany,

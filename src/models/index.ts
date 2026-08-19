@@ -7,6 +7,8 @@ export {
   receiptItemTotalCents,
   receiptItemIsValid,
   negateReceiptItem,
+  type TipRecipient,
+  isTipItem,
 } from './receipt-item.js';
 export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid } from './voucher.js';
 export {
