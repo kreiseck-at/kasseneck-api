@@ -373,11 +373,13 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine 
     // Trinkgeld ist keine Ware: keine Menge, kein Einzelpreis — nur die
     // Bezeichnung und der Betrag mit der Steuer-Kategorie (D bei 0 % =
     // Durchlaeufer, sonst Inhaber-Trinkgeld als Umsatz).
+    // Breite 8:4 statt 7:5: „Trinkgeld Personal“ (18 Zeichen) muss auf 58 mm
+    // in die Zeile passen; rechts reichen zehn Zeichen auch fuer „-123,45 D“.
     return {
       kind: 'columns',
       columns: [
-        { text: item.name, width: 7, align: 'left' },
-        { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 5, align: 'right' },
+        { text: item.name, width: 8, align: 'left' },
+        { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 4, align: 'right' },
       ],
     };
   }

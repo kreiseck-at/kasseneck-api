@@ -634,12 +634,12 @@ test('Layout: Trinkgeld-Position steht ohne Menge, und die USt-Tabelle weist den
     ...BELEG,
     items: [
       { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 1000 },
-      { kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat0, priceCents: 100, paymentMethod: 'cash', recipient: { registerUserId: 'a', name: 'Anna' } },
+      { kind: 'tip', name: 'Trinkgeld Personal', quantity: 1, vat: VatRate.vat0, priceCents: 100, paymentMethod: 'cash', recipient: { registerUserId: 'a', name: 'Anna' } },
     ],
   };
   const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
   // Kein „1 x“: Trinkgeld ist keine Ware.
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '1,00 D'), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld Personal' && z[1] === '1,00 D'), inspect(spalten));
   assert.ok(!spalten.some((z) => z[0]?.includes('x Trinkgeld')), inspect(spalten));
   // Klarstellung unter der USt-Tabelle: der 0-%-Betrag ist kein Umsatz.
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '1,00'), inspect(spalten));
