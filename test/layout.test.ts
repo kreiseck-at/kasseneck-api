@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { inspect } from 'node:util';
 
 import { KeckPaymentMethod, ReceiptType, VatRate, VoucherAction, VoucherType } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
@@ -624,4 +625,52 @@ test('Layout: der Kleinunternehmer-Hinweis ist als Konstante zugaenglich', () =>
   assert.equal(SMALL_BUSINESS_NOTICE, 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.');
   const layout = buildReceiptLayout(BELEG, { ...FIRMA, isSmallBusiness: true });
   assert.ok(textZeilen(layout).includes(SMALL_BUSINESS_NOTICE));
+});
+
+// --- Trinkgeld auf dem Beleg --------------------------------------------------
+
+test('Layout: Trinkgeld-Position steht ohne Menge, und die USt-Tabelle weist den Durchlaeufer aus', () => {
+  const beleg: Receipt = {
+    ...BELEG,
+    items: [
+      { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 1000 },
+      { kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat0, priceCents: 100, paymentMethod: 'cash', recipient: { registerUserId: 'a', name: 'Anna' } },
+    ],
+  };
+  const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
+  // Kein „1 x“: Trinkgeld ist keine Ware.
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '1,00 D'), inspect(spalten));
+  assert.ok(!spalten.some((z) => z[0]?.includes('x Trinkgeld')), inspect(spalten));
+  // Klarstellung unter der USt-Tabelle: der 0-%-Betrag ist kein Umsatz.
+  assert.ok(spalten.some((z) => z[0] === 'davon Trinkgeld (kein Umsatz):' && z[1] === '1,00'), inspect(spalten));
+  // Gesamt enthaelt das Trinkgeld (so wurde signiert).
+  assert.ok(spalten.some((z) => z[0] === 'Gesamt:' && z[1] === '11,00 €'), inspect(spalten));
+});
+
+test('Layout: Inhaber-Trinkgeld ist Umsatz — Position ohne Menge, aber keine Durchlaeufer-Zeile', () => {
+  const beleg: Receipt = {
+    ...BELEG,
+    items: [
+      { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 1000 },
+      { kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat20, priceCents: 100, paymentMethod: 'cash', recipient: { registerUserId: 'c', name: 'Chef', owner: true } },
+    ],
+  };
+  const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '1,00 A'), inspect(spalten));
+  assert.ok(!spalten.some((z) => z[0]?.startsWith('davon Trinkgeld')), inspect(spalten));
+});
+
+test('Layout: Storno einer Trinkgeld-Position zeigt den negativen Durchlaeufer', () => {
+  const beleg: Receipt = {
+    ...BELEG,
+    receiptType: ReceiptType.cancellation,
+    items: [{ kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat0, priceCents: -100, paymentMethod: 'cash', recipient: null }],
+  };
+  const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
+  assert.ok(spalten.some((z) => z[0] === 'davon Trinkgeld (kein Umsatz):' && z[1] === '-1,00'), inspect(spalten));
+});
+
+test('Layout: ohne Trinkgeld bleibt der Beleg unveraendert (keine Durchlaeufer-Zeile)', () => {
+  const spalten = spaltenZeilen(buildReceiptLayout(BELEG, FIRMA));
+  assert.ok(!spalten.some((z) => z[0]?.startsWith('davon Trinkgeld')));
 });
