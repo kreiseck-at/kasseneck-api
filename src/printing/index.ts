@@ -35,3 +35,10 @@ export {
 } from './escpos.js';
 
 export { escPosPrintableText } from './printable.js';
+export {
+  type UsbEndpointLike, type UsbAlternateLike, type UsbInterfaceLike, type UsbConfigurationLike,
+  type UsbTransferOutResultLike, type UsbWriterLike, type UsbIdentityLike, type UsbDeviceLike,
+  type UsbPrinterEndpoint, type UsbPrinterConnection,
+  USB_VENDOR_EPSON, USB_CLASS_PRINTER,
+  usbDeviceKey, usbFindPrinterEndpoint, usbWriteAll, usbConnectPrinter, usbPrint, usbDisconnect,
+} from './webusb.js';
