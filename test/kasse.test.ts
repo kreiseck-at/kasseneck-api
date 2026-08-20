@@ -267,10 +267,16 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
 test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merge nimmt sie an, unbekannte Schluessel bleiben draussen', () => {
   assert.equal(KASSE_GERAET_STANDARD.connectDruckerId, '');
   assert.equal(KASSE_GERAET_STANDARD.terminalVia, 'direkt');
-  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { druckerArt: 'connect', connectDruckerId: 'p_x', terminalVia: 'connect', unsinn: 'weg' } as never);
+  // Kartenterminal: ohne Zuweisung 'keins', HPS-Port-Vorgabe 8080 (20008 war nie funktionsfaehig).
+  assert.equal(KASSE_GERAET_STANDARD.terminalArt, 'keins');
+  assert.equal(KASSE_GERAET_STANDARD.terminalTid, '');
+  assert.equal(KASSE_GERAET_STANDARD.terminalPort, 8080);
+  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { druckerArt: 'connect', connectDruckerId: 'p_x', terminalVia: 'connect', terminalArt: 'hps', terminalTid: '3600335', unsinn: 'weg' } as never);
   assert.equal(g.druckerArt, 'connect');
   assert.equal(g.connectDruckerId, 'p_x');
   assert.equal(g.terminalVia, 'connect');
+  assert.equal(g.terminalArt, 'hps');
+  assert.equal(g.terminalTid, '3600335');
   assert.ok(!('unsinn' in g));
 });
 
