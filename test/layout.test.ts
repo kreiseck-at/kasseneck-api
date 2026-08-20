@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inspect } from 'node:util';
 
-import { KeckPaymentMethod, ReceiptType, VatRate, VoucherAction, VoucherType } from '../src/enums/index.js';
+import { CreditCardProvider, KeckPaymentMethod, ReceiptType, VatRate, VoucherAction, VoucherType } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import {
   buildReceiptLayout,
@@ -216,6 +216,48 @@ test('Layout: Gesamtsumme und Zahlungsart stehen unter der USt-Aufteilung', () =
   assert.deepEqual(zeileMitBeschriftung(layout, 'Gesamt:'), ['Gesamt:', '7,70 €']);
   assert.deepEqual(zeileMitBeschriftung(layout, 'Zahlungsart:'), ['Zahlungsart:', 'Barzahlung']);
   assert.ok(stelleVon(layout, 'Gesamt:') > stelleVon(layout, 'MwSt%'));
+});
+
+test('Layout: Hobex-Kartenblock (HPS) steht unter der Zahlungsart — PAN ohne Ablauf-Anhang', () => {
+  // cardPaymentData in der Form von hobexReceiptToCardPaymentData, Werte wie
+  // vom echten Terminal (hps 1.10.0, Testumgebung, 2026-08-20).
+  const beleg: Receipt = {
+    ...BELEG,
+    paymentMethod: KeckPaymentMethod.creditCard,
+    creditCardProvider: CreditCardProvider.hobexHps,
+    cardPaymentId: '178720994006835253',
+    cardPaymentData: {
+      transactionId: '178720994006835253', date: '2026-08-20 09:12:20', tid: '3600335',
+      no: '408462', type: 'SELL', cardBrand: 'MASTERCARD',
+      cardNumber: '543394******4720_2810', responseCode: '0', cvm: '0',
+    },
+  };
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  assert.ok(alsText(layout).includes('Hobex Beleg'));
+  assert.deepEqual(zeileMitBeschriftung(layout, 'Karte:'), ['Karte:', 'MASTERCARD']);
+  // Der PAN traegt beim HPS das Ablaufdatum mit Unterstrich — das gehoert
+  // nicht auf den Bon.
+  assert.deepEqual(zeileMitBeschriftung(layout, 'PAN:'), ['PAN:', '543394******4720']);
+  assert.deepEqual(zeileMitBeschriftung(layout, 'Nr.:'), ['Nr.:', '408462']);
+  assert.ok(stelleVon(layout, 'Hobex Beleg') > stelleVon(layout, 'Zahlungsart:'));
+  // CVM 0: keine Unterschrift verlangt.
+  assert.ok(!alsText(layout).includes('Unterschrift'));
+});
+
+test('Layout: Hobex-Block verlangt bei CVM 1 die Unterschrift; ohne Kartendaten gibt es keinen Block', () => {
+  const mitUnterschrift: Receipt = {
+    ...BELEG,
+    paymentMethod: KeckPaymentMethod.creditCard,
+    creditCardProvider: CreditCardProvider.hobexHps,
+    cardPaymentData: { cardBrand: 'VISA', cardNumber: '4111********1111', cvm: '1' },
+  };
+  const layout = buildReceiptLayout(mitUnterschrift, FIRMA);
+  assert.ok(alsText(layout).includes('Unterschrift'));
+
+  // Barbeleg bzw. Karte ohne Terminal-Daten: kein Hobex-Block.
+  assert.ok(!alsText(buildReceiptLayout(BELEG, FIRMA)).includes('Hobex Beleg'));
+  const ohneDaten: Receipt = { ...BELEG, paymentMethod: KeckPaymentMethod.creditCard, creditCardProvider: CreditCardProvider.gpTomIos, cardPaymentData: { batchNumber: '1' } };
+  assert.ok(!alsText(buildReceiptLayout(ohneDaten, FIRMA)).includes('Hobex Beleg'));
 });
 
 test('Layout: unbekannte Zahlungsart aus einer Serverantwort steht roh auf dem Beleg', () => {
