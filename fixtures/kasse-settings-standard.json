@@ -103,7 +103,9 @@
     "ladeAn": false,
     "ladeAuto": "bar",
     "terminalIp": "",
-    "terminalPort": 20008,
-    "terminalVia": "direkt"
+    "terminalPort": 8080,
+    "terminalVia": "direkt",
+    "terminalArt": "keins",
+    "terminalTid": ""
   }
 }
