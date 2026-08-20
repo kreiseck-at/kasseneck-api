@@ -212,8 +212,11 @@ test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die N
   const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrVerdeckt renderQr={(d) => <i data-qr-bild={d} />} />);
   assert.match(html, /keck-receipt-qr-toggle/);
   assert.match(html, /aria-pressed="false"/);
-  assert.match(html, /blur\(6px\)/);
-  assert.match(html, /Antippen zum Anzeigen/);
+  // blur(3px): unscannbar, aber als QR erkennbar; der Hinweis ist ein
+  // Tipp-Finger, der Text bleibt als aria-label fuer Hilfsmittel.
+  assert.match(html, /blur\(3px\)/);
+  assert.match(html, /aria-label="Antippen zum Anzeigen"/);
+  assert.match(html, /👆/);
   assert.match(html, new RegExp(`data-qr="${QR_INHALT.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}"`));
   // Rot-Probe: ohne qrVerdeckt kein Knopf, kein Weichzeichner
   const offen = renderToStaticMarkup(<ReceiptLayoutView layout={layout} renderQr={(d) => <i data-qr-bild={d} />} />);
