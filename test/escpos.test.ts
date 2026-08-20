@@ -680,6 +680,8 @@ test('qrCode: Vorgabe zentriert, Groesse 4, Korrektur L', () => {
     95, 82, 49, 45, 65, 84, 49, 95, 68, 101, 109, 111, // "_R1-AT1_Demo"
     29, 40, 107, 3, 0, 49, 82, 48,
     29, 40, 107, 3, 0, 49, 81, 48,
+    // Ausrichtung sofort zurueck auf links (ESC a gilt nur am Zeilenanfang)
+    27, 97, 48, 28, 46, 27, 116, 16,
   ]);
 });
 

@@ -221,28 +221,26 @@ function hobexKartenblock(receipt: Receipt): LayoutLine[] {
     const v = daten[k];
     return v == null ? '' : String(v);
   };
+  const paar = (teile: string[]): string => teile.filter(Boolean).join(' · ');
   const pan = feld('cardNumber').split('_')[0] ?? '';
-  const zeilen: LayoutLine[] = [
-    { kind: 'space', lines: 1 },
-    textZeile('Hobex Beleg', 'center', true),
+  const rc = feld('responseCode');
+  const zeilen: LayoutLine[] = [textZeile('Hobex Beleg', 'center', true)];
+  const inhalt = [
+    feld('date'),
+    paar([feld('tid') && `TID ${feld('tid')}`, feld('no') && `Nr. ${feld('no')}`]),
+    paar([feld('type'), feld('cardBrand')]),
+    pan,
+    rc && `RC ${rc}`,
   ];
-  const paare: Array<[string, string]> = [
-    ['Datum:', feld('date')],
-    ['TID:', feld('tid')],
-    ['Nr.:', feld('no')],
-    ['Art:', feld('type')],
-    ['Karte:', feld('cardBrand')],
-    ['PAN:', pan],
-    ['RC:', feld('responseCode')],
-  ];
-  for (const [links, rechts] of paare) {
-    if (rechts !== '') zeilen.push(paarZeile(links, rechts, 4, 8));
+  for (const zeile of inhalt) {
+    if (zeile) zeilen.push(textZeile(zeile, 'center'));
   }
   if (feld('cvm') === '1') {
     zeilen.push({ kind: 'space', lines: 2 });
     zeilen.push(textZeile('------------------', 'center'));
     zeilen.push(textZeile('Unterschrift', 'center'));
   }
+  zeilen.push({ kind: 'space', lines: 1 });
   return zeilen;
 }
 
@@ -835,7 +833,6 @@ export function buildReceiptLayout(
   }
   lines.push(paarZeile('Gesamt:', `${formatCents(summeCents)} €`));
   lines.push(paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod)));
-  lines.push(...hobexKartenblock(receipt));
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis
@@ -856,6 +853,9 @@ export function buildReceiptLayout(
   // --- RKSV-QR-Code
   lines.push({ kind: 'qr', data: receipt.qr });
   lines.push({ kind: 'space', lines: 1 });
+
+  // --- Kartenzahlungsblock (Hobex) — wie im Vorbild UNTER dem QR-Code.
+  lines.push(...hobexKartenblock(receipt));
 
   // --- Dankestext und Fusszeilen
   if (company.thanksMessage.length > 0) {
