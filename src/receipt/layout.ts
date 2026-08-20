@@ -38,9 +38,12 @@ import type { PosPaperSize } from '../printing/escpos.js';
  * stuende auch auf dem Bildschirm „EUR".
  *
  * Bewusst **nicht** enthalten: Firmenlogo und Rasterbilder (brauchen
- * Bildverarbeitung, die im Browser anders aussieht als in Node), PDF-Erzeugung,
- * Druckeransteuerung und die anbieterspezifischen Kartenzahlungsbloecke des
- * Vorbilds (GP Tom, Hobex, SumUp, myPOS, Stripe).
+ * Bildverarbeitung, die im Browser anders aussieht als in Node), PDF-Erzeugung
+ * und Druckeransteuerung. Von den anbieterspezifischen Kartenzahlungsbloecken
+ * des Vorbilds (GP Tom, SumUp, myPOS, Stripe) ist nur der **Hobex-Block**
+ * enthalten: die Browser-Kasse bedient das HPS-Terminal selbst (via Kasseneck
+ * Connect) und druckt den Bon aus genau diesem Modell — die uebrigen Anbieter
+ * drucken in ihren eigenen Apps.
  */
 
 // ------------------------------------------------------------------- Typen
@@ -197,6 +200,52 @@ function belegZeit(timeStamp: string): string {
  * `typeof null === 'object'` ist, ergab das beim Lesen von `.label` einen
  * nackten TypeError.
  */
+/**
+ * Kartenzahlungsblock fuer Hobex (HPS am Geraet wie Cloud-API): die Felder
+ * kommen aus `cardPaymentData` in der Form von [hobexReceiptToCardPaymentData]
+ * (models/hobex-receipt.ts) — Datum, TID, Genehmigungsnummer, Karte, PAN,
+ * Antwortcode. Bei CVM "1" verlangt die Karte eine Unterschrift; dafuer
+ * bekommt der Bon eine Linie. Der PAN haengt beim HPS das Ablaufdatum mit
+ * Unterstrich an ("…4720_2810") — gedruckt wird nur die maskierte Nummer.
+ *
+ * Andere Anbieter (GP Tom, SumUp, myPOS, Stripe) drucken in ihren eigenen
+ * Apps; ihre Bloecke bleiben bewusst draussen (siehe Kopfkommentar).
+ */
+function hobexKartenblock(receipt: Receipt): LayoutLine[] {
+  const provider = receipt.creditCardProvider;
+  const daten = receipt.cardPaymentData;
+  if ((provider !== 'hobexHps' && provider !== 'hobexCloudApi') || daten == null) {
+    return [];
+  }
+  const feld = (k: string): string => {
+    const v = daten[k];
+    return v == null ? '' : String(v);
+  };
+  const pan = feld('cardNumber').split('_')[0] ?? '';
+  const zeilen: LayoutLine[] = [
+    { kind: 'space', lines: 1 },
+    textZeile('Hobex Beleg', 'center', true),
+  ];
+  const paare: Array<[string, string]> = [
+    ['Datum:', feld('date')],
+    ['TID:', feld('tid')],
+    ['Nr.:', feld('no')],
+    ['Art:', feld('type')],
+    ['Karte:', feld('cardBrand')],
+    ['PAN:', pan],
+    ['RC:', feld('responseCode')],
+  ];
+  for (const [links, rechts] of paare) {
+    if (rechts !== '') zeilen.push(paarZeile(links, rechts, 4, 8));
+  }
+  if (feld('cvm') === '1') {
+    zeilen.push({ kind: 'space', lines: 2 });
+    zeilen.push(textZeile('------------------', 'center'));
+    zeilen.push(textZeile('Unterschrift', 'center'));
+  }
+  return zeilen;
+}
+
 function zahlungsartText(wert: Receipt['paymentMethod']): string {
   if (wert != null && typeof wert === 'object') {
     return wert.label;
@@ -786,6 +835,7 @@ export function buildReceiptLayout(
   }
   lines.push(paarZeile('Gesamt:', `${formatCents(summeCents)} €`));
   lines.push(paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod)));
+  lines.push(...hobexKartenblock(receipt));
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis
