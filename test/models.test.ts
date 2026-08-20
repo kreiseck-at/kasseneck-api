@@ -677,3 +677,17 @@ test('Beleg: tipCents wird gelesen, fehlt ohne Trinkgeld', () => {
   assert.equal(fromReceiptPayload({ ...basis, tipCents: 200 }).tipCents, 200);
   assert.equal('tipCents' in fromReceiptPayload(basis), false);
 });
+
+test('articleId reist durch Nutzlast und Rueckweg; leer wird verworfen', () => {
+  const mit: ReceiptItem = { name: 'Semmel', quantity: 4, vat: VatRate.vat10, priceCents: 65, articleId: 'a_semmel' };
+  const nutzlast = toReceiptItemPayload(mit);
+  assert.equal(nutzlast.articleId, 'a_semmel');
+  assert.deepEqual(fromReceiptItemPayload(nutzlast), mit);
+  // ohne articleId bleibt die Zeile schlank (Golden-Belege, deepEqual)
+  const ohne = toReceiptItemPayload({ name: 'Semmel', quantity: 1, vat: VatRate.vat10, priceCents: 65 });
+  assert.equal('articleId' in ohne, false);
+  assert.equal('articleId' in fromReceiptItemPayload(ohne), false);
+  // leere Zeichenkette geht nicht hinaus und kommt nicht herein
+  assert.equal('articleId' in toReceiptItemPayload({ name: 'X', quantity: 1, vat: VatRate.vat10, priceCents: 1, articleId: '' }), false);
+  assert.equal('articleId' in fromReceiptItemPayload({ name: 'X', quantity: 1, unitPriceCents: 1, vatRate: 10, articleId: '' }), false);
+});
