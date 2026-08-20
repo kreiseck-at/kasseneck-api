@@ -784,4 +784,11 @@ export function escPosQrCode(
   if (options.size !== undefined) qrOptionen.size = options.size;
   if (options.correction !== undefined) qrOptionen.correction = options.correction;
   anhaengen(doc, qrCodeBytes(text, qrOptionen));
+  // Ausrichtung SOFORT zuruecksetzen: `ESC a` gilt nur am Zeilenanfang. Die
+  // Spalten-Positionierung (`ESC $`) schickt ihren Reset sonst mitten in der
+  // Zeile — Epson ignoriert ihn, und alles nach dem QR rueckte nach rechts
+  // (belegt am TM-T20, 2026-08-20).
+  if ((options.align ?? 'center') !== 'left') {
+    escPosSetStyles(doc, { align: 'left' });
+  }
 }

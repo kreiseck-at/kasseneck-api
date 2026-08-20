@@ -218,7 +218,7 @@ test('Layout: Gesamtsumme und Zahlungsart stehen unter der USt-Aufteilung', () =
   assert.ok(stelleVon(layout, 'Gesamt:') > stelleVon(layout, 'MwSt%'));
 });
 
-test('Layout: Hobex-Kartenblock (HPS) steht unter der Zahlungsart — PAN ohne Ablauf-Anhang', () => {
+test('Layout: Hobex-Kartenblock (HPS) steht zentriert UNTER dem QR-Code — PAN ohne Ablauf-Anhang', () => {
   // cardPaymentData in der Form von hobexReceiptToCardPaymentData, Werte wie
   // vom echten Terminal (hps 1.10.0, Testumgebung, 2026-08-20).
   const beleg: Receipt = {
@@ -233,15 +233,21 @@ test('Layout: Hobex-Kartenblock (HPS) steht unter der Zahlungsart — PAN ohne A
     },
   };
   const layout = buildReceiptLayout(beleg, FIRMA);
-  assert.ok(alsText(layout).includes('Hobex Beleg'));
-  assert.deepEqual(zeileMitBeschriftung(layout, 'Karte:'), ['Karte:', 'MASTERCARD']);
+  const texte = alsText(layout);
+  assert.ok(texte.includes('Hobex Beleg'));
+  // Kompakt und zentriert wie der GP-Tom-Block — keine Beschriftungs-Spalten.
+  assert.ok(texte.includes('TID 3600335 · Nr. 408462'));
+  assert.ok(texte.includes('SELL · MASTERCARD'));
   // Der PAN traegt beim HPS das Ablaufdatum mit Unterstrich — das gehoert
   // nicht auf den Bon.
-  assert.deepEqual(zeileMitBeschriftung(layout, 'PAN:'), ['PAN:', '543394******4720']);
-  assert.deepEqual(zeileMitBeschriftung(layout, 'Nr.:'), ['Nr.:', '408462']);
-  assert.ok(stelleVon(layout, 'Hobex Beleg') > stelleVon(layout, 'Zahlungsart:'));
+  assert.ok(texte.includes('543394******4720'));
+  assert.ok(!texte.some((t) => t.includes('_2810')));
+  // Unter dem QR (wie im Vorbild), nicht mehr bei der Zahlungsart.
+  const qrStelle = layout.lines.findIndex((z) => z.kind === 'qr');
+  const hobexStelle = layout.lines.findIndex((z) => z.kind === 'text' && z.text === 'Hobex Beleg');
+  assert.ok(qrStelle >= 0 && hobexStelle > qrStelle);
   // CVM 0: keine Unterschrift verlangt.
-  assert.ok(!alsText(layout).includes('Unterschrift'));
+  assert.ok(!texte.includes('Unterschrift'));
 });
 
 test('Layout: Hobex-Block verlangt bei CVM 1 die Unterschrift; ohne Kartendaten gibt es keinen Block', () => {
