@@ -28,6 +28,8 @@ export type KasseHoehe = 'S' | 'M' | 'L';
 export type KasseDruckerArt = 'sdp' | 'netz' | 'bt' | 'usb' | 'connect';
 /** Terminal-Ansprache: direkt per IP (wie bisher) oder ueber Kasseneck Connect (Agent leitet weiter). */
 export type KasseTerminalVia = 'direkt' | 'connect';
+/** Art des Kartenterminals an dieser Kasse: keines oder Hobex HPS (JSON-REST am Geraet). */
+export type KasseTerminalArt = 'keins' | 'hps';
 export type KassePapier = 'mm58' | 'mm80';
 export type KasseZeichensatz = 'CP1252' | 'CP437';
 export type KasseSchnitt = 'partial' | 'full' | 'none';
@@ -76,6 +78,10 @@ export interface KasseSettingsGeraet {
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
   terminalIp: string; terminalPort: number; terminalVia: KasseTerminalVia;
+  /** Art des Terminals ('keins' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern zahlKarte an). */
+  terminalArt: KasseTerminalArt;
+  /** Terminal-ID aus dem Hobex-Vertrag (ohne fuehrende Null); noetig fuer Diagnose und Zahlung. */
+  terminalTid: string;
 }
 
 export interface KasseSettings {
@@ -103,7 +109,8 @@ export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freez
   connectDruckerId: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
-  terminalIp: '', terminalPort: 20008, terminalVia: 'direkt',
+  terminalIp: '', terminalPort: 8080, terminalVia: 'direkt',
+  terminalArt: 'keins', terminalTid: '',
 });
 
 /**
