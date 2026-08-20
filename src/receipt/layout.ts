@@ -392,13 +392,13 @@ function trinkgeldZeilen(name: string, teile: Array<{ satz: Steuersatz; cents: n
       kind: 'columns',
       columns: [
         { text: name, width: 8, align: 'left' },
-        // Zwei Fuellzeichen, wo bei den Warenzeilen " B" steht — so fluchten
-        // alle Betraege, obwohl diese Summe keine einzelne Kategorie traegt.
-        { text: `${formatCents(summe)}  `, width: 4, align: 'right' },
+        // Stern statt Kategorie-Buchstabe: fluchtet mit den Warenbetraegen
+        // (" B" ist zwei Zeichen, " *" auch) und verweist auf die
+        // Aufteilungszeile darunter — klassische Fussnote.
+        { text: `${formatCents(summe)} *`, width: 4, align: 'right' },
       ],
     },
-    // Sichtbarer Einzug mit Strich: die Aufteilung gehoert zur Zeile darueber.
-    { kind: 'text', text: ` - davon ${sortiert.map((t) => `${formatCents(t.cents)} ${t.satz.category}`).join(', ')}`, align: 'left', bold: false },
+    { kind: 'text', text: `* davon ${sortiert.map((t) => `${formatCents(t.cents)} ${t.satz.category}`).join(', ')}`, align: 'left', bold: false },
   ];
 }
 
