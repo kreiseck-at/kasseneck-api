@@ -75,9 +75,18 @@ export function QrVerdeckt({ data, text = 'Antippen zum Anzeigen', children }: {
       <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(3px)', transition: 'filter .15s ease' }}>{children}</span>
       {!offen && (
         // Tipp-Finger statt Textzeile: versteht jeder, verdeckt fast nichts.
-        // Der Text bleibt als aria-label fuer Hilfsmittel.
+        // Der Text bleibt als aria-label fuer Hilfsmittel. Einfarbige
+        // Strichzeichnung statt Emoji — Emojis rendern je Plattform anders
+        // und stechen farblich aus dem Beleg heraus.
         <span aria-hidden="true" className="keck-receipt-qr-toggle-text" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-          <span style={{ display: 'grid', placeItems: 'center', width: '2.2em', height: '2.2em', borderRadius: '50%', background: 'rgba(255,255,255,.9)', boxShadow: '0 1px 4px rgba(0,0,0,.25)', fontSize: '1.1em' }}>👆</span>
+          <span style={{ display: 'grid', placeItems: 'center', width: '2.2em', height: '2.2em', borderRadius: '50%', background: 'rgba(255,255,255,.92)', boxShadow: '0 1px 4px rgba(0,0,0,.25)', color: 'rgba(0,0,0,.72)' }}>
+            <svg className="keck-receipt-qr-toggle-finger" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10" />
+              <path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1" />
+              <path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2" />
+              <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+            </svg>
+          </span>
         </span>
       )}
     </button>

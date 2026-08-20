@@ -216,7 +216,9 @@ test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die N
   // Tipp-Finger, der Text bleibt als aria-label fuer Hilfsmittel.
   assert.match(html, /blur\(3px\)/);
   assert.match(html, /aria-label="Antippen zum Anzeigen"/);
-  assert.match(html, /👆/);
+  // Einfarbiges Strich-Icon statt Emoji — Emojis rendern je Plattform anders.
+  assert.match(html, /keck-receipt-qr-toggle-finger/);
+  assert.doesNotMatch(html, /👆/);
   assert.match(html, new RegExp(`data-qr="${QR_INHALT.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}"`));
   // Rot-Probe: ohne qrVerdeckt kein Knopf, kein Weichzeichner
   const offen = renderToStaticMarkup(<ReceiptLayoutView layout={layout} renderQr={(d) => <i data-qr-bild={d} />} />);
