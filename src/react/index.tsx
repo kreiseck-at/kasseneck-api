@@ -65,15 +65,20 @@ export function QrVerdeckt({ data, text = 'Antippen zum Anzeigen', children }: {
       type="button"
       className={offen ? 'keck-receipt-qr-toggle keck-receipt-qr-toggle--offen' : 'keck-receipt-qr-toggle'}
       aria-pressed={offen}
-      aria-label={offen ? 'QR-Code verdecken' : 'QR-Code anzeigen'}
+      aria-label={offen ? 'QR-Code verdecken' : text}
       data-qr={data}
       onClick={() => setOffen((o) => !o)}
       style={{ position: 'relative', display: 'inline-block', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
     >
-      {/* Nur optisch verdeckt: Semantik (QR-Bild, Fehlermeldung) bleibt fuer Hilfsmittel und Tests erreichbar. */}
-      <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(6px)', transition: 'filter .15s ease' }}>{children}</span>
+      {/* Nur optisch verdeckt: Semantik (QR-Bild, Fehlermeldung) bleibt fuer Hilfsmittel und Tests erreichbar.
+          blur(3px): unscannbar, aber als QR erkennbar — staerker sah nach Fehler aus. */}
+      <span style={{ display: 'inline-block', filter: offen ? undefined : 'blur(3px)', transition: 'filter .15s ease' }}>{children}</span>
       {!offen && (
-        <span className="keck-receipt-qr-toggle-text" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: '0.75em', fontWeight: 700 }}>{text}</span>
+        // Tipp-Finger statt Textzeile: versteht jeder, verdeckt fast nichts.
+        // Der Text bleibt als aria-label fuer Hilfsmittel.
+        <span aria-hidden="true" className="keck-receipt-qr-toggle-text" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: '2.2em', height: '2.2em', borderRadius: '50%', background: 'rgba(255,255,255,.9)', boxShadow: '0 1px 4px rgba(0,0,0,.25)', fontSize: '1.1em' }}>👆</span>
+        </span>
       )}
     </button>
   );
