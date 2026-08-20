@@ -392,10 +392,13 @@ function trinkgeldZeilen(name: string, teile: Array<{ satz: Steuersatz; cents: n
       kind: 'columns',
       columns: [
         { text: name, width: 8, align: 'left' },
-        { text: formatCents(summe), width: 4, align: 'right' },
+        // Zwei Fuellzeichen, wo bei den Warenzeilen " B" steht — so fluchten
+        // alle Betraege, obwohl diese Summe keine einzelne Kategorie traegt.
+        { text: `${formatCents(summe)}  `, width: 4, align: 'right' },
       ],
     },
-    { kind: 'text', text: ` davon ${sortiert.map((t) => `${formatCents(t.cents)} ${t.satz.category}`).join(', ')}`, align: 'left', bold: false },
+    // Sichtbarer Einzug mit Strich: die Aufteilung gehoert zur Zeile darueber.
+    { kind: 'text', text: ` - davon ${sortiert.map((t) => `${formatCents(t.cents)} ${t.satz.category}`).join(', ')}`, align: 'left', bold: false },
   ];
 }
 
@@ -756,7 +759,13 @@ export function buildReceiptLayout(
   const durchlaufendesTrinkgeldCents = receipt.items
     .filter((it) => isTipItem(it) && it.recipient?.owner !== true)
     .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
-  if (durchlaufendesTrinkgeldCents !== 0) {
+  // Nur wenn die 0-%-Gruppe MEHR enthaelt als das Trinkgeld (Wertgutschein-
+  // Verkauf ist ebenfalls Kategorie D, beim Kleinunternehmer ist alles 0 %):
+  // dann trennt diese Zeile den Durchlaeufer vom uebrigen Null-Prozent-Betrag.
+  // Besteht die 0-%-Gruppe ohnehin nur aus dem Trinkgeld, sagt die Position
+  // "Trinkgeld Personal" schon alles — die Wiederholung waere Rauschen.
+  const nullGruppeCents = gruppen.get(VatRate.vat0.rate)?.bruttoCents ?? 0;
+  if (durchlaufendesTrinkgeldCents !== 0 && nullGruppeCents !== durchlaufendesTrinkgeldCents) {
     // Breite 9:3 — auf 58 mm (32 Zeichen) passt die Beschriftung so in eine
     // Zeile; der Betrag braucht rechts hoechstens acht Zeichen.
     lines.push(paarZeile('Trinkgeld, kein Umsatz:', formatCents(durchlaufendesTrinkgeldCents), 9, 3));

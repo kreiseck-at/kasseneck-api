@@ -641,8 +641,9 @@ test('Layout: Trinkgeld-Position steht ohne Menge, und die USt-Tabelle weist den
   // Kein „1 x“: Trinkgeld ist keine Ware.
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld Personal' && z[1] === '1,00 D'), inspect(spalten));
   assert.ok(!spalten.some((z) => z[0]?.includes('x Trinkgeld')), inspect(spalten));
-  // Klarstellung unter der USt-Tabelle: der 0-%-Betrag ist kein Umsatz.
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '1,00'), inspect(spalten));
+  // Die 0-%-Gruppe besteht NUR aus dem Trinkgeld — die Position sagt schon
+  // alles, die Klarstellungszeile waere eine Wiederholung und entfaellt.
+  assert.ok(!spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:'), inspect(spalten));
   // Gesamt enthaelt das Trinkgeld (so wurde signiert).
   assert.ok(spalten.some((z) => z[0] === 'Gesamt:' && z[1] === '11,00 €'), inspect(spalten));
 });
@@ -660,14 +661,19 @@ test('Layout: Inhaber-Trinkgeld ist Umsatz — Position ohne Menge, aber keine D
   assert.ok(!spalten.some((z) => z[0]?.startsWith('Trinkgeld, kein Umsatz')), inspect(spalten));
 });
 
-test('Layout: Storno einer Trinkgeld-Position zeigt den negativen Durchlaeufer', () => {
+test('Layout: Klarstellungszeile nur, wenn die 0-%-Gruppe mehr traegt als das Trinkgeld', () => {
+  // Wertgutschein-Verkauf ist ebenfalls Kategorie D — hier trennt die Zeile
+  // den Durchlaeufer vom uebrigen Null-Prozent-Betrag.
   const beleg: Receipt = {
     ...BELEG,
-    receiptType: ReceiptType.cancellation,
-    items: [{ kind: 'tip', name: 'Trinkgeld', quantity: 1, vat: VatRate.vat0, priceCents: -100, paymentMethod: 'cash', recipient: null }],
+    items: [
+      { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 1000 },
+      { kind: 'tip', name: 'Trinkgeld Personal', quantity: 1, vat: VatRate.vat0, priceCents: 100, paymentMethod: 'cash', recipient: null },
+    ],
+    vouchers: [{ type: VoucherType.value, action: VoucherAction.sell, valueCents: 2000, code: 'G-1' }],
   };
   const spalten = spaltenZeilen(buildReceiptLayout(beleg, FIRMA));
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '-1,00'), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '1,00'), inspect(spalten));
 });
 
 test('Layout: ohne Trinkgeld bleibt der Beleg unveraendert (keine Durchlaeufer-Zeile)', () => {
@@ -689,8 +695,8 @@ test('Layout: Inhaber-Trinkgeld ueber mehrere Saetze steht als EINE Summe mit Au
   const spalten = spaltenZeilen(layout);
   const texte = textZeilen(layout);
   assert.equal(spalten.filter((z) => z[0] === 'Trinkgeld').length, 1, inspect(spalten));
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '4,00'), inspect(spalten));
-  assert.ok(texte.includes(' davon 2,67 A, 1,33 B'), inspect(texte));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '4,00  '), inspect(spalten));
+  assert.ok(texte.includes(' - davon 2,67 A, 1,33 B'), inspect(texte));
   // USt-Tabelle bleibt positionsgenau: A = 6,00 + 2,67, B = 3,00 + 1,33.
   assert.ok(spalten.some((z) => z[0] === 'A 20%' && z[3] === '8,67'), inspect(spalten));
   assert.ok(spalten.some((z) => z[0] === 'B 10%' && z[3] === '4,33'), inspect(spalten));
@@ -710,7 +716,7 @@ test('Layout: mehrere Mitarbeiter-Trinkgeld-Zeilen (gleiche Kategorie) werden zu
   const spalten = spaltenZeilen(layout);
   assert.deepEqual(spalten.filter((z) => z[0] === 'Trinkgeld Personal'), [['Trinkgeld Personal', '3,00 D']], inspect(spalten));
   assert.ok(!textZeilen(layout).some((t) => t.startsWith(' davon')));
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:' && z[1] === '3,00'));
+  assert.ok(!spalten.some((z) => z[0] === 'Trinkgeld, kein Umsatz:'), inspect(spalten));
 });
 
 test('Layout: Personal- und Inhaber-Trinkgeld auf einem Beleg bleiben getrennte Zeilen', () => {
