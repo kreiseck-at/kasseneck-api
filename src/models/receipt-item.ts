@@ -40,6 +40,11 @@ export interface ReceiptItem {
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
   paymentMethod?: string;
+  /**
+   * Artikel-Verweis (Artikelstamm) — Grundlage der Erloesgruppen-Zuordnung
+   * im Bericht. Optional; Handeingaben haben keinen.
+   */
+  articleId?: string;
 }
 
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
@@ -68,6 +73,8 @@ export interface ReceiptItemPayload {
   kind?: 'tip';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
+  /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
+  articleId?: string;
 }
 
 /**
@@ -104,6 +111,8 @@ export interface ReceiptItemPayloadRead {
   priceOne?: number | null;
   /** v1: Steuersatz */
   vat?: number | null;
+  /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
+  articleId?: string | null;
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
@@ -125,6 +134,8 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
     nutzlast.recipient = item.recipient ?? null;
     if (item.paymentMethod != null) nutzlast.paymentMethod = item.paymentMethod;
   }
+  // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
+  if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
   return nutzlast;
 }
 
@@ -164,6 +175,8 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
           ...(payload.paymentMethod != null ? { paymentMethod: payload.paymentMethod } : {}),
         }
       : {}),
+    // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
+    ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
   };
 }
 
