@@ -695,8 +695,8 @@ test('Layout: Inhaber-Trinkgeld ueber mehrere Saetze steht als EINE Summe mit Au
   const spalten = spaltenZeilen(layout);
   const texte = textZeilen(layout);
   assert.equal(spalten.filter((z) => z[0] === 'Trinkgeld').length, 1, inspect(spalten));
-  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '4,00  '), inspect(spalten));
-  assert.ok(texte.includes(' - davon 2,67 A, 1,33 B'), inspect(texte));
+  assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '4,00 *'), inspect(spalten));
+  assert.ok(texte.includes('* davon 2,67 A, 1,33 B'), inspect(texte));
   // USt-Tabelle bleibt positionsgenau: A = 6,00 + 2,67, B = 3,00 + 1,33.
   assert.ok(spalten.some((z) => z[0] === 'A 20%' && z[3] === '8,67'), inspect(spalten));
   assert.ok(spalten.some((z) => z[0] === 'B 10%' && z[3] === '4,33'), inspect(spalten));
