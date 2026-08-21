@@ -64,7 +64,8 @@
     ],
     "logoSkala": "M",
     "wzPos": 50,
-    "wzPosV": 50
+    "wzPosV": 50,
+    "wzSkala": "M"
   },
   "geraet": {
     "layout": "rechts",
