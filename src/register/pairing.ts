@@ -341,7 +341,7 @@ export async function listRegisterUsersForDevice(
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
 
-  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown; standortsperre?: unknown }>(
+  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown; standortsperre?: unknown; kasse?: unknown }>(
     name,
     { ownerUid, deviceId, deviceSecret },
     undefined,
@@ -370,7 +370,25 @@ export async function listRegisterUsersForDevice(
   };
   const bd = daten?.betriebsdaten;
   const betriebsdaten = bd && typeof bd === 'object' ? fromReceiptCompanyPayload(bd as ReceiptCompanyPayload) : null;
-  return { users, policy: regel(daten?.policy), loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl', settings, betriebsdaten, standortsperre: daten?.standortsperre === true };
+  return {
+    users,
+    policy: regel(daten?.policy),
+    loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl',
+    settings,
+    betriebsdaten,
+    standortsperre: daten?.standortsperre === true,
+    // 0.6.27 ergaenzte nur den TYP — hier fiel das Feld beim Zusammenbau
+    // stumm weg, und die Kasse sah nie eine Sperre. Fehlt es (aelteres
+    // Backend), bleibt es undefined: dann gilt bereit.
+    kasse: kasseBereit(daten?.kasse),
+  };
+}
+
+function kasseBereit(wert: unknown): { bereit: boolean; grund?: string | null } | undefined {
+  if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return undefined;
+  const roh = wert as Record<string, unknown>;
+  if (typeof roh['bereit'] !== 'boolean') return undefined;
+  return { bereit: roh['bereit'], grund: typeof roh['grund'] === 'string' ? roh['grund'] : null };
 }
 
 /** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */

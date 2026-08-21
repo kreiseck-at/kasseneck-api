@@ -256,6 +256,22 @@ test('listRegisterUsersForDevice: Endpunktname und die drei Geraeteangaben', asy
   assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
 });
 
+test('listRegisterUsersForDevice: kasse.bereit kommt durch — samt Grund; Muell und fehlendes Feld fallen weg', async () => {
+  // 0.6.27 ergaenzte nur den Typ; der Zusammenbau warf das Feld stumm weg,
+  // und die Kasse sah nie eine Sperre (belegt am Geraet ohne Startbeleg).
+  const { holen } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, kasse: { bereit: false, grund: 'Der Startbeleg fehlt noch.' } }));
+  const stand = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
+  assert.deepEqual(stand.kasse, { bereit: false, grund: 'Der Startbeleg fehlt noch.' });
+
+  const { holen: ohne } = fetchFake(erfolg(BENUTZER_ANTWORT));
+  const alt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: ohne });
+  assert.equal(alt.kasse, undefined);
+
+  const { holen: muell } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, kasse: { bereit: 'ja' } }));
+  const kaputt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: muell });
+  assert.equal(kaputt.kasse, undefined);
+});
+
 test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({ id: GERAET_ID }));
   await unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
