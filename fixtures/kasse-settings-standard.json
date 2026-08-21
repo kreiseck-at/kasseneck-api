@@ -55,7 +55,13 @@
     "fertigSekunden": 0,
     "logoBild": "",
     "wzSeite": "mitte",
-    "wzStaerke": 6
+    "wzStaerke": 6,
+    "rabattChips": [
+      5,
+      10,
+      15,
+      20
+    ]
   },
   "geraet": {
     "layout": "rechts",

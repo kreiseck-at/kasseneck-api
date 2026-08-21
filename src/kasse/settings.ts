@@ -56,6 +56,8 @@ export interface KasseSettingsBetrieb {
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
   tgChips: number[];
+  /** Rabatt-Chips in Prozent — dieselben Regeln wie tgChips, vom Chef einstellbar. */
+  rabattChips: number[];
   belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10 | 15 | 30 | 60;
 }
 
@@ -118,6 +120,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   schnellbar: false, kassierenModus: 'seite',
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
   logoBild: '', wzSeite: 'mitte', wzStaerke: 6,
+  rabattChips: [5, 10, 15, 20],
   belegAusgabe: 'fragen', fertigSekunden: 0,
 });
 
