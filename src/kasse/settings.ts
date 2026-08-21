@@ -63,7 +63,9 @@ export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   // Mod+F gehoert dem Vollbild; Betrag frei liegt auf D. Bar bleibt auf B,
   // Belege auf E (Entscheidung vom 21.8., der Tausch von 0.6.25 ist zurueck).
   frei: ['Mod+D'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
-  belege: ['Mod+E'], letzteZurueck: ['Mod+Backspace'],
+  // NICHT Mod+E: das faengt Chrome auf dem Mac selbst ab („Auswahl fuer
+  // Suche verwenden") — am Geraet belegt. J wie Journal laesst er durch.
+  belege: ['Mod+J'], letzteZurueck: ['Mod+Backspace'],
   // NICHT Mod+T: die Taste ist im Browser reserviert (neuer Tab) und kommt
   // nie bei der Seite an. Mod+G laesst Chrome durch.
   einstellungen: ['Mod+S'], abmelden: ['Mod+L'], trinkgeld: ['Mod+G'],
