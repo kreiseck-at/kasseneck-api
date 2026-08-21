@@ -87,6 +87,15 @@
       ],
       "letzteZurueck": [
         "Mod+Backspace"
+      ],
+      "einstellungen": [
+        "Mod+S"
+      ],
+      "abmelden": [
+        "Mod+L"
+      ],
+      "trinkgeld": [
+        "Mod+T"
       ]
     },
     "druckerAn": false,
