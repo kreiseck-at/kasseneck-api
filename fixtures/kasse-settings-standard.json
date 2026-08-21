@@ -65,7 +65,9 @@
     "logoSkala": "M",
     "wzPos": 50,
     "wzPosV": 50,
-    "wzSkala": "M"
+    "wzSkala": "M",
+    "glas": true,
+    "hinweise": true
   },
   "geraet": {
     "layout": "rechts",
@@ -137,6 +139,7 @@
     "terminalPort": 8080,
     "terminalVia": "direkt",
     "terminalArt": "keins",
-    "terminalTid": ""
+    "terminalTid": "",
+    "tastenMarken": true
   }
 }
