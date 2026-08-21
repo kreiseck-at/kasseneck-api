@@ -62,9 +62,9 @@ export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   kassieren: ['Enter'], abschliessen: ['Enter'], abbrechen: ['Escape'],
   frei: ['Mod+F'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
   belege: ['Mod+E'], letzteZurueck: ['Mod+Backspace'],
-  // Mod+T faengt Chrome fuer den neuen Tab ab, bevor die Seite es sieht --
-  // der Chef kann die Taste je Geraet umbelegen (geraet.tasten).
-  einstellungen: ['Mod+S'], abmelden: ['Mod+L'], trinkgeld: ['Mod+T'],
+  // NICHT Mod+T: die Taste ist im Browser reserviert (neuer Tab) und kommt
+  // nie bei der Seite an. Mod+G laesst Chrome durch.
+  einstellungen: ['Mod+S'], abmelden: ['Mod+L'], trinkgeld: ['Mod+G'],
 });
 
 export interface KasseSettingsGeraet {
