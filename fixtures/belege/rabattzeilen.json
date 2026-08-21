@@ -34,13 +34,15 @@
         "name": "Rabatt 10 %",
         "quantity": 1,
         "unitPriceCents": -32,
-        "vatRate": 10
+        "vatRate": 10,
+        "kind": "discount"
       },
       {
         "name": "Rabatt 10 %",
         "quantity": 1,
         "unitPriceCents": -28,
-        "vatRate": 20
+        "vatRate": 20,
+        "kind": "discount"
       }
     ],
     "vouchers": [],

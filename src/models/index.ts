@@ -8,7 +8,7 @@ export {
   receiptItemIsValid,
   negateReceiptItem,
   type TipRecipient,
-  isTipItem,
+  isTipItem, isDiscountItem,
 } from './receipt-item.js';
 export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid } from './voucher.js';
 export {

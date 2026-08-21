@@ -4,6 +4,7 @@ import {
   isCancellationReason,
   receiptCompanyTaxInfo,
   receiptItemTotalCents,
+  isDiscountItem,
   isTipItem,
   receiptSubSumCents,
   receiptSumCents,
@@ -449,6 +450,13 @@ function trinkgeldZeilen(name: string, teile: Array<{ satz: Steuersatz; cents: n
   ];
 }
 
+/**
+ * Rabatt auf dem Bon: dieselbe Form wie Trinkgeld — Summenzeile, bei einem
+ * Steuersatz mit Kategorie-Buchstaben, im Mischfall mit Stern und der
+ * Aufteilung als Fussnote darunter (siehe trinkgeldZeilen).
+ */
+const rabattZeilen = trinkgeldZeilen;
+
 /** Positionszeile: Menge, Bezeichnung, ab Menge 2 der Einzelpreis. */
 function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine {
   const menge = String(item.quantity);
@@ -720,30 +728,51 @@ export function buildReceiptLayout(
   // mehrere Steuersaetze bzw. mehrere Empfaenger ist fiskalisch notwendig,
   // fuer den Gast aber nur Rauschen); bei mehr als einer Steuer-Kategorie
   // steht die Aufteilung darunter. USt-Tabelle und DEP bleiben positionsgenau.
+  // Rabatt-Positionen gleichen Namens werden wie Trinkgeld zu EINER Zeile mit
+  // der Summe zusammengefasst (die Aufteilung je Steuersatz ist fiskalisch
+  // notwendig, fuer den Gast aber Rauschen); vor dem ERSTEN Rabatt-Block steht
+  // einmalig die Zwischensumme der Waren — der Gast sieht vorher/nachher.
+  // USt-Tabelle und DEP bleiben positionsgenau.
+  const warenSummeCents = receipt.items
+    .filter((it) => !isTipItem(it) && !isDiscountItem(it))
+    .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
+  let zwischensummeGezeigt = false;
   let i = 0;
   while (i < receipt.items.length) {
     const item = receipt.items[i]!;
-    if (!isTipItem(item)) {
+    if (!isTipItem(item) && !isDiscountItem(item)) {
       const satz = steuersatz(item.vat);
       gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
       lines.push(positionsZeile(item, satz));
       i += 1;
       continue;
     }
+    const artVon = (it: ReceiptItem): 'tip' | 'discount' => (isTipItem(it) ? 'tip' : 'discount');
+    const art = artVon(item);
     const gruppe: ReceiptItem[] = [];
-    while (i < receipt.items.length && isTipItem(receipt.items[i]!) && receipt.items[i]!.name === item.name) {
+    while (i < receipt.items.length && artVon(receipt.items[i]!) === art && !(!isTipItem(receipt.items[i]!) && !isDiscountItem(receipt.items[i]!)) && receipt.items[i]!.name === item.name) {
       gruppe.push(receipt.items[i]!);
       i += 1;
     }
     const teile: Array<{ satz: Steuersatz; cents: number }> = [];
-    for (const tip of gruppe) {
-      const satz = steuersatz(tip.vat);
-      gruppeVon(satz).bruttoCents += receiptItemTotalCents(tip);
+    for (const teil of gruppe) {
+      const satz = steuersatz(teil.vat);
+      gruppeVon(satz).bruttoCents += receiptItemTotalCents(teil);
       const vorhanden = teile.find((t) => t.satz.category === satz.category);
-      if (vorhanden) vorhanden.cents += receiptItemTotalCents(tip);
-      else teile.push({ satz, cents: receiptItemTotalCents(tip) });
+      if (vorhanden) vorhanden.cents += receiptItemTotalCents(teil);
+      else teile.push({ satz, cents: receiptItemTotalCents(teil) });
     }
-    lines.push(...trinkgeldZeilen(item.name, teile));
+    if (art === 'discount' && !zwischensummeGezeigt) {
+      // Trennlinie vor dem Rabatt-Block: die Warenzeilen enden sichtbar,
+      // darunter beginnt die Verrechnung (Zwischensumme, Rabatt).
+      lines.push({ kind: 'rule', char: '-' });
+      // Zwei Fuellzeichen, wo bei den Warenzeilen " B" steht — so fluchten
+      // ALLE Betraege (Waren, Zwischensumme, Rabatt, Trinkgeld) in einer
+      // Spalte; die letzten zwei Zeichen sind die Kategorie-/Stern-Spalte.
+      lines.push(paarZeile('Zwischensumme', `${formatCents(warenSummeCents)}  `, 8, 4));
+      zwischensummeGezeigt = true;
+    }
+    lines.push(...(art === 'discount' ? rabattZeilen(item.name, teile) : trinkgeldZeilen(item.name, teile)));
   }
 
   // --- Gutscheine: verkaufte Wertgutscheine sind Umsatz zu 0 %, eingeloeste

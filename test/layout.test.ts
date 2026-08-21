@@ -780,3 +780,49 @@ test('Layout: Personal- und Inhaber-Trinkgeld auf einem Beleg bleiben getrennte 
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld' && z[1] === '2,00 A'));
   assert.ok(spalten.some((z) => z[0] === 'Trinkgeld Personal' && z[1] === '1,00 D'));
 });
+
+test('Layout: Rabatt als Summenzeile mit Zwischensumme; Aufteilung nur im Mischfall', () => {
+  const beleg: Receipt = { ...BELEG, items: [
+    { name: 'Semmel', quantity: 4, vat: VatRate.vat10, priceCents: 79 },
+    { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 280 },
+    { name: 'Rabatt 10 %', quantity: 1, vat: VatRate.vat10, priceCents: -32, kind: 'discount' },
+    { name: 'Rabatt 10 %', quantity: 1, vat: VatRate.vat20, priceCents: -28, kind: 'discount' },
+  ] };
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  const spalten = spaltenZeilen(layout);
+  const texte = textZeilen(layout);
+  // EINE Rabatt-Zeile (Summe, Stern), kein "1 x", davor die Zwischensumme der Waren
+  assert.equal(spalten.filter((z) => z[0] === 'Rabatt 10 %').length, 1, inspect(spalten));
+  // Stern wie beim Trinkgeld; die Zwischensumme traegt zwei Fuellzeichen,
+  // damit alle Betraege in einer Spalte fluchten.
+  assert.ok(spalten.some((z) => z[0] === 'Zwischensumme' && z[1] === '5,96  '), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Rabatt 10 %' && z[1] === '-0,60 *'), inspect(spalten));
+  assert.ok(texte.includes('* davon -0,28 A, -0,32 B'), inspect(texte));
+  // USt-Tabelle bleibt positionsgenau
+  assert.ok(spalten.some((z) => z[0] === 'B 10%' && z[3] === '2,84'), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'A 20%' && z[3] === '2,52'), inspect(spalten));
+});
+
+test('Layout: Rabatt mit EINEM Steuersatz — Kategorie-Buchstabe statt Stern, Zwischensumme trotzdem', () => {
+  const beleg: Receipt = { ...BELEG, items: [
+    { name: 'Maniküre klassisch', quantity: 1, vat: VatRate.vat20, priceCents: 2900 },
+    { name: 'Rabatt 15 %', quantity: 1, vat: VatRate.vat20, priceCents: -435, kind: 'discount' },
+  ] };
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  const spalten = spaltenZeilen(layout);
+  assert.ok(spalten.some((z) => z[0] === 'Zwischensumme' && z[1] === '29,00  '), inspect(spalten));
+  assert.ok(spalten.some((z) => z[0] === 'Rabatt 15 %' && z[1] === '-4,35 A'), inspect(spalten));
+  assert.equal(textZeilen(layout).some((t) => t.trimStart().startsWith('davon')), false);
+});
+
+test('Rot-Probe: negative Position OHNE kind-Kennzeichnung rendert wie bisher (Alt-Clients)', () => {
+  const beleg: Receipt = { ...BELEG, items: [
+    { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 280 },
+    { name: 'Rabatt', quantity: 1, vat: VatRate.vat20, priceCents: -28 },
+  ] };
+  const layout = buildReceiptLayout(beleg, FIRMA);
+  const spalten = spaltenZeilen(layout);
+  // klassische Positionszeile mit "1 x", KEINE Zwischensumme
+  assert.ok(spalten.some((z) => (z[0] ?? "").startsWith("1  x Rabatt")), inspect(spalten));
+  assert.equal(spalten.some((z) => z[0] === 'Zwischensumme'), false);
+});

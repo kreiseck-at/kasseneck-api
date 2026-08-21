@@ -31,11 +31,13 @@ export interface ReceiptItem {
   priceCents: number;
   /**
    * Trinkgeld-Position (vom Backend aus dem Parameter `tip` erzeugt, siehe
-   * [ReceiptCommonOptions.tip]). Mitarbeiter-Trinkgeld ist Durchlaeufer
-   * (0 %, kein Umsatz), Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Ein
-   * Client schreibt das Feld nur beim Storno einer gelesenen Position mit.
+   * [ReceiptCommonOptions.tip]) oder Rabatt-Position (`verteileRabatt`).
+   * Mitarbeiter-Trinkgeld ist Durchlaeufer (0 %, kein Umsatz),
+   * Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Rabatt-Positionen sind
+   * negative Entgeltminderungen je Steuersatz; die Kennzeichnung steuert nur
+   * die Bon-Darstellung (Summenzeile mit Aufteilung), nie die Beträge.
    */
-  kind?: 'tip';
+  kind?: 'tip' | 'discount';
   /** Empfaenger der Trinkgeld-Position; `null` = nicht zugeordnet. */
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
@@ -60,6 +62,11 @@ export function isTipItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
   return item != null && (item as { kind?: unknown }).kind === 'tip';
 }
 
+/** Rabatt-Position? Die eine Erkennungsstelle — niemand prueft `kind` selbst. */
+export function isDiscountItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'discount';
+}
+
 /**
  * Nutzlast-Form, die dieses Paket **schreibt** (v2):
  * `{ name, quantity, unitPriceCents, vatRate }`.
@@ -69,8 +76,8 @@ export interface ReceiptItemPayload {
   quantity: number;
   unitPriceCents: number;
   vatRate: number;
-  /** Nur bei Trinkgeld-Positionen (Storno-Spiegelung), siehe [ReceiptItem.kind]. */
-  kind?: 'tip';
+  /** Trinkgeld-/Rabatt-Kennzeichnung, siehe [ReceiptItem.kind]. */
+  kind?: 'tip' | 'discount';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
@@ -134,6 +141,9 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
     nutzlast.recipient = item.recipient ?? null;
     if (item.paymentMethod != null) nutzlast.paymentMethod = item.paymentMethod;
   }
+  // Rabatt-Kennzeichnung reist mit — sonst kaeme ein Storno dieser Position
+  // am Bon wieder als gewoehnliche Warenzeile mit "1 x" an.
+  if (item.kind === 'discount') nutzlast.kind = 'discount';
   // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
   if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
   return nutzlast;
@@ -174,7 +184,9 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
           recipient: payload.recipient ?? null,
           ...(payload.paymentMethod != null ? { paymentMethod: payload.paymentMethod } : {}),
         }
-      : {}),
+      : payload.kind === 'discount'
+        ? { kind: 'discount' as const }
+        : {}),
     // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
     ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
   };
