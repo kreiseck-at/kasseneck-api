@@ -127,7 +127,8 @@ export interface KasseSettings {
 }
 
 export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.freeze({
-  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#1B46F5',
+  // Kasseneck-Teal aus dem Branding-Guide — nicht mehr das alte Blau.
+  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#0F6B72',
   stil: 'klar', schrift: 'M', schriftEinst: 'S', kachelstil: 'streifen', uhr: true,
   sperrbild: true, foto: true, autoAbMin: 0, abNachVerkauf: false, schnellLogin: true,
   preisAnzeigen: true, ustAnzeigen: false, emoji: true, katFarben: true, freiErlaubt: true,
