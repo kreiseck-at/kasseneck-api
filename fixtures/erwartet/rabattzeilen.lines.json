@@ -114,16 +114,20 @@
       ]
     },
     {
+      "kind": "rule",
+      "char": "-"
+    },
+    {
       "kind": "columns",
       "columns": [
         {
-          "text": "1  x Rabatt 10 %",
-          "width": 7,
+          "text": "Zwischensumme",
+          "width": 8,
           "align": "left"
         },
         {
-          "text": "-0,32 B",
-          "width": 5,
+          "text": "5,96  ",
+          "width": 4,
           "align": "right"
         }
       ]
@@ -132,16 +136,22 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "1  x Rabatt 10 %",
-          "width": 7,
+          "text": "Rabatt 10 %",
+          "width": 8,
           "align": "left"
         },
         {
-          "text": "-0,28 A",
-          "width": 5,
+          "text": "-0,60 *",
+          "width": 4,
           "align": "right"
         }
       ]
+    },
+    {
+      "kind": "text",
+      "text": "* davon -0,28 A, -0,32 B",
+      "align": "left",
+      "bold": false
     },
     {
       "kind": "space",

@@ -44,10 +44,10 @@
       "grid48": "bbc791a39c42f9f07817ec466a09eceabddf31e2d06b70e4114b52e8c3a5acf4"
     },
     "rabattzeilen": {
-      "eingabe": "b30836a268c227812df826b5f8579b28fd57d6fa51923b5d35e1e3c195daf0e9",
-      "erwartet": "8c72ebacd6e3d42c47e72f4cc5a912f7cb8034ed6483c446f160127d24005f59",
-      "grid32": "36f7445e684c564e3a441b45b77258ed326fd8b39b1c7f062135fca8869a0c13",
-      "grid48": "6bb1c025b806cc0f7b7d6317b1f39e33326951c3810a1b16ac5330b023a9adb5"
+      "eingabe": "746b4fa54aadd62925a08a828632f9ff1829475d63a2839b8310c0451cda4766",
+      "erwartet": "3395fead05ccdd43eefc1f063ddb1c5ffb4f56aa00a264d8dfdcad48913acd8d",
+      "grid32": "175f207c673b7cdef2175cf8b0cf0aebb5c82cb714804dacac8208d9742f97fb",
+      "grid48": "29d21112a7cde5db0f546233c9580451199c0490ab01dcfa4365d79c066218a0"
     },
     "signaturausfall-verkauf": {
       "eingabe": "c84c9cb97e2cbf0ead3ce537399d2227ab501a90adc2ead79233e95b3a30b8c2",

@@ -41,6 +41,6 @@ export function verteileRabatt(positionen: ReceiptItem[], rabattCents: number, n
     }
   }
   return liste
-    .map((g, i) => ({ name, quantity: 1, vat: g.vat, priceCents: -anteile[i]! }))
+    .map((g, i) => ({ name, quantity: 1, vat: g.vat, priceCents: -anteile[i]!, kind: 'discount' as const }))
     .filter((z) => z.priceCents < 0);
 }
