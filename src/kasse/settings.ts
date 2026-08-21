@@ -99,7 +99,8 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   zahlBar: true, zahlKarte: false, kartenanbieter: 'keiner', trinkgeld: false, tgModus: 'beides',
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
   schnellbar: false, kassierenModus: 'seite',
-  belegAusgabe: 'qr', fertigSekunden: 0,
+  // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
+  belegAusgabe: 'fragen', fertigSekunden: 0,
 });
 
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({

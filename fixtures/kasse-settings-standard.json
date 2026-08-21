@@ -51,7 +51,7 @@
     "rueckgeld": true,
     "schnellbar": false,
     "kassierenModus": "seite",
-    "belegAusgabe": "qr",
+    "belegAusgabe": "fragen",
     "fertigSekunden": 0
   },
   "geraet": {

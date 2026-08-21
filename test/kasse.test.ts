@@ -49,10 +49,11 @@ function gesendet(aufrufe: Aufruf[]): { fn: string; params: Record<string, unkno
 }
 
 // --- Einstellungen: Standardwerte + Merge -----------------------------------
-test('Standardwerte: klar, Korb rechts, Trinkgeld aus, QR-Beleg -- wie im Backend', () => {
+test('Standardwerte: klar, Korb rechts, Trinkgeld aus, Beleg fragt -- wie im Backend', () => {
   assert.equal(KASSE_BETRIEB_STANDARD.stil, 'klar');
   assert.equal(KASSE_BETRIEB_STANDARD.trinkgeld, false);
-  assert.equal(KASSE_BETRIEB_STANDARD.belegAusgabe, 'qr');
+  // 'fragen': Fertig-Seite bietet QR und Bon an — Standard seit 0.6.21.
+  assert.equal(KASSE_BETRIEB_STANDARD.belegAusgabe, 'fragen');
   assert.deepEqual(KASSE_BETRIEB_STANDARD.saetze, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false });
   assert.equal(KASSE_GERAET_STANDARD.layout, 'rechts');
   assert.equal(KASSE_GERAET_STANDARD.druckerPort, 9100);
