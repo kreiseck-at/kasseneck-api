@@ -256,12 +256,12 @@
       "columns": [
         {
           "text": "Wertgutschein GS-1",
-          "width": 6,
+          "width": 8,
           "align": "left"
         },
         {
           "text": "-3,00 €",
-          "width": 6,
+          "width": 4,
           "align": "right"
         }
       ]

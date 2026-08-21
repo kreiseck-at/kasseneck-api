@@ -852,7 +852,9 @@ export function buildReceiptLayout(
     lines.push(paarZeile('Zwischensumme', `${formatCents(zwischensummeCents)} €`));
     for (const voucher of receipt.vouchers) {
       if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value) {
-        lines.push(paarZeile(gutscheinText(voucher), `-${formatCents(voucher.valueCents ?? 0)} €`));
+        // Breite 8:4 — "Wertgutschein GS-1" (Label + Code) passt so auf 58 mm
+        // in die Zeile, statt den Code in eine Folgezeile fliessen zu lassen.
+        lines.push(paarZeile(gutscheinText(voucher), `-${formatCents(voucher.valueCents ?? 0)} €`, 8, 4));
       }
     }
     lines.push({ kind: 'rule', char: '-' });

@@ -21,8 +21,7 @@ B 10%   0,26      2,58      2,84
 A 20%   0,42      2,10      2,52
 --------------------------------
 Zwischensumme             5,36 €
-Wertgutschein            -3,00 €
-GS-1                            
+Wertgutschein GS-1       -3,00 €
 --------------------------------
 Gesamt:                   2,36 €
 Zahlungsart:          Barzahlung
