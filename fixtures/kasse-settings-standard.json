@@ -71,7 +71,7 @@
         "Escape"
       ],
       "frei": [
-        "Mod+F"
+        "Mod+D"
       ],
       "bar": [
         "Mod+B"
@@ -96,6 +96,9 @@
       ],
       "trinkgeld": [
         "Mod+G"
+      ],
+      "vollbild": [
+        "Mod+F"
       ]
     },
     "druckerAn": false,

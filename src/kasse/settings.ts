@@ -54,17 +54,19 @@ export interface KasseSettingsBetrieb {
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
-export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck' | 'einstellungen' | 'abmelden' | 'trinkgeld';
-export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld'];
+export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck' | 'einstellungen' | 'abmelden' | 'trinkgeld' | 'vollbild';
+export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild'];
 /** Tastenkarte: Aktion -> Tasten (`Mod+F`, `Enter`, `Escape`, `F5` ...; `Mod` = ⌘ auf dem Mac, Strg sonst). */
 export type KasseTastenkarte = Record<KasseTastenAktion, string[]>;
 export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   kassieren: ['Enter'], abschliessen: ['Enter'], abbrechen: ['Escape'],
-  frei: ['Mod+F'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
+  // Mod+F gehoert dem Vollbild (Wunsch des Chefs); Betrag frei liegt auf D.
+  frei: ['Mod+D'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
   belege: ['Mod+E'], letzteZurueck: ['Mod+Backspace'],
   // NICHT Mod+T: die Taste ist im Browser reserviert (neuer Tab) und kommt
   // nie bei der Seite an. Mod+G laesst Chrome durch.
   einstellungen: ['Mod+S'], abmelden: ['Mod+L'], trinkgeld: ['Mod+G'],
+  vollbild: ['Mod+F'],
 });
 
 export interface KasseSettingsGeraet {
