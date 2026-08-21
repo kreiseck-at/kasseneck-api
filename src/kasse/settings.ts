@@ -68,8 +68,8 @@ export interface KasseSettingsBetrieb {
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
-export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck' | 'einstellungen' | 'abmelden' | 'trinkgeld' | 'vollbild' | 'gegebenLeeren';
-export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren'];
+export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck' | 'einstellungen' | 'abmelden' | 'trinkgeld' | 'vollbild' | 'gegebenLeeren' | 'korbLeeren';
+export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren'];
 /** Tastenkarte: Aktion -> Tasten (`Mod+F`, `Enter`, `Escape`, `F5` ...; `Mod` = ⌘ auf dem Mac, Strg sonst). */
 export type KasseTastenkarte = Record<KasseTastenAktion, string[]>;
 export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
@@ -87,6 +87,10 @@ export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   // Mod+C = Kopieren des Browsers — im Kassieren-Schritt ist Kopieren fern,
   // und die Bindung gilt nur dort (Bar + Rueckgeld-Rechner an).
   gegebenLeeren: ['Mod+C'],
+  // Bewusst DIESELBE Taste wie gegebenLeeren: die beiden leben in
+  // verschiedenen Momenten (Korb vor dem Kassieren, Gegeben-Feld darin) —
+  // der Verteiler laesst die nicht zustaendige Aktion durchfallen.
+  korbLeeren: ['Mod+C'],
 });
 
 export interface KasseSettingsGeraet {

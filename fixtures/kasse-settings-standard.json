@@ -114,6 +114,9 @@
       ],
       "gegebenLeeren": [
         "Mod+C"
+      ],
+      "korbLeeren": [
+        "Mod+C"
       ]
     },
     "druckerAn": false,
