@@ -99,6 +99,9 @@
       ],
       "vollbild": [
         "Mod+F"
+      ],
+      "gegebenLeeren": [
+        "Mod+C"
       ]
     },
     "druckerAn": false,
