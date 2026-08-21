@@ -46,6 +46,12 @@ export interface KasseSettingsBetrieb {
   schnellLogin: boolean;
   preisAnzeigen: boolean; ustAnzeigen: boolean; emoji: boolean; katFarben: boolean; freiErlaubt: boolean;
   saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: 'aus' | 'an';
+  /** Bild-Logo (Download-URL aus dem Kasse-Upload); '' = Kuerzel verwenden. */
+  logoBild: string;
+  /** Seite des Wasserzeichens (nur mit Bild-Logo). */
+  wzSeite: 'links' | 'mitte' | 'rechts';
+  /** Deckkraft des Wasserzeichens in Prozent — bewusst Stufen, kein Schieberegler. */
+  wzStaerke: 3 | 6 | 10 | 16;
   zahlBar: boolean; zahlKarte: boolean; kartenanbieter: KasseKartenanbieter; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
@@ -111,6 +117,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
   schnellbar: false, kassierenModus: 'seite',
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
+  logoBild: '', wzSeite: 'mitte', wzStaerke: 6,
   belegAusgabe: 'fragen', fertigSekunden: 0,
 });
 
