@@ -157,6 +157,13 @@ export interface RegisterDeviceUsers {
   loginMode: RegisterLoginMode;
   /** Der Betrieb verlangt die Ortung beim Login (Standortsperre an). */
   standortsperre: boolean;
+  /**
+   * Darf die gebundene Kasse ueberhaupt Belege erstellen? `bereit: false`
+   * nennt den Grund (ausser Betrieb, Schlussbeleg erstellt) — die Kasse
+   * sperrt das Kassieren VOR dem ersten Beleg statt an createReceipt zu
+   * scheitern. Fehlt das Feld (aelteres Backend), gilt bereit.
+   */
+  kasse?: { bereit: boolean; grund?: string | null } | null;
 }
 
 /**
