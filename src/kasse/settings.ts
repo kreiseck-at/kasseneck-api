@@ -67,6 +67,10 @@ export interface KasseSettingsBetrieb {
   /** Rabatt-Chips in Prozent — dieselben Regeln wie tgChips, vom Chef einstellbar. */
   rabattChips: number[];
   belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10 | 15 | 30 | 60;
+  /** Glas-Optik: Kacheln und Korb leicht durchscheinend (Wasserzeichen schimmert). */
+  glas: boolean;
+  /** Hilfetexte in den Chef-Einstellungen anzeigen. */
+  hinweise: boolean;
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
@@ -111,6 +115,8 @@ export interface KasseSettingsGeraet {
   terminalIp: string; terminalPort: number; terminalVia: KasseTerminalVia;
   /** Art des Terminals ('keins' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern zahlKarte an). */
   terminalArt: KasseTerminalArt;
+  /** Tastenmarken (die kleinen Kuerzel an den Knoepfen) anzeigen. */
+  tastenMarken: boolean;
   /** Terminal-ID aus dem Hobex-Vertrag (ohne fuehrende Null); noetig fuer Diagnose und Zahlung. */
   terminalTid: string;
 }
@@ -132,6 +138,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   schnellbar: false, kassierenModus: 'seite',
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
   logoBild: '', wzSeite: 'mitte', wzPos: 50, wzPosV: 50, wzStaerke: 6, logoSkala: 'M', wzSkala: 'M',
+  glas: true, hinweise: true,
   rabattChips: [5, 10, 15, 20],
   belegAusgabe: 'fragen', fertigSekunden: 0,
 });
@@ -144,7 +151,7 @@ export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freez
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',
   terminalIp: '', terminalPort: 8080, terminalVia: 'direkt',
-  terminalArt: 'keins', terminalTid: '',
+  terminalArt: 'keins', terminalTid: '', tastenMarken: true,
 });
 
 /**
