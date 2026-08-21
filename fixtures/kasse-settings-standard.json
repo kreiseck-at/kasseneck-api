@@ -52,7 +52,10 @@
     "schnellbar": false,
     "kassierenModus": "seite",
     "belegAusgabe": "fragen",
-    "fertigSekunden": 0
+    "fertigSekunden": 0,
+    "logoBild": "",
+    "wzSeite": "mitte",
+    "wzStaerke": 6
   },
   "geraet": {
     "layout": "rechts",
