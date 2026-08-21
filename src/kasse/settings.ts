@@ -60,9 +60,10 @@ export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren',
 export type KasseTastenkarte = Record<KasseTastenAktion, string[]>;
 export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   kassieren: ['Enter'], abschliessen: ['Enter'], abbrechen: ['Escape'],
-  // Mod+F gehoert dem Vollbild (Wunsch des Chefs); Betrag frei liegt auf D.
-  frei: ['Mod+D'], bar: ['Mod+B'], karte: ['Mod+K'], passend: ['Mod+P'],
-  belege: ['Mod+E'], letzteZurueck: ['Mod+Backspace'],
+  // Mod+F gehoert dem Vollbild, Mod+B den Belegen (Wunsch des Chefs);
+  // Betrag frei liegt auf D, Zahlart Bar auf Shift+B.
+  frei: ['Mod+D'], bar: ['Mod+Shift+B'], karte: ['Mod+K'], passend: ['Mod+P'],
+  belege: ['Mod+B'], letzteZurueck: ['Mod+Backspace'],
   // NICHT Mod+T: die Taste ist im Browser reserviert (neuer Tab) und kommt
   // nie bei der Seite an. Mod+G laesst Chrome durch.
   einstellungen: ['Mod+S'], abmelden: ['Mod+L'], trinkgeld: ['Mod+G'],

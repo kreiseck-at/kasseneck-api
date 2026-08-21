@@ -220,7 +220,11 @@ test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbiet
 });
 
 test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {
-  assert.equal(KASSE_TASTEN_STANDARD.frei[0], 'Mod+F');
+  // Mod+F gehoert seit 0.6.24 dem Vollbild, Mod+B seit 0.6.25 den Belegen.
+  assert.equal(KASSE_TASTEN_STANDARD.frei[0], 'Mod+D');
+  assert.equal(KASSE_TASTEN_STANDARD.vollbild[0], 'Mod+F');
+  assert.equal(KASSE_TASTEN_STANDARD.belege[0], 'Mod+B');
+  assert.equal(KASSE_TASTEN_STANDARD.bar[0], 'Mod+Shift+B');
   assert.ok(!Object.values(KASSE_TASTEN_STANDARD).flat().some((t) => /^F\d/.test(t)));
   const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: { ...KASSE_TASTEN_STANDARD, bar: ['Mod+G'] } });
   assert.deepEqual(g.tasten.bar, ['Mod+G']);
