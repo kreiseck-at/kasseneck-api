@@ -25,8 +25,8 @@ const erwartet = (name: string): ReceiptLayout => JSON.parse(readFileSync(new UR
 const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
-test('Golden-Belege: alle 17 Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabattzeilen', 'signaturausfall-verkauf', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+test('Golden-Belege: alle 22 Faelle aus der Spec liegen vor', () => {
+  assert.deepEqual(namen, ['langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'storno-rabatt', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
 });
 
 for (const name of namen) {
