@@ -117,6 +117,11 @@ function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutL
                 // so bleibt die Aufteilung auf allen Ausgabewegen dieselbe.
                 flex: `0 0 ${((spalte.width / 12) * 100).toFixed(4)}%`,
                 textAlign: AUSRICHTUNG[spalte.align],
+                // minWidth 0: Flex-Zellen haben sonst min-content-Breite --
+                // ein langes Wort ohne Leerzeichen (Hex-Seriennummer der
+                // Signaturkarte) wuerde die Zelle sprengen und abgeschnitten,
+                // statt per break-word umzubrechen.
+                minWidth: 0,
                 overflowWrap: 'break-word',
               }}
             >
