@@ -86,6 +86,11 @@ export interface RegisterGeraeteAngaben {
 
 export interface PairRegisterDeviceOptions extends RegisterDeviceConnection, RegisterGeraeteAngaben {
   /**
+   * Die Kasse ist schon auf einem anderen Geraet geoeffnet (BELEGT-Rueckfrage):
+   * `true` uebernimmt sie hierher und widerruft das alte Geraet.
+   */
+  takeover?: boolean;
+  /**
    * Achtstelliger Kopplungs-Code aus dem Panel. Er ist 15 Minuten gueltig,
    * genau **einmal** verwendbar und gilt fuer eine bestimmte Kasse.
    *
@@ -288,13 +293,13 @@ export interface RegisterPinLoginOptions extends RegisterDeviceConnection, Regis
  * [PairedRegisterDevice]).
  */
 export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Promise<PairedRegisterDevice> {
-  const { code, label, client, geo, ...verbindung } = options;
+  const { code, label, client, geo, takeover, ...verbindung } = options;
   pflicht('pairRegisterDevice', 'code', code);
 
   // Der Code ist das Geheimnis dieses Aufrufs — siehe Modulkommentar.
   const daten = await transportFuer(verbindung)<Record<string, unknown>>(
     'pairRegisterDevice',
-    { code, label, client, geo: geo ?? undefined },
+    { code, label, client, geo: geo ?? undefined, takeover: takeover === true ? true : undefined },
     undefined,
     [code],
   );
