@@ -1,0 +1,26 @@
+        Bäckerei Muster         
+          Hauptplatz 1          
+         4830 Hallstatt         
+          ATU12345678           
+         +43 6134 12345         
+                                
+Datum:       13.08.2026 10:15:30
+Kassen-ID:                KASSE1
+Beleg-ID:          AT0-KASSE1-83
+                                
+1  x Maniküre            29,00 A
+klassisch                       
+--------------------------------
+Zwischensumme            29,00  
+Rabatt 15 %              -4,35 A
+                                
+MwSt%   MwSt      Netto   Brutto
+A 20%   4,11      20,54    24,65
+--------------------------------
+Gesamt:                  24,65 €
+Zahlungsart:          Barzahlung
+                                
+           [QR-Code]            
+                                
+ Vielen Dank für Ihren Einkauf  
+    www.baeckerei-muster.at     

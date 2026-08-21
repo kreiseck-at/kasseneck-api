@@ -367,21 +367,18 @@ function gutscheinText(voucher: Voucher): string {
   if (name != null && name.toLowerCase().includes(text.toLowerCase())) {
     return name;
   }
-  if (voucher.valueCents != null) {
-    text += ` ${gutscheinBetrag(voucher.valueCents)} €`;
+  // Der Betrag steht in derselben Zeile rechts in der Betragsspalte — ihn
+  // auch ins Label zu schreiben war doppelt und brach auf 58 mm haesslich
+  // um ("Wertgutschein 3 €" + Folgezeile "€"). Statt dessen der Code: er
+  // identifiziert den Gutschein (Mehrzweck: der Kunde will wissen, WELCHER
+  // eingeloest wurde).
+  if (voucher.code != null && voucher.code !== '') {
+    text += ` ${voucher.code}`;
   }
   if (name != null && name.length > 0) {
     text += ` - ${name}`;
   }
   return text;
-}
-
-/**
- * Ganze Betraege kurz (`"10"`), krumme mit zwei Nachkommastellen (`"1,50"`) —
- * Zwilling von `KeckVoucher.formatVoucherAmount`.
- */
-function gutscheinBetrag(cents: number): string {
-  return cents % 100 === 0 ? String(cents / 100) : formatCents(cents);
 }
 
 // ----------------------------------------------------------------- Bauteile

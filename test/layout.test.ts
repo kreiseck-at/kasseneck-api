@@ -448,7 +448,7 @@ test('Betraege: ein eingeloester Promo-Gutschein mindert die USt-Aufteilung ante
   // Der Gutschein selbst steht als eigene Zeile auf dem Beleg — mit dem
   // Belegtext des Vorbilds (Gutscheinart, Wert, Name).
   assert.ok(
-    spalten.some((s) => s[0] === 'Promotionsgutschein 3 € - Aktion' && s[1] === '-3,00 €'),
+    spalten.some((s) => s[0] === 'Promotionsgutschein - Aktion' && s[1] === '-3,00 €'),
     'Gutscheinzeile fehlt',
   );
 });
@@ -462,7 +462,7 @@ test('Betraege: ein eingeloester Wertgutschein erzeugt eine Zwischensumme', () =
   // Zwischensumme 7,70 €, abzueglich 5,00 € Gutschein -> Gesamt 2,70 €.
   assert.deepEqual(zeileMitBeschriftung(layout, 'Zwischensumme'), ['Zwischensumme', '7,70 €']);
   assert.ok(
-    spaltenZeilen(layout).some((s) => s[0] === 'Wertgutschein 5 € - Geschenkgutschein' && s[1] === '-5,00 €'),
+    spaltenZeilen(layout).some((s) => s[0] === 'Wertgutschein - Geschenkgutschein' && s[1] === '-5,00 €'),
     'Gutscheinzeile fehlt',
   );
   assert.deepEqual(zeileMitBeschriftung(layout, 'Gesamt:'), ['Gesamt:', '2,70 €']);
@@ -476,7 +476,7 @@ test('Betraege: ein verkaufter Wertgutschein steht als Position mit 0 % Umsatzst
   };
   const layout = buildReceiptLayout(beleg, FIRMA);
   assert.ok(
-    spaltenZeilen(layout).some((s) => s[0] === '1  x Wertgutschein 50 € - Geschenkgutschein' && s[1] === '50,00 D'),
+    spaltenZeilen(layout).some((s) => s[0] === '1  x Wertgutschein - Geschenkgutschein' && s[1] === '50,00 D'),
     'Positionszeile des verkauften Gutscheins fehlt',
   );
   assert.deepEqual(zeileMitBeschriftung(layout, 'Gesamt:'), ['Gesamt:', '50,00 €']);
