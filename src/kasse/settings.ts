@@ -48,8 +48,10 @@ export interface KasseSettingsBetrieb {
   saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: 'aus' | 'an';
   /** Bild-Logo (Download-URL aus dem Kasse-Upload); '' = Kuerzel verwenden. */
   logoBild: string;
-  /** Seite des Wasserzeichens (nur mit Bild-Logo). */
+  /** Seite des Wasserzeichens — ALT: abgeloest von wzPos, bleibt fuers Mischen alter Staende. */
   wzSeite: 'links' | 'mitte' | 'rechts';
+  /** Horizontale Lage des Wasserzeichens in Prozent (0 = ganz links, 100 = ganz rechts). */
+  wzPos: number;
   /** Deckkraft des Wasserzeichens in Prozent — bewusst Stufen, kein Schieberegler. */
   wzStaerke: 3 | 6 | 10 | 16;
   /** Groesse des Bild-Logos (Beleg-Ansicht, PDF, Wasserzeichen). */
@@ -121,7 +123,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
   schnellbar: false, kassierenModus: 'seite',
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
-  logoBild: '', wzSeite: 'mitte', wzStaerke: 6, logoSkala: 'M',
+  logoBild: '', wzSeite: 'mitte', wzPos: 50, wzStaerke: 6, logoSkala: 'M',
   rabattChips: [5, 10, 15, 20],
   belegAusgabe: 'fragen', fertigSekunden: 0,
 });
