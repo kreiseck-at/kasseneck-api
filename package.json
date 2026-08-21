@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.6.35",
+  "version": "0.6.36",
   "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
   "license": "Apache-2.0",
   "author": "Kreiseck",
