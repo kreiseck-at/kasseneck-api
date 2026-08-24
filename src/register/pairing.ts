@@ -210,11 +210,56 @@ export interface RegisterUserPerms {
   [weiteresRecht: string]: boolean | RegisterScope | undefined;
 }
 
-/** Alle Rechte-Schluessel, die dieses Paket kennt — die Zwillinge pruefen dagegen. */
+/**
+ * Die **ausdruecklich benannten** Schluessel eines Typs; die einer
+ * Index-Signatur bleiben draussen.
+ *
+ * Fuer [RegisterUserPerms] ist dieser Umweg noetig: wegen
+ * `[weiteresRecht: string]` ist `keyof RegisterUserPerms` schlicht
+ * `string | number`. Jede Pruefung dagegen — auch ein
+ * `satisfies (keyof RegisterUserPerms)[]` — ginge deshalb ins Leere und
+ * liesse jeden Namen durch. Erst die Umbenennung im `as`-Teil wirft die
+ * Index-Signatur weg und laesst die elf echten Rechte stehen.
+ */
+type BenannteSchluessel<T> = keyof {
+  [K in keyof T as string extends K ? never : number extends K ? never : K]: unknown;
+};
+
+/** Ein Recht, das [RegisterUserPerms] namentlich fuehrt. */
+type BenanntesRecht = BenannteSchluessel<RegisterUserPerms>;
+
+/**
+ * Alle Rechte-Schluessel, die dieses Paket kennt — die Zwillinge pruefen
+ * dagegen, und ueber `fixtures/oberflaeche.json` steht die Liste im Vertrag.
+ *
+ * `satisfies` schliesst die eine Richtung: ein Name, den [RegisterUserPerms]
+ * nicht fuehrt (Tippfehler, umbenanntes Recht), kommt hier nicht durch.
+ * Die Gegenrichtung schliesst [_RechteVollstaendig] direkt darunter.
+ */
 export const REGISTER_PERMS = [
   'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
   'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
-] as const;
+] as const satisfies readonly BenanntesRecht[];
+
+/**
+ * Die Gegenrichtung: **jedes** benannte Recht muss in [REGISTER_PERMS] stehen.
+ *
+ * `Exclude<…>` ist genau die Menge der vergessenen Rechte. Ist sie leer, ist
+ * das Argument `never` und alles gut; steht am Interface ein Recht mehr als in
+ * der Liste, verlangt `AlleRechteGelistet` ein `never` und bekommt einen
+ * Rechtenamen — der Bau bricht ab und nennt ihn:
+ *
+ *     Type '"kassensturz"' does not satisfy the constraint 'never'.
+ *
+ * Ohne diese Klammer waere [REGISTER_PERMS] eine handgepflegte Zweitliste:
+ * ein neues Recht am Interface kompiliert klaglos, erreicht den Vertrag aber
+ * nie — und bei Rechten heisst das, dass Backend und Flutter-Zwilling eine
+ * Berechtigung nicht kennen, die es gibt.
+ */
+type AlleRechteGelistet<Vergessen extends never> = Vergessen;
+type _RechteVollstaendig = AlleRechteGelistet<
+  Exclude<BenanntesRecht, (typeof REGISTER_PERMS)[number]>
+>;
 
 /** Reichweite lesen, mit der Migration des Backends (register-auth.js). */
 export function cancelScopeOf(perms: RegisterUserPerms | null | undefined): RegisterScope {
