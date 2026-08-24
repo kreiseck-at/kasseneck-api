@@ -24,5 +24,12 @@ jobs:
       - name: Tests (drei Zeitzonen)
         run: npm test
 
+      - name: Vertrag ist aktuell
+        run: |
+          npm run fixtures:kasse
+          npm run fixtures:oberflaeche
+          git diff --exit-code fixtures/ \
+            || { echo "Standardwerte geaendert, Vertrag nicht mitgezogen — fixtures:* ausfuehren und mitcommitten"; exit 1; }
+
       - name: Verbraucherprobe am echten Tarball
         run: npm run check:consumer

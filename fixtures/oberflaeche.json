@@ -1,0 +1,159 @@
+{
+  "version": "0.6.44",
+  "aufrufe": [
+    "cancelReceipt",
+    "createPaymentLinkStripe",
+    "createPrintJob",
+    "createReceipt",
+    "downloadDailyReport",
+    "downloadReport",
+    "endRegisterSession",
+    "financeWebService",
+    "generateFullReceiptId",
+    "getFirstReceiptDate",
+    "getKasseSettings",
+    "getPrintJob",
+    "getReceipt",
+    "hobexPayApi",
+    "hobexRefundApi",
+    "listMyArticleGroups",
+    "listMyArticles",
+    "listMyCashregisters",
+    "listMyPrinters",
+    "listMyReceipts",
+    "listRegisterUsersForDevice",
+    "pairRegisterDevice",
+    "registerPinLogin",
+    "registerUserLogin",
+    "renewRegisterSession",
+    "setMyKasseSettings",
+    "setMyRegisterDeviceSettings",
+    "stripeCaptureIntent",
+    "unpairRegisterDevice"
+  ],
+  "enums": {
+    "stil": [
+      "klar",
+      "warm",
+      "nacht",
+      "kontrast"
+    ],
+    "schrift": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "wasserzeichen": [
+      "aus",
+      "anmeldung",
+      "ueberall"
+    ],
+    "menge": [
+      "aus",
+      "x",
+      "kg"
+    ],
+    "tgModus": [
+      "betrag",
+      "gesamt",
+      "beides"
+    ],
+    "kassierenModus": [
+      "seite",
+      "panel"
+    ],
+    "kartenanbieter": [
+      "keiner",
+      "extern",
+      "gptom",
+      "hobex",
+      "mypos",
+      "stripe"
+    ],
+    "belegAusgabe": [
+      "qr",
+      "druck",
+      "mail",
+      "sms",
+      "fragen"
+    ],
+    "layout": [
+      "rechts",
+      "links",
+      "vollbild"
+    ],
+    "katpos": [
+      "oben",
+      "links"
+    ],
+    "hoehe": [
+      "S",
+      "M",
+      "L"
+    ],
+    "druckerArt": [
+      "sdp",
+      "netz",
+      "bt",
+      "usb",
+      "connect"
+    ],
+    "terminalVia": [
+      "direkt",
+      "connect"
+    ],
+    "terminalArt": [
+      "keins",
+      "hps"
+    ],
+    "papier": [
+      "mm58",
+      "mm80"
+    ],
+    "zeichensatz": [
+      "CP1252",
+      "CP437"
+    ],
+    "schnitt": [
+      "partial",
+      "full",
+      "none"
+    ],
+    "ladeAuto": [
+      "bar",
+      "immer",
+      "nie"
+    ]
+  },
+  "rechte": [
+    "sell",
+    "cancel",
+    "articles",
+    "layout",
+    "reports",
+    "takeover",
+    "cancelScope",
+    "receiptsScope",
+    "drawer",
+    "discount",
+    "tipAssign"
+  ],
+  "tastenAktionen": [
+    "kassieren",
+    "abschliessen",
+    "abbrechen",
+    "frei",
+    "bar",
+    "karte",
+    "passend",
+    "belege",
+    "letzteZurueck",
+    "einstellungen",
+    "abmelden",
+    "trinkgeld",
+    "vollbild",
+    "gegebenLeeren",
+    "korbLeeren"
+  ]
+}
