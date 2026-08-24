@@ -1,5 +1,5 @@
 import { KasseneckValidationError } from '../client/errors.js';
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 
 /**
  * Die beiden Aufrufe der **laufenden** Kassen-Sitzung. Anders als die drei in
@@ -26,7 +26,7 @@ import type { KasseneckTransport } from '../client/transport.js';
  * beendet — bitte neu anmelden.") — dann hilft nur eine neue Anmeldung ueber
  * `registerUserLogin`.
  */
-export async function renewRegisterSession(rufen: KasseneckTransport): Promise<number> {
+export async function renewRegisterSession(rufen: InternerTransport): Promise<number> {
   const daten = await rufen<{ expiresAt?: unknown }>('renewRegisterSession');
   const expiresAt = daten?.expiresAt;
   if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
@@ -51,6 +51,6 @@ export async function renewRegisterSession(rufen: KasseneckTransport): Promise<n
  * einer harmlosen Vertragsaenderung — ausgerechnet beim Abmelden, dem Aufruf,
  * der auch dann durchgehen soll, wenn sonst nichts mehr geht.
  */
-export async function endRegisterSession(rufen: KasseneckTransport): Promise<void> {
+export async function endRegisterSession(rufen: InternerTransport): Promise<void> {
   await rufen('endRegisterSession');
 }

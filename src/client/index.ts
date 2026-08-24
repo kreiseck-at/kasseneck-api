@@ -22,6 +22,11 @@ export {
 } from './transport.js';
 
 export {
+  AUFRUFE,
+  type Aufruf,
+} from './aufrufe.js';
+
+export {
   KasseneckApiError,
   KasseneckAuthError,
   KasseneckHttpError,

@@ -1,6 +1,6 @@
 import { type HobexReceipt, type HobexReceiptPayload, fromHobexReceiptPayload } from '../models/index.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 import { toViennaWallClock } from '../vienna-time.js';
 import { centsToEuro } from '../money.js';
 
@@ -81,7 +81,7 @@ export interface HobexTransactionIdOptions {
  * **Der Endpunkt heisst `hobexPayApi`** — mit Suffix; ohne ihn gibt es ihn
  * nicht.
  */
-export async function hobexPay(rufen: KasseneckTransport, options: HobexPayOptions): Promise<HobexReceipt> {
+export async function hobexPay(rufen: InternerTransport, options: HobexPayOptions): Promise<HobexReceipt> {
   const params = zahlungsNutzlast(ENDPUNKT_PAY, options);
   // `reference` steht im Vorbild **unbedingt** in der Nutzlast: ohne Angabe
   // geht sie als null raus, nicht gar nicht. Der Transport wirft nur
@@ -104,7 +104,7 @@ export async function hobexPay(rufen: KasseneckTransport, options: HobexPayOptio
  *
  * **Der Endpunkt heisst `hobexRefundApi`** — mit Suffix.
  */
-export async function hobexRefund(rufen: KasseneckTransport, options: HobexRefundOptions): Promise<void> {
+export async function hobexRefund(rufen: InternerTransport, options: HobexRefundOptions): Promise<void> {
   // Anders als die Zahlung sendet der Refund im Vorbild **keine** reference.
   await rufen(ENDPUNKT_REFUND, zahlungsNutzlast(ENDPUNKT_REFUND, options));
 }

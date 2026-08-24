@@ -1,4 +1,4 @@
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 
 /**
@@ -133,12 +133,12 @@ function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown
   return roh.map((e) => lesen(typeof e === 'object' && e !== null ? e : {}));
 }
 
-export async function listMyArticleGroups(rufen: KasseneckTransport): Promise<ArticleGroup[]> {
+export async function listMyArticleGroups(rufen: InternerTransport): Promise<ArticleGroup[]> {
   const daten = await rufen<{ groups?: unknown }>('listMyArticleGroups');
   return liste(daten, 'groups', 'listMyArticleGroups', (e) => fromArticleGroupPayload(e as ArticleGroupPayload));
 }
 
-export async function listMyArticles(rufen: KasseneckTransport): Promise<KasseArtikel[]> {
+export async function listMyArticles(rufen: InternerTransport): Promise<KasseArtikel[]> {
   const daten = await rufen<{ articles?: unknown }>('listMyArticles');
   return liste(daten, 'articles', 'listMyArticles', (e) => fromKasseArtikelPayload(e as KasseArtikelPayload));
 }

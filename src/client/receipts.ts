@@ -33,7 +33,7 @@ import {
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckValidationError } from './errors.js';
-import type { KasseneckTransport } from './transport.js';
+import type { InternerTransport } from './aufrufe.js';
 import type { Pruefangaben, ReceiptLayout } from '../receipt/layout.js';
 
 /**
@@ -186,13 +186,13 @@ export interface ReceiptWithCompany {
  * Bewusst **nicht** Teil der Paketoberflaeche: der Belegtyp gehoert nicht in
  * die Hand des Aufrufers, sondern zu einem der benannten Aufrufe darunter.
  */
-export async function createReceipt(rufen: KasseneckTransport, options: CreateReceiptOptions): Promise<Receipt> {
+export async function createReceipt(rufen: InternerTransport, options: CreateReceiptOptions): Promise<Receipt> {
   return belegAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
 }
 
 /** Wie [createReceipt], liest aus derselben Antwort zusaetzlich die Firmendaten. */
 async function createReceiptWithCompany(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   options: CreateReceiptOptions,
 ): Promise<ReceiptWithCompany> {
   return belegMitFirmaAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
@@ -283,7 +283,7 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 }
 
 /** Normalbeleg (Verkauf) nach RKSV. */
-export function sellReceipt(rufen: KasseneckTransport, options: SellReceiptOptions): Promise<Receipt> {
+export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
 }
 
@@ -292,7 +292,7 @@ export function sellReceipt(rufen: KasseneckTransport, options: SellReceiptOptio
  * aus derselben Antwort — alles, was ein Belegdruck braucht, in einem Aufruf.
  */
 export function sellReceiptWithCompany(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   options: SellReceiptOptions,
 ): Promise<ReceiptWithCompany> {
   return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
@@ -306,7 +306,7 @@ const NOTE_MAX = 200;
  * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
  * signierten Storno-Beleg. Gutscheine des Originals wandern nicht mit.
  */
-export async function cancelReceipt(rufen: KasseneckTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
+export async function cancelReceipt(rufen: InternerTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
   const cashregisterId = options.receipt?.cashregisterId ?? options.cashregisterId;
   const originalReceiptId = options.receipt?.receiptId ?? options.originalReceiptId;
   if (typeof cashregisterId !== 'string' || cashregisterId.trim() === '') {
@@ -358,12 +358,12 @@ export async function cancelReceipt(rufen: KasseneckTransport, options: CancelRe
  * Originalbeleg nicht als Objekt vorliegt. Die Positionen gehen **unveraendert**
  * hinaus; das Vorzeichen setzt der Aufrufer.
  */
-export function createCancelReceipt(rufen: KasseneckTransport, options: CreateCancelReceiptOptions): Promise<Receipt> {
+export function createCancelReceipt(rufen: InternerTransport, options: CreateCancelReceiptOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.cancellation });
 }
 
 /** Nullbeleg (RKSV-Pruefbeleg) — ohne Positionen und ohne Zahlungsart. */
-export function zeroReceipt(rufen: KasseneckTransport): Promise<Receipt> {
+export function zeroReceipt(rufen: InternerTransport): Promise<Receipt> {
   return createReceipt(rufen, { receiptType: ReceiptType.zero });
 }
 
@@ -422,7 +422,7 @@ export interface ListMyReceiptsOptions {
  * (der Endpunkt laeuft mit `checkCashRegister: false`), ein Kassen-Benutzer
  * bekommt also nur die ihm zugewiesenen Kassen.
  */
-export async function listMyReceipts(rufen: KasseneckTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
+export async function listMyReceipts(rufen: InternerTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
   if (typeof options.cashregisterId !== 'string' || options.cashregisterId.trim() === '') {
     throw new KasseneckValidationError('listMyReceipts', 'cashregisterId fehlt', 'request');
   }
@@ -486,7 +486,7 @@ function kennzahlen(roh: unknown): ReceiptListStats {
 }
 
 /** Einzelnen Beleg der angemeldeten Kasse holen. */
-export async function getReceipt(rufen: KasseneckTransport, receiptId: string): Promise<Receipt> {
+export async function getReceipt(rufen: InternerTransport, receiptId: string): Promise<Receipt> {
   return belegAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
 }
 
@@ -497,7 +497,7 @@ export async function getReceipt(rufen: KasseneckTransport, receiptId: string): 
  * traegt (siehe models/receipt-company.ts).
  */
 export async function getReceiptWithCompany(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   receiptId: string,
 ): Promise<ReceiptWithCompany> {
   return belegMitFirmaAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
@@ -507,7 +507,7 @@ export async function getReceiptWithCompany(
  * Verschluesselte Volltext-Belegnummer erzeugen — der Bezeichner, unter dem der
  * Beleg oeffentlich abrufbar ist (Beleg-Download, Pruefportal).
  */
-export async function generateFullReceiptId(rufen: KasseneckTransport, receiptId: string): Promise<string> {
+export async function generateFullReceiptId(rufen: InternerTransport, receiptId: string): Promise<string> {
   const daten = await rufen<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
   const id = daten?.fullReceiptId;
   if (typeof id !== 'string') {
@@ -524,7 +524,7 @@ export async function generateFullReceiptId(rufen: KasseneckTransport, receiptId
  * fuehrt kein `allowRegisterUser`, das Backend weist die Browser-Kasse hier ab
  * (siehe Modulkommentar oben). Mit `apiKeyAuth` ist er offen.
  */
-export async function getFirstReceiptDate(rufen: KasseneckTransport): Promise<ReportMonth> {
+export async function getFirstReceiptDate(rufen: InternerTransport): Promise<ReportMonth> {
   const roh = await rufen<unknown>('getFirstReceiptDate');
   if (typeof roh !== 'string') {
     throw antwortfehler('getFirstReceiptDate', 'Antwort enthaelt keinen Zeitstempel');
