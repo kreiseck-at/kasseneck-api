@@ -59,38 +59,77 @@ export type KasseSchnitt = typeof SCHNITT[number];
 export const LADE_AUTO = ['bar', 'immer', 'nie'] as const;
 export type KasseLadeAuto = typeof LADE_AUTO[number];
 
+/*
+ * Auch die uebrigen Wertemengen der Einstellungen stehen jetzt als Liste da —
+ * vorher waren sie nur als Union am Feld ausgeschrieben. Ein Zwilling konnte
+ * dadurch einen Wert (etwa `kachelstil: 'voll'`) gar nicht kennen, ohne dass es
+ * auffiel: der Vertrag fuehrte die Menge nicht, und die Standardwerte-Datei
+ * pinnt je Feld nur einen einzigen Wert.
+ */
+
+/** Groesse des Kuerzel-Logos in der Kopfzeile der Kasse. */
+export const LOGO_GROESSE = ['S', 'M', 'L'] as const;
+export type KasseLogoGroesse = typeof LOGO_GROESSE[number];
+/** Schriftgroesse in den Chef-Einstellungen — getrennt von der Schrift der Kasse. */
+export const SCHRIFT_EINST = ['S', 'M', 'L'] as const;
+export type KasseSchriftEinst = typeof SCHRIFT_EINST[number];
+/** Kachel-Optik: farbiger Streifen am Rand oder ganz gefuellte Kachel. */
+export const KACHELSTIL = ['streifen', 'voll'] as const;
+export type KasseKachelstil = typeof KACHELSTIL[number];
+/** Automatisches Abmelden nach Minuten Ruhe; 0 = nie. */
+export const AUTO_AB_MIN = [0, 1, 5, 15, 30] as const;
+export type KasseAutoAbMin = typeof AUTO_AB_MIN[number];
+/** Rabatt am Beleg erlaubt. */
+export const RABATT = ['aus', 'an'] as const;
+export type KasseRabatt = typeof RABATT[number];
+/** Seite des Wasserzeichens — ALT, abgeloest von wzPos. */
+export const WZ_SEITE = ['links', 'mitte', 'rechts'] as const;
+export type KasseWzSeite = typeof WZ_SEITE[number];
+/** Deckkraft des Wasserzeichens in Prozent — bewusst Stufen, kein Schieberegler. */
+export const WZ_STAERKE = [3, 6, 10, 16] as const;
+export type KasseWzStaerke = typeof WZ_STAERKE[number];
+/** Groesse des Bild-Logos am Beleg. */
+export const LOGO_SKALA = ['S', 'M', 'L', 'XL'] as const;
+export type KasseLogoSkala = typeof LOGO_SKALA[number];
+/** Groesse des Wasserzeichens — getrennt vom Beleg-Logo. */
+export const WZ_SKALA = ['S', 'M', 'L', 'XL'] as const;
+export type KasseWzSkala = typeof WZ_SKALA[number];
+/** Wie lange die Fertig-Seite stehen bleibt, in Sekunden; 0 = bis zum Tippen. */
+export const FERTIG_SEKUNDEN = [0, 3, 5, 10, 15, 30, 60] as const;
+export type KasseFertigSekunden = typeof FERTIG_SEKUNDEN[number];
+
 /** Schalter-Landkarte: Steuersaetze / Trinkgeldstufen (Schluessel = Wert als Text). */
 export type Schalterkarte = Record<string, boolean>;
 
 export interface KasseSettingsBetrieb {
-  logoText: string; logoAn: boolean; logoGroesse: 'S' | 'M' | 'L'; wasserzeichen: KasseWasserzeichen; farbe: string;
-  stil: KasseStil; schrift: KasseSchrift; schriftEinst: 'S' | 'M' | 'L'; kachelstil: 'streifen' | 'voll'; uhr: boolean;
-  sperrbild: boolean; foto: boolean; autoAbMin: 0 | 1 | 5 | 15 | 30; abNachVerkauf: boolean;
+  logoText: string; logoAn: boolean; logoGroesse: KasseLogoGroesse; wasserzeichen: KasseWasserzeichen; farbe: string;
+  stil: KasseStil; schrift: KasseSchrift; schriftEinst: KasseSchriftEinst; kachelstil: KasseKachelstil; uhr: boolean;
+  sperrbild: boolean; foto: boolean; autoAbMin: KasseAutoAbMin; abNachVerkauf: boolean;
   /** Schnelles Entsperren mit gemerkter PIN (lokal, Server-Login laeuft nach); aus = streng, jeder Login wartet. */
   schnellLogin: boolean;
   preisAnzeigen: boolean; ustAnzeigen: boolean; emoji: boolean; katFarben: boolean; freiErlaubt: boolean;
-  saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: 'aus' | 'an';
+  saetze: Schalterkarte; menge: KasseMenge; notiz: boolean; suche: boolean; rabatt: KasseRabatt;
   /** Bild-Logo (Download-URL aus dem Kasse-Upload); '' = Kuerzel verwenden. */
   logoBild: string;
   /** Seite des Wasserzeichens — ALT: abgeloest von wzPos, bleibt fuers Mischen alter Staende. */
-  wzSeite: 'links' | 'mitte' | 'rechts';
+  wzSeite: KasseWzSeite;
   /** Horizontale Lage der Wasserzeichen-MITTE in Prozent (-25 bis 125 — darf ueber den Rand hinaus). */
   wzPos: number;
   /** Vertikale Lage der Wasserzeichen-Mitte in Prozent (-25 bis 125). */
   wzPosV: number;
   /** Deckkraft des Wasserzeichens in Prozent — bewusst Stufen, kein Schieberegler. */
-  wzStaerke: 3 | 6 | 10 | 16;
+  wzStaerke: KasseWzStaerke;
   /** Groesse des Bild-Logos am BELEG (Ansicht, PDF, Kopfzeile). */
-  logoSkala: 'S' | 'M' | 'L' | 'XL';
+  logoSkala: KasseLogoSkala;
   /** Groesse des Wasserzeichens — getrennt vom Beleg-Logo. */
-  wzSkala: 'S' | 'M' | 'L' | 'XL';
+  wzSkala: KasseWzSkala;
   zahlBar: boolean; zahlKarte: boolean; kartenanbieter: KasseKartenanbieter; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
   tgChips: number[];
   /** Rabatt-Chips in Prozent — dieselben Regeln wie tgChips, vom Chef einstellbar. */
   rabattChips: number[];
-  belegAusgabe: KasseBelegAusgabe; fertigSekunden: 0 | 3 | 5 | 10 | 15 | 30 | 60;
+  belegAusgabe: KasseBelegAusgabe; fertigSekunden: KasseFertigSekunden;
   /** Glas-Optik: Kacheln und Korb leicht durchscheinend (Wasserzeichen schimmert). */
   glas: boolean;
   /** Hilfetexte in den Chef-Einstellungen anzeigen. */

@@ -9,12 +9,17 @@ export {
   type KasseTastenAktion, type KasseTastenkarte, KASSE_TASTEN_AKTIONEN, KASSE_TASTEN_STANDARD, type KasseLayout, type KasseKatpos, type KasseHoehe,
   type KasseDruckerArt, type KasseTerminalVia, type KasseTerminalArt,
   type KassePapier, type KasseZeichensatz, type KasseSchnitt, type KasseLadeAuto,
+  type KasseLogoGroesse, type KasseSchriftEinst, type KasseKachelstil, type KasseAutoAbMin,
+  type KasseRabatt, type KasseWzSeite, type KasseWzStaerke, type KasseLogoSkala,
+  type KasseWzSkala, type KasseFertigSekunden,
   type Schalterkarte, type KasseSettingsBetrieb, type KasseSettingsGeraet, type KasseSettings,
   KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
   // Die Enums als Laufzeitlisten — dieselben Werte, die die Typen oben tragen.
   STIL, SCHRIFT, WASSERZEICHEN, MENGE, TG_MODUS, KASSIEREN_MODUS, BELEG_AUSGABE,
   LAYOUT, KATPOS, HOEHE, DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, PAPIER,
   ZEICHENSATZ, SCHNITT, LADE_AUTO, TASTEN_AKTIONEN,
+  LOGO_GROESSE, SCHRIFT_EINST, KACHELSTIL, AUTO_AB_MIN, RABATT, WZ_SEITE,
+  WZ_STAERKE, LOGO_SKALA, WZ_SKALA, FERTIG_SEKUNDEN,
 } from './settings.js';
 export {
   type ArticleGroup, type ArticleGroupPayload, fromArticleGroupPayload,

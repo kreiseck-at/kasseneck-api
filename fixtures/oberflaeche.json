@@ -32,36 +32,44 @@
     "unpairRegisterDevice"
   ],
   "enums": {
-    "stil": [
-      "klar",
-      "warm",
-      "nacht",
-      "kontrast"
+    "autoAbMin": [
+      0,
+      1,
+      5,
+      15,
+      30
     ],
-    "schrift": [
+    "belegAusgabe": [
+      "qr",
+      "druck",
+      "mail",
+      "sms",
+      "fragen"
+    ],
+    "druckerArt": [
+      "sdp",
+      "netz",
+      "bt",
+      "usb",
+      "connect"
+    ],
+    "fertigSekunden": [
+      0,
+      3,
+      5,
+      10,
+      15,
+      30,
+      60
+    ],
+    "hoehe": [
       "S",
       "M",
-      "L",
-      "XL"
+      "L"
     ],
-    "wasserzeichen": [
-      "aus",
-      "anmeldung",
-      "ueberall"
-    ],
-    "menge": [
-      "aus",
-      "x",
-      "kg"
-    ],
-    "tgModus": [
-      "betrag",
-      "gesamt",
-      "beides"
-    ],
-    "kassierenModus": [
-      "seite",
-      "panel"
+    "kachelstil": [
+      "streifen",
+      "voll"
     ],
     "kartenanbieter": [
       "keiner",
@@ -71,59 +79,108 @@
       "mypos",
       "stripe"
     ],
-    "belegAusgabe": [
-      "qr",
-      "druck",
-      "mail",
-      "sms",
-      "fragen"
+    "kassierenModus": [
+      "seite",
+      "panel"
+    ],
+    "katpos": [
+      "oben",
+      "links"
+    ],
+    "ladeAuto": [
+      "bar",
+      "immer",
+      "nie"
     ],
     "layout": [
       "rechts",
       "links",
       "vollbild"
     ],
-    "katpos": [
-      "oben",
-      "links"
-    ],
-    "hoehe": [
+    "logoGroesse": [
       "S",
       "M",
       "L"
     ],
-    "druckerArt": [
-      "sdp",
-      "netz",
-      "bt",
-      "usb",
-      "connect"
+    "logoSkala": [
+      "S",
+      "M",
+      "L",
+      "XL"
     ],
-    "terminalVia": [
-      "direkt",
-      "connect"
-    ],
-    "terminalArt": [
-      "keins",
-      "hps"
+    "menge": [
+      "aus",
+      "x",
+      "kg"
     ],
     "papier": [
       "mm58",
       "mm80"
     ],
-    "zeichensatz": [
-      "CP1252",
-      "CP437"
+    "rabatt": [
+      "aus",
+      "an"
     ],
     "schnitt": [
       "partial",
       "full",
       "none"
     ],
-    "ladeAuto": [
-      "bar",
-      "immer",
-      "nie"
+    "schrift": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "schriftEinst": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stil": [
+      "klar",
+      "warm",
+      "nacht",
+      "kontrast"
+    ],
+    "terminalArt": [
+      "keins",
+      "hps"
+    ],
+    "terminalVia": [
+      "direkt",
+      "connect"
+    ],
+    "tgModus": [
+      "betrag",
+      "gesamt",
+      "beides"
+    ],
+    "wasserzeichen": [
+      "aus",
+      "anmeldung",
+      "ueberall"
+    ],
+    "wzSeite": [
+      "links",
+      "mitte",
+      "rechts"
+    ],
+    "wzSkala": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "wzStaerke": [
+      3,
+      6,
+      10,
+      16
+    ],
+    "zeichensatz": [
+      "CP1252",
+      "CP437"
     ]
   },
   "rechte": [
