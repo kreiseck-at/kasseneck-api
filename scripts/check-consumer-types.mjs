@@ -57,6 +57,12 @@ export const ansicht = ReceiptLayoutView;
 // von aussen bleibt ein KasseneckTransport ohne Umdeutung uebergebbar.
 declare const rufen: KasseneckTransport;
 export const drucker = listMyPrinters(rufen);
+// Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
+// weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
+// auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein
+// Verbraucher kaeme an jeden Endpunkt, den dieses Paket noch nicht kennt,
+// nicht mehr heran.
+export const fremd = rufen('irgendeinNeuerEndpunkt', {});
 `;
 
 function lauf(befehl, argumente, verzeichnis) {
