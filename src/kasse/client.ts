@@ -1,4 +1,4 @@
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import {
   KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
@@ -6,7 +6,7 @@ import {
 } from './settings.js';
 
 /** Einstellungen lesen — Standard + gespeichert (Backend: `getKasseSettings`). */
-export async function getKasseSettings(rufen: KasseneckTransport, options: { deviceId?: string } = {}): Promise<KasseSettings> {
+export async function getKasseSettings(rufen: InternerTransport, options: { deviceId?: string } = {}): Promise<KasseSettings> {
   const params: Record<string, unknown> = {};
   if (options.deviceId) params.deviceId = options.deviceId;
   const daten = await rufen<{ betrieb?: unknown; geraet?: unknown }>('getKasseSettings', params);
@@ -23,14 +23,14 @@ function nichtLeer(name: string, block: object): void {
 }
 
 /** Betriebsweite Einstellungen schreiben (Recht `layout`); liefert den gemischten Stand. */
-export async function setMyKasseSettings(rufen: KasseneckTransport, betrieb: Partial<KasseSettingsBetrieb>): Promise<KasseSettingsBetrieb> {
+export async function setMyKasseSettings(rufen: InternerTransport, betrieb: Partial<KasseSettingsBetrieb>): Promise<KasseSettingsBetrieb> {
   nichtLeer('setMyKasseSettings', betrieb);
   const daten = await rufen<{ betrieb?: unknown }>('setMyKasseSettings', { betrieb });
   return mergeKasseSettings(KASSE_BETRIEB_STANDARD, (daten?.betrieb ?? null) as Partial<KasseSettingsBetrieb> | null);
 }
 
 /** Geraete-Einstellungen schreiben (Recht `layout`); liefert den gemischten Stand. */
-export async function setMyRegisterDeviceSettings(rufen: KasseneckTransport, deviceId: string, geraet: Partial<KasseSettingsGeraet>): Promise<KasseSettingsGeraet> {
+export async function setMyRegisterDeviceSettings(rufen: InternerTransport, deviceId: string, geraet: Partial<KasseSettingsGeraet>): Promise<KasseSettingsGeraet> {
   if (typeof deviceId !== 'string' || deviceId.trim() === '') {
     throw new KasseneckValidationError('setMyRegisterDeviceSettings', 'deviceId fehlt', 'request');
   }

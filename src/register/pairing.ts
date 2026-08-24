@@ -1,6 +1,7 @@
 import type { KasseneckAuth } from '../client/auth.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import { createTransport, type KasseneckTransport, type TransportOptions } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
+import { createTransport, type TransportOptions } from '../client/transport.js';
 import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
 import {
   KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
@@ -512,7 +513,7 @@ function sitzungAusAntwort(name: string, daten: Record<string, unknown> | null |
 }
 
 /** Transport ohne Anmeldung; `auth` steht zuletzt und ist damit nicht zu ueberschreiben. */
-function transportFuer(verbindung: RegisterDeviceConnection): KasseneckTransport {
+function transportFuer(verbindung: RegisterDeviceConnection): InternerTransport {
   return createTransport({ ...verbindung, auth: ohneAnmeldung });
 }
 

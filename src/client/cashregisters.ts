@@ -1,6 +1,6 @@
 import { fromCashregisterPayload, type Cashregister, type CashregisterPayload } from '../models/index.js';
 import { KasseneckValidationError } from './errors.js';
-import type { KasseneckTransport } from './transport.js';
+import type { InternerTransport } from './aufrufe.js';
 
 /**
  * Kassen-Endpunkte.
@@ -21,7 +21,7 @@ import type { KasseneckTransport } from './transport.js';
  *
  * Ohne diesen Aufruf kann eine Browser-Kasse ihre Kasse nicht auswaehlen.
  */
-export async function listMyCashregisters(rufen: KasseneckTransport): Promise<Cashregister[]> {
+export async function listMyCashregisters(rufen: InternerTransport): Promise<Cashregister[]> {
   const daten = await rufen<{ cashregisters?: unknown }>('listMyCashregisters');
   const liste = daten?.cashregisters;
   if (!Array.isArray(liste)) {

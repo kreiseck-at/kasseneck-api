@@ -9,6 +9,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
+import { AUFRUFE } from '../src/client/aufrufe.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -774,4 +775,14 @@ test('das Zeitlimit meldet sich als solches — mit Funktionsname und Grenze', a
     }
     return true;
   });
+});
+
+test('Die Aufrufliste traegt jeden Namen, den das Paket benutzt', () => {
+  // Stichproben aus jedem Bereich — die Vollstaendigkeit erzwingt der Compiler
+  // ueber InternerTransport, nicht dieser Test.
+  for (const name of ['createReceipt', 'listMyPrinters', 'createPrintJob', 'getPrintJob',
+                      'pairRegisterDevice', 'financeWebService', 'downloadReport']) {
+    assert.ok(AUFRUFE.includes(name as never), `${name} fehlt in AUFRUFE`);
+  }
+  assert.equal(new Set(AUFRUFE).size, AUFRUFE.length, 'Doppelte Namen in AUFRUFE');
 });

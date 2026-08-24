@@ -37,6 +37,8 @@ import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printi
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
 import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
+import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
+import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_test_x', cashregisterToken: 'cb_test_y' }),
@@ -51,6 +53,10 @@ export type Zahlung = HobexPayOptions;
 export const koppeln = pairRegisterDevice;
 export type Geraet = PairedRegisterDevice;
 export const ansicht = ReceiptLayoutView;
+// Die Endpunkt-Funktionen nehmen paketintern einen verengten Transport entgegen;
+// von aussen bleibt ein KasseneckTransport ohne Umdeutung uebergebbar.
+declare const rufen: KasseneckTransport;
+export const drucker = listMyPrinters(rufen);
 `;
 
 function lauf(befehl, argumente, verzeichnis) {

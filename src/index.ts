@@ -95,6 +95,8 @@ export {
   type TransportBodyFields,
   type KasseneckTransport,
   type KasseneckBinaryTransport,
+  AUFRUFE,
+  type Aufruf,
   createTransport,
   createBinaryTransport,
   KasseneckApiError,

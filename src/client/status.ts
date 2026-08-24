@@ -1,5 +1,5 @@
 import { KasseneckValidationError } from './errors.js';
-import type { KasseneckTransport } from './transport.js';
+import type { InternerTransport } from './aufrufe.js';
 
 /**
  * Betriebsstatus von Kasse und Signatureinheit bei FinanzOnline — Zwilling von
@@ -52,7 +52,7 @@ interface RkdbAntwort {
 }
 
 /** Betriebsstatus der Kasse bei FinanzOnline. */
-export async function getCashboxStatus(rufen: KasseneckTransport): Promise<CashboxStatus> {
+export async function getCashboxStatus(rufen: InternerTransport): Promise<CashboxStatus> {
   const daten = await rufen<RkdbAntwort>('financeWebService', {}, { method: 'status_cashbox' });
   return statusAusMeldung(daten, VORGANG_KASSE);
 }
@@ -66,7 +66,7 @@ export async function getCashboxStatus(rufen: KasseneckTransport): Promise<Cashb
  * mag. Andersherum meldete eine nie registrierte Karte am Ende "in Betrieb".
  */
 export async function getSignatureStatus(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   zertifikatNrHex: string,
 ): Promise<SignatureStatus> {
   if (typeof zertifikatNrHex !== 'string' || !zertifikatNrHex.trim()) {

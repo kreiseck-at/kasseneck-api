@@ -9,7 +9,7 @@ import {
   receiptItemIsValid,
 } from '../models/index.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 
 /**
  * Stripe-Zahlungslinks — Zwilling der Stripe-Aufrufe in
@@ -81,7 +81,7 @@ export interface StripeCaptureResult {
  * auseinander (siehe client/reports.ts).
  */
 export async function createStripeLink(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   options: CreateStripeLinkOptions,
 ): Promise<StripeUrlSession> {
   const { items } = options;
@@ -133,7 +133,7 @@ export async function createStripeLink(
  * Pflichtparameter.
  */
 export async function stripeCaptureIntent(
-  rufen: KasseneckTransport,
+  rufen: InternerTransport,
   stripeSessionId: string,
 ): Promise<StripeCaptureResult> {
   if (typeof stripeSessionId !== 'string' || !stripeSessionId.trim()) {

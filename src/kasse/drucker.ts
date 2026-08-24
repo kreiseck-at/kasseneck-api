@@ -1,4 +1,4 @@
-import type { KasseneckTransport } from '../client/transport.js';
+import type { InternerTransport } from '../client/aufrufe.js';
 import type { ReceiptLayout } from '../receipt/layout.js';
 
 /**
@@ -37,7 +37,7 @@ export interface DruckJob {
 const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-export async function listMyPrinters(rufen: KasseneckTransport): Promise<NetzDrucker[]> {
+export async function listMyPrinters(rufen: InternerTransport): Promise<NetzDrucker[]> {
   const daten = await rufen<{ drucker?: unknown[] }>('listMyPrinters', {});
   return (daten?.drucker ?? []).map((r) => {
     const d = (r ?? {}) as Record<string, unknown>;
@@ -60,7 +60,7 @@ export interface CreatePrintJobOptions {
   quelle?: string;
 }
 
-export async function createPrintJob(rufen: KasseneckTransport, o: CreatePrintJobOptions): Promise<DruckJob> {
+export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<DruckJob> {
   const params: Record<string, unknown> = { druckerId: o.druckerId, layout: o.layout };
   if (o.receiptId) params.receiptId = o.receiptId;
   if (o.titel) params.titel = o.titel;
@@ -69,7 +69,7 @@ export async function createPrintJob(rufen: KasseneckTransport, o: CreatePrintJo
   return { jobId: String(daten?.jobId ?? ''), status: (text(daten?.status) as DruckJobStatus) ?? 'offen', ergebnis: null };
 }
 
-export async function getPrintJob(rufen: KasseneckTransport, o: { druckerId: string; jobId: string }): Promise<DruckJob> {
+export async function getPrintJob(rufen: InternerTransport, o: { druckerId: string; jobId: string }): Promise<DruckJob> {
   const d = await rufen<Record<string, unknown>>('getPrintJob', { druckerId: o.druckerId, jobId: o.jobId });
   const e = d?.ergebnis && typeof d.ergebnis === 'object' ? (d.ergebnis as Record<string, unknown>) : null;
   return {

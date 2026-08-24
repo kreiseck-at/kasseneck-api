@@ -1,7 +1,7 @@
 import type { ReportMonth } from '../models/index.js';
 import { toViennaWallClock } from '../vienna-time.js';
 import { KasseneckValidationError } from './errors.js';
-import type { KasseneckBinaryTransport } from './transport.js';
+import type { InternerBinaerTransport } from './aufrufe.js';
 
 /**
  * Bericht-Downloads — Zwilling von `downloadDailyReport`/`downloadMonthlyReport`
@@ -35,7 +35,7 @@ import type { KasseneckBinaryTransport } from './transport.js';
  */
 // `async`, damit auch die Eingabepruefung als abgelehntes Versprechen ankommt
 // und nicht als synchroner Wurf am `await` des Aufrufers vorbei.
-export async function downloadDailyReport(rufen: KasseneckBinaryTransport, date: Date): Promise<Uint8Array> {
+export async function downloadDailyReport(rufen: InternerBinaerTransport, date: Date): Promise<Uint8Array> {
   let wanduhr;
   try {
     wanduhr = toViennaWallClock(date);
@@ -58,7 +58,7 @@ export async function downloadDailyReport(rufen: KasseneckBinaryTransport, date:
  * wo `KeckMonth.january.id === 1` ist) — kein Name, kein nullbasierter Index.
  */
 export async function downloadMonthlyReport(
-  rufen: KasseneckBinaryTransport,
+  rufen: InternerBinaerTransport,
   reportMonth: ReportMonth,
 ): Promise<Uint8Array> {
   const { month, year } = reportMonth;
