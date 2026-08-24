@@ -205,6 +205,23 @@ Die drei Zeitzonen sind kein Übereifer: Zeitfehler sind auf einer Wiener
 Maschine zufällig richtig. Belegzeiten werden konsequent als **Wiener
 Wanduhrzeit** gedeutet (`parseServerTimeStamp`), nie über `new Date(text)`.
 
+## Vertragsdateien für die Zwillinge
+
+Dieses Paket ist die Quelle für das Dart-Paket `kasseneck_api` und den
+Backend-Validator `kasse-settings-core.js`. Zwei Dateien in `fixtures/` reisen
+im Tarball mit und sagen in Maschinenform, worauf sich alle drei geeinigt haben:
+
+| Datei | Inhalt |
+|---|---|
+| `kasse-settings-standard.json` | Feldnamen und Standardwerte der Kassen-Einstellungen |
+| `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen |
+
+Beide werden erzeugt (`npm run fixtures:kasse`, `npm run fixtures:oberflaeche`)
+und nie von Hand geändert; die CI prüft nach jedem Lauf, dass sie zum Code passen.
+
+`oberflaeche.json` trägt die Paketversion. **Nach jedem `npm version` müssen deshalb beide
+Dateien neu erzeugt und mitcommittet werden**, sonst wird die CI rot.
+
 ## Lizenz
 
 Apache-2.0 — siehe `LICENSE` und `NOTICE`.
