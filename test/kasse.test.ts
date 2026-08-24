@@ -216,7 +216,7 @@ test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit 
 test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
   assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
   assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);
-  assert.deepEqual([...KARTENANBIETER], ['keiner', 'extern', 'hobex', 'mypos', 'stripe']);
+  assert.deepEqual([...KARTENANBIETER], ['keiner', 'extern', 'gptom', 'hobex', 'mypos', 'stripe']);
 });
 
 test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {
@@ -292,4 +292,38 @@ test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kass
   const datei = JSON.parse(readFileSync(new URL('../../fixtures/kasse-settings-standard.json', import.meta.url), 'utf8'));
   assert.deepEqual(datei, JSON.parse(JSON.stringify({ betrieb: KASSE_BETRIEB_STANDARD, geraet: KASSE_GERAET_STANDARD })),
     'fixtures/kasse-settings-standard.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
+});
+
+// --- Laufzeitlisten ----------------------------------------------------------
+// Die Enums sind Daten, nicht nur Typen: die Zwillinge (Backend-Validator,
+// Flutter-Paket) pruefen gegen genau diese Listen.
+import {
+  DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, TASTEN_AKTIONEN,
+} from '../src/kasse/index.js';
+import { REGISTER_PERMS } from '../src/register/index.js';
+
+test('Enums gibt es zur Laufzeit — Verbraucher koennen pruefen statt zu raten', () => {
+  assert.deepEqual([...DRUCKER_ART], ['sdp', 'netz', 'bt', 'usb', 'connect']);
+  assert.deepEqual([...TERMINAL_VIA], ['direkt', 'connect']);
+  assert.deepEqual([...TERMINAL_ART], ['keins', 'hps']);
+  assert.equal(TASTEN_AKTIONEN.length, 15);
+});
+
+test('GP Tom ist ein Kartenanbieter — sonst verwirft der Backend-Validator die Einstellung', () => {
+  assert.ok(KARTENANBIETER.includes('gptom'));
+});
+
+test('druckerName gibt es — der Dart-Zwilling schickt ihn, sonst faellt er still weg', () => {
+  assert.equal(KASSE_GERAET_STANDARD.druckerName, '');
+});
+
+test('Die Markenfarbe ist Petrol aus der Palette', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.farbe, '#116B6B');
+});
+
+test('Die Rechte-Schluessel stehen als Liste bereit', () => {
+  assert.deepEqual([...REGISTER_PERMS], [
+    'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
+    'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
+  ]);
 });

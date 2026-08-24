@@ -8,32 +8,56 @@
  * bewusst AUS, bis die Buchung geklaert ist (Spec kachel-kasse § 9).
  */
 
-export type KasseStil = 'klar' | 'warm' | 'nacht' | 'kontrast';
-export type KasseSchrift = 'S' | 'M' | 'L' | 'XL';
-export type KasseWasserzeichen = 'aus' | 'anmeldung' | 'ueberall';
-export type KasseMenge = 'aus' | 'x' | 'kg';
-export type KasseTgModus = 'betrag' | 'gesamt' | 'beides';
-export type KasseKassierenModus = 'seite' | 'panel';
+/*
+ * Jedes Enum steht als Liste zur Laufzeit da, der Typ leitet sich daraus ab
+ * (`typeof LISTE[number]`). So gibt es die Werte nur einmal, und die Zwillinge
+ * (Backend-Validator, Flutter-Paket) koennen gegen dieselben Listen pruefen,
+ * statt sie abzuschreiben.
+ */
+
+export const STIL = ['klar', 'warm', 'nacht', 'kontrast'] as const;
+export type KasseStil = typeof STIL[number];
+export const SCHRIFT = ['S', 'M', 'L', 'XL'] as const;
+export type KasseSchrift = typeof SCHRIFT[number];
+export const WASSERZEICHEN = ['aus', 'anmeldung', 'ueberall'] as const;
+export type KasseWasserzeichen = typeof WASSERZEICHEN[number];
+export const MENGE = ['aus', 'x', 'kg'] as const;
+export type KasseMenge = typeof MENGE[number];
+export const TG_MODUS = ['betrag', 'gesamt', 'beides'] as const;
+export type KasseTgModus = typeof TG_MODUS[number];
+export const KASSIEREN_MODUS = ['seite', 'panel'] as const;
+export type KasseKassierenModus = typeof KASSIEREN_MODUS[number];
 /** Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'extern' = eigenes Terminal ohne Anbindung. */
-export type KasseKartenanbieter = 'keiner' | 'extern' | 'hobex' | 'mypos' | 'stripe';
-export const KARTENANBIETER: readonly KasseKartenanbieter[] = ['keiner', 'extern', 'hobex', 'mypos', 'stripe'];
-export type KasseBelegAusgabe = 'qr' | 'druck' | 'mail' | 'sms' | 'fragen';
-export type KasseLayout = 'rechts' | 'links' | 'vollbild';
-export type KasseKatpos = 'oben' | 'links';
-export type KasseHoehe = 'S' | 'M' | 'L';
+export const KARTENANBIETER = ['keiner', 'extern', 'gptom', 'hobex', 'mypos', 'stripe'] as const;
+export type KasseKartenanbieter = typeof KARTENANBIETER[number];
+export const BELEG_AUSGABE = ['qr', 'druck', 'mail', 'sms', 'fragen'] as const;
+export type KasseBelegAusgabe = typeof BELEG_AUSGABE[number];
+export const LAYOUT = ['rechts', 'links', 'vollbild'] as const;
+export type KasseLayout = typeof LAYOUT[number];
+export const KATPOS = ['oben', 'links'] as const;
+export type KasseKatpos = typeof KATPOS[number];
+export const HOEHE = ['S', 'M', 'L'] as const;
+export type KasseHoehe = typeof HOEHE[number];
 /**
  * `sdp` = Netzwerk ueber Epson Server Direct Print (der Drucker holt Jobs vom Backend, jeder Browser druckt).
  * `connect` = Kasseneck Connect (lokaler Agent auf dem Kassen-Rechner druckt fuer die Browser-Kasse).
  */
-export type KasseDruckerArt = 'sdp' | 'netz' | 'bt' | 'usb' | 'connect';
+export const DRUCKER_ART = ['sdp', 'netz', 'bt', 'usb', 'connect'] as const;
+export type KasseDruckerArt = typeof DRUCKER_ART[number];
 /** Terminal-Ansprache: direkt per IP (wie bisher) oder ueber Kasseneck Connect (Agent leitet weiter). */
-export type KasseTerminalVia = 'direkt' | 'connect';
+export const TERMINAL_VIA = ['direkt', 'connect'] as const;
+export type KasseTerminalVia = typeof TERMINAL_VIA[number];
 /** Art des Kartenterminals an dieser Kasse: keines oder Hobex HPS (JSON-REST am Geraet). */
-export type KasseTerminalArt = 'keins' | 'hps';
-export type KassePapier = 'mm58' | 'mm80';
-export type KasseZeichensatz = 'CP1252' | 'CP437';
-export type KasseSchnitt = 'partial' | 'full' | 'none';
-export type KasseLadeAuto = 'bar' | 'immer' | 'nie';
+export const TERMINAL_ART = ['keins', 'hps'] as const;
+export type KasseTerminalArt = typeof TERMINAL_ART[number];
+export const PAPIER = ['mm58', 'mm80'] as const;
+export type KassePapier = typeof PAPIER[number];
+export const ZEICHENSATZ = ['CP1252', 'CP437'] as const;
+export type KasseZeichensatz = typeof ZEICHENSATZ[number];
+export const SCHNITT = ['partial', 'full', 'none'] as const;
+export type KasseSchnitt = typeof SCHNITT[number];
+export const LADE_AUTO = ['bar', 'immer', 'nie'] as const;
+export type KasseLadeAuto = typeof LADE_AUTO[number];
 
 /** Schalter-Landkarte: Steuersaetze / Trinkgeldstufen (Schluessel = Wert als Text). */
 export type Schalterkarte = Record<string, boolean>;
@@ -74,8 +98,10 @@ export interface KasseSettingsBetrieb {
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
-export type KasseTastenAktion = 'kassieren' | 'abschliessen' | 'abbrechen' | 'frei' | 'bar' | 'karte' | 'passend' | 'belege' | 'letzteZurueck' | 'einstellungen' | 'abmelden' | 'trinkgeld' | 'vollbild' | 'gegebenLeeren' | 'korbLeeren';
-export const KASSE_TASTEN_AKTIONEN: readonly KasseTastenAktion[] = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren'];
+export const KASSE_TASTEN_AKTIONEN = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren'] as const;
+export type KasseTastenAktion = typeof KASSE_TASTEN_AKTIONEN[number];
+/** Kurzer Name, damit alle Enum-Listen gleich heissen; der alte bleibt gueltig. */
+export const TASTEN_AKTIONEN = KASSE_TASTEN_AKTIONEN;
 /** Tastenkarte: Aktion -> Tasten (`Mod+F`, `Enter`, `Escape`, `F5` ...; `Mod` = ⌘ auf dem Mac, Strg sonst). */
 export type KasseTastenkarte = Record<KasseTastenAktion, string[]>;
 export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
@@ -104,6 +130,8 @@ export interface KasseSettingsGeraet {
   /** Tastenbelegung dieses Geraets (Vorgabe KASSE_TASTEN_STANDARD, je Aktion mischbar). */
   tasten: KasseTastenkarte;
   druckerAn: boolean; druckerArt: KasseDruckerArt; druckerIp: string; druckerPort: number; druckerBt: string;
+  /** Klartextname des gemerkten Druckers; sonst stuende dort eine nackte Bluetooth-Adresse. */
+  druckerName: string;
   /** Kennung des Netzwerk-Druckers (Server Direct Print) aus `listMyPrinters`; '' = keiner gewaehlt. */
   druckerId: string;
   /** ePOS Device-ID bei `druckerArt 'netz'` (Epson direkt per IP), Vorgabe `local_printer`. */
@@ -127,8 +155,8 @@ export interface KasseSettings {
 }
 
 export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.freeze({
-  // Kasseneck-Teal aus dem Branding-Guide — nicht mehr das alte Blau.
-  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#0F6B72',
+  // Petrol aus der Markenpalette ("Ecke, Aktion") — nicht das alte Blau.
+  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#116B6B',
   stil: 'klar', schrift: 'M', schriftEinst: 'S', kachelstil: 'streifen', uhr: true,
   sperrbild: true, foto: true, autoAbMin: 0, abNachVerkauf: false, schnellLogin: true,
   preisAnzeigen: true, ustAnzeigen: false, emoji: true, katFarben: true, freiErlaubt: true,
@@ -147,7 +175,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
 export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freeze({
   layout: 'rechts', katpos: 'oben', spaltenExtra: 0, hoehe: 'M', touch: false,
   tasten: { ...KASSE_TASTEN_STANDARD },
-  druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerId: '', druckerDevid: 'local_printer',
+  druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerName: '', druckerId: '', druckerDevid: 'local_printer',
   connectDruckerId: '',
   papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
   ladeAn: false, ladeAuto: 'bar',

@@ -209,6 +209,12 @@ export interface RegisterUserPerms {
   [weiteresRecht: string]: boolean | RegisterScope | undefined;
 }
 
+/** Alle Rechte-Schluessel, die dieses Paket kennt — die Zwillinge pruefen dagegen. */
+export const REGISTER_PERMS = [
+  'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
+  'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
+] as const;
+
 /** Reichweite lesen, mit der Migration des Backends (register-auth.js). */
 export function cancelScopeOf(perms: RegisterUserPerms | null | undefined): RegisterScope {
   if (!perms) return 'none';

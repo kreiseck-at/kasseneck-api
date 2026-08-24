@@ -760,7 +760,7 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die sieben Aufrufe — und keine Anmeldung', () => {
+test('der Unterpfad ./register exportiert genau die sieben Aufrufe und die Rechte-Liste — und keine Anmeldung', () => {
   // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
@@ -768,6 +768,7 @@ test('der Unterpfad ./register exportiert genau die sieben Aufrufe — und keine
   assert.deepEqual(
     Object.keys(registerModul).sort(),
     [
+      'REGISTER_PERMS',
       'endRegisterSession',
       'listRegisterUsersForDevice',
       'pairRegisterDevice',
@@ -777,7 +778,12 @@ test('der Unterpfad ./register exportiert genau die sieben Aufrufe — und keine
       'unpairRegisterDevice',
     ],
   );
-  for (const wert of Object.values(registerModul)) {
+  // Alles ausser der Rechte-Liste ist ein Aufruf; die Liste ist reine Daten.
+  for (const [name, wert] of Object.entries(registerModul)) {
+    if (name === 'REGISTER_PERMS') {
+      assert.ok(Array.isArray(wert) && wert.every((eintrag) => typeof eintrag === 'string'));
+      continue;
+    }
     assert.equal(typeof wert, 'function');
   }
 });
