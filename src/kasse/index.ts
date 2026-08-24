@@ -10,6 +10,10 @@ export {
   type KasseDruckerArt, type KassePapier, type KasseZeichensatz, type KasseSchnitt, type KasseLadeAuto,
   type Schalterkarte, type KasseSettingsBetrieb, type KasseSettingsGeraet, type KasseSettings,
   KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
+  // Die Enums als Laufzeitlisten — dieselben Werte, die die Typen oben tragen.
+  STIL, SCHRIFT, WASSERZEICHEN, MENGE, TG_MODUS, KASSIEREN_MODUS, BELEG_AUSGABE,
+  LAYOUT, KATPOS, HOEHE, DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, PAPIER,
+  ZEICHENSATZ, SCHNITT, LADE_AUTO, TASTEN_AKTIONEN,
 } from './settings.js';
 export {
   type ArticleGroup, type ArticleGroupPayload, fromArticleGroupPayload,

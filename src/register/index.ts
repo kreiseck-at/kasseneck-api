@@ -56,6 +56,7 @@ export {
   type RegisterUserKind,
   type RegisterUserSummary,
   type RegisterUserPerms,
+  REGISTER_PERMS,
   type RegisterScope,
   type RegisterUser,
   type RegisterUserSession,
