@@ -1,0 +1,31 @@
+name: Erreichbarkeit
+
+# Bewusst NICHT bei push/pull_request: Diese Pruefung spricht mit der
+# veroeffentlichten Adresse api.kasseneck.at. Sie gehoert nicht in den Weg
+# eines Beitrags -- sie prueft nicht den Beitrag, sondern was live steht.
+#
+# Deshalb taeglich und auf Zuruf. Was sie findet, findet keine andere Ebene:
+# Unit-Tests und Handler-Tests reden mit Attrappen, Emulator-Laeufe mit
+# 127.0.0.1. Eine fehlende Hosting-Weiterleitung sieht nur, wer die echte
+# Adresse anspricht.
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  erreichbar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Antwortet unter der öffentlichen Adresse zu jedem Aufruf eine Function?
+        run: npm run check:erreichbar

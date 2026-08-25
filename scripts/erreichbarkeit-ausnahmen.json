@@ -1,0 +1,122 @@
+{
+  "_hinweis": [
+    "Aufrufe aus AUFRUFE, die unter der oeffentlichen Adresse api.kasseneck.at/v1 BEWUSST keine",
+    "Weiterleitung haben. Geprueft von scripts/check-erreichbarkeit.mjs (`npm run check:erreichbar`).",
+    "",
+    "Vorbild und Quelle der Begruendungen: vertragsrouten.json im Repo kasseneck-web, das dieselbe",
+    "Frage von der Hosting-Seite her stellt. Hier steht sie von der Paket-Seite her: Was verspricht",
+    "dieses Paket seinen Verbrauchern, und antwortet dort wirklich eine Function?",
+    "",
+    "Zwei Arten von Ausnahme:",
+    "  nicht_zutreffend -- dauerhaft, braucht einen Grund",
+    "  offen            -- Schuld, braucht eine Issue-Nummer",
+    "",
+    "Eine Ausnahme ohne Grund bzw. ohne Issue wird abgewiesen. Eine Ausnahme fuer einen Aufruf, der",
+    "inzwischen erreichbar IST, ebenfalls -- sonst saenke die Zahl nie. Und eine Ausnahme fuer einen",
+    "Namen, den AUFRUFE gar nicht mehr fuehrt, auch: eine Ausnahme darf keine Leiche decken.",
+    "",
+    "Die meisten Eintraege sind Aufrufe des Kassen-Wegs (kasse.kasseneck.at/api): Ausweis ist dort das",
+    "gekoppelte Geraet bzw. eine Kassen-Sitzung, nicht der api_key. Ein /v1-Eintrag fuehrte fuer sie",
+    "nur in einen Anmeldefehler."
+  ],
+
+  "ausnahmen": [
+    {
+      "aufruf": "pairRegisterDevice",
+      "art": "nicht_zutreffend",
+      "grund": "Kopplung eines Kassen-Geraets. Ausweis ist der Kopplungs-Code, nie ein api_key; der Aufruf laeuft, BEVOR es eine Anmeldung gibt. Dieses Paket fuehrt ihn deshalb unter /register und nicht in der api_key-Fassade."
+    },
+    {
+      "aufruf": "listRegisterUsersForDevice",
+      "art": "nicht_zutreffend",
+      "grund": "Benutzerliste des gekoppelten Geraets, vor der Anmeldung. Ausweis ist das Geraet selbst, kein api_key; steht zusammen mit Kopplung und PIN-Anmeldung unter /register."
+    },
+    {
+      "aufruf": "registerUserLogin",
+      "art": "nicht_zutreffend",
+      "grund": "Anmeldung eines Kassen-Benutzers am gekoppelten Geraet. Erzeugt die Sitzung erst, kann also keine api_key-Anmeldung voraussetzen; Weg der Pakete ist kasse.kasseneck.at/api."
+    },
+    {
+      "aufruf": "registerPinLogin",
+      "art": "nicht_zutreffend",
+      "grund": "PIN-Anmeldung am gekoppelten Geraet, wie registerUserLogin vor jeder Anmeldung. Ein /v1-Weg boete eine vierstellige PIN an der api_key-Adresse an, wo sie nichts zu suchen hat."
+    },
+    {
+      "aufruf": "renewRegisterSession",
+      "art": "nicht_zutreffend",
+      "grund": "Verlaengert die laufende Kassen-Sitzung; das Backend prueft mit checkRequest 'customer' (ID-Token + Kopfzeile register-session). Ein api_key wird hier gar nicht angenommen."
+    },
+    {
+      "aufruf": "endRegisterSession",
+      "art": "nicht_zutreffend",
+      "grund": "Beendet die laufende Kassen-Sitzung; wie renewRegisterSession checkRequest 'customer' mit ID-Token und Sitzungs-Kopfzeile. Fuer ein Fremdsystem mit api_key nicht aufrufbar."
+    },
+    {
+      "aufruf": "unpairRegisterDevice",
+      "art": "nicht_zutreffend",
+      "grund": "Entkoppelt das Geraet; checkRequest 'customer'. Gehoert zum Geraete-Lebenszyklus der Kasse, nicht zur api_key-Schnittstelle."
+    },
+    {
+      "aufruf": "listMyCashregisters",
+      "art": "nicht_zutreffend",
+      "grund": "checkRequest 'customer' (Firebase-ID-Token). Dieses Paket schreibt an den Aufruf ausdruecklich 'nur mit ID-Token'; mit einem api_key gibt es keinen Weg hinein, ein /v1-Eintrag fuehrte nur in einen Anmeldefehler."
+    },
+    {
+      "aufruf": "listMyReceipts",
+      "art": "nicht_zutreffend",
+      "grund": "checkRequest 'customer' (Firebase-ID-Token), ebenfalls als 'nur mit ID-Token' gefuehrt. Fremdsysteme lesen Belege ueber getReceipt bzw. die Berichte."
+    },
+    {
+      "aufruf": "listMyArticles",
+      "art": "nicht_zutreffend",
+      "grund": "Artikelstamm der Kachel-Kasse; checkRequest 'customer' mit Freigabe fuer Kassen-Benutzer. Kein api_key-Pfad, damit kein Aufrufer an api.kasseneck.at/v1."
+    },
+    {
+      "aufruf": "listMyArticleGroups",
+      "art": "nicht_zutreffend",
+      "grund": "Artikelgruppen der Kachel-Kasse; wie listMyArticles checkRequest 'customer' mit Kassen-Benutzer-Freigabe, kein api_key-Pfad."
+    },
+    {
+      "aufruf": "getKasseSettings",
+      "art": "nicht_zutreffend",
+      "grund": "Einstellungen der Kassen-Oberflaeche (Betrieb + Geraet); checkRequest 'customer' mit Kassen-Benutzer-Freigabe. Beschreibt die Bedienoberflaeche, nicht die Schnittstelle."
+    },
+    {
+      "aufruf": "setMyKasseSettings",
+      "art": "nicht_zutreffend",
+      "grund": "Schreibt die betriebsweiten Kassen-Einstellungen; checkRequest 'customer' mit Kassen-Benutzer-Freigabe und Recht 'layout'. Kein api_key-Pfad."
+    },
+    {
+      "aufruf": "setMyRegisterDeviceSettings",
+      "art": "nicht_zutreffend",
+      "grund": "Schreibt die Geraete-Einstellungen eines Kassen-Arbeitsplatzes; checkRequest 'customer' mit Kassen-Benutzer-Freigabe. Kein api_key-Pfad."
+    },
+    {
+      "aufruf": "listMyPrinters",
+      "art": "nicht_zutreffend",
+      "grund": "Netzwerk-Bondrucker des Betriebs (Server Direct Print); checkRequest 'customer' mit Kassen-Benutzer-Freigabe. Druckwege sind Sache der Kasse, nicht der oeffentlichen Schnittstelle."
+    },
+    {
+      "aufruf": "createPrintJob",
+      "art": "nicht_zutreffend",
+      "grund": "Legt einen Druckauftrag fuer einen Netzwerk-Bondrucker an; checkRequest 'customer' mit Kassen-Benutzer-Freigabe, kein api_key-Pfad."
+    },
+    {
+      "aufruf": "getPrintJob",
+      "art": "nicht_zutreffend",
+      "grund": "Fragt den Zustand eines Druckauftrags ab; wie createPrintJob checkRequest 'customer' mit Kassen-Benutzer-Freigabe."
+    },
+    {
+      "aufruf": "cancelReceipt",
+      "art": "offen",
+      "issue": "https://github.com/mhmmdlkts/kasseneck-web/issues/218",
+      "grund": "Keine Absicht, sondern eine Luecke: Der Storno gehoert an die oeffentliche Adresse -- ein Fremdsystem, das verkaufen kann, muss auch stornieren koennen. Die Weiterleitung fehlt noch."
+    },
+    {
+      "aufruf": "generateFullReceiptId",
+      "art": "offen",
+      "issue": "https://github.com/mhmmdlkts/kasseneck-web/issues/218",
+      "grund": "Wie cancelReceipt eine fehlende Weiterleitung, kein bewusster Ausschluss."
+    }
+  ]
+}

@@ -113,6 +113,7 @@
     "prepare": "npm run build",
     "test": "tsc -p tsconfig.test.json && TZ=Europe/Vienna node --test $(find test-dist -name '*.test.js') && TZ=UTC node --test $(find test-dist -name '*.test.js') && TZ=Pacific/Kiritimati node --test $(find test-dist -name '*.test.js')",
     "check:consumer": "node scripts/check-consumer-types.mjs",
+    "check:erreichbar": "node scripts/check-erreichbarkeit.mjs",
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
     "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",

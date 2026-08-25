@@ -199,11 +199,32 @@ PDF-Erzeugung.
 npm test              # Testsuite in drei Zeitzonen (Wien, UTC, Kiritimati)
 npm run build         # ESM- und CJS-Bau nach dist/, inkl. Prüfung der exports
 npm run check:consumer # baut den Tarball und übersetzt zwei Verbraucher (CJS/ESM)
+npm run check:erreichbar # fragt die öffentliche Adresse: antwortet dort zu jedem Aufruf eine Function?
 ```
 
 Die drei Zeitzonen sind kein Übereifer: Zeitfehler sind auf einer Wiener
 Maschine zufällig richtig. Belegzeiten werden konsequent als **Wiener
 Wanduhrzeit** gedeutet (`parseServerTimeStamp`), nie über `new Date(text)`.
+
+### `check:erreichbar` — spricht als einzige mit `api.kasseneck.at`
+
+Testsuite und `check:consumer` laufen gegen Attrappen bzw. gegen den Tarball;
+keine von beiden setzt je einen Aufruf ab. Fehlt einem Aufruf die
+Hosting-Weiterleitung, liefert die veröffentlichte Adresse die
+HTML-Auffangseite statt der Function — und das sieht keine Attrappe.
+
+Die Prüfung braucht **keine Zugangsdaten**. Ein Aufruf ohne Anmeldung
+antwortet, wenn dort eine Function steht, mit
+`{"status":"error","message":"Ungültiger Request: Authorization key erwartet."}`.
+Genau das ist der Beweis: Der Aufruf wurde angenommen und die Anmeldung
+geprüft. Eine HTML-Seite oder ein 404 ist der Beweis, dass dort keine Function
+steht. Deshalb prüft das Skript auf ein `status`-Feld und nicht auf Erfolg.
+
+Bewusst außerhalb von `npm test`: Sie braucht Netz. Ist keines da, sagt sie es
+und endet mit 0. Aufrufe, die unter `/v1` absichtlich keine Weiterleitung
+haben — der Kassen-Weg über `kasse.kasseneck.at/api`, die Aufrufe mit
+Firebase-ID-Token — stehen mit Grund in `scripts/erreichbarkeit-ausnahmen.json`.
+Wird eine Ausnahme erreichbar, schlägt die Prüfung an: Sonst sänke die Zahl nie.
 
 ## Vertragsdateien für die Zwillinge
 
