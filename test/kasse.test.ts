@@ -18,6 +18,7 @@ import {
   listMyArticles,
   mengenregelFuerEinheit,
   mengenVorgabe,
+  listMyTipRecipients,
 } from '../src/kasse/index.js';
 import { fromReceiptSummaryPayload } from '../src/models/index.js';
 import { listMyReceipts, createTransport, apiKeyAuth, type KasseneckTransport, type FetchLike, type HttpResponseLike } from '../src/client/index.js';
@@ -326,4 +327,26 @@ test('Die Rechte-Schluessel stehen als Liste bereit', () => {
     'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
     'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
   ]);
+});
+
+test('listMyTipRecipients liefert die Empfaenger', async () => {
+  const rufe: string[] = [];
+  const rufen = (async (name: string) => {
+    rufe.push(name);
+    return { recipients: [{ registerUserId: 'a', name: 'Anna', owner: true }, { registerUserId: 'b', name: 'Berta', owner: false }] };
+  }) as never;
+  const leute = await listMyTipRecipients(rufen);
+  assert.deepEqual(rufe, ['listMyTipRecipients']);
+  assert.deepEqual(leute, [{ registerUserId: 'a', name: 'Anna', owner: true }, { registerUserId: 'b', name: 'Berta', owner: false }]);
+});
+
+test('fehlende Liste ist ein Antwortfehler, keine leere Liste', async () => {
+  const rufen = (async () => ({})) as never;
+  await assert.rejects(() => listMyTipRecipients(rufen), /recipients/);
+});
+
+test('owner ist nur bei echtem true wahr', async () => {
+  const rufen = (async () => ({ recipients: [{ registerUserId: 'a', name: 'A', owner: 'ja' }] })) as never;
+  const [erster] = await listMyTipRecipients(rufen);
+  assert.equal(erster!.owner, false);
 });
