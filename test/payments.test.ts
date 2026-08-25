@@ -497,6 +497,39 @@ test('newHobexTransactionId ohne Angaben liefert eine gueltige Kennung', async (
   assert.match(newHobexTransactionId(), /^\d{19}$/);
 });
 
+/**
+ * Gemeinsame Golden-Werte mit dem Dart-Zwilling.
+ *
+ * **Dieselben zwei Zeichenketten stehen im Paket `kasseneck_api` in
+ * test/kasseneck_api_client_test.dart** ("Golden-Wert Winterzeit/Sommerzeit,
+ * wie im JS-Zwilling"). Beide Pakete bilden die Kennung nach demselben
+ * Verfahren und rechnen die Wiener Wanduhrzeit **jedes fuer sich** aus.
+ * Weicht eine Seite kuenftig ab — anderer Aufbau, andere Auffuellung, andere
+ * Sommerzeitgrenze —, faellt ihr Test, statt dass es am Terminal auffaellt.
+ *
+ * Der Zeitpunkt ist so gewaehlt, dass er etwas beweist: einstellige Werte in
+ * Monat, Tag und Stunde und Millisekunde 0 — genau die Stellen, an denen das
+ * Auffuellen zaehlt. Der feste Zufallswert 0.00071 ergibt 7 und muss auf vier
+ * Stellen aufgefuellt werden.
+ */
+test('newHobexTransactionId: Golden-Wert Winterzeit (wie im Dart-Zwilling)', async () => {
+  // 02.01.2026 02:04:05.000 UTC = 03:04:05.000 Wiener Zeit (CET, +1).
+  const kennung = newHobexTransactionId({ now: new Date('2026-01-02T02:04:05.000Z'), random: () => 0.00071 });
+
+  assert.equal(kennung, '2601020304050000007');
+  assert.match(kennung, /^\d{19}$/);
+});
+
+test('newHobexTransactionId: Golden-Wert Sommerzeit (wie im Dart-Zwilling)', async () => {
+  // 08.07.2026 07:04:05.000 UTC = 09:04:05.000 Wiener Zeit (CEST, +2).
+  // Gegen den Winter-Wert steht hier allein die Sommerzeit: rechnet eine der
+  // beiden Seiten die Umstellung anders, faellt genau dieser Wert.
+  const kennung = newHobexTransactionId({ now: new Date('2026-07-08T07:04:05.000Z'), random: () => 0.00071 });
+
+  assert.equal(kennung, '2607080904050000007');
+  assert.match(kennung, /^\d{19}$/);
+});
+
 // --- Fassade ------------------------------------------------------------
 
 test('createKasseneckApi bindet die vier Zahlungs-Aufrufe an denselben Transport', async () => {
