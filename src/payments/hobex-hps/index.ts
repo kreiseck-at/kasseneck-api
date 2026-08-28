@@ -93,3 +93,5 @@ export {
   type HpsMeasuredCode,
   type HpsTransactionResponse,
 } from './transaction-response.js';
+
+export { hobexReceiptFromHps } from './receipt.js';
