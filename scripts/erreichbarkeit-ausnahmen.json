@@ -105,18 +105,6 @@
       "aufruf": "getPrintJob",
       "art": "nicht_zutreffend",
       "grund": "Fragt den Zustand eines Druckauftrags ab; wie createPrintJob checkRequest 'customer' mit Kassen-Benutzer-Freigabe."
-    },
-    {
-      "aufruf": "cancelReceipt",
-      "art": "offen",
-      "issue": "https://github.com/mhmmdlkts/kasseneck-web/issues/218",
-      "grund": "Keine Absicht, sondern eine Luecke: Der Storno gehoert an die oeffentliche Adresse -- ein Fremdsystem, das verkaufen kann, muss auch stornieren koennen. Die Weiterleitung fehlt noch."
-    },
-    {
-      "aufruf": "generateFullReceiptId",
-      "art": "offen",
-      "issue": "https://github.com/mhmmdlkts/kasseneck-web/issues/218",
-      "grund": "Wie cancelReceipt eine fehlende Weiterleitung, kein bewusster Ausschluss."
     }
   ]
 }
