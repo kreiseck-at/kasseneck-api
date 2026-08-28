@@ -174,7 +174,7 @@ den Storno-Dialog); die Wahrheit hat der Server.
 | `@kreiseck/kasseneck-api` | Endpunkte, Anmeldung, Transport, Modelle, Enums, Fehler — alles, was mit dem Backend spricht. |
 | `…/receipt` | Beleg-Layout als Datenmodell (framework-frei) und die Brücke zu ESC/POS. |
 | `…/printing` | ESC/POS-Erzeugung: Bytefolgen für Bondrucker, ohne jeden Transport. |
-| `…/payments` | Stripe-Zahllinks und Hobex-Cloud (beides HTTP-Endpunkte des Backends). |
+| `…/payments` | Stripe-Zahllinks, Hobex-Cloud (beides HTTP-Endpunkte des Backends) und Hobex **HPS** über **Kasseneck Connect** (lokaler Geräte-Agent, spricht mit dem Terminal). |
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln und entkoppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
@@ -182,16 +182,40 @@ den Storno-Dialog); die Wahrheit hat der Server.
 
 So zieht sich niemand den React-Adapter in ein Node-Programm.
 
+## Hobex HPS über Kasseneck Connect
+
+Ein Browser hat weiterhin keine rohen TCP-Sockets — ein **direkter**
+Terminal-Kontakt wie beim Flutter-Paket `kasseneck_api` (`HpsClient`) bleibt
+deshalb außerhalb der Reichweite dieses Pakets. **Kasseneck Connect** ist aber
+ein lokaler Geräte-Agent mit gewöhnlicher HTTP-Schnittstelle, der für die Kasse
+mit dem Terminal spricht — und darüber geht es:
+
+```ts
+import { createHpsConnectClient, createHpsPayments } from '@kreiseck/kasseneck-api/payments';
+
+const client = createHpsConnectClient({ token: kopplungsToken });
+const zahlweg = createHpsPayments(client, { host: '192.168.1.50', tid: '3600335' });
+
+const ergebnis = await zahlweg.pay({ amountCents: 1050 });
+// ergebnis.outcome: 'approved' | 'declined' | 'unresolved' — nie geraten.
+// ergebnis.transactionId ist IMMER gesetzt, auch bei 'unresolved'.
+```
+
+Der Ausgang ist immer einer von drei: `approved`, `declined` (beweisbar nichts
+belastet) oder `unresolved` (Ausgang unbekannt, eine Wiederholung könnte ein
+zweites Mal belasten). Was das bedeutet und warum es so gebaut ist, steht in
+`src/payments/hobex-hps/payments.ts` — dort ist die Dokumentation der Maßstab,
+nicht dieses README.
+
+**Nur `pay` — bewusst kein `refund`/`cancel`.** Kasseneck Connect exponiert
+dafür (noch) keinen Endpunkt; eine Gutschrift oder ein Storno am HPS-Terminal
+braucht weiterhin die Flutter-App. **myPOS** und **SumUp** bleiben
+Android-SDKs ohne Entsprechung hier.
+
 ## Was hier grundsätzlich nicht dazugehört
 
-**Hobex HPS, myPOS und SumUp sind nicht Teil dieses Pakets und werden es auch
-nicht.** Hobex HPS spricht lokal über TCP mit dem Terminal, myPOS und SumUp
-sind Android-SDKs. Ein Browser kann das nicht, und kein Bündler ändert daran
-etwas. Wer diese Terminals braucht, nimmt das Flutter-Paket `kasseneck_api`.
-
-Ebenfalls nicht enthalten: die Druckeransteuerung selbst (dieses Paket erzeugt
-die Bytes, es verschickt sie nicht), Firmenlogos und Rasterbilder, und die
-PDF-Erzeugung.
+Die Druckeransteuerung selbst (dieses Paket erzeugt die Bytes, es verschickt
+sie nicht), Firmenlogos und Rasterbilder, und die PDF-Erzeugung.
 
 ## Entwicklung
 
@@ -229,19 +253,22 @@ Wird eine Ausnahme erreichbar, schlägt die Prüfung an: Sonst sänke die Zahl n
 ## Vertragsdateien für die Zwillinge
 
 Dieses Paket ist die Quelle für das Dart-Paket `kasseneck_api` und den
-Backend-Validator `kasse-settings-core.js`. Zwei Dateien in `fixtures/` reisen
-im Tarball mit und sagen in Maschinenform, worauf sich alle drei geeinigt haben:
+Backend-Validator `kasse-settings-core.js`. Drei Dateien in `fixtures/` reisen
+im Tarball mit und sagen in Maschinenform, worauf sich beide Seiten geeinigt haben:
 
 | Datei | Inhalt |
 |---|---|
 | `kasse-settings-standard.json` | Feldnamen und Standardwerte der Kassen-Einstellungen |
 | `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen |
+| `hobex-hps-codes.json` | Gemessene HPS-Ergebniscodes, ihre Bedeutung und ob sie einen Ausgang festschreiben — der Vertrag hinter `.../payments/hobex-hps`s `isConclusive`. |
 
-Beide werden erzeugt (`npm run fixtures:kasse`, `npm run fixtures:oberflaeche`)
-und nie von Hand geändert; die CI prüft nach jedem Lauf, dass sie zum Code passen.
+Alle drei werden erzeugt (`npm run fixtures:kasse`, `npm run fixtures:oberflaeche`,
+`npm run fixtures:hobex-hps-codes`) und nie von Hand geändert; die CI prüft
+nach jedem Lauf, dass sie zum Code passen.
 
-`oberflaeche.json` trägt die Paketversion. **Nach jedem `npm version` müssen deshalb beide
-Dateien neu erzeugt und mitcommittet werden**, sonst wird die CI rot.
+`oberflaeche.json` und `hobex-hps-codes.json` tragen die Paketversion. **Nach
+jedem `npm version` müssen deshalb alle drei Dateien neu erzeugt und
+mitcommittet werden**, sonst wird die CI rot.
 
 ## Lizenz
 

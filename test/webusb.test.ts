@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { usbFindPrinterEndpoint, usbWriteAll, usbDeviceKey, usbConnectPrinter, type UsbDeviceLike } from '../src/printing/index.js';
+import { usbFindPrinterEndpoint, usbWriteAll, usbDeviceKey, usbConnectPrinter, usbDisconnect, UsbTimeoutError, type UsbDeviceLike, type UsbPrinterConnection } from '../src/printing/index.js';
 
 /**
  * Bondrucker am USB-Kabel (WebUSB): Druckerschnittstelle (Klasse 7) bevorzugt,
@@ -62,4 +62,65 @@ test('WebUSB: verbinden = oeffnen, Konfiguration, Interface belegen; Kennung fue
   // kein Drucker-Endpunkt
   const leer = geraet({ selectConfiguration: async function (this: UsbDeviceLike) { (leer as UsbDeviceLike).configuration = { configurationValue: 1, interfaces: [] }; } });
   await assert.rejects(usbConnectPrinter(leer), /Endpunkt/);
+});
+
+/**
+ * Der eigentliche Befund (28.08.2026, dieselbe Ueberlegung wie bei
+ * `receipt/epos.ts`): keiner der awaited WebUSB-Aufrufe hatte eine Frist. Ein
+ * haengendes oder halb abgezogenes Geraet liess `usbWriteAll`/
+ * `usbConnectPrinter` unbegrenzt haengen. Diese Attrappen loesen absichtlich
+ * NIE auf -- ohne eine echte Frist im Code liefe der jeweilige Test bis zum
+ * Zeitlimit des Testlaeufers durch, nicht weil er bestanden ist.
+ */
+test('usbWriteAll: ein haengender transferOut haelt den Aufruf nicht unbegrenzt fest', async () => {
+  const haengt = { transferOut: () => new Promise<{ status: string; bytesWritten: number }>(() => { /* loest nie auf */ }) };
+  const start = Date.now();
+  await assert.rejects(
+    usbWriteAll(haengt, 3, new Uint8Array([1, 2, 3]), 16384, 30),
+    (e: unknown) => {
+      assert.ok(e instanceof UsbTimeoutError, `falsche Fehlerart: ${String(e)}`);
+      assert.equal(e.schritt, 'transferOut');
+      return true;
+    },
+  );
+  assert.ok(Date.now() - start < 2000, 'der Aufruf haette laengst zurueckkehren muessen');
+});
+
+test('usbConnectPrinter: ein haengendes open() haelt den Aufruf nicht unbegrenzt fest', async () => {
+  const d = geraet({ open: () => new Promise<void>(() => { /* loest nie auf */ }) });
+  const start = Date.now();
+  await assert.rejects(
+    usbConnectPrinter(d, 30),
+    (e: unknown) => e instanceof UsbTimeoutError && e.schritt === 'open',
+  );
+  assert.ok(Date.now() - start < 2000);
+});
+
+test('usbConnectPrinter: ein haengendes claimInterface() bleibt als Zeitablauf erkennbar, nicht als "belegt"', async () => {
+  // Wichtig: ein Zeitablauf beim Claim darf NICHT in die generische
+  // "belegt von einem Treiber"-Meldung fallen -- das waere dieselbe
+  // Verwechslung von Nichtwissen und Aussage, die an anderer Stelle in
+  // diesem Vorhaben schon einmal Belastungsdaten falsch eingeordnet hat.
+  const d = geraet({ claimInterface: () => new Promise<void>(() => { /* loest nie auf */ }) });
+  await assert.rejects(
+    usbConnectPrinter(d, 30),
+    (e: unknown) => e instanceof UsbTimeoutError && e.schritt === 'claimInterface',
+  );
+  // Regression: eine ECHTE Ablehnung (Treiber haelt das Geraet) bleibt die
+  // verstaendliche Meldung, kein UsbTimeoutError.
+  const belegt = geraet({ claimInterface: async () => { throw new Error('Unable to claim interface.'); } });
+  await assert.rejects(usbConnectPrinter(belegt, 30), (e: unknown) => !(e instanceof UsbTimeoutError));
+  await assert.rejects(usbConnectPrinter(belegt, 30), /Treiber/);
+});
+
+test('usbDisconnect: ein haengendes releaseInterface haelt das Aufraeumen nicht unbegrenzt fest', async () => {
+  const c: UsbPrinterConnection = {
+    device: geraet({ releaseInterface: () => new Promise<void>(() => { /* loest nie auf */ }) }),
+    name: 'Test', interfaceNumber: 1, endpointNumber: 3, key: 'x',
+  };
+  const start = Date.now();
+  // usbDisconnect verschluckt Fehler bewusst (Geraet ist ohnehin weg) -- die
+  // Zusage hier ist NUR, dass der Aufruf ueberhaupt zurueckkehrt.
+  await usbDisconnect(c, 30);
+  assert.ok(Date.now() - start < 2000, 'usbDisconnect haette laengst zurueckkehren muessen');
 });

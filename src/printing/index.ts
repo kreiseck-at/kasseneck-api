@@ -40,5 +40,6 @@ export {
   type UsbTransferOutResultLike, type UsbWriterLike, type UsbIdentityLike, type UsbDeviceLike,
   type UsbPrinterEndpoint, type UsbPrinterConnection,
   USB_VENDOR_EPSON, USB_CLASS_PRINTER,
+  UsbTimeoutError,
   usbDeviceKey, usbFindPrinterEndpoint, usbWriteAll, usbConnectPrinter, usbPrint, usbDisconnect,
 } from './webusb.js';

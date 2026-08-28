@@ -194,6 +194,53 @@ test('Gutschein: Gueltigkeitsregeln des Vorbilds', () => {
   assert.equal(voucherIsValid(wert(-100)), false);
 });
 
+/**
+ * Gemessen am 28.08.2026: `valueCents <= 0` greift bei einem nicht-endlichen
+ * Wert NIE (`NaN <= 0` und `Infinity <= 0` sind beide `false`), ein kaputter
+ * Gutschein galt deshalb als GUELTIG und waere still in die Belegsummen
+ * gewandert. Dieselben drei Werte wie in der Messung, aus zwei Richtungen:
+ * ueber [fromVoucherPayload] (die Nutzlast ist die fremde Antwort) und direkt
+ * an [voucherIsValid] (falls `valueCents` ohne den Umweg ueber die Nutzlast
+ * gesetzt wird).
+ */
+test('Gutschein: ein kaputter Wert gilt NIE als gueltig -- NaN, Infinity, ueber die Nutzlast oder direkt', () => {
+  const nutzlast = (value: unknown) => ({ name: null, code: null, action: 'sell', type: 'value', value: value as number, valueCents: null });
+
+  // Ueber die Nutzlast: ein nicht-numerischer Wert wird jetzt zu 0 Cent
+  // (euroToCents), nicht mehr zu NaN -- und 0 Cent ist ueber die
+  // "<= 0"-Pruefung ungueltig.
+  const kaputt = fromVoucherPayload(nutzlast('kaputt'));
+  assert.equal(kaputt.valueCents, 0);
+  assert.equal(voucherIsValid(kaputt), false);
+
+  const nan = fromVoucherPayload(nutzlast(NaN));
+  assert.equal(nan.valueCents, 0);
+  assert.equal(voucherIsValid(nan), false);
+
+  const unendlich = fromVoucherPayload(nutzlast(Infinity));
+  assert.equal(unendlich.valueCents, 0);
+  assert.equal(voucherIsValid(unendlich), false);
+
+  // Direkt an valueCents vorbei an fromVoucherPayload -- die Haertung in
+  // voucherIsValid muss unabhaengig von der Umrechnung greifen.
+  assert.equal(voucherIsValid({ action: VoucherAction.sell, type: VoucherType.value, valueCents: NaN }), false);
+  assert.equal(voucherIsValid({ action: VoucherAction.sell, type: VoucherType.value, valueCents: Infinity }), false);
+  assert.equal(voucherIsValid({ action: VoucherAction.sell, type: VoucherType.value, valueCents: -Infinity }), false);
+
+  // Regression: ein normaler Wert bleibt gueltig.
+  assert.equal(voucherIsValid(fromVoucherPayload(nutzlast(5))), true);
+});
+
+test('Gutschein: ein kaputter Wert vergiftet die Belegsumme nicht mehr (0 statt NaN)', () => {
+  const items: ReceiptItem[] = [{ name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 300 }];
+  const kaputterGutschein: Voucher = fromVoucherPayload({
+    name: null, code: null, action: 'sell', type: 'value', value: 'kaputt' as unknown as number, valueCents: null,
+  });
+  const beleg = baueBeleg(items, [kaputterGutschein]);
+  assert.equal(receiptSubSumCents(beleg), 300, 'ein ungueltiger Gutschein darf die Summe nicht auf NaN ziehen');
+  assert.equal(Number.isNaN(receiptSumCents(beleg)), false);
+});
+
 // --- Beleg -----------------------------------------------------------------
 
 function baueBeleg(items: ReceiptItem[], vouchers: Voucher[] = []): Receipt {
@@ -571,6 +618,32 @@ test('Hobex-Beleg: Transaktionsdatum wird wie im Flutter-Paket normalisiert (Bru
   const beleg = fromHobexReceiptPayload(payload);
   assert.equal(beleg.transactionDate, '2026-08-13 10:00:00');
   assert.equal(beleg.cvm, '0');
+});
+
+/**
+ * Dieselbe Wurzel wie beim Gutschein-Befund (28.08.2026): `amount`/`tip`
+ * kommen aus der Hobex-Antwort ungeprueft (siehe payments/hobex.ts,
+ * belegAusNutzlast, das nur transactionId/transactionDate prueft). Vor der
+ * Umstellung auf [euroToCents] ergab ein kaputter Wert `amountCents: NaN` --
+ * lautlos, ohne dass irgendwo geworfen wurde.
+ */
+test('Hobex-Beleg: ein kaputter amount/tip-Wert ergibt 0 Cent, nicht NaN', () => {
+  const payload = (amount: unknown, tip: unknown) => ({
+    transactionId: 'tx1', tid: 't1', receipt: '000123', approvalCode: '00', reference: null,
+    transactionDate: '2026-08-13T10:00:00', cardNumber: '****1234', cardExpiry: '12/28',
+    brand: 'visa', cardIssuer: 'Bank', responseCode: '00', transactionType: 'purchase', currency: 'EUR',
+    amount: amount as number, tip: tip as number, cvm: 0,
+  });
+  for (const wert of ['kaputt', NaN, Infinity] as const) {
+    const beleg = fromHobexReceiptPayload(payload(wert, wert));
+    assert.equal(beleg.amountCents, 0, `amount=${String(wert)}`);
+    assert.equal(beleg.tipCents, 0, `tip=${String(wert)}`);
+    assert.equal(Number.isNaN(beleg.amountCents), false);
+  }
+  // Regression: ein normaler Wert bleibt exakt.
+  const normal = fromHobexReceiptPayload(payload(19.99, 1.5));
+  assert.equal(normal.amountCents, 1999);
+  assert.equal(normal.tipCents, 150);
 });
 
 test('Hobex-Beleg: toCardPaymentData liefert die vom Beleg-Rendering erwarteten Schluessel', () => {

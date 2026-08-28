@@ -117,7 +117,8 @@
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
     "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",
-    "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs"
+    "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
+    "fixtures:hobex-hps-codes": "npm run build && node scripts/hobex-hps-codes.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

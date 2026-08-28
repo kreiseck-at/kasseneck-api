@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { eposDirectPrint, eposDirectStatus, eposParseResponse, eposPrintXml, eposServiceUrl, eposSoapEnvelope, eposXmlEscape, ZEICHEN_JE_PAPIER } from '../src/receipt/index.js';
+import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseResponse, eposPrintXml, eposServiceUrl, eposSoapEnvelope, eposXmlEscape, ZEICHEN_JE_PAPIER } from '../src/receipt/index.js';
 
 /**
  * ePOS-Print XML (Epson TM, Server Direct Print / ePOS-Print): aus dem
@@ -89,4 +89,65 @@ test('ePOS direkt: drucken und Status ueber fetch; Netzfehler wird verstaendlich
   await assert.rejects(eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetchNetz), /https:\/\/192\.168\.0\.136/);
   const fetch500 = (async () => ({ ok: false, status: 500, text: async () => '' })) as unknown as typeof fetch;
   await assert.rejects(eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetch500), /HTTP 500/);
+});
+
+/**
+ * Der eigentliche Befund (28.08.2026): `eposDirectSend` rief `fetch` bislang
+ * OHNE `signal` -- der `timeout=`-Parameter in der URL ist ein Hinweis FUER
+ * DEN DRUCKER, keine Frist fuer den Aufrufer. Ein Drucker, der die Verbindung
+ * annimmt und nie antwortet, liess den Aufruf frueher NIE zurueckkehren.
+ *
+ * Diese Attrappe stellt genau das nach: eine `fetchFn`, die niemals aufloest
+ * (kein Zeitablauf, kein Reject) -- ohne eine echte Frist im Code liefe dieser
+ * Test bis zum Timeout des Testlaufers durch, nicht weil er bestanden ist.
+ */
+test('ePOS direkt: ein haengender Drucker haelt den Aufruf nicht unbegrenzt fest -- die Frist deckt den ganzen Aufruf', async () => {
+  const haengt = (async () => new Promise<Response>(() => { /* loest nie auf */ })) as unknown as typeof fetch;
+  const start = Date.now();
+  await assert.rejects(
+    eposDirectPrint(LAYOUT, { ip: '192.168.0.136', timeoutMs: 30 }, haengt),
+    (e: unknown) => {
+      assert.ok(e instanceof EposConnectionError, `falsche Fehlerart: ${String(e)}`);
+      assert.equal(e.timedOut, true, 'ein haengender Drucker ist ein Zeitablauf, keine Ablehnung');
+      assert.match(e.message, /Zeitlimit/);
+      return true;
+    },
+  );
+  // Grosszuegige Toleranz (kein exaktes Timing pruefen) -- entscheidend ist
+  // NUR, dass der Aufruf ueberhaupt zurueckkehrt, deutlich unter der alten
+  // "fuer immer"-Grenze.
+  assert.ok(Date.now() - start < 2000, 'der Aufruf haette laengst zurueckkehren muessen');
+});
+
+test('ePOS direkt: eine haengende Antwort (Kopf da, Rumpf offen) faellt unter dieselbe Frist', async () => {
+  const kopfOhneRumpf = (async () => ({
+    ok: true,
+    status: 200,
+    text: () => new Promise<string>(() => { /* loest nie auf */ }),
+  })) as unknown as typeof fetch;
+  const start = Date.now();
+  await assert.rejects(
+    eposDirectPrint(LAYOUT, { ip: '192.168.0.136', timeoutMs: 30 }, kopfOhneRumpf),
+    (e: unknown) => e instanceof EposConnectionError && e.timedOut === true,
+  );
+  assert.ok(Date.now() - start < 2000);
+});
+
+test('ePOS direkt: eine sofort abgelehnte Verbindung ist KEIN Zeitablauf', async () => {
+  const fetchNetz = (async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch;
+  await assert.rejects(
+    eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetchNetz),
+    (e: unknown) => e instanceof EposConnectionError && e.timedOut === false,
+  );
+});
+
+test('ePOS direkt: die Frist geht als AbortSignal an fetch mit', async () => {
+  let gesehenesSignal: AbortSignal | undefined;
+  const fetchOk = (async (_url: string, init: RequestInit) => {
+    gesehenesSignal = init.signal as AbortSignal;
+    return { ok: true, status: 200, text: async () => '<response success="true" code="" status="1"/>' };
+  }) as unknown as typeof fetch;
+  await eposDirectPrint(LAYOUT, { ip: '192.168.0.136' }, fetchOk);
+  assert.ok(gesehenesSignal instanceof AbortSignal);
+  assert.equal(gesehenesSignal!.aborted, false);
 });
