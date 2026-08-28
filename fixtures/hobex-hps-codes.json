@@ -1,0 +1,52 @@
+{
+  "version": "0.6.46",
+  "gemessenAn": {
+    "tid": "3600335",
+    "hpsVersion": "1.10.0",
+    "firmware": "7.3.6",
+    "zeitraum": "26.-28.08.2026"
+  },
+  "codes": [
+    {
+      "code": "0",
+      "meaning": "genehmigt",
+      "conclusive": true
+    },
+    {
+      "code": "9002",
+      "meaning": "ungueltiger Vorgang -- das Terminal hat den Vorgang selbst als unzulaessig verworfen, bevor irgendetwas in Bewegung kam",
+      "conclusive": true
+    },
+    {
+      "code": "9011",
+      "meaning": "aufgehoben (\"Transaction Canceled\") -- der Vorgang unter dieser Kennung wurde storniert",
+      "conclusive": true
+    },
+    {
+      "code": "9027",
+      "meaning": "keine Aussage -- steht gleichermassen fuer \"nie gesehen\", \"laeuft gerade\", \"Karte nicht aufgelegt\" und \"abgebrochen\"",
+      "conclusive": false
+    },
+    {
+      "code": "9900",
+      "meaning": "\"Technical Error Database\" -- gemessen im Zusammenhang mit einer nicht rein numerischen Kennung; keine Aussage ueber den Vorgang selbst",
+      "conclusive": false
+    },
+    {
+      "code": "100002",
+      "meaning": "abgebrochen (\"Aborted\")",
+      "conclusive": true
+    },
+    {
+      "code": "100003",
+      "meaning": "Karte nicht aufgelegt (\"Card not present\")",
+      "conclusive": true
+    },
+    {
+      "code": "100010",
+      "meaning": "nicht mehr abbrechbar -- der Vorgang ist bereits abgeschlossen",
+      "conclusive": true
+    }
+  ],
+  "terminalBusyHttpStatus": 409
+}

@@ -14,12 +14,15 @@ import { centsToEuro } from '../money.js';
  * functions/payment-endpoints.js) — sie ist deshalb kein Schmuck, sondern die
  * Absicherung gegen eine doppelte Belastung.
  *
- * **Nur der Cloud-Weg ist hier drin, und das bleibt so.** Hobex **HPS** ist ein
- * physisches Terminal, mit dem die Kasse **lokal ueber TCP** spricht; **myPOS**
- * und **SumUp** sind **Android-SDKs**. Ein Browser hat weder rohe TCP-Sockets
- * noch eine Android-Laufzeit — das ist keine fehlende Umsetzung und kein
- * Buendler-Problem, sondern eine Grenze der Umgebung. Wer diese drei Wege
- * braucht, braucht die Flutter-App, nicht dieses Paket.
+ * **Nur der Cloud-Weg ist hier drin.** Hobex **HPS** ist ein physisches
+ * Terminal, mit dem eine Kasse **lokal ueber TCP** spricht — dafuer hat ein
+ * Browser weiterhin keine rohen Sockets. Anders als hier frueher vermerkt,
+ * heisst das aber NICHT mehr "unerreichbar ohne Flutter": `../hobex-hps.js`
+ * spricht mit dem Terminal ueber **Kasseneck Connect**, einen lokalen
+ * Geraete-Agenten mit gewoehnlicher HTTP-Schnittstelle. **myPOS** und
+ * **SumUp** bleiben Android-SDKs ohne Entsprechung hier. Wer am HPS-Terminal
+ * eine Gutschrift oder ein Storno braucht, braucht weiterhin die Flutter-App:
+ * Connect exponiert dafuer (noch) keinen Endpunkt.
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Keiner der
  * beiden Endpunkte dieser Datei setzt `allowRegisterUser`; beide laufen nur
