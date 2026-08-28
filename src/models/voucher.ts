@@ -1,4 +1,5 @@
 import { VoucherAction, VoucherType } from '../enums/index.js';
+import { euroToCents } from '../money.js';
 import { readEnumKey, requireEnumKey } from './enum-payload.js';
 
 /**
@@ -65,18 +66,33 @@ export function voucherIsValid(voucher: Voucher): boolean {
   if (voucher.type === VoucherType.promo && voucher.valueCents == null) {
     return false;
   }
-  if (voucher.valueCents != null && voucher.valueCents <= 0) {
+  // `!Number.isFinite` VOR den Vergleich, nicht dahinter: `NaN <= 0` und
+  // `Infinity <= 0` sind beide `false`, ein Vergleich mit einem
+  // nicht-endlichen Wert ist also IMMER falsch und liesse ihn hier
+  // durchrutschen. Gemessen (28.08.2026): ein Gutschein mit `valueCents: NaN`
+  // (aus einem kaputten `value` in der Nutzlast, siehe [fromVoucherPayload])
+  // oder `valueCents: Infinity` galt bis zu dieser Fassung als GUELTIG und
+  // waere still in die Belegsummen gewandert. Diese Pruefung greift
+  // unabhaengig davon, ob `valueCents` ueber [fromVoucherPayload] oder direkt
+  // gesetzt wurde -- die gehaertete Umrechnung dort allein reicht nicht.
+  if (voucher.valueCents != null && (!Number.isFinite(voucher.valueCents) || voucher.valueCents <= 0)) {
     return false;
   }
   return true;
 }
 
 export function fromVoucherPayload(payload: VoucherPayload): Voucher {
+  // Euro->Cent ueber die eine gehaertete Stelle im Paket ([euroToCents],
+  // money.ts) statt einer eigenen `Math.round(payload.value * 100)` --
+  // [euroToCents] prueft `Number.isFinite` und liefert fuer einen
+  // nicht-numerischen oder nicht-endlichen Wert `0` statt eines lautlosen
+  // `NaN`. Siehe auch [voucherIsValid]: `0` faellt dort ueber die
+  // "<= 0"-Pruefung, ein `NaN` waere durchgerutscht.
   const valueCents =
     payload.valueCents != null
       ? payload.valueCents
       : payload.value != null
-        ? Math.round(payload.value * 100)
+        ? euroToCents(payload.value)
         : undefined;
   return {
     name: payload.name ?? undefined,

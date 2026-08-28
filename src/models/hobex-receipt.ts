@@ -1,5 +1,5 @@
 import { CreditCardProvider } from '../enums/index.js';
-import { centsToEuro } from '../money.js';
+import { centsToEuro, euroToCents } from '../money.js';
 
 /**
  * Hobex-Kartenzahlungsbeleg — Zwilling von `HobexReceipt` in
@@ -94,8 +94,15 @@ export function fromHobexReceiptPayload(payload: HobexReceiptPayload): HobexRece
     responseCode: payload.responseCode,
     transactionType: payload.transactionType,
     currency: payload.currency,
-    amountCents: Math.round((payload.amount ?? 0) * 100),
-    tipCents: Math.round((payload.tip ?? 0) * 100),
+    // Euro->Cent ueber die eine gehaertete Stelle im Paket ([euroToCents],
+    // money.ts) statt einer eigenen `Math.round(x * 100)` -- die Hobex-Antwort
+    // ist eine fremde Antwort und wird hier nur auf transactionId/
+    // transactionDate geprueft (siehe payments/hobex.ts, belegAusNutzlast);
+    // amount/tip bleiben ungeprueft. Ein nicht-numerischer oder
+    // nicht-endlicher Wert ergab bis zu dieser Fassung `NaN` -- lautlos, ohne
+    // dass irgendwo geworfen wurde. [euroToCents] liefert dafuer `0`.
+    amountCents: euroToCents(payload.amount),
+    tipCents: euroToCents(payload.tip),
     cvm: String(payload.cvm),
     // Die Cloud-API-Nutzlast traegt keinen eigenen Provider-Schluessel — der
     // Provider ergibt sich aus dem Transportweg (Cloud vs. HPS), nicht aus
