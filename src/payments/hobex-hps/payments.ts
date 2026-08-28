@@ -455,7 +455,18 @@ export function createHpsPayments(
   }
 
   /** Klaert einen offenen Ausgang: erst abbrechen, dann abfragen -- bis das Terminal etwas sagt oder das Budget aufgebraucht ist. */
-  async function resolve(id: string, steps: string[]): Promise<HpsPaymentResult> {
+  /**
+   * `antwortMitCode` heisst: das Terminal hat auf die ERZEUGENDE Anfrage eine
+   * Antwort MIT Ergebniscode geliefert, deren Bedeutung wir nur nicht kennen.
+   * Dann ist der Vorgang am Geraet abgeschlossen -- und erst dadurch bekommt
+   * [NO_STATEMENT_CODE] (`9027`) beim Pollen einen Aussagewert, den es sonst
+   * nicht hat. Siehe [ausGeschlossenerAntwort].
+   */
+  async function resolve(
+    id: string,
+    steps: string[],
+    antwortMitCode = false,
+  ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
     const start = now();
@@ -466,6 +477,7 @@ export function createHpsPayments(
 
     let wait = 0;
     let transportFailures = 0;
+    let ohneAuskunft = 0;
 
     while (elapsedMs() < resolveBudgetMs) {
       if (wait > 0) {
@@ -493,12 +505,69 @@ export function createHpsPayments(
       const settled = fromResponse(status, id, steps);
       if (settled) return settled;
 
+      if (isNoStatement(status)) {
+        ohneAuskunft += 1;
+        const geklaert = ausGeschlossenerAntwort(id, steps, status, antwortMitCode, ohneAuskunft);
+        if (geklaert) return geklaert;
+      } else {
+        ohneAuskunft = 0;
+      }
+
       steps.push(statusOhneErgebnis(status) ?? 'Status: noch kein Ergebniscode');
       wait = nextWait(wait);
     }
 
     steps.push('Ausgang bleibt offen');
     return open(id, steps);
+  }
+
+  /**
+   * Liest `9027` beim Pollen als "nicht genehmigt" -- aber NUR, wenn das
+   * Terminal die erzeugende Anfrage bereits mit einem Ergebniscode beantwortet
+   * hat, und erst ab der ZWEITEN Abfrage in Folge.
+   *
+   * **Warum das ueberhaupt geht.** [NO_STATEMENT_CODE] ist sonst eine reine
+   * Nicht-Aussage: dieselbe `9027` steht fuer einen laufenden, einen
+   * abgebrochenen und einen nie gesehenen Vorgang. Hat das Terminal aber eine
+   * Antwort MIT Code geliefert, faellt "laeuft noch" weg -- der Vorgang ist
+   * dort beendet -- und "nie gesehen" ebenso, denn zu genau dieser Kennung
+   * wurde uns gerade geantwortet. Uebrig bleibt "beendet und nicht genehmigt".
+   *
+   * **Gegenprobe** (28.08.2026, TID 3600335, jeweils nach abgeschlossenem
+   * Vorgang): genehmigt (Beleg 408811) -> Statusabfrage `0`, dreimal
+   * wiederholt; abgelehnt mit `100003` -> `9027`, zweimal; abgelehnt mit
+   * `9003` -> `9027`. Eine genehmigte Zahlung antwortet also nicht `9027`.
+   *
+   * **Warum erst ab der zweiten Abfrage.** Die erste laeuft unmittelbar nach
+   * der Antwort -- das Fenster, in dem der Datensatz am Terminal noch nicht
+   * stehen koennte. Waere er es nicht und wir lesen `9027` als "abgelehnt",
+   * entstuende die Doppelbelastung vom 24.08.2026 an einer neuen Stelle.
+   * Dieselbe Absicherung traegt bereits [fromCancelStatus].
+   *
+   * `undefined` heisst: nicht entschieden, weiter pollen.
+   */
+  function ausGeschlossenerAntwort(
+    id: string,
+    steps: string[],
+    status: HpsTransactionResponse,
+    antwortMitCode: boolean,
+    ohneAuskunft: number,
+  ): HpsPaymentResult | undefined {
+    if (!antwortMitCode) return undefined;
+    if (ohneAuskunft < 2) return undefined;
+
+    steps.push(
+      `Statusabfrage zweimal ohne Auskunft (${status.responseCode}), obwohl das `
+        + 'Terminal den Vorgang bereits beantwortet hatte -- er ist beendet und '
+        + 'nicht genehmigt, es ist nichts belastet',
+    );
+    emit('resolved', steps[steps.length - 1]!, id);
+    return {
+      outcome: 'declined',
+      transactionId: id,
+      response: status,
+      steps: [...steps],
+    };
   }
 
   /**
@@ -606,7 +675,7 @@ export function createHpsPayments(
       steps.push(offeneAntwort(res));
     }
 
-    return resolve(id, steps);
+    return resolve(id, steps, res?.responseCode !== undefined);
   }
 
   /**
@@ -651,7 +720,7 @@ export function createHpsPayments(
     // Dieselbe Klaerfunktion wie [pay]: die Kennung ist die des NEUEN
     // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang,
     // und der Abbruch ist derselbe Diskriminator wie bei einer Zahlung.
-    return resolve(id, steps);
+    return resolve(id, steps, res?.responseCode !== undefined);
   }
 
   /**

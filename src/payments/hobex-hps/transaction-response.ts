@@ -76,9 +76,29 @@ export const HPS_MEASURED_CODES: readonly HpsMeasuredCode[] = [
       + 'einer nicht rein numerischen Kennung; keine Aussage ueber den Vorgang selbst',
     conclusive: false,
   },
+  {
+    code: '9003',
+    meaning: '"Invalid Amount" -- der Betrag wird abgewiesen, BEVOR eine Karte '
+      + 'verlangt wird (28.08.2026: 99999,99 EUR, Antwort nach 15,7 s ohne '
+      + 'Kartenaufforderung); nichts belastet',
+    conclusive: true,
+  },
   { code: '100002', meaning: 'abgebrochen ("Aborted")', conclusive: true },
   { code: '100003', meaning: 'Karte nicht aufgelegt ("Card not present")', conclusive: true },
   { code: '100010', meaning: 'nicht mehr abbrechbar -- der Vorgang ist bereits abgeschlossen', conclusive: true },
+  {
+    code: '100019',
+    meaning: '"Amount is not in a valid range" -- Betrag ausserhalb des '
+      + 'zulaessigen Bereichs, gemessen mit negativem Betrag; Abweisung vor '
+      + 'dem Kartenfluss, nichts belastet',
+    conclusive: true,
+  },
+  {
+    code: '100108',
+    meaning: '"Invalid TID" -- die Terminal-Kennung gibt es an diesem Geraet '
+      + 'nicht; der Vorgang wird abgewiesen, bevor etwas geschieht',
+    conclusive: true,
+  },
 ] as const;
 
 /** `responseCode` einer genehmigten Zahlung. */
@@ -97,6 +117,12 @@ export const ABORTED_CODE = '100002';
 export const CARD_NOT_PRESENT_CODE = '100003';
 /** Siehe [HPS_MEASURED_CODES]: nicht mehr abbrechbar. */
 export const NOT_ABORTABLE_CODE = '100010';
+/** Siehe [HPS_MEASURED_CODES]: Betrag abgewiesen, vor dem Kartenfluss. */
+export const INVALID_AMOUNT_CODE = '9003';
+/** Siehe [HPS_MEASURED_CODES]: Betrag ausserhalb des zulaessigen Bereichs. */
+export const AMOUNT_OUT_OF_RANGE_CODE = '100019';
+/** Siehe [HPS_MEASURED_CODES]: Terminal-Kennung unbekannt. */
+export const INVALID_TID_CODE = '100108';
 
 /**
  * HTTP `409` ("Terminal is busy"): das Terminal serialisiert und weist eine

@@ -6,6 +6,7 @@ import {
   type HpsConnectFetchResponse,
 } from '../src/payments/hobex-hps/connect-client.js';
 import { createHpsPayments } from '../src/payments/hobex-hps/payments.js';
+import { mayRetrySafely } from '../src/payments/hobex-hps/outcome.js';
 import {
   HpsConnectTerminalError,
   HpsConnectTransportError,
@@ -772,4 +773,155 @@ test('Codetabelle: 9011 ist schluessig -- isCanceled trifft nur auf 9011 zu', ()
   assert.equal(isCanceled({ responseCode: '9011' }), true);
   assert.equal(isCanceled({ responseCode: '0' }), false);
   assert.equal(isApproved({ responseCode: '9011' }), false);
+});
+
+// ---------------------------------------------------------------------------
+// Abgeschlossene Antwort mit unbekanntem Code -- der Alltagsfall "abgelehnt"
+// ---------------------------------------------------------------------------
+
+test('unbekannter Code direkt, dann zweimal 9027 -> declined', async () => {
+  // Am 28.08.2026 gemessen: hat das Terminal die Zahlung mit einem
+  // Ergebniscode beantwortet, ist der Vorgang dort BEENDET. Die Statusabfrage
+  // unterscheidet dann sehr wohl -- genehmigt antwortet '0' (Beleg 408811,
+  // dreimal geprueft), abgelehnt antwortet 9027. Genau das deckt den
+  // Alltagsfall ab, dessen Code wir nicht kennen ("keine Deckung",
+  // "Karte abgelaufen").
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        okPayment({ responseCode: '9027' }),
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '910' });
+
+  assert.equal(result.outcome, 'declined');
+  assert.equal(mayRetrySafely(result), true);
+  assert.equal(result.transactionId, '910');
+  assert.ok(result.steps.some((s) => s.includes('zweimal ohne Auskunft')));
+});
+
+test('unbekannter Code direkt, aber nur EINE Statusabfrage -> unresolved', async () => {
+  // Die erste Abfrage laeuft unmittelbar nach der Antwort -- das Fenster, in
+  // dem der Datensatz am Terminal noch nicht stehen koennte.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        'network-error',
+        'network-error',
+        'network-error',
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '911' });
+
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(mayRetrySafely(result), false);
+});
+
+test('GAR KEINE Antwort, dann zweimal 9027 -> bleibt unresolved', async () => {
+  // Der Vorfall vom 24.08.2026 selbst: die Antwort geht verloren, die Zahlung
+  // laeuft am Terminal weiter. Hier ist NICHT bekannt, dass der Vorgang
+  // beendet ist -- 9027 bleibt eine reine Nicht-Aussage.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        okPayment({ responseCode: '9027' }),
+        okPayment({ responseCode: '9027' }),
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '912' });
+
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(mayRetrySafely(result), false);
+});
+
+test('eine genehmigte Zahlung bleibt genehmigt, auch nach 9027 davor', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        okPayment({ responseCode: '0', receipt: '408811' }),
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '913' });
+
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.response?.receipt, '408811');
+});
+
+test('zwei 9027 mit etwas dazwischen zaehlen nicht als zwei in Folge', async () => {
+  // "Zweimal" heisst HINTEREINANDER. Antwortet das Terminal dazwischen ohne
+  // Ergebniscode -- also "laeuft noch" --, faengt das Zaehlen von vorn an.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        okPayment({}),
+        okPayment({ responseCode: '9027' }),
+        'network-error',
+        'network-error',
+        'network-error',
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '914' });
+
+  assert.equal(result.outcome, 'unresolved');
+});
+
+test('9003, 100019 und 100108 sind gemessene Ablehnungen -> declined', async () => {
+  // Alle drei weist das Terminal ab, BEVOR es eine Karte verlangt
+  // (27./28.08.2026). Positive Aussagen, keine Wissensluecken -- eine
+  // Klaerungsrunde waere reine Wartezeit.
+  for (const [code, text, id] of [
+    ['9003', 'Invalid Amount', '920'],
+    ['100019', 'Amount is not in a valid range', '921'],
+    ['100108', 'Invalid TID', '922'],
+  ] as const) {
+    const calls: RecordedCall[] = [];
+    const payments = buildPayments(
+      { '/v1/terminal/payment': [okPayment({ responseCode: code, responseText: text })] },
+      calls,
+    );
+    const result = await payments.pay({ amountCents: 2500, transactionId: id });
+
+    assert.equal(result.outcome, 'declined', `${code} ist gemessen: nichts belastet`);
+    assert.equal(mayRetrySafely(result), true);
+    assert.equal(
+      calls.filter((c) => c.path === '/v1/terminal/status').length,
+      0,
+      'ein gemessener Code braucht keine Klaerungsrunde',
+    );
+  }
 });
