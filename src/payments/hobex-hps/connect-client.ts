@@ -146,7 +146,11 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
         `Antwort von Kasseneck Connect ohne "ok"-Feld (HTTP ${antwort.status})`,
       );
     }
-    const h = huelle as { ok: unknown; hps?: unknown; error?: { code?: unknown; message?: unknown } };
+    const h = huelle as {
+      ok: unknown;
+      hps?: unknown;
+      error?: { code?: unknown; message?: unknown; detail?: unknown };
+    };
     if (h.ok === true) {
       return (h as Record<string, unknown>);
     }
@@ -165,7 +169,14 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
     // dieses Paket nicht kennt. Bewusst dieselbe Klasse fuer beide: ein
     // unbekannter Code ist keine bewiesene Nicht-Aussendung, siehe
     // PREFLIGHT_CONNECT_CODES.
-    throw new HpsConnectTerminalError(code ?? 'unbekannt', message);
+    //
+    // `error.detail.terminalHttpStatus` reist seit `kasseneck-connect`
+    // Commit `0fb6f66` mit, wenn das TERMINAL selbst einen HTTP-Status
+    // genannt hat (nie bei einem Transportfehler -- der erfindet keinen
+    // Status). Siehe errors.ts, `HpsConnectTerminalError.isTerminalBusy`.
+    const detail = h.error?.detail as { terminalHttpStatus?: unknown } | undefined;
+    const terminalHttpStatus = typeof detail?.terminalHttpStatus === 'number' ? detail.terminalHttpStatus : undefined;
+    throw new HpsConnectTerminalError(code ?? 'unbekannt', message, terminalHttpStatus);
   }
 
   function checkedTransactionId(value: string): string {

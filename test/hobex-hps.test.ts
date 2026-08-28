@@ -81,8 +81,24 @@ function fakeConnect(script: Script, calls: RecordedCall[]): HpsConnectFetch {
 function okPayment(hps: Record<string, unknown>): ScriptedResponse {
   return { status: 200, body: { ok: true, hps } };
 }
-function failConnect(code: string, message: string, status = 200): ScriptedResponse {
-  return { status, body: { ok: false, error: { code, message } } };
+function failConnect(
+  code: string,
+  message: string,
+  options: { status?: number; terminalHttpStatus?: number } = {},
+): ScriptedResponse {
+  return {
+    status: options.status ?? 200,
+    body: {
+      ok: false,
+      error: {
+        code,
+        message,
+        // Wie Kasseneck Connect es seit Commit 0fb6f66 mitgibt: NUR gesetzt,
+        // wenn das Terminal selbst einen Status genannt hat.
+        ...(options.terminalHttpStatus === undefined ? {} : { detail: { terminalHttpStatus: options.terminalHttpStatus } }),
+      },
+    },
+  };
 }
 
 /** Deterministische Uhr: schreitet nur durch explizites `sleep` voran. */
@@ -239,10 +255,14 @@ test('ein unbekannter Code ist eine Wissensluecke, keine Aussage -- endet bei un
 // HTTP 409 "Terminal beschaeftigt" -- nur bei der ERZEUGENDEN Anfrage eine Aussage
 // ---------------------------------------------------------------------------
 
-test('HTTP 409 auf die Zahlung selbst -- declined, sofort, ohne Abbruch oder Polling', async () => {
+test('HTTP 409 auf die Zahlung selbst (error.detail.terminalHttpStatus) -- declined, sofort, ohne Abbruch oder Polling', async () => {
   const calls: RecordedCall[] = [];
   const payments = buildPayments(
-    { '/v1/terminal/payment': [failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy')] },
+    {
+      '/v1/terminal/payment': [
+        failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', { terminalHttpStatus: 409 }),
+      ],
+    },
     calls,
   );
   const result = await payments.pay({ amountCents: 1000, transactionId: '118' });
@@ -250,12 +270,62 @@ test('HTTP 409 auf die Zahlung selbst -- declined, sofort, ohne Abbruch oder Pol
   assert.equal(calls.length, 1, 'ein 409 auf die Zahlung selbst braucht weder Abbruch noch Statusabfrage');
 });
 
+test('Rueckfall: 409 aus dem Meldungstext, wenn eine aeltere Connect-Fassung kein detail.terminalHttpStatus sendet', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    // Kein `terminalHttpStatus` im Skript -- so antwortete Connect vor Commit
+    // 0fb6f66. Der Textabgleich ist die einzige Absicherung fuer eine
+    // Installation im Feld, die noch nicht aktualisiert hat.
+    { '/v1/terminal/payment': [failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy')] },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '1182' });
+  assert.equal(result.outcome, 'declined');
+});
+
+test('das Feld gewinnt gegen einen abweichenden Meldungstext', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [
+        // Text nennt gar keinen HTTP-Status -- nur das Feld sagt "409". Wird
+        // trotzdem als "Terminal beschaeftigt" erkannt, wenn das Feld gewinnt.
+        failConnect('terminal_error', 'Terminal meldet einen Fehler.', { terminalHttpStatus: 409 }),
+      ],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '1183' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(calls.length, 1, 'wird das Feld gelesen, braucht es weder Abbruch noch Statusabfrage');
+});
+
+test('das Feld gewinnt auch in die andere Richtung: Text sagt 409, das Feld sagt etwas anderes -- keine Aussage', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      // Text enthaelt "(HTTP 409)", das Feld nennt aber 503 -- das Feld
+      // gewinnt, also KEIN "Terminal beschaeftigt".
+      '/v1/terminal/abort': [
+        failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', { terminalHttpStatus: 503 }),
+      ],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '1184' })],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '1184' });
+  assert.equal(result.outcome, 'approved');
+});
+
 test('HTTP 409 beim ABBRUCH ist NICHT dieselbe Aussage -- die Klaerung geht weiter', async () => {
   const calls: RecordedCall[] = [];
   const payments = buildPayments(
     {
       '/v1/terminal/payment': ['network-error'],
-      '/v1/terminal/abort': [failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy')],
+      '/v1/terminal/abort': [
+        failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', { terminalHttpStatus: 409 }),
+      ],
       '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '119' })],
     },
     calls,
@@ -399,7 +469,31 @@ test('HTTP 401 (kein/falscher Token) -- HpsPreflightError mit connectCode "unaut
 // isTerminalBusy -- die Erkennung ist an den EXAKTEN Connect-Text gekoppelt
 // ---------------------------------------------------------------------------
 
-test('isTerminalBusy erkennt ausschliesslich terminal_error mit "(HTTP 409)" im Text', () => {
+test('isTerminalBusy: das strukturierte Feld entscheidet, wenn es da ist', () => {
+  assert.equal(
+    new HpsConnectTerminalError('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', 409).isTerminalBusy,
+    true,
+  );
+  assert.equal(
+    new HpsConnectTerminalError('terminal_error', 'Terminal meldet (HTTP 400): Missing amount', 400).isTerminalBusy,
+    false,
+    'ein anderer HTTP-Status darf NICHT als "beschaeftigt" gelesen werden',
+  );
+  // Das Feld gewinnt gegen einen Text, der das Gegenteil nahelegt -- in
+  // beide Richtungen.
+  assert.equal(
+    new HpsConnectTerminalError('terminal_error', 'Terminal meldet einen Fehler.', 409).isTerminalBusy,
+    true,
+    'das Feld allein muss reichen, auch ohne "(HTTP 409)" im Text',
+  );
+  assert.equal(
+    new HpsConnectTerminalError('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', 503).isTerminalBusy,
+    false,
+    'ein widersprechendes Feld muss den Text schlagen, nicht umgekehrt',
+  );
+});
+
+test('isTerminalBusy: Rueckfall auf den Meldungstext, wenn terminalHttpStatus fehlt (aeltere Connect-Fassung)', () => {
   assert.equal(
     new HpsConnectTerminalError('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy').isTerminalBusy,
     true,

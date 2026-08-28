@@ -93,27 +93,45 @@ export class HpsConnectTerminalError extends HpsConnectException {
   override readonly name = 'HpsConnectTerminalError';
   /** Fehlercode von Connect, z. B. `terminal_error`, `timeout`, `terminal_offline`. */
   readonly connectCode: string;
+  /**
+   * Der rohe HTTP-Status des Terminals, wenn Connect einen genannt hat
+   * (`error.detail.terminalHttpStatus`, seit `kasseneck-connect` Commit
+   * `0fb6f66`, "fix(terminal): den rohen HTTP-Status des Terminals mitgeben").
+   * `undefined` bei einem Transportfehler (Connect erfindet dort keinen) oder
+   * bei einer aelteren Connect-Fassung, die das Feld noch nicht sendet.
+   */
+  readonly terminalHttpStatus: number | undefined;
 
-  constructor(connectCode: string, message: string) {
+  constructor(connectCode: string, message: string, terminalHttpStatus?: number) {
     super(message);
     this.connectCode = connectCode;
+    this.terminalHttpStatus = terminalHttpStatus;
   }
 
   /**
-   * `true`, wenn dies der gemessene "Terminal beschaeftigt"-Fall ist: HTTP
-   * `409`, gefaltet in Connects `terminal_error`-Meldung (`_call` in
-   * `kasseneck-connect/lib/src/terminal/hps.dart` schreibt wortgleich
-   * `'Terminal meldet (HTTP ${response.statusCode}): ...'`).
+   * `true`, wenn dies der gemessene "Terminal beschaeftigt"-Fall ist: das
+   * Terminal hat mit HTTP `409` geantwortet.
    *
-   * **Bekannte Zerbrechlichkeit:** Connect exponiert den rohen HTTP-Status
-   * NICHT als eigenes Feld, nur in diesem Text — "Kasseneck Connect nicht
-   * anfassen" heisst, dieses Paket kann sich nicht gegen eine spaetere
-   * Formulierungsaenderung dort absichern. Bricht das Muster, faellt diese
-   * Erkennung auf `false` zurueck — die sichere Richtung: aus einem
-   * `409` wuerde dann `unresolved` statt des beweisbaren `declined`, niemals
-   * umgekehrt.
+   * Liest bevorzugt [terminalHttpStatus] — das strukturierte Feld, das
+   * Connect seit `0fb6f66` mitgibt. Nur wenn das Feld fehlt (aeltere
+   * Connect-Fassung im Feld, die es noch nicht kennt), faellt die Pruefung
+   * auf den Meldungstext zurueck (`_call` in
+   * `kasseneck-connect/lib/src/terminal/hps.dart` schrieb schon vor `0fb6f66`
+   * wortgleich `'Terminal meldet (HTTP ${response.statusCode}): ...'`).
+   *
+   * **Der Rueckfall ist eine Uebergangsloesung, kein Dauerzustand.** Sobald
+   * jede Kasse im Feld gegen einen Connect-Agenten mit `terminalHttpStatus`
+   * spricht, kann der Textabgleich entfallen — bis dahin bleibt er die
+   * einzige Absicherung fuer eine Installation, die noch nicht aktualisiert
+   * hat. Bricht auch das Textmuster (Formulierungsaenderung in Connect),
+   * faellt diese Erkennung auf `false` zurueck — die sichere Richtung: aus
+   * einem `409` wuerde dann `unresolved` statt des beweisbaren `declined`,
+   * niemals umgekehrt.
    */
   get isTerminalBusy(): boolean {
+    if (this.terminalHttpStatus !== undefined) {
+      return this.terminalHttpStatus === TERMINAL_BUSY_HTTP_STATUS;
+    }
     return this.connectCode === 'terminal_error' && new RegExp(`\\(HTTP ${TERMINAL_BUSY_HTTP_STATUS}\\)`).test(this.message);
   }
 }
