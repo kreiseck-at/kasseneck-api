@@ -20,14 +20,11 @@ import { type HpsTransactionResponse, parseHpsTransactionResponse } from './tran
  * das HPS-Terminal direkt anspricht. Dieser Client spricht ausschliesslich
  * mit Connect, niemals mit dem Terminal selbst.
  *
- * **Nur `payment`/`status`/`abort` fuer eine Zahlung — bewusst KEIN
- * `refund`/`cancel`.** Connect exponiert (Stand dieser Datei) keinen
- * Gutschrift- oder Storno-Endpunkt; `POST /v1/terminal/payment` loest am
- * Terminal fest einen Verkauf aus (`transactionType: 1`,
- * `kasseneck-connect/lib/src/terminal/hps.dart`). Der Dart-Zwilling kann
- * Gutschrift und Storno, weil er das Terminal direkt anspricht — dieses Paket
- * kann es (noch) nicht, ohne Connect anzufassen, und das ist ausdruecklich
- * nicht Teil dieser Aenderung.
+ * **`payment`/`status`/`abort`/`refund`/`cancel`.** Seit
+ * `kasseneck-connect` Commit `1c8a003` traegt Connect auch die Gutschrift
+ * (`POST /v1/terminal/refund`) und die Aufhebung (`POST /v1/terminal/cancel`)
+ * — beide erben denselben Fehlerpfad wie `payment` (`error.detail.terminalHttpStatus`,
+ * siehe `HpsConnectTerminalError.isTerminalBusy`).
  */
 
 /** Adresse des Ziel-Terminals — bei jedem Aufruf mitgegeben, Connect selbst ist zustandslos. */
@@ -54,6 +51,27 @@ export interface HpsConnectPaymentOptions extends HpsConnectTarget {
 
 export interface HpsConnectTransactionOptions extends HpsConnectTarget {
   transactionId: string;
+}
+
+export interface HpsConnectRefundOptions extends HpsConnectTarget {
+  /** Kennung der Gutschrift SELBST — eine NEUE, nicht die der erstatteten Zahlung. */
+  transactionId: string;
+  /** Kennung der erstatteten Zahlung. Verlangt Connect zwingend, siehe `_handleRefund`. */
+  originalTransactionId: string;
+  /** Zu erstattender Betrag in **Cent**. */
+  amountCents: number;
+  reference?: string;
+  currency?: string;
+  language?: string;
+}
+
+export interface HpsConnectCancelOptions extends HpsConnectTarget {
+  /** Kennung der URSPRUENGLICHEN Zahlung — keine neue. */
+  transactionId: string;
+  /** Pflicht: das Terminal weist einen Void ohne Betrag mit `400 Missing amount` ab. */
+  amountCents: number;
+  currency?: string;
+  language?: string;
 }
 
 /** Austauschbare `fetch`-Umsetzung, minimal genug fuer eine Attrappe im Test. */
@@ -91,6 +109,10 @@ export interface HpsConnectClient {
   payment(options: HpsConnectPaymentOptions): Promise<HpsTransactionResponse>;
   status(options: HpsConnectTransactionOptions): Promise<HpsTransactionResponse>;
   abort(options: HpsConnectTransactionOptions): Promise<HpsTransactionResponse>;
+  /** Gutschrift — ein Kartenfluss wie [payment], deshalb dieselbe lange Frist. */
+  refund(options: HpsConnectRefundOptions): Promise<HpsTransactionResponse>;
+  /** Aufhebung (Storno/Void) — kurzer Aufruf, keine Karteninteraktion. */
+  cancel(options: HpsConnectCancelOptions): Promise<HpsTransactionResponse>;
   /** Erreichbarkeits-/Firmware-Check, folgenlos. Rohe Nutzlast, Connect ordnet nichts ein. */
   diagnosis(options: HpsConnectTarget): Promise<Record<string, unknown>>;
 }
@@ -218,6 +240,48 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
     async abort(o) {
       const transactionId = checkedTransactionId(o.transactionId);
       const antwort = await rufen('/v1/terminal/abort', { ...target(o), transactionId }, shortTimeoutMs);
+      return parseHpsTransactionResponse(antwort['hps']);
+    },
+
+    async refund(o) {
+      // Beide Kennungen gehen ans Terminal -- beide muessen die
+      // Ziffernpruefung bestehen, sonst ist der Vorgang spaeter dauerhaft
+      // unauffindbar (siehe HpsClient._checkTransactionId im Dart-Zwilling).
+      const transactionId = checkedTransactionId(o.transactionId);
+      const originalTransactionId = checkedTransactionId(o.originalTransactionId);
+      const antwort = await rufen(
+        '/v1/terminal/refund',
+        {
+          ...target(o),
+          transactionId,
+          originalTransactionId,
+          amountCents: o.amountCents,
+          reference: o.reference,
+          currency: o.currency,
+          language: o.language,
+        },
+        // Gutschrift ist ein Kartenfluss wie die Zahlung -- dieselbe lange Frist.
+        paymentTimeoutMs,
+      );
+      return parseHpsTransactionResponse(antwort['hps']);
+    },
+
+    async cancel(o) {
+      // Hier ist [transactionId] die der URSPRUENGLICHEN Zahlung -- die
+      // Ziffernpruefung gilt trotzdem unveraendert, sonst liefe die
+      // anschliessende Statusabfrage darauf ins Leere.
+      const transactionId = checkedTransactionId(o.transactionId);
+      const antwort = await rufen(
+        '/v1/terminal/cancel',
+        {
+          ...target(o),
+          transactionId,
+          amountCents: o.amountCents,
+          currency: o.currency,
+          language: o.language,
+        },
+        shortTimeoutMs,
+      );
       return parseHpsTransactionResponse(antwort['hps']);
     },
 

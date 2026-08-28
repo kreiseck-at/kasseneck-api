@@ -9,6 +9,8 @@ import {
 import type { HpsPaymentResult } from './outcome.js';
 import { newHpsTransactionId } from './transaction-id.js';
 import {
+  isApproved,
+  isCanceled,
   isConclusive,
   isNoStatement,
   isNotAbortable,
@@ -16,6 +18,7 @@ import {
   isUnknownCode,
   NOT_ABORTABLE_CODE,
   TECHNICAL_ERROR_CODE,
+  TRANSACTION_CANCELED_CODE,
   type HpsTransactionResponse,
 } from './transaction-response.js';
 
@@ -28,8 +31,8 @@ import {
  * `connect-client.ts` fuer den wesentlichen Unterschied (Connect statt
  * direktem Terminal-Kontakt).
  *
- * **Nur [pay] — bewusst kein `refund`/`cancel`.** Siehe `connect-client.ts`:
- * Connect exponiert dafuer (noch) keinen Endpunkt.
+ * [pay], [refund] und [cancel] -- seit `kasseneck-connect` Commit `1c8a003`
+ * traegt Connect auch die beiden letzteren, siehe `connect-client.ts`.
  *
  * Regel, von der nicht abgewichen wird: `outcome: 'declined'` entsteht
  * ausschliesslich aus einer POSITIVEN Aussage — einem GEMESSENEN Ergebniscode
@@ -63,6 +66,50 @@ import {
  * die ganze Klaerung.
  *
  * Die Kennung ist in JEDEM Ergebnis gesetzt, auch bei `'unresolved'`.
+ *
+ * ## [refund] bekommt EXAKT denselben Klaerweg wie [pay]
+ *
+ * Abbruch eingeschlossen -- und das ist GEMESSEN, nicht analog geschlossen.
+ * Am 26.08.2026 nachgemessen: `abort` auf eine LAUFENDE Gutschrift antwortet
+ * ebenfalls mit `responseCode '0'`, und die Gutschrift endet daraufhin mit
+ * `100002` "Aborted". Der Abbruch ist dort also derselbe Diskriminator wie bei
+ * einer Zahlung. Die Kennung ist bei [refund] die des NEUEN Vorgangs (der
+ * Gutschrift selbst), eine Statusabfrage darauf liefert also genau deren
+ * Ausgang -- deshalb reicht dieselbe [resolve]-Funktion unveraendert. Ohne den
+ * Abbruch haette die Klaerung einer Gutschrift gar keinen Diskriminator mehr
+ * und endete fast immer bei `unresolved`, weil die Statusabfrage auch hier
+ * `9027` antwortet.
+ *
+ * ## [cancel] ist die Ausnahme, in beiden Richtungen
+ *
+ * Die uebergebene Kennung ist die der URSPRUENGLICHEN Zahlung, nicht die eines
+ * neuen Vorgangs -- und `'0'` bedeutet dort NICHT "genehmigt". Am 26. und
+ * 28.08.2026 gemessen (Statusabfrage auf die Original-Kennung, NACHDEM eine
+ * genehmigte Zahlung per Void aufgehoben wurde):
+ *
+ * | Antwort der Statusabfrage auf die Originalkennung | Bedeutung |
+ * |---|---|
+ * | `9011` "Transaction Canceled" | die Aufhebung hat GEWIRKT -> `approved` |
+ * | `'0'` | die Originalzahlung steht UNVERAENDERT -> die Aufhebung hat NICHT gegriffen -> `declined` |
+ * | `9027` und alles andere | weiter klaeren, am Ende `unresolved` |
+ *
+ * Zwei Sicherungen dagegen, `'0'` faelschlich fuer "nicht gegriffen" zu halten
+ * und damit den Kunden nach dem Tagesabschluss ueber eine Rueckerstattung ein
+ * zweites Mal zu bezahlen (siehe [fromCancelStatus]):
+ *
+ * 1. **`'0'` entscheidet erst ab der ZWEITEN beantworteten Statusabfrage.**
+ *    Die erste laeuft unmittelbar nachdem der Aufhebungs-Aufruf abgerissen
+ *    ist -- genau das Fenster, in dem die Aufhebung noch unterwegs sein kann.
+ *    Reicht das Budget nur fuer eine Abfrage, endet die Klaerung bei
+ *    `unresolved`.
+ * 2. **`9011` auf dem DIREKTEN Antwortweg von `cancel`** wird NICHT als
+ *    `declined` gelesen -- was es dort genau heisst, ist ungemessen (siehe
+ *    [fromCancelResponse]). Der Zustand der Originalzahlung wird abgefragt
+ *    statt geraten.
+ *
+ * Kein [tryAbort]-Versuch bei [cancel]: die Originalzahlung ist laengst
+ * abgeschlossen und antwortet gemessen mit `100010` -- ein Abbruch darauf
+ * waere sinnlos.
  */
 
 export interface HpsPaymentsOptions {
@@ -93,8 +140,37 @@ export interface HpsPaymentOptions {
   transactionId?: string;
 }
 
+export interface HpsRefundOptions {
+  /** Zu erstattender Betrag in **Cent**. */
+  amountCents: number;
+  /** Kennung der erstatteten Zahlung -- Connect verlangt sie zwingend. */
+  originalTransactionId: string;
+  reference?: string;
+  currency?: string;
+  language?: string;
+  /**
+   * Kennung der Gutschrift SELBST; wird ohne Angabe erzeugt und im Ergebnis
+   * zurueckgegeben. Vorgeben, um eine abgebrochene Gutschrift gezielt
+   * weiterzuverfolgen -- wie bei [HpsPaymentOptions.transactionId].
+   */
+  transactionId?: string;
+}
+
+export interface HpsCancelOptions {
+  /** Kennung der URSPRUENGLICHEN Zahlung -- keine neue, MUSS feststehen. */
+  transactionId: string;
+  /** Pflicht: ein Void ohne Betrag weist das Terminal mit `400 Missing amount` ab. */
+  amountCents: number;
+  currency?: string;
+  language?: string;
+}
+
 export interface HpsPayments {
   pay(options: HpsPaymentOptions): Promise<HpsPaymentResult>;
+  /** Gutschrift, geklaert wie [pay] -- siehe Klassendoku oben. */
+  refund(options: HpsRefundOptions): Promise<HpsPaymentResult>;
+  /** Aufhebung (Storno/Void) einer bestehenden Zahlung -- eigener Klaerweg, siehe Klassendoku oben. */
+  cancel(options: HpsCancelOptions): Promise<HpsPaymentResult>;
 }
 
 /** Teiler, mit dem das Abbruchbudget aus [HpsPaymentsOptions.resolveBudgetMs] entsteht. */
@@ -195,6 +271,111 @@ export function createHpsPayments(
     steps.push(approved ? 'Terminal: genehmigt' : `Terminal: abgelehnt (${res.responseCode})`);
     emit('resolved', steps[steps.length - 1]!, id);
     return { outcome: approved ? 'approved' : 'declined', transactionId: id, response: res, steps: [...steps] };
+  }
+
+  /**
+   * Ordnet die DIREKTE Antwort auf einen Aufhebungs-Request ein. Fast dasselbe
+   * wie [fromResponse] -- diese Antwort betrifft die Aufhebung selbst und
+   * traegt deren eigenen `responseCode`. Mit genau einer Ausnahme:
+   * [TRANSACTION_CANCELED_CODE] (`9011`).
+   *
+   * Ueber [fromResponse] wuerde `9011` zu `declined` -- also "die Aufhebung
+   * hat nicht gegriffen, es ist weiterhin belastet". Das waere die teure
+   * Richtung: es meldet "belastet" fuer einen Vorgang, der aufgehoben ist, und
+   * laedt zu einer Rueckerstattung ein, die der Kunde ein zweites Mal bekaeme.
+   * Es widerspraeche ausserdem [fromCancelStatus], die aus demselben Code das
+   * Gegenteil ableitet.
+   *
+   * Was `9011` auf dem DIREKTEN Weg genau heisst, ist UNGEMESSEN -- am
+   * naechstliegenden "der Vorgang ist (bereits) aufgehoben", aber das ist eine
+   * Lesart, keine Messung. Deshalb weder Erfolg noch Ablehnung hier, sondern
+   * NICHT SCHLUESSIG: die Klaerung fragt den Zustand der Originalzahlung ab
+   * und entscheidet ihn dort mit dem gemessenen Diskriminator, statt zu raten.
+   */
+  function fromCancelResponse(res: HpsTransactionResponse, id: string, steps: string[]): HpsPaymentResult | null {
+    if (isCanceled(res)) {
+      steps.push(
+        `Aufhebung mit ${TRANSACTION_CANCELED_CODE} beantwortet -- mehrdeutig, der Zustand der Originalzahlung wird abgefragt`,
+      );
+      return null;
+    }
+    return fromResponse(res, id, steps);
+  }
+
+  /**
+   * Ordnet die Statusabfrage einer OFFENEN AUFHEBUNG ein. `null`, wenn sie
+   * nichts entscheidet.
+   *
+   * Die Abfrage laeuft auf die Kennung der ORIGINALZAHLUNG. Ihr
+   * `responseCode` beschreibt deshalb den Zustand DIESER Zahlung, nicht den
+   * Ausgang der Aufhebung -- er wird hier UEBERSETZT, nicht wie bei
+   * [fromResponse] gelesen. Am 26./28.08.2026 gemessen, nachdem eine
+   * genehmigte Zahlung per Void aufgehoben wurde:
+   *
+   * - `9011` "Transaction Canceled" -> die Aufhebung hat gewirkt -> `approved`.
+   * - `'0'` -> die Originalzahlung steht unveraendert -> die Aufhebung hat
+   *   NICHT gewirkt -> `declined`. Keine schlechte Nachricht ueber die
+   *   Zahlung, sondern ueber die Aufhebung: es ist weiterhin belastet, und
+   *   die Aufhebung muss wiederholt werden. ABER erst ab der ZWEITEN
+   *   beantworteten Abfrage, siehe [firstQuery].
+   * - `9027` und jeder andere oder fehlende Code -> keine Auskunft, weiter
+   *   klaeren; am Ende `unresolved`, niemals ein geratenes Ergebnis.
+   *
+   * ## Warum `'0'` eine Karenz braucht
+   *
+   * Die Klaerung startet unmittelbar, nachdem der Void-Request abgerissen
+   * ist, und ihre erste Abfrage laeuft ohne Pause. Anders als bei [pay] liegt
+   * kein Abbruch-Roundtrip dazwischen, der Zeit verstreichen liesse. Genau in
+   * diesem Fenster kann der Void beim Terminal noch unterwegs sein und die
+   * Abfrage trotzdem schon `'0'` melden.
+   *
+   * Ein voreiliges "hat nicht gegriffen" ist NICHT harmlos: nach dem
+   * Tagesabschluss ist die Folgehandlung eine RUECKERSTATTUNG -- und dann
+   * bekommt der Kunde sein Geld zweimal. Deshalb entscheidet `'0'` erst ab der
+   * zweiten beantworteten Abfrage. Ein tatsaechlich nicht gelandeter Void
+   * antwortet eine Sekunde spaeter wieder `'0'`; der Preis ist diese eine
+   * Sekunde. Reicht das Budget nur fuer eine einzige Abfrage, endet die
+   * Klaerung bei `unresolved` -- wir sagen dann, dass wir es nicht wissen,
+   * statt es zu raten.
+   *
+   * [state] `=== 'VOID'` gilt zusaetzlich als Beleg, aber niemals als
+   * notwendige Bedingung -- auf der gemessenen Firmware ist `state` in jeder
+   * bisher gesehenen Antwort `undefined`. Bleibt nur mitgelesen, weil ein
+   * ausdrueckliches `'VOID'` -- wo eine Firmware es denn liefert -- eine
+   * unmissverstaendliche positive Aussage ist, die kein falsches `approved`
+   * erzeugen kann.
+   *
+   * [firstQuery] ist `true`, wenn dies die erste BEANTWORTETE Statusabfrage
+   * dieser Klaerung ist. Gescheiterte Abfragen zaehlen nicht mit: sie lassen
+   * zwar Zeit verstreichen, liefern aber keine Auskunft, an der sich ein
+   * `'0'` bestaetigen liesse.
+   */
+  function fromCancelStatus(
+    status: HpsTransactionResponse,
+    id: string,
+    steps: string[],
+    firstQuery: boolean,
+  ): HpsPaymentResult | null {
+    const voided = isCanceled(status) || status.state?.trim().toUpperCase() === 'VOID';
+    if (voided) {
+      steps.push(`Terminal: Aufhebung bestaetigt (${status.responseCode ?? status.state})`);
+      emit('resolved', steps[steps.length - 1]!, id);
+      return { outcome: 'approved', transactionId: id, response: status, steps: [...steps] };
+    }
+
+    if (isApproved(status)) {
+      if (firstQuery) {
+        steps.push(
+          'Terminal: Originalzahlung noch unveraendert (0) -- die Aufhebung koennte noch unterwegs sein, wird erneut abgefragt',
+        );
+        return null;
+      }
+      steps.push('Terminal: Originalzahlung steht unveraendert (0) -- die Aufhebung hat nicht gegriffen');
+      emit('resolved', steps[steps.length - 1]!, id);
+      return { outcome: 'declined', transactionId: id, response: status, steps: [...steps] };
+    }
+
+    return null;
   }
 
   function open(id: string, steps: string[]): HpsPaymentResult {
@@ -320,6 +501,74 @@ export function createHpsPayments(
     return open(id, steps);
   }
 
+  /**
+   * Klaert eine offene Aufhebung -- eigene Fassung statt [resolve], weil die
+   * Kennung hier die der URSPRUENGLICHEN Zahlung ist.
+   *
+   * Zwei Unterschiede zu [resolve]:
+   *
+   * 1. Die Antwort der Statusabfrage wird ueber [fromCancelStatus]
+   *    eingeordnet, NICHT ueber [fromResponse] -- der `responseCode` der
+   *    Originalkennung bedeutet hier etwas anderes als bei [pay]/[refund].
+   * 2. KEIN [tryAbort]-Versuch. Der Abbruch greift nur, solange ein Vorgang
+   *    noch abbrechbar ist; die Originalzahlung, deren Kennung hier vorliegt,
+   *    ist laengst abgeschlossen und antwortet gemessen mit `100010`. Ein
+   *    Abbruchversuch darauf waere sinnlos und koennte hoechstens fehlleiten.
+   *
+   * Budget, Backoff und Transportfehler-Deckelung sind unveraendert aus
+   * [resolve] uebernommen.
+   */
+  async function resolveCancel(id: string, steps: string[]): Promise<HpsPaymentResult> {
+    emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
+
+    const start = now();
+    const elapsedMs = () => now() - start;
+
+    let wait = 0;
+    let transportFailures = 0;
+    // Zaehlt nur BEANTWORTETE Statusabfragen -- Grundlage der Karenz fuer den
+    // `'0'`-Fall, siehe [fromCancelStatus].
+    let answeredQueries = 0;
+
+    while (elapsedMs() < resolveBudgetMs) {
+      if (wait > 0) {
+        const left = resolveBudgetMs - elapsedMs();
+        await sleep(Math.min(wait, left));
+        if (elapsedMs() >= resolveBudgetMs) break;
+      }
+
+      let status: HpsTransactionResponse;
+      try {
+        status = await withinBudget(elapsedMs, () => client.status({ ...target, transactionId: id }));
+        transportFailures = 0;
+        answeredQueries += 1;
+      } catch (e) {
+        transportFailures += 1;
+        steps.push(`Statusabfrage gescheitert (${transportFailures}): ${describe(e)}`);
+        noteUnexpected(e, id);
+        if (transportFailures >= maxTransportFailures) {
+          steps.push('Terminal antwortet nicht -- Ausgang bleibt offen');
+          break;
+        }
+        wait = nextWait(wait);
+        continue;
+      }
+
+      const settled = fromCancelStatus(status, id, steps, answeredQueries === 1);
+      if (settled) return settled;
+
+      // Der `'0'`-Karenzfall hat seinen eigenen, aussagekraeftigeren Eintrag
+      // schon in [fromCancelStatus] gesetzt.
+      if (!isApproved(status)) {
+        steps.push(statusOhneErgebnis(status) ?? 'Status: Aufhebung noch nicht bestaetigt');
+      }
+      wait = nextWait(wait);
+    }
+
+    steps.push('Ausgang bleibt offen');
+    return open(id, steps);
+  }
+
   async function pay(paymentOptions: HpsPaymentOptions): Promise<HpsPaymentResult> {
     const id = paymentOptions.transactionId ?? newHpsTransactionId();
     const steps: string[] = [];
@@ -360,5 +609,95 @@ export function createHpsPayments(
     return resolve(id, steps);
   }
 
-  return { pay };
+  /**
+   * Gutschrift mit geklaertem Ausgang -- EXAKT derselbe Klaerweg wie [pay]
+   * (Abbruch eingeschlossen), siehe Klassendoku oben. [transactionId] ist die
+   * Kennung des NEUEN Vorgangs (der Gutschrift selbst), nicht die der
+   * Zahlung, auf die sie sich ueber [HpsRefundOptions.originalTransactionId]
+   * referenziert.
+   */
+  async function refund(refundOptions: HpsRefundOptions): Promise<HpsPaymentResult> {
+    const id = refundOptions.transactionId ?? newHpsTransactionId();
+    const steps: string[] = [];
+
+    // Das try liegt bewusst ENG um den Netzweg -- siehe Begruendung in [pay].
+    let res: HpsTransactionResponse | undefined;
+    try {
+      res = await client.refund({
+        ...target,
+        transactionId: id,
+        originalTransactionId: refundOptions.originalTransactionId,
+        amountCents: refundOptions.amountCents,
+        reference: refundOptions.reference,
+        currency: refundOptions.currency,
+        language: refundOptions.language,
+      });
+    } catch (e) {
+      if (e instanceof HpsPreflightError) {
+        throw e;
+      }
+      const busy = fromTerminalBusy(e, id, steps);
+      if (busy) return busy;
+      steps.push(`Gutschrift abgebrochen: ${describe(e)}`);
+      noteUnexpected(e, id);
+    }
+
+    if (res) {
+      const settled = fromResponse(res, id, steps);
+      if (settled) return settled;
+      steps.push(offeneAntwort(res));
+    }
+
+    // Dieselbe Klaerfunktion wie [pay]: die Kennung ist die des NEUEN
+    // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang,
+    // und der Abbruch ist derselbe Diskriminator wie bei einer Zahlung.
+    return resolve(id, steps);
+  }
+
+  /**
+   * Aufhebung (Storno/Void) einer bestehenden Zahlung mit geklaertem Ausgang.
+   *
+   * [transactionId] ist die vom TERMINAL vergebene Kennung der
+   * URSPRUENGLICHEN Zahlung -- nicht die eines neuen Vorgangs. Der direkte
+   * Antwortweg wird trotzdem ueber [fromCancelResponse] eingeordnet: die
+   * Direktantwort auf einen Aufhebungs-Request traegt einen eigenen
+   * `responseCode` fuer die Aufhebung selbst. Erst wenn dieser direkte Weg
+   * abbricht und nachgefragt werden muss, aendert sich die Frage -- siehe
+   * [resolveCancel].
+   */
+  async function cancel(cancelOptions: HpsCancelOptions): Promise<HpsPaymentResult> {
+    const id = cancelOptions.transactionId;
+    const steps: string[] = [];
+
+    let res: HpsTransactionResponse | undefined;
+    try {
+      res = await client.cancel({
+        ...target,
+        transactionId: id,
+        amountCents: cancelOptions.amountCents,
+        currency: cancelOptions.currency,
+        language: cancelOptions.language,
+      });
+    } catch (e) {
+      if (e instanceof HpsPreflightError) {
+        throw e;
+      }
+      const busy = fromTerminalBusy(e, id, steps);
+      if (busy) return busy;
+      steps.push(`Aufhebung abgebrochen: ${describe(e)}`);
+      noteUnexpected(e, id);
+    }
+
+    if (res) {
+      const settled = fromCancelResponse(res, id, steps);
+      if (settled) return settled;
+      // Kein Sammel-Eintrag fuer 9011: [fromCancelResponse] hat dafuer
+      // bereits den zutreffenden Eintrag gesetzt.
+      if (!isCanceled(res)) steps.push(offeneAntwort(res));
+    }
+
+    return resolveCancel(id, steps);
+  }
+
+  return { pay, refund, cancel };
 }

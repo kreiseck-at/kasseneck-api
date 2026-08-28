@@ -18,6 +18,7 @@ import {
 } from '../src/payments/hobex-hps/transaction-id.js';
 import {
   isApproved,
+  isCanceled,
   isConclusive,
   isNoStatement,
   isNotAbortable,
@@ -45,7 +46,13 @@ interface ScriptedResponse {
   body: unknown;
 }
 type ScriptEntry = ScriptedResponse | 'network-error';
-type Script = Partial<Record<'/v1/terminal/payment' | '/v1/terminal/status' | '/v1/terminal/abort', ScriptEntry[]>>;
+type ScriptPath =
+  | '/v1/terminal/payment'
+  | '/v1/terminal/status'
+  | '/v1/terminal/abort'
+  | '/v1/terminal/refund'
+  | '/v1/terminal/cancel';
+type Script = Partial<Record<ScriptPath, ScriptEntry[]>>;
 
 interface RecordedCall {
   path: string;
@@ -531,4 +538,238 @@ test('ein leerer responseCode aus dem Rumpf wird zu undefined normalisiert, nich
   const res = parseHpsTransactionResponse({ responseCode: '', transactionId: '1' });
   assert.equal(res.responseCode, undefined);
   assert.equal(isConclusive(res), false);
+});
+
+// ---------------------------------------------------------------------------
+// Gutschrift (refund) -- EXAKT derselbe Klaerweg wie pay(), Abbruch eingeschlossen
+// ---------------------------------------------------------------------------
+
+test('Gutschrift genehmigt direkt -- keine Klaerung noetig', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/refund': [okPayment({ responseCode: '0', transactionId: '200' })] },
+    calls,
+  );
+  const result = await payments.refund({ amountCents: 500, originalTransactionId: '199', transactionId: '200' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.transactionId, '200');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.body['originalTransactionId'], '199');
+});
+
+test('Gutschrift auf unbekannte Original-Kennung -- 9002 ist ein gemessener, schluessiger Ablehnungscode', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/refund': [okPayment({ responseCode: '9002', transactionId: '201' })] },
+    calls,
+  );
+  const result = await payments.refund({ amountCents: 500, originalTransactionId: '9999999999', transactionId: '201' });
+  assert.equal(result.outcome, 'declined');
+});
+
+test('Gutschrift: Antwort bleibt aus, Abbruch gelingt (responseCode 0) -- declined, ohne Polling', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/refund': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '202' })],
+    },
+    calls,
+  );
+  const result = await payments.refund({ amountCents: 500, originalTransactionId: '199', transactionId: '202' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 0);
+});
+
+test('Gutschrift: Antwort bleibt aus, Abbruch scheitert (100010) -- Polling entscheidet: genehmigt (100002 waere abgebrochen)', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/refund': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010', transactionId: '203' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '203' })],
+    },
+    calls,
+  );
+  const result = await payments.refund({ amountCents: 500, originalTransactionId: '199', transactionId: '203' });
+  assert.equal(result.outcome, 'approved');
+});
+
+test('Gutschrift: unbrauchbare originalTransactionId wirft LOKAL -- keine Anfrage geht raus', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments({}, calls);
+  await assert.rejects(
+    () => payments.refund({ amountCents: 500, originalTransactionId: 'TX-1', transactionId: '204' }),
+    (e: unknown) => e instanceof HpsTransactionIdError,
+  );
+  assert.equal(calls.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Aufhebung (cancel) -- eigener Klaerweg: kein Abbruch, '0' bedeutet dort das
+// GEGENTEIL von "genehmigt", 9011 auf dem direkten Weg entscheidet nichts.
+// ---------------------------------------------------------------------------
+
+test('Aufhebung direkt bestaetigt (responseCode 0 der Aufhebung selbst) -- approved, ohne Statusabfrage', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/cancel': [okPayment({ responseCode: '0', transactionId: '210' })] },
+    calls,
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '210' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(calls.length, 1, 'eine direkt bestaetigte Aufhebung braucht keine Statusabfrage');
+});
+
+test('Aufhebung auf unbekannte Kennung -- 9002 ist eine direkte, schluessige Ablehnung', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/cancel': [okPayment({ responseCode: '9002', transactionId: '211' })] },
+    calls,
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '211' });
+  assert.equal(result.outcome, 'declined');
+});
+
+test(
+  'Aufhebung: 9011 auf dem DIREKTEN Weg entscheidet NICHTS -- die Klaerung fragt den Zustand der ' +
+    'Originalzahlung ab, statt 9011 als "hat nicht gegriffen" zu lesen',
+  async () => {
+    const calls: RecordedCall[] = [];
+    const payments = buildPayments(
+      {
+        '/v1/terminal/cancel': [okPayment({ responseCode: '9011', transactionId: '212' })],
+        '/v1/terminal/status': [okPayment({ responseCode: '9011', transactionId: '212' })],
+      },
+      calls,
+      { resolveBudgetMs: 5000, maxBackoffMs: 1000 },
+    );
+    const result = await payments.cancel({ amountCents: 1000, transactionId: '212' });
+    assert.equal(result.outcome, 'approved', '9011 auf die Originalkennung heisst: die Aufhebung hat gewirkt');
+    assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 1);
+  },
+);
+
+test('Aufhebung: Klaerung nutzt NIEMALS einen Abbruch -- die Originalzahlung ist laengst abgeschlossen', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': ['network-error'],
+      // Ein Abbruch waere hier scharf geladen: wuerde die Klaerung ihn
+      // dennoch versuchen, antwortete er mit '0' und der Test bestaetigte
+      // faelschlich "declined", OHNE dass ueberhaupt die Statusabfrage lief.
+      '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '213' })],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9011', transactionId: '213' }),
+      ],
+    },
+    calls,
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '213' });
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/abort').length, 0, 'cancel() darf niemals abort() aufrufen');
+  assert.equal(result.outcome, 'approved');
+});
+
+test(
+  "Aufhebung: '0' auf die Statusabfrage entscheidet NICHT bei der ersten Abfrage -- der Void kann noch " +
+    'unterwegs sein. Erst die ZWEITE Abfrage mit weiterhin 0 ergibt declined',
+  async () => {
+    const calls: RecordedCall[] = [];
+    const payments = buildPayments(
+      {
+        '/v1/terminal/cancel': ['network-error'],
+        '/v1/terminal/status': [
+          okPayment({ responseCode: '0', transactionId: '214' }),
+          okPayment({ responseCode: '0', transactionId: '214' }),
+        ],
+      },
+      calls,
+      { resolveBudgetMs: 20_000, maxBackoffMs: 5000 },
+    );
+    const result = await payments.cancel({ amountCents: 1000, transactionId: '214' });
+    assert.equal(result.outcome, 'declined');
+    assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2, 'die erste 0 darf noch nicht entscheiden');
+  },
+);
+
+test(
+  "Aufhebung: reicht das Budget nur fuer EINE Statusabfrage, bleibt '0' unentschieden -- unresolved, " +
+    'niemals ein geratenes declined',
+  async () => {
+    const calls: RecordedCall[] = [];
+    const payments = buildPayments(
+      {
+        '/v1/terminal/cancel': ['network-error'],
+        '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '215' })],
+      },
+      calls,
+      // Budget reicht fuer die erste Abfrage, aber nicht mehr fuer die Pause
+      // plus eine zweite -- die Uhr ruehrt sich nur durch die Attrappen-Pause.
+      { resolveBudgetMs: 500, maxBackoffMs: 5000 },
+    );
+    const result = await payments.cancel({ amountCents: 1000, transactionId: '215' });
+    assert.equal(result.outcome, 'unresolved');
+    assert.notEqual(result.outcome, 'declined');
+    assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 1);
+  },
+);
+
+test('Aufhebung: eine gescheiterte Statusabfrage zaehlt NICHT als "erste Abfrage" -- die naechste 9011 entscheidet trotzdem sofort', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': ['network-error'],
+      '/v1/terminal/status': ['network-error', okPayment({ responseCode: '9011', transactionId: '216' })],
+    },
+    calls,
+    { resolveBudgetMs: 10_000, maxBackoffMs: 2000 },
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '216' });
+  assert.equal(result.outcome, 'approved');
+});
+
+test('Aufhebung: 9027 (keine Auskunft) entscheidet nie -- endet bei unresolved', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': ['network-error'],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027', transactionId: '217' })],
+    },
+    calls,
+    { resolveBudgetMs: 3000, maxBackoffMs: 1000 },
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '217' });
+  assert.equal(result.outcome, 'unresolved');
+});
+
+test('HTTP 409 auf die Aufhebung selbst -- declined, sofort, ohne Statusabfrage', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': [
+        failConnect('terminal_error', 'Terminal meldet (HTTP 409): Terminal is busy', { terminalHttpStatus: 409 }),
+      ],
+    },
+    calls,
+  );
+  const result = await payments.cancel({ amountCents: 1000, transactionId: '218' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(calls.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Mutationsprobe: "9011 auf dem direkten Aufhebungsweg als 'hat nicht
+// gegriffen' lesen" -- die untenstehende reine Unit-Grenze belegt, dass
+// `fromCancelResponse` fuer 9011 KEIN Ergebnis liefert, nur ueber das
+// oeffentliche Verhalten des obigen Verhaltenstests pruefbar: wuerde
+// `fromCancelResponse` durch `fromResponse` ersetzt (die Mutation, die dieser
+// Bericht tatsaechlich gefahren hat), wird aus dem 'approved' oben ein
+// 'declined', weil 9011 dann sofort als Ablehnung der Aufhebung gelesen wird.
+// ---------------------------------------------------------------------------
+
+test('Codetabelle: 9011 ist schluessig -- isCanceled trifft nur auf 9011 zu', () => {
+  assert.equal(isConclusive({ responseCode: '9011' }), true);
+  assert.equal(isCanceled({ responseCode: '9011' }), true);
+  assert.equal(isCanceled({ responseCode: '0' }), false);
+  assert.equal(isApproved({ responseCode: '9011' }), false);
 });

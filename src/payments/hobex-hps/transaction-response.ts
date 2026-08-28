@@ -242,6 +242,18 @@ export function isTechnicalError(res: Pick<HpsTransactionResponse, 'responseCode
 }
 
 /**
+ * `true`, wenn der Vorgang unter dieser Kennung aufgehoben wurde (9011).
+ *
+ * Vorsicht bei der Verwendung: fuer die DIREKTE Antwort auf eine Aufhebung
+ * bedeutet dieser Code etwas anderes als bei einer Statusabfrage auf die
+ * Originalzahlung -- siehe `payments.ts`, `fromCancelResponse` vs.
+ * `fromCancelStatus`.
+ */
+export function isCanceled(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
+  return res.responseCode === TRANSACTION_CANCELED_CODE;
+}
+
+/**
  * `true`, wenn diese Antwort ueberhaupt eine Aussage ueber den Ausgang
  * traegt — ein Ergebniscode, der in [HPS_MEASURED_CODES] als `conclusive`
  * gefuehrt wird. Die einzige Stelle, an der ein Code zu einem Ausgang wird.
