@@ -21,8 +21,11 @@
 
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
+import { AVV_MODUS_STANDARD, istAvvModus } from './fehler.js';
 import { alsSecret } from './secret.js';
 import type {
+  AvvStand,
+  KundenZeile,
   ActivateCashregisterResult,
   CreateCashregisterOptions,
   CreateCashregisterResult,
@@ -211,7 +214,7 @@ export async function listPartnerCustomers(
   };
 }
 
-function kundenZeile(eintrag: unknown) {
+function kundenZeile(eintrag: unknown): KundenZeile {
   const k = objekt(eintrag);
   return {
     customerId: text(k['customerId']),
@@ -220,6 +223,25 @@ function kundenZeile(eintrag: unknown) {
     appId: textOderNull(k['appId']),
     env: text(k['env']) === 'test' ? ('test' as const) : ('live' as const),
     createdAt: zahlOderNull(k['createdAt']),
+    avv: avvStand(k['avv']),
+  };
+}
+
+/**
+ * Der Vertragsstand, sofern die Antwort ihn fuehrt. `null` statt eines
+ * erfundenen `offen`: "nicht mitgeliefert" und "nicht bestaetigt" duerfen fuer
+ * den Aufrufer nicht dasselbe sein — das eine ist eine aeltere Backend-Fassung,
+ * das andere eine Kasse, die nicht live geht.
+ */
+function avvStand(wert: unknown): AvvStand | null {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
+  const a = wert as Record<string, unknown>;
+  const modus = a['modus'];
+  return {
+    status: text(a['status'], 'offen'),
+    version: textOderNull(a['version']),
+    bestaetigtAt: zahlOderNull(a['bestaetigtAt']),
+    modus: istAvvModus(modus) ? modus : AVV_MODUS_STANDARD,
   };
 }
 

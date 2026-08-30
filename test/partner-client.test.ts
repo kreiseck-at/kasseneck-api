@@ -7,6 +7,7 @@ import { partnerKeyAuth, partnerKeyEnv } from '../src/partner/auth.js';
 import { PARTNER_ABLAUF, naechsterSchritt } from '../src/partner/ablauf.js';
 import {
   AVV_MODI,
+  vertragOffenRatFuer,
   PARTNER_FEHLER_CODES,
   istPartnerFehler,
   partnerFehlerCode,
@@ -174,6 +175,7 @@ test('Partner: listPartnerCustomers seitenweise, mit Grenzen fuer limit', async 
   assert.equal(r.cursor, 'weiter');
   assert.equal(r.gesamt, 12);
   assert.equal(r.kunden[0]?.customerId, 'cust_1');
+  assert.equal(r.kunden[0]?.avv, null, 'ohne avv-Feld darf kein Stand erfunden werden');
   await assert.rejects(() => api.listPartnerCustomers({ limit: 0 }), KasseneckValidationError);
   await assert.rejects(() => api.listPartnerCustomers({ limit: 201 }), KasseneckValidationError);
 });
@@ -551,6 +553,32 @@ test('Partner: vertrag_offen nennt den Weg, der fuer dieses Konto gilt', async (
     assert.equal(api.fehlerRat('vertrag_offen'), api.vertragOffenRat());
     assert.equal(api.avvModus, 'vollmacht');
   }
+});
+
+test('Partner: der Vertragsstand kommt je Betrieb mit und schlaegt die Einstellung', async () => {
+  // Die Fassade ist mit avvModus:'vollmacht' gebaut; der Betrieb sagt aber
+  // 'unterauftrag'. Massgeblich ist der Betrieb — die Einstellung ist nur der
+  // Rueckfall fuer den Moment, in dem noch keiner geladen ist.
+  const { api } = stelle(
+    erfolg({
+      kunde: {
+        customerId: 'cust_1',
+        status: 'angelegt',
+        avv: { status: 'offen', version: null, bestaetigtAt: null, modus: 'unterauftrag' },
+      },
+    }),
+  );
+  const kunde = await api.getPartnerCustomer('cust_1');
+  assert.equal(kunde.avv?.status, 'offen');
+  assert.equal(kunde.avv?.modus, 'unterauftrag');
+  assert.ok(api.vertragOffenRatFuer(kunde).includes('unterauftrag'));
+  assert.ok(api.vertragOffenRat().includes('vollmacht'));
+
+  // Ohne Stand (aeltere Backend-Fassung) faellt es auf die Einstellung zurueck.
+  assert.ok(api.vertragOffenRatFuer({ avv: null }).includes('vollmacht'));
+  assert.ok(api.vertragOffenRatFuer(null).includes('vollmacht'));
+  // Ein unbekannter Weg wird nicht geraten, sondern faellt auf die Vorgabe.
+  assert.ok(vertragOffenRatFuer({ modus: 'erfunden' }).includes('direkt'));
 });
 
 test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => {

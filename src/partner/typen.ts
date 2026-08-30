@@ -14,6 +14,7 @@
  * Compilerfehler sein und keine `validation`-Antwort vom Server.
  */
 
+import type { AvvModus } from './fehler.js';
 import type { KasseneckSecret } from './secret.js';
 
 // ---------------------------------------------------------------------------
@@ -175,6 +176,25 @@ export interface CreateCustomerResult {
   wiederholt: boolean;
 }
 
+/**
+ * Stand des Auftragsverarbeitungsvertrags eines Betriebs, aus Partnersicht.
+ *
+ * `offen` heisst: es geht **keine neue Kasse** live (`vertrag_offen`).
+ * `veraltet` heisst: bestaetigt ist eine Fassung, die inzwischen nicht mehr die
+ * geltende ist — auch das zaehlt nicht als bestaetigt. `ueber_partner` gibt es
+ * nur im Weg `unterauftrag`: dort hat der Betrieb gar keinen Vertrag mit
+ * Kasseneck, es zaehlt allein der Partnervertrag.
+ */
+export type AvvStatus = 'offen' | 'bestaetigt' | 'veraltet' | 'ueber_partner' | (string & {});
+
+export interface AvvStand {
+  status: AvvStatus;
+  version: string | null;
+  bestaetigtAt: number | null;
+  /** Der Weg, den Kasseneck fuer DIESES Partner-Konto gesetzt hat. */
+  modus: AvvModus;
+}
+
 export interface KundenZeile {
   customerId: string;
   firma: string;
@@ -182,6 +202,12 @@ export interface KundenZeile {
   appId: string | null;
   env: PartnerEnv;
   createdAt: number | null;
+  /**
+   * Vertragsstand — `null`, wenn die Antwort ihn nicht fuehrt (aeltere
+   * Backend-Fassung). Das ist die verlaessliche Quelle fuer [AvvStand.modus];
+   * `getPartnerInfo` gibt den Weg nicht aus.
+   */
+  avv: AvvStand | null;
 }
 
 export interface ListCustomersOptions {

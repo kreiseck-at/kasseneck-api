@@ -35,11 +35,11 @@ Neue öffentliche Symbole:
 - **Ablauf und Fehler** — `PARTNER_ABLAUF`, `naechsterSchritt`,
   `PARTNER_FEHLER_CODES`, `istPartnerFehler`, `partnerFehlerCode`,
   `partnerFehlerRat`, `partnerFeldFehler`, `partnerWartezeitSek`,
-  `vertragOffenRat`, `AVV_MODI`, `AVV_MODUS_STANDARD`, `istAvvModus`,
-  `SCOPE_CREDENTIALS`.
+  `vertragOffenRat`, `vertragOffenRatFuer`, `AVV_MODI`, `AVV_MODUS_STANDARD`,
+  `istAvvModus`, `SCOPE_CREDENTIALS`.
 - **Geheimnisse** — `KasseneckSecret`, `SECRET_MASKE`.
 - Dazu die Typen der Nutzlasten (`Betrieb`, `Kunde`, `Kasse`, `SignaturAntrag`,
-  `CustomerCredentials`, …).
+  `CustomerCredentials`, `AvvStand`, `AvvStatus`, …).
 
 Warum die einzelnen Entscheidungen so gefallen sind:
 
@@ -57,11 +57,16 @@ Warum die einzelnen Entscheidungen so gefallen sind:
   fällt dort nie auf: eine zu lasche Prüfung lässt jeden durch und meldet nichts.
   Umgesetzt mit WebCrypto statt `node:crypto`, damit das Paket weiterhin ohne
   Laufzeitabhängigkeit auskommt — deshalb ist sie asynchron.
-- **`avvModus` als Client-Einstellung.** Ohne bestätigten
-  Auftragsverarbeitungsvertrag geht keine neue Kasse live (`vertrag_offen`), und
-  was zu tun ist, hängt am Vertragsweg des Partner-Kontos. Den setzt Kasseneck
-  je Konto; `getPartnerInfo` gibt ihn heute **nicht** aus. Bis dahin nimmt ihn
-  der Client entgegen und formuliert danach seinen Hinweis.
+- **`avvModus` als Client-Einstellung, `kunde.avv` als Quelle.** Ohne
+  bestätigten Auftragsverarbeitungsvertrag geht keine neue Kasse live
+  (`vertrag_offen`), und was zu tun ist, hängt am Vertragsweg des
+  Partner-Kontos. `listPartnerCustomers` und `getPartnerCustomer` führen ihn je
+  Betrieb mit (`avv{status,version,bestaetigtAt,modus}`); daraus formuliert
+  `vertragOffenRatFuer(kunde)` seinen Hinweis. `getPartnerInfo` gibt ihn
+  dagegen nicht aus — für den Moment, in dem noch kein Betrieb geladen ist,
+  nimmt die Fassade ihn als Option entgegen. Ein fehlendes `avv` bleibt `null`
+  und wird **nicht** zu „offen": eine ältere Backend-Fassung, die das Feld
+  nicht schickt, darf nicht wie ein nicht bestätigter Vertrag aussehen.
 
 ### Geändert: `KasseneckApiError` trägt `code` und `details`
 

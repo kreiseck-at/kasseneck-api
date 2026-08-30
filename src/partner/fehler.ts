@@ -154,6 +154,19 @@ export function vertragOffenRat(modus: AvvModus = AVV_MODUS_STANDARD): string {
 }
 
 /**
+ * Wie [vertragOffenRat], nur mit dem Weg aus dem Betrieb selbst — die
+ * verlaessliche Quelle: `listPartnerCustomers` und `getPartnerCustomer` fuehren
+ * ihn je Betrieb mit. Fehlt er (aeltere Backend-Fassung), gilt [rueckfall].
+ */
+export function vertragOffenRatFuer(
+  avv: { modus?: unknown } | null | undefined,
+  rueckfall: AvvModus = AVV_MODUS_STANDARD,
+): string {
+  const modus = avv && istAvvModus(avv.modus) ? avv.modus : rueckfall;
+  return vertragOffenRat(modus);
+}
+
+/**
  * Der Handlungssatz zu einem Code. `modus` wird nur fuer `vertrag_offen`
  * gebraucht und sonst ignoriert.
  */

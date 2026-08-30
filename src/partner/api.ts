@@ -5,18 +5,23 @@
  * Funktionen und bleiben einzeln importierbar.
  *
  * **Ein Unterschied zur Kassen-Fassade, und er ist Absicht:** hier steht
- * zusaetzlich [PartnerApiOptions.avvModus]. Er ist keine Anmeldeangabe,
- * sondern die einzige Auskunft, die die Partner-API nicht selbst gibt: welcher
- * der drei Vertragswege fuer dieses Partner-Konto gilt. Kasseneck setzt ihn je
- * Konto, `getPartnerInfo` gibt ihn (noch) nicht aus. Ohne ihn kann dieser
- * Client bei `vertrag_offen` nur den allgemeinen Fall nennen — mit ihm sagt er,
- * was **hier** zu tun ist.
+ * zusaetzlich [PartnerApiOptions.avvModus] — welcher der drei Vertragswege fuer
+ * dieses Partner-Konto gilt. `getPartnerInfo` gibt ihn nicht aus; die
+ * Betriebsansichten tun es (`kunde.avv.modus`). Dieser Wert ist der Rueckfall
+ * fuer den Moment, in dem noch kein Betrieb geladen ist, damit dieser Client
+ * bei `vertrag_offen` nicht nur den allgemeinen Fall nennen muss.
  */
 
 import { createTransport, type FetchLike } from '../client/transport.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { partnerKeyAuth } from './auth.js';
-import { partnerFehlerRat, vertragOffenRat, AVV_MODUS_STANDARD, type AvvModus } from './fehler.js';
+import {
+  partnerFehlerRat,
+  vertragOffenRat,
+  vertragOffenRatFuer,
+  AVV_MODUS_STANDARD,
+  type AvvModus,
+} from './fehler.js';
 import {
   activateCashregister,
   createCustomerCashregister,
@@ -79,6 +84,12 @@ export interface PartnerApiOptions {
    * `direkt` (Vorgabe), `vollmacht` oder `unterauftrag`. Er steuert nur die
    * Formulierung von [PartnerApi.vertragOffenRat] — nicht das Verhalten des
    * Servers.
+   *
+   * **Rueckfall, kein Ersatz:** `listPartnerCustomers` und
+   * `getPartnerCustomer` fuehren den Weg je Betrieb mit (`kunde.avv.modus`);
+   * [PartnerApi.vertragOffenRatFuer] nimmt ihn von dort. Dieser Wert gilt,
+   * solange kein Betrieb geladen ist — und wenn eine aeltere Backend-Fassung
+   * das Feld nicht schickt.
    */
   avvModus?: AvvModus;
 }
@@ -124,6 +135,12 @@ export interface PartnerApi {
    * nicht in der Doku nachschlagen muss.
    */
   vertragOffenRat(): string;
+  /**
+   * Wie [vertragOffenRat], aber mit dem Weg aus dem Betrieb selbst — die
+   * verlaessliche Quelle. `listPartnerCustomers` und `getPartnerCustomer`
+   * fuehren ihn je Betrieb mit; ohne ihn gilt der eingestellte [avvModus].
+   */
+  vertragOffenRatFuer(kunde: { avv?: { modus?: unknown } | null } | null | undefined): string;
   /** Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. */
   fehlerRat(code: string): string | undefined;
 }
@@ -165,6 +182,7 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     listPartnerWebhookDeliveries: (o) => listPartnerWebhookDeliveries(rufen, o),
 
     vertragOffenRat: () => vertragOffenRat(modus),
+    vertragOffenRatFuer: (kunde) => vertragOffenRatFuer(kunde?.avv, modus),
     fehlerRat: (code) => partnerFehlerRat(code, modus),
   };
 }
