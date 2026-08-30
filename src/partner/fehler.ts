@@ -23,6 +23,59 @@ export type AvvModus = typeof AVV_MODI[number];
 /** Vorgabe, solange Kasseneck fuer das Partner-Konto nichts anderes gesetzt hat. */
 export const AVV_MODUS_STANDARD: AvvModus = 'direkt';
 
+/**
+ * Die Staende, die `kunde.avv.status` annehmen kann.
+ *
+ * `nicht_erforderlich` ist der Test-Betrieb: dort wird nichts Echtes
+ * verarbeitet, es gibt keinen Vertragsgegenstand, und das Live-Gate greift gar
+ * nicht. **Er darf nicht wie `offen` behandelt werden** — ein „Vertrag fehlt"
+ * an einem Test-Betrieb schickt einen Integrator auf die Suche nach einem
+ * Problem, das es nicht gibt.
+ */
+export const AVV_STATUS = ['offen', 'bestaetigt', 'veraltet', 'ueber_partner', 'nicht_erforderlich'] as const;
+
+/**
+ * Bewusst offen fuer unbekannte Werte: eine spaetere Backend-Fassung soll
+ * einen neuen Stand durchreichen koennen, statt hier zu scheitern.
+ */
+export type AvvStatus = typeof AVV_STATUS[number] | (string & {});
+
+/** Was `avv.status` bedeutet — als Text, fuer eine Anzeige. */
+const AVV_STATUS_TEXT: Record<typeof AVV_STATUS[number], string> = {
+  offen: 'Der Auftragsverarbeitungsvertrag fehlt — es geht keine neue Kasse live.',
+  bestaetigt: 'Die geltende Fassung ist bestaetigt.',
+  veraltet: 'Bestaetigt, aber inzwischen gilt eine neuere Pflichtfassung.',
+  ueber_partner: 'Im Weg "unterauftrag" durch den eigenen Partnervertrag abgedeckt.',
+  nicht_erforderlich: 'Testumgebung — kein Vertragsgegenstand, keine Sperre.',
+};
+
+/** Der Text zu einem Stand; `undefined` fuer einen unbekannten Wert. */
+export function avvStatusText(status: string): string | undefined {
+  return (AVV_STATUS_TEXT as Record<string, string | undefined>)[status];
+}
+
+/**
+ * Steht dem Live-Betrieb aus Sicht des Auftragsverarbeitungsvertrags nichts im
+ * Weg? Drei Staende sagen ja — `bestaetigt`, `ueber_partner` und
+ * `nicht_erforderlich` (Testumgebung).
+ *
+ * [avvErfuellt] und [avvSperrt] sind **nicht** die Umkehrung voneinander: fuer
+ * einen Stand, den dieses Paket nicht kennt, sind beide `false`. Das ist die
+ * ehrliche Antwort — die Auskunft, ob eine Kasse live geht, gibt der Server mit
+ * `vertrag_offen`, nicht diese Funktion. Wer aus „nicht erfuellt" auf „gesperrt"
+ * schliesst, warnt beim naechsten neuen Stand vor etwas, das nicht ist.
+ */
+export function avvErfuellt(avv: { status?: unknown } | null | undefined): boolean {
+  const s = avv?.status;
+  return s === 'bestaetigt' || s === 'ueber_partner' || s === 'nicht_erforderlich';
+}
+
+/** Sperrt dieser Stand den Live-Betrieb? Nur `offen` und `veraltet` tun das. */
+export function avvSperrt(avv: { status?: unknown } | null | undefined): boolean {
+  const s = avv?.status;
+  return s === 'offen' || s === 'veraltet';
+}
+
 export function istAvvModus(wert: unknown): wert is AvvModus {
   return typeof wert === 'string' && (AVV_MODI as readonly string[]).includes(wert);
 }
@@ -153,15 +206,32 @@ export function vertragOffenRat(modus: AvvModus = AVV_MODUS_STANDARD): string {
   }
 }
 
+/** Was fuer einen Test-Betrieb zu tun ist: nichts. */
+export const AVV_NICHT_ERFORDERLICH_RAT =
+  'Nichts zu tun: dieser Betrieb liegt in der Testumgebung. Dort wird nichts Echtes verarbeitet — ' +
+  'es gibt keinen Vertragsgegenstand und keine Sperre. Der Auftragsverarbeitungsvertrag wird erst ' +
+  'fuer den Live-Betrieb gebraucht.';
+
 /**
- * Wie [vertragOffenRat], nur mit dem Weg aus dem Betrieb selbst — die
- * verlaessliche Quelle: `listPartnerCustomers` und `getPartnerCustomer` fuehren
- * ihn je Betrieb mit. Fehlt er (aeltere Backend-Fassung), gilt [rueckfall].
+ * Wie [vertragOffenRat], nur mit Stand und Weg aus dem Betrieb selbst — der
+ * verlaesslichen Quelle: `listPartnerCustomers` und `getPartnerCustomer`
+ * fuehren beides je Betrieb mit. Fehlt der Stand (aeltere Backend-Fassung),
+ * gilt [rueckfall] fuer den Weg.
+ *
+ * **`nicht_erforderlich` bekommt einen eigenen Satz**, keinen abgeschwaechten:
+ * an einem Test-Betrieb kann `vertrag_offen` gar nicht entstehen, und ein
+ * „bitte bestaetigen lassen" schickte den Aufrufer auf eine Suche ohne Ziel.
+ *
+ * Fuer jeden anderen Stand — auch `bestaetigt` — bleibt es beim Weg-Satz: das
+ * Live-Gate prueft **alle** sperrenden Vertragsarten, nicht nur den
+ * Auftragsverarbeitungsvertrag. Ein `vertrag_offen` bei `avv.status:
+ * "bestaetigt"` ist damit moeglich, und „nichts zu tun" waere dann falsch.
  */
 export function vertragOffenRatFuer(
-  avv: { modus?: unknown } | null | undefined,
+  avv: { status?: unknown; modus?: unknown } | null | undefined,
   rueckfall: AvvModus = AVV_MODUS_STANDARD,
 ): string {
+  if (avv?.status === 'nicht_erforderlich') return AVV_NICHT_ERFORDERLICH_RAT;
   const modus = avv && istAvvModus(avv.modus) ? avv.modus : rueckfall;
   return vertragOffenRat(modus);
 }

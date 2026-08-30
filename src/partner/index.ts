@@ -27,6 +27,11 @@ export {
 export {
   AVV_MODI,
   AVV_MODUS_STANDARD,
+  AVV_STATUS,
+  AVV_NICHT_ERFORDERLICH_RAT,
+  avvStatusText,
+  avvErfuellt,
+  avvSperrt,
   istAvvModus,
   PARTNER_FEHLER_CODES,
   istPartnerFehlerCode,
@@ -38,6 +43,7 @@ export {
   vertragOffenRat,
   vertragOffenRatFuer,
   type AvvModus,
+  type AvvStatus,
   type PartnerFehlerCode,
   type PartnerFeldFehler,
 } from './fehler.js';
@@ -114,7 +120,6 @@ export type {
   CreateCustomerResult,
   KundenStatus,
   KundenZeile,
-  AvvStatus,
   AvvStand,
   ListCustomersOptions,
   KundenListe,

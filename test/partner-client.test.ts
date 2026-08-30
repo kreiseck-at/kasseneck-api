@@ -7,6 +7,11 @@ import { partnerKeyAuth, partnerKeyEnv } from '../src/partner/auth.js';
 import { PARTNER_ABLAUF, naechsterSchritt } from '../src/partner/ablauf.js';
 import {
   AVV_MODI,
+  AVV_STATUS,
+  AVV_NICHT_ERFORDERLICH_RAT,
+  avvErfuellt,
+  avvSperrt,
+  avvStatusText,
   vertragOffenRatFuer,
   PARTNER_FEHLER_CODES,
   istPartnerFehler,
@@ -579,6 +584,69 @@ test('Partner: der Vertragsstand kommt je Betrieb mit und schlaegt die Einstellu
   assert.ok(api.vertragOffenRatFuer(null).includes('vollmacht'));
   // Ein unbekannter Weg wird nicht geraten, sondern faellt auf die Vorgabe.
   assert.ok(vertragOffenRatFuer({ modus: 'erfunden' }).includes('direkt'));
+  // Ein bestaetigter Vertrag bekommt KEIN "nichts zu tun": das Live-Gate
+  // prueft alle sperrenden Vertragsarten, nicht nur den AVV — ein
+  // vertrag_offen ist hier moeglich.
+  assert.ok(vertragOffenRatFuer({ status: 'bestaetigt', modus: 'direkt' }).includes('fehlt'));
+});
+
+test('Partner: ein Test-Betrieb braucht keinen Vertrag — nicht_erforderlich ist kein offen', async () => {
+  // Der Grund: in der Testumgebung wird nichts Echtes verarbeitet, es gibt
+  // keinen Vertragsgegenstand und das Live-Gate greift gar nicht. Ein
+  // „Vertrag fehlt" schickte einen Integrator auf die Suche nach einem
+  // Problem, das es nicht gibt.
+  const { api } = stelle(
+    erfolg({
+      kunde: {
+        customerId: 'ptest_1',
+        status: 'angelegt',
+        env: 'test',
+        avv: { status: 'nicht_erforderlich', version: null, bestaetigtAt: null, modus: 'direkt' },
+      },
+    }),
+  );
+  const kunde = await api.getPartnerCustomer('ptest_1');
+  assert.equal(kunde.avv?.status, 'nicht_erforderlich');
+
+  // Kein Hinweis „Vertrag abschliessen lassen" — ein eigener Satz.
+  const rat = api.vertragOffenRatFuer(kunde);
+  assert.equal(rat, AVV_NICHT_ERFORDERLICH_RAT);
+  assert.ok(rat.includes('Nichts zu tun'), rat);
+  assert.ok(!rat.includes('fehlt'), `der Satz klingt wie ein offener Vertrag: ${rat}`);
+  // Und er unterscheidet sich von JEDEM Weg-Satz — sonst waere die
+  // Fallunterscheidung Zierde.
+  for (const modus of AVV_MODI) {
+    assert.notEqual(rat, vertragOffenRatFuer({ status: 'offen', modus }), `gleich wie ${modus}`);
+  }
+
+  // Er zaehlt als erfuellt und sperrt nicht.
+  assert.equal(avvErfuellt(kunde.avv), true);
+  assert.equal(avvSperrt(kunde.avv), false);
+});
+
+test('Partner: erfuellt und sperrt sind nicht die Umkehrung voneinander', () => {
+  assert.deepEqual(
+    AVV_STATUS.map((s) => [s, avvErfuellt({ status: s }), avvSperrt({ status: s })]),
+    [
+      ['offen', false, true],
+      ['bestaetigt', true, false],
+      ['veraltet', false, true],
+      ['ueber_partner', true, false],
+      ['nicht_erforderlich', true, false],
+    ],
+  );
+  // Ein Stand, den dieses Paket nicht kennt, ist WEDER erfuellt NOCH gesperrt.
+  // Wer aus "nicht erfuellt" auf "gesperrt" schliesst, warnt beim naechsten
+  // neuen Stand vor etwas, das nicht ist — die Auskunft gibt der Server.
+  assert.equal(avvErfuellt({ status: 'etwas_neues' }), false);
+  assert.equal(avvSperrt({ status: 'etwas_neues' }), false);
+  assert.equal(avvErfuellt(null), false);
+  assert.equal(avvSperrt(null), false);
+  assert.equal(avvErfuellt(undefined), false);
+  assert.equal(avvSperrt(undefined), false);
+  // Jeder bekannte Stand hat einen Text, ein unbekannter keinen erfundenen.
+  for (const s of AVV_STATUS) assert.ok(avvStatusText(s), `kein Text fuer ${s}`);
+  assert.equal(avvStatusText('etwas_neues'), undefined);
 });
 
 test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => {

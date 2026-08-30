@@ -14,7 +14,7 @@
  * Compilerfehler sein und keine `validation`-Antwort vom Server.
  */
 
-import type { AvvModus } from './fehler.js';
+import type { AvvModus, AvvStatus } from './fehler.js';
 import type { KasseneckSecret } from './secret.js';
 
 // ---------------------------------------------------------------------------
@@ -178,15 +178,8 @@ export interface CreateCustomerResult {
 
 /**
  * Stand des Auftragsverarbeitungsvertrags eines Betriebs, aus Partnersicht.
- *
- * `offen` heisst: es geht **keine neue Kasse** live (`vertrag_offen`).
- * `veraltet` heisst: bestaetigt ist eine Fassung, die inzwischen nicht mehr die
- * geltende ist — auch das zaehlt nicht als bestaetigt. `ueber_partner` gibt es
- * nur im Weg `unterauftrag`: dort hat der Betrieb gar keinen Vertrag mit
- * Kasseneck, es zaehlt allein der Partnervertrag.
+ * Die Werte stehen in `AVV_STATUS` (fehler.ts), samt dem, was sie bedeuten.
  */
-export type AvvStatus = 'offen' | 'bestaetigt' | 'veraltet' | 'ueber_partner' | (string & {});
-
 export interface AvvStand {
   status: AvvStatus;
   version: string | null;

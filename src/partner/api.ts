@@ -136,11 +136,15 @@ export interface PartnerApi {
    */
   vertragOffenRat(): string;
   /**
-   * Wie [vertragOffenRat], aber mit dem Weg aus dem Betrieb selbst — die
-   * verlaessliche Quelle. `listPartnerCustomers` und `getPartnerCustomer`
-   * fuehren ihn je Betrieb mit; ohne ihn gilt der eingestellte [avvModus].
+   * Wie [vertragOffenRat], aber mit Stand und Weg aus dem Betrieb selbst — der
+   * verlaesslichen Quelle. `listPartnerCustomers` und `getPartnerCustomer`
+   * fuehren beides je Betrieb mit; ohne den Stand gilt der eingestellte
+   * [avvModus]. Ein Test-Betrieb (`nicht_erforderlich`) bekommt einen eigenen
+   * Satz: dort ist nichts zu tun.
    */
-  vertragOffenRatFuer(kunde: { avv?: { modus?: unknown } | null } | null | undefined): string;
+  vertragOffenRatFuer(
+    kunde: { avv?: { status?: unknown; modus?: unknown } | null } | null | undefined,
+  ): string;
   /** Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. */
   fehlerRat(code: string): string | undefined;
 }
