@@ -5,6 +5,7 @@ import { AUFRUFE } from '../src/client/aufrufe.js';
 import * as kasse from '../src/kasse/index.js';
 import { TASTEN_AKTIONEN } from '../src/kasse/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
+import * as partner from '../src/partner/index.js';
 
 const vertrag = JSON.parse(
   readFileSync(new URL('../../fixtures/oberflaeche.json', import.meta.url), 'utf8'),
@@ -46,6 +47,32 @@ test('Golden: der Vertrag fuehrt JEDE Enum-Liste des Pakets, keine mehr und kein
   for (const [name, liste] of enumListen) {
     assert.deepEqual(vertrag.enums[name], [...liste], `${veraltet} (enums.${name})`);
   }
+});
+
+/**
+ * Dieselbe Ableitung fuer den Partner-Teil. Er kam eine Zeitlang nur als
+ * Namensliste ueber den Vertrag — die 18 Aufrufe standen darin, die
+ * Fehlercodes, die Webhook-Ereignisse, die drei Vertragswege und der
+ * Wiederholungsplan nicht. Genau die pflegt der Zwilling von Hand nach.
+ */
+const partnerRaum = partner as unknown as Record<string, unknown>;
+const partnerListen = new Map<string, readonly (string | number)[]>();
+for (const name of Object.keys(partnerRaum).sort()) {
+  const wert = partnerRaum[name];
+  if (!/^[A-Z][A-Z0-9_]*$/.test(name)) continue;
+  if (!Array.isArray(wert)) continue;
+  if (!wert.every((eintrag) => typeof eintrag === 'string' || typeof eintrag === 'number')) continue;
+  partnerListen.set(schluessel(name), wert as readonly (string | number)[]);
+}
+
+test('Golden: der Vertrag fuehrt JEDE Partner-Liste des Pakets, keine mehr und keine weniger', () => {
+  assert.deepEqual(Object.keys(vertrag.partner ?? {}).sort(), [...partnerListen.keys()].sort(), veraltet);
+  for (const [name, liste] of partnerListen) {
+    assert.deepEqual(vertrag.partner[name], [...liste], `${veraltet} (partner.${name})`);
+  }
+  // Ohne diese Zusicherung koennte der Erzeuger den ganzen Abschnitt
+  // weglassen und der Test bliebe gruen (leer gegen leer).
+  assert.ok(partnerListen.size >= 4, 'der Partner-Teil traegt keine Listen mehr — dann prueft dieser Test nichts');
 });
 
 test('Die Vertragsdatei nennt die Paketversion', () => {

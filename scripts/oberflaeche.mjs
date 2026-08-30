@@ -15,6 +15,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { AUFRUFE } from '../dist/esm/client/aufrufe.js';
 import * as kasse from '../dist/esm/kasse/index.js';
+import * as partner from '../dist/esm/partner/index.js';
 import { REGISTER_PERMS } from '../dist/esm/register/index.js';
 
 /** GROSS_GESCHRIEBEN -> kleinCamel: DRUCKER_ART -> druckerArt, KATPOS -> katpos. */
@@ -43,6 +44,23 @@ for (const name of Object.keys(kasse).sort()) {
   enums[schluessel(name)] = [...wert];
 }
 
+// Dasselbe fuer den Partner-Teil, und aus demselben Grund abgelesen statt
+// aufgezaehlt. Er kam sonst als reine Namensliste ueber den Vertrag: die 18
+// Aufrufe standen darin, die 27 Fehlercodes, die 15 Webhook-Ereignisse, die
+// drei Vertragswege und der Wiederholungsplan dagegen nicht. Genau die sind
+// aber das, was ein Zwilling von Hand nachpflegt — und wo er still abweichen
+// kann, ohne dass ein Test anschlaegt.
+//
+// Eigener Schluessel `partner`, nicht `enums`: die Enum-Pruefung des
+// Dart-Zwillings schickt jeden Wert durch `KasseSettings.aus` und hat mit
+// Fehlercodes nichts zu tun.
+const partnerListen = {};
+for (const name of Object.keys(partner).sort()) {
+  const wert = partner[name];
+  if (!istEnumListe(name, wert)) continue;
+  partnerListen[schluessel(name)] = [...wert];
+}
+
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const vertrag = {
@@ -51,8 +69,10 @@ const vertrag = {
   enums,
   rechte: [...REGISTER_PERMS],
   tastenAktionen: [...kasse.TASTEN_AKTIONEN],
+  partner: partnerListen,
 };
 
 writeFileSync(new URL('../fixtures/oberflaeche.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
 console.log('Oberflaeche geschrieben:', vertrag.aufrufe.length, 'Aufrufe,',
-  Object.keys(vertrag.enums).length, 'Enums,', vertrag.rechte.length, 'Rechte');
+  Object.keys(vertrag.enums).length, 'Enums,', vertrag.rechte.length, 'Rechte,',
+  Object.keys(vertrag.partner).length, 'Partner-Listen');

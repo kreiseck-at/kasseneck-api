@@ -92,3 +92,13 @@ Partner-Endpunkte). Der Flutter-Zwilling `kasseneck_api` und die
 Hosting-Weiterleitungen in `kasseneck-web` lesen diese Liste — beide müssen
 nachziehen, sonst laufen die Aufrufe in Produktion auf die HTML-Seite statt auf
 die Function.
+
+**Neuer Abschnitt `partner` in der Vertragsdatei.** Der Partner-Teil wäre sonst
+als reine Namensliste über den Vertrag gegangen: die 18 Aufrufe hätte er
+geführt, die 27 Fehlercodes, die 15 Webhook-Ereignisse, die drei Vertragswege
+und den Wiederholungsplan nicht — und genau die pflegt der Zwilling von Hand
+nach. Ein Fehlercode, den nur eine Seite kennt, hätte auf der anderen keinen
+Handlungssatz und wäre für einen Aufrufer nicht von „gibt es nicht" zu
+unterscheiden. `scripts/oberflaeche.mjs` liest den Partner-Namensraum jetzt
+genauso ab wie den Kassen-Namensraum; eine neu angelegte Liste landet damit von
+selbst im Vertrag statt still zu fehlen.
