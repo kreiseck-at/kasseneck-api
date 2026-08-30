@@ -7,6 +7,7 @@ import * as receipt from '../src/receipt/index.js';
 import * as printing from '../src/printing/index.js';
 import * as payments from '../src/payments/index.js';
 import * as register from '../src/register/index.js';
+import * as partner from '../src/partner/index.js';
 
 /**
  * Das README ist die einzige Erklaerung, die ein Verbraucher vor 69
@@ -36,6 +37,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/printing': printing,
   '@kreiseck/kasseneck-api/payments': payments,
   '@kreiseck/kasseneck-api/register': register,
+  '@kreiseck/kasseneck-api/partner': partner,
 };
 
 test('README: jeder importierte Name in den Beispielen gibt es wirklich', () => {

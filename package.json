@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.6.46",
+  "version": "0.7.0",
   "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -94,12 +94,23 @@
         "default": "./dist/cjs/kasse/index.js"
       }
     },
+    "./partner": {
+      "import": {
+        "types": "./dist/esm/partner/index.d.ts",
+        "default": "./dist/esm/partner/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/partner/index.d.ts",
+        "default": "./dist/cjs/partner/index.js"
+      }
+    },
     "./fixtures/*": "./fixtures/*"
   },
   "files": [
     "dist",
     "fixtures",
     "README.md",
+    "CHANGELOG.md",
     "NOTICE"
   ],
   "engines": {

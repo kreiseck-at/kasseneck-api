@@ -38,6 +38,7 @@ import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
 import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
+import { createPartnerApi, verifyWebhookSignature, KasseneckSecret } from '@kreiseck/kasseneck-api/partner';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
@@ -57,6 +58,9 @@ export const ansicht = ReceiptLayoutView;
 // von aussen bleibt ein KasseneckTransport ohne Umdeutung uebergebbar.
 declare const rufen: KasseneckTransport;
 export const drucker = listMyPrinters(rufen);
+export const partner = createPartnerApi;
+export const webhookPruefen = verifyWebhookSignature;
+export type Geheimnis = KasseneckSecret;
 // Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
 // weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
 // auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein

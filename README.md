@@ -8,7 +8,8 @@ im Test gegengeprüft, damit die beiden Pakete nicht auseinanderdriften.
 Das Paket deckt ab: Belege ausstellen und stornieren, Belege und Kassen
 auflisten, Berichte herunterladen, Status bei FinanzOnline abfragen,
 Stripe-Zahllinks und Hobex-Cloud-Zahlungen, das Beleg-Layout und die
-ESC/POS-Erzeugung für den Bondrucker.
+ESC/POS-Erzeugung für den Bondrucker — und unter `./partner` die
+**Partner-API**: Betriebe anlegen und bis zur laufenden Kasse begleiten.
 
 **Es läuft im Browser und in Node.** ESM ist das Hauptformat, CommonJS liegt
 daneben; beides mit eigenen Typdeklarationen. Node ab 20.18 (`fetch` muss
@@ -167,6 +168,111 @@ sich nicht stornieren, ein voll stornierter Beleg nicht noch einmal. Am
 gelesenen Original liefert `remainingQuantities(receipt)` die Reste vorab (für
 den Storno-Dialog); die Wahrheit hat der Server.
 
+## Partner-API (`./partner`)
+
+Für Softwarehäuser, die Kasseneck in ihr eigenes Produkt einbauen: Betriebe
+anlegen, bis zur laufenden Kasse begleiten und danach in ihrem Namen Belege
+signieren.
+
+**Was die Endpunkte tun, steht in der Referenz** —
+`docs/api/partner.md` (ausführlich) und `docs/api/partner.llms.txt` (kompakt,
+für Werkzeuge und Sprachmodelle). Dieses README wiederholt sie nicht; hier
+steht, wie man den Client benutzt.
+
+Der Partner-Schlüssel (`pk_live_…`) gehört auf einen **Server**. Er kann
+Betriebe anlegen und — mit dem Zusatz-Scope `credentials:read` — deren
+Geheimnisse holen.
+
+```ts
+import { createPartnerApi, istPartnerFehler } from '@kreiseck/kasseneck-api/partner';
+
+const partner = createPartnerApi({
+  partnerKey: process.env.KASSENECK_PARTNER_KEY!,
+  // Welcher der drei Vertragswege für dieses Konto gilt, setzt Kasseneck;
+  // die API gibt ihn nicht aus. Er steuert nur die Formulierung der Hinweise.
+  avvModus: 'vollmacht',
+});
+
+const { customerId } = await partner.createPartnerCustomer({
+  appId: 'app_…',
+  idempotencyKey: kundennummer,   // die eigene — schützt vor Doppelanlage
+  betrieb: { /* Stammdaten, siehe Referenz */ } as never,
+});
+
+await partner.sendPartnerCustomerFonLink(customerId);
+// … auf das Ereignis customer.fon_verified warten …
+await partner.requestCustomerSignature(customerId);
+// … auf signature.ready warten …
+await partner.createCustomerCashregister({ customerId });  // automatisch:true ist Vorgabe
+```
+
+Die Reihenfolge ist hart, und jeder Schritt beschwert sich mit einem eigenen
+Code, wenn ein vorheriger fehlt. Sie steht als Daten im Paket
+(`PARTNER_ABLAUF`), und zu jedem Code gibt es einen Handlungssatz:
+
+```ts
+try {
+  await partner.activateCashregister(customerId, cashregisterId);
+} catch (fehler) {
+  if (istPartnerFehler(fehler, 'vertrag_offen')) {
+    // Ohne bestätigten Auftragsverarbeitungsvertrag geht KEINE neue Kasse live.
+    // Der Satz nennt den Weg, der für dieses Partner-Konto gilt.
+    console.error(partner.vertragOffenRat());
+  }
+}
+```
+
+### Zugangsdaten sind Geheimnisse eines Dritten
+
+`getCustomerCredentials` liefert den `api_key` des Betriebs und die Token
+seiner Kassen. Wer sie hat, kann in seinem Namen Belege signieren — und ein
+Beleg ist nach RKSV nicht zurücknehmbar. Sie kommen deshalb **nicht als
+`string`**, sondern in einer Hülle, die sich nicht versehentlich ausgeben
+lässt:
+
+```ts
+const zugang = await partner.getCustomerCredentials(customerId);
+
+console.log(zugang);                     // [apiKey «verborgen»] — kein Klartext
+JSON.stringify(zugang);                  // ebenso
+`${zugang.apiKey}`;                      // ebenso
+
+speichereVerschluesselt(zugang.apiKey.reveal());   // der einzige Weg heraus
+```
+
+Nur verschlüsselt speichern, nie protokollieren, nie in eine Mail oder einen
+Fehlerbericht. Jeder Abruf wird mitgeschrieben und ist für den Betrieb
+sichtbar.
+
+### Eingehende Webhooks prüfen
+
+Das ist die Stelle, an der Integrationen am häufigsten scheitern — deshalb
+liegt sie fertig im Paket. Vier Dinge müssen stimmen: der **rohe** Rumpf, das
+Zeitfenster gegen Wiedereinspielung, ein zeitkonstanter Vergleich, und jede
+Ausnahme als Ablehnung.
+
+```ts
+import express from 'express';
+import { parseWebhookEvent } from '@kreiseck/kasseneck-api/partner';
+
+const app = express();
+
+// express.raw VOR jedem JSON-Parser: signiert sind die Bytes, die ankommen.
+app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  const ergebnis = await parseWebhookEvent({
+    secret: process.env.KASSENECK_WEBHOOK_SECRET!,
+    signatureHeader: req.header('X-Kasseneck-Signature'),
+    body: req.body,           // Buffer — nicht req.body nach JSON.parse
+  });
+  if (!ergebnis.ok) return res.status(400).send(ergebnis.reason);
+
+  // Innerhalb von 10 s antworten, Arbeit danach. Zustellungen können sich
+  // wiederholen: auf event.id entdoppeln.
+  res.sendStatus(200);
+  await verarbeite(ergebnis.event);
+});
+```
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |
@@ -177,6 +283,7 @@ den Storno-Dialog); die Wahrheit hat der Server.
 | `…/payments` | Stripe-Zahllinks und Hobex-Cloud (beides HTTP-Endpunkte des Backends). |
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln und entkoppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
+| `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Auftragsverarbeitungsvertrag, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 | `…/fixtures/*` | Golden-Belege (JSON): Eingaben `belege/<name>.json`, zugesagte Zeilenausgabe `erwartet/<name>.lines.json`, `manifest.json` mit Prüfsummen — dieselben Dateien prüfen Backend, Browser-Kasse und Flutter-Paket. |
 
