@@ -1,7 +1,10 @@
 {
   "_quelle": "kasseneck_api/lib/src/partner (Flutter-Paket, pubspec.yaml version: 5.3.0) — von Hand uebertragen, nicht generiert. kPartnerEnvs=PartnerEnv.values, kPartnerFehlerCodes/kPartnerPortalFehlerCodes=fehler.dart, kPartnerWebhookEreignisse/kWebhookUmschlagFelder=webhooks.dart, kBetriebFelder=betrieb.dart, kWebhookWiederholungSek=webhook_signatur.dart.",
   "_zweck": "Die Gegenrichtung zu fixtures/oberflaeche.json: dort prueft der Dart-Zwilling gegen dieses Paket, hier prueft dieses Paket gegen den Zwilling. Ein Fehlercode, ein Ereignis, ein Betriebsfeld oder die Marke `test`, die nur in EINER Sprache ankommen, machen genau einen dieser beiden Tests rot.",
-  "PARTNER_ENVS": ["live", "test"],
+  "PARTNER_ENVS": [
+    "live",
+    "test"
+  ],
   "PARTNER_FEHLER_CODES": [
     "validation",
     "rate_limited",
@@ -62,34 +65,47 @@
     "app.version.rejected",
     "webhook.test"
   ],
-  "WEBHOOK_UMSCHLAG_FELDER": ["id", "type", "createdAt", "partnerId", "test", "data"],
+  "WEBHOOK_UMSCHLAG_FELDER": [
+    "id",
+    "type",
+    "createdAt",
+    "partnerId",
+    "test",
+    "data"
+  ],
   "BETRIEB_FELDER": [
-    "company_name",
-    "rechtsform",
-    "bundesland",
-    "branche",
-    "firmenbuch",
-    "gericht",
+    "companyName",
+    "legalForm",
+    "state",
+    "industry",
+    "companyRegister",
+    "court",
     "web",
     "phone",
     "email",
-    "billing_email",
+    "billingEmail",
     "address.street",
     "address.number",
     "address.zip",
     "address.city",
-    "tax_details.taxnr",
-    "tax_details.uid",
-    "tax_details.gln",
-    "tax_details.is_small_business",
+    "taxDetails.taxNumber",
+    "taxDetails.vatId",
+    "taxDetails.gln",
+    "taxDetails.smallBusiness",
     "contacts[].name",
     "contacts[].email",
     "contacts[].phone",
     "contacts[].roles",
-    "steuerberater.name",
-    "steuerberater.email",
-    "steuerberater.phone",
-    "steuerberater.kontakt_ok"
+    "taxAdvisor.name",
+    "taxAdvisor.email",
+    "taxAdvisor.phone",
+    "taxAdvisor.mayContact"
   ],
-  "WEBHOOK_RETRY_PLAN_SEC": [60, 300, 1800, 7200, 43200]
+  "WEBHOOK_RETRY_PLAN_SEC": [
+    60,
+    300,
+    1800,
+    7200,
+    43200
+  ]
 }

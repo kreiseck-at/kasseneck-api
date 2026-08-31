@@ -111,12 +111,12 @@ test('Partner: die Umgebung steht im Schluessel und ist ohne Netz ablesbar', () 
 // ---------------------------------------------------------------------------
 
 const BETRIEB = {
-  company_name: 'Baeckerei Jobst e.U.',
-  rechtsform: 'eu',
+  companyName: 'Baeckerei Jobst e.U.',
+  legalForm: 'eu',
   email: 'chef@jobst.at',
   address: { street: 'Hauptstrasse', number: '12a', zip: '5020', city: 'Salzburg' },
-  bundesland: 'salzburg',
-  tax_details: { taxnr: '12-345/6789', is_small_business: false },
+  state: 'salzburg',
+  taxDetails: { taxNumber: '12-345/6789', smallBusiness: false },
   contacts: [{ name: 'Anna Jobst', email: 'anna@jobst.at' }],
 } as const;
 
@@ -124,27 +124,27 @@ test('Partner: createPartnerCustomer sendet appId, betrieb und den Idempotenzsch
   const { api, gesehen } = stelle(
     erfolg({
       customerId: 'cust_1',
-      status: 'angelegt',
+      status: 'created',
       env: 'live',
-      firma: 'Baeckerei Jobst e.U.',
+      companyName: 'Baeckerei Jobst e.U.',
       appId: 'app_1',
-      zugang: { eingeladen: true, sentTo: 'c***@jobst.at' },
-      naechsteSchritte: ['FinanzOnline-Link senden'],
+      access: { invited: true, sentTo: 'c***@jobst.at' },
+      nextSteps: ['FinanzOnline-Link senden'],
     }),
   );
   const r = await api.createPartnerCustomer({
     appId: 'app_1',
-    betrieb: BETRIEB as never,
+    business: BETRIEB as never,
     idempotencyKey: 'eigene-kundennummer-4711',
   });
   assert.deepEqual(rumpfVon(gesehen[0]!).params, {
     appId: 'app_1',
-    betrieb: BETRIEB,
+    business: BETRIEB,
     idempotencyKey: 'eigene-kundennummer-4711',
   });
   assert.equal(r.customerId, 'cust_1');
-  assert.equal(r.zugang.eingeladen, true);
-  assert.equal(r.wiederholt, false);
+  assert.equal(r.access.invited, true);
+  assert.equal(r.replayed, false);
 });
 
 /**
@@ -156,18 +156,18 @@ test('Partner: createPartnerCustomer sendet appId, betrieb und den Idempotenzsch
  */
 test('Partner: env geht mit auf die Leitung — ein Live-Schluessel darf einen Testbetrieb anlegen', async () => {
   const { api, gesehen } = stelle(
-    erfolg({ customerId: 'ptest_1', status: 'angelegt', env: 'test', firma: 'A', appId: 'app_1', zugang: {} }),
+    erfolg({ customerId: 'ptest_1', status: 'created', env: 'test', companyName: 'A', appId: 'app_1', access: {} }),
   );
-  const r = await api.createPartnerCustomer({ appId: 'app_1', betrieb: BETRIEB as never, env: 'test' });
-  assert.deepEqual(rumpfVon(gesehen[0]!).params, { appId: 'app_1', betrieb: BETRIEB, env: 'test' });
+  const r = await api.createPartnerCustomer({ appId: 'app_1', business: BETRIEB as never, env: 'test' });
+  assert.deepEqual(rumpfVon(gesehen[0]!).params, { appId: 'app_1', business: BETRIEB, env: 'test' });
   assert.equal(r.env, 'test');
 
   // Ohne Angabe entscheidet der Schluessel — dann darf auch nichts gesendet
   // werden: ein mitgeschicktes `env: undefined` waere im JSON verschwunden,
   // ein erfundenes `env: "live"` naehme dem Schluessel die Entscheidung ab.
-  const ohne = stelle(erfolg({ customerId: 'cust_2', env: 'live', zugang: {} }));
-  await ohne.api.createPartnerCustomer({ appId: 'app_1', betrieb: BETRIEB as never });
-  assert.deepEqual(rumpfVon(ohne.gesehen[0]!).params, { appId: 'app_1', betrieb: BETRIEB });
+  const ohne = stelle(erfolg({ customerId: 'cust_2', env: 'live', access: {} }));
+  await ohne.api.createPartnerCustomer({ appId: 'app_1', business: BETRIEB as never });
+  assert.deepEqual(rumpfVon(ohne.gesehen[0]!).params, { appId: 'app_1', business: BETRIEB });
 });
 
 test('Partner: die Umgebungen sind genau die beiden des Backends', () => {
@@ -179,24 +179,24 @@ test('Partner: darfZugangEinrichten fehlt = NEIN, nicht "vielleicht"', async () 
   // `true` aus Kulanz erzeugte einen Aufruf, der zugang_nicht_erlaubt bekommt
   // — und dabei entsteht NICHTS, auch kein Betrieb.
   const ohne = stelle(erfolg({ partner: { id: 'p1', name: 'A', status: 'aktiv' }, env: 'live', scopes: [], key: {}, apps: [] }));
-  assert.equal((await ohne.api.getPartnerInfo()).partner.darfZugangEinrichten, false);
+  assert.equal((await ohne.api.getPartnerInfo()).partner.canCreateAccess, false);
 
   const mit = stelle(
-    erfolg({ partner: { id: 'p1', name: 'A', status: 'aktiv', darfZugangEinrichten: true }, env: 'live', scopes: [], key: {}, apps: [] }),
+    erfolg({ partner: { id: 'p1', name: 'A', status: 'active', canCreateAccess: true }, env: 'live', scopes: [], key: {}, apps: [] }),
   );
-  assert.equal((await mit.api.getPartnerInfo()).partner.darfZugangEinrichten, true);
+  assert.equal((await mit.api.getPartnerInfo()).partner.canCreateAccess, true);
 });
 
 test('Partner: eine wiederholte Anlage meldet sich als solche', async () => {
-  const { api } = stelle(erfolg({ customerId: 'cust_1', wiederholt: true, zugang: {} }));
-  const r = await api.createPartnerCustomer({ appId: 'app_1', betrieb: BETRIEB as never, idempotencyKey: 'x' });
-  assert.equal(r.wiederholt, true);
+  const { api } = stelle(erfolg({ customerId: 'cust_1', replayed: true, access: {} }));
+  const r = await api.createPartnerCustomer({ appId: 'app_1', business: BETRIEB as never, idempotencyKey: 'x' });
+  assert.equal(r.replayed, true);
 });
 
 test('Partner: fehlende Pflichtangaben gehen gar nicht erst raus', async () => {
   const { api, gesehen } = stelle(erfolg({}));
   await assert.rejects(
-    () => api.createPartnerCustomer({ appId: '', betrieb: BETRIEB as never }),
+    () => api.createPartnerCustomer({ appId: '', business: BETRIEB as never }),
     (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'request',
   );
   await assert.rejects(() => api.getPartnerCustomer('  '), KasseneckValidationError);
@@ -207,17 +207,17 @@ test('Partner: fehlende Pflichtangaben gehen gar nicht erst raus', async () => {
 test('Partner: listPartnerCustomers seitenweise, mit Grenzen fuer limit', async () => {
   const { api, gesehen } = stelle(
     erfolg({
-      kunden: [{ customerId: 'cust_1', firma: 'A', status: 'live', appId: 'app_1', env: 'live', createdAt: 5 }],
+      customers: [{ customerId: 'cust_1', companyName: 'A', status: 'live', appId: 'app_1', env: 'live', createdAt: 5 }],
       cursor: 'weiter',
-      gesamt: 12,
+      total: 12,
     }),
   );
   const r = await api.listPartnerCustomers({ status: 'live', limit: 50, cursor: 'a' });
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { status: 'live', limit: 50, cursor: 'a' });
   assert.equal(r.cursor, 'weiter');
-  assert.equal(r.gesamt, 12);
-  assert.equal(r.kunden[0]?.customerId, 'cust_1');
-  assert.equal(r.kunden[0]?.avv, null, 'ohne avv-Feld darf kein Stand erfunden werden');
+  assert.equal(r.total, 12);
+  assert.equal(r.customers[0]?.customerId, 'cust_1');
+  assert.equal(r.customers[0]?.avv, null, 'ohne avv-Feld darf kein Stand erfunden werden');
   await assert.rejects(() => api.listPartnerCustomers({ limit: 0 }), KasseneckValidationError);
   await assert.rejects(() => api.listPartnerCustomers({ limit: 201 }), KasseneckValidationError);
 });
@@ -225,24 +225,24 @@ test('Partner: listPartnerCustomers seitenweise, mit Grenzen fuer limit', async 
 test('Partner: getPartnerCustomer liest die Huelle "kunde" und faellt nicht ueber null-Felder', async () => {
   const { api } = stelle(
     erfolg({
-      kunde: {
+      customer: {
         customerId: 'cust_1',
-        firma: 'A',
-        status: 'signatur_bereit',
+        companyName: 'A',
+        status: 'signature_ready',
         env: 'test',
         liveEnabled: false,
         appId: null,
-        angelegtVia: 'api',
-        betrieb: { company_name: 'A' },
-        fon: { eingerichtet: true, verifiedAt: 99 },
-        zugang: null,
+        createdVia: 'api',
+        business: { companyName: 'A' },
+        fon: { configured: true, verifiedAt: 99 },
+        access: null,
       },
     }),
   );
   const k = await api.getPartnerCustomer('cust_1');
-  assert.equal(k.status, 'signatur_bereit');
-  assert.equal(k.fon.eingerichtet, true);
-  assert.equal(k.zugang, null);
+  assert.equal(k.status, 'signature_ready');
+  assert.equal(k.fon.configured, true);
+  assert.equal(k.access, null);
   assert.equal(k.appId, null);
 });
 
@@ -268,83 +268,83 @@ test('Partner: sendPartnerCustomerFonLink gibt den Empfaenger maskiert zurueck',
 test('Partner: requestCustomerSignature liefert den Antrag; ein zweiter Ruf den laufenden', async () => {
   const { api, gesehen } = stelle(
     erfolg({
-      antrag: { requestId: 'req_1', status: 'beantragt', statusText: 'Beantragt', art: 'signaturkarte', historie: [] },
-      wiederholt: true,
-      hinweis: 'Es lief bereits ein Antrag.',
+      request: { requestId: 'req_1', status: 'requested', statusText: 'Beantragt', art: 'signature_card', history: [] },
+      replayed: true,
+      note: 'Es lief bereits ein Antrag.',
     }),
   );
   const r = await api.requestCustomerSignature('cust_1');
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { customerId: 'cust_1' });
-  assert.equal(r.antrag.requestId, 'req_1');
-  assert.equal(r.wiederholt, true);
-  assert.equal(r.hinweis, 'Es lief bereits ein Antrag.');
+  assert.equal(r.request.requestId, 'req_1');
+  assert.equal(r.replayed, true);
+  assert.equal(r.note, 'Es lief bereits ein Antrag.');
 
   // Eine WEITERE Signatur entsteht nur ausdruecklich — sonst bliebe der Aufruf
   // nicht folgenlos wiederholbar.
-  const weiter = stelle(erfolg({ antrag: { requestId: 'req_2', historie: [] }, wiederholt: false }));
-  await weiter.api.requestCustomerSignature('cust_1', { weitere: true });
-  assert.deepEqual(rumpfVon(weiter.gesehen[0]!).params, { customerId: 'cust_1', weitere: true });
+  const weiter = stelle(erfolg({ request: { requestId: 'req_2', history: [] }, replayed: false }));
+  await weiter.api.requestCustomerSignature('cust_1', { additional: true });
+  assert.deepEqual(rumpfVon(weiter.gesehen[0]!).params, { customerId: 'cust_1', additional: true });
 });
 
 test('Partner: getCustomerSignatureStatus trennt "bereit" von "registriert"', async () => {
   const { api } = stelle(
     erfolg({
-      signatur: { bereit: false, signatureId: null, vdaId: null },
-      antraege: [{ requestId: 'req_1', status: 'registriert', statusText: 'Bei FinanzOnline registriert', historie: [] }],
-      fon: { vorhanden: true, geprueftAt: 7 },
+      signatur: { ready: false, signatureId: null, vdaId: null },
+      requests: [{ requestId: 'req_1', status: 'registered', statusText: 'Bei FinanzOnline registriert', history: [] }],
+      fon: { present: true, verifiedAt: 7 },
     }),
   );
   const s = await api.getCustomerSignatureStatus('cust_1');
-  assert.equal(s.signatur.bereit, false);
-  assert.equal(s.antraege[0]?.status, 'registriert');
-  assert.equal(s.fon.vorhanden, true);
+  assert.equal(s.signatur.ready, false);
+  assert.equal(s.requests[0]?.status, 'registered');
+  assert.equal(s.fon.present, true);
 });
 
 test('Partner: createCustomerCashregister darf vor der Signatur laufen und sagt, warum nichts geschah', async () => {
   const { api, gesehen } = stelle(
     erfolg({
-      kasse: {
+      cashregister: {
         cashregisterId: 'kasse_1',
         name: 'Theke',
-        status: 'entwurf',
+        status: 'draft',
         statusText: 'Entwurf',
-        automatisch: true,
-        schritt: 'signatur',
-        schrittText: 'Signaturkarte zuweisen',
-        erledigt: [],
-        schritte: [{ key: 'signatur', text: 'Signaturkarte zuweisen' }],
-        versuche: 0,
+        automatic: true,
+        step: 'signature',
+        stepText: 'Signaturkarte zuweisen',
+        completedSteps: [],
+        steps: [{ key: 'signature', text: 'Signaturkarte zuweisen' }],
+        attempts: 0,
       },
-      inbetriebnahme: { gestartet: false, ok: null, schritt: null, grund: 'signature_not_ready' },
+      activation: { started: false, ok: null, step: null, reason: 'signature_not_ready' },
     }),
   );
-  const r = await api.createCustomerCashregister({ customerId: 'cust_1', signaturId: 'sig_1' });
+  const r = await api.createCustomerCashregister({ customerId: 'cust_1', signatureRequestId: 'sig_1' });
   // KEIN `name`: Kassennamen vergibt Kasseneck, ein gesendetes name waere ein
   // validation-Fehler.
-  assert.deepEqual(rumpfVon(gesehen[0]!).params, { customerId: 'cust_1', signaturId: 'sig_1' });
-  assert.equal(r.kasse.status, 'entwurf');
-  assert.equal(r.kasse.automatisch, true);
-  assert.equal(r.inbetriebnahme.grund, 'signature_not_ready');
-  assert.equal(r.inbetriebnahme.ok, null, 'ok:null heisst "nicht gelaufen" und darf nicht zu false werden');
+  assert.deepEqual(rumpfVon(gesehen[0]!).params, { customerId: 'cust_1', signatureRequestId: 'sig_1' });
+  assert.equal(r.cashregister.status, 'draft');
+  assert.equal(r.cashregister.automatic, true);
+  assert.equal(r.activation.reason, 'signature_not_ready');
+  assert.equal(r.activation.ok, null, 'ok:null heisst "nicht gelaufen" und darf nicht zu false werden');
 });
 
 test('Partner: activateCashregister meldet eine bereits laufende Kasse als unveraendert', async () => {
   const { api, gesehen } = stelle(
-    erfolg({ kasse: { cashregisterId: 'kasse_1', status: 'live', statusText: 'In Betrieb', schritt: null }, unveraendert: true }),
+    erfolg({ cashregister: { cashregisterId: 'kasse_1', status: 'live', statusText: 'In Betrieb', step: null }, unchanged: true }),
   );
   const r = await api.activateCashregister('cust_1', 'kasse_1');
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { customerId: 'cust_1', cashregisterId: 'kasse_1' });
-  assert.equal(r.unveraendert, true);
-  assert.equal(r.kasse.schritt, null);
+  assert.equal(r.unchanged, true);
+  assert.equal(r.cashregister.step, null);
 });
 
 test('Partner: listCustomerCashregisters bringt nie Token', async () => {
   const { api } = stelle(
-    erfolg({ customerId: 'cust_1', kassen: [{ cashregisterId: 'kasse_1', status: 'live' }], signaturBereit: true }),
+    erfolg({ customerId: 'cust_1', cashregisters: [{ cashregisterId: 'kasse_1', status: 'live' }], signatureReady: true }),
   );
   const r = await api.listCustomerCashregisters('cust_1');
-  assert.equal(r.signaturBereit, true);
-  assert.equal('cashregisterToken' in (r.kassen[0] as object), false);
+  assert.equal(r.signatureReady, true);
+  assert.equal('cashregisterToken' in (r.cashregisters[0] as object), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -354,18 +354,18 @@ test('Partner: listCustomerCashregisters bringt nie Token', async () => {
 test('Partner: createPartnerWebhook liefert das Secret — und wirft, wenn es fehlt', async () => {
   const { api, gesehen } = stelle(
     erfolg({
-      webhook: { webhookId: 'wh_1', url: 'https://api.firma.at/hook', events: ['signature.ready'], aktiv: true },
+      webhook: { webhookId: 'wh_1', url: 'https://api.companyName.at/hook', events: ['signature.ready'], active: true },
       secret: 'whsec_1',
     }),
   );
-  const r = await api.createPartnerWebhook({ url: 'https://api.firma.at/hook', events: ['signature.ready'] });
-  assert.deepEqual(rumpfVon(gesehen[0]!).params, { url: 'https://api.firma.at/hook', events: ['signature.ready'] });
+  const r = await api.createPartnerWebhook({ url: 'https://api.companyName.at/hook', events: ['signature.ready'] });
+  assert.deepEqual(rumpfVon(gesehen[0]!).params, { url: 'https://api.companyName.at/hook', events: ['signature.ready'] });
   assert.equal(r.secret, 'whsec_1');
-  assert.equal(r.webhook.aktiv, true);
+  assert.equal(r.webhook.active, true);
 
   const ohne = stelle(erfolg({ webhook: { webhookId: 'wh_1' } }));
   await assert.rejects(
-    () => ohne.api.createPartnerWebhook({ url: 'https://api.firma.at/hook', events: ['webhook.test'] }),
+    () => ohne.api.createPartnerWebhook({ url: 'https://api.companyName.at/hook', events: ['webhook.test'] }),
     (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response',
   );
 });
@@ -373,7 +373,7 @@ test('Partner: createPartnerWebhook liefert das Secret — und wirft, wenn es fe
 test('Partner: ein Webhook ohne Ereignis geht nicht raus', async () => {
   const { api, gesehen } = stelle(erfolg({}));
   await assert.rejects(
-    () => api.createPartnerWebhook({ url: 'https://api.firma.at/hook', events: [] }),
+    () => api.createPartnerWebhook({ url: 'https://api.companyName.at/hook', events: [] }),
     KasseneckValidationError,
   );
   assert.equal(gesehen.length, 0);
@@ -381,18 +381,18 @@ test('Partner: ein Webhook ohne Ereignis geht nicht raus', async () => {
 
 test('Partner: listPartnerWebhooks bringt den Ereignis-Katalog mit', async () => {
   const { api } = stelle(
-    erfolg({ webhooks: [{ webhookId: 'wh_1', aktiv: false }], ereignisse: [{ key: 'webhook.test', text: 'Testereignis' }] }),
+    erfolg({ webhooks: [{ webhookId: 'wh_1', active: false }], events: [{ key: 'webhook.test', text: 'Testereignis' }] }),
   );
   const r = await api.listPartnerWebhooks();
-  assert.equal(r.webhooks[0]?.aktiv, false);
-  assert.equal(r.ereignisse[0]?.key, 'webhook.test');
+  assert.equal(r.webhooks[0]?.active, false);
+  assert.equal(r.events[0]?.key, 'webhook.test');
 });
 
 test('Partner: updatePartnerWebhook verlangt eine Aenderung, deletePartnerWebhook eine Kennung', async () => {
-  const { api, gesehen } = stelle(erfolg({ webhook: { webhookId: 'wh_1', aktiv: false } }), erfolg({ webhookId: 'wh_1', geloescht: true }));
-  const w = await api.updatePartnerWebhook('wh_1', { aktiv: false });
-  assert.deepEqual(rumpfVon(gesehen[0]!).params, { webhookId: 'wh_1', patch: { aktiv: false } });
-  assert.equal(w.aktiv, false);
+  const { api, gesehen } = stelle(erfolg({ webhook: { webhookId: 'wh_1', active: false } }), erfolg({ webhookId: 'wh_1', geloescht: true }));
+  const w = await api.updatePartnerWebhook('wh_1', { active: false });
+  assert.deepEqual(rumpfVon(gesehen[0]!).params, { webhookId: 'wh_1', patch: { active: false } });
+  assert.equal(w.active, false);
   assert.equal(await api.deletePartnerWebhook('wh_1'), 'wh_1');
   await assert.rejects(() => api.updatePartnerWebhook('wh_1', {}), KasseneckValidationError);
   await assert.rejects(() => api.deletePartnerWebhook(''), KasseneckValidationError);
@@ -400,18 +400,18 @@ test('Partner: updatePartnerWebhook verlangt eine Aenderung, deletePartnerWebhoo
 
 test('Partner: sendPartnerWebhookTest und listPartnerWebhookDeliveries', async () => {
   const { api, gesehen } = stelle(
-    erfolg({ eventId: 'evt_1', zustellungen: [{ deliveryId: 'dlv_1' }] }),
+    erfolg({ eventId: 'evt_1', deliveries: [{ deliveryId: 'dlv_1' }] }),
     erfolg({
-      zustellungen: [
+      deliveries: [
         {
           deliveryId: 'dlv_1',
           webhookId: 'wh_1',
           event: 'webhook.test',
           eventId: 'evt_1',
-          status: 'fehlgeschlagen',
-          versuche: 6,
+          status: 'failed',
+          attempts: 6,
           statusCode: 500,
-          antwort: 'boom',
+          response: 'boom',
         },
       ],
     }),
@@ -421,7 +421,7 @@ test('Partner: sendPartnerWebhookTest und listPartnerWebhookDeliveries', async (
   assert.equal(t.ereignis, 'webhook.test', 'ohne Angabe ist die Probe die Leitungsprobe');
   const z = await api.listPartnerWebhookDeliveries({ webhookId: 'wh_1', limit: 10 });
   assert.deepEqual(rumpfVon(gesehen[1]!).params, { webhookId: 'wh_1', limit: 10 });
-  assert.equal(z[0]?.status, 'fehlgeschlagen');
+  assert.equal(z[0]?.status, 'failed');
   assert.equal(z[0]?.statusCode, 500);
   await assert.rejects(() => api.listPartnerWebhookDeliveries({ limit: 999 }), KasseneckValidationError);
 });
@@ -436,7 +436,7 @@ test('Partner: sendPartnerWebhookTest und listPartnerWebhookDeliveries', async (
  */
 test('Partner: eine Probe kann jedes abonnierte Ereignis ausloesen, nicht nur webhook.test', async () => {
   const { api, gesehen } = stelle(
-    erfolg({ eventId: 'evt_2', ereignis: 'signature.ready', zustellungen: [{ deliveryId: 'dlv_2' }] }),
+    erfolg({ eventId: 'evt_2', ereignis: 'signature.ready', deliveries: [{ deliveryId: 'dlv_2' }] }),
   );
   const t = await api.sendPartnerWebhookTest('wh_1', 'signature.ready');
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { webhookId: 'wh_1', event: 'signature.ready' });
@@ -445,7 +445,7 @@ test('Partner: eine Probe kann jedes abonnierte Ereignis ausloesen, nicht nur we
 
   // Ohne Ereignis darf auch keines mitgehen: ein leeres `event` waere fuer den
   // Server ein unbekanntes Ereignis (validation) statt der Leitungsprobe.
-  const leer = stelle(erfolg({ eventId: 'evt_3', zustellungen: [] }));
+  const leer = stelle(erfolg({ eventId: 'evt_3', deliveries: [] }));
   await leer.api.sendPartnerWebhookTest('wh_1', '   ');
   assert.deepEqual(rumpfVon(leer.gesehen[0]!).params, { webhookId: 'wh_1' });
 });
@@ -557,9 +557,9 @@ test('Partner: die Beilagen eines Fehlers kommen mit — schritt, rc, retryAfter
   const { api } = stelle(
     fehler('Die Inbetriebnahme ist haengen geblieben.', {
       code: 'activation_failed',
-      schritt: 'uebermitteln',
+      step: 'transmit_start_receipt',
       rc: 'B13',
-      kasse: { cashregisterId: 'kasse_1', status: 'fehlgeschlagen' },
+      cashregister: { cashregisterId: 'kasse_1', status: 'failed' },
     }),
   );
   try {
@@ -568,11 +568,11 @@ test('Partner: die Beilagen eines Fehlers kommen mit — schritt, rc, retryAfter
   } catch (e) {
     const f = e as KasseneckApiError;
     assert.equal(f.code, 'activation_failed');
-    assert.equal(f.details['schritt'], 'uebermitteln');
+    assert.equal(f.details['step'], 'transmit_start_receipt');
     assert.equal(f.details['rc'], 'B13');
     // Auch die verschachtelte Beilage ueberlebt das Sieb — sie sagt dem
     // Aufrufer, wo genau die Kette steht.
-    assert.equal((f.details['kasse'] as Record<string, unknown>)['status'], 'fehlgeschlagen');
+    assert.equal((f.details['cashregister'] as Record<string, unknown>)['status'], 'failed');
     assert.equal(f.serverMessage, 'Die Inbetriebnahme ist haengen geblieben.');
   }
 });
@@ -581,14 +581,14 @@ test('Partner: validation liefert Feld und Grund, rate_limited die Wartezeit', a
   const v = stelle(
     fehler('Bitte Eingaben pruefen.', {
       code: 'validation',
-      errors: [{ field: 'tax_details.taxnr', message: 'Pruefziffer stimmt nicht.' }],
+      errors: [{ field: 'taxDetails.taxNumber', message: 'Pruefziffer stimmt nicht.' }],
     }),
   );
   try {
-    await v.api.createPartnerCustomer({ appId: 'app_1', betrieb: BETRIEB as never });
+    await v.api.createPartnerCustomer({ appId: 'app_1', business: BETRIEB as never });
     assert.fail('haette werfen muessen');
   } catch (e) {
-    assert.deepEqual(partnerFeldFehler(e), [{ field: 'tax_details.taxnr', message: 'Pruefziffer stimmt nicht.' }]);
+    assert.deepEqual(partnerFeldFehler(e), [{ field: 'taxDetails.taxNumber', message: 'Pruefziffer stimmt nicht.' }]);
   }
 
   const r = stelle(fehler('Zu viele Aufrufe.', { code: 'rate_limited', retryAfterSec: 42 }));
@@ -649,10 +649,10 @@ test('Partner: ein unbekanntes Betriebsfeld faellt hier auf, mit demselben Pfad 
       ...BETRIEB,
       iban: 'AT61 1904 3002 3457 3201',
       address: { ...BETRIEB.address, land: 'AT' },
-      tax_details: { ...BETRIEB.tax_details, ustid: 'ATU12345675' },
+      taxDetails: { ...BETRIEB.taxDetails, ustid: 'ATU12345675' },
       contacts: [{ ...BETRIEB.contacts[0], rolle: 'chef' }, { name: 'B', email: 'b@c.at' }],
     }).sort(),
-    ['address.land', 'contacts.0.rolle', 'iban', 'tax_details.ustid'],
+    ['address.land', 'contacts.0.rolle', 'iban', 'taxDetails.ustid'],
   );
 
   // Der Pfad traegt den INDEX des Kontakts, nicht nur "contacts" — sonst
@@ -675,32 +675,32 @@ test('Partner: die Feldliste deckt sich mit BETRIEB_FELDER des Backends', () => 
   // fehlt, laesst sich nicht senden; eines zu viel gaukelt ein Feld vor, das
   // der Server abweist.
   assert.deepEqual([...BETRIEB_FELDER], [
-    'company_name',
-    'rechtsform',
-    'bundesland',
-    'branche',
-    'firmenbuch',
-    'gericht',
+    'companyName',
+    'legalForm',
+    'state',
+    'industry',
+    'companyRegister',
+    'court',
     'web',
     'phone',
     'email',
-    'billing_email',
+    'billingEmail',
     'address.street',
     'address.number',
     'address.zip',
     'address.city',
-    'tax_details.taxnr',
-    'tax_details.uid',
-    'tax_details.gln',
-    'tax_details.is_small_business',
+    'taxDetails.taxNumber',
+    'taxDetails.vatId',
+    'taxDetails.gln',
+    'taxDetails.smallBusiness',
     'contacts[].name',
     'contacts[].email',
     'contacts[].phone',
     'contacts[].roles',
-    'steuerberater.name',
-    'steuerberater.email',
-    'steuerberater.phone',
-    'steuerberater.kontakt_ok',
+    'taxAdvisor.name',
+    'taxAdvisor.email',
+    'taxAdvisor.phone',
+    'taxAdvisor.mayContact',
   ]);
   // Jedes Feld des Typs Betrieb steht auch in der Liste — sonst haette der
   // Typ ein Feld, das die Laufzeitpruefung als unbekannt meldete.
@@ -710,7 +710,7 @@ test('Partner: die Feldliste deckt sich mit BETRIEB_FELDER des Backends', () => 
 test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => {
   const keys = PARTNER_ABLAUF.map((s) => s.key);
   // OHNE Vertragsschritt: Vertraege wirken im Partner-Weg nicht mehr.
-  assert.deepEqual(keys, ['betrieb', 'fon', 'signatur', 'kasse', 'zugangsdaten', 'belege']);
+  assert.deepEqual(keys, ['business', 'fon', 'signature', 'cashregister', 'zugangsdaten', 'belege']);
   // Jeder Aufruf der Kette ist einer, den dieses Paket wirklich kennt — ein
   // Schritt, der auf einen erfundenen Endpunkt zeigt, waere schlimmer als
   // keiner.
@@ -718,10 +718,10 @@ test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => 
     if (schritt.aufruf === null) continue;
     assert.ok((AUFRUFE as readonly string[]).includes(schritt.aufruf), `unbekannter Aufruf: ${schritt.aufruf}`);
   }
-  assert.equal(naechsterSchritt('angelegt')?.key, 'fon');
-  assert.equal(naechsterSchritt('signatur_bereit')?.key, 'kasse');
+  assert.equal(naechsterSchritt('created')?.key, 'fon');
+  assert.equal(naechsterSchritt('signature_ready')?.key, 'cashregister');
   assert.equal(naechsterSchritt('live')?.key, 'zugangsdaten');
-  assert.equal(naechsterSchritt('gesperrt'), null);
+  assert.equal(naechsterSchritt('blocked'), null);
   assert.equal(naechsterSchritt('etwas_neues'), null);
 });
 

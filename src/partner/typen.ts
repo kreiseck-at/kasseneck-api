@@ -52,11 +52,11 @@ export interface PartnerApp {
   name: string;
   status: string;
   platform: string | null;
-  verteilungen: unknown[];
+  distributions: unknown[];
   platforms: string[];
   symbol: { url: string } | null;
-  veroeffentlichung: boolean;
-  listungErlaubt: boolean;
+  published: boolean;
+  listingAllowed: boolean;
 }
 
 export interface PartnerInfo {
@@ -67,11 +67,11 @@ export interface PartnerInfo {
     /**
      * Darf dieser Partner fuer seine Betriebe einen Zugang zum Kundenpanel
      * einrichten lassen? **Vorgabe `false`** — die Freischaltung setzt
-     * Kasseneck je Partner. Ohne sie antworten `zugang:{einladen:true}` und
+     * Kasseneck je Partner. Ohne sie antworten `access:{invite:true}` und
      * `resendPartnerCustomerInvite` mit `zugang_nicht_erlaubt`, und es
      * entsteht nichts, auch kein Betrieb.
      */
-    darfZugangEinrichten: boolean;
+    canCreateAccess: boolean;
   };
   env: PartnerEnv;
   scopes: PartnerScope[];
@@ -109,8 +109,8 @@ export interface BetriebAdresse {
 
 export interface BetriebSteuer {
   /** Steuernummer im Format `12-345/6789`; die Pruefziffer wird geprueft. */
-  taxnr: string;
-  is_small_business: boolean;
+  taxNumber: string;
+  smallBusiness: boolean;
   /** UID, z. B. `ATU12345675`. */
   uid?: string;
   /** GLN, 13 Ziffern. */
@@ -128,7 +128,7 @@ export interface BetriebSteuerberater {
   name: string;
   email: string;
   phone: string;
-  kontakt_ok: boolean;
+  mayContact: boolean;
 }
 
 /**
@@ -146,29 +146,29 @@ export interface BetriebSteuerberater {
  * [unbekannteBetriebsfelder] dieselbe Frage zur Laufzeit.
  */
 export interface Betrieb {
-  company_name: string;
-  rechtsform: Rechtsform;
+  companyName: string;
+  legalForm: Rechtsform;
   /** Anmeldung des Betriebs im Kasseneck-Panel; darf dort noch keinen Zugang haben. */
   email: string;
   address: BetriebAdresse;
-  bundesland: Bundesland;
-  tax_details: BetriebSteuer;
+  state: Bundesland;
+  taxDetails: BetriebSteuer;
   /** Mindestens einer, hoechstens zehn. */
   contacts: BetriebKontakt[];
-  billing_email?: string;
+  billingEmail?: string;
   /** Firmenbuchnummer, z. B. `FN 123456 a`. */
-  firmenbuch?: string;
+  companyRegister?: string;
   /** Gericht: Code (`LG_SALZBURG`), amtlicher Name oder Freitext. */
-  gericht?: string;
+  court?: string;
   web?: string;
   phone?: string;
-  branche?: string;
-  steuerberater?: BetriebSteuerberater;
+  industry?: string;
+  taxAdvisor?: BetriebSteuerberater;
 }
 
 export interface CreateCustomerOptions {
   appId: string;
-  betrieb: Betrieb;
+  business: Betrieb;
   /**
    * Eigener Schluessel gegen Doppelanlage, hoechstens 120 Zeichen. Derselbe
    * Schluessel liefert die gespeicherte Antwort zurueck — auch bei abweichendem
@@ -176,16 +176,16 @@ export interface CreateCustomerOptions {
    */
   idempotencyKey?: string;
   /**
-   * `einladen:true` legt zusaetzlich einen Zugang zum Kundenpanel an und
+   * `invite:true` legt zusaetzlich einen Zugang zum Kundenpanel an und
    * schickt die Einladung an `betrieb.email`. **Vorgabe ist `false`:** viele
    * Betriebe arbeiten ausschliesslich in der App des Partners, und ein
    * stillschweigend erzeugter Login samt Mail waere dort etwas, das niemand
    * erwartet. Nachholen laesst er sich mit `resendPartnerCustomerInvite`.
    *
-   * Nur erlaubt, wenn `getPartnerInfo().partner.darfZugangEinrichten` gilt —
+   * Nur erlaubt, wenn `getPartnerInfo().partner.canCreateAccess` gilt —
    * sonst `zugang_nicht_erlaubt`, und es entsteht nichts, auch kein Betrieb.
    */
-  zugang?: { einladen: boolean };
+  access?: { invite: boolean };
   /**
    * In welcher Umgebung der Betrieb entsteht. Ohne Angabe entscheidet der
    * Schluessel.
@@ -203,25 +203,25 @@ export interface CreateCustomerOptions {
 }
 
 export type KundenStatus =
-  | 'angelegt'
-  | 'fon_eingerichtet'
-  | 'signatur_beantragt'
-  | 'signatur_bereit'
-  | 'kasse_angelegt'
+  | 'created'
+  | 'fon_configured'
+  | 'signature_requested'
+  | 'signature_ready'
+  | 'cashregister_created'
   | 'live'
-  | 'gesperrt'
+  | 'blocked'
   | (string & {});
 
 export interface CreateCustomerResult {
   customerId: string;
   status: KundenStatus;
   env: PartnerEnv;
-  firma: string;
+  companyName: string;
   appId: string;
-  zugang: { eingeladen: boolean; sentTo: string | null };
-  naechsteSchritte: string[];
+  access: { invited: boolean; sentTo: string | null };
+  nextSteps: string[];
   /** `true`, wenn derselbe `idempotencyKey` schon einmal ankam. */
-  wiederholt: boolean;
+  replayed: boolean;
 }
 
 /**
@@ -237,13 +237,13 @@ export interface CreateCustomerResult {
 export interface AvvStand {
   status: string;
   version: string | null;
-  bestaetigtAt: number | null;
-  modus: string | null;
+  confirmedAt: number | null;
+  mode: string | null;
 }
 
 export interface KundenZeile {
   customerId: string;
-  firma: string;
+  companyName: string;
   status: KundenStatus;
   appId: string | null;
   env: PartnerEnv;
@@ -264,20 +264,20 @@ export interface ListCustomersOptions {
 }
 
 export interface KundenListe {
-  kunden: KundenZeile[];
+  customers: KundenZeile[];
   /** Weiter mit diesem Wert als `cursor`; `null` heisst: das war alles. */
   cursor: string | null;
-  gesamt: number;
+  total: number;
 }
 
 export interface Kunde extends KundenZeile {
   statusAt: number | null;
   liveEnabled: boolean;
-  angelegtAt: number | null;
-  angelegtVia: string | null;
-  betrieb: Record<string, unknown>;
-  fon: { eingerichtet: boolean; verifiedAt: number | null };
-  zugang: { email: string | null; eingeladenAt: number | null; angenommenAt: number | null } | null;
+  createdAt: number | null;
+  createdVia: string | null;
+  business: Record<string, unknown>;
+  fon: { configured: boolean; verifiedAt: number | null };
+  access: { email: string | null; invitedAt: number | null; acceptedAt: number | null } | null;
 }
 
 export interface FonLinkResult {
@@ -297,19 +297,19 @@ export interface FonLinkResult {
  * Testumgebung wird ohne `registriert` direkt `bereit` erreicht.
  */
 export type SignaturAntragStatus =
-  | 'beantragt'
-  | 'zugeteilt'
-  | 'registriert'
-  | 'bereit'
-  | 'fehlgeschlagen'
-  | 'storniert'
+  | 'requested'
+  | 'assigned'
+  | 'registered'
+  | 'ready'
+  | 'failed'
+  | 'cancelled'
   | (string & {});
 
 export interface SignaturHistorieEintrag {
   von: string | null;
   nach: string;
   at: number;
-  grund: string | null;
+  reason: string | null;
 }
 
 export interface SignaturAntrag {
@@ -319,24 +319,24 @@ export interface SignaturAntrag {
   art: string;
   vdaId: string | null;
   signatureId: string | null;
-  fehler: { code: string | null; meldung: string | null; rc: string | null } | null;
-  angefordertVia: string | null;
+  error: { code: string | null; message: string | null; rc: string | null } | null;
+  requestedVia: string | null;
   createdAt: number | null;
   updatedAt: number | null;
-  historie: SignaturHistorieEintrag[];
+  history: SignaturHistorieEintrag[];
 }
 
 export interface RequestSignatureResult {
-  antrag: SignaturAntrag;
+  request: SignaturAntrag;
   /** `true`, wenn schon ein Antrag lief — dann ist es der laufende. */
-  wiederholt: boolean;
-  hinweis: string | null;
+  replayed: boolean;
+  note: string | null;
 }
 
 export interface SignaturStand {
-  signatur: { bereit: boolean; signatureId: string | null; vdaId: string | null };
-  antraege: SignaturAntrag[];
-  fon: { vorhanden: boolean; geprueftAt: number | null };
+  signatur: { ready: boolean; signatureId: string | null; vdaId: string | null };
+  requests: SignaturAntrag[];
+  fon: { present: boolean; verifiedAt: number | null };
 }
 
 // ---------------------------------------------------------------------------
@@ -344,9 +344,9 @@ export interface SignaturStand {
 // ---------------------------------------------------------------------------
 
 /** Die Schritte der Inbetriebnahme, in dieser Reihenfolge. */
-export type KassenSchritt = 'signatur' | 'kasse_registrieren' | 'startbeleg' | 'uebermitteln' | (string & {});
+export type KassenSchritt = 'signatur' | 'register_cashregister' | 'start_receipt' | 'transmit_start_receipt' | (string & {});
 
-export type KassenStatus = 'entwurf' | 'laeuft' | 'live' | 'fehlgeschlagen' | (string & {});
+export type KassenStatus = 'draft' | 'laeuft' | 'live' | 'failed' | (string & {});
 
 export interface Kasse {
   cashregisterId: string;
@@ -354,20 +354,20 @@ export interface Kasse {
   status: KassenStatus;
   statusText: string;
   /** `true`: die Kasse geht von selbst live, sobald die Signatur bereit ist. */
-  automatisch: boolean;
+  automatic: boolean;
   /** Der naechste offene Schritt; `null`, wenn die Kasse live ist. */
-  schritt: KassenSchritt | null;
-  schrittText: string | null;
-  erledigt: KassenSchritt[];
+  step: KassenSchritt | null;
+  stepText: string | null;
+  completedSteps: KassenSchritt[];
   /** Die Schritte, die fuer genau diese Kasse gelten (Testumgebung: weniger). */
-  schritte: { key: KassenSchritt; text: string }[];
+  steps: { key: KassenSchritt; text: string }[];
   signatureId: string | null;
-  versuche: number;
-  letzterFehler: {
+  attempts: number;
+  lastError: {
     code: string | null;
-    meldung: string | null;
+    message: string | null;
     rc: string | null;
-    schritt: KassenSchritt | null;
+    step: KassenSchritt | null;
     at: number | null;
   } | null;
   createdAt: number | null;
@@ -376,44 +376,44 @@ export interface Kasse {
 export interface CreateCashregisterOptions {
   customerId: string;
   /** Vorgabe `true`: die Kasse geht von selbst live, sobald die Signatur da ist. */
-  automatisch?: boolean;
+  automatic?: boolean;
   /**
    * Auf welche Signatur sich die Kasse bezieht. **Jede Kasse bezieht sich auf
    * eine**; ohne eine einzige entsteht keine (`signature_missing`).
    *
    * Hat der Betrieb genau eine, ist sie vorausgewaehlt und dieses Feld
    * ueberfluessig. Bei mehreren muss es dastehen, sonst `signature_ambiguous`
-   * samt `data.auswahl[]`; eine fremde Kennung ist `signature_unknown`. Die
+   * samt `data.choices[]`; eine fremde Kennung ist `signature_unknown`. Die
    * Kennungen nennt `getCustomerSignatureStatus`.
    *
    * **Einen Namen gibt es hier nicht.** Kassennamen vergibt Kasseneck, sie
    * sind gleich der `cashregisterId`; ein mitgesendetes `name` waere ein
    * `validation`-Fehler.
    */
-  signaturId?: string;
+  signatureRequestId?: string;
 }
 
 export interface CreateCashregisterResult {
-  kasse: Kasse;
-  inbetriebnahme: {
-    gestartet: boolean;
+  cashregister: Kasse;
+  activation: {
+    started: boolean;
     ok: boolean | null;
-    schritt: KassenSchritt | null;
+    step: KassenSchritt | null;
     /** `signature_not_ready` oder `automatik_aus`, wenn nicht gestartet wurde. */
-    grund: string | null;
+    reason: string | null;
   };
 }
 
 export interface ActivateCashregisterResult {
-  kasse: Kasse;
+  cashregister: Kasse;
   /** `true`: die Kasse war schon live, es wurde nichts getan. */
-  unveraendert: boolean;
+  unchanged: boolean;
 }
 
 export interface KassenListe {
   customerId: string;
-  kassen: Kasse[];
-  signaturBereit: boolean;
+  cashregisters: Kasse[];
+  signatureReady: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,10 +446,10 @@ export interface CustomerCashregisterCredential {
  */
 export interface CustomerCredentials {
   customerId: string;
-  firma: string;
+  companyName: string;
   env: PartnerEnv;
   /** Bearer-Schluessel des Betriebs (`kr_…`). Verschluesselt speichern. */
   apiKey: KasseneckSecret;
-  kassen: CustomerCashregisterCredential[];
-  hinweis: string;
+  cashregisters: CustomerCashregisterCredential[];
+  note: string;
 }

@@ -15,7 +15,7 @@
  * bleibt deswegen stehen.
  *
  * Zwei Dinge laufen bewusst **parallel**: der Signaturantrag und das Anlegen
- * der Kasse. Eine mit `automatisch:true` angelegte Kasse wartet, bis die
+ * der Kasse. Eine mit `automatic:true` angelegte Kasse wartet, bis die
  * Signatur bereit ist, und geht dann von selbst live. Der Kundenstatus nennt
  * darum immer nur den **weitesten erreichten** Meilenstein, nicht die einzige
  * laufende Arbeit.
@@ -44,7 +44,7 @@ export interface AblaufSchritt {
  */
 export const PARTNER_ABLAUF: readonly AblaufSchritt[] = [
   {
-    key: 'betrieb',
+    key: 'business',
     text: 'Betrieb anlegen (idempotencyKey = eigene Kundennummer).',
     aufruf: 'createPartnerCustomer',
     wartetAuf: 'customer.created',
@@ -58,16 +58,16 @@ export const PARTNER_ABLAUF: readonly AblaufSchritt[] = [
     fehltCode: 'fon_missing',
   },
   {
-    key: 'signatur',
+    key: 'signature',
     text: 'Signatureinheit beantragen. Kasseneck weist eine Karte zu und meldet sie bei FinanzOnline an.',
     aufruf: 'requestCustomerSignature',
     wartetAuf: 'signature.ready',
     fehltCode: 'signature_missing',
   },
   {
-    key: 'kasse',
+    key: 'cashregister',
     text:
-      'Kasse anlegen. Mit automatisch:true (Vorgabe) geht sie von selbst live, sobald die Signatur bereit ist — ' +
+      'Kasse anlegen. Mit automatic:true (Vorgabe) geht sie von selbst live, sobald die Signatur bereit ist — ' +
       'sie darf deshalb schon vorher angelegt werden.',
     aufruf: 'createCustomerCashregister',
     wartetAuf: 'cashregister.live',
@@ -96,11 +96,11 @@ export const PARTNER_ABLAUF: readonly AblaufSchritt[] = [
  * und `cashregister.*` da.
  */
 const STATUS_SCHRITT: Record<string, string> = {
-  angelegt: 'fon',
-  fon_eingerichtet: 'signatur',
-  signatur_beantragt: 'signatur',
-  signatur_bereit: 'kasse',
-  kasse_angelegt: 'kasse',
+  created: 'fon',
+  fon_configured: 'signature',
+  signature_requested: 'signature',
+  signature_ready: 'cashregister',
+  cashregister_created: 'cashregister',
   live: 'zugangsdaten',
 };
 

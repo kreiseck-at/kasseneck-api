@@ -156,12 +156,12 @@ export interface PartnerWebhook {
   webhookId: string;
   url: string;
   events: string[];
-  aktiv: boolean;
-  beschreibung: string | null;
+  active: boolean;
+  description: string | null;
   createdAt: number | null;
-  letzteZustellung: number | null;
+  lastDelivery: number | null;
   /** Fehlversuche in Folge — steigt der Wert, stimmt beim Empfaenger etwas nicht. */
-  fehlerInFolge: number;
+  consecutiveFailures: number;
 }
 
 export interface CreateWebhookOptions {
@@ -170,8 +170,8 @@ export interface CreateWebhookOptions {
   /** Mindestens eines; unbekannte Namen lehnt das Backend ab. */
   events: (PartnerWebhookEventType | (string & {}))[];
   /** Hoechstens 120 Zeichen. */
-  beschreibung?: string;
-  aktiv?: boolean;
+  description?: string;
+  active?: boolean;
 }
 
 export interface CreateWebhookResult {
@@ -191,14 +191,14 @@ export interface CreateWebhookResult {
 export interface WebhookPatch {
   url?: string;
   events?: (PartnerWebhookEventType | (string & {}))[];
-  beschreibung?: string;
-  aktiv?: boolean;
+  description?: string;
+  active?: boolean;
 }
 
 export interface WebhookListe {
   webhooks: PartnerWebhook[];
   /** Der Katalog: Ereignisname und deutscher Text, so wie das Panel ihn zeigt. */
-  ereignisse: { key: string; text: string }[];
+  events: { key: string; text: string }[];
 }
 
 export interface WebhookZustellung {
@@ -208,12 +208,12 @@ export interface WebhookZustellung {
   eventId: string;
   /** `offen`, `zugestellt` oder `fehlgeschlagen`. */
   status: string;
-  versuche: number;
+  attempts: number;
   letzterVersuchAt: number | null;
   naechsterVersuchAt: number | null;
   statusCode: number | null;
   /** Auszug der Antwort des Empfaengers, hoechstens 500 Zeichen. */
-  antwort: string | null;
+  response: string | null;
   createdAt: number | null;
 }
 
@@ -227,11 +227,11 @@ function webhook(eintrag: unknown): PartnerWebhook {
     webhookId: typeof w['webhookId'] === 'string' ? w['webhookId'] : '',
     url: typeof w['url'] === 'string' ? w['url'] : '',
     events: Array.isArray(w['events']) ? w['events'].filter((e): e is string => typeof e === 'string') : [],
-    aktiv: w['aktiv'] !== false,
-    beschreibung: typeof w['beschreibung'] === 'string' ? w['beschreibung'] : null,
+    active: w['active'] !== false,
+    description: typeof w['description'] === 'string' ? w['description'] : null,
     createdAt: typeof w['createdAt'] === 'number' ? w['createdAt'] : null,
-    letzteZustellung: typeof w['letzteZustellung'] === 'number' ? w['letzteZustellung'] : null,
-    fehlerInFolge: typeof w['fehlerInFolge'] === 'number' ? w['fehlerInFolge'] : 0,
+    lastDelivery: typeof w['lastDelivery'] === 'number' ? w['lastDelivery'] : null,
+    consecutiveFailures: typeof w['consecutiveFailures'] === 'number' ? w['consecutiveFailures'] : 0,
   };
 }
 
@@ -255,8 +255,8 @@ export async function createPartnerWebhook(
     await rufen<unknown>('createPartnerWebhook', {
       url,
       events: optionen.events,
-      beschreibung: optionen.beschreibung,
-      aktiv: optionen.aktiv,
+      description: optionen.description,
+      active: optionen.active,
     }),
   );
   const secret = daten['secret'];
@@ -275,7 +275,7 @@ export async function listPartnerWebhooks(rufen: InternerTransport): Promise<Web
   const daten = objekt(await rufen<unknown>('listPartnerWebhooks'));
   return {
     webhooks: (Array.isArray(daten['webhooks']) ? daten['webhooks'] : []).map(webhook),
-    ereignisse: (Array.isArray(daten['ereignisse']) ? daten['ereignisse'] : []).map((e) => ({
+    events: (Array.isArray(daten['events']) ? daten['events'] : []).map((e) => ({
       key: typeof objekt(e)['key'] === 'string' ? (objekt(e)['key'] as string) : '',
       text: typeof objekt(e)['text'] === 'string' ? (objekt(e)['text'] as string) : '',
     })),
@@ -313,7 +313,7 @@ export interface WebhookTestResult {
   eventId: string;
   /** Welches Ereignis geprobt wurde — ohne Angabe `webhook.test`. */
   ereignis: string;
-  zustellungen: unknown[];
+  deliveries: unknown[];
 }
 
 /**
@@ -350,7 +350,7 @@ export async function sendPartnerWebhookTest(
   return {
     eventId: typeof daten['eventId'] === 'string' ? daten['eventId'] : '',
     ereignis: typeof daten['ereignis'] === 'string' ? daten['ereignis'] : ereignis || 'webhook.test',
-    zustellungen: Array.isArray(daten['zustellungen']) ? daten['zustellungen'] : [],
+    deliveries: Array.isArray(daten['deliveries']) ? daten['deliveries'] : [],
   };
 }
 
@@ -369,7 +369,7 @@ export async function listPartnerWebhookDeliveries(
   const daten = objekt(
     await rufen<unknown>('listPartnerWebhookDeliveries', { webhookId: optionen.webhookId, limit: optionen.limit }),
   );
-  return (Array.isArray(daten['zustellungen']) ? daten['zustellungen'] : []).map((eintrag) => {
+  return (Array.isArray(daten['deliveries']) ? daten['deliveries'] : []).map((eintrag) => {
     const z = objekt(eintrag);
     const zahl = (wert: unknown) => (typeof wert === 'number' && Number.isFinite(wert) ? wert : null);
     const txt = (wert: unknown) => (typeof wert === 'string' ? wert : null);
@@ -379,11 +379,11 @@ export async function listPartnerWebhookDeliveries(
       event: txt(z['event']) ?? '',
       eventId: txt(z['eventId']) ?? '',
       status: txt(z['status']) ?? '',
-      versuche: zahl(z['versuche']) ?? 0,
+      attempts: zahl(z['attempts']) ?? 0,
       letzterVersuchAt: zahl(z['letzterVersuchAt']),
       naechsterVersuchAt: zahl(z['naechsterVersuchAt']),
       statusCode: zahl(z['statusCode']),
-      antwort: txt(z['antwort']),
+      response: txt(z['response']),
       createdAt: zahl(z['createdAt']),
     };
   });

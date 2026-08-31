@@ -35,7 +35,7 @@ const RUMPF = JSON.stringify({
   type: 'signature.ready',
   createdAt: 1_756_000_000_000,
   partnerId: 'ptn_1',
-  data: { customerId: 'cust_1', firma: 'Baeckerei Jobst', requestId: 'req_1' },
+  data: { customerId: 'cust_1', companyName: 'Baeckerei Jobst', requestId: 'req_1' },
 });
 const JETZT = 1_756_000_000;
 

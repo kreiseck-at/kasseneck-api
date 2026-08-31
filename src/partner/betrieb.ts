@@ -36,32 +36,32 @@
  * entsteht daraus (siehe unten) und nicht daneben.
  */
 export const BETRIEB_FELDER = [
-  'company_name',
-  'rechtsform',
-  'bundesland',
-  'branche',
-  'firmenbuch',
-  'gericht',
+  'companyName',
+  'legalForm',
+  'state',
+  'industry',
+  'companyRegister',
+  'court',
   'web',
   'phone',
   'email',
-  'billing_email',
+  'billingEmail',
   'address.street',
   'address.number',
   'address.zip',
   'address.city',
-  'tax_details.taxnr',
-  'tax_details.uid',
-  'tax_details.gln',
-  'tax_details.is_small_business',
+  'taxDetails.taxNumber',
+  'taxDetails.vatId',
+  'taxDetails.gln',
+  'taxDetails.smallBusiness',
   'contacts[].name',
   'contacts[].email',
   'contacts[].phone',
   'contacts[].roles',
-  'steuerberater.name',
-  'steuerberater.email',
-  'steuerberater.phone',
-  'steuerberater.kontakt_ok',
+  'taxAdvisor.name',
+  'taxAdvisor.email',
+  'taxAdvisor.phone',
+  'taxAdvisor.mayContact',
 ] as const;
 
 export type BetriebFeld = typeof BETRIEB_FELDER[number];
@@ -136,6 +136,6 @@ function sammle(eingabe: unknown, schema: Schema, pfad: string): string[] {
  * das Backend mit `@kreiseck/validator`. Diese Funktion beantwortet nur die
  * Frage „schicke ich etwas, das dort niemand erwartet?".
  */
-export function unbekannteBetriebsfelder(betrieb: unknown): string[] {
-  return sammle(betrieb, SCHEMA, '');
+export function unbekannteBetriebsfelder(business: unknown): string[] {
+  return sammle(business, SCHEMA, '');
 }

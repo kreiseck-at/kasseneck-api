@@ -49,7 +49,7 @@ test('Geheimnis: util.inspect und console.log zeigen nichts', () => {
   const geheim = new KasseneckSecret('apiKey', KLARTEXT);
   // inspect mit voller Tiefe und "showHidden": genau das, was ein
   // Fehlerdienst tut, wenn er ein Objekt aufschluesselt.
-  const tief = inspect({ zugang: geheim }, { depth: null, showHidden: true, getters: true });
+  const tief = inspect({ access: geheim }, { depth: null, showHidden: true, getters: true });
   assert.ok(!tief.includes(KLARTEXT), `inspect zeigte den Klartext: ${tief}`);
   assert.ok(tief.includes(SECRET_MASKE));
 });
@@ -69,27 +69,27 @@ test('Geheimnis: kein eigenes Feld traegt den Klartext', () => {
 test('Geheimnis: die Werte aus getCustomerCredentials sind gehuellt, nicht roh', async () => {
   const rufen: InternerTransport = (async () => ({
     customerId: 'cust_1',
-    firma: 'Baeckerei Jobst',
+    companyName: 'Baeckerei Jobst',
     env: 'live',
     apiKey: KLARTEXT,
-    kassen: [{ cashregisterId: 'kasse_1', name: 'Theke', live: true, cashregisterToken: TOKEN }],
-    hinweis: 'Nur verschluesselt speichern.',
+    cashregisters: [{ cashregisterId: 'kasse_1', name: 'Theke', live: true, cashregisterToken: TOKEN }],
+    note: 'Nur verschluesselt speichern.',
   })) as unknown as InternerTransport;
 
   const zugang = await getCustomerCredentials(rufen, 'cust_1');
   assert.ok(zugang.apiKey instanceof KasseneckSecret);
-  assert.ok(zugang.kassen[0]?.cashregisterToken instanceof KasseneckSecret);
+  assert.ok(zugang.cashregisters[0]?.cashregisterToken instanceof KasseneckSecret);
   // Der ganze Antwortbaum, so wie ihn ein unachtsames Protokoll ausgeben wuerde.
   const ausgabe = `${JSON.stringify(zugang)} ${inspect(zugang, { depth: null })}`;
   assert.ok(!ausgabe.includes(KLARTEXT), 'der api_key des Betriebs stand in der Ausgabe');
   assert.ok(!ausgabe.includes(TOKEN), 'ein Kassen-Token stand in der Ausgabe');
   // Und der Weg heraus fuehrt trotzdem hin.
   assert.equal(zugang.apiKey.reveal(), KLARTEXT);
-  assert.equal(zugang.kassen[0]?.cashregisterToken.reveal(), TOKEN);
+  assert.equal(zugang.cashregisters[0]?.cashregisterToken.reveal(), TOKEN);
 });
 
 test('Geheimnis: eine fehlende Angabe wird ein leeres Geheimnis, kein undefined', async () => {
-  const rufen: InternerTransport = (async () => ({ customerId: 'cust_1', kassen: [{}] })) as unknown as InternerTransport;
+  const rufen: InternerTransport = (async () => ({ customerId: 'cust_1', cashregisters: [{}] })) as unknown as InternerTransport;
   const zugang = await getCustomerCredentials(rufen, 'cust_1');
   // Ein `undefined` waere hier das schlimmste Ergebnis: der Aufrufer haette
   // einen Typ, der Geheimnis sagt, und einen Wert, den er ungeprueft ausgibt.

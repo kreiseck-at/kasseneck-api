@@ -79,7 +79,7 @@ export interface PartnerApi {
   // Signatur
   requestCustomerSignature(
     customerId: string,
-    optionen?: { art?: string; weitere?: boolean },
+    optionen?: { art?: string; additional?: boolean },
   ): Promise<RequestSignatureResult>;
   getCustomerSignatureStatus(customerId: string): Promise<SignaturStand>;
 

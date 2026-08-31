@@ -113,11 +113,11 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
     partner: {
       id: text(partner['id']),
       name: text(partner['name']),
-      status: text(partner['status'], 'aktiv'),
+      status: text(partner['status'], 'active'),
       // Fehlt das Feld, gilt NEIN. Eine Berechtigung, die man nicht
       // ausdruecklich hat, hat man nicht — ein `true` aus Kulanz erzeugte
       // hier einen Aufruf, der `zugang_nicht_erlaubt` bekommt.
-      darfZugangEinrichten: jaNein(partner['darfZugangEinrichten']),
+      canCreateAccess: jaNein(partner['canCreateAccess']),
     },
     env: text(daten['env']) === 'test' ? 'test' : 'live',
     scopes: liste(daten['scopes']).filter((s): s is string => typeof s === 'string'),
@@ -134,11 +134,11 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
         name: text(a['name']),
         status: text(a['status']),
         platform: textOderNull(a['platform']),
-        verteilungen: liste(a['verteilungen']),
+        distributions: liste(a['distributions']),
         platforms: liste(a['platforms']).filter((p): p is string => typeof p === 'string'),
         symbol: a['symbol'] ? { url: text(objekt(a['symbol'])['url']) } : null,
-        veroeffentlichung: jaNein(a['veroeffentlichung']),
-        listungErlaubt: jaNein(a['listungErlaubt']),
+        published: jaNein(a['published']),
+        listingAllowed: jaNein(a['listingAllowed']),
       };
     }),
   };
@@ -151,10 +151,10 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
 /**
  * Legt einen Betrieb an.
  *
- * **Ohne Panel-Zugang**, solange nicht `zugang:{einladen:true}` dabeisteht:
+ * **Ohne Panel-Zugang**, solange nicht `access:{invite:true}` dabeisteht:
  * viele Betriebe arbeiten ausschliesslich in der App des Partners. Fuer die
  * Einladung braucht das Partner-Konto ausserdem
- * `partner.darfZugangEinrichten`.
+ * `partner.canCreateAccess`.
  *
  * **`env` waehlt die Umgebung.** Ohne Angabe entscheidet der Schluessel; ein
  * Live-Schluessel darf mit `env:"test"` einen Testbetrieb anlegen, ein
@@ -162,7 +162,7 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
  *
  * **`idempotencyKey` benutzen.** Ein verlorener Antwortweg ist kein
  * Sonderfall, und ohne Schluessel legt der zweite Versuch einen zweiten Betrieb
- * an. Mit Schluessel kommt die gespeicherte Antwort zurueck (`wiederholt:true`)
+ * an. Mit Schluessel kommt die gespeicherte Antwort zurueck (`replayed:true`)
  * — auch dann, wenn der Rumpf inzwischen abweicht. Die eigene Kundennummer ist
  * der natuerliche Wert dafuer.
  */
@@ -171,16 +171,16 @@ export async function createPartnerCustomer(
   optionen: CreateCustomerOptions,
 ): Promise<CreateCustomerResult> {
   const appId = pflicht(optionen?.appId, 'createPartnerCustomer', 'appId');
-  const betrieb = optionen?.betrieb;
+  const betrieb = optionen?.business;
   if (betrieb === null || typeof betrieb !== 'object') {
-    throw new KasseneckValidationError('createPartnerCustomer', 'betrieb fehlt', 'request');
+    throw new KasseneckValidationError('createPartnerCustomer', 'business fehlt', 'request');
   }
   const daten = objekt(
     await rufen<unknown>('createPartnerCustomer', {
       appId,
-      betrieb,
+      business: betrieb,
       idempotencyKey: optionen.idempotencyKey,
-      zugang: optionen.zugang,
+      access: optionen.access,
       env: optionen.env,
     }),
   );
@@ -188,16 +188,16 @@ export async function createPartnerCustomer(
   if (!customerId) {
     throw new KasseneckValidationError('createPartnerCustomer', 'Antwort enthaelt keine customerId', 'response');
   }
-  const zugang = objekt(daten['zugang']);
+  const zugang = objekt(daten['access']);
   return {
     customerId,
-    status: text(daten['status'], 'angelegt'),
+    status: text(daten['status'], 'created'),
     env: text(daten['env']) === 'test' ? 'test' : 'live',
-    firma: text(daten['firma']),
+    companyName: text(daten['companyName']),
     appId: text(daten['appId'], appId),
-    zugang: { eingeladen: jaNein(zugang['eingeladen']), sentTo: textOderNull(zugang['sentTo']) },
-    naechsteSchritte: liste(daten['naechsteSchritte']).filter((s): s is string => typeof s === 'string'),
-    wiederholt: jaNein(daten['wiederholt']),
+    access: { invited: jaNein(zugang['invited']), sentTo: textOderNull(zugang['sentTo']) },
+    nextSteps: liste(daten['nextSteps']).filter((s): s is string => typeof s === 'string'),
+    replayed: jaNein(daten['replayed']),
   };
 }
 
@@ -217,9 +217,9 @@ export async function listPartnerCustomers(
     }),
   );
   return {
-    kunden: liste(daten['kunden']).map(kundenZeile),
+    customers: liste(daten['customers']).map(kundenZeile),
     cursor: textOderNull(daten['cursor']),
-    gesamt: zahlOderNull(daten['gesamt']) ?? 0,
+    total: zahlOderNull(daten['total']) ?? 0,
   };
 }
 
@@ -227,7 +227,7 @@ function kundenZeile(eintrag: unknown): KundenZeile {
   const k = objekt(eintrag);
   return {
     customerId: text(k['customerId']),
-    firma: text(k['firma']),
+    companyName: text(k['companyName']),
     status: text(k['status']),
     appId: textOderNull(k['appId']),
     env: text(k['env']) === 'test' ? ('test' as const) : ('live' as const),
@@ -248,8 +248,8 @@ function avvStand(wert: unknown): AvvStand | null {
   return {
     status: text(a['status']),
     version: textOderNull(a['version']),
-    bestaetigtAt: zahlOderNull(a['bestaetigtAt']),
-    modus: textOderNull(a['modus']),
+    confirmedAt: zahlOderNull(a['confirmedAt']),
+    mode: textOderNull(a['mode']),
   };
 }
 
@@ -257,24 +257,24 @@ function avvStand(wert: unknown): AvvStand | null {
 export async function getPartnerCustomer(rufen: InternerTransport, customerId: string): Promise<Kunde> {
   const id = pflicht(customerId, 'getPartnerCustomer', 'customerId');
   const daten = objekt(await rufen<unknown>('getPartnerCustomer', { customerId: id }));
-  const k = verlangt(daten['kunde'], 'getPartnerCustomer', 'kunde');
+  const k = verlangt(daten['customer'], 'getPartnerCustomer', 'customer');
   const fon = objekt(k['fon']);
-  const zugang = k['zugang'];
+  const zugang = k['access'];
   return {
     ...kundenZeile(k),
     statusAt: zahlOderNull(k['statusAt']),
     liveEnabled: jaNein(k['liveEnabled']),
-    angelegtAt: zahlOderNull(k['angelegtAt']),
-    angelegtVia: textOderNull(k['angelegtVia']),
-    betrieb: objekt(k['betrieb']),
-    fon: { eingerichtet: jaNein(fon['eingerichtet']), verifiedAt: zahlOderNull(fon['verifiedAt']) },
-    zugang:
+    createdAt: zahlOderNull(k['createdAt']),
+    createdVia: textOderNull(k['createdVia']),
+    business: objekt(k['business']),
+    fon: { configured: jaNein(fon['configured']), verifiedAt: zahlOderNull(fon['verifiedAt']) },
+    access:
       zugang === null || typeof zugang !== 'object'
         ? null
         : {
             email: textOderNull(objekt(zugang)['email']),
-            eingeladenAt: zahlOderNull(objekt(zugang)['eingeladenAt']),
-            angenommenAt: zahlOderNull(objekt(zugang)['angenommenAt']),
+            invitedAt: zahlOderNull(objekt(zugang)['invitedAt']),
+            acceptedAt: zahlOderNull(objekt(zugang)['acceptedAt']),
           },
   };
 }
@@ -305,32 +305,32 @@ export async function sendPartnerCustomerFonLink(
 
 function antrag(eintrag: unknown): SignaturAntrag {
   const a = objekt(eintrag);
-  const fehler = a['fehler'];
+  const fehler = a['error'];
   return {
     requestId: text(a['requestId']),
     status: text(a['status']),
     statusText: text(a['statusText']),
-    art: text(a['art'], 'signaturkarte'),
+    art: text(a['art'], 'signature_card'),
     vdaId: textOderNull(a['vdaId']),
     signatureId: textOderNull(a['signatureId']),
-    fehler:
+    error:
       fehler === null || typeof fehler !== 'object'
         ? null
         : {
             code: textOderNull(objekt(fehler)['code']),
-            meldung: textOderNull(objekt(fehler)['meldung']),
+            message: textOderNull(objekt(fehler)['message']),
             rc: textOderNull(objekt(fehler)['rc']),
           },
-    angefordertVia: textOderNull(a['angefordertVia']),
+    requestedVia: textOderNull(a['requestedVia']),
     createdAt: zahlOderNull(a['createdAt']),
     updatedAt: zahlOderNull(a['updatedAt']),
-    historie: liste(a['historie']).map((h) => {
+    history: liste(a['history']).map((h) => {
       const e = objekt(h);
       return {
         von: textOderNull(e['von']),
         nach: text(e['nach']),
         at: zahlOderNull(e['at']) ?? 0,
-        grund: textOderNull(e['grund']),
+        reason: textOderNull(e['reason']),
       };
     }),
   };
@@ -346,29 +346,29 @@ function antrag(eintrag: unknown): SignaturAntrag {
  * noch keine Karte zugewiesen ist.
  *
  * **Je Betrieb laeuft nur ein Antrag.** Ein zweiter Aufruf liefert den
- * laufenden zurueck (`wiederholt:true`) und ist damit folgenlos wiederholbar.
+ * laufenden zurueck (`replayed:true`) und ist damit folgenlos wiederholbar.
  * Eine WEITERE Signatur (Ersatzkarte, zweiter Standort) entsteht nur mit
- * `weitere:true` — hoechstens zehn je Betrieb (`signature_limit`). Der
+ * `additional:true` — hoechstens zehn je Betrieb (`signature_limit`). Der
  * Abschluss kommt als Ereignis `signature.ready`, nicht als Antwort auf diesen
  * Aufruf.
  */
 export async function requestCustomerSignature(
   rufen: InternerTransport,
   customerId: string,
-  optionen: { art?: string; weitere?: boolean } = {},
+  optionen: { art?: string; additional?: boolean } = {},
 ): Promise<RequestSignatureResult> {
   const id = pflicht(customerId, 'requestCustomerSignature', 'customerId');
   const daten = objekt(
     await rufen<unknown>('requestCustomerSignature', {
       customerId: id,
       art: optionen.art,
-      weitere: optionen.weitere,
+      additional: optionen.additional,
     }),
   );
   return {
-    antrag: antrag(verlangt(daten['antrag'], 'requestCustomerSignature', 'antrag')),
-    wiederholt: jaNein(daten['wiederholt']),
-    hinweis: textOderNull(daten['hinweis']),
+    request: antrag(verlangt(daten['request'], 'requestCustomerSignature', 'request')),
+    replayed: jaNein(daten['replayed']),
+    note: textOderNull(daten['note']),
   };
 }
 
@@ -383,12 +383,12 @@ export async function getCustomerSignatureStatus(
   const fon = objekt(daten['fon']);
   return {
     signatur: {
-      bereit: jaNein(signatur['bereit']),
+      ready: jaNein(signatur['ready']),
       signatureId: textOderNull(signatur['signatureId']),
       vdaId: textOderNull(signatur['vdaId']),
     },
-    antraege: liste(daten['antraege']).map(antrag),
-    fon: { vorhanden: jaNein(fon['vorhanden']), geprueftAt: zahlOderNull(fon['geprueftAt']) },
+    requests: liste(daten['requests']).map(antrag),
+    fon: { present: jaNein(fon['present']), verifiedAt: zahlOderNull(fon['verifiedAt']) },
   };
 }
 
@@ -398,27 +398,27 @@ export async function getCustomerSignatureStatus(
 
 function kasse(eintrag: unknown): Kasse {
   const k = objekt(eintrag);
-  const fehler = k['letzterFehler'];
+  const fehler = k['lastError'];
   return {
     cashregisterId: text(k['cashregisterId']),
     name: textOderNull(k['name']),
     status: text(k['status']),
     statusText: text(k['statusText']),
-    automatisch: jaNein(k['automatisch'], true),
-    schritt: textOderNull(k['schritt']),
-    schrittText: textOderNull(k['schrittText']),
-    erledigt: liste(k['erledigt']).filter((s): s is string => typeof s === 'string'),
-    schritte: liste(k['schritte']).map((s) => ({ key: text(objekt(s)['key']), text: text(objekt(s)['text']) })),
+    automatic: jaNein(k['automatic'], true),
+    step: textOderNull(k['step']),
+    stepText: textOderNull(k['stepText']),
+    completedSteps: liste(k['completedSteps']).filter((s): s is string => typeof s === 'string'),
+    steps: liste(k['steps']).map((s) => ({ key: text(objekt(s)['key']), text: text(objekt(s)['text']) })),
     signatureId: textOderNull(k['signatureId']),
-    versuche: zahlOderNull(k['versuche']) ?? 0,
-    letzterFehler:
+    attempts: zahlOderNull(k['attempts']) ?? 0,
+    lastError:
       fehler === null || typeof fehler !== 'object'
         ? null
         : {
             code: textOderNull(objekt(fehler)['code']),
-            meldung: textOderNull(objekt(fehler)['meldung']),
+            message: textOderNull(objekt(fehler)['message']),
             rc: textOderNull(objekt(fehler)['rc']),
-            schritt: textOderNull(objekt(fehler)['schritt']),
+            step: textOderNull(objekt(fehler)['step']),
             at: zahlOderNull(objekt(fehler)['at']),
           },
     createdAt: zahlOderNull(k['createdAt']),
@@ -434,7 +434,7 @@ function kasse(eintrag: unknown): Kasse {
  *
  * **Darf vor der fertigen Signatur aufgerufen werden:** die Kasse bleibt dann
  * auf `entwurf` und geht von selbst live, sobald IHRE Signatur bereit ist
- * (`automatisch:true`, Vorgabe). `inbetriebnahme.grund` sagt, warum gerade
+ * (`automatic:true`, Vorgabe). `inbetriebnahme.reason` sagt, warum gerade
  * nichts lief: `signature_not_ready` oder `automatik_aus`.
  *
  * Hoechstens 20 Kassen je Betrieb (`cashregister_limit`); ohne gebuchtes Modul
@@ -448,30 +448,30 @@ export async function createCustomerCashregister(
   const daten = objekt(
     await rufen<unknown>('createCustomerCashregister', {
       customerId: id,
-      automatisch: optionen.automatisch,
-      signaturId: optionen.signaturId,
+      automatic: optionen.automatic,
+      signatureRequestId: optionen.signatureRequestId,
     }),
   );
-  const ib = objekt(daten['inbetriebnahme']);
+  const ib = objekt(daten['activation']);
   return {
-    kasse: kasse(verlangt(daten['kasse'], 'createCustomerCashregister', 'kasse')),
-    inbetriebnahme: {
-      gestartet: jaNein(ib['gestartet']),
+    cashregister: kasse(verlangt(daten['cashregister'], 'createCustomerCashregister', 'cashregister')),
+    activation: {
+      started: jaNein(ib['started']),
       ok: typeof ib['ok'] === 'boolean' ? ib['ok'] : null,
-      schritt: textOderNull(ib['schritt']),
-      grund: textOderNull(ib['grund']),
+      step: textOderNull(ib['step']),
+      reason: textOderNull(ib['reason']),
     },
   };
 }
 
 /**
- * Nimmt eine Kasse in Betrieb — von Hand, wenn `automatisch:false` gilt oder
+ * Nimmt eine Kasse in Betrieb — von Hand, wenn `automatic:false` gilt oder
  * ein Lauf abgebrochen ist.
  *
  * **Jeder Schritt der Kette ist idempotent**, der Startbeleg entsteht nach
  * RKSV genau einmal und ein vorhandener wird erkannt. Ein Wiederholungsaufruf
  * setzt deshalb an der Bruchstelle an und macht nichts doppelt; eine bereits
- * laufende Kasse antwortet mit `unveraendert:true`. Das ist der eine
+ * laufende Kasse antwortet mit `unchanged:true`. Das ist der eine
  * veraendernde Aufruf dieses Clients, der ohne Idempotenzschluessel gefahrlos
  * wiederholbar ist — weil der Server ihn so gebaut hat.
  */
@@ -484,8 +484,8 @@ export async function activateCashregister(
   const kassenId = pflicht(cashregisterId, 'activateCashregister', 'cashregisterId');
   const daten = objekt(await rufen<unknown>('activateCashregister', { customerId: kunde, cashregisterId: kassenId }));
   return {
-    kasse: kasse(verlangt(daten['kasse'], 'activateCashregister', 'kasse')),
-    unveraendert: jaNein(daten['unveraendert']),
+    cashregister: kasse(verlangt(daten['cashregister'], 'activateCashregister', 'cashregister')),
+    unchanged: jaNein(daten['unchanged']),
   };
 }
 
@@ -498,8 +498,8 @@ export async function listCustomerCashregisters(
   const daten = objekt(await rufen<unknown>('listCustomerCashregisters', { customerId: id }));
   return {
     customerId: text(daten['customerId'], id),
-    kassen: liste(daten['kassen']).map(kasse),
-    signaturBereit: jaNein(daten['signaturBereit']),
+    cashregisters: liste(daten['cashregisters']).map(kasse),
+    signatureReady: jaNein(daten['signatureReady']),
   };
 }
 
@@ -527,10 +527,10 @@ export async function getCustomerCredentials(
   const daten = objekt(await rufen<unknown>('getCustomerCredentials', { customerId: id }));
   return {
     customerId: text(daten['customerId'], id),
-    firma: text(daten['firma']),
+    companyName: text(daten['companyName']),
     env: text(daten['env']) === 'test' ? 'test' : 'live',
     apiKey: alsSecret('apiKey', daten['apiKey']),
-    kassen: liste(daten['kassen']).map((eintrag) => {
+    cashregisters: liste(daten['cashregisters']).map((eintrag) => {
       const k = objekt(eintrag);
       return {
         cashregisterId: text(k['cashregisterId']),
@@ -539,6 +539,6 @@ export async function getCustomerCredentials(
         cashregisterToken: alsSecret('cashregisterToken', k['cashregisterToken']),
       };
     }),
-    hinweis: text(daten['hinweis']),
+    note: text(daten['note']),
   };
 }

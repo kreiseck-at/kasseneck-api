@@ -129,7 +129,7 @@ const RAT: Record<PartnerCode, string> = {
     'Die Steuernummer ist bei Kasseneck bereits registriert. Die Zuordnung zum Partner macht Kasseneck — hello@kasseneck.at.',
   customer_limit: 'Das Tageslimit fuer neue Betriebe ist erreicht (data.max, data.resetAt). Morgen weiter.',
   zugang_nicht_erlaubt:
-    'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne zugang{einladen:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.darfZugangEinrichten).',
+    'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne zugang{invite:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.canCreateAccess).',
   email_taken:
     'Fuer diese E-Mail gibt es schon einen Kasseneck-Zugang. Eine andere Adresse waehlen, auf die Einladung verzichten oder den Betrieb zuordnen lassen.',
   no_email:
@@ -143,19 +143,19 @@ const RAT: Record<PartnerCode, string> = {
   signature_unknown:
     'Die genannte signaturId gehoert nicht zu diesem Betrieb. getCustomerSignatureStatus nennt die seinen.',
   signature_ambiguous:
-    'Der Betrieb hat mehrere Signaturen; welche die Kasse benutzt, muss dastehen. Eine aus data.auswahl als signaturId mitgeben.',
+    'Der Betrieb hat mehrere Signaturen; welche die Kasse benutzt, muss dastehen. Eine aus data.choices als signaturId mitgeben.',
   signature_not_ready:
-    'Die Signatur DIESER Kasse ist noch nicht bereit. Auf signature.ready warten; eine mit automatisch:true angelegte Kasse geht danach von selbst live.',
+    'Die Signatur DIESER Kasse ist noch nicht bereit. Auf signature.ready warten; eine mit automatic:true angelegte Kasse geht danach von selbst live.',
   signature_limit:
-    'Hoechstens zehn Signaturen je Betrieb. Eine bestehende benutzen, statt mit weitere:true eine weitere zu beantragen.',
+    'Hoechstens zehn Signaturen je Betrieb. Eine bestehende benutzen, statt mit additional:true eine weitere zu beantragen.',
   signature_failed: 'FinanzOnline hat die Anmeldung abgelehnt (data.rc). Kasseneck klaert das — hello@kasseneck.at.',
   module_inactive: 'Das Modul (data.modul) ist fuer diesen Betrieb nicht gebucht. Kasseneck schaltet es frei.',
   cashregister_limit: 'Hoechstens 20 Registrierkassen je Betrieb. Eine bestehende nutzen.',
   cashregister_not_found: 'Diese cashregisterId gibt es bei diesem Betrieb nicht.',
   activation_failed:
-    'Die Inbetriebnahme blieb an data.schritt haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
+    'Die Inbetriebnahme blieb an data.step haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
   webhook_limit: 'Hoechstens 10 Webhook-Endpunkte je Partner. Einen ungenutzten loeschen.',
-  webhook_inactive: 'Der Webhook steht auf aktiv:false. Zuerst aktivieren, dann erneut proben.',
+  webhook_inactive: 'Der Webhook steht auf active:false. Zuerst aktivieren, dann erneut proben.',
   event_not_subscribed:
     'Der Endpunkt abonniert dieses Ereignis nicht — auch eine Probe bekommt nur, was in seiner events-Liste steht. events erweitern und erneut versuchen.',
 
@@ -171,7 +171,7 @@ const RAT: Record<PartnerCode, string> = {
   auth_user_exists: 'Diese E-Mail-Adresse ist bereits einem Konto zugeordnet. Eine andere waehlen.',
   card_missing: 'Zu diesem Antrag sind noch keine Kartendaten eingetragen.',
   card_duplicate: 'Diese Seriennummer ist bei Kasseneck schon eingetragen — die Karte ist bereits erfasst.',
-  card_not_verified: 'Die Kartendaten sind noch nicht geprueft. Die Pruefung abwarten (data.antrag).',
+  card_not_verified: 'Die Kartendaten sind noch nicht geprueft. Die Pruefung abwarten (data.request).',
   already_assigned: 'Fuer diesen Antrag sind bereits Kartendaten eingetragen; ein zweiter Satz ueberschreibt nichts.',
 };
 
@@ -185,13 +185,13 @@ export function partnerFehlerRat(code: string): string | undefined {
 }
 
 /** Der Fehlercode eines geworfenen Fehlers — `undefined`, wenn es keiner der unseren ist. */
-export function partnerFehlerCode(fehler: unknown): string | undefined {
-  return fehler instanceof KasseneckApiError ? fehler.code : undefined;
+export function partnerFehlerCode(error: unknown): string | undefined {
+  return error instanceof KasseneckApiError ? error.code : undefined;
 }
 
 /** Kurzform fuer `catch (e) { if (istPartnerFehler(e, 'signature_missing')) … }`. */
-export function istPartnerFehler(fehler: unknown, code: PartnerCode): boolean {
-  return partnerFehlerCode(fehler) === code;
+export function istPartnerFehler(error: unknown, code: PartnerCode): boolean {
+  return partnerFehlerCode(error) === code;
 }
 
 /** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */
@@ -205,9 +205,9 @@ export interface PartnerFeldFehler {
 }
 
 /** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
-export function partnerFeldFehler(fehler: unknown): PartnerFeldFehler[] {
-  if (!(fehler instanceof KasseneckApiError)) return [];
-  const roh = fehler.details['errors'];
+export function partnerFeldFehler(error: unknown): PartnerFeldFehler[] {
+  if (!(error instanceof KasseneckApiError)) return [];
+  const roh = error.details['errors'];
   if (!Array.isArray(roh)) return [];
   const raus: PartnerFeldFehler[] = [];
   for (const eintrag of roh) {
@@ -222,8 +222,8 @@ export function partnerFeldFehler(fehler: unknown): PartnerFeldFehler[] {
  * Wie lange `rate_limited` noch gilt, in Sekunden. `undefined`, wenn der
  * Fehler kein `rate_limited` ist oder das Backend keine Angabe macht.
  */
-export function partnerWartezeitSek(fehler: unknown): number | undefined {
-  if (partnerFehlerCode(fehler) !== 'rate_limited') return undefined;
-  const wert = (fehler as KasseneckApiError).details['retryAfterSec'];
+export function partnerWartezeitSek(error: unknown): number | undefined {
+  if (partnerFehlerCode(error) !== 'rate_limited') return undefined;
+  const wert = (error as KasseneckApiError).details['retryAfterSec'];
   return typeof wert === 'number' && Number.isFinite(wert) && wert >= 0 ? wert : undefined;
 }
