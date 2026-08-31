@@ -1,5 +1,5 @@
 /**
- * Die Aufrufe der Partner-API — Betriebe, Signatur, Kassen, Vertrag.
+ * Die Aufrufe der Partner-API — Betriebe, Signatur, Kassen.
  *
  * Jede Funktion nimmt den Transport als ersten Parameter und ist einzeln
  * importierbar; die Fassade [createPartnerApi] bindet ihn nur einmal.
@@ -21,7 +21,6 @@
 
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import { AVV_MODUS_STANDARD, istAvvModus } from './fehler.js';
 import { alsSecret } from './secret.js';
 import type {
   AvvStand,
@@ -39,8 +38,6 @@ import type {
   KundenListe,
   ListCustomersOptions,
   PartnerInfo,
-  ReportVertragOptions,
-  ReportVertragResult,
   RequestSignatureResult,
   SignaturAntrag,
   SignaturStand,
@@ -117,6 +114,10 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
       id: text(partner['id']),
       name: text(partner['name']),
       status: text(partner['status'], 'aktiv'),
+      // Fehlt das Feld, gilt NEIN. Eine Berechtigung, die man nicht
+      // ausdruecklich hat, hat man nicht — ein `true` aus Kulanz erzeugte
+      // hier einen Aufruf, der `zugang_nicht_erlaubt` bekommt.
+      darfZugangEinrichten: jaNein(partner['darfZugangEinrichten']),
     },
     env: text(daten['env']) === 'test' ? 'test' : 'live',
     scopes: liste(daten['scopes']).filter((s): s is string => typeof s === 'string'),
@@ -148,9 +149,16 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
 // ---------------------------------------------------------------------------
 
 /**
- * Legt einen Betrieb an. Kasseneck erzeugt dabei auch seinen Panel-Zugang und
- * schickt die Einladung an `betrieb.email` (abschaltbar ueber
- * `zugang:{einladen:false}`).
+ * Legt einen Betrieb an.
+ *
+ * **Ohne Panel-Zugang**, solange nicht `zugang:{einladen:true}` dabeisteht:
+ * viele Betriebe arbeiten ausschliesslich in der App des Partners. Fuer die
+ * Einladung braucht das Partner-Konto ausserdem
+ * `partner.darfZugangEinrichten`.
+ *
+ * **`env` waehlt die Umgebung.** Ohne Angabe entscheidet der Schluessel; ein
+ * Live-Schluessel darf mit `env:"test"` einen Testbetrieb anlegen, ein
+ * Test-Schluessel niemals einen Live-Betrieb (`live_not_allowed`).
  *
  * **`idempotencyKey` benutzen.** Ein verlorener Antwortweg ist kein
  * Sonderfall, und ohne Schluessel legt der zweite Versuch einen zweiten Betrieb
@@ -173,6 +181,7 @@ export async function createPartnerCustomer(
       betrieb,
       idempotencyKey: optionen.idempotencyKey,
       zugang: optionen.zugang,
+      env: optionen.env,
     }),
   );
   const customerId = textOderNull(daten['customerId']);
@@ -228,20 +237,19 @@ function kundenZeile(eintrag: unknown): KundenZeile {
 }
 
 /**
- * Der Vertragsstand, sofern die Antwort ihn fuehrt. `null` statt eines
- * erfundenen `offen`: "nicht mitgeliefert" und "nicht bestaetigt" duerfen fuer
- * den Aufrufer nicht dasselbe sein — das eine ist eine aeltere Backend-Fassung,
- * das andere eine Kasse, die nicht live geht.
+ * Der Vertragsstand, **falls** die Antwort ihn ueberhaupt fuehrt — heute tut
+ * sie das nicht, dann bleibt es bei `null`. Kein erfundenes `offen`: „nicht
+ * mitgeliefert" und „nicht bestaetigt" duerfen fuer einen Aufrufer nicht
+ * dasselbe sein.
  */
 function avvStand(wert: unknown): AvvStand | null {
   if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
   const a = wert as Record<string, unknown>;
-  const modus = a['modus'];
   return {
-    status: text(a['status'], 'offen'),
+    status: text(a['status']),
     version: textOderNull(a['version']),
     bestaetigtAt: zahlOderNull(a['bestaetigtAt']),
-    modus: istAvvModus(modus) ? modus : AVV_MODUS_STANDARD,
+    modus: textOderNull(a['modus']),
   };
 }
 
@@ -329,21 +337,34 @@ function antrag(eintrag: unknown): SignaturAntrag {
 }
 
 /**
- * Beantragt die Signatureinheit. Kasseneck weist eine Karte aus dem eigenen
- * Bestand zu und meldet sie bei FinanzOnline an.
+ * Beantragt die Signatureinheit. Kasseneck laesst die Karte beim
+ * Vertrauensdiensteanbieter **auf diesen Betrieb** ausstellen und meldet sie
+ * bei FinanzOnline an; einen Vorrat fertiger Karten gibt es nicht.
+ *
+ * Der Antrag erzeugt sofort ein Signatur-OBJEKT: `antrag.requestId` ist
+ * zugleich die `signaturId`, auf die sich eine Kasse beruft — auch solange
+ * noch keine Karte zugewiesen ist.
  *
  * **Je Betrieb laeuft nur ein Antrag.** Ein zweiter Aufruf liefert den
  * laufenden zurueck (`wiederholt:true`) und ist damit folgenlos wiederholbar.
- * Der Abschluss kommt als Ereignis `signature.ready` — nicht als Antwort auf
- * diesen Aufruf.
+ * Eine WEITERE Signatur (Ersatzkarte, zweiter Standort) entsteht nur mit
+ * `weitere:true` — hoechstens zehn je Betrieb (`signature_limit`). Der
+ * Abschluss kommt als Ereignis `signature.ready`, nicht als Antwort auf diesen
+ * Aufruf.
  */
 export async function requestCustomerSignature(
   rufen: InternerTransport,
   customerId: string,
-  art?: string,
+  optionen: { art?: string; weitere?: boolean } = {},
 ): Promise<RequestSignatureResult> {
   const id = pflicht(customerId, 'requestCustomerSignature', 'customerId');
-  const daten = objekt(await rufen<unknown>('requestCustomerSignature', { customerId: id, art }));
+  const daten = objekt(
+    await rufen<unknown>('requestCustomerSignature', {
+      customerId: id,
+      art: optionen.art,
+      weitere: optionen.weitere,
+    }),
+  );
   return {
     antrag: antrag(verlangt(daten['antrag'], 'requestCustomerSignature', 'antrag')),
     wiederholt: jaNein(daten['wiederholt']),
@@ -405,28 +426,30 @@ function kasse(eintrag: unknown): Kasse {
 }
 
 /**
- * Legt eine Kasse an. **Darf vor der Signatur aufgerufen werden:** ohne sie
- * bleibt die Kasse auf `entwurf` und geht von selbst live, sobald die Signatur
- * bereit ist (`automatisch:true`, Vorgabe). `inbetriebnahme.grund` sagt, warum
- * gerade nichts lief: `signature_not_ready` oder `automatik_aus`.
+ * Legt eine Kasse an.
+ *
+ * **Jede Kasse bezieht sich auf eine Signatur.** Ohne eine einzige — auch eine
+ * noch laufende zaehlt — entsteht keine (`signature_missing`); bei mehreren
+ * muss `signaturId` dastehen (`signature_ambiguous`).
+ *
+ * **Darf vor der fertigen Signatur aufgerufen werden:** die Kasse bleibt dann
+ * auf `entwurf` und geht von selbst live, sobald IHRE Signatur bereit ist
+ * (`automatisch:true`, Vorgabe). `inbetriebnahme.grund` sagt, warum gerade
+ * nichts lief: `signature_not_ready` oder `automatik_aus`.
  *
  * Hoechstens 20 Kassen je Betrieb (`cashregister_limit`); ohne gebuchtes Modul
- * `module_inactive`. Und ohne bestaetigten Auftragsverarbeitungsvertrag geht
- * **keine neue Kasse** live — `vertrag_offen`, siehe `vertragOffenRat`.
+ * `module_inactive`.
  */
 export async function createCustomerCashregister(
   rufen: InternerTransport,
   optionen: CreateCashregisterOptions,
 ): Promise<CreateCashregisterResult> {
   const id = pflicht(optionen?.customerId, 'createCustomerCashregister', 'customerId');
-  if (optionen.name !== undefined && optionen.name.length > 60) {
-    throw new KasseneckValidationError('createCustomerCashregister', 'name ist laenger als 60 Zeichen', 'request');
-  }
   const daten = objekt(
     await rufen<unknown>('createCustomerCashregister', {
       customerId: id,
-      name: optionen.name,
       automatisch: optionen.automatisch,
+      signaturId: optionen.signaturId,
     }),
   );
   const ib = objekt(daten['inbetriebnahme']);
@@ -517,67 +540,5 @@ export async function getCustomerCredentials(
       };
     }),
     hinweis: text(daten['hinweis']),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Vertrag
-// ---------------------------------------------------------------------------
-
-/**
- * Meldet eine **in Vollmacht** eingeholte Zustimmung zum
- * Auftragsverarbeitungsvertrag.
- *
- * Vier Voraussetzungen, alle noetig: das Partner-Konto steht auf `vollmacht`
- * (`modus_not_allowed`), der Partnervertrag mit dem Vollmachts-Kapitel ist
- * bestaetigt (`vollmacht_fehlt`), der Betrieb gehoert dem Partner
- * (`not_found`), und der `textHash` passt zur geltenden Kasseneck-Fassung
- * (`text_changed` — dann wurde ein anderer Text gezeigt, und die eingeholte
- * Zustimmung gilt nicht).
- *
- * Auf den beiden anderen Wegen (`direkt`, `unterauftrag`) ist dieser Aufruf
- * **nicht** der richtige: dort bestaetigt der Betrieb selbst bzw. der Vertrag
- * liegt beim Partner.
- *
- * Der Endpunkt nennt den Betrieb `kundeId`; dieser Client nennt ihn ueberall
- * `customerId` und uebersetzt hier — zwei Namen fuer dieselbe Kennung sind eine
- * Fehlerquelle und keine Genauigkeit.
- */
-export async function reportCustomerVertrag(
-  rufen: InternerTransport,
-  optionen: ReportVertragOptions,
-): Promise<ReportVertragResult> {
-  const kundeId = pflicht(optionen?.customerId, 'reportCustomerVertrag', 'customerId');
-  const version = pflicht(optionen?.version, 'reportCustomerVertrag', 'version');
-  const textHash = pflicht(optionen?.textHash, 'reportCustomerVertrag', 'textHash');
-  const name = pflicht(optionen?.name, 'reportCustomerVertrag', 'name');
-  const funktion = pflicht(optionen?.funktion, 'reportCustomerVertrag', 'funktion');
-  if (optionen.art !== 'avv') {
-    throw new KasseneckValidationError(
-      'reportCustomerVertrag',
-      'In Vollmacht laesst sich nur der Auftragsverarbeitungsvertrag melden (art:"avv")',
-      'request',
-    );
-  }
-  const daten = objekt(
-    await rufen<unknown>('reportCustomerVertrag', {
-      kundeId,
-      art: 'avv',
-      version,
-      textHash,
-      name,
-      funktion,
-      akzeptiertAt: optionen.akzeptiertAt,
-    }),
-  );
-  const vertragId = textOderNull(daten['vertragId']);
-  if (!vertragId) {
-    throw new KasseneckValidationError('reportCustomerVertrag', 'Antwort enthaelt keine vertragId', 'response');
-  }
-  return {
-    vertragId,
-    bestaetigtAt: zahlOderNull(daten['bestaetigtAt']) ?? 0,
-    art: text(daten['art'], 'avv'),
-    version: text(daten['version'], version),
   };
 }

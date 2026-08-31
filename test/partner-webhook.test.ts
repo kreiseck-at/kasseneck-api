@@ -9,7 +9,11 @@ import {
   WEBHOOK_MAX_ATTEMPTS,
   WEBHOOK_RETRY_PLAN_SEC,
 } from '../src/partner/webhook-signatur.js';
-import { parseWebhookEvent, PARTNER_WEBHOOK_EVENTS } from '../src/partner/webhooks.js';
+import {
+  parseWebhookEvent,
+  PARTNER_WEBHOOK_EVENTS,
+  WEBHOOK_UMSCHLAG_FELDER,
+} from '../src/partner/webhooks.js';
 
 /**
  * Die Signaturpruefung ist die eine Stelle, an der ein Fehler NICHT auffaellt:
@@ -256,6 +260,8 @@ test('Webhook: parseWebhookEvent prueft ERST die Signatur und liest dann', async
     assert.equal(gut.event.type, 'signature.ready');
     assert.equal(gut.event.partnerId, 'ptn_1');
     assert.equal((gut.event.data as { customerId?: string }).customerId, 'cust_1');
+    // Ein echtes Ereignis fuehrt das Feld `test` nicht — hier steht `false`.
+    assert.equal(gut.event.test, false);
   }
 
   // Ein Rumpf, der gar kein JSON ist, kommt gar nicht erst zum Lesen: die
@@ -303,16 +309,65 @@ test('Webhook: unbekannter Ereignistyp kommt durch statt zu scheitern', async ()
   if (r.ok) assert.equal(r.event.type, 'kasse.neu_erfunden');
 });
 
+/**
+ * Die Marke, an der eine Probe von einem echten Ereignis zu unterscheiden ist.
+ *
+ * Rot-Probe: `test: e['test'] === true` in webhooks.ts durch `test: false`
+ * ersetzen — dann faellt genau dieser Test („eine Probe traegt test:true"),
+ * und der Handler eines Partners haette `if (ereignis.test) return;`
+ * geschrieben, ohne dass es je greift.
+ */
+test('Webhook: eine Probe traegt test:true, ein echtes Ereignis das Feld gar nicht', async () => {
+  const probe = JSON.stringify({
+    id: 'evt_probe',
+    type: 'cashregister.live',
+    createdAt: 1,
+    partnerId: 'ptn_1',
+    test: true,
+    data: { customerId: 'ptest_beispiel00000000', cashregisterId: 'KECK-1' },
+  });
+  const p = await parseWebhookEvent({
+    secret: SECRET,
+    signatureHeader: kopf(JETZT, probe),
+    body: probe,
+    nowSec: JETZT,
+  });
+  assert.equal(p.ok, true);
+  if (p.ok) assert.equal(p.event.test, true, 'ohne diese Marke haelt jemand eine Probe fuer echt');
+
+  // Nur ein ausdrueckliches `true` zaehlt. Alles andere ist der Ernstfall —
+  // sonst verschluckte ein `test: "false"` aus einer fremden Quelle eine
+  // echte Kasse.
+  for (const wert of ['true', 1, {}, null]) {
+    const rumpf = JSON.stringify({ id: 'e', type: 'cashregister.live', createdAt: 1, partnerId: 'p', test: wert, data: {} });
+    const r = await parseWebhookEvent({
+      secret: SECRET,
+      signatureHeader: kopf(JETZT, rumpf),
+      body: rumpf,
+      nowSec: JETZT,
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.event.test, false, `test:${JSON.stringify(wert)} ist keine Probe`);
+  }
+});
+
+test('Webhook: der Umschlag fuehrt genau die Felder des Backends', () => {
+  // webhook-core.payload() baut ihn in dieser Reihenfolge; `test` steht nur
+  // auf Proben darin.
+  assert.deepEqual([...WEBHOOK_UMSCHLAG_FELDER], ['id', 'type', 'createdAt', 'partnerId', 'test', 'data']);
+});
+
 test('Webhook: der Ereignis-Katalog stimmt mit dem Backend ueberein', () => {
   // Diese Liste ist eine Zusage an den Aufrufer (Typvervollstaendigung beim
-  // Abonnieren). Sie steht so in partner-core.js WEBHOOK_EVENTS.
+  // Abonnieren). Sie steht so in partner-core.js WEBHOOK_EVENTS_OFFEN —
+  // OHNE die internen Ereignisse: was ein Partner nicht abonnieren kann, darf
+  // hier nicht als abonnierbar erscheinen.
   assert.deepEqual([...PARTNER_WEBHOOK_EVENTS], [
     'customer.created',
     'customer.updated',
     'customer.status_changed',
     'customer.fon_verified',
     'customer.live_enabled',
-    'customer.avv_accepted',
     'signature.requested',
     'signature.ready',
     'signature.failed',
@@ -323,6 +378,11 @@ test('Webhook: der Ereignis-Katalog stimmt mit dem Backend ueberein', () => {
     'app.version.rejected',
     'webhook.test',
   ]);
+  assert.equal(
+    PARTNER_WEBHOOK_EVENTS.includes('customer.avv_accepted' as never),
+    false,
+    'customer.avv_accepted ist intern — weder abonnierbar noch probbar',
+  );
 });
 
 test('Webhook: Wiederholungsplan und Toleranz stimmen mit dem Versand ueberein', () => {

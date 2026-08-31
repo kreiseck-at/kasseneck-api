@@ -9,240 +9,179 @@
  *
  * **Warum die Texte hier stehen und nicht nur im Backend:** die Meldung des
  * Servers sagt, WAS ist. Sie sagt nicht, was der Aufrufer als naechstes tut,
- * und sie kann es auch nicht: `vertrag_offen` bedeutet je nach Vertragsweg des
- * Partner-Kontos drei verschiedene naechste Schritte. Diese Datei ist deshalb
- * kein zweiter Abdruck der Doku, sondern die Handlungsanweisung daneben.
+ * und sie kann es auch nicht — dafuer muesste sie seinen Ablauf kennen. Diese
+ * Datei ist deshalb kein zweiter Abdruck der Doku, sondern die
+ * Handlungsanweisung daneben.
+ *
+ * **Der Katalog ist vollstaendig.** Die Quelle ist `docs/api/fehlercodes.json`
+ * im Backend (Abzug aus `partner-core.FEHLER_KATALOG`); ein Code, den nur eine
+ * Seite kennt, ist fuer einen Aufrufer nicht von „gibt es nicht" zu
+ * unterscheiden. Deshalb stehen hier BEIDE Flaechen: die der Schnittstelle
+ * ([PARTNER_FEHLER_CODES]) und die des Partner-Portals
+ * ([PARTNER_PORTAL_FEHLER_CODES]).
  */
 
 import { KasseneckApiError } from '../client/errors.js';
 
-/** Die drei Wege, auf denen ein Betrieb zum Auftragsverarbeitungsvertrag kommt. */
-export const AVV_MODI = ['direkt', 'vollmacht', 'unterauftrag'] as const;
-export type AvvModus = typeof AVV_MODI[number];
-
-/** Vorgabe, solange Kasseneck fuer das Partner-Konto nichts anderes gesetzt hat. */
-export const AVV_MODUS_STANDARD: AvvModus = 'direkt';
-
 /**
- * Die Staende, die `kunde.avv.status` annehmen kann.
- *
- * `nicht_erforderlich` ist der Test-Betrieb: dort wird nichts Echtes
- * verarbeitet, es gibt keinen Vertragsgegenstand, und das Live-Gate greift gar
- * nicht. **Er darf nicht wie `offen` behandelt werden** — ein „Vertrag fehlt"
- * an einem Test-Betrieb schickt einen Integrator auf die Suche nach einem
- * Problem, das es nicht gibt.
- */
-export const AVV_STATUS = ['offen', 'bestaetigt', 'veraltet', 'ueber_partner', 'nicht_erforderlich'] as const;
-
-/**
- * Bewusst offen fuer unbekannte Werte: eine spaetere Backend-Fassung soll
- * einen neuen Stand durchreichen koennen, statt hier zu scheitern.
- */
-export type AvvStatus = typeof AVV_STATUS[number] | (string & {});
-
-/** Was `avv.status` bedeutet — als Text, fuer eine Anzeige. */
-const AVV_STATUS_TEXT: Record<typeof AVV_STATUS[number], string> = {
-  offen: 'Der Auftragsverarbeitungsvertrag fehlt — es geht keine neue Kasse live.',
-  bestaetigt: 'Die geltende Fassung ist bestaetigt.',
-  veraltet: 'Bestaetigt, aber inzwischen gilt eine neuere Pflichtfassung.',
-  ueber_partner: 'Im Weg "unterauftrag" durch den eigenen Partnervertrag abgedeckt.',
-  nicht_erforderlich: 'Testumgebung — kein Vertragsgegenstand, keine Sperre.',
-};
-
-/** Der Text zu einem Stand; `undefined` fuer einen unbekannten Wert. */
-export function avvStatusText(status: string): string | undefined {
-  return (AVV_STATUS_TEXT as Record<string, string | undefined>)[status];
-}
-
-/**
- * Steht dem Live-Betrieb aus Sicht des Auftragsverarbeitungsvertrags nichts im
- * Weg? Drei Staende sagen ja — `bestaetigt`, `ueber_partner` und
- * `nicht_erforderlich` (Testumgebung).
- *
- * [avvErfuellt] und [avvSperrt] sind **nicht** die Umkehrung voneinander: fuer
- * einen Stand, den dieses Paket nicht kennt, sind beide `false`. Das ist die
- * ehrliche Antwort — die Auskunft, ob eine Kasse live geht, gibt der Server mit
- * `vertrag_offen`, nicht diese Funktion. Wer aus „nicht erfuellt" auf „gesperrt"
- * schliesst, warnt beim naechsten neuen Stand vor etwas, das nicht ist.
- */
-export function avvErfuellt(avv: { status?: unknown } | null | undefined): boolean {
-  const s = avv?.status;
-  return s === 'bestaetigt' || s === 'ueber_partner' || s === 'nicht_erforderlich';
-}
-
-/** Sperrt dieser Stand den Live-Betrieb? Nur `offen` und `veraltet` tun das. */
-export function avvSperrt(avv: { status?: unknown } | null | undefined): boolean {
-  const s = avv?.status;
-  return s === 'offen' || s === 'veraltet';
-}
-
-export function istAvvModus(wert: unknown): wert is AvvModus {
-  return typeof wert === 'string' && (AVV_MODI as readonly string[]).includes(wert);
-}
-
-/**
- * Alle Codes, die die Partner-API kennt. Als Liste und nicht nur als Typ,
- * damit ein Aufrufer sie zur Laufzeit durchgehen kann (Katalogseite,
+ * Alle Codes, die die **Schnittstelle** kennt. Als Liste und nicht nur als
+ * Typ, damit ein Aufrufer sie zur Laufzeit durchgehen kann (Katalogseite,
  * Selbsttest der eigenen Fehlerbehandlung).
+ *
+ * Reihenfolge und Bestand wie im Abzug des Backends.
  */
 export const PARTNER_FEHLER_CODES = [
-  // Eingabe und Konto
+  // Eingabe, Konto und Takt
   'validation',
+  'rate_limited',
   'app_not_found',
   'app_not_accepted',
+  'kein_partnerbetrieb',
+  'live_not_allowed',
+  // Betrieb anlegen
   'customer_exists',
   'customer_conflict',
-  'email_taken',
   'customer_limit',
-  'rate_limited',
-  // Vertrag (Art. 28 DSGVO)
-  'vertrag_offen',
-  'modus_not_allowed',
-  'vollmacht_fehlt',
-  'text_changed',
-  'art_not_allowed',
-  'already_accepted',
-  'not_found',
-  // Signatur und Kasse
+  'zugang_nicht_erlaubt',
+  'email_taken',
+  'no_email',
+  // Signatur
   'fon_missing',
-  'no_card_available',
   'signature_pending',
+  'request_not_found',
+  'signature_missing',
+  'signature_unknown',
+  'signature_ambiguous',
   'signature_not_ready',
+  'signature_limit',
   'signature_failed',
+  // Kasse
   'module_inactive',
   'cashregister_limit',
   'cashregister_not_found',
   'activation_failed',
   // Webhooks
   'webhook_limit',
-  'event_not_subscribed',
   'webhook_inactive',
+  'event_not_subscribed',
+] as const;
+
+/**
+ * Die Codes, die nur im **Partner-Portal** entstehen — beim Pflegen der App,
+ * der Schluessel, der Mitglieder und der Signaturkarten.
+ *
+ * Sie stehen hier, obwohl kein Aufruf dieses Clients sie ausloest: der
+ * Fehlerkatalog ist eine Liste, und eine halbe Liste ist schlimmer als keine.
+ * Wer eine Katalogseite baut oder eine fremde Antwort einsortiert, findet
+ * damit jeden Code des Backends wieder.
+ */
+export const PARTNER_PORTAL_FEHLER_CODES = [
+  'app_locked',
+  'version_locked',
+  'invalid_transition',
+  'no_accepted_app',
+  'consent',
+  'key_limit',
+  'last_owner',
+  'auth_user_exists',
+  'card_missing',
+  'card_duplicate',
+  'card_not_verified',
+  'already_assigned',
 ] as const;
 
 export type PartnerFehlerCode = typeof PARTNER_FEHLER_CODES[number];
+export type PartnerPortalFehlerCode = typeof PARTNER_PORTAL_FEHLER_CODES[number];
+
+/** Ein Code aus einer der beiden Flaechen. */
+export type PartnerCode = PartnerFehlerCode | PartnerPortalFehlerCode;
 
 export function istPartnerFehlerCode(wert: unknown): wert is PartnerFehlerCode {
   return typeof wert === 'string' && (PARTNER_FEHLER_CODES as readonly string[]).includes(wert);
+}
+
+export function istPartnerPortalFehlerCode(wert: unknown): wert is PartnerPortalFehlerCode {
+  return typeof wert === 'string' && (PARTNER_PORTAL_FEHLER_CODES as readonly string[]).includes(wert);
 }
 
 /**
  * Was der Aufrufer tun muss. Ein Satz je Code, in der zweiten Person — nicht
  * die Wiederholung der Server-Meldung, sondern der naechste Handgriff.
  *
- * `vertrag_offen` fehlt hier mit Absicht: sein naechster Handgriff haengt am
- * Vertragsweg des Partner-Kontos, den nur der Aufrufer kennt. Dafuer gibt es
- * [vertragOffenRat].
+ * Jeder Code des Katalogs steht hier; `partner-client.test.ts` haelt das fest.
+ * Ein Code ohne Satz waere schlimmer als ein fehlender Code: er sieht aus wie
+ * behandelt und sagt nichts.
  */
-const RAT: Record<Exclude<PartnerFehlerCode, 'vertrag_offen'>, string> = {
-  validation: 'Eingaben pruefen — data.errors nennt Feld und Grund. Es wurde nichts angelegt.',
+const RAT: Record<PartnerCode, string> = {
+  // -- Schnittstelle --------------------------------------------------------
+  validation:
+    'Eingaben pruefen — data.errors nennt Feld und Grund, verschachtelt mit vollem Pfad (address.zip, contacts.0.email). Auch ein UNBEKANNTES Feld ist ein Formfehler: es wird abgewiesen und nicht stillschweigend verworfen. Es wurde nichts angelegt.',
+  rate_limited: 'Zu viele Aufrufe. data.retryAfterSec Sekunden warten und denselben Aufruf wiederholen.',
   app_not_found: 'Die appId gibt es nicht. getPartnerInfo liefert die eigenen Apps samt id.',
   app_not_accepted:
-    'Diese App hat noch keine abgenommene Version. Mit einem pk_test_-Schluessel geht es sofort weiter; live erst nach der Abnahme.',
+    'Diese App hat noch keine abgenommene Version. Mit einem pk_test_-Schluessel oder mit env:"test" geht es sofort weiter; live erst nach der Abnahme.',
+  kein_partnerbetrieb:
+    'Dieser Betrieb gehoert nicht zu diesem Partner-Konto. Die eigenen stehen in listPartnerCustomers.',
+  live_not_allowed:
+    'Ein Test-Schluessel erzeugt nichts Echtes. Fuer einen Live-Betrieb den Live-Schluessel nehmen — umgekehrt darf ein Live-Schluessel mit env:"test" sehr wohl einen Testbetrieb anlegen.',
   customer_exists: 'Diesen Betrieb gibt es schon (data.customerId). Mit derselben customerId weiterarbeiten.',
   customer_conflict:
     'Die Steuernummer ist bei Kasseneck bereits registriert. Die Zuordnung zum Partner macht Kasseneck — hello@kasseneck.at.',
-  email_taken:
-    'Fuer diese E-Mail gibt es schon einen Kasseneck-Zugang. Eine andere Adresse waehlen oder den Betrieb zuordnen lassen.',
   customer_limit: 'Das Tageslimit fuer neue Betriebe ist erreicht (data.max, data.resetAt). Morgen weiter.',
-  rate_limited: 'Zu viele Aufrufe. data.retryAfterSec Sekunden warten und denselben Aufruf wiederholen.',
-  modus_not_allowed:
-    'Fuer dieses Partner-Konto ist der Vollmachtsweg nicht freigeschaltet. reportCustomerVertrag ist damit nicht der richtige Weg.',
-  vollmacht_fehlt:
-    'Der Partnervertrag mit dem Vollmachts-Kapitel ist nicht bestaetigt. Im Partner-Portal bestaetigen, dann erneut melden.',
-  text_changed:
-    'Der gemeldete textHash passt nicht zur geltenden Fassung. Den aktuellen Text holen, erneut anzeigen, mit dem neuen Hash melden — die alte Zustimmung gilt nicht.',
-  art_not_allowed: 'In Vollmacht laesst sich nur der Auftragsverarbeitungsvertrag (art:"avv") melden.',
-  already_accepted: 'Dieser Vertrag ist in dieser Fassung bereits bestaetigt. Nichts zu tun.',
-  not_found: 'Der genannte Datensatz gehoert nicht zu diesem Partner-Konto oder gibt es nicht.',
+  zugang_nicht_erlaubt:
+    'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne zugang{einladen:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.darfZugangEinrichten).',
+  email_taken:
+    'Fuer diese E-Mail gibt es schon einen Kasseneck-Zugang. Eine andere Adresse waehlen, auf die Einladung verzichten oder den Betrieb zuordnen lassen.',
+  no_email:
+    'Im Konto des Betriebs steht keine E-Mail-Adresse. Ohne sie geht weder eine Einladung noch der FinanzOnline-Link hinaus.',
   fon_missing:
-    'Der Betrieb hat noch keinen FinanzOnline-Zugang. sendPartnerCustomerFonLink senden und customer.fon_verified abwarten.',
-  no_card_available:
-    'Zurzeit ist keine gepruefte Signaturkarte frei. Kasseneck kuemmert sich und meldet sich — hier ist nichts zu tun.',
+    'Der Betrieb hat noch keinen FinanzOnline-Zugang. sendPartnerCustomerFonLink senden und customer.fon_verified abwarten. Betrifft das ANMELDEN der Signatureinheit, nicht das Beantragen.',
   signature_pending: 'Fuer diesen Betrieb laeuft bereits ein Antrag. Auf signature.ready warten.',
+  request_not_found: 'Diese signaturId gibt es nicht. getCustomerSignatureStatus nennt die des Betriebs.',
+  signature_missing:
+    'Der Betrieb hat ueberhaupt keine Signatur, und jede Kasse bezieht sich auf eine. Zuerst requestCustomerSignature.',
+  signature_unknown:
+    'Die genannte signaturId gehoert nicht zu diesem Betrieb. getCustomerSignatureStatus nennt die seinen.',
+  signature_ambiguous:
+    'Der Betrieb hat mehrere Signaturen; welche die Kasse benutzt, muss dastehen. Eine aus data.auswahl als signaturId mitgeben.',
   signature_not_ready:
-    'Die Signatur ist noch nicht bereit. Auf das Ereignis signature.ready warten; eine mit automatisch:true angelegte Kasse geht danach von selbst live.',
-  signature_failed: 'FinanzOnline hat die Registrierung abgelehnt (data.rc). Kasseneck klaert das — hello@kasseneck.at.',
+    'Die Signatur DIESER Kasse ist noch nicht bereit. Auf signature.ready warten; eine mit automatisch:true angelegte Kasse geht danach von selbst live.',
+  signature_limit:
+    'Hoechstens zehn Signaturen je Betrieb. Eine bestehende benutzen, statt mit weitere:true eine weitere zu beantragen.',
+  signature_failed: 'FinanzOnline hat die Anmeldung abgelehnt (data.rc). Kasseneck klaert das — hello@kasseneck.at.',
   module_inactive: 'Das Modul (data.modul) ist fuer diesen Betrieb nicht gebucht. Kasseneck schaltet es frei.',
   cashregister_limit: 'Hoechstens 20 Registrierkassen je Betrieb. Eine bestehende nutzen.',
   cashregister_not_found: 'Diese cashregisterId gibt es bei diesem Betrieb nicht.',
   activation_failed:
     'Die Inbetriebnahme blieb an data.schritt haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
   webhook_limit: 'Hoechstens 10 Webhook-Endpunkte je Partner. Einen ungenutzten loeschen.',
-  event_not_subscribed: 'Der Endpunkt abonniert das Ereignis nicht. events erweitern und erneut versuchen.',
-  webhook_inactive: 'Der Webhook steht auf aktiv:false. Zuerst aktivieren.',
+  webhook_inactive: 'Der Webhook steht auf aktiv:false. Zuerst aktivieren, dann erneut proben.',
+  event_not_subscribed:
+    'Der Endpunkt abonniert dieses Ereignis nicht — auch eine Probe bekommt nur, was in seiner events-Liste steht. events erweitern und erneut versuchen.',
+
+  // -- Partner-Portal -------------------------------------------------------
+  app_locked:
+    'Name, Verteilungen und Kontakt einer App sind fest, sobald eine Version geprueft wird. Aenderungen daran gehen ueber Kasseneck.',
+  version_locked: 'Diese App-Version wird geprueft oder ist abgenommen. Fuer Aenderungen eine neue Version anlegen.',
+  invalid_transition: 'Dieser Statuswechsel ist nicht vorgesehen. Den geltenden Stand laden und von dort weitergehen.',
+  no_accepted_app: 'Einen Live-Schluessel gibt es erst nach der Abnahme einer App. Bis dahin mit dem pk_test_-Schluessel arbeiten.',
+  consent: 'Der Datenschutzhinweis wurde nicht bestaetigt. Ohne die Bestaetigung entsteht nichts.',
+  key_limit: 'Mehr aktive Schluessel je Umgebung als erlaubt. Zuerst einen widerrufen, dann einen neuen erzeugen.',
+  last_owner: 'Der letzte Inhaber eines Partner-Kontos laesst sich nicht entfernen. Zuerst einen zweiten ernennen.',
+  auth_user_exists: 'Diese E-Mail-Adresse ist bereits einem Konto zugeordnet. Eine andere waehlen.',
+  card_missing: 'Zu diesem Antrag sind noch keine Kartendaten eingetragen.',
+  card_duplicate: 'Diese Seriennummer ist bei Kasseneck schon eingetragen — die Karte ist bereits erfasst.',
+  card_not_verified: 'Die Kartendaten sind noch nicht geprueft. Die Pruefung abwarten (data.antrag).',
+  already_assigned: 'Fuer diesen Antrag sind bereits Kartendaten eingetragen; ein zweiter Satz ueberschreibt nichts.',
 };
 
 /**
- * Was `vertrag_offen` fuer dieses Partner-Konto bedeutet.
- *
- * Ohne bestaetigten Auftragsverarbeitungsvertrag (Art. 28 DSGVO) nimmt
- * Kasseneck **keine neue Kasse** in Betrieb; laufende Kassen bleiben
- * unberuehrt. Welcher der drei Wege gilt, setzt Kasseneck je Partner-Konto —
- * die Partner-API gibt ihn heute nicht aus, er ist deshalb Teil der
- * Client-Einstellungen ([PartnerApiOptions.avvModus]).
+ * Der Handlungssatz zu einem Code — aus beiden Flaechen. `undefined` fuer
+ * einen Code, den dieses Paket nicht kennt; ein erfundener Satz waere
+ * schlimmer als keiner.
  */
-export function vertragOffenRat(modus: AvvModus = AVV_MODUS_STANDARD): string {
-  switch (modus) {
-    case 'vollmacht':
-      return (
-        'Der Auftragsverarbeitungsvertrag dieses Betriebs fehlt. Vertragsweg "vollmacht": ' +
-        'den unveraenderten Kasseneck-Text in der eigenen App zeigen, die Zustimmung einholen ' +
-        'und mit reportCustomerVertrag melden (art:"avv", passender textHash). Danach die Kasse erneut aktivieren.'
-      );
-    case 'unterauftrag':
-      return (
-        'Der Auftragsverarbeitungsvertrag dieses Betriebs fehlt. Vertragsweg "unterauftrag": ' +
-        'der Betrieb hat den Vertrag mit euch, Kasseneck ist Unterauftragsverarbeiter. ' +
-        'Faellt die Deckung weg (Partnervertrag beendet oder Partner-Konto gesperrt), steht der Betrieb wieder auf offen — ' +
-        'dann klaert das Kasseneck, hello@kasseneck.at.'
-      );
-    case 'direkt':
-    default:
-      return (
-        'Der Auftragsverarbeitungsvertrag dieses Betriebs fehlt. Vertragsweg "direkt" (Vorgabe): ' +
-        'der Betrieb bestaetigt selbst — im Kasseneck-Panel oder ueber den Einrichtungs-Link. ' +
-        'Ein Partner kann das auf diesem Weg nicht fuer ihn tun. Das Ereignis customer.avv_accepted meldet die Bestaetigung.'
-      );
-  }
-}
-
-/** Was fuer einen Test-Betrieb zu tun ist: nichts. */
-export const AVV_NICHT_ERFORDERLICH_RAT =
-  'Nichts zu tun: dieser Betrieb liegt in der Testumgebung. Dort wird nichts Echtes verarbeitet — ' +
-  'es gibt keinen Vertragsgegenstand und keine Sperre. Der Auftragsverarbeitungsvertrag wird erst ' +
-  'fuer den Live-Betrieb gebraucht.';
-
-/**
- * Wie [vertragOffenRat], nur mit Stand und Weg aus dem Betrieb selbst — der
- * verlaesslichen Quelle: `listPartnerCustomers` und `getPartnerCustomer`
- * fuehren beides je Betrieb mit. Fehlt der Stand (aeltere Backend-Fassung),
- * gilt [rueckfall] fuer den Weg.
- *
- * **`nicht_erforderlich` bekommt einen eigenen Satz**, keinen abgeschwaechten:
- * an einem Test-Betrieb kann `vertrag_offen` gar nicht entstehen, und ein
- * „bitte bestaetigen lassen" schickte den Aufrufer auf eine Suche ohne Ziel.
- *
- * Fuer jeden anderen Stand — auch `bestaetigt` — bleibt es beim Weg-Satz: das
- * Live-Gate prueft **alle** sperrenden Vertragsarten, nicht nur den
- * Auftragsverarbeitungsvertrag. Ein `vertrag_offen` bei `avv.status:
- * "bestaetigt"` ist damit moeglich, und „nichts zu tun" waere dann falsch.
- */
-export function vertragOffenRatFuer(
-  avv: { status?: unknown; modus?: unknown } | null | undefined,
-  rueckfall: AvvModus = AVV_MODUS_STANDARD,
-): string {
-  if (avv?.status === 'nicht_erforderlich') return AVV_NICHT_ERFORDERLICH_RAT;
-  const modus = avv && istAvvModus(avv.modus) ? avv.modus : rueckfall;
-  return vertragOffenRat(modus);
-}
-
-/**
- * Der Handlungssatz zu einem Code. `modus` wird nur fuer `vertrag_offen`
- * gebraucht und sonst ignoriert.
- */
-export function partnerFehlerRat(code: string, modus: AvvModus = AVV_MODUS_STANDARD): string | undefined {
-  if (code === 'vertrag_offen') return vertragOffenRat(modus);
-  return istPartnerFehlerCode(code) ? RAT[code as Exclude<PartnerFehlerCode, 'vertrag_offen'>] : undefined;
+export function partnerFehlerRat(code: string): string | undefined {
+  return (RAT as Record<string, string | undefined>)[code];
 }
 
 /** Der Fehlercode eines geworfenen Fehlers — `undefined`, wenn es keiner der unseren ist. */
@@ -250,13 +189,17 @@ export function partnerFehlerCode(fehler: unknown): string | undefined {
   return fehler instanceof KasseneckApiError ? fehler.code : undefined;
 }
 
-/** Kurzform fuer `catch (e) { if (istPartnerFehler(e, 'vertrag_offen')) … }`. */
-export function istPartnerFehler(fehler: unknown, code: PartnerFehlerCode): boolean {
+/** Kurzform fuer `catch (e) { if (istPartnerFehler(e, 'signature_missing')) … }`. */
+export function istPartnerFehler(fehler: unknown, code: PartnerCode): boolean {
   return partnerFehlerCode(fehler) === code;
 }
 
 /** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */
 export interface PartnerFeldFehler {
+  /**
+   * Der Feldpfad, so wie er im gesendeten Betrieb steht — verschachtelt und je
+   * Kontakt: `address.land`, `tax_details.ustid`, `contacts.1.abteilung`.
+   */
   field: string;
   message: string;
 }

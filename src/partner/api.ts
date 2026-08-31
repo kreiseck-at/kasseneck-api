@@ -3,25 +3,12 @@
  *
  * Wie [createKasseneckApi] bewusst **keine** Klasse — die Aufrufe sind freie
  * Funktionen und bleiben einzeln importierbar.
- *
- * **Ein Unterschied zur Kassen-Fassade, und er ist Absicht:** hier steht
- * zusaetzlich [PartnerApiOptions.avvModus] — welcher der drei Vertragswege fuer
- * dieses Partner-Konto gilt. `getPartnerInfo` gibt ihn nicht aus; die
- * Betriebsansichten tun es (`kunde.avv.modus`). Dieser Wert ist der Rueckfall
- * fuer den Moment, in dem noch kein Betrieb geladen ist, damit dieser Client
- * bei `vertrag_offen` nicht nur den allgemeinen Fall nennen muss.
  */
 
 import { createTransport, type FetchLike } from '../client/transport.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { partnerKeyAuth } from './auth.js';
-import {
-  partnerFehlerRat,
-  vertragOffenRat,
-  vertragOffenRatFuer,
-  AVV_MODUS_STANDARD,
-  type AvvModus,
-} from './fehler.js';
+import { partnerFehlerRat } from './fehler.js';
 import {
   activateCashregister,
   createCustomerCashregister,
@@ -32,7 +19,6 @@ import {
   getPartnerInfo,
   listCustomerCashregisters,
   listPartnerCustomers,
-  reportCustomerVertrag,
   requestCustomerSignature,
   sendPartnerCustomerFonLink,
 } from './endpunkte.js';
@@ -47,6 +33,7 @@ import {
   type CreateWebhookResult,
   type PartnerWebhook,
   type WebhookListe,
+  type PartnerWebhookEventType,
   type WebhookPatch,
   type WebhookTestResult,
   type WebhookZustellung,
@@ -64,8 +51,6 @@ import type {
   KundenListe,
   ListCustomersOptions,
   PartnerInfo,
-  ReportVertragOptions,
-  ReportVertragResult,
   RequestSignatureResult,
   SignaturStand,
 } from './typen.js';
@@ -79,25 +64,9 @@ export interface PartnerApiOptions {
   timeoutMs?: number;
   /** Eigene `fetch`-Umsetzung (Tests, Proxys). */
   fetch?: FetchLike;
-  /**
-   * Der Vertragsweg dieses Partner-Kontos, wie Kasseneck ihn gesetzt hat:
-   * `direkt` (Vorgabe), `vollmacht` oder `unterauftrag`. Er steuert nur die
-   * Formulierung von [PartnerApi.vertragOffenRat] — nicht das Verhalten des
-   * Servers.
-   *
-   * **Rueckfall, kein Ersatz:** `listPartnerCustomers` und
-   * `getPartnerCustomer` fuehren den Weg je Betrieb mit (`kunde.avv.modus`);
-   * [PartnerApi.vertragOffenRatFuer] nimmt ihn von dort. Dieser Wert gilt,
-   * solange kein Betrieb geladen ist — und wenn eine aeltere Backend-Fassung
-   * das Feld nicht schickt.
-   */
-  avvModus?: AvvModus;
 }
 
 export interface PartnerApi {
-  /** Der Vertragsweg, mit dem diese Fassade gebaut wurde. */
-  readonly avvModus: AvvModus;
-
   // Partner
   getPartnerInfo(): Promise<PartnerInfo>;
 
@@ -107,11 +76,11 @@ export interface PartnerApi {
   getPartnerCustomer(customerId: string): Promise<Kunde>;
   sendPartnerCustomerFonLink(customerId: string): Promise<FonLinkResult>;
 
-  // Vertrag
-  reportCustomerVertrag(optionen: ReportVertragOptions): Promise<ReportVertragResult>;
-
   // Signatur
-  requestCustomerSignature(customerId: string, art?: string): Promise<RequestSignatureResult>;
+  requestCustomerSignature(
+    customerId: string,
+    optionen?: { art?: string; weitere?: boolean },
+  ): Promise<RequestSignatureResult>;
   getCustomerSignatureStatus(customerId: string): Promise<SignaturStand>;
 
   // Kassen
@@ -126,31 +95,26 @@ export interface PartnerApi {
   listPartnerWebhooks(): Promise<WebhookListe>;
   updatePartnerWebhook(webhookId: string, patch: WebhookPatch): Promise<PartnerWebhook>;
   deletePartnerWebhook(webhookId: string): Promise<string>;
-  sendPartnerWebhookTest(webhookId: string): Promise<WebhookTestResult>;
+  /**
+   * Eine Probe an einen Endpunkt — ohne `event` die Leitungsprobe
+   * `webhook.test`, mit `event` genau der Fall, den der Empfaenger behandeln
+   * soll. Jede Probe traegt `test: true` im Umschlag.
+   */
+  sendPartnerWebhookTest(
+    webhookId: string,
+    event?: PartnerWebhookEventType | (string & {}),
+  ): Promise<WebhookTestResult>;
   listPartnerWebhookDeliveries(optionen?: { webhookId?: string; limit?: number }): Promise<WebhookZustellung[]>;
 
   /**
-   * Was bei `vertrag_offen` zu tun ist — formuliert fuer den Vertragsweg
-   * dieses Kontos. Gehoert in die eigene Fehlermeldung, damit ein Anwender
-   * nicht in der Doku nachschlagen muss.
+   * Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. Gehoert
+   * in die eigene Fehlermeldung, damit ein Anwender nicht in der Doku
+   * nachschlagen muss.
    */
-  vertragOffenRat(): string;
-  /**
-   * Wie [vertragOffenRat], aber mit Stand und Weg aus dem Betrieb selbst — der
-   * verlaesslichen Quelle. `listPartnerCustomers` und `getPartnerCustomer`
-   * fuehren beides je Betrieb mit; ohne den Stand gilt der eingestellte
-   * [avvModus]. Ein Test-Betrieb (`nicht_erforderlich`) bekommt einen eigenen
-   * Satz: dort ist nichts zu tun.
-   */
-  vertragOffenRatFuer(
-    kunde: { avv?: { status?: unknown; modus?: unknown } | null } | null | undefined,
-  ): string;
-  /** Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. */
   fehlerRat(code: string): string | undefined;
 }
 
 export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
-  const modus: AvvModus = optionen.avvModus ?? AVV_MODUS_STANDARD;
   const rufen = createTransport({
     auth: partnerKeyAuth({ partnerKey: optionen.partnerKey }),
     baseUrl: optionen.baseUrl,
@@ -159,8 +123,6 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
   }) as InternerTransport;
 
   return {
-    avvModus: modus,
-
     getPartnerInfo: () => getPartnerInfo(rufen),
 
     createPartnerCustomer: (o) => createPartnerCustomer(rufen, o),
@@ -168,9 +130,7 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     getPartnerCustomer: (id) => getPartnerCustomer(rufen, id),
     sendPartnerCustomerFonLink: (id) => sendPartnerCustomerFonLink(rufen, id),
 
-    reportCustomerVertrag: (o) => reportCustomerVertrag(rufen, o),
-
-    requestCustomerSignature: (id, art) => requestCustomerSignature(rufen, id, art),
+    requestCustomerSignature: (id, o) => requestCustomerSignature(rufen, id, o),
     getCustomerSignatureStatus: (id) => getCustomerSignatureStatus(rufen, id),
 
     createCustomerCashregister: (o) => createCustomerCashregister(rufen, o),
@@ -182,11 +142,9 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     listPartnerWebhooks: () => listPartnerWebhooks(rufen),
     updatePartnerWebhook: (id, patch) => updatePartnerWebhook(rufen, id, patch),
     deletePartnerWebhook: (id) => deletePartnerWebhook(rufen, id),
-    sendPartnerWebhookTest: (id) => sendPartnerWebhookTest(rufen, id),
+    sendPartnerWebhookTest: (id, event) => sendPartnerWebhookTest(rufen, id, event),
     listPartnerWebhookDeliveries: (o) => listPartnerWebhookDeliveries(rufen, o),
 
-    vertragOffenRat: () => vertragOffenRat(modus),
-    vertragOffenRatFuer: (kunde) => vertragOffenRatFuer(kunde?.avv, modus),
-    fehlerRat: (code) => partnerFehlerRat(code, modus),
+    fehlerRat: (code) => partnerFehlerRat(code),
   };
 }

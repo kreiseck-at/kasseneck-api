@@ -54,7 +54,6 @@ export const AUFRUFE = [
   'registerPinLogin',
   'registerUserLogin',
   'renewRegisterSession',
-  'reportCustomerVertrag',
   'requestCustomerSignature',
   'sendPartnerCustomerFonLink',
   'sendPartnerWebhookTest',

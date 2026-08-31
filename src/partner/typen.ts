@@ -14,15 +14,20 @@
  * Compilerfehler sein und keine `validation`-Antwort vom Server.
  */
 
-import type { AvvModus, AvvStatus } from './fehler.js';
 import type { KasseneckSecret } from './secret.js';
 
 // ---------------------------------------------------------------------------
 // Partner und Schluessel
 // ---------------------------------------------------------------------------
 
-/** Umgebung, in der ein Partner-Schluessel arbeitet. */
-export type PartnerEnv = 'test' | 'live';
+/**
+ * Die beiden Umgebungen. Als Liste und nicht nur als Typ, damit ein Aufrufer
+ * sie zur Laufzeit pruefen kann — und damit der Zwilling sie nachhaelt.
+ */
+export const PARTNER_ENVS = ['live', 'test'] as const;
+
+/** Umgebung, in der ein Partner-Schluessel bzw. ein Betrieb lebt. */
+export type PartnerEnv = typeof PARTNER_ENVS[number];
 
 /** Berechtigungen eines Partner-Schluessels. */
 export type PartnerScope =
@@ -55,7 +60,19 @@ export interface PartnerApp {
 }
 
 export interface PartnerInfo {
-  partner: { id: string; name: string; status: string };
+  partner: {
+    id: string;
+    name: string;
+    status: string;
+    /**
+     * Darf dieser Partner fuer seine Betriebe einen Zugang zum Kundenpanel
+     * einrichten lassen? **Vorgabe `false`** — die Freischaltung setzt
+     * Kasseneck je Partner. Ohne sie antworten `zugang:{einladen:true}` und
+     * `resendPartnerCustomerInvite` mit `zugang_nicht_erlaubt`, und es
+     * entsteht nichts, auch kein Betrieb.
+     */
+    darfZugangEinrichten: boolean;
+  };
   env: PartnerEnv;
   scopes: PartnerScope[];
   key: { hint: string | null; label: string | null; createdAt: number | null; scopes: PartnerScope[] };
@@ -119,6 +136,14 @@ export interface BetriebSteuerberater {
  * Kasseneckens eigener Kundenaufnahme (`@kreiseck/validator`); bei einem
  * Formfehler entsteht **nichts** — die Antwort traegt `code:"validation"` und
  * `data.errors[{field,message}]`.
+ *
+ * **Genau diese Felder, kein weiteres.** Das Backend weist ein unbekanntes
+ * Feld ab, statt es stillschweigend zu verwerfen, und nennt seinen vollen
+ * Pfad (`address.land`, `contacts.0.rolle`). Deshalb hat dieser Typ dieselbe
+ * Liste wie `partner-core.BETRIEB_FELDER` — ein ueberzaehliges Feld ist hier
+ * ein Compilerfehler und nicht erst eine Antwort vom Server. Fuer Daten, die
+ * nicht durch die Typpruefung kommen (Datenbank, Formular), beantwortet
+ * [unbekannteBetriebsfelder] dieselbe Frage zur Laufzeit.
  */
 export interface Betrieb {
   company_name: string;
@@ -150,8 +175,31 @@ export interface CreateCustomerOptions {
    * Rumpf. Die eigene Kundennummer ist der natuerliche Wert dafuer.
    */
   idempotencyKey?: string;
-  /** `einladen:false` legt den Betrieb ohne Panel-Einladung an (Vorgabe: einladen). */
+  /**
+   * `einladen:true` legt zusaetzlich einen Zugang zum Kundenpanel an und
+   * schickt die Einladung an `betrieb.email`. **Vorgabe ist `false`:** viele
+   * Betriebe arbeiten ausschliesslich in der App des Partners, und ein
+   * stillschweigend erzeugter Login samt Mail waere dort etwas, das niemand
+   * erwartet. Nachholen laesst er sich mit `resendPartnerCustomerInvite`.
+   *
+   * Nur erlaubt, wenn `getPartnerInfo().partner.darfZugangEinrichten` gilt —
+   * sonst `zugang_nicht_erlaubt`, und es entsteht nichts, auch kein Betrieb.
+   */
   zugang?: { einladen: boolean };
+  /**
+   * In welcher Umgebung der Betrieb entsteht. Ohne Angabe entscheidet der
+   * Schluessel.
+   *
+   * Ein LIVE-Schluessel darf `env:"test"` verlangen — das ist der vorgesehene
+   * Weg, die ganze Kette zu proben, ohne sich einen zweiten Schluessel zu
+   * holen. Umgekehrt nie: ein Test-Schluessel mit `env:"live"` bekommt
+   * `live_not_allowed`, und es entsteht nichts.
+   *
+   * Ein so angelegter Live-Betrieb ist **sofort freigeschaltet** und traegt das
+   * Modul `registrierkasse`; es wird auf keine Freigabe durch Kasseneck
+   * gewartet.
+   */
+  env?: PartnerEnv;
 }
 
 export type KundenStatus =
@@ -177,15 +225,20 @@ export interface CreateCustomerResult {
 }
 
 /**
- * Stand des Auftragsverarbeitungsvertrags eines Betriebs, aus Partnersicht.
- * Die Werte stehen in `AVV_STATUS` (fehler.ts), samt dem, was sie bedeuten.
+ * Stand des Auftragsverarbeitungsvertrags eines Betriebs.
+ *
+ * **Vertraege wirken im Partner-Weg nicht mehr** (Stand 2026-08-31): keine
+ * Antwort fuehrt dieses Feld, kein Schritt in `naechsteSchritte` verlangt
+ * einen Vertrag, und eine Kasse geht deswegen nicht weniger live. Der Typ
+ * bleibt, damit eine Antwort, die ihn doch noch traegt, lesbar durchkommt —
+ * **vorausgesetzt wird er nirgends**. Fuer selbst registrierte Kunden gibt es
+ * die Maschinerie weiterhin, aber nicht ueber diese Schnittstelle.
  */
 export interface AvvStand {
-  status: AvvStatus;
+  status: string;
   version: string | null;
   bestaetigtAt: number | null;
-  /** Der Weg, den Kasseneck fuer DIESES Partner-Konto gesetzt hat. */
-  modus: AvvModus;
+  modus: string | null;
 }
 
 export interface KundenZeile {
@@ -196,9 +249,9 @@ export interface KundenZeile {
   env: PartnerEnv;
   createdAt: number | null;
   /**
-   * Vertragsstand — `null`, wenn die Antwort ihn nicht fuehrt (aeltere
-   * Backend-Fassung). Das ist die verlaessliche Quelle fuer [AvvStand.modus];
-   * `getPartnerInfo` gibt den Weg nicht aus.
+   * Vertragsstand, falls die Antwort ihn ueberhaupt fuehrt — heute tut sie das
+   * nicht, der Wert ist dann `null`. Siehe [AvvStand]: nichts in diesem Client
+   * setzt ihn voraus.
    */
   avv: AvvStand | null;
 }
@@ -322,10 +375,22 @@ export interface Kasse {
 
 export interface CreateCashregisterOptions {
   customerId: string;
-  /** Hoechstens 60 Zeichen. */
-  name?: string;
   /** Vorgabe `true`: die Kasse geht von selbst live, sobald die Signatur da ist. */
   automatisch?: boolean;
+  /**
+   * Auf welche Signatur sich die Kasse bezieht. **Jede Kasse bezieht sich auf
+   * eine**; ohne eine einzige entsteht keine (`signature_missing`).
+   *
+   * Hat der Betrieb genau eine, ist sie vorausgewaehlt und dieses Feld
+   * ueberfluessig. Bei mehreren muss es dastehen, sonst `signature_ambiguous`
+   * samt `data.auswahl[]`; eine fremde Kennung ist `signature_unknown`. Die
+   * Kennungen nennt `getCustomerSignatureStatus`.
+   *
+   * **Einen Namen gibt es hier nicht.** Kassennamen vergibt Kasseneck, sie
+   * sind gleich der `cashregisterId`; ein mitgesendetes `name` waere ein
+   * `validation`-Fehler.
+   */
+  signaturId?: string;
 }
 
 export interface CreateCashregisterResult {
@@ -387,35 +452,4 @@ export interface CustomerCredentials {
   apiKey: KasseneckSecret;
   kassen: CustomerCashregisterCredential[];
   hinweis: string;
-}
-
-// ---------------------------------------------------------------------------
-// Vertrag
-// ---------------------------------------------------------------------------
-
-/**
- * Meldung einer in Vollmacht eingeholten Zustimmung. Nur `art:"avv"`, nur mit
- * freigeschaltetem Vollmachtsweg, und nur mit dem `textHash` der geltenden
- * Kasseneck-Fassung — ein abweichender Hash heisst, dass ein anderer Text
- * gezeigt wurde (`text_changed`).
- */
-export interface ReportVertragOptions {
-  /** Der Betrieb (dieselbe Kennung wie `customerId`; der Endpunkt nennt sie `kundeId`). */
-  customerId: string;
-  art: 'avv';
-  version: string;
-  textHash: string;
-  /** Wer zugestimmt hat — Name der Person. */
-  name: string;
-  /** Ihre Funktion im Betrieb. */
-  funktion: string;
-  /** Zeitpunkt der Zustimmung in Millisekunden; Vorgabe ist der Eingang. */
-  akzeptiertAt?: number;
-}
-
-export interface ReportVertragResult {
-  vertragId: string;
-  bestaetigtAt: number;
-  art: string;
-  version: string;
 }

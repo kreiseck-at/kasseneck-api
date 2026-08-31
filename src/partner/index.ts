@@ -25,28 +25,26 @@ export {
 } from './ablauf.js';
 
 export {
-  AVV_MODI,
-  AVV_MODUS_STANDARD,
-  AVV_STATUS,
-  AVV_NICHT_ERFORDERLICH_RAT,
-  avvStatusText,
-  avvErfuellt,
-  avvSperrt,
-  istAvvModus,
   PARTNER_FEHLER_CODES,
+  PARTNER_PORTAL_FEHLER_CODES,
   istPartnerFehlerCode,
+  istPartnerPortalFehlerCode,
   istPartnerFehler,
   partnerFehlerCode,
   partnerFehlerRat,
   partnerFeldFehler,
   partnerWartezeitSek,
-  vertragOffenRat,
-  vertragOffenRatFuer,
-  type AvvModus,
-  type AvvStatus,
+  type PartnerCode,
   type PartnerFehlerCode,
+  type PartnerPortalFehlerCode,
   type PartnerFeldFehler,
 } from './fehler.js';
+
+export {
+  BETRIEB_FELDER,
+  unbekannteBetriebsfelder,
+  type BetriebFeld,
+} from './betrieb.js';
 
 export { KasseneckSecret, SECRET_MASKE } from './secret.js';
 
@@ -62,7 +60,6 @@ export {
   activateCashregister,
   listCustomerCashregisters,
   getCustomerCredentials,
-  reportCustomerVertrag,
 } from './endpunkte.js';
 
 export {
@@ -75,6 +72,7 @@ export {
   parseWebhookEvent,
   istPartnerWebhookEvent,
   PARTNER_WEBHOOK_EVENTS,
+  WEBHOOK_UMSCHLAG_FELDER,
   type PartnerWebhookEvent,
   type PartnerWebhookEventType,
   type PartnerWebhook,
@@ -102,6 +100,8 @@ export {
   type WebhookVerifyResult,
   type WebhookVerifyReason,
 } from './webhook-signatur.js';
+
+export { PARTNER_ENVS } from './typen.js';
 
 export type {
   PartnerEnv,
@@ -139,8 +139,6 @@ export type {
   KassenListe,
   CustomerCashregisterCredential,
   CustomerCredentials,
-  ReportVertragOptions,
-  ReportVertragResult,
 } from './typen.js';
 
 /** `credentials:read` — nicht im Standardsatz, siehe typen.ts. */

@@ -19,8 +19,14 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Alle Ereignisse, die ein Webhook abonnieren kann. Ein Endpunkt bekommt
- * ausschliesslich die, die in seiner `events`-Liste stehen.
+ * Alle Ereignisse, die ein Webhook abonnieren **und proben** kann. Ein
+ * Endpunkt bekommt ausschliesslich die, die in seiner `events`-Liste stehen.
+ *
+ * Kasseneck fuehrt daneben interne Ereignisse (etwa den Abschluss eines
+ * Auftragsverarbeitungsvertrags). Sie stehen hier bewusst nicht: sie lassen
+ * sich weder abonnieren noch mit [sendPartnerWebhookTest] ausloesen, und ein
+ * Name in dieser Liste, den niemand bestellen kann, waere ein Versprechen ohne
+ * Deckung.
  */
 export const PARTNER_WEBHOOK_EVENTS = [
   'customer.created',
@@ -28,7 +34,6 @@ export const PARTNER_WEBHOOK_EVENTS = [
   'customer.status_changed',
   'customer.fon_verified',
   'customer.live_enabled',
-  'customer.avv_accepted',
   'signature.requested',
   'signature.ready',
   'signature.failed',
@@ -47,6 +52,15 @@ export function istPartnerWebhookEvent(wert: unknown): wert is PartnerWebhookEve
 }
 
 /**
+ * Die Felder des Umschlags, so wie er auf der Leitung liegt.
+ *
+ * Als Liste, damit der Zwilling sie nachhaelt: `test` kam spaeter dazu, und
+ * genau ein solches Feld verschwindet sonst auf einer Seite, ohne dass etwas
+ * rot wird.
+ */
+export const WEBHOOK_UMSCHLAG_FELDER = ['id', 'type', 'createdAt', 'partnerId', 'test', 'data'] as const;
+
+/**
  * Die Huelle jeder Zustellung. `type` bleibt bewusst offen fuer unbekannte
  * Werte (`(string & {})`): ein spaeter ergaenztes Ereignis soll einen
  * Empfaenger nicht zum Absturz bringen, sondern in seinem `default`-Zweig
@@ -58,6 +72,22 @@ export interface PartnerWebhookEvent<T = Record<string, unknown>> {
   type: PartnerWebhookEventType | (string & {});
   createdAt: number;
   partnerId: string;
+  /**
+   * **Probe oder Ernstfall.** Eine mit [sendPartnerWebhookTest] ausgeloeste
+   * Zustellung traegt `test: true` im Umschlag; ein echtes Ereignis fuehrt das
+   * Feld gar nicht, hier steht dann `false`.
+   *
+   * Diese Zeile gehoert an den Anfang jedes Handlers:
+   *
+   * ```ts
+   * if (ereignis.test) return;
+   * ```
+   *
+   * Ohne sie haelt jemand eine Probe fuer echt und schreibt seinem Kunden, die
+   * Kasse sei fertig. Eine Probe traegt eine erkennbar erfundene Nutzlast — nur
+   * sieht man das erst, wenn man hinsieht.
+   */
+  test: boolean;
   data: T;
 }
 
@@ -106,6 +136,10 @@ export async function parseWebhookEvent(optionen: VerifyWebhookOptions): Promise
       type: e['type'],
       createdAt: typeof e['createdAt'] === 'number' ? e['createdAt'] : 0,
       partnerId: typeof e['partnerId'] === 'string' ? e['partnerId'] : '',
+      // Nur ein ausdrueckliches `true` ist eine Probe. Alles andere — auch ein
+      // fehlendes Feld — ist der Ernstfall; im Zweifel lieber einmal zu viel
+      // gearbeitet als eine echte Kasse fuer eine Probe gehalten.
+      test: e['test'] === true,
       data:
         e['data'] !== null && typeof e['data'] === 'object' && !Array.isArray(e['data'])
           ? (e['data'] as Record<string, unknown>)
@@ -277,15 +311,26 @@ export async function deletePartnerWebhook(rufen: InternerTransport, webhookId: 
 
 export interface WebhookTestResult {
   eventId: string;
+  /** Welches Ereignis geprobt wurde — ohne Angabe `webhook.test`. */
+  ereignis: string;
   zustellungen: unknown[];
 }
 
 /**
- * Schickt ein `webhook.test`-Ereignis an genau diesen Endpunkt — der schnellste
- * Weg, die eigene Signaturpruefung gegen echte Bytes laufen zu lassen.
+ * Schickt eine Probe an genau diesen Endpunkt.
  *
- * Der Endpunkt muss `webhook.test` abonnieren (`event_not_subscribed`) und
- * aktiv sein (`webhook_inactive`).
+ * Ohne `event` kommt `webhook.test` — der Nachweis, dass die Leitung steht und
+ * die eigene Signaturpruefung gegen echte Bytes laeuft. **Mit `event` kommt
+ * genau das Ereignis, das der Empfaenger behandeln soll**, mit einer
+ * glaubwuerdigen Nutzlast: wer auf `signature.ready` hin seinen Kunden
+ * benachrichtigt, probt das einmal, statt auf eine echte Karte zu warten. Eine
+ * Leitungsprobe beweist nichts ueber die Behandlung des Ernstfalls.
+ *
+ * Der Endpunkt muss das Ereignis abonnieren (`event_not_subscribed`) und aktiv
+ * sein (`webhook_inactive`); ein unbekannter Name ist ein `validation`-Fehler
+ * auf dem Feld `event`.
+ *
+ * **Jede Probe traegt `test: true` im Umschlag** ([PartnerWebhookEvent.test]).
  *
  * Der Backend-Endpunkt heisst `sendPartnerWebhookTest`; dieser Client behaelt
  * den Namen bei, damit ein Leser der Doku und ein Leser des Codes dasselbe
@@ -294,12 +339,17 @@ export interface WebhookTestResult {
 export async function sendPartnerWebhookTest(
   rufen: InternerTransport,
   webhookId: string,
+  event?: PartnerWebhookEventType | (string & {}),
 ): Promise<WebhookTestResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('sendPartnerWebhookTest', 'webhookId fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('sendPartnerWebhookTest', { webhookId: id }));
+  const ereignis = typeof event === 'string' ? event.trim() : '';
+  const daten = objekt(
+    await rufen<unknown>('sendPartnerWebhookTest', { webhookId: id, event: ereignis || undefined }),
+  );
   return {
     eventId: typeof daten['eventId'] === 'string' ? daten['eventId'] : '',
+    ereignis: typeof daten['ereignis'] === 'string' ? daten['ereignis'] : ereignis || 'webhook.test',
     zustellungen: Array.isArray(daten['zustellungen']) ? daten['zustellungen'] : [],
   };
 }

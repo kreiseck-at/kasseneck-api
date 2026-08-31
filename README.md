@@ -186,17 +186,14 @@ Geheimnisse holen.
 ```ts
 import { createPartnerApi, istPartnerFehler } from '@kreiseck/kasseneck-api/partner';
 
-const partner = createPartnerApi({
-  partnerKey: process.env.KASSENECK_PARTNER_KEY!,
-  // Welcher der drei Vertragswege für dieses Konto gilt, setzt Kasseneck;
-  // die API gibt ihn nicht aus. Er steuert nur die Formulierung der Hinweise.
-  avvModus: 'vollmacht',
-});
+const partner = createPartnerApi({ partnerKey: process.env.KASSENECK_PARTNER_KEY! });
 
 const { customerId } = await partner.createPartnerCustomer({
   appId: 'app_…',
   idempotencyKey: kundennummer,   // die eigene — schützt vor Doppelanlage
   betrieb: { /* Stammdaten, siehe Referenz */ } as never,
+  // env: 'test' — auch mit einem LIVE-Schlüssel erlaubt: so probt man die
+  // ganze Kette, ohne sich einen zweiten Schlüssel zu holen. Umgekehrt nie.
 });
 
 await partner.sendPartnerCustomerFonLink(customerId);
@@ -214,13 +211,28 @@ Code, wenn ein vorheriger fehlt. Sie steht als Daten im Paket
 try {
   await partner.activateCashregister(customerId, cashregisterId);
 } catch (fehler) {
-  if (istPartnerFehler(fehler, 'vertrag_offen')) {
-    // Ohne bestätigten Auftragsverarbeitungsvertrag geht KEINE neue Kasse live.
-    // Der Satz nennt den Weg, der für dieses Partner-Konto gilt.
-    console.error(partner.vertragOffenRat());
+  if (istPartnerFehler(fehler, 'signature_not_ready')) {
+    // Die Signatur DIESER Kasse ist noch nicht bereit — auf signature.ready warten.
+    console.error(partner.fehlerRat('signature_not_ready'));
   }
 }
 ```
+
+### Eine Probe ist keine Kasse
+
+`sendPartnerWebhookTest(webhookId, 'cashregister.live')` löst genau das
+Ereignis aus, das der eigene Handler behandeln soll — eine Leitungsprobe
+beweist nichts über die Behandlung des Ernstfalls. Damit niemand eine Probe
+für echt hält, trägt sie `test: true` im Umschlag:
+
+```ts
+const geprueft = await parseWebhookEvent({ secret, signatureHeader, body, });
+if (!geprueft.ok) return antwort(400);
+
+if (geprueft.event.test) return antwort(200);   // Probe: nichts weiter tun
+```
+
+Ohne diese Zeile schreibt jemand seinem Kunden, die Kasse sei fertig.
 
 ### Zugangsdaten sind Geheimnisse eines Dritten
 
@@ -283,7 +295,7 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 | `…/payments` | Stripe-Zahllinks und Hobex-Cloud (beides HTTP-Endpunkte des Backends). |
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln und entkoppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
-| `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Auftragsverarbeitungsvertrag, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
+| `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 | `…/fixtures/*` | Golden-Belege (JSON): Eingaben `belege/<name>.json`, zugesagte Zeilenausgabe `erwartet/<name>.lines.json`, `manifest.json` mit Prüfsummen — dieselben Dateien prüfen Backend, Browser-Kasse und Flutter-Paket. |
 
@@ -342,13 +354,29 @@ im Tarball mit und sagen in Maschinenform, worauf sich alle drei geeinigt haben:
 | Datei | Inhalt |
 |---|---|
 | `kasse-settings-standard.json` | Feldnamen und Standardwerte der Kassen-Einstellungen |
-| `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen |
+| `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen, Partner-Listen |
 
 Beide werden erzeugt (`npm run fixtures:kasse`, `npm run fixtures:oberflaeche`)
 und nie von Hand geändert; die CI prüft nach jedem Lauf, dass sie zum Code passen.
 
 `oberflaeche.json` trägt die Paketversion. **Nach jedem `npm version` müssen deshalb beide
 Dateien neu erzeugt und mitcommittet werden**, sonst wird die CI rot.
+
+### Und die Gegenrichtung
+
+Der Vertrag in `fixtures/` wird **drüben** geprüft: das Dart-Repo zieht ihn und
+hält seine Listen dagegen. Eine Lücke fiele hier deshalb erst im nächsten
+Zwillingslauf im anderen Repo auf — an einem anderen Tag. Dagegen stehen zwei
+von Hand gepflegte Abzüge der Dart-Seite unter `test/fixtures/`, jeder mit
+`_quelle`:
+
+| Datei | prüft |
+|---|---|
+| `dart-enums.json` | Belegtyp, Steuersatz, Zahlungsart, Kartenanbieter, Gutschein, Stripe-Modus |
+| `dart-partner.json` | Umgebungen, Fehlercodes (API und Portal), Webhook-Ereignisse, Felder des Webhook-Umschlags samt der Marke `test`, Betriebsfelder, Wiederholungsplan |
+
+Sie machen `npm test` rot, sobald ein Wert nur in einer der beiden Sprachen
+ankommt.
 
 ## Lizenz
 
