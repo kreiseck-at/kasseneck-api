@@ -17,6 +17,7 @@ import {
   getCustomerSignatureStatus,
   getPartnerCustomer,
   getPartnerInfo,
+  checkPartnerCustomerEmail,
   listCustomerCashregisters,
   listPartnerCustomers,
   requestCustomerSignature,
@@ -27,6 +28,7 @@ import {
   deletePartnerWebhook,
   listPartnerWebhookDeliveries,
   listPartnerWebhooks,
+  rotatePartnerWebhookSecret,
   sendPartnerWebhookTest,
   updatePartnerWebhook,
   type CreateWebhookOptions,
@@ -89,12 +91,23 @@ export interface PartnerApi {
   listCustomerCashregisters(customerId: string): Promise<KassenListe>;
   /** Geheimnisse des Betriebs — siehe `getCustomerCredentials` in endpunkte.ts. */
   getCustomerCredentials(customerId: string): Promise<CustomerCredentials>;
+  /**
+   * Ist diese Adresse als Kasseneck-Zugang noch frei? Nur noetig, wenn der
+   * Betrieb einen eigenen Login bekommen soll — sonst faellt `email_taken`
+   * erst nach dem ganzen Formular auf.
+   */
+  checkPartnerCustomerEmail(email: string): Promise<boolean>;
 
   // Webhooks
   createPartnerWebhook(optionen: CreateWebhookOptions): Promise<CreateWebhookResult>;
   listPartnerWebhooks(): Promise<WebhookListe>;
   updatePartnerWebhook(webhookId: string, patch: WebhookPatch): Promise<PartnerWebhook>;
   deletePartnerWebhook(webhookId: string): Promise<string>;
+  /**
+   * Neues Secret fuer denselben Endpunkt — dieselbe `webhookId`, dieselben
+   * Ereignisse. Das alte gilt ab der Antwort nicht mehr.
+   */
+  rotatePartnerWebhookSecret(webhookId: string): Promise<CreateWebhookResult>;
   /**
    * Eine Probe an einen Endpunkt — ohne `event` die Leitungsprobe
    * `webhook.test`, mit `event` genau der Fall, den der Empfaenger behandeln
@@ -137,11 +150,13 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     activateCashregister: (kunde, kasse) => activateCashregister(rufen, kunde, kasse),
     listCustomerCashregisters: (id) => listCustomerCashregisters(rufen, id),
     getCustomerCredentials: (id) => getCustomerCredentials(rufen, id),
+    checkPartnerCustomerEmail: (email) => checkPartnerCustomerEmail(rufen, email),
 
     createPartnerWebhook: (o) => createPartnerWebhook(rufen, o),
     listPartnerWebhooks: () => listPartnerWebhooks(rufen),
     updatePartnerWebhook: (id, patch) => updatePartnerWebhook(rufen, id, patch),
     deletePartnerWebhook: (id) => deletePartnerWebhook(rufen, id),
+    rotatePartnerWebhookSecret: (id) => rotatePartnerWebhookSecret(rufen, id),
     sendPartnerWebhookTest: (id, event) => sendPartnerWebhookTest(rufen, id, event),
     listPartnerWebhookDeliveries: (o) => listPartnerWebhookDeliveries(rufen, o),
 

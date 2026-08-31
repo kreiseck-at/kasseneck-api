@@ -270,6 +270,34 @@ export async function createPartnerWebhook(
   return { webhook: webhook(daten['webhook']), secret };
 }
 
+/**
+ * Ein neues Secret fuer denselben Endpunkt.
+ *
+ * Der Webhook behaelt seine `webhookId` und seine Ereignisse — nur das
+ * Geheimnis wechselt. Wer den Endpunkt stattdessen loescht und neu anlegt,
+ * verliert seine Zustellungshistorie und muss die Ereignisse neu ankreuzen.
+ *
+ * Das alte Secret gilt ab der Antwort NICHT mehr: die naechste Zustellung ist
+ * schon mit dem neuen signiert. Erst speichern, dann weiterarbeiten.
+ */
+export async function rotatePartnerWebhookSecret(
+  rufen: InternerTransport,
+  webhookId: string,
+): Promise<CreateWebhookResult> {
+  const id = typeof webhookId === 'string' ? webhookId.trim() : '';
+  if (!id) throw new KasseneckValidationError('rotatePartnerWebhookSecret', 'webhookId fehlt', 'request');
+  const daten = objekt(await rufen<unknown>('rotatePartnerWebhookSecret', { webhookId: id }));
+  const secret = daten['secret'];
+  if (typeof secret !== 'string' || !secret) {
+    throw new KasseneckValidationError(
+      'rotatePartnerWebhookSecret',
+      'Antwort enthaelt kein secret — dann waere der Wechsel nicht nachvollziehbar',
+      'response',
+    );
+  }
+  return { webhook: webhook(daten['webhook']), secret };
+}
+
 /** Die Webhook-Endpunkte dieses Partners samt Ereignis-Katalog. */
 export async function listPartnerWebhooks(rufen: InternerTransport): Promise<WebhookListe> {
   const daten = objekt(await rufen<unknown>('listPartnerWebhooks'));

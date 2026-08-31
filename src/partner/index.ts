@@ -52,6 +52,7 @@ export {
   getPartnerInfo,
   createPartnerCustomer,
   listPartnerCustomers,
+  checkPartnerCustomerEmail,
   getPartnerCustomer,
   sendPartnerCustomerFonLink,
   requestCustomerSignature,
@@ -65,6 +66,7 @@ export {
 export {
   createPartnerWebhook,
   listPartnerWebhooks,
+  rotatePartnerWebhookSecret,
   updatePartnerWebhook,
   deletePartnerWebhook,
   sendPartnerWebhookTest,

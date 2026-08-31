@@ -19,6 +19,7 @@ export const AUFRUFE = [
   'cancelReceipt',
   'createCustomerCashregister',
   'createPartnerCustomer',
+  'checkPartnerCustomerEmail',
   'createPartnerWebhook',
   'createPaymentLinkStripe',
   'createPrintJob',
@@ -61,6 +62,7 @@ export const AUFRUFE = [
   'setMyRegisterDeviceSettings',
   'stripeCaptureIntent',
   'unpairRegisterDevice',
+  'rotatePartnerWebhookSecret',
   'updatePartnerWebhook',
 ] as const;
 

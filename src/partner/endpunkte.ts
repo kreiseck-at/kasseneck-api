@@ -286,6 +286,27 @@ export async function getPartnerCustomer(rufen: InternerTransport, customerId: s
  * Die Antwort nennt den Empfaenger **maskiert** — die Adresse gibt das Backend
  * nie im Klartext aus.
  */
+/**
+ * Ist diese E-Mail-Adresse noch als Kasseneck-Zugang frei?
+ *
+ * Nur noetig, wenn der Betrieb einen eigenen Zugang zum Kundenpanel bekommen
+ * soll (`access.invite: true`) — dann wird die Adresse sein Login und darf
+ * noch keines sein. Ohne Einladung ist eine belegte Adresse kein Hindernis.
+ *
+ * Der Sinn ist der Zeitpunkt: ohne diese Frage faellt `email_taken` erst nach
+ * einem ganzen ausgefuellten Formular auf. Die Antwort sagt NUR ja oder nein —
+ * nie, wem die Adresse gehoert.
+ */
+export async function checkPartnerCustomerEmail(
+  rufen: InternerTransport,
+  email: string,
+): Promise<boolean> {
+  const adresse = typeof email === 'string' ? email.trim() : '';
+  if (!adresse) throw new KasseneckValidationError('checkPartnerCustomerEmail', 'email fehlt', 'request');
+  const daten = objekt(await rufen<unknown>('checkPartnerCustomerEmail', { email: adresse }));
+  return daten['available'] === true;
+}
+
 export async function sendPartnerCustomerFonLink(
   rufen: InternerTransport,
   customerId: string,

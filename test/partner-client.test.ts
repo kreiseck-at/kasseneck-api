@@ -254,6 +254,37 @@ test('Partner: eine Antwort ohne die zugesagte Huelle wirft, statt spaeter zu ue
   );
 });
 
+test('Partner: checkPartnerCustomerEmail sagt nur ja oder nein', async () => {
+  // Der Sinn ist der Zeitpunkt: ohne diese Frage faellt email_taken erst nach
+  // einem ganzen ausgefuellten Formular auf.
+  const { api, gesehen } = stelle(erfolg({ available: true }));
+  assert.equal(await api.checkPartnerCustomerEmail('  Neu@Jobst.at '), true);
+  assert.deepEqual(JSON.parse(String(gesehen[0]!.init.body)).params, { email: 'Neu@Jobst.at' });
+
+  // Alles ausser einem ausdruecklichen `true` heisst NICHT frei — im Zweifel
+  // keine Zusage, sonst faehrt der Aufrufer in ein email_taken.
+  const { api: a2 } = stelle(erfolg({}));
+  assert.equal(await a2.checkPartnerCustomerEmail('x@y.at'), false);
+
+  const { api: a3 } = stelle(erfolg({ available: true }));
+  await assert.rejects(() => a3.checkPartnerCustomerEmail('   '), /email fehlt/);
+});
+
+test('Partner: rotatePartnerWebhookSecret behaelt den Endpunkt und bringt ein neues Secret', async () => {
+  const { api, gesehen } = stelle(
+    erfolg({ webhook: { webhookId: 'wh1', url: 'https://p.test/hook', events: ['webhook.test'], active: true }, secret: 'whsec_neu' }),
+  );
+  const r = await api.rotatePartnerWebhookSecret('wh1');
+  assert.equal(r.secret, 'whsec_neu');
+  assert.equal(r.webhook.webhookId, 'wh1');
+  assert.deepEqual(JSON.parse(String(gesehen[0]!.init.body)).params, { webhookId: 'wh1' });
+
+  // Ohne Secret waere der Wechsel nicht nachvollziehbar: dann lieber ein
+  // Fehler als ein Aufrufer, der weiter mit dem alten signiert.
+  const { api: a2 } = stelle(erfolg({ webhook: { webhookId: 'wh1' } }));
+  await assert.rejects(() => a2.rotatePartnerWebhookSecret('wh1'), /secret/);
+});
+
 test('Partner: sendPartnerCustomerFonLink gibt den Empfaenger maskiert zurueck', async () => {
   const { api } = stelle(erfolg({ customerId: 'cust_1', sentTo: 'c***@jobst.at', expiresAt: 123 }));
   const r = await api.sendPartnerCustomerFonLink('cust_1');
@@ -747,6 +778,8 @@ test('Partner: alle Aufrufe der Partner-API stehen im Vertrag', () => {
     'deletePartnerWebhook',
     'sendPartnerWebhookTest',
     'listPartnerWebhookDeliveries',
+    'checkPartnerCustomerEmail',
+    'rotatePartnerWebhookSecret',
   ]) {
     assert.ok((AUFRUFE as readonly string[]).includes(name), `${name} fehlt in AUFRUFE`);
   }
