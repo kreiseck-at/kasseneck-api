@@ -19,7 +19,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
-import { cancelScopeOf, receiptsScopeOf } from '../src/register/pairing.js';
+import { cancelScopeOf, receiptsScopeOf, type RegisterClientInfo } from '../src/register/pairing.js';
 import { registerUserAuth } from '../src/client/auth.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import {
@@ -156,6 +156,30 @@ test('pairRegisterDevice: label geht als "label" mit, fehlt es, wird es nicht ge
   const ohneLabel = fetchFake(erfolg(KOPPLUNGS_ANTWORT));
   await pairRegisterDevice({ code: CODE, fetch: ohneLabel.holen });
   assert.equal('label' in rumpfVon(ohneLabel.aufrufe[0]!).params, false);
+});
+
+// Die laufende App-Version gehoert zu dem, was das Geraet ueber sich sagt.
+// Ohne sie laesst sich bei einer Kundenmeldung nicht sagen, welcher Build im
+// Browser lief -- und ein alter Build im Cache ist weder zu belegen noch
+// auszuschliessen. Backend: register-geraetedaten.js, clientAusParams.
+test('client.app geht bei Kopplung und Anmeldung unveraendert mit', async () => {
+  // Die Typangabe ist der eigentliche Vertragstest: TypeScript prueft
+  // ueberzaehlige Felder NUR am annotierten Literal. Ohne sie rutschte ein
+  // unbekanntes `app` stillschweigend durch und der Test hielte nichts.
+  const client: RegisterClientInfo = { userAgent: 'Mozilla/5.0', platform: 'macOS', app: '0.6.46+3120' };
+
+  const kopplung = fetchFake(erfolg(KOPPLUNGS_ANTWORT));
+  await pairRegisterDevice({ code: CODE, client, fetch: kopplung.holen });
+  assert.deepEqual(rumpfVon(kopplung.aufrufe[0]!).params.client, client);
+
+  const anmeldung = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerUserLogin({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID, pin: '1234', cashregisterId: KASSEN_ID,
+    client, fetch: anmeldung.holen,
+  });
+  const gesendet = rumpfVon(anmeldung.aufrufe[0]!).params.client as { app?: string };
+  assert.equal(gesendet.app, '0.6.46+3120');
 });
 
 test('pairRegisterDevice: sendet keine einzige Anmelde-Kopfzeile', async () => {

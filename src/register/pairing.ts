@@ -71,6 +71,14 @@ export interface RegisterClientInfo {
   /** IANA-Zeitzone, z. B. Europe/Vienna. */
   tz?: string;
   screen?: { w: number; h: number };
+  /**
+   * Welcher Build der Anwendung gerade laeuft (frei, z. B. "0.6.46+3120").
+   * Bei einer Stoerungsmeldung die entscheidende Angabe: ohne sie laesst sich
+   * ein alter Build im Browser-Cache weder belegen noch ausschliessen -- und
+   * genau der steckt oft hinter "bei mir geht es aber". Das Backend kuerzt auf
+   * 80 Zeichen (register-geraetedaten.js, clientAusParams).
+   */
+  app?: string;
 }
 /** Standort aus der Browser-Ortung (freiwillig); Grundlage der Standortsperre. */
 export interface RegisterGeo {
