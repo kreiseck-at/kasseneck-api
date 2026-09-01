@@ -138,6 +138,19 @@ export const INVALID_TID_CODE = '100108';
  */
 export const TERMINAL_BUSY_HTTP_STATUS = 409;
 
+/**
+ * HTTP `404` beim Abbruch: was das heisst, ist UNGEMESSEN -- es kann "diesen
+ * Vorgang kenne ich nicht" heissen oder "diesen Endpunkt gibt es hier nicht".
+ * Siehe `errors.ts` (`HpsConnectTerminalError.isNotFound`) und den
+ * Dart-Zwilling (`HpsHttpException.isNotFound`) fuer die getrennte
+ * Auswertung -- der Nachweistext dort benennt beide Lesarten und behauptet
+ * keine.
+ *
+ * Bewusst KEIN Eintrag in [HPS_MEASURED_CODES], aus demselben Grund wie
+ * [TERMINAL_BUSY_HTTP_STATUS]: ein HTTP-Status ist kein `responseCode`.
+ */
+export const NOT_FOUND_HTTP_STATUS = 404;
+
 const KNOWN_OUTCOME_CODES: ReadonlySet<string> = new Set(
   HPS_MEASURED_CODES.filter((c) => c.conclusive).map((c) => c.code),
 );
