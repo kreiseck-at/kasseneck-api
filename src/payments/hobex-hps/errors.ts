@@ -1,4 +1,4 @@
-import { TERMINAL_BUSY_HTTP_STATUS } from './transaction-response.js';
+import { NOT_FOUND_HTTP_STATUS, TERMINAL_BUSY_HTTP_STATUS } from './transaction-response.js';
 
 /**
  * Fehlerarten auf dem Weg ueber **Kasseneck Connect** zum hobex-HPS-Terminal.
@@ -133,6 +133,24 @@ export class HpsConnectTerminalError extends HpsConnectException {
       return this.terminalHttpStatus === TERMINAL_BUSY_HTTP_STATUS;
     }
     return this.connectCode === 'terminal_error' && new RegExp(`\\(HTTP ${TERMINAL_BUSY_HTTP_STATUS}\\)`).test(this.message);
+  }
+
+  /**
+   * `true`, wenn dies ein HTTP `404` beim Terminal-Kontakt ist -- Lesart
+   * ungemessen, siehe `transaction-response.ts` (`NOT_FOUND_HTTP_STATUS`) und
+   * den Dart-Zwilling (`HpsHttpException.isNotFound`): es kann "diesen
+   * Vorgang kenne ich nicht" heissen oder "diesen Endpunkt gibt es hier
+   * nicht". `payments.ts` benennt beim Abbruch beide Lesarten, statt eine zu
+   * behaupten.
+   *
+   * Liest, wie [isTerminalBusy], bevorzugt [terminalHttpStatus] und faellt
+   * nur ohne dieses Feld auf den Meldungstext zurueck.
+   */
+  get isNotFound(): boolean {
+    if (this.terminalHttpStatus !== undefined) {
+      return this.terminalHttpStatus === NOT_FOUND_HTTP_STATUS;
+    }
+    return this.connectCode === 'terminal_error' && new RegExp(`\\(HTTP ${NOT_FOUND_HTTP_STATUS}\\)`).test(this.message);
   }
 }
 

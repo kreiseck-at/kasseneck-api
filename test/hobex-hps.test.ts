@@ -345,6 +345,34 @@ test('HTTP 409 beim ABBRUCH ist NICHT dieselbe Aussage -- die Klaerung geht weit
 });
 
 // ---------------------------------------------------------------------------
+// HTTP 404 beim Abbruch -- wird benannt, nicht als Leitungsabriss verschleiert
+// (Zwilling der Dart-Probe in hps_payments_test.dart)
+// ---------------------------------------------------------------------------
+
+test('Abbruch mit HTTP 404 wird als solcher benannt, nicht als Abriss', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '100015', responseText: 'unbekannt' })],
+      '/v1/terminal/abort': [
+        failConnect('terminal_error', 'Terminal meldet (HTTP 404): Not Found', { terminalHttpStatus: 404 }),
+      ],
+      '/v1/terminal/status': [
+        okPayment({ responseCode: '9027' }),
+        okPayment({ responseCode: '9027' }),
+      ],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '911' });
+
+  assert.ok(result.steps.some((s) => s.includes('HTTP 404')));
+  assert.ok(result.steps.some((s) => s.includes('Abbruch-Endpunkt')));
+  assert.notEqual(result.outcome, 'approved');
+});
+
+// ---------------------------------------------------------------------------
 // Preflight: Connect lehnt VOR jedem Terminal-Kontakt ab -- wirft, statt zu klaeren
 // ---------------------------------------------------------------------------
 

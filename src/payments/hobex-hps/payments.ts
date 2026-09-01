@@ -431,7 +431,14 @@ export function createHpsPayments(
     try {
       res = await withinBudget(elapsedMs, () => client.abort({ ...target, transactionId: id }), abortBudgetMs);
     } catch (e) {
-      steps.push(`Abbruch nicht bestaetigt (${describe(e)}) -- ob er wirkte, ist offen, Ausgang wird abgefragt`);
+      // Siehe Dart-Zwilling: ein 404 hat zwei Lesarten, und wir kennen die
+      // richtige nicht. Der Nachweistext benennt beide und behauptet keine.
+      steps.push(
+        e instanceof HpsConnectTerminalError && e.isNotFound
+          ? 'Abbruch nicht bestaetigt (HTTP 404) -- das Terminal kennt entweder diesen Vorgang nicht '
+            + 'oder den Abbruch-Endpunkt nicht; beides sagt nichts ueber die Zahlung, Ausgang wird abgefragt'
+          : `Abbruch nicht bestaetigt (${describe(e)}) -- ob er wirkte, ist offen, Ausgang wird abgefragt`,
+      );
       noteUnexpected(e, id);
       return null;
     }
