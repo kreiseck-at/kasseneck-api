@@ -37,6 +37,7 @@ export const AUFRUFE = [
   'listMyReceipts',
   'listMyTipRecipients',
   'listRegisterUsersForDevice',
+  'listRegisterSessionsForDevice',
   'pairRegisterDevice',
   'registerPinLogin',
   'registerUserLogin',
