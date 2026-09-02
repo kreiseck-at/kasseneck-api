@@ -11,6 +11,7 @@ import {
   registerPinLogin,
   renewRegisterSession,
   endRegisterSession,
+  listRegisterSessionsForDevice,
 } from '../src/register/index.js';
 import {
   createTransport,
@@ -135,6 +136,68 @@ const ANMELDE_ANTWORT = {
     perms: { sell: true, cancel: true, articles: false, layout: false, reports: false, takeover: false },
   },
 };
+
+// --- listRegisterSessionsForDevice --------------------------------------
+// Sind alle Lizenzplaetze belegt, muss eine Sitzung weichen. Das Backend nahm
+// dafuer still die aelteste; mit dieser Liste waehlt der Kassier selbst.
+// Ausgewiesen wird sich ueber das Geraete-Geheimnis: Am Anmeldebildschirm gibt
+// es weder Sitzung noch Token.
+
+/** `listRegisterSessionsForDevice` — Lizenzzahl und laufende Sitzungen. */
+const SITZUNGS_ANTWORT = {
+  licenses: 2,
+  sessions: [
+    { id: 's-alt', deviceId: 'dev-a', deviceLabel: 'Theke', startedAt: 1_776_000_000_000, expiresAt: 1_776_000_090_000, selbst: false, userName: 'Anna' },
+    { id: 's-neu', deviceId: 'dev-b', deviceLabel: 'Schank', startedAt: 1_776_000_030_000, expiresAt: 1_776_000_120_000, selbst: true },
+  ],
+};
+
+test('listRegisterSessionsForDevice: Endpunktname, Nutzlast und Abbildung', async () => {
+  const { holen, aufrufe } = fetchFake(erfolg(SITZUNGS_ANTWORT));
+  const stand = await listRegisterSessionsForDevice({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen,
+  });
+
+  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listRegisterSessionsForDevice`);
+  assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+  });
+
+  assert.equal(stand.licenses, 2);
+  assert.equal(stand.sessions.length, 2);
+  assert.equal(stand.sessions[0]?.deviceLabel, 'Theke');
+  assert.equal(stand.sessions[0]?.userName, 'Anna');
+  assert.equal(stand.sessions[1]?.selbst, true);
+  // Ohne Namen (nur-PIN-Geraet) bleibt das Feld weg statt leer zu sein --
+  // "" hiesse "hat keinen Namen", undefined heisst "wird nicht genannt".
+  assert.equal(stand.sessions[1]?.userName, undefined);
+});
+
+test('listRegisterSessionsForDevice: eine Antwort ohne sessions ist ein Antwortfehler', async () => {
+  const { holen } = fetchFake(erfolg({ licenses: 1 }));
+  await assert.rejects(
+    () => listRegisterSessionsForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen }),
+    (f: unknown) => isKasseneckApiError(f) || f instanceof Error,
+  );
+});
+
+test('registerUserLogin: takeoverSessionId geht nur mit, wenn eine gewaehlt wurde', async () => {
+  const mit = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerUserLogin({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID, pin: '1234', cashregisterId: KASSEN_ID,
+    takeover: true, takeoverSessionId: 's-alt', fetch: mit.holen,
+  });
+  assert.equal(rumpfVon(mit.aufrufe[0]!).params.takeoverSessionId, 's-alt');
+
+  const ohne = fetchFake(erfolg(ANMELDE_ANTWORT));
+  await registerUserLogin({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID, pin: '1234', cashregisterId: KASSEN_ID,
+    takeover: true, fetch: ohne.holen,
+  });
+  assert.equal('takeoverSessionId' in rumpfVon(ohne.aufrufe[0]!).params, false);
+});
 
 // --- pairRegisterDevice ------------------------------------------------
 
@@ -784,7 +847,7 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die sieben Aufrufe und die Rechte-Liste — und keine Anmeldung', () => {
+test('der Unterpfad ./register exportiert genau die acht Aufrufe und die Rechte-Liste — und keine Anmeldung', () => {
   // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
@@ -794,6 +857,7 @@ test('der Unterpfad ./register exportiert genau die sieben Aufrufe und die Recht
     [
       'REGISTER_PERMS',
       'endRegisterSession',
+      'listRegisterSessionsForDevice',
       'listRegisterUsersForDevice',
       'pairRegisterDevice',
       'registerPinLogin',

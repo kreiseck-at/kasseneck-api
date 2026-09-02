@@ -19,7 +19,6 @@
     "gekoppelte Geraet bzw. eine Kassen-Sitzung, nicht der api_key. Ein /v1-Eintrag fuehrte fuer sie",
     "nur in einen Anmeldefehler."
   ],
-
   "ausnahmen": [
     {
       "aufruf": "pairRegisterDevice",
@@ -30,6 +29,11 @@
       "aufruf": "listRegisterUsersForDevice",
       "art": "nicht_zutreffend",
       "grund": "Benutzerliste des gekoppelten Geraets, vor der Anmeldung. Ausweis ist das Geraet selbst, kein api_key; steht zusammen mit Kopplung und PIN-Anmeldung unter /register."
+    },
+    {
+      "aufruf": "listRegisterSessionsForDevice",
+      "art": "nicht_zutreffend",
+      "grund": "Laufende Sitzungen der Kasse, gelesen VOR der Anmeldung: Der Kassier waehlt daraus, welche weichen soll, wenn alle Lizenzplaetze belegt sind. Ausweis ist das Geraet selbst, kein api_key -- derselbe Weg wie listRegisterUsersForDevice, also kasse.kasseneck.at/api und nicht die api_key-Fassade."
     },
     {
       "aufruf": "registerUserLogin",
