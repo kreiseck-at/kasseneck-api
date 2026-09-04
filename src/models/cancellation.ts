@@ -62,6 +62,12 @@ export function isCancellationErrorCode(value: unknown): value is CancellationEr
 export interface CancellationOf {
   receiptId: string;
   fullReceiptId: string | null;
+  /**
+   * Zeitstempel des Originals (Server-Format, Wiener Wanduhr) — das Layout
+   * nennt ihn im Kopfblock des Storno-Bons („vom 11.08.2026, 09:02 Uhr").
+   * Fehlt bei Altbelegen; dann bleibt die Zeile weg.
+   */
+  timeStamp?: string;
 }
 
 /** Eine stornierte Position: Index im Original und Menge. */

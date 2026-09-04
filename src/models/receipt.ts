@@ -174,7 +174,11 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     signatureSuccess: payload.signatureSuccess ?? undefined,
     customProjectId: payload.customProjectId ?? undefined,
     ...(typeof payload.tipCents === 'number' ? { tipCents: payload.tipCents } : {}),
-    ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId, fullReceiptId: payload.cancellationOf.fullReceiptId ?? null } } : {}),
+    ...(payload.cancellationOf ? { cancellationOf: {
+      receiptId: payload.cancellationOf.receiptId,
+      fullReceiptId: payload.cancellationOf.fullReceiptId ?? null,
+      ...(typeof payload.cancellationOf.timeStamp === 'string' && payload.cancellationOf.timeStamp ? { timeStamp: payload.cancellationOf.timeStamp } : {}),
+    } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),

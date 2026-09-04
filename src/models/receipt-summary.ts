@@ -54,7 +54,7 @@ export interface ReceiptSummary {
   /** Bediener am Beleg, wenn bekannt. */
   operator?: { uid: string | null; name: string };
   /** Nur am Storno-Beleg: das Original. */
-  cancellationOf?: { receiptId: string | null };
+  cancellationOf?: { receiptId: string | null; timeStamp?: string };
   cancellationReason?: string;
   /** offen | teil | voll -- Storno-Stand des Originals. */
   stornoStand: 'offen' | 'teil' | 'voll';
@@ -75,7 +75,7 @@ export interface ReceiptSummaryPayload {
   signature_ok?: boolean | null;
   items?: Array<{ name?: string | null; quantity?: number | null }> | null;
   operator?: { uid?: string | null; name?: string | null } | null;
-  cancellationOf?: { receiptId?: string | null } | null;
+  cancellationOf?: { receiptId?: string | null; timeStamp?: string | null } | null;
   cancellationReason?: string | null;
   stornoStand?: string | null;
   zeroKind?: string | null;
@@ -96,7 +96,10 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     signatureOk: payload.signature_ok !== false,
     items: Array.isArray(payload.items) ? payload.items.map((i) => ({ name: i?.name ?? '', quantity: typeof i?.quantity === 'number' ? i.quantity : 0 })) : [],
     ...(payload.operator ? { operator: { uid: payload.operator.uid ?? null, name: payload.operator.name ?? '' } } : {}),
-    ...(payload.cancellationOf ? { cancellationOf: { receiptId: payload.cancellationOf.receiptId ?? null } } : {}),
+    ...(payload.cancellationOf ? { cancellationOf: {
+      receiptId: payload.cancellationOf.receiptId ?? null,
+      ...(typeof payload.cancellationOf.timeStamp === 'string' && payload.cancellationOf.timeStamp ? { timeStamp: payload.cancellationOf.timeStamp } : {}),
+    } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     stornoStand: payload.stornoStand === 'teil' || payload.stornoStand === 'voll' ? payload.stornoStand : 'offen',
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
