@@ -51,6 +51,7 @@ function antwort(
 
 const erfolg = (daten: unknown): HttpResponseLike => antwort(JSON.stringify({ status: 'success', message: '', data: daten }));
 const fachfehler = (meldung: string): HttpResponseLike => antwort(JSON.stringify({ status: 'error', message: meldung, data: undefined }));
+const fachfehlerMitCode = (meldung: string, code: string): HttpResponseLike => antwort(JSON.stringify({ status: 'error', message: meldung, code }));
 
 /** Fake-fetch, das jede Anfrage mitschreibt und der Reihe nach antwortet. */
 function fetchFake(antworten: HttpResponseLike | HttpResponseLike[]): { holen: FetchLike; aufrufe: Aufruf[] } {
@@ -785,4 +786,34 @@ test('Die Aufrufliste traegt jeden Namen, den das Paket benutzt', () => {
     assert.ok(AUFRUFE.includes(name as never), `${name} fehlt in AUFRUFE`);
   }
   assert.equal(new Set(AUFRUFE).size, AUFRUFE.length, 'Doppelte Namen in AUFRUFE');
+});
+
+// Stabile Fehlercodes: das Backend legt bei fachlichen Fehlern (heute: Storno)
+// neben den Text ein Feld `code`. Der Aufrufer entscheidet daran -- der Text
+// darf sich aendern, der Code nicht.
+test('fachlicher Fehler mit `code` traegt ihn am KasseneckApiError; ohne bleibt code undefined', async () => {
+  const { holen } = fetchFake([fachfehlerMitCode('Beleg ist bereits vollständig storniert.', 'bereits_storniert'), fachfehler('Kasse ist gesperrt')]);
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+
+  await assert.rejects(rufen('cancelReceipt', { originalReceiptId: 'o1' }), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckApiError);
+    assert.equal(fehler.code, 'bereits_storniert');
+    assert.equal(fehler.serverMessage, 'Beleg ist bereits vollständig storniert.');
+    return true;
+  });
+  await assert.rejects(rufen('createReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckApiError);
+    assert.equal(fehler.code, undefined);
+    return true;
+  });
+});
+
+test('ein `code`, der kein Text ist, wird nicht uebernommen', async () => {
+  const { holen } = fetchFake(antwort(JSON.stringify({ status: 'error', message: 'x', code: 42 })));
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+  await assert.rejects(rufen('cancelReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckApiError);
+    assert.equal(fehler.code, undefined);
+    return true;
+  });
 });
