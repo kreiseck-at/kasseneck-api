@@ -84,3 +84,13 @@ test('fromReceiptPayload behaelt promoAdjustmentCents am Storno-Eintrag, laesst 
   assert.deepEqual(beleg.cancellations?.[0]?.promoAdjustmentCents, { amountRateReduced1: 200 });
   assert.equal('promoAdjustmentCents' in (beleg.cancellations?.[1] ?? {}), false);
 });
+
+// Das Datum des Originals reist am Bezug mit (Kopfblock des Storno-Bons);
+// fehlt es in der Nutzlast, bleibt das Feld weg.
+test('fromReceiptPayload behaelt cancellationOf.timeStamp, laesst es sonst weg', () => {
+  const mit = fromReceiptPayload({ ...NUTZLAST, receiptType: 'cancellation',
+    cancellationOf: { receiptId: 'kasse-1-ID-11', fullReceiptId: 'F11', timeStamp: '2026-08-11T09:02:17' } });
+  assert.deepEqual(mit.cancellationOf, { receiptId: 'kasse-1-ID-11', fullReceiptId: 'F11', timeStamp: '2026-08-11T09:02:17' });
+  const ohne = fromReceiptPayload({ ...NUTZLAST, receiptType: 'cancellation', cancellationOf: { receiptId: 'kasse-1-ID-11', fullReceiptId: null } });
+  assert.deepEqual(ohne.cancellationOf, { receiptId: 'kasse-1-ID-11', fullReceiptId: null });
+});

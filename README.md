@@ -199,6 +199,11 @@ Was ein Storno gewährt hat, steht am Eintrag in `receipt.cancellations[]` als
 `promoAdjustmentCents` (Cent je Steuertopf) — die Kasse kann es im Dialog
 zeigen, rechnen muss sie nichts.
 
+**Bon.** Der Kopfblock des Storno-Bons nennt Bezug, Datum des Originals und
+Grund: „STORNOBELEG / Stornobuchung zu Beleg KASSE1-ID-42 / vom 11.08.2026,
+09:02 Uhr / Grund: Fehleingabe". Das Datum kommt aus `cancellationOf.timeStamp`
+(Backend seit 2026-09-04); Altbelege ohne bleiben ohne die Zeile.
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |

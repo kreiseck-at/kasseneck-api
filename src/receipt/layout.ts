@@ -194,6 +194,21 @@ function belegZeit(timeStamp: string): string {
 }
 
 /**
+ * Datum des stornierten Originals fuer den Kopfblock: „11.08.2026, 09:02 Uhr".
+ * Ein unlesbarer Zeitstempel am BEZUG ist kein Grund, den Storno-Bon zu
+ * verweigern (der Beleg selbst ist gueltig) — dann bleibt die Zeile weg.
+ */
+function originalDatum(timeStamp: string): string | null {
+  try {
+    const t = toViennaWallClock(parseServerTimeStamp(timeStamp));
+    const zwei = (n: number): string => String(n).padStart(2, '0');
+    return `${zwei(t.day)}.${zwei(t.month)}.${t.year}, ${zwei(t.hour)}:${zwei(t.minute)} Uhr`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Zahlungsart als Anzeigetext. Drei Faelle, und alle drei kommen vor:
  * bekannter Eintrag (Beschriftung), unbekannter Schluessel (roh — besser als
  * ein Beleg, der sich nicht anzeigen laesst), und **gar keiner**: Start- und
@@ -593,6 +608,9 @@ function belegartBlock(receipt: Receipt): LayoutLine[] {
   if (t === 'cancellation') {
     aus.push(bannerZeile('STORNOBELEG'));
     aus.push(textZeile(receipt.cancellationOf ? `Stornobuchung zu Beleg ${receipt.cancellationOf.receiptId}` : 'Stornobuchung', 'center'));
+    // Datum des Originals, wenn der Bezug es traegt (Backend seit 2026-09-04).
+    const datum = receipt.cancellationOf?.timeStamp ? originalDatum(receipt.cancellationOf.timeStamp) : null;
+    if (datum) aus.push(textZeile(`vom ${datum}`, 'center'));
     const grund = stornoGrundText(typeof receipt.cancellationReason === 'string' ? receipt.cancellationReason : undefined);
     if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
   } else if (t === 'training') {
