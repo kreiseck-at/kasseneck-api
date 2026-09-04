@@ -373,6 +373,12 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
  * Stornobeleg aus frei uebergebenen Positionen — fuer den Fall, dass der
  * Originalbeleg nicht als Objekt vorliegt. Die Positionen gehen **unveraendert**
  * hinaus; das Vorzeichen setzt der Aufrufer.
+ *
+ * @deprecated Alter Storno-Weg ohne Bezug: kein Verweis auf das Original,
+ * keine Restmengen, kein Schutz vor doppeltem Storno, Gutscheine werden nicht
+ * zurueckgenommen. Das Backend nimmt ihn weiter an und legt `deprecation` in
+ * die Antwort. Stattdessen [cancelReceipt] (Endpunkt `cancelReceipt`): Bezug,
+ * Grund, Teilstorno, Fehlercodes.
  */
 export function createCancelReceipt(rufen: InternerTransport, options: CreateCancelReceiptOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.cancellation });
