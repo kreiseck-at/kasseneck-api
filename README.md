@@ -161,6 +161,12 @@ ergebnis.cancellationOf;  // Bezug auf das Original
 ergebnis.remaining;       // Restmengen des Originals danach
 ```
 
+**Veraltet:** `createCancelReceipt` (Storno über `createReceipt` mit frei
+übergebenen, negierten Positionen) bleibt aus Kompatibilität erreichbar, ist aber
+`@deprecated` — kein Bezug zum Original, keine Restmengen, kein Schutz vor
+doppeltem Storno, keine Gutscheine. Das Backend legt bei diesem Weg
+`deprecation` in die Antwort.
+
 Der Server negiert die Positionen, prüft Restmengen und Rechte („nur eigene
 Belege" oder „alle") und verkettet Original und Storno. Ein Storno-Beleg lässt
 sich nicht stornieren, ein voll stornierter Beleg nicht noch einmal. Am
