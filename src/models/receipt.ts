@@ -189,6 +189,9 @@ function leseStorno(eintrag: Cancellation): Cancellation {
     by: eintrag.by ?? null,
     note: eintrag.note ?? null,
     items: (eintrag.items ?? []).map((p) => ({ index: Number(p.index), quantity: Number(p.quantity) })),
+    ...(eintrag.promoAdjustmentCents && typeof eintrag.promoAdjustmentCents === 'object'
+      ? { promoAdjustmentCents: Object.fromEntries(Object.entries(eintrag.promoAdjustmentCents).map(([k, v]) => [k, Number(v)])) }
+      : {}),
   };
 }
 

@@ -321,7 +321,7 @@ function jsonAuswerten<T>(text: string, functionName: string, statusCode: number
   }
   // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
   // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
-  throw fachfehler(functionName, huelle.message);
+  throw fachfehler(functionName, huelle.message, huelle.code);
 }
 
 /**
@@ -372,7 +372,7 @@ function pdfAuswerten(
   }
   // Derselbe fachliche Fehler wie auf dem JSON-Weg — fuer den Aufrufer macht
   // es keinen Unterschied, ob er ein PDF oder eine Nutzlast erwartet hat.
-  throw fachfehler(functionName, huelle.message);
+  throw fachfehler(functionName, huelle.message, huelle.code);
 }
 
 /** `%PDF` am Anfang — die Kennung jeder PDF-Datei. */
@@ -381,16 +381,17 @@ function istPdf(bytes: Uint8Array): boolean {
 }
 
 /** Antworthuelle `{status, message, data}` — oder `null`, wenn es keine ist. */
-function alsHuelle(wert: unknown): { status: unknown; message?: unknown; data?: unknown } | null {
+function alsHuelle(wert: unknown): { status: unknown; message?: unknown; data?: unknown; code?: unknown } | null {
   if (typeof wert !== 'object' || wert === null || !('status' in wert)) {
     return null;
   }
-  return wert as { status: unknown; message?: unknown; data?: unknown };
+  return wert as { status: unknown; message?: unknown; data?: unknown; code?: unknown };
 }
 
-function fachfehler(functionName: string, message: unknown): KasseneckApiError {
+function fachfehler(functionName: string, message: unknown, code?: unknown): KasseneckApiError {
   const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
-  return new KasseneckApiError(functionName, meldung);
+  // Nur ein Text zaehlt als Code -- alles andere waere ein geratener Vertrag.
+  return new KasseneckApiError(functionName, meldung, typeof code === 'string' && code ? code : undefined);
 }
 
 /**

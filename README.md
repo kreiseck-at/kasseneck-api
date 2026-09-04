@@ -167,6 +167,38 @@ sich nicht stornieren, ein voll stornierter Beleg nicht noch einmal. Am
 gelesenen Original liefert `remainingQuantities(receipt)` die Reste vorab (für
 den Storno-Dialog); die Wahrheit hat der Server.
 
+**Fehler entscheidet man am Code, nicht am Text.** Jeder fachliche Fehler von
+`cancelReceipt` trägt `KasseneckApiError.code` aus `CANCELLATION_ERROR_CODES`
+(z. B. `bereits_storniert`, `menge_ueber_rest`, `nur_eigene_belege`). Die
+deutsche Meldung (`serverMessage`) ist Anzeige und darf sich ändern.
+
+```ts
+import { isKasseneckApiError, isCancellationErrorCode } from '@kreiseck/kasseneck-api';
+
+try {
+  await api.cancelReceipt({ receipt: beleg, reason: 'fehleingabe' });
+} catch (fehler) {
+  if (isKasseneckApiError(fehler) && isCancellationErrorCode(fehler.code)) {
+    switch (fehler.code) {
+      case 'bereits_storniert':  // Beleg im Dialog als „storniert" zeigen, Knopf sperren
+      case 'menge_ueber_rest':   // Restmengen neu laden (jemand war schneller)
+      case 'nur_eigene_belege':  // Chef holen
+        break;
+    }
+  }
+  throw fehler;
+}
+```
+
+**Gutscheine.** Ein Wertgutschein wird nur beim Vollstorno (ohne `items`)
+gespiegelt — er ist unteilbar. Ein Rabattgutschein ist am Original bereits in
+den Umsatz eingerechnet; **jeder** Storno nimmt ihn anteilig der stornierten
+Menge zurück: bei 3 Stück à 10 € mit 6 € Rabatt sind 8 € je Stück Entgelt, der
+Storno-Beleg trägt dann „−10,00" plus eine Zeile „Gutschein-Ausgleich +2,00".
+Was ein Storno gewährt hat, steht am Eintrag in `receipt.cancellations[]` als
+`promoAdjustmentCents` (Cent je Steuertopf) — die Kasse kann es im Dialog
+zeigen, rechnen muss sie nichts.
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |

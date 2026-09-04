@@ -102,11 +102,18 @@ export class KasseneckApiError extends Error {
   readonly functionName: string;
   /** Meldung des Backends, unveraendert (`message` aus der Huelle). */
   readonly serverMessage: string;
+  /**
+   * Stabiler Fehlercode des Backends (`code` aus der Huelle), wenn der
+   * Endpunkt einen legt — heute `cancelReceipt` (siehe CANCELLATION_ERROR_CODES).
+   * Daran entscheiden, nie an [serverMessage]: der Text darf sich aendern.
+   */
+  readonly code: string | undefined;
 
-  constructor(functionName: string, serverMessage: string) {
+  constructor(functionName: string, serverMessage: string, code?: string) {
     super(`${functionName} fehlgeschlagen: ${serverMessage}`);
     this.functionName = functionName;
     this.serverMessage = serverMessage;
+    this.code = code;
   }
 }
 

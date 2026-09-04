@@ -25,9 +25,12 @@ export {
   type CancellationItem,
   type Cancellation,
   type CancellationReason,
+  type CancellationErrorCode,
   CANCELLATION_REASONS,
+  CANCELLATION_ERROR_CODES,
   CANCELLATION_RESERVATION_MS,
   isCancellationReason,
+  isCancellationErrorCode,
   remainingQuantities,
 } from './cancellation.js';
 export {
