@@ -44,6 +44,22 @@ test('Verkaufsbeleg traegt keinen Belegart-Aufdruck (Rot-Probe fuer die anderen)
   assert.deepEqual(banner(l), []);
 });
 
+// Der Kopfblock nennt das Datum des Originals, wenn der Bezug es traegt
+// (Backend: cancellationOf.timeStamp seit 2026-09-04). Altbelege ohne bleiben
+// ohne die Zeile -- kein geratenes Datum.
+test('Stornobeleg: Datum des Originals als eigene Zeile zwischen Bezug und Grund', () => {
+  const mit = { ...BELEG, receiptType: ReceiptType.cancellation,
+    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null, timeStamp: '2026-08-11T09:02:17' }, cancellationReason: 'fehleingabe' };
+  const t = alsText(buildReceiptLayout(mit, FIRMA));
+  const i = t.indexOf('Stornobuchung zu Beleg AT0-KASSE1-42');
+  assert.ok(i >= 0, t.join('\n'));
+  assert.equal(t[i + 1], 'vom 11.08.2026, 09:02 Uhr');
+  assert.equal(t[i + 2], 'Grund: Fehleingabe');
+
+  const ohne = { ...mit, cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null } };
+  assert.ok(!alsText(buildReceiptLayout(ohne, FIRMA)).some((z) => z.startsWith('vom ')));
+});
+
 test('Stornobeleg: STORNOBELEG unter dem Kopf, Stornobuchung mit Bezug und Grund', () => {
   const storno: Receipt = { ...BELEG, receiptId: 'AT0-KASSE1-43', receiptType: ReceiptType.cancellation,
     items: [{ name: 'Espresso', quantity: -2, vat: VatRate.vat20, priceCents: 250 }],

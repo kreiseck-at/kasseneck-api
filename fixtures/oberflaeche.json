@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.7.1",
   "aufrufe": [
     "activateCashregister",
     "cancelReceipt",
@@ -37,6 +37,7 @@
     "listPartnerWebhookDeliveries",
     "listPartnerWebhooks",
     "listRegisterUsersForDevice",
+    "listRegisterSessionsForDevice",
     "pairRegisterDevice",
     "registerPinLogin",
     "registerUserLogin",

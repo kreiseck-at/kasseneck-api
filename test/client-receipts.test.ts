@@ -946,6 +946,49 @@ test('sellReceipt: tip als Objekt mit Zahlart (geprueft) und Empfaengern', async
   });
 });
 
+// Das Merkmal „hat sie das Geld schon?" (Backend keck#293, Spec § 4.1).
+// Entscheidend ist nicht die Zahlart, sondern der Besitz: Bargeld kann in der
+// Lade bleiben, Kartentrinkgeld kann sofort bar ausgezahlt werden -- § 2j Abs 2
+// AVRAG kennt beide Faelle.
+
+test('sellReceipt: sofortErhalten geht in beide Richtungen hinaus', async () => {
+  for (const wert of [true, false]) {
+    const { rufen, aufrufe } = apiSchluesselWeg();
+    await sellReceipt(rufen, {
+      paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE],
+      tip: { cents: 200, sofortErhalten: wert },
+    });
+    const { params } = gesendet(aufrufe);
+    assert.deepEqual(params['tip'], { cents: 200, sofortErhalten: wert });
+  }
+});
+
+test('sellReceipt: ohne sofortErhalten steht das Feld NICHT in der Nutzlast', async () => {
+  // Sonst waere „nichts gesagt" ploetzlich eine Aussage, und die
+  // Voreinstellung des Betriebs kaeme nie zum Zug. Vor dieser Ergaenzung
+  // verschluckte das Paket das Feld sogar dann, wenn es jemand SETZTE --
+  // gepruefterTip baut die Nutzlast aus bekannten Feldern neu auf.
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await sellReceipt(rufen, {
+    paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: { cents: 200 },
+  });
+  const { params } = gesendet(aufrufe);
+  assert.equal(Object.prototype.hasOwnProperty.call(params['tip'], 'sofortErhalten'), false);
+});
+
+test('sellReceipt: ein sofortErhalten, das kein Boolean ist, geht nicht hinaus', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  await assert.rejects(
+    () => sellReceipt(rufen, {
+      paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tip: { cents: 200, sofortErhalten: 'ja' as any },
+    }),
+    /sofortErhalten muss true oder false sein/,
+  );
+  assert.equal(aufrufe.length, 0);
+});
+
 test('sellReceipt: ohne tip steht kein tip-Feld in der Nutzlast', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });

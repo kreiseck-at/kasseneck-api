@@ -51,6 +51,7 @@ export const AUFRUFE = [
   'listPartnerWebhookDeliveries',
   'listPartnerWebhooks',
   'listRegisterUsersForDevice',
+  'listRegisterSessionsForDevice',
   'pairRegisterDevice',
   'registerPinLogin',
   'registerUserLogin',

@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "JavaScript-Zwilling von kasseneck_api (Flutter) fuer das Kasseneck-Backend",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -128,7 +128,8 @@
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
     "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",
-    "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs"
+    "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
+    "fixtures:hobex-hps-codes": "npm run build && node scripts/hobex-hps-codes.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

@@ -1,3 +1,6 @@
-node_modules/
+# Ohne Schraegstrich trifft das Muster auch einen SYMLINK namens node_modules --
+# ein Worktree, der sein node_modules auf den Haupt-Checkout zeigen laesst,
+# rutscht sonst in "git add -A" hinein (so lag ein absoluter lokaler Pfad im Repo).
+node_modules
 dist/
 test-dist/

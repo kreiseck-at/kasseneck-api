@@ -174,9 +174,13 @@ export class KasseneckApiError extends Error {
   /** Meldung des Backends, unveraendert (`message` aus der Huelle). */
   readonly serverMessage: string;
   /**
-   * Maschinenlesbarer Fehlercode aus `data.code`, sofern die Antwort einen
-   * fuehrt (`vertrag_offen`, `rate_limited`, …). Die aelteren Endpunkte des
-   * Backends antworten ohne Code — dann `undefined`.
+   * Stabiler, maschinenlesbarer Fehlercode des Backends, wenn der Endpunkt
+   * einen legt. Zwei Ablageorte kommen vor und beide zaehlen: das Feld `code`
+   * neben `message` (cancelReceipt, siehe CANCELLATION_ERROR_CODES) und
+   * `data.code` (Partner-API: `vertrag_offen`, `rate_limited`, …). Nur
+   * Bezeichner gelten — ein Freitext waere kein Code. Die aelteren Endpunkte
+   * antworten ohne Code — dann `undefined`. **Daran entscheiden, nie an
+   * [serverMessage]:** der Text darf sich aendern, der Code nicht.
    */
   readonly code: string | undefined;
   /**
@@ -186,16 +190,15 @@ export class KasseneckApiError extends Error {
    */
   readonly details: Record<string, unknown>;
 
-  constructor(functionName: string, serverMessage: string, details: Record<string, unknown> = {}) {
+  constructor(functionName: string, serverMessage: string, details: Record<string, unknown> = {}, code?: string) {
     super(`${functionName} fehlgeschlagen: ${serverMessage}`);
     this.functionName = functionName;
     this.serverMessage = serverMessage;
     this.details = details;
-    // Der Code steht in `details` und zusaetzlich als eigenes Feld: das eine
-    // ist die Nutzlast, das andere die Frage, die ein Aufrufer wirklich
-    // stellt. Nur Bezeichner gelten — ein Freitext waere kein Code.
-    const code = details['code'];
-    this.code = typeof code === 'string' && BEZEICHNER.test(code) ? code : undefined;
+    // Der Code neben `message` hat Vorrang; fehlt er, gilt `data.code` aus
+    // den Details. So bleibt die Klasse fuer beide Ablageorte dieselbe.
+    const kandidat = code !== undefined ? code : details['code'];
+    this.code = typeof kandidat === 'string' && BEZEICHNER.test(kandidat) ? kandidat : undefined;
   }
 }
 

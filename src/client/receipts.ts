@@ -90,6 +90,22 @@ export interface TipOptions {
   paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
   /** Empfaenger; ohne Angabe der angemeldete Kassen-Benutzer. Summe der cents = cents. */
   recipients?: TipRecipientShare[];
+  /**
+   * Hat der Empfaenger das Geld schon? `true` = ja (Bargeld mitgenommen,
+   * Kartentrinkgeld sofort aus der Lade ausgezahlt), `false` = der Betrieb
+   * behaelt es und schuldet es.
+   *
+   * Entscheidend ist NICHT die Zahlart, sondern der Besitz -- § 2j Abs 2 AVRAG
+   * kennt beide Faelle. Ohne Angabe gilt die Voreinstellung des Betriebs (bar:
+   * schon erhalten, bargeldlos: einbehalten); diese Angabe braucht es nur fuer
+   * die Ausnahme.
+   *
+   * NUR mit dem Recht `tipAssign` bei persoenlicher Anmeldung: das Merkmal
+   * entscheidet, ob der Betrieb Geld schuldet, und gewoehnliches Personal soll
+   * das nicht am Geraet umstellen koennen. Ueber einen Geraete-API-Schluessel
+   * (ohne angemeldeten Kassen-Benutzer) gilt die Einschraenkung nicht.
+   */
+  sofortErhalten?: boolean;
 }
 
 export interface TipRecipientShare {
@@ -357,6 +373,12 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
  * Stornobeleg aus frei uebergebenen Positionen — fuer den Fall, dass der
  * Originalbeleg nicht als Objekt vorliegt. Die Positionen gehen **unveraendert**
  * hinaus; das Vorzeichen setzt der Aufrufer.
+ *
+ * @deprecated Alter Storno-Weg ohne Bezug: kein Verweis auf das Original,
+ * keine Restmengen, kein Schutz vor doppeltem Storno, Gutscheine werden nicht
+ * zurueckgenommen. Das Backend nimmt ihn weiter an und legt `deprecation` in
+ * die Antwort. Stattdessen [cancelReceipt] (Endpunkt `cancelReceipt`): Bezug,
+ * Grund, Teilstorno, Fehlercodes.
  */
 export function createCancelReceipt(rufen: InternerTransport, options: CreateCancelReceiptOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.cancellation });
@@ -643,6 +665,16 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   }
   const nutzlast: Record<string, unknown> = { cents: tip.cents };
   if (tip.paymentMethod != null) nutzlast['paymentMethod'] = gepruefteZahlungsart(tip.paymentMethod);
+  // Nur mitschicken, wenn gesetzt: fehlt das Feld, entscheidet die
+  // Voreinstellung des Betriebs. Ein `false` waere dort eine Aussage, kein
+  // Weglassen. Der Wortlaut des Fehlers ist der des Backends
+  // (tip-core.normalizeTip) -- wer ihn hier sieht, sieht denselben Satz.
+  if (tip.sofortErhalten != null) {
+    if (typeof tip.sofortErhalten !== 'boolean') {
+      throw eingabefehler('Trinkgeld: sofortErhalten muss true oder false sein.');
+    }
+    nutzlast['sofortErhalten'] = tip.sofortErhalten;
+  }
   if (tip.recipients != null) {
     if (!Array.isArray(tip.recipients) || tip.recipients.length === 0) {
       throw eingabefehler('Trinkgeld: recipients darf nicht leer sein.');

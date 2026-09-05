@@ -71,6 +71,14 @@ export interface RegisterClientInfo {
   /** IANA-Zeitzone, z. B. Europe/Vienna. */
   tz?: string;
   screen?: { w: number; h: number };
+  /**
+   * Welcher Build der Anwendung gerade laeuft (frei, z. B. "0.6.46+3120").
+   * Bei einer Stoerungsmeldung die entscheidende Angabe: ohne sie laesst sich
+   * ein alter Build im Browser-Cache weder belegen noch ausschliessen -- und
+   * genau der steckt oft hinter "bei mir geht es aber". Das Backend kuerzt auf
+   * 80 Zeichen (register-geraetedaten.js, clientAusParams).
+   */
+  app?: string;
 }
 /** Standort aus der Browser-Ortung (freiwillig); Grundlage der Standortsperre. */
 export interface RegisterGeo {
@@ -320,6 +328,15 @@ export interface RegisterUserLoginOptions extends RegisterDeviceConnection, Regi
    * es bei der Abweisung "Kasse wird gerade auf … verwendet".
    */
   takeover?: boolean;
+  /**
+   * Welche Sitzung soll weichen? Kennung aus [listRegisterSessionsForDevice].
+   * Ohne Angabe verdraengt das Backend die aelteste -- so wie bisher.
+   *
+   * Eine Kennung, die nicht mehr laeuft, wird ABGEWIESEN statt still durch die
+   * aelteste ersetzt: Wer waehlt, bekommt seine Wahl oder eine Fehlermeldung,
+   * nie einen Unbeteiligten.
+   */
+  takeoverSessionId?: string;
 }
 
 export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterGeraeteAngaben {
@@ -334,6 +351,8 @@ export interface RegisterPinLoginOptions extends RegisterDeviceConnection, Regis
   cashregisterId: string;
   /** Wie [RegisterUserLoginOptions.takeover]. */
   takeover?: boolean;
+  /** Wie [RegisterUserLoginOptions.takeoverSessionId]. */
+  takeoverSessionId?: string;
 }
 
 /**
@@ -387,6 +406,88 @@ export async function unpairRegisterDevice(options: ListRegisterUsersForDeviceOp
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
   await transportFuer(verbindung)<Record<string, unknown>>(name, { ownerUid, deviceId, deviceSecret }, undefined, [deviceSecret]);
+}
+
+/** Eine laufende Sitzung an einer Kasse -- Zeile in der Auswahl. */
+export interface RegisterSession {
+  id: string;
+  deviceId: string | null;
+  /** Name des Geraets; „Kasse", wenn keiner gesetzt wurde. */
+  deviceLabel: string;
+  startedAt: number | null;
+  expiresAt: number | null;
+  /** Laeuft diese Sitzung auf DIESEM Geraet? */
+  selbst: boolean;
+  /**
+   * Wer angemeldet ist. Fehlt an einem nur-PIN-Geraet: Dort zeigt schon die
+   * Benutzerliste keine Namen, und was dort nicht steht, darf hier nicht
+   * durch die Hintertuer kommen. `undefined` heisst „wird nicht genannt",
+   * nicht „hat keinen Namen".
+   */
+  userName?: string;
+}
+
+/** Was eine Kasse gerade haelt -- Lizenzzahl und laufende Sitzungen. */
+export interface RegisterSessionsStand {
+  /** Wie viele Sitzungen gleichzeitig laufen duerfen. */
+  licenses: number;
+  /** Aelteste zuerst: oben steht, was das Backend ohne Wahl verdraengen wuerde. */
+  sessions: RegisterSession[];
+}
+
+export interface ListRegisterSessionsForDeviceOptions
+  extends RegisterDeviceConnection, RegisterDeviceCredentials {}
+
+/**
+ * Welche Sitzungen haelt diese Kasse gerade?
+ *
+ * Fuer den Anmeldebildschirm: Sind alle Lizenzplaetze belegt, muss eine
+ * weichen -- und der Kassier soll sehen, WELCHE, statt dass das Backend still
+ * die aelteste nimmt. Die Wahl geht dann als
+ * [RegisterUserLoginOptions.takeoverSessionId] mit.
+ *
+ * Ausgewiesen wird sich ueber das Geraete-Geheimnis, wie bei
+ * [listRegisterUsersForDevice]: An diesem Punkt gibt es weder Sitzung noch
+ * Token. Die Kasse bestimmt das Backend aus dem Geraet, nicht aus dem Aufruf.
+ */
+export async function listRegisterSessionsForDevice(
+  options: ListRegisterSessionsForDeviceOptions,
+): Promise<RegisterSessionsStand> {
+  const { ownerUid, deviceId, deviceSecret, ...verbindung } = options;
+  const name = 'listRegisterSessionsForDevice';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+
+  const daten = await transportFuer(verbindung)<{ licenses?: unknown; sessions?: unknown }>(
+    name,
+    { ownerUid, deviceId, deviceSecret },
+    undefined,
+    [deviceSecret],
+  );
+
+  const liste = daten?.sessions;
+  if (!Array.isArray(liste)) {
+    throw antwortfehler(name, 'Antwort enthaelt keine Sitzungsliste (data.sessions fehlt)');
+  }
+  const sessions = liste.map((eintrag): RegisterSession => {
+    const roh = (typeof eintrag === 'object' && eintrag !== null ? eintrag : {}) as Record<string, unknown>;
+    return {
+      // Ohne Kennung waere die Zeile nicht waehlbar -- eine Schaltflaeche, die
+      // nichts tun kann, ist schlimmer als keine.
+      id: pflichtfeld(name, roh, 'id'),
+      deviceId: typeof roh['deviceId'] === 'string' && roh['deviceId'] ? roh['deviceId'] : null,
+      deviceLabel: text(roh['deviceLabel']) || 'Kasse',
+      startedAt: typeof roh['startedAt'] === 'number' ? roh['startedAt'] : null,
+      expiresAt: typeof roh['expiresAt'] === 'number' ? roh['expiresAt'] : null,
+      selbst: roh['selbst'] === true,
+      // Nur uebernehmen, wenn wirklich einer kam: ein leerer String stuende
+      // in der Oberflaeche als namenlose Zeile, statt die Spalte wegzulassen.
+      ...(typeof roh['userName'] === 'string' && roh['userName'] ? { userName: roh['userName'] } : {}),
+    };
+  });
+  const licenses = typeof daten?.licenses === 'number' && daten.licenses > 0 ? daten.licenses : 1;
+  return { licenses, sessions };
 }
 
 export async function listRegisterUsersForDevice(
@@ -469,7 +570,7 @@ function regel(wert: unknown): RegisterPinPolicy | null {
  * sperren gestaffelt (ab dem fuenften 30 Sekunden, ab dem neunten 15 Minuten).
  */
 export async function registerUserLogin(options: RegisterUserLoginOptions): Promise<RegisterUserSession> {
-  const { ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId, takeover, client, geo, ...verbindung } = options;
+  const { ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId, takeover, takeoverSessionId, client, geo, ...verbindung } = options;
   const name = 'registerUserLogin';
   pflicht(name, 'ownerUid', ownerUid);
   pflicht(name, 'deviceId', deviceId);
@@ -490,6 +591,9 @@ export async function registerUserLogin(options: RegisterUserLoginOptions): Prom
       // Nur die ausdrueckliche Uebernahme geht mit: das Backend prueft auf
       // `=== true`, und ein mitgesendetes `false` waere nur Rauschen.
       takeover: takeover === true ? true : undefined,
+      // Leerer String heisst „nichts gewaehlt" und gehoert nicht in die
+      // Nutzlast -- das Backend wiese ihn sonst als unbekannte Sitzung ab.
+      takeoverSessionId: takeoverSessionId ? takeoverSessionId : undefined,
       client, geo: geo ?? undefined,
     },
     undefined,
@@ -506,7 +610,7 @@ export async function registerUserLogin(options: RegisterUserLoginOptions): Prom
  * zaehlen und sperren dort am **Geraet**, nicht an einem Benutzer.
  */
 export async function registerPinLogin(options: RegisterPinLoginOptions): Promise<RegisterUserSession> {
-  const { ownerUid, deviceId, deviceSecret, pin, cashregisterId, takeover, client, geo, ...verbindung } = options;
+  const { ownerUid, deviceId, deviceSecret, pin, cashregisterId, takeover, takeoverSessionId, client, geo, ...verbindung } = options;
   const name = 'registerPinLogin';
   pflicht(name, 'ownerUid', ownerUid);
   pflicht(name, 'deviceId', deviceId);
@@ -524,6 +628,9 @@ export async function registerPinLogin(options: RegisterPinLoginOptions): Promis
       cashregisterId,
       // Nur die ausdrueckliche Uebernahme geht mit — wie bei registerUserLogin.
       takeover: takeover === true ? true : undefined,
+      // Leerer String heisst „nichts gewaehlt" und gehoert nicht in die
+      // Nutzlast -- das Backend wiese ihn sonst als unbekannte Sitzung ab.
+      takeoverSessionId: takeoverSessionId ? takeoverSessionId : undefined,
       client, geo: geo ?? undefined,
     },
     undefined,

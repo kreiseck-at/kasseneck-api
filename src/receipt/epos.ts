@@ -113,19 +113,92 @@ export function eposParseResponse(text: string): EposResponse {
   return { success: attr('success') === 'true', code: attr('code'), status: attr('status') };
 }
 
-async function eposDirectSend(innerXml: string, o: EposDirectOptions, fetchFn: typeof fetch): Promise<EposResponse> {
-  const url = eposServiceUrl(o.ip, o.devid ?? EPOS_DEVID_VORGABE, o.timeoutMs ?? 10000);
-  let antwort: Response;
-  try {
-    antwort = await fetchFn(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: '""' }, body: eposSoapEnvelope(innerXml) });
-  } catch {
-    throw new Error(
-      `Drucker nicht erreichbar. Einmal https://${o.ip.trim()} im Browser öffnen und das Zertifikat akzeptieren, ` +
+/**
+ * Ob ein Aufruf an [eposDirectSend] an einem ZEITABLAUF scheiterte oder an
+ * einer sonst abgelehnten/nie zustande gekommenen Verbindung -- ein Aufrufer
+ * muss das unterscheiden koennen. Ein Zeitablauf heisst "der Drucker koennte
+ * noch antworten, spaeter nochmal versuchen"; eine Ablehnung heisst "unter
+ * dieser Adresse ist niemand" (falsche IP, Kabel raus, Zertifikat nicht
+ * akzeptiert). Vor dieser Klasse trug die eine Fehlermeldung fuer beide
+ * Faelle keine maschinenlesbare Unterscheidung -- ein Aufrufer haette sie nur
+ * am Text erraten koennen, und genau diese Art von Kopplung an einen Text hat
+ * sich an anderer Stelle in diesem Vorhaben schon als brueckig erwiesen.
+ */
+export class EposConnectionError extends Error {
+  override readonly name = 'EposConnectionError';
+  readonly ip: string;
+  /** `true`, wenn das Zeitlimit ablief, BEVOR eine Antwort da war. */
+  readonly timedOut: boolean;
+
+  constructor(ip: string, timedOut: boolean) {
+    const grund = timedOut ? 'antwortet nicht (Zeitlimit überschritten)' : 'nicht erreichbar';
+    super(
+      `Drucker ${grund}. Einmal https://${ip.trim()} im Browser öffnen und das Zertifikat akzeptieren, ` +
         'Zugriff aufs lokale Netz erlauben, ePOS-Print am Drucker auf Enable.',
     );
+    this.ip = ip;
+    this.timedOut = timedOut;
+  }
+}
+
+/** Lehnt ab, sobald [signal] abbricht -- die Naht fuer die Frist in [eposDirectSend]. */
+function alsAbbruchAbgelehnt(signal: AbortSignal): Promise<never> {
+  return new Promise((_erfuellen, ablehnen) => {
+    if (signal.aborted) {
+      ablehnen(new Error('abgebrochen'));
+      return;
+    }
+    signal.addEventListener('abort', () => ablehnen(new Error('abgebrochen')), { once: true });
+  });
+}
+
+async function eposDirectSend(innerXml: string, o: EposDirectOptions, fetchFn: typeof fetch): Promise<EposResponse> {
+  const zeitlimitMs = o.timeoutMs ?? 10000;
+  const url = eposServiceUrl(o.ip, o.devid ?? EPOS_DEVID_VORGABE, zeitlimitMs);
+
+  // `zeitlimitMs` geht zweifach ein -- als `timeout=`-Parameter in der URL
+  // (ein Hinweis FUER DEN DRUCKER, wie lange ER intern auf den Kartenfluss/
+  // Druckvorgang wartet) UND als AbortController-Frist HIER (die Grenze fuer
+  // DIESEN Aufruf). Das ist keine Dopplung, sondern zwei verschiedene Dinge,
+  // die zufaellig denselben Wert teilen: ohne die zweite Haelfte begrenzt
+  // NICHTS den `fetch()`-Aufruf selbst. Ein Drucker, der die TCP-Verbindung
+  // annimmt und nie antwortet (ein reales Fehlerbild bei einem eingebetteten
+  // HTTP-Server), liesse den Aufruf dann NIE zurueckkehren und NIE werfen --
+  // genau dieses Muster hat im Flutter-Paket einen ganzen Verkauf angehalten:
+  // der Beleg stand in der Signaturkette, der Bildschirm zeigte nichts, und
+  // ein Neustart mit erneutem Kassieren erzeugte einen zweiten Umsatz.
+  const abbruch = new AbortController();
+  const wecker = setTimeout(() => abbruch.abort(), zeitlimitMs);
+  let antwort: Response;
+  let text: string;
+  try {
+    try {
+      antwort = await Promise.race([
+        fetchFn(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: '""' },
+          body: eposSoapEnvelope(innerXml),
+          signal: abbruch.signal,
+        }),
+        alsAbbruchAbgelehnt(abbruch.signal),
+      ]);
+      // Die Frist deckt auch das Auslesen des Rumpfes, nicht nur den
+      // Antwortkopf -- ein Drucker, der den Kopf schickt und den Rumpf offen
+      // laesst, haelt den Aufruf sonst trotzdem unbegrenzt fest (dasselbe
+      // Muster wie `client/transport.ts`).
+      text = await Promise.race([antwort.text(), alsAbbruchAbgelehnt(abbruch.signal)]);
+    } catch {
+      // `abbruch.signal.aborted` ist hier zuverlaessig: der EINZIGE Ausloeser
+      // fuer den Abbruch in dieser Funktion ist der `wecker` oben -- jeder
+      // andere Fehlschlag (Netz weg, Zertifikat abgelehnt, DNS) laesst das
+      // Signal unangetastet.
+      throw new EposConnectionError(o.ip, abbruch.signal.aborted);
+    }
+  } finally {
+    clearTimeout(wecker);
   }
   if (!antwort.ok) throw new Error(`Drucker antwortet mit HTTP ${antwort.status}.`);
-  return eposParseResponse(await antwort.text());
+  return eposParseResponse(text);
 }
 
 /** Beleg direkt drucken; wirft bei Netz-/Zertifikatsproblemen, sonst die Drucker-Antwort. */
