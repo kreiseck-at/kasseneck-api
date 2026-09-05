@@ -8,7 +8,8 @@ im Test gegengeprüft, damit die beiden Pakete nicht auseinanderdriften.
 Das Paket deckt ab: Belege ausstellen und stornieren, Belege und Kassen
 auflisten, Berichte herunterladen, Status bei FinanzOnline abfragen,
 Stripe-Zahllinks und Hobex-Cloud-Zahlungen, das Beleg-Layout und die
-ESC/POS-Erzeugung für den Bondrucker.
+ESC/POS-Erzeugung für den Bondrucker — und unter `./partner` die
+**Partner-API**: Betriebe anlegen und bis zur laufenden Kasse begleiten.
 
 **Es läuft im Browser und in Node.** ESM ist das Hauptformat, CommonJS liegt
 daneben; beides mit eigenen Typdeklarationen. Node ab 20.18 (`fetch` muss
@@ -210,6 +211,123 @@ Grund: „STORNOBELEG / Stornobuchung zu Beleg KASSE1-ID-42 / vom 11.08.2026,
 09:02 Uhr / Grund: Fehleingabe". Das Datum kommt aus `cancellationOf.timeStamp`
 (Backend seit 2026-09-04); Altbelege ohne bleiben ohne die Zeile.
 
+## Partner-API (`./partner`)
+
+Für Softwarehäuser, die Kasseneck in ihr eigenes Produkt einbauen: Betriebe
+anlegen, bis zur laufenden Kasse begleiten und danach in ihrem Namen Belege
+signieren.
+
+**Was die Endpunkte tun, steht in der Referenz** —
+`docs/api/partner.md` (ausführlich) und `docs/api/partner.llms.txt` (kompakt,
+für Werkzeuge und Sprachmodelle). Dieses README wiederholt sie nicht; hier
+steht, wie man den Client benutzt.
+
+Der Partner-Schlüssel (`pk_live_…`) gehört auf einen **Server**. Er kann
+Betriebe anlegen und — mit dem Zusatz-Scope `credentials:read` — deren
+Geheimnisse holen.
+
+```ts
+import { createPartnerApi, istPartnerFehler } from '@kreiseck/kasseneck-api/partner';
+
+const partner = createPartnerApi({ partnerKey: process.env.KASSENECK_PARTNER_KEY! });
+
+const { customerId } = await partner.createPartnerCustomer({
+  appId: 'app_…',
+  idempotencyKey: kundennummer,   // die eigene — schützt vor Doppelanlage
+  betrieb: { /* Stammdaten, siehe Referenz */ } as never,
+  // env: 'test' — auch mit einem LIVE-Schlüssel erlaubt: so probt man die
+  // ganze Kette, ohne sich einen zweiten Schlüssel zu holen. Umgekehrt nie.
+});
+
+await partner.sendPartnerCustomerFonLink(customerId);
+// … auf das Ereignis customer.fon_verified warten …
+await partner.requestCustomerSignature(customerId);
+// … auf signature.ready warten …
+await partner.createCustomerCashregister({ customerId });  // automatisch:true ist Vorgabe
+```
+
+Die Reihenfolge ist hart, und jeder Schritt beschwert sich mit einem eigenen
+Code, wenn ein vorheriger fehlt. Sie steht als Daten im Paket
+(`PARTNER_ABLAUF`), und zu jedem Code gibt es einen Handlungssatz:
+
+```ts
+try {
+  await partner.activateCashregister(customerId, cashregisterId);
+} catch (fehler) {
+  if (istPartnerFehler(fehler, 'signature_not_ready')) {
+    // Die Signatur DIESER Kasse ist noch nicht bereit — auf signature.ready warten.
+    console.error(partner.fehlerRat('signature_not_ready'));
+  }
+}
+```
+
+### Eine Probe ist keine Kasse
+
+`sendPartnerWebhookTest(webhookId, 'cashregister.live')` löst genau das
+Ereignis aus, das der eigene Handler behandeln soll — eine Leitungsprobe
+beweist nichts über die Behandlung des Ernstfalls. Damit niemand eine Probe
+für echt hält, trägt sie `test: true` im Umschlag:
+
+```ts
+const geprueft = await parseWebhookEvent({ secret, signatureHeader, body, });
+if (!geprueft.ok) return antwort(400);
+
+if (geprueft.event.test) return antwort(200);   // Probe: nichts weiter tun
+```
+
+Ohne diese Zeile schreibt jemand seinem Kunden, die Kasse sei fertig.
+
+### Zugangsdaten sind Geheimnisse eines Dritten
+
+`getCustomerCredentials` liefert den `api_key` des Betriebs und die Token
+seiner Kassen. Wer sie hat, kann in seinem Namen Belege signieren — und ein
+Beleg ist nach RKSV nicht zurücknehmbar. Sie kommen deshalb **nicht als
+`string`**, sondern in einer Hülle, die sich nicht versehentlich ausgeben
+lässt:
+
+```ts
+const zugang = await partner.getCustomerCredentials(customerId);
+
+console.log(zugang);                     // [apiKey «verborgen»] — kein Klartext
+JSON.stringify(zugang);                  // ebenso
+`${zugang.apiKey}`;                      // ebenso
+
+speichereVerschluesselt(zugang.apiKey.reveal());   // der einzige Weg heraus
+```
+
+Nur verschlüsselt speichern, nie protokollieren, nie in eine Mail oder einen
+Fehlerbericht. Jeder Abruf wird mitgeschrieben und ist für den Betrieb
+sichtbar.
+
+### Eingehende Webhooks prüfen
+
+Das ist die Stelle, an der Integrationen am häufigsten scheitern — deshalb
+liegt sie fertig im Paket. Vier Dinge müssen stimmen: der **rohe** Rumpf, das
+Zeitfenster gegen Wiedereinspielung, ein zeitkonstanter Vergleich, und jede
+Ausnahme als Ablehnung.
+
+```ts
+import express from 'express';
+import { parseWebhookEvent } from '@kreiseck/kasseneck-api/partner';
+
+const app = express();
+
+// express.raw VOR jedem JSON-Parser: signiert sind die Bytes, die ankommen.
+app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  const ergebnis = await parseWebhookEvent({
+    secret: process.env.KASSENECK_WEBHOOK_SECRET!,
+    signatureHeader: req.header('X-Kasseneck-Signature'),
+    body: req.body,           // Buffer — nicht req.body nach JSON.parse
+  });
+  if (!ergebnis.ok) return res.status(400).send(ergebnis.reason);
+
+  // Innerhalb von 10 s antworten, Arbeit danach. Zustellungen können sich
+  // wiederholen: auf event.id entdoppeln.
+  res.sendStatus(200);
+  await verarbeite(ergebnis.event);
+});
+```
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |
@@ -220,6 +338,7 @@ Grund: „STORNOBELEG / Stornobuchung zu Beleg KASSE1-ID-42 / vom 11.08.2026,
 | `…/payments` | Stripe-Zahllinks, Hobex-Cloud (beides HTTP-Endpunkte des Backends) und Hobex **HPS** über **Kasseneck Connect** (lokaler Geräte-Agent, spricht mit dem Terminal). |
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln und entkoppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
+| `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 | `…/fixtures/*` | Golden-Belege (JSON): Eingaben `belege/<name>.json`, zugesagte Zeilenausgabe `erwartet/<name>.lines.json`, `manifest.json` mit Prüfsummen — dieselben Dateien prüfen Backend, Browser-Kasse und Flutter-Paket. |
 
@@ -305,6 +424,8 @@ im Tarball mit und sagen in Maschinenform, worauf sich beide Seiten geeinigt hab
 | `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen |
 | `hobex-hps-codes.json` | Gemessene HPS-Ergebniscodes, ihre Bedeutung und ob sie einen Ausgang festschreiben — der Vertrag hinter `.../payments/hobex-hps`s `isConclusive`. |
 
+| `oberflaeche.json` | Aufrufnamen, Enum-Werte, Rechte-Schlüssel, Tasten-Aktionen, Partner-Listen |
+
 Alle drei werden erzeugt (`npm run fixtures:kasse`, `npm run fixtures:oberflaeche`,
 `npm run fixtures:hobex-hps-codes`) und nie von Hand geändert; die CI prüft
 nach jedem Lauf, dass sie zum Code passen.
@@ -312,6 +433,22 @@ nach jedem Lauf, dass sie zum Code passen.
 `oberflaeche.json` und `hobex-hps-codes.json` tragen die Paketversion. **Nach
 jedem `npm version` müssen deshalb alle drei Dateien neu erzeugt und
 mitcommittet werden**, sonst wird die CI rot.
+
+### Und die Gegenrichtung
+
+Der Vertrag in `fixtures/` wird **drüben** geprüft: das Dart-Repo zieht ihn und
+hält seine Listen dagegen. Eine Lücke fiele hier deshalb erst im nächsten
+Zwillingslauf im anderen Repo auf — an einem anderen Tag. Dagegen stehen zwei
+von Hand gepflegte Abzüge der Dart-Seite unter `test/fixtures/`, jeder mit
+`_quelle`:
+
+| Datei | prüft |
+|---|---|
+| `dart-enums.json` | Belegtyp, Steuersatz, Zahlungsart, Kartenanbieter, Gutschein, Stripe-Modus |
+| `dart-partner.json` | Umgebungen, Fehlercodes (API und Portal), Webhook-Ereignisse, Felder des Webhook-Umschlags samt der Marke `test`, Betriebsfelder, Wiederholungsplan |
+
+Sie machen `npm test` rot, sobald ein Wert nur in einer der beiden Sprachen
+ankommt.
 
 ## Lizenz
 

@@ -817,3 +817,31 @@ test('ein `code`, der kein Text ist, wird nicht uebernommen', async () => {
     return true;
   });
 });
+
+// Zwei Ablageorte fuer den Fehlercode: `code` neben `message` (cancelReceipt)
+// und `data.code` (Partner-API). Beide landen in KasseneckApiError.code; steht
+// beides da, gilt das Feld neben `message`. `details` traegt die Nutzlast weiter.
+test('Fehlercode: neben `message` hat Vorrang, `data.code` ist der Rueckfall, details bleiben erhalten', async () => {
+  const { holen } = fetchFake([
+    antwort(JSON.stringify({ status: 'error', message: 'x', code: 'bereits_storniert', data: { code: 'vertrag_offen', schritt: 3 } })),
+    antwort(JSON.stringify({ status: 'error', message: 'x', data: { code: 'vertrag_offen', schritt: 3 } })),
+    antwort(JSON.stringify({ status: 'error', message: 'x', code: 'kein Bezeichner!' })),
+  ]);
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
+  await assert.rejects(rufen('cancelReceipt'), (e: unknown) => {
+    assert.ok(e instanceof KasseneckApiError);
+    assert.equal(e.code, 'bereits_storniert');
+    assert.equal(e.details['schritt'], 3);
+    return true;
+  });
+  await assert.rejects(rufen('createPartnerCustomer'), (e: unknown) => {
+    assert.ok(e instanceof KasseneckApiError);
+    assert.equal(e.code, 'vertrag_offen');
+    return true;
+  });
+  await assert.rejects(rufen('cancelReceipt'), (e: unknown) => {
+    assert.ok(e instanceof KasseneckApiError);
+    assert.equal(e.code, undefined);
+    return true;
+  });
+});

@@ -6,6 +6,7 @@ import {
   KasseneckNetworkError,
   KasseneckValidationError,
   causeDigest,
+  fehlerDetails,
 } from './errors.js';
 
 /**
@@ -134,7 +135,18 @@ export type KasseneckBinaryTransport = (
 type Koerperleser<R> = (antwort: HttpResponseLike, functionName: string) => Promise<R>;
 
 /** Macht aus dem Rohrumpf das Ergebnis des Aufrufs — oder wirft. */
-type Auswertung<R, T> = (koerper: R, functionName: string, statusCode: number, contentType: string | undefined) => T;
+type Auswertung<R, T> = (
+  koerper: R,
+  functionName: string,
+  statusCode: number,
+  contentType: string | undefined,
+  /**
+   * Die Werte, die dieser Aufruf gesendet hat. Die Auswertung braucht sie, um
+   * die Fehler-Nutzlast zu sieben (siehe `fehlerDetails`): ein Wert, der mit
+   * einem gesendeten Geheimnis ueberlappt, ueberlebt das Sieb nicht.
+   */
+  geheimnisse: readonly string[],
+) => T;
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
   const kern = createCore(options);
@@ -269,7 +281,7 @@ function createCore(options: TransportOptions) {
         throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error');
       }
 
-      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp);
+      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
@@ -300,7 +312,13 @@ const alsBytes: Koerperleser<Uint8Array> = async (antwort, functionName) => {
 };
 
 /** Auswertung des JSON-Wegs: Huelle aufloesen, Nutzlast zurueckgeben. */
-function jsonAuswerten<T>(text: string, functionName: string, statusCode: number, inhaltstyp: string | undefined): T {
+function jsonAuswerten<T>(
+  text: string,
+  functionName: string,
+  statusCode: number,
+  inhaltstyp: string | undefined,
+  geheimnisse: readonly string[],
+): T {
   if (!text.trim()) {
     throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
   }
@@ -321,7 +339,7 @@ function jsonAuswerten<T>(text: string, functionName: string, statusCode: number
   }
   // Alles, was nicht ausdruecklich Erfolg ist, gilt als fachlicher Fehler —
   // ein unbekannter Statuswert darf nie stillschweigend als Erfolg durchgehen.
-  throw fachfehler(functionName, huelle.message, huelle.code);
+  throw fachfehler(functionName, huelle.message, huelle.data, geheimnisse, huelle.code);
 }
 
 /**
@@ -342,6 +360,7 @@ function pdfAuswerten(
   functionName: string,
   statusCode: number,
   inhaltstyp: string | undefined,
+  geheimnisse: readonly string[],
 ): Uint8Array {
   if (bytes.length === 0) {
     throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
@@ -372,7 +391,7 @@ function pdfAuswerten(
   }
   // Derselbe fachliche Fehler wie auf dem JSON-Weg — fuer den Aufrufer macht
   // es keinen Unterschied, ob er ein PDF oder eine Nutzlast erwartet hat.
-  throw fachfehler(functionName, huelle.message, huelle.code);
+  throw fachfehler(functionName, huelle.message, huelle.data, geheimnisse, huelle.code);
 }
 
 /** `%PDF` am Anfang — die Kennung jeder PDF-Datei. */
@@ -388,10 +407,16 @@ function alsHuelle(wert: unknown): { status: unknown; message?: unknown; data?: 
   return wert as { status: unknown; message?: unknown; data?: unknown; code?: unknown };
 }
 
-function fachfehler(functionName: string, message: unknown, code?: unknown): KasseneckApiError {
+function fachfehler(
+  functionName: string,
+  message: unknown,
+  daten: unknown,
+  geheimnisse: readonly string[],
+  code?: unknown,
+): KasseneckApiError {
   const meldung = typeof message === 'string' && message.trim() ? message : 'Unbekannter Fehler';
   // Nur ein Text zaehlt als Code -- alles andere waere ein geratener Vertrag.
-  return new KasseneckApiError(functionName, meldung, typeof code === 'string' && code ? code : undefined);
+  return new KasseneckApiError(functionName, meldung, fehlerDetails(daten, geheimnisse), typeof code === 'string' && code ? code : undefined);
 }
 
 /**

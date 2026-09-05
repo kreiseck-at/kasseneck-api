@@ -95,6 +95,77 @@ function unbedenklich(wert: unknown, geheimnisse: readonly string[]): string | u
   return wert;
 }
 
+/**
+ * Grenzen fuer die gesiebte Fehler-Nutzlast (siehe [fehlerDetails]). Sie stehen
+ * als benannte Konstanten hier, weil ein Test sie namentlich prueft — eine
+ * spaeter heraufgesetzte Grenze soll auffallen und nicht als Zahl im Code
+ * untergehen.
+ */
+const DETAIL_TIEFE = 4;
+const DETAIL_EINTRAEGE = 50;
+const DETAIL_TEXT_MAX = 300;
+/** Schluessel eines Detail-Objekts: bezeichner-foermig, sonst faellt der Eintrag weg. */
+const DETAIL_SCHLUESSEL = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+/**
+ * Siebt das `data` einer Fehlerantwort zu einer Form, die man gefahrlos an
+ * einem Fehler mitfuehren kann.
+ *
+ * **Warum ueberhaupt:** die Partner-API legt ihre Entscheidung nicht in den
+ * Text, sondern in `data.code` (`vertrag_offen`, `signature_not_ready`,
+ * `activation_failed` samt `data.schritt`). Ohne diese Felder muesste ein
+ * Aufrufer die deutsche `message` nach Zeichenketten durchsuchen — genau die
+ * Kopplung, die beim naechsten Formulierungsschliff still bricht.
+ *
+ * **Warum gesiebt und nicht durchgereicht:** siehe Modulkommentar. Der Rumpf
+ * kommt ueber fremde Proxys, und ein Fehler landet in Protokollen. Deshalb
+ * ueberlebt nur, was flach, klein und bezeichner-foermig benannt ist — und
+ * kein Wert, der mit einem der gesendeten Geheimnisse ueberlappt. Damit gilt
+ * hier dieselbe Zusage wie fuer [causeDigest], und `geheimnisse` hat aus
+ * demselben Grund **keinen** Vorgabewert.
+ */
+export function fehlerDetails(daten: unknown, geheimnisse: readonly string[]): Record<string, unknown> {
+  const gesiebt = sieben(daten, geheimnisse, 0);
+  return gesiebt !== null && typeof gesiebt === 'object' && !Array.isArray(gesiebt)
+    ? (gesiebt as Record<string, unknown>)
+    : {};
+}
+
+function sieben(wert: unknown, geheimnisse: readonly string[], tiefe: number): unknown {
+  if (wert === null || typeof wert === 'boolean') return wert;
+  // Nur endliche Zahlen: NaN und Infinity ueberstehen JSON.stringify nicht und
+  // staenden in einem Fehlerbericht als `null` ohne jede Aussage.
+  if (typeof wert === 'number') return Number.isFinite(wert) ? wert : undefined;
+  if (typeof wert === 'string') {
+    if (wert.length > DETAIL_TEXT_MAX) return undefined;
+    for (const geheim of geheimnisse) {
+      if (geheim && (geheim.includes(wert) || wert.includes(geheim))) return undefined;
+    }
+    return wert;
+  }
+  if (tiefe >= DETAIL_TIEFE) return undefined;
+  if (Array.isArray(wert)) {
+    const liste: unknown[] = [];
+    for (const eintrag of wert.slice(0, DETAIL_EINTRAEGE)) {
+      const s = sieben(eintrag, geheimnisse, tiefe + 1);
+      if (s !== undefined) liste.push(s);
+    }
+    return liste;
+  }
+  if (typeof wert !== 'object') return undefined;
+  const raus: Record<string, unknown> = {};
+  let gezaehlt = 0;
+  for (const [schluessel, eintrag] of Object.entries(wert as Record<string, unknown>)) {
+    if (gezaehlt >= DETAIL_EINTRAEGE) break;
+    if (!DETAIL_SCHLUESSEL.test(schluessel)) continue;
+    const s = sieben(eintrag, geheimnisse, tiefe + 1);
+    if (s === undefined) continue;
+    raus[schluessel] = s;
+    gezaehlt += 1;
+  }
+  return raus;
+}
+
 /** Fachlicher Fehler: HTTP 200, aber `status: 'error'` im Rumpf. */
 export class KasseneckApiError extends Error {
   readonly name = 'KasseneckApiError';
@@ -103,17 +174,31 @@ export class KasseneckApiError extends Error {
   /** Meldung des Backends, unveraendert (`message` aus der Huelle). */
   readonly serverMessage: string;
   /**
-   * Stabiler Fehlercode des Backends (`code` aus der Huelle), wenn der
-   * Endpunkt einen legt — heute `cancelReceipt` (siehe CANCELLATION_ERROR_CODES).
-   * Daran entscheiden, nie an [serverMessage]: der Text darf sich aendern.
+   * Stabiler, maschinenlesbarer Fehlercode des Backends, wenn der Endpunkt
+   * einen legt. Zwei Ablageorte kommen vor und beide zaehlen: das Feld `code`
+   * neben `message` (cancelReceipt, siehe CANCELLATION_ERROR_CODES) und
+   * `data.code` (Partner-API: `vertrag_offen`, `rate_limited`, …). Nur
+   * Bezeichner gelten — ein Freitext waere kein Code. Die aelteren Endpunkte
+   * antworten ohne Code — dann `undefined`. **Daran entscheiden, nie an
+   * [serverMessage]:** der Text darf sich aendern, der Code nicht.
    */
   readonly code: string | undefined;
+  /**
+   * Die uebrige Fehler-Nutzlast, gesiebt (siehe [fehlerDetails]): `schritt`,
+   * `rc`, `retryAfterSec`, `errors[]` und was der jeweilige Endpunkt sonst
+   * beilegt. Immer ein Objekt, notfalls ein leeres.
+   */
+  readonly details: Record<string, unknown>;
 
-  constructor(functionName: string, serverMessage: string, code?: string) {
+  constructor(functionName: string, serverMessage: string, details: Record<string, unknown> = {}, code?: string) {
     super(`${functionName} fehlgeschlagen: ${serverMessage}`);
     this.functionName = functionName;
     this.serverMessage = serverMessage;
-    this.code = code;
+    this.details = details;
+    // Der Code neben `message` hat Vorrang; fehlt er, gilt `data.code` aus
+    // den Details. So bleibt die Klasse fuer beide Ablageorte dieselbe.
+    const kandidat = code !== undefined ? code : details['code'];
+    this.code = typeof kandidat === 'string' && BEZEICHNER.test(kandidat) ? kandidat : undefined;
   }
 }
 
