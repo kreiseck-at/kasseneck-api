@@ -900,6 +900,51 @@ test('zwei 9027 mit etwas dazwischen zaehlen nicht als zwei in Folge', async () 
   assert.equal(result.outcome, 'unresolved');
 });
 
+test('55 ("PIN falsch") ist eine gemessene Host-Ablehnung -> declined', async () => {
+  // Am 02.09.2026 im Betrieb gemessen (TID 3556988, HPS 1.11.4, Firmware
+  // 2.3.9), vom Dart-Zwilling uebernommen: die DIREKTE Antwort der Zahlung
+  // trug `55`. Als Wissensluecke kostete der Code 90 s Klaerung, einen
+  // Vorfall mit ungeklaertem Ausgang und eine Rueckfrage an den Bediener --
+  // fuer eine falsch getippte PIN.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/payment': [okPayment({ responseCode: '55', responseText: 'PIN falsch' })] },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '930' });
+
+  assert.equal(result.outcome, 'declined');
+  assert.equal(mayRetrySafely(result), true);
+  assert.equal(result.response?.responseText, 'PIN falsch');
+  assert.equal(
+    calls.filter((c) => c.path === '/v1/terminal/status').length,
+    0,
+    'ein gemessener Code braucht keine Klaerungsrunde',
+  );
+});
+
+test('55 in der Statusabfrage nach verlorener Antwort -> declined', async () => {
+  // Dieselbe Messung, andere Seite: die Statusabfrage antwortete elfmal in
+  // Folge mit `55` -- eine Host-Ablehnung wird am Terminal AUFBEWAHRT, anders
+  // als ein abgebrochener Vorgang (danach 9027). Geht die direkte Antwort
+  // verloren, findet die Klaerung die Ablehnung deshalb ueber den Status.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '55', responseText: 'PIN falsch' })],
+    },
+    calls,
+    { resolveBudgetMs: 30_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '931' });
+
+  assert.equal(result.outcome, 'declined');
+  assert.equal(mayRetrySafely(result), true);
+  assert.ok(result.steps.some((s) => s.includes('abgelehnt (55)')), 'der Nachweis muss den gemessenen Code benennen');
+});
+
 test('9003, 100019 und 100108 sind gemessene Ablehnungen -> declined', async () => {
   // Alle drei weist das Terminal ab, BEVOR es eine Karte verlangt
   // (27./28.08.2026). Positive Aussagen, keine Wissensluecken -- eine

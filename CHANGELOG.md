@@ -4,6 +4,26 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.7.2
+
+### `55` („PIN falsch") ist eine gemessene Host-Ablehnung → `declined`
+
+**Anlass:** Vorfall vom 02.09.2026 am Produktivterminal 3556988 (HPS 1.11.4,
+Firmware 2.3.9), vom Dart-Zwilling `kasseneck_api` 6.4.0 übernommen — die
+erste echte Host-Ablehnung, die je beobachtet wurde. Die Zahlung antwortete
+direkt mit `55`, die Statusabfrage danach elfmal in Folge ebenfalls. Als
+Wissenslücke kostete der Code 90 s Klärung ins Budget, `unresolved`, einen
+stehenden Merker und eine Rückfrage an den Bediener — für eine falsch
+getippte PIN.
+
+- Neu: `WRONG_PIN_CODE`, in `HPS_MEASURED_CODES` als schlüssig geführt.
+- Bewusst **keine** Familienregel für zweistellige Host-Codes: ISO 8583 führt
+  dort auch Genehmigungen (`08`, `10`, `11`, `85`). Die Zwei-`9027`-Regel
+  greift bei Host-Codes nicht (der Status antwortet mit dem Code selbst);
+  ungemessene Host-Codes enden weiterhin bei `unresolved`.
+- `fixtures/hobex-hps-codes.json` neu erzeugt; die Vertragsdatei nennt jetzt
+  unter `ergaenztAn`, welcher Code von welchem Gerät stammt.
+
 ## 0.7.0
 
 ### Neu: Unterpfad `./partner` — die Partner-API

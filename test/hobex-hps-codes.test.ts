@@ -48,7 +48,8 @@ test('Jeder schluessige Code ist genau einmal genannt -- keine Dopplung, keine L
   // '0' (genehmigt) und die vier Ablehnungsgruende muessen zwingend dabei
   // sein -- faellt einer weg, meldet der Zahlweg fuer einen tatsaechlich
   // entschiedenen Vorgang faelschlich "unresolved".
-  for (const erwartet of ['0', '9002', '9011', '100002', '100003', '100010']) {
+  // Dazu 55: die erste gemessene Host-Ablehnung (02.09.2026, Betrieb).
+  for (const erwartet of ['0', '9002', '9011', '100002', '100003', '100010', '55']) {
     assert.ok(schluessige.includes(erwartet), `${erwartet} fehlt in der Positivliste`);
   }
   // 9027 und 9900 sind GEMESSEN, aber ausdruecklich KEINE Aussage -- die
