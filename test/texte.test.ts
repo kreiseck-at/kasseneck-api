@@ -11,16 +11,18 @@ test('jeder Schluessel hat die Form bereich.name', () => {
 });
 
 test('ein Text ist ein Satz: beginnt gross, endet mit Satzzeichen, kein Rand-Leerraum', () => {
+  // `{` bzw. `}` sind am Rand erlaubt: ein Platzhalter kann den Satz eroeffnen
+  // oder beschliessen — der eingesetzte Wert traegt dann seine eigene Grossschreibung/Interpunktion.
   for (const [schluessel, eintrag] of Object.entries(MELDUNGEN)) {
     assert.equal(eintrag.text, eintrag.text.trim(), schluessel);
-    assert.match(eintrag.text, /^[A-ZÄÖÜ„]/, schluessel);
-    assert.match(eintrag.text, /[.!?…“)]$/, schluessel);
+    assert.match(eintrag.text, /^[A-ZÄÖÜ„{]/, schluessel);
+    assert.match(eintrag.text, /[.!?…“)}]$/, schluessel);
   }
 });
 
 test('Platzhalter im Text und in der Liste sind dieselben', () => {
   for (const [schluessel, eintrag] of Object.entries(MELDUNGEN)) {
-    const imText = [...eintrag.text.matchAll(/\{([a-z]+)\}/g)].map((m) => m[1]).sort();
+    const imText = [...new Set([...eintrag.text.matchAll(/\{([a-z]+)\}/g)].map((m) => m[1]))].sort();
     const erklaert = [...(eintrag.platzhalter ?? [])].sort();
     assert.deepEqual(imText, erklaert, schluessel);
   }

@@ -66,15 +66,15 @@ const MELDUNGEN_ROH = {
   // --- Kartenzahlung -------------------------------------------------------
   'kartenzahlung.nicht_moeglich': { text: 'Kartenzahlung nicht möglich.' },
   'kartenzahlung.nicht_zustande': { text: 'Die Kartenzahlung ist nicht zustande gekommen.' },
-  'kartenzahlung.nicht_gestartet': { text: 'Kartenzahlung nicht gestartet: {grund}.', platzhalter: ['grund'] },
+  'kartenzahlung.nicht_gestartet': { text: 'Kartenzahlung nicht gestartet: {grund}', platzhalter: ['grund'] },
   'kartenzahlung.unklar': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist — die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
   'kartenzahlung.connect_nicht_verbunden': { text: 'Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.', nur: ['web'] },
   'terminal.keines_gefunden': { text: 'Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'terminal.nicht_bereit': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {antwort} — TID prüfen.', platzhalter: ['antwort'], nur: ['web'] },
   'gptom.app_fehlt': { text: 'Die GP-Tom-App ist auf diesem Gerät nicht da.', nur: ['app'] },
-  'gptom.suche_fehlgeschlagen': { text: 'GP Tom: Suche nach der App fehlgeschlagen: {grund}.', platzhalter: ['grund'], nur: ['app'] },
-  'gptom.zahlung_fehlgeschlagen': { text: 'GP Tom: Zahlung fehlgeschlagen: {grund}.', platzhalter: ['grund'], nur: ['app'] },
-  'gptom.terminal_antwortet_nicht': { text: 'Das Terminal hat nicht geantwortet: {grund}.', platzhalter: ['grund'], nur: ['app'] },
+  'gptom.suche_fehlgeschlagen': { text: 'GP Tom: Suche nach der App fehlgeschlagen: {grund}', platzhalter: ['grund'], nur: ['app'] },
+  'gptom.zahlung_fehlgeschlagen': { text: 'GP Tom: Zahlung fehlgeschlagen: {grund}', platzhalter: ['grund'], nur: ['app'] },
+  'gptom.terminal_antwortet_nicht': { text: 'Das Terminal hat nicht geantwortet: {grund}', platzhalter: ['grund'], nur: ['app'] },
   'gptom.zahlung_nicht_abgeschlossen': { text: 'Die Zahlung wurde nicht abgeschlossen ({code}).', platzhalter: ['code'], nur: ['app'] },
 
   // --- Belege und Storno ---------------------------------------------------
@@ -88,18 +88,18 @@ const MELDUNGEN_ROH = {
 
   // --- Druck ---------------------------------------------------------------
   'druck.fehlgeschlagen': { text: 'Der Ausdruck ist fehlgeschlagen.' },
-  'druck.nicht_moeglich': { text: 'Druck nicht möglich: {grund}.', platzhalter: ['grund'] },
+  'druck.nicht_moeglich': { text: 'Druck nicht möglich: {grund}', platzhalter: ['grund'] },
   'druck.testdruck_fehlgeschlagen': { text: 'Der Testdruck ist fehlgeschlagen.' },
-  'druck.testdruck_nicht_moeglich': { text: 'Der Testdruck ist fehlgeschlagen: {grund}.', platzhalter: ['grund'] },
+  'druck.testdruck_nicht_moeglich': { text: 'Der Testdruck ist fehlgeschlagen: {grund}', platzhalter: ['grund'] },
   'druck.kein_drucker': { text: 'Kein Bondrucker eingerichtet — in den Einstellungen unter Drucker & Lade.' },
   'druck.drucker_nicht_erreichbar': { text: 'Drucker nicht erreichbar.' },
   'druck.job_abgelaufen': { text: 'Drucker hat den Beleg nicht abgeholt (abgelaufen).', nur: ['web'] },
   'druck.kein_drucker_gefunden': { text: 'Kein Drucker gefunden — ist er eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
-  'druck.nur_chrome': { text: 'Der {weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) — nicht in Safari und nicht am iPad.', platzhalter: ['weg'], nur: ['web'] },
-  'druck.kein_weg_drucker': { text: 'Kein {weg}-Drucker verbunden — „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.', platzhalter: ['weg', 'weg'], nur: ['web'] },
+  'druck.nur_chrome': { text: '{weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) — nicht in Safari und nicht am iPad.', platzhalter: ['weg'], nur: ['web'] },
+  'druck.kein_weg_drucker': { text: 'Kein {weg}-Drucker verbunden — „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.', platzhalter: ['weg'], nur: ['web'] },
   'bluetooth.aus': { text: 'Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.', nur: ['app'] },
   'bluetooth.freigabe_fehlt': { text: 'Bitte die Freigabe in den Geräte-Einstellungen erteilen.', nur: ['app'] },
-  'bluetooth.suche_fehlgeschlagen': { text: 'Die Suche ist fehlgeschlagen: {grund}.', platzhalter: ['grund'], nur: ['app'] },
+  'bluetooth.suche_fehlgeschlagen': { text: 'Die Suche ist fehlgeschlagen: {grund}', platzhalter: ['grund'], nur: ['app'] },
 
   // --- Kasseneck Connect (nur Browser) -------------------------------------
   'connect.antwortet_nicht': { text: 'Kasseneck Connect antwortet nicht — läuft das Programm auf diesem Rechner?', nur: ['web'] },
@@ -122,7 +122,7 @@ const MELDUNGEN_ROH = {
 
   // --- Nur App -------------------------------------------------------------
   'app.nicht_im_browser': { text: 'Die Kassen-App läuft nicht im Browser — dafür gibt es kasse.kasseneck.at.', nur: ['app'] },
-  'app.im_browser_oeffnen': { text: 'Bitte im Browser öffnen: {ziel}.', platzhalter: ['ziel'], nur: ['app'] },
+  'app.im_browser_oeffnen': { text: 'Bitte im Browser öffnen: {ziel}', platzhalter: ['ziel'], nur: ['app'] },
 } as const satisfies Record<string, Meldung>;
 
 export type MeldungsSchluessel = keyof typeof MELDUNGEN_ROH;
