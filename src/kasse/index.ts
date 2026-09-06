@@ -34,3 +34,9 @@ export { verteileRabatt } from '../receipt/discount.js';
 export { cancelScopeOf, receiptsScopeOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
 export { type NetzDrucker, type DruckJob, type DruckJobStatus, type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
+
+// Was die Kasse selbst sagt — ein Katalog fuer Browser-Kasse und App.
+export {
+  MELDUNGEN, FEHLERREGELN, meldung, meldungGiltFuer,
+  type Meldung, type MeldungsSchluessel, type Fehlerart, type Seite,
+} from './texte.js';
