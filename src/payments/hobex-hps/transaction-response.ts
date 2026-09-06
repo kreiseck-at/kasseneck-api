@@ -99,6 +99,15 @@ export const HPS_MEASURED_CODES: readonly HpsMeasuredCode[] = [
       + 'nicht; der Vorgang wird abgewiesen, bevor etwas geschieht',
     conclusive: true,
   },
+  {
+    code: '55',
+    meaning: '"PIN falsch" -- Host-Ablehnung wegen falscher PIN, die erste '
+      + 'gemessene Host-Ablehnung ueberhaupt (02.09.2026 im Betrieb, TID '
+      + '3556988, HPS 1.11.4, Firmware 2.3.9): die Zahlung antwortete direkt '
+      + 'damit, die Statusabfrage danach elfmal in Folge ebenso -- eine '
+      + 'Host-Ablehnung bleibt am Terminal abrufbar; nichts belastet',
+    conclusive: true,
+  },
 ] as const;
 
 /** `responseCode` einer genehmigten Zahlung. */
@@ -123,6 +132,18 @@ export const INVALID_AMOUNT_CODE = '9003';
 export const AMOUNT_OUT_OF_RANGE_CODE = '100019';
 /** Siehe [HPS_MEASURED_CODES]: Terminal-Kennung unbekannt. */
 export const INVALID_TID_CODE = '100108';
+/**
+ * Siehe [HPS_MEASURED_CODES]: Host-Ablehnung, falsche PIN -- nichts belastet.
+ *
+ * Zweistellig, weil ein Antwortcode des HOSTS (ISO 8583, 55 = "Incorrect
+ * PIN"), kein `9xxx`-Terminalcode und kein `100xxx`-Code der HPS-Anwendung.
+ * Daraus folgt KEINE Regel fuer andere zweistellige Codes: in derselben
+ * Familie stehen Genehmigungen (`08`, `10`, `11`, `85`). Jeder andere
+ * Host-Code bleibt eine Wissensluecke, bis er gemessen ist -- und die
+ * Zwei-9027-Regel in `payments.ts` faengt ihn nicht, weil die Statusabfrage
+ * dann nicht 9027 antwortet, sondern mit dem Code selbst.
+ */
+export const WRONG_PIN_CODE = '55';
 
 /**
  * HTTP `409` ("Terminal is busy"): das Terminal serialisiert und weist eine
