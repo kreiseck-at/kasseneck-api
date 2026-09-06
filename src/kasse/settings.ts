@@ -194,8 +194,11 @@ export interface KasseSettings {
 }
 
 export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.freeze({
-  // Petrol aus der Markenpalette ("Ecke, Aktion") — nicht das alte Blau.
-  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#116B6B',
+  // Das Petrol der Marke: die Aktionsfarbe des Design-Systems (Rolle `brand`).
+  // Stand bis September 2026 auf dem Wert des alten Markenhandbuchs,
+  // der um 0,07 in OKLab danebenlag. Unsichtbar, aber es war die letzte Stelle
+  // im Haus, an der eine zweite Zahl fuer dieselbe Farbe stand.
+  logoText: 'K', logoAn: true, logoGroesse: 'M', wasserzeichen: 'anmeldung', farbe: '#136B6B',
   stil: 'klar', schrift: 'M', schriftEinst: 'S', kachelstil: 'streifen', uhr: true,
   sperrbild: true, foto: true, autoAbMin: 0, abNachVerkauf: false, schnellLogin: true,
   preisAnzeigen: true, ustAnzeigen: false, emoji: true, katFarben: true, freiErlaubt: true,

@@ -319,7 +319,7 @@ test('druckerName gibt es — der Dart-Zwilling schickt ihn, sonst faellt er sti
 });
 
 test('Die Markenfarbe ist Petrol aus der Palette', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.farbe, '#116B6B');
+  assert.equal(KASSE_BETRIEB_STANDARD.farbe, '#136B6B');
 });
 
 test('Die Rechte-Schluessel stehen als Liste bereit', () => {
