@@ -24,6 +24,18 @@ getippte PIN.
 - `fixtures/hobex-hps-codes.json` neu erzeugt; die Vertragsdatei nennt jetzt
   unter `ergaenztAn`, welcher Code von welchem Gerät stammt.
 
+### Neu: `HpsPaymentResult.lastResponse` und Terminal-Klartext im Nachweis
+
+Am 02.09.2026 sah der Bediener bei einer Antwort `55` „PIN falsch" nur
+„Ausgang unklar", musste raten und buchte die abgelehnte Zahlung als bezahlt;
+75 EUR Umsatz waren weg. Der Klartext hätte die Entscheidung getragen.
+
+- `lastResponse`: die letzte Terminal-Antwort bei `unresolved`, auch wenn sie
+  nichts entschied — Material für Anzeige und Katalog, nie ein Beleg.
+  `response` bleibt bei `unresolved` weiterhin ungesetzt.
+- Der Nachweis nennt bei einem unbekannten Code den Klartext des Terminals:
+  `Terminal nennt einen unbekannten Code (55) "PIN falsch"`.
+
 ## 0.7.0
 
 ### Neu: Unterpfad `./partner` — die Partner-API

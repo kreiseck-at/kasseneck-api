@@ -945,6 +945,45 @@ test('55 in der Statusabfrage nach verlorener Antwort -> declined', async () => 
   assert.ok(result.steps.some((s) => s.includes('abgelehnt (55)')), 'der Nachweis muss den gemessenen Code benennen');
 });
 
+test('unbekannter Code bis zum Budgetende -> unresolved, lastResponse traegt Code und Klartext, response fehlt', async () => {
+  // Der Vorfall vom 02.09.2026 vor dem Eintrag von 55: das Terminal antwortet
+  // durchgehend mit einem Code, den wir nicht kennen. Der Ausgang bleibt
+  // offen -- aber WAS das Terminal sagte, muss beim Aufrufer ankommen, sonst
+  // steht der Bediener vor "Ausgang unklar" und raet. `response` fehlt
+  // trotzdem: kein Beleg aus einer Nicht-Aussage.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+    },
+    calls,
+    { resolveBudgetMs: 5_000 },
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '940' });
+
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.response, undefined, 'eine Nicht-Aussage darf nicht als Beleg mitgegeben werden');
+  assert.equal(result.lastResponse?.responseCode, '5555');
+  assert.equal(result.lastResponse?.responseText, 'Unbekannt');
+  assert.ok(result.steps[0]!.includes('unbekannten Code (5555) "Unbekannt"'), 'der Klartext gehoert in den Nachweis');
+  assert.ok(result.steps.some((s) => s.includes('unbekannter Code (5555) "Unbekannt"')));
+});
+
+test('schluessiger Ausgang: lastResponse fehlt, response gesetzt', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    { '/v1/terminal/payment': [okPayment({ responseCode: '0', receipt: '408811' })] },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '941' });
+
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.response?.receipt, '408811');
+  assert.equal(result.lastResponse, undefined);
+});
+
 test('9003, 100019 und 100108 sind gemessene Ablehnungen -> declined', async () => {
   // Alle drei weist das Terminal ab, BEVOR es eine Karte verlangt
   // (27./28.08.2026). Positive Aussagen, keine Wissensluecken -- eine

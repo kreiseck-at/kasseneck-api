@@ -245,7 +245,7 @@ export function createHpsPayments(
       return `Antwort mit technischem Fehler (${TECHNICAL_ERROR_CODE}) -- keine Aussage ueber den Vorgang, Ausgang wird geklaert`;
     }
     if (isUnknownCode(res)) {
-      return `Terminal nennt einen unbekannten Code (${res.responseCode}) -- Ausgang wird geklaert`;
+      return `Terminal nennt einen unbekannten Code (${res.responseCode})${klartext(res)} -- Ausgang wird geklaert`;
     }
     return `Antwort ohne Aussage (${res.responseCode}) -- Ausgang wird geklaert`;
   }
@@ -259,9 +259,21 @@ export function createHpsPayments(
       return `Status: technischer Fehler (${TECHNICAL_ERROR_CODE}) -- keine Aussage ueber den Vorgang`;
     }
     if (isUnknownCode(status)) {
-      return `Status: unbekannter Code (${status.responseCode}) -- keine Aussage`;
+      return `Status: unbekannter Code (${status.responseCode})${klartext(status)} -- keine Aussage`;
     }
     return null;
+  }
+
+  /**
+   * Der Klartext des Terminals zu einem UNBEKANNTEN Code, als Zusatz fuer den
+   * Nachweis -- oder leer, wenn keiner mitkam. Nur hier, nicht bei den
+   * gemessenen Codes: deren Bedeutung ist benannt. Bei einem unbekannten Code
+   * ist er dagegen das Einzige, was ein Mensch lesen kann -- "PIN falsch"
+   * neben `55` haette am 02.09.2026 gereicht, um nicht "bezahlt" zu buchen.
+   */
+  function klartext(res: HpsTransactionResponse): string {
+    const text = res.responseText?.trim();
+    return text ? ` "${text}"` : '';
   }
 
   /** Ordnet eine Terminal-Antwort ein. `null`, wenn sie nichts entscheidet. */
@@ -378,9 +390,19 @@ export function createHpsPayments(
     return null;
   }
 
-  function open(id: string, steps: string[]): HpsPaymentResult {
+  /**
+   * [letzteAntwort] ist die letzte Antwort, die das Terminal in dieser
+   * Klaerung gab -- als `lastResponse` fuer Anzeige und Katalog,
+   * ausdruecklich NICHT als `response`.
+   */
+  function open(id: string, steps: string[], letzteAntwort?: HpsTransactionResponse): HpsPaymentResult {
     emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: 'unresolved', transactionId: id, steps: [...steps] };
+    return {
+      outcome: 'unresolved',
+      transactionId: id,
+      ...(letzteAntwort ? { lastResponse: letzteAntwort } : {}),
+      steps: [...steps],
+    };
   }
 
   /**
@@ -466,6 +488,7 @@ export function createHpsPayments(
     id: string,
     steps: string[],
     antwortMitCode = false,
+    letzteAntwort?: HpsTransactionResponse,
   ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
@@ -490,6 +513,7 @@ export function createHpsPayments(
       try {
         status = await withinBudget(elapsedMs, () => client.status({ ...target, transactionId: id }));
         transportFailures = 0;
+        letzteAntwort = status;
       } catch (e) {
         transportFailures += 1;
         steps.push(`Statusabfrage gescheitert (${transportFailures}): ${describe(e)}`);
@@ -518,7 +542,7 @@ export function createHpsPayments(
     }
 
     steps.push('Ausgang bleibt offen');
-    return open(id, steps);
+    return open(id, steps, letzteAntwort);
   }
 
   /**
@@ -587,7 +611,11 @@ export function createHpsPayments(
    * Budget, Backoff und Transportfehler-Deckelung sind unveraendert aus
    * [resolve] uebernommen.
    */
-  async function resolveCancel(id: string, steps: string[]): Promise<HpsPaymentResult> {
+  async function resolveCancel(
+    id: string,
+    steps: string[],
+    letzteAntwort?: HpsTransactionResponse,
+  ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
     const start = now();
@@ -611,6 +639,7 @@ export function createHpsPayments(
         status = await withinBudget(elapsedMs, () => client.status({ ...target, transactionId: id }));
         transportFailures = 0;
         answeredQueries += 1;
+        letzteAntwort = status;
       } catch (e) {
         transportFailures += 1;
         steps.push(`Statusabfrage gescheitert (${transportFailures}): ${describe(e)}`);
@@ -635,7 +664,7 @@ export function createHpsPayments(
     }
 
     steps.push('Ausgang bleibt offen');
-    return open(id, steps);
+    return open(id, steps, letzteAntwort);
   }
 
   async function pay(paymentOptions: HpsPaymentOptions): Promise<HpsPaymentResult> {
@@ -675,7 +704,7 @@ export function createHpsPayments(
       steps.push(offeneAntwort(res));
     }
 
-    return resolve(id, steps, res?.responseCode !== undefined);
+    return resolve(id, steps, res?.responseCode !== undefined, res);
   }
 
   /**
@@ -720,7 +749,7 @@ export function createHpsPayments(
     // Dieselbe Klaerfunktion wie [pay]: die Kennung ist die des NEUEN
     // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang,
     // und der Abbruch ist derselbe Diskriminator wie bei einer Zahlung.
-    return resolve(id, steps, res?.responseCode !== undefined);
+    return resolve(id, steps, res?.responseCode !== undefined, res);
   }
 
   /**
@@ -765,7 +794,7 @@ export function createHpsPayments(
       if (!isCanceled(res)) steps.push(offeneAntwort(res));
     }
 
-    return resolveCancel(id, steps);
+    return resolveCancel(id, steps, res);
   }
 
   return { pay, refund, cancel };
