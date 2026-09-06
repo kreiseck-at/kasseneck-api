@@ -68,6 +68,8 @@ const MELDUNGEN_ROH = {
   'kartenzahlung.nicht_zustande': { text: 'Die Kartenzahlung ist nicht zustande gekommen.' },
   'kartenzahlung.nicht_gestartet': { text: 'Kartenzahlung nicht gestartet: {grund}', platzhalter: ['grund'] },
   'kartenzahlung.unklar': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist — die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
+  // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden — liegt sie vor, gilt dieser Satz statt kartenzahlung.unklar.
+  'kartenzahlung.unklar_mit_kennung': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist — die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {kennung}.', platzhalter: ['kennung'] },
   'kartenzahlung.connect_nicht_verbunden': { text: 'Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.', nur: ['web'] },
   'terminal.keines_gefunden': { text: 'Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'terminal.nicht_bereit': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {antwort} — TID prüfen.', platzhalter: ['antwort'], nur: ['web'] },
