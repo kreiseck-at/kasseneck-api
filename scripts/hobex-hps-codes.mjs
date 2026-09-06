@@ -28,6 +28,11 @@ const vertrag = {
     firmware: '7.3.6',
     zeitraum: '26.-28.08.2026',
   },
+  // Nachgemessen im BETRIEB, nicht am Testgeraet: welcher Code von welchem
+  // Geraet stammt, steht in der Bedeutung des Codes selbst.
+  ergaenztAn: [
+    { tid: '3556988', hpsVersion: '1.11.4', firmware: '2.3.9', zeitraum: '02.09.2026', codes: ['55'] },
+  ],
   codes: HPS_MEASURED_CODES.map(({ code, meaning, conclusive }) => ({ code, meaning, conclusive })),
   terminalBusyHttpStatus: TERMINAL_BUSY_HTTP_STATUS,
 };
