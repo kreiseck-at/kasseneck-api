@@ -70,6 +70,13 @@ const MELDUNGEN_ROH = {
   'kartenzahlung.unklar': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist — die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
   // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden — liegt sie vor, gilt dieser Satz statt kartenzahlung.unklar.
   'kartenzahlung.unklar_mit_kennung': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist — die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {kennung}.', platzhalter: ['kennung'] },
+  'kartenzahlung.wartet_auf_terminal': { text: 'Bitte am Terminal fortfahren …' },
+  // Ein geglücktes Kartenergebnis ohne Beleg ist der teuerste Zustand am Tresen:
+  // wer hier erneut kassiert, belastet die Karte ein zweites Mal. Beide Sätze
+  // nennen deshalb Betrag UND Kennung — nur damit findet der Kassier die Zahlung
+  // am Terminal-Beleg wieder — und keiner rät zum Wiederholen.
+  'kartenzahlung.karte_gebucht_beleg_offen': { text: 'Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.', platzhalter: ['betrag', 'kennung'] },
+  'kartenzahlung.karte_gebucht_korb_geaendert': { text: 'Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.', platzhalter: ['betrag', 'kennung'] },
   'kartenzahlung.connect_nicht_verbunden': { text: 'Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.', nur: ['web'] },
   'terminal.keines_gefunden': { text: 'Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'terminal.nicht_bereit': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {antwort} — TID prüfen.', platzhalter: ['antwort'], nur: ['web'] },
@@ -78,6 +85,20 @@ const MELDUNGEN_ROH = {
   'gptom.zahlung_fehlgeschlagen': { text: 'GP Tom: Zahlung fehlgeschlagen: {grund}', platzhalter: ['grund'], nur: ['app'] },
   'gptom.terminal_antwortet_nicht': { text: 'Das Terminal hat nicht geantwortet: {grund}', platzhalter: ['grund'], nur: ['app'] },
   'gptom.zahlung_nicht_abgeschlossen': { text: 'Die Zahlung wurde nicht abgeschlossen ({code}).', platzhalter: ['code'], nur: ['app'] },
+  // Abgelehnt heißt: das Terminal hat entschieden, es ist sicher nichts gebucht.
+  // Der Code ist die einzige Handhabe, mit der der Inhaber bei GP nachfragen kann —
+  // liegt einer vor, gilt die Fassung mit Code.
+  'gptom.abgelehnt': { text: 'Das Terminal hat die Zahlung abgelehnt.', nur: ['app'] },
+  'gptom.abgelehnt_mit_code': { text: 'Das Terminal hat die Zahlung abgelehnt ({code}).', platzhalter: ['code'], nur: ['app'] },
+  'gptom.nicht_geoeffnet': { text: 'GP Tom ließ sich nicht öffnen — bitte die GP-Tom-App prüfen und erneut versuchen.', nur: ['app'] },
+  // Frist abgelaufen ist kein Abbruch: die Karte kann belastet sein, nur die
+  // Antwort blieb aus. Deshalb derselbe Ton wie kartenzahlung.unklar.
+  'gptom.zeit_abgelaufen': { text: 'Das Terminal hat in der Frist nicht geantwortet — die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird.', nur: ['app'] },
+  'gptom.zeit_abgelaufen_mit_kennung': { text: 'Das Terminal hat in der Frist nicht geantwortet — die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {kennung}.', platzhalter: ['kennung'], nur: ['app'] },
+
+  // --- Terminal-Protokoll --------------------------------------------------
+  'protokoll.leer': { text: 'Noch keine Einträge — das Protokoll füllt sich mit der ersten Kartenzahlung.' },
+  'protokoll.kopiert': { text: 'Das Protokoll liegt in der Zwischenablage.' },
 
   // --- Belege und Storno ---------------------------------------------------
   'belege.laden_fehlgeschlagen': { text: 'Die Belege konnten nicht geladen werden.' },

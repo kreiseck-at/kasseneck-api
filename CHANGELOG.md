@@ -4,6 +4,42 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.9.1
+
+### Elf Saetze fuer die vier Ausgaenge einer Kartenzahlung und das Terminal-Protokoll
+
+**Anlass:** Die Kassen-App bekommt GP Tom mit denselben vier Ausgaengen, die
+die Browser-Kasse schon kennt — geglueckt, abgebrochen, gescheitert, unklar —
+und dazu ein Terminal-Protokoll. Beide Kassen duerfen nur Katalogsaetze zeigen;
+ohne diese Schluessel haette die App eigene Formulierungen erfunden, und der
+Kassier haette am Tresen zwei verschiedene Woerter fuer dieselbe Lage gelesen.
+
+**Grund fuer die Auswahl:** Der teuerste Fehler an der Kasse ist die zweite
+Belastung derselben Karte. Deshalb tragen die neuen Saetze zu den unsicheren
+Ausgaengen alles, was der Kassier braucht, um NICHT zu wiederholen: Betrag,
+Kennung und den Hinweis auf den Terminal-Beleg.
+
+- **GP Tom** (nur App, wie die uebrigen `gptom.`-Saetze): `gptom.abgelehnt` und
+  `gptom.abgelehnt_mit_code` (das Terminal hat entschieden — sicher nichts
+  gebucht), `gptom.nicht_geoeffnet` (die App liess sich nicht starten),
+  `gptom.zeit_abgelaufen` / `gptom.zeit_abgelaufen_mit_kennung` (Frist abgelaufen
+  ist **kein** Abbruch: die Karte kann belastet sein).
+- **Karte gebucht, Beleg fehlt:** `kartenzahlung.karte_gebucht_beleg_offen` und
+  `kartenzahlung.karte_gebucht_korb_geaendert`, beide mit `betrag` und `kennung`.
+  Der zweite nennt die Entscheidung, die er verlangt: Beleg erstellen oder am
+  Terminal stornieren und hier verwerfen.
+- **Warteschirm:** `kartenzahlung.wartet_auf_terminal`.
+- **Terminal-Protokoll:** `protokoll.leer`, `protokoll.kopiert` — ohne `nur`,
+  weil an dem Satz nichts plattformgebunden ist.
+
+**Neue abgeleitete Pruefungen** statt einer gepflegten Liste: kein Satz steht
+zweimal im Katalog; jeder `gptom.`-Satz gilt nur in der App; jede Fassung
+`…_mit_kennung` ist ihre Grundfassung plus dem Anker und teilt deren `nur`;
+jeder unklare Ausgang warnt vor dem zweiten Kassieren.
+
+`FEHLERREGELN` bleibt unveraendert — die neuen Saetze sind Ausgaenge einer
+Kartenzahlung, keine neue Art, einen Transportfehler einzuordnen.
+
 ## 0.9.0
 
 ### Alle Kartenzahlungsbloecke im Belegmodell — nicht nur Hobex
