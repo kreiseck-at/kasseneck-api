@@ -40,11 +40,15 @@ import type { PosPaperSize } from '../printing/escpos.js';
  *
  * Bewusst **nicht** enthalten: Firmenlogo und Rasterbilder (brauchen
  * Bildverarbeitung, die im Browser anders aussieht als in Node), PDF-Erzeugung
- * und Druckeransteuerung. Von den anbieterspezifischen Kartenzahlungsbloecken
- * des Vorbilds (GP Tom, SumUp, myPOS, Stripe) ist nur der **Hobex-Block**
- * enthalten: die Browser-Kasse bedient das HPS-Terminal selbst (via Kasseneck
- * Connect) und druckt den Bon aus genau diesem Modell — die uebrigen Anbieter
- * drucken in ihren eigenen Apps.
+ * und Druckeransteuerung.
+ *
+ * Die anbieterspezifischen Kartenzahlungsbloecke sind dagegen **alle**
+ * enthalten (Hobex, GP Tom, SumUp, myPOS, Stripe). Bis 0.8.0 trug das Modell
+ * nur den Hobex-Block, weil die Browser-Kasse nur das HPS-Terminal selbst
+ * bedient und die uebrigen Anbieter „in ihren eigenen Apps drucken". Das
+ * Argument gilt fuer die Frage, wer das TERMINAL bedient — nicht dafuer, was
+ * auf dem BELEGDOKUMENT steht. Aus der einen Regel wurde die andere, und
+ * derselbe Beleg trug im PDF weniger als auf dem Bon.
  */
 
 // ------------------------------------------------------------------- Typen
@@ -217,47 +221,270 @@ function originalDatum(timeStamp: string): string | null {
  * nackten TypeError.
  */
 /**
+ * Die anbieterspezifischen Kartenzahlungsbloecke.
+ *
+ * WARUM DIESE BLOECKE HIER STEHEN
+ *
+ * Bis 0.8.0 trug dieses Modell nur den Hobex-Block, mit der Begruendung, die
+ * uebrigen Anbieter druckten "in ihren eigenen Apps". Das Argument gilt fuer
+ * die Frage, wer das TERMINAL bedient -- nicht dafuer, was auf dem
+ * BELEGDOKUMENT steht. Aus der einen Regel wurde die andere, und damit
+ * verschwanden vier Bloecke: Wer denselben Beleg als PDF oeffnete, sah "nur
+ * Kartenzahlung", waehrend der Bon daneben Marke, letzte Ziffern, Betrag und
+ * Referenz auswies. Vorher (backend `generateReceiptPdf`) hatte das PDF alle
+ * sieben Anbieter.
+ *
+ * Gebaut werden die Zeilen deshalb hier, an genau EINER Stelle. Wer sie
+ * anderswo noch einmal baut, oeffnet die Drift wieder.
+ *
+ * Vorbild ist `print_paper.dart` im Dart-Paket (`_gpTom`, `_hobexHps`,
+ * `_sumup`, `_mypos`, `_stripe`); die Fixtures unter `fixtures/belege/karte-*`
+ * halten je Anbieter eine Zeile-fuer-Zeile-Probe fest.
+ */
+
+/** Ein Feld aus `cardPaymentData` als Text; fehlend/null wird leer. */
+function kartenFeld(daten: Record<string, unknown>, schluessel: string): string {
+  const v = daten[schluessel];
+  return v == null ? '' : String(v);
+}
+
+/** Nicht-leere Teile mit Mittelpunkt verbinden. */
+function verbunden(teile: string[]): string {
+  return teile.filter(Boolean).join(' · ');
+}
+
+/**
  * Kartenzahlungsblock fuer Hobex (HPS am Geraet wie Cloud-API): die Felder
  * kommen aus `cardPaymentData` in der Form von [hobexReceiptToCardPaymentData]
  * (models/hobex-receipt.ts) — Datum, TID, Genehmigungsnummer, Karte, PAN,
  * Antwortcode. Bei CVM "1" verlangt die Karte eine Unterschrift; dafuer
  * bekommt der Bon eine Linie. Der PAN haengt beim HPS das Ablaufdatum mit
  * Unterstrich an ("…4720_2810") — gedruckt wird nur die maskierte Nummer.
- *
- * Andere Anbieter (GP Tom, SumUp, myPOS, Stripe) drucken in ihren eigenen
- * Apps; ihre Bloecke bleiben bewusst draussen (siehe Kopfkommentar).
  */
-function hobexKartenblock(receipt: Receipt): LayoutLine[] {
-  const provider = receipt.creditCardProvider;
-  const daten = receipt.cardPaymentData;
-  if ((provider !== 'hobexHps' && provider !== 'hobexCloudApi') || daten == null) {
-    return [];
-  }
-  const feld = (k: string): string => {
-    const v = daten[k];
-    return v == null ? '' : String(v);
-  };
-  const paar = (teile: string[]): string => teile.filter(Boolean).join(' · ');
-  const pan = feld('cardNumber').split('_')[0] ?? '';
-  const rc = feld('responseCode');
+function hobexBlock(daten: Record<string, unknown>): LayoutLine[] {
+  const feld = (k: string) => kartenFeld(daten, k);
   const zeilen: LayoutLine[] = [textZeile('Hobex Beleg', 'center', true)];
   const inhalt = [
     feld('date'),
-    paar([feld('tid') && `TID ${feld('tid')}`, feld('no') && `Nr. ${feld('no')}`]),
-    paar([feld('type'), feld('cardBrand')]),
-    pan,
-    rc && `RC ${rc}`,
+    verbunden([feld('tid') && `TID ${feld('tid')}`, feld('no') && `Nr. ${feld('no')}`]),
+    verbunden([feld('type'), feld('cardBrand')]),
+    feld('cardNumber').split('_')[0] ?? '',
+    feld('responseCode') && `RC ${feld('responseCode')}`,
   ];
   for (const zeile of inhalt) {
     if (zeile) zeilen.push(textZeile(zeile, 'center'));
   }
-  if (feld('cvm') === '1') {
-    zeilen.push({ kind: 'space', lines: 2 });
-    zeilen.push(textZeile('------------------', 'center'));
-    zeilen.push(textZeile('Unterschrift', 'center'));
-  }
-  zeilen.push({ kind: 'space', lines: 1 });
+  if (feld('cvm') === '1') zeilen.push(...unterschriftsfeld());
   return zeilen;
+}
+
+/** Zwei Leerzeilen, Linie, Wort -- das Unterschriftsfeld auf dem Bon. */
+function unterschriftsfeld(): LayoutLine[] {
+  return [
+    { kind: 'space', lines: 2 },
+    textZeile('------------------', 'center'),
+    textZeile('Unterschrift', 'center'),
+  ];
+}
+
+/**
+ * GP-Tom-`transactionType`: das Plugin-`toMap` schreibt den Schluessel mit
+ * Tippfehler (`transacitonType`), aeltere Daten tragen ihn gar nicht. Beide
+ * Schreibweisen werden gelesen -- ein Beleg von damals soll nicht anders
+ * aussehen als einer von heute.
+ */
+function gpTomVorgangsart(daten: Record<string, unknown>): string {
+  switch (daten.transactionType ?? daten.transacitonType) {
+    case 1: return 'Sale';
+    case 2: return 'Void';
+    case 3: return 'Refund';
+    case 4: return 'Close Batch';
+    default: return '';
+  }
+}
+
+/** GP-Tom-Betrag: ganze Zahl = Cent, sonst schon ein Eurobetrag. */
+function gpTomBetrag(wert: unknown): string {
+  if (typeof wert !== 'number') return '-';
+  return Number.isInteger(wert) ? formatCents(wert) : wert.toFixed(2).replace('.', ',');
+}
+
+function gpTomBlock(daten: Record<string, unknown>): LayoutLine[] {
+  const feld = (k: string) => kartenFeld(daten, k);
+  const art = gpTomVorgangsart(daten);
+  const zeilen: LayoutLine[] = [textZeile('GP Tom Beleg', 'center', true)];
+  const inhalt = [
+    `Batch: ${feld('batchNumber')}`,
+    `Receipt: ${feld('externalTransactionID')}`,
+    `TID: ${feld('terminalID')}`,
+    feld('emvAid'),
+    (daten.emvAppLable != null || daten.cardDataEntry != null)
+      ? `${feld('emvAppLable')} ${feld('cardDataEntry')}`.trim() : '',
+    feld('cardNumber'),
+    `${art ? `${art} ` : ''}Amount ${feld('currencyCode')} ${gpTomBetrag(daten.amount)}`,
+    daten.pinOk === true ? 'PIN OK' : 'PIN NOT OK',
+    `Authorization Code ${feld('approvedCode')}`,
+    `Sequence Number: ${feld('sequenceNumber')}`,
+  ];
+  for (const zeile of inhalt) {
+    if (zeile) zeilen.push(textZeile(zeile, 'center'));
+  }
+  return zeilen;
+}
+
+function sumupBlock(daten: Record<string, unknown>): LayoutLine[] {
+  const feld = (k: string) => kartenFeld(daten, k);
+  const betrag = typeof daten.amount === 'number'
+    ? (Number.isInteger(daten.amount) ? formatCents(daten.amount) : daten.amount.toFixed(2).replace('.', ','))
+    : '-';
+  return [
+    textZeile('Sumup Beleg', 'center', true),
+    paarZeile('Kartentyp:', feld('cardType') || 'n/a'),
+    paarZeile('Kartennummer:', `**** **** **** ${feld('cardLastDigits')}`),
+    paarZeile('Zahlungstyp:', feld('paymentType') || 'n/a'),
+    paarZeile('Gesamtbetrag:', `${betrag} ${feld('currency')}`.trim()),
+    paarZeile('Transaktionscode:', feld('transactionCode') || '-'),
+    paarZeile('Modus:', feld('entryMode').toUpperCase()),
+  ];
+}
+
+/**
+ * myPOS liefert den Zeitpunkt als `YYMMDDhhmmss` ohne Trenner. Ein Wert, der
+ * nicht so aussieht, wird UNVERAENDERT durchgereicht statt zerschnitten: eine
+ * halb geratene Uhrzeit auf einem Beleg ist schlimmer als ein roher Wert.
+ */
+function myposZeitpunkt(wert: string): string {
+  const t = /^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(wert);
+  if (!t) return wert;
+  return `${t[3]}.${t[2]}.20${t[1]} ${t[4]}:${t[5]}:${t[6]}`;
+}
+
+function myposBlock(daten: Record<string, unknown>): LayoutLine[] {
+  const feld = (k: string) => kartenFeld(daten, k);
+  const zeilen: LayoutLine[] = [
+    textZeile('MyPos Beleg', 'center', true),
+    paarZeile('TERMINAL ID:', feld('TID') || '-'),
+    paarZeile('DATUM:', myposZeitpunkt(feld('date_time'))),
+  ];
+  if (feld('application_name')) zeilen.push(textZeile(feld('application_name'), 'center', true));
+  zeilen.push(paarZeile('KARTE:', feld('pan') || '-'));
+  if (daten.signature_required === true) zeilen.push(...unterschriftsfeld());
+  zeilen.push(paarZeile('STAN:', feld('STAN') ? feld('STAN').padStart(6, '0') : '-'));
+  zeilen.push(paarZeile('AUTH. CODE:', feld('authorization_code') || '-'));
+  zeilen.push(paarZeile('RRN:', feld('reference_number') || '-'));
+  zeilen.push(paarZeile('AID:', feld('AID') || '-'));
+  return zeilen;
+}
+
+const STRIPE_KARTENART: Record<string, string> = {
+  debit: 'Debitkarte',
+  credit: 'Kreditkarte',
+  prepaid: 'Prepaid-Karte',
+};
+
+const STRIPE_WALLET: Record<string, string> = {
+  apple_pay: 'Apple Pay',
+  google_pay: 'Google Pay',
+};
+
+/** EPS-Bank-Slug (`bank_austria`) -> Anzeigename (`Bank Austria`). */
+function stripeEpsBank(slug: string): string {
+  return slug.split('_').filter(Boolean)
+    .map((w) => w[0]!.toUpperCase() + w.slice(1)).join(' ');
+}
+
+function stripeMarkenZeile(daten: Record<string, unknown>): string {
+  const teile: string[] = [];
+  if (daten.cardBrand != null) teile.push(String(daten.cardBrand));
+  const art = STRIPE_KARTENART[String(daten.cardFunding)];
+  if (art) teile.push(art);
+  let zeile = teile.join(' ');
+  if (daten.wallet != null) {
+    const wallet = STRIPE_WALLET[String(daten.wallet)] ?? String(daten.wallet);
+    zeile = zeile ? `${zeile} (${wallet})` : `(${wallet})`;
+  }
+  return zeile;
+}
+
+/**
+ * Stripe-Zahlzeitpunkt: Sekunden seit Epoche, gedruckt in **Wiener** Zeit.
+ * Ueber `toViennaWallClock`, nicht ueber die lokale Zeitzone -- ein Beleg
+ * traegt Ortszeit des Betriebs, nicht die des Geraets, das ihn oeffnet.
+ */
+function stripeZeitpunkt(sekunden: number): string {
+  const t = toViennaWallClock(new Date(sekunden * 1000));
+  const zwei = (n: number): string => String(n).padStart(2, '0');
+  return `${zwei(t.day)}.${zwei(t.month)}.${t.year} ${zwei(t.hour)}:${zwei(t.minute)}`;
+}
+
+/** Zwilling von `stripeReceiptLines` (print_paper.dart). */
+export function stripeReceiptLines(daten: Record<string, unknown>, cardPaymentId: string | null): string[] {
+  const zeilen: string[] = [];
+  const art = daten.paymentMethodType == null ? null : String(daten.paymentMethodType);
+
+  if (art === 'card') {
+    const marke = stripeMarkenZeile(daten);
+    if (marke) zeilen.push(marke);
+    if (daten.cardLastDigits != null) zeilen.push(`**** **** **** ${daten.cardLastDigits}`);
+    if (daten.threeDSecure === 'authenticated') zeilen.push('3-D Secure: ja');
+  } else if (art === 'eps') {
+    if (daten.epsBank != null) zeilen.push(`EPS - ${stripeEpsBank(String(daten.epsBank))}`);
+  } else if (art != null) {
+    zeilen.push(art.toUpperCase());
+  }
+
+  if (typeof daten.amount === 'number' && Number.isInteger(daten.amount)) {
+    const waehrung = daten.currency == null ? 'EUR' : String(daten.currency).toUpperCase();
+    zeilen.push(`Gesamtbetrag ${formatCents(daten.amount)} ${waehrung}`);
+  }
+  if (typeof daten.paidAt === 'number' && Number.isInteger(daten.paidAt)) {
+    zeilen.push(`Bezahlt: ${stripeZeitpunkt(daten.paidAt)}`);
+  }
+  if (daten.statementDescriptor != null) zeilen.push(`Abrechnung: ${daten.statementDescriptor}`);
+  if (cardPaymentId != null) zeilen.push(`Referenz: ${cardPaymentId}`);
+  return zeilen;
+}
+
+function stripeBlock(daten: Record<string, unknown>, cardPaymentId: string | null): LayoutLine[] {
+  const zeilen: LayoutLine[] = [textZeile('Online-Zahlung (Stripe)', 'center', true)];
+  for (const zeile of stripeReceiptLines(daten, cardPaymentId)) {
+    zeilen.push(textZeile(zeile, 'center'));
+  }
+  return zeilen;
+}
+
+/**
+ * Der Kartenzahlungsblock des Belegs -- fuer JEDEN Anbieter, den das Backend
+ * kennt. Ohne `cardPaymentData` bleibt der Block weg; ein unbekannter Anbieter
+ * ebenfalls, still und ohne Fehler: ein Beleg muss sich immer zeigen lassen.
+ */
+function kartenblock(receipt: Receipt): LayoutLine[] {
+  const daten = receipt.cardPaymentData;
+  if (daten == null) return [];
+  const zeilen = ((): LayoutLine[] => {
+    switch (receipt.creditCardProvider) {
+      case 'hobexHps':
+      case 'hobexCloudApi':
+        return hobexBlock(daten);
+      case 'gpTomAndroid':
+      case 'gpTomIos':
+        return gpTomBlock(daten);
+      case 'sumup':
+        return sumupBlock(daten);
+      case 'myposPro':
+        return myposBlock(daten);
+      case 'stripe':
+        return stripeBlock(daten, receipt.cardPaymentId ?? null);
+      default:
+        return [];
+    }
+  })();
+  if (zeilen.length === 0) return [];
+  // Eine Leerzeile hinter JEDEM Block, nicht nur hinter manchen. Das Vorbild
+  // ist hier uneinheitlich (nur `_sumup` setzt am Ende ein `addFeed()`), was
+  // den Abstand zur Fusszeile vom Anbieter abhaengig machte. Die Leerzeile
+  // gehoert aber zum Blatt, nicht zum Terminal.
+  return [...zeilen, { kind: 'space', lines: 1 }];
 }
 
 function zahlungsartText(wert: Receipt['paymentMethod']): string {
@@ -901,7 +1128,7 @@ export function buildReceiptLayout(
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Kartenzahlungsblock (Hobex) — wie im Vorbild UNTER dem QR-Code.
-  lines.push(...hobexKartenblock(receipt));
+  lines.push(...kartenblock(receipt));
 
   // --- Dankestext und Fusszeilen
   if (company.thanksMessage.length > 0) {
