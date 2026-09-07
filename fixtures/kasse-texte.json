@@ -1,5 +1,5 @@
 {
-  "version": "0.9.0",
+  "version": "0.9.1",
   "meldungen": {
     "netz.keine_verbindung": {
       "text": "Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen."
@@ -112,6 +112,23 @@
         "kennung"
       ]
     },
+    "kartenzahlung.wartet_auf_terminal": {
+      "text": "Bitte am Terminal fortfahren …"
+    },
+    "kartenzahlung.karte_gebucht_beleg_offen": {
+      "text": "Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
+    "kartenzahlung.karte_gebucht_korb_geaendert": {
+      "text": "Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
     "kartenzahlung.connect_nicht_verbunden": {
       "text": "Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.",
       "nur": [
@@ -174,6 +191,48 @@
       "nur": [
         "app"
       ]
+    },
+    "gptom.abgelehnt": {
+      "text": "Das Terminal hat die Zahlung abgelehnt.",
+      "nur": [
+        "app"
+      ]
+    },
+    "gptom.abgelehnt_mit_code": {
+      "text": "Das Terminal hat die Zahlung abgelehnt ({code}).",
+      "platzhalter": [
+        "code"
+      ],
+      "nur": [
+        "app"
+      ]
+    },
+    "gptom.nicht_geoeffnet": {
+      "text": "GP Tom ließ sich nicht öffnen — bitte die GP-Tom-App prüfen und erneut versuchen.",
+      "nur": [
+        "app"
+      ]
+    },
+    "gptom.zeit_abgelaufen": {
+      "text": "Das Terminal hat in der Frist nicht geantwortet — die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird.",
+      "nur": [
+        "app"
+      ]
+    },
+    "gptom.zeit_abgelaufen_mit_kennung": {
+      "text": "Das Terminal hat in der Frist nicht geantwortet — die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {kennung}.",
+      "platzhalter": [
+        "kennung"
+      ],
+      "nur": [
+        "app"
+      ]
+    },
+    "protokoll.leer": {
+      "text": "Noch keine Einträge — das Protokoll füllt sich mit der ersten Kartenzahlung."
+    },
+    "protokoll.kopiert": {
+      "text": "Das Protokoll liegt in der Zwischenablage."
     },
     "belege.laden_fehlgeschlagen": {
       "text": "Die Belege konnten nicht geladen werden."
