@@ -4,6 +4,53 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.9.0
+
+### Alle Kartenzahlungsbloecke im Belegmodell — nicht nur Hobex
+
+**Anlass:** Am Bon aus der Flutter-App standen bei einer Stripe-Zahlung Marke,
+letzte vier Ziffern, 3-D Secure, Betrag, Zahlzeitpunkt und Referenz. Dasselbe
+Blatt als PDF geoeffnet sagte nur „Zahlungsart: Kartenzahlung". Betroffen waren
+vier der sieben Anbieter: GP Tom, SumUp, myPOS und Stripe.
+
+**Ursache:** Bis 0.8.0 trug dieses Modell nur den Hobex-Block, begruendet damit,
+die uebrigen Anbieter druckten „in ihren eigenen Apps". Das Argument gilt fuer
+die Frage, wer das TERMINAL bedient — nicht dafuer, was auf dem BELEGDOKUMENT
+steht. Aus der einen Regel wurde beim Bau des Zeilenmodells die andere. Im
+Backend hatte die vorherige PDF-Erzeugung (`generateReceiptPdf`) alle sieben
+Anbieter; mit der Umstellung auf dieses Modell fielen vier still weg.
+
+- Neu: `gpTomBlock`, `sumupBlock`, `myposBlock`, `stripeBlock` — Zeile fuer
+  Zeile portiert aus `print_paper.dart` des Dart-Zwillings, inklusive der
+  Eigenheiten: GP Tom schreibt `transactionType` im Plugin-`toMap` mit
+  Tippfehler (`transacitonType`), myPOS liefert den Zeitpunkt als
+  `YYMMDDhhmmss` ohne Trenner, Stripe kennt neben Karte auch EPS.
+- `stripeReceiptLines` wird exportiert, wie im Dart-Paket: Druck und Anzeige
+  sollen dieselbe Quelle haben, nicht zwei.
+- Ein myPOS-Zeitpunkt, der nicht wie `YYMMDDhhmmss` aussieht, wird
+  **unveraendert** durchgereicht statt zerschnitten — eine halb geratene
+  Uhrzeit auf einem Beleg ist schlimmer als ein roher Wert.
+- Ein unbekannter Anbieter ergibt weiterhin keinen Block, still und ohne
+  Fehler: ein Beleg muss sich immer zeigen lassen.
+
+### Neun Golden-Belege fuer Kartenzahlungen
+
+**Anlass:** Von den 22 Golden-Belegen trug **keiner** eine Kartenzahlung.
+Deshalb konnte der Verlust der vier Bloecke passieren, ohne dass irgendetwas
+rot wurde.
+
+- Neu: `karte-hobex-hps`, `karte-hobex-cloud`, `karte-gptom`, `karte-gptom-ios`,
+  `karte-sumup`, `karte-mypos`, `karte-stripe`, `karte-stripe-eps`,
+  `karte-eigener`. Die Paare decken beide Zweige ab, wo es welche gibt
+  (Unterschriftsfeld ja/nein, Karte gegen EPS, Tippfehler-Schluessel).
+- Neu: eine Pruefung, die die Anbieterliste **aus dem Enum** nimmt statt aus
+  einer Handliste — wer einen Anbieter aufnimmt, wird rot, bis ein Golden-Beleg
+  dazuliegt. Sie fand beim ersten Lauf sofort zwei weitere Luecken
+  (`gpTomIos`, `hobexCloudApi`).
+- Neu: eine zweite Pruefung, dass ein Beleg MIT Terminaldaten auch wirklich
+  einen Block traegt. Ein Golden-Beleg allein beweist nur, dass die Datei da
+  ist.
+
 ## 0.7.2
 
 ### `55` („PIN falsch") ist eine gemessene Host-Ablehnung → `declined`

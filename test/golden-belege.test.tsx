@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { CreditCardProvider } from '../src/enums/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
 import { buildReceiptLayout, escPosLayoutBytes, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 import { ReceiptLayoutView } from '../src/react/index.js';
@@ -25,8 +26,50 @@ const erwartet = (name: string): ReceiptLayout => JSON.parse(readFileSync(new UR
 const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
-test('Golden-Belege: alle 22 Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'storno-rabatt', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
+  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'storno-rabatt', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+});
+
+/**
+ * JEDER Kartenanbieter hat einen Golden-Beleg.
+ *
+ * Das ist die Pruefung, die es nie gab -- und deren Fehlen vier
+ * Kartenzahlungsbloecke aus dem Belegdokument verschwinden liess, ohne dass
+ * irgendetwas rot wurde: keiner der 22 Goldenen trug ueberhaupt eine
+ * Kartenzahlung. Der Bon aus der App zeigte Marke, Ziffern und Referenz, das
+ * PDF desselben Belegs nur "Kartenzahlung".
+ *
+ * Die Liste kommt aus dem Enum, nicht aus einer Handliste: wer einen Anbieter
+ * aufnimmt, wird hier rot, bis er einen Golden-Beleg dazulegt. Und ein
+ * Anbieter, der bewusst keinen Block bekommt, braucht trotzdem einen Golden --
+ * dann eben einen, der die Abwesenheit festhaelt (`karte-eigener`).
+ */
+test('Kartenanbieter: jeder Wert des Enums hat einen Golden-Beleg', () => {
+  const belegt = new Set<string>();
+  for (const name of namen) {
+    const p = lade(name).receipt.creditCardProvider;
+    if (typeof p === 'string') belegt.add(p);
+  }
+  const fehlend = Object.values(CreditCardProvider).filter((p) => !belegt.has(p));
+  assert.deepEqual(fehlend, [], `ohne Golden-Beleg: ${fehlend.join(', ')}`);
+});
+
+/**
+ * Und der Block ist auch wirklich DA. Ein Golden-Beleg allein beweist nur,
+ * dass die Datei existiert; diese Pruefung liest die Zeilen und verlangt fuer
+ * jeden Anbieter mit Terminaldaten eine fette Ueberschrift, die ihn nennt.
+ */
+test('Kartenanbieter: wer Terminaldaten mitbringt, bekommt einen Block', () => {
+  const ohneBlock: string[] = [];
+  for (const name of namen) {
+    const f = lade(name);
+    if (f.receipt.cardPaymentData == null) continue;
+    const ueberschrift = erwartet(name).lines.some(
+      (z) => z.kind === 'text' && z.bold && z.align === 'center' && /Beleg$|Stripe/.test(z.text),
+    );
+    if (!ueberschrift) ohneBlock.push(name);
+  }
+  assert.deepEqual(ohneBlock, []);
 });
 
 for (const name of namen) {
