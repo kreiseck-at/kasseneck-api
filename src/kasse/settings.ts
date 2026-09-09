@@ -58,6 +58,21 @@ export const SCHNITT = ['partial', 'full', 'none'] as const;
 export type KasseSchnitt = typeof SCHNITT[number];
 export const LADE_AUTO = ['bar', 'immer', 'nie'] as const;
 export type KasseLadeAuto = typeof LADE_AUTO[number];
+/**
+ * Mit welchem Befehl der Signatur-QR auf den Bon kommt.
+ *
+ * `raster` = der QR wird als Bild gerastert (GS v 0) und geht darum durch jeden
+ * Drucker, der Bilder kann. `escpos` = der native QR-Befehl (GS ( k) — schaerfer
+ * und schneller, aber aeltere Geraete drucken dann gar keinen QR oder
+ * Zeichensalat.
+ *
+ * **Eine Geraete-Einstellung, keine des Betriebs:** derselbe Bon kommt an einer
+ * Kasse sauber heraus und an der Nebenkasse nicht. Und sie ist nicht
+ * kosmetisch — nach § 132a BAO ist der QR Teil des Belegs; wer den falschen
+ * Modus stehen laesst, erteilt Belege ohne lesbare Signatur.
+ */
+export const QR_MODUS = ['raster', 'escpos'] as const;
+export type KasseQrModus = typeof QR_MODUS[number];
 
 /*
  * Auch die uebrigen Wertemengen der Einstellungen stehen jetzt als Liste da —
@@ -178,6 +193,8 @@ export interface KasseSettingsGeraet {
   /** Kennung des Druckers im lokalen Kasseneck-Connect-Agenten, bei `druckerArt 'connect'`. */
   connectDruckerId: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
+  /** Befehl fuer den Signatur-QR auf dem Bon; der Drucker-Wizard probiert beide aus. */
+  qrModus: KasseQrModus;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
   terminalIp: string; terminalPort: number; terminalVia: KasseTerminalVia;
   /** Art des Terminals ('keins' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern zahlKarte an). */
@@ -216,7 +233,7 @@ export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freez
   tasten: { ...KASSE_TASTEN_STANDARD },
   druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerName: '', druckerId: '', druckerDevid: 'local_printer',
   connectDruckerId: '',
-  papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial',
+  papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial', qrModus: 'raster',
   ladeAn: false, ladeAuto: 'bar',
   terminalIp: '', terminalPort: 8080, terminalVia: 'direkt',
   terminalArt: 'keins', terminalTid: '', tastenMarken: true,

@@ -4,6 +4,23 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.9.3
+
+### `qrModus` am Geraet: mit welchem Befehl der Signatur-QR auf den Bon kommt
+
+**Anlass:** Der Drucker-Wizard laesst zwei Probedrucke machen — einen QR als
+Rasterbild, einen ueber den nativen ESC/POS-Befehl — und fragt, welcher lesbar
+war. Diese Antwort musste bisher nirgends hin: die Kassen druckten fest im
+Rastermodus. An Geraeten, die GS v 0 nicht koennen, kam damit ein Bon ohne
+lesbaren QR heraus, und das ist nach § 132a BAO keine Belegerteilung — der
+Ausfall faellt am Tresen niemandem auf.
+
+- `QR_MODUS` (`raster` | `escpos`) als Laufzeitliste und Typ `KasseQrModus`.
+- `KasseSettingsGeraet.qrModus`, Vorgabe `raster` — der bisherige Weg bleibt
+  damit fuer jedes bestehende Geraet unveraendert.
+- **Am Geraet und nicht am Betrieb:** welchen Befehl ein Thermodrucker
+  versteht, entscheidet das Modell an dieser einen Kasse.
+
 ## 0.9.2
 
 ### Sechzehn Saetze: einen Beleg weitergeben, und der Drucker-Wizard
