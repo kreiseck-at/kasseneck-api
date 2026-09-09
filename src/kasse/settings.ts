@@ -66,12 +66,20 @@ export type KasseLadeAuto = typeof LADE_AUTO[number];
  * und schneller, aber aeltere Geraete drucken dann gar keinen QR oder
  * Zeichensalat.
  *
+ * `auto` ist die Vorgabe und heisst **unbestimmt**: an diesem Geraet hat noch
+ * niemand am Papier entschieden. Jede Kasse bleibt dann bei ihrer bisherigen
+ * Praxis — die Browser-Kasse beim ESC/POS-Befehl, die App beim Rasterbild.
+ * Eine harte Vorgabe waere hier eine stille Umstellung des Altbestands
+ * gewesen: jedes Geraet, das nie durch den Drucker-Wizard lief, druckte
+ * ploetzlich anders, und ueber BLE kostet ein Rasterbild mehrere Sekunden je
+ * Bon. Nur ein ausdruecklich gesetzter Wert aendert etwas.
+ *
  * **Eine Geraete-Einstellung, keine des Betriebs:** derselbe Bon kommt an einer
  * Kasse sauber heraus und an der Nebenkasse nicht. Und sie ist nicht
  * kosmetisch — nach § 132a BAO ist der QR Teil des Belegs; wer den falschen
  * Modus stehen laesst, erteilt Belege ohne lesbare Signatur.
  */
-export const QR_MODUS = ['raster', 'escpos'] as const;
+export const QR_MODUS = ['auto', 'raster', 'escpos'] as const;
 export type KasseQrModus = typeof QR_MODUS[number];
 
 /*
@@ -193,7 +201,7 @@ export interface KasseSettingsGeraet {
   /** Kennung des Druckers im lokalen Kasseneck-Connect-Agenten, bei `druckerArt 'connect'`. */
   connectDruckerId: string;
   papier: KassePapier; zeichensatz: KasseZeichensatz; schnitt: KasseSchnitt;
-  /** Befehl fuer den Signatur-QR auf dem Bon; der Drucker-Wizard probiert beide aus. */
+  /** Befehl fuer den Signatur-QR auf dem Bon; 'auto' = unbestimmt, der Drucker-Wizard probiert beide aus. */
   qrModus: KasseQrModus;
   ladeAn: boolean; ladeAuto: KasseLadeAuto;
   terminalIp: string; terminalPort: number; terminalVia: KasseTerminalVia;
@@ -233,7 +241,7 @@ export const KASSE_GERAET_STANDARD: Readonly<KasseSettingsGeraet> = Object.freez
   tasten: { ...KASSE_TASTEN_STANDARD },
   druckerAn: false, druckerArt: 'sdp', druckerIp: '', druckerPort: 9100, druckerBt: '', druckerName: '', druckerId: '', druckerDevid: 'local_printer',
   connectDruckerId: '',
-  papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial', qrModus: 'raster',
+  papier: 'mm80', zeichensatz: 'CP1252', schnitt: 'partial', qrModus: 'auto',
   ladeAn: false, ladeAuto: 'bar',
   terminalIp: '', terminalPort: 8080, terminalVia: 'direkt',
   terminalArt: 'keins', terminalTid: '', tastenMarken: true,

@@ -4,6 +4,23 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.9.4
+
+### `qrModus` faengt bei `auto` an — sonst stellte die Vorgabe den Altbestand um
+
+**Anlass:** 0.9.3 gab `qrModus` die harte Vorgabe `raster`. Die Browser-Kasse
+druckt den Signatur-QR aber seit jeher ueber den nativen ESC/POS-Befehl; jedes
+Geraet, das nie durch den Drucker-Wizard laeuft, haette damit ploetzlich ein
+Rasterbild gedruckt — ueber BLE mehrere Sekunden je Bon, und niemand haette
+etwas umgestellt.
+
+- **`QR_MODUS` fuehrt jetzt `auto` als ersten Wert**, und
+  `KASSE_GERAET_STANDARD.qrModus` steht darauf. `auto` heisst *unbestimmt*: an
+  diesem Geraet hat noch niemand am Papier entschieden, jede Kasse bleibt bei
+  ihrer bisherigen Praxis (Browser-Kasse ESC/POS, App Rasterbild). Nur ein
+  ausdruecklich gesetzter Wert aendert etwas.
+- Wer `KasseQrModus` erschoepfend auswertet, bekommt einen dritten Fall.
+
 ## 0.9.3
 
 ### `qrModus` am Geraet: mit welchem Befehl der Signatur-QR auf den Bon kommt
