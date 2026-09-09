@@ -4,6 +4,62 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.9.2
+
+### Sechzehn Saetze: einen Beleg weitergeben, und der Drucker-Wizard
+
+**Anlass:** Ein alter Beleg soll sich weitergeben lassen — Link kopieren,
+teilen, per E-Mail senden — und der Drucker richtet sich kuenftig ueber einen
+Wizard ein, der erst testet und bestaetigen laesst und dann speichert. Beides
+entsteht **gleichzeitig** in der Browser-Kasse und in der Kassen-App. Ohne
+diese Schluessel haetten beide Seiten dieselben sieben Lagen unabhaengig
+formuliert, und der Kassier haette zwei verschiedene Woerter fuer dieselbe
+Sache gelesen — genau das, wogegen es diesen Katalog gibt.
+
+- **Beleg weitergeben:** `beleg.link_kopiert`, `beleg.teilen_text`
+  (`betrieb`, `nummer`, `betrag`, `link`), `beleg.nicht_teilbar`,
+  `beleg.test_hinweis_teilen`.
+- **Per E-Mail senden:** `beleg.mail_gesendet` (`an`) und die vier Ausgaenge
+  `beleg.mail_adresse_ungueltig`, `beleg.mail_zu_oft`,
+  `beleg.mail_fehlgeschlagen`, `beleg.mail_nicht_gefunden`.
+- **Drucker-Wizard** (beide Kassen, deshalb ohne `nur`):
+  `druck.wizard_verbinden` (`name`), `druck.wizard_testdruck_frage`,
+  `druck.wizard_qr_frage`, `druck.wizard_qr_keiner_hinweis`,
+  `druck.wizard_nichts_gekommen`, `druck.wizard_gespeichert` (`name`),
+  `druck.wizard_abgebrochen`.
+
+**Neu: `BELEG_MAIL_FEHLER` und `belegMailFehler(code)`** — die Zuordnung vom
+`code` des Backends (`adresse_ungueltig`, `zu_oft`, `versand_fehlgeschlagen`,
+`beleg_nicht_gefunden`) auf den Satz. Grund: die vier Ausgaenge verlangen vom
+Kassier vier verschiedene Handlungen, und beide Kassen sollen am **Code**
+entscheiden statt an einer Formulierung, die sich im Backend jederzeit aendern
+darf. Ein unbekannter Code faellt auf `beleg.mail_fehlgeschlagen` zurueck — ein
+leerer Schirm waere schlimmer als ein zu allgemeiner Satz. Die Zuordnung steht
+als `belegMailFehler` mit in `fixtures/kasse-texte.json`, weil die App den
+Katalog aus dem Tarball liest und das Web die Quelle direkt importiert.
+
+Bewusst ein Objekt und **keine** Liste in Grossschrift: der
+Oberflaechen-Vertrag liest jede exportierte Liste als Enum der
+Kasseneinstellungen ein, und der Dart-Zwilling schickt deren Werte durch
+`KasseSettings.aus`. Fehlercodes haetten dort nichts verloren.
+
+**Abweichung von der Vorlage, bewusst:** `beleg.mail_nicht_gefunden` sagt
+„Dieser Beleg wurde nicht gefunden — er konnte nicht gesendet werden." und
+nicht denselben Satz wie das schon vorhandene `beleg.nicht_gefunden`. Dort
+scheitert das Oeffnen, hier das Senden; der Kassier steht vor einem Adressfeld
+und muss lesen, dass nichts hinausgegangen ist. Ein Satz zweimal im Katalog
+faellt ohnehin schon seit 0.9.1 im Test auf.
+
+**Neue abgeleitete Pruefungen:** kein Satz zum Weitergeben eines Belegs ist an
+eine Seite gebunden; der Teilen-Text traegt den Link, und zwar am Schluss;
+jeder platzhalterlose `beleg.mail_`-Satz haengt an genau einem Backend-Code (und
+kein Code an zweien); der einzige `beleg.mail_`-Satz mit Platzhalter ist der
+ueber das Gelingen; jeder Satz des Wizards gilt auf beiden Seiten.
+
+`FEHLERREGELN` bleibt unveraendert: die Codes sind die Verfeinerung **eines**
+Aufrufs (`sendReceiptEmail`), keine neue Art, einen Transportfehler
+einzuordnen.
+
 ## 0.9.1
 
 ### Elf Saetze fuer die vier Ausgaenge einer Kartenzahlung und das Terminal-Protokoll

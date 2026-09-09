@@ -1,5 +1,5 @@
 {
-  "version": "0.9.1",
+  "version": "0.9.2",
   "meldungen": {
     "netz.keine_verbindung": {
       "text": "Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen."
@@ -255,6 +255,42 @@
     "storno.position_fehlt": {
       "text": "Bitte mindestens eine Position wählen."
     },
+    "beleg.link_kopiert": {
+      "text": "Der Link zum Beleg liegt in der Zwischenablage."
+    },
+    "beleg.teilen_text": {
+      "text": "Beleg {nummer} von {betrieb} über {betrag}: {link}",
+      "platzhalter": [
+        "betrieb",
+        "nummer",
+        "betrag",
+        "link"
+      ]
+    },
+    "beleg.nicht_teilbar": {
+      "text": "Für diesen Beleg gibt es keinen Link — er stammt aus einer älteren Kasse."
+    },
+    "beleg.test_hinweis_teilen": {
+      "text": "Test-Umgebung — der Beleg ist steuerlich nicht gültig."
+    },
+    "beleg.mail_gesendet": {
+      "text": "Der Beleg wurde an {an} gesendet.",
+      "platzhalter": [
+        "an"
+      ]
+    },
+    "beleg.mail_adresse_ungueltig": {
+      "text": "Diese E-Mail-Adresse ist nicht gültig."
+    },
+    "beleg.mail_zu_oft": {
+      "text": "Dieser Beleg wurde schon oft gesendet — bitte später noch einmal."
+    },
+    "beleg.mail_fehlgeschlagen": {
+      "text": "Der Beleg konnte nicht gesendet werden. Bitte noch einmal versuchen."
+    },
+    "beleg.mail_nicht_gefunden": {
+      "text": "Dieser Beleg wurde nicht gefunden — er konnte nicht gesendet werden."
+    },
     "druck.fehlgeschlagen": {
       "text": "Der Ausdruck ist fehlgeschlagen."
     },
@@ -308,6 +344,33 @@
       "nur": [
         "web"
       ]
+    },
+    "druck.wizard_verbinden": {
+      "text": "Verbinde mit {name} …",
+      "platzhalter": [
+        "name"
+      ]
+    },
+    "druck.wizard_testdruck_frage": {
+      "text": "Ist der Testdruck gekommen?"
+    },
+    "druck.wizard_qr_frage": {
+      "text": "Welcher QR-Code ist sauber gedruckt?"
+    },
+    "druck.wizard_qr_keiner_hinweis": {
+      "text": "Kein QR-Code kam sauber — der Beleg zeigt den QR-Code dann am Bildschirm."
+    },
+    "druck.wizard_nichts_gekommen": {
+      "text": "Nichts gekommen? Drucker an, Papier drin, richtiges Gerät gewählt?"
+    },
+    "druck.wizard_gespeichert": {
+      "text": "{name} ist eingerichtet.",
+      "platzhalter": [
+        "name"
+      ]
+    },
+    "druck.wizard_abgebrochen": {
+      "text": "Nichts gespeichert."
     },
     "bluetooth.aus": {
       "text": "Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.",
@@ -440,5 +503,11 @@
       "art": "sonst",
       "verhalten": "ersatz"
     }
-  ]
+  ],
+  "belegMailFehler": {
+    "adresse_ungueltig": "beleg.mail_adresse_ungueltig",
+    "zu_oft": "beleg.mail_zu_oft",
+    "versand_fehlgeschlagen": "beleg.mail_fehlgeschlagen",
+    "beleg_nicht_gefunden": "beleg.mail_nicht_gefunden"
+  }
 }

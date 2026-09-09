@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FEHLERREGELN, MELDUNGEN, meldung } from '../src/kasse/texte.js';
+import { BELEG_MAIL_FEHLER, FEHLERREGELN, MELDUNGEN, meldung } from '../src/kasse/texte.js';
 import type { MeldungsSchluessel } from '../src/kasse/texte.js';
 
 const lies = (name: string) => JSON.parse(readFileSync(new URL(`../../fixtures/${name}`, import.meta.url), 'utf8'));
@@ -11,6 +11,9 @@ test('Golden: der Katalog steht in fixtures/kasse-texte.json', () => {
   const vertrag = lies('kasse-texte.json');
   assert.deepEqual(vertrag.meldungen, MELDUNGEN, veraltet);
   assert.deepEqual(vertrag.fehlerregeln, FEHLERREGELN, veraltet);
+  // Die App liest die Zuordnung `code` -> Satz aus dieser Datei; fehlt sie
+  // dort, entscheidet die App am Satz des Backends und weicht vom Web ab.
+  assert.deepEqual(vertrag.belegMailFehler, BELEG_MAIL_FEHLER, veraltet);
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(vertrag.version, pkg.version, veraltet);
 });

@@ -38,5 +38,7 @@ export { listMyTipRecipients } from './trinkgeld.js';
 // Was die Kasse selbst sagt — ein Katalog fuer Browser-Kasse und App.
 export {
   MELDUNGEN, FEHLERREGELN, meldung, meldungGiltFuer,
+  BELEG_MAIL_FEHLER, belegMailFehler,
   type Meldung, type MeldungsSchluessel, type Fehlerart, type Seite,
+  type BelegMailFehlercode,
 } from './texte.js';

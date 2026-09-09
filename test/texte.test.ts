@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FEHLERREGELN, MELDUNGEN, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
+import { BELEG_MAIL_FEHLER, FEHLERREGELN, MELDUNGEN, belegMailFehler, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
 import type { MeldungsSchluessel } from '../src/kasse/texte.js';
 
 const SCHLUESSEL_MUSTER = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
@@ -141,4 +141,87 @@ test('der Warteschirm und das Terminal-Protokoll sprechen auf beiden Seiten', ()
     assert.equal(MELDUNGEN[schluessel].nur, undefined, schluessel);
     assert.equal(MELDUNGEN[schluessel].platzhalter, undefined, schluessel);
   }
+});
+
+// --- Beleg weitergeben -----------------------------------------------------
+// Link kopieren, teilen und senden fuehren zu derselben Belegseite. Der Weg
+// dorthin unterscheidet sich je Huelle (Web-Share, Teilen-Blatt des Systems),
+// das Wort nicht — ein `nur` waere hier eine Kasse, die etwas anderes sagt.
+const belegWeitergeben = Object.keys(MELDUNGEN).filter((s) => s.startsWith('beleg.mail_') || s.startsWith('beleg.teilen_') || s === 'beleg.link_kopiert' || s === 'beleg.nicht_teilbar' || s === 'beleg.test_hinweis_teilen');
+
+test('kein Satz zum Weitergeben eines Belegs ist an eine Seite gebunden', () => {
+  assert.ok(belegWeitergeben.length >= 9);
+  for (const schluessel of belegWeitergeben) {
+    assert.equal(MELDUNGEN[schluessel as MeldungsSchluessel].nur, undefined, schluessel);
+  }
+});
+
+test('der Teilen-Text traegt den Link und nennt Betrieb, Nummer und Betrag', () => {
+  const eintrag = MELDUNGEN['beleg.teilen_text'];
+  assert.deepEqual([...(eintrag.platzhalter ?? [])].sort(), ['betrag', 'betrieb', 'link', 'nummer']);
+  // Ohne Link ist der geteilte Text wertlos, und ein Link mitten im Satz wird
+  // von manchen Huellen mitsamt dem Folgetext verlinkt oder abgeschnitten.
+  assert.ok(eintrag.text.endsWith('{link}'), 'der Link steht nicht am Schluss');
+  assert.equal(
+    meldung('beleg.teilen_text', { nummer: 'AT-1-2026-17', betrieb: 'Bäckerei Jobst', betrag: '4,20 €', link: 'https://beleg.kasseneck.at/abc' }),
+    'Beleg AT-1-2026-17 von Bäckerei Jobst über 4,20 €: https://beleg.kasseneck.at/abc',
+  );
+});
+
+// --- Beleg per E-Mail: der Code entscheidet, nicht der Satz -----------------
+// Jeder Ausgang des Sendens verlangt vom Kassier etwas anderes: Adresse
+// verbessern, spaeter noch einmal, noch einmal senden, Beleg suchen. Genau
+// deshalb haengt jeder Fehlersatz an einem `code` — abgeleitet geprueft, damit
+// ein neuer Satz ohne Code (oder ein Code ohne Satz) auffaellt.
+test('jeder Fehlersatz zum Senden haengt an genau einem Backend-Code', () => {
+  const fehlersaetze = Object.keys(MELDUNGEN)
+    .filter((s) => s.startsWith('beleg.mail_') && MELDUNGEN[s as MeldungsSchluessel].platzhalter === undefined);
+  const zugeordnet = Object.values(BELEG_MAIL_FEHLER);
+  assert.deepEqual([...zugeordnet].sort(), fehlersaetze.sort());
+  assert.equal(new Set(zugeordnet).size, zugeordnet.length, 'zwei Codes zeigen auf denselben Satz');
+});
+
+test('der einzige beleg.mail-Satz mit Platzhalter ist der ueber das Gelingen', () => {
+  const mitPlatzhalter = Object.keys(MELDUNGEN)
+    .filter((s) => s.startsWith('beleg.mail_') && MELDUNGEN[s as MeldungsSchluessel].platzhalter !== undefined);
+  assert.deepEqual(mitPlatzhalter, ['beleg.mail_gesendet']);
+  assert.deepEqual(MELDUNGEN['beleg.mail_gesendet'].platzhalter, ['an']);
+});
+
+test('die Codes sind Kleinschrift mit Unterstrich, wie sie das Backend schickt', () => {
+  for (const code of Object.keys(BELEG_MAIL_FEHLER)) assert.match(code, /^[a-z][a-z0-9_]*$/, code);
+});
+
+test('belegMailFehler faengt jeden unbekannten Code mit dem allgemeinen Satz auf', () => {
+  for (const [code, schluessel] of Object.entries(BELEG_MAIL_FEHLER)) {
+    assert.equal(belegMailFehler(code), schluessel, code);
+  }
+  for (const unbekannt of ['gibt_es_nicht', '', undefined, null]) {
+    assert.equal(belegMailFehler(unbekannt), 'beleg.mail_fehlgeschlagen', String(unbekannt));
+  }
+});
+
+// --- Drucker-Wizard --------------------------------------------------------
+// Der Wizard ist in beiden Kassen derselbe Ablauf mit denselben Worten. Ein
+// `nur` an einem seiner Saetze hiesse: an einer Stelle steht in der App etwas
+// anderes als im Browser — genau das soll er verhindern.
+test('jeder Satz des Drucker-Wizards gilt auf beiden Seiten', () => {
+  const wizard = Object.keys(MELDUNGEN).filter((s) => s.startsWith('druck.wizard_'));
+  assert.ok(wizard.length >= 7);
+  for (const schluessel of wizard) {
+    assert.equal(MELDUNGEN[schluessel as MeldungsSchluessel].nur, undefined, schluessel);
+  }
+});
+
+test('der Wizard fragt, bevor er speichert, und sagt beim Abbruch, dass nichts blieb', () => {
+  // Reihenfolge des Ablaufs: verbinden -> Testdruck -> QR-Probe -> speichern.
+  assert.deepEqual(MELDUNGEN['druck.wizard_verbinden'].platzhalter, ['name']);
+  assert.deepEqual(MELDUNGEN['druck.wizard_gespeichert'].platzhalter, ['name']);
+  for (const frage of ['druck.wizard_testdruck_frage', 'druck.wizard_qr_frage'] as const) {
+    assert.ok(MELDUNGEN[frage].text.endsWith('?'), frage);
+  }
+  assert.match(MELDUNGEN['druck.wizard_abgebrochen'].text, /Nichts gespeichert/);
+  // Kein Modus druckt einen lesbaren QR-Code: der Hinweis muss sagen, wo der
+  // QR-Code dann herkommt — sonst fehlt er dem Kunden am Beleg (RKSV).
+  assert.match(MELDUNGEN['druck.wizard_qr_keiner_hinweis'].text, /Bildschirm/);
 });
