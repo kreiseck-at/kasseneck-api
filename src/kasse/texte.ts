@@ -109,6 +109,31 @@ const MELDUNGEN_ROH = {
   'storno.grund_fehlt': { text: 'Bitte einen Grund wählen.' },
   'storno.position_fehlt': { text: 'Bitte mindestens eine Position wählen.' },
 
+  // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
+  // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
+  // Belegseite (beleg.kasseneck.at/<fullReceiptId>). Kein Satz davon ist
+  // plattformgebunden — nur die Huelle unterscheidet sich, nicht das Wort.
+  'beleg.link_kopiert': { text: 'Der Link zum Beleg liegt in der Zwischenablage.' },
+  // Der Text, der beim Teilen mitgeht. Der Link steht am Schluss, damit ihn
+  // jede Huelle (SMS, Messenger, Mail) bis zum Ende als Link erkennt und nicht
+  // mitten im Satz abbricht.
+  'beleg.teilen_text': { text: 'Beleg {nummer} von {betrieb} über {betrag}: {link}', platzhalter: ['betrieb', 'nummer', 'betrag', 'link'] },
+  // Belege aus dem Altbestand tragen keine `fullReceiptId`; ohne sie gibt es
+  // keine Belegseite. Der Satz nennt den Grund, sonst sucht der Kassier den
+  // Fehler bei sich und versucht es ein zweites Mal.
+  'beleg.nicht_teilbar': { text: 'Für diesen Beleg gibt es keinen Link — er stammt aus einer älteren Kasse.' },
+  // Ein Testbeleg hat eine Belegseite, ist aber steuerlich nichts wert. Wer
+  // den Link weitergibt, muss das vorher lesen, nicht hinterher.
+  'beleg.test_hinweis_teilen': { text: 'Test-Umgebung — der Beleg ist steuerlich nicht gültig.' },
+  'beleg.mail_gesendet': { text: 'Der Beleg wurde an {an} gesendet.', platzhalter: ['an'] },
+  'beleg.mail_adresse_ungueltig': { text: 'Diese E-Mail-Adresse ist nicht gültig.' },
+  'beleg.mail_zu_oft': { text: 'Dieser Beleg wurde schon oft gesendet — bitte später noch einmal.' },
+  'beleg.mail_fehlgeschlagen': { text: 'Der Beleg konnte nicht gesendet werden. Bitte noch einmal versuchen.' },
+  // Bewusst nicht derselbe Satz wie `beleg.nicht_gefunden`: dort scheitert das
+  // Oeffnen, hier das Senden. Der Kassier steht vor einem Adressfeld und muss
+  // lesen, dass nichts hinausgegangen ist.
+  'beleg.mail_nicht_gefunden': { text: 'Dieser Beleg wurde nicht gefunden — er konnte nicht gesendet werden.' },
+
   // --- Druck ---------------------------------------------------------------
   'druck.fehlgeschlagen': { text: 'Der Ausdruck ist fehlgeschlagen.' },
   'druck.nicht_moeglich': { text: 'Druck nicht möglich: {grund}', platzhalter: ['grund'] },
@@ -120,6 +145,22 @@ const MELDUNGEN_ROH = {
   'druck.kein_drucker_gefunden': { text: 'Kein Drucker gefunden — ist er eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'druck.nur_chrome': { text: '{weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) — nicht in Safari und nicht am iPad.', platzhalter: ['weg'], nur: ['web'] },
   'druck.kein_weg_drucker': { text: 'Kein {weg}-Drucker verbunden — „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.', platzhalter: ['weg'], nur: ['web'] },
+  // Der Drucker-Wizard: suchen, verbinden, Testdruck, QR-Probe, erst dann
+  // speichern. Derselbe Ablauf in beiden Kassen — deshalb hat kein Satz ein
+  // `nur`, obwohl der Weg zum Drucker verschieden ist (Bluetooth in der App,
+  // Web Bluetooth im Browser). Was der Chef liest, ist beidesmal dasselbe.
+  'druck.wizard_verbinden': { text: 'Verbinde mit {name} …', platzhalter: ['name'] },
+  'druck.wizard_testdruck_frage': { text: 'Ist der Testdruck gekommen?' },
+  'druck.wizard_qr_frage': { text: 'Welcher QR-Code ist sauber gedruckt?' },
+  // Kein Modus druckt einen lesbaren QR-Code: gespeichert wird trotzdem (mit
+  // Raster als Vorgabe), aber der Chef muss wissen, dass der QR-Code dann vom
+  // Bildschirm gelesen werden muss — nach RKSV gehoert er an den Beleg.
+  'druck.wizard_qr_keiner_hinweis': { text: 'Kein QR-Code kam sauber — der Beleg zeigt den QR-Code dann am Bildschirm.' },
+  'druck.wizard_nichts_gekommen': { text: 'Nichts gekommen? Drucker an, Papier drin, richtiges Gerät gewählt?' },
+  'druck.wizard_gespeichert': { text: '{name} ist eingerichtet.', platzhalter: ['name'] },
+  // Abbrechen an jeder Stelle: nichts gespeichert. Der Satz sagt genau das,
+  // damit niemand einen halb eingerichteten Drucker vermutet.
+  'druck.wizard_abgebrochen': { text: 'Nichts gespeichert.' },
   'bluetooth.aus': { text: 'Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.', nur: ['app'] },
   'bluetooth.freigabe_fehlt': { text: 'Bitte die Freigabe in den Geräte-Einstellungen erteilen.', nur: ['app'] },
   'bluetooth.suche_fehlgeschlagen': { text: 'Die Suche ist fehlgeschlagen: {grund}', platzhalter: ['grund'], nur: ['app'] },
@@ -176,6 +217,43 @@ export const FEHLERREGELN = [
 ] as const;
 
 export type Fehlerart = (typeof FEHLERREGELN)[number]['art'];
+
+/**
+ * Beleg per E-Mail senden: welcher `code` des Backends welchen Satz bekommt.
+ *
+ * `FEHLERREGELN` bleibt davon unberuehrt — das hier ist keine neue Art, einen
+ * Transportfehler einzuordnen, sondern die Verfeinerung EINES Aufrufs
+ * (`sendReceiptEmail`). Die vier Ausgaenge sind fuer den Kassier vier
+ * verschiedene Handlungen: Adresse verbessern, spaeter noch einmal, noch
+ * einmal senden, Beleg suchen. Beide Kassen entscheiden am `code`, nicht am
+ * Satz des Backends — sonst haengt das Wort am Tresen an einer Formulierung,
+ * die sich im Backend jederzeit aendern darf.
+ *
+ * Bewusst ein Objekt und keine Liste in GROSSSCHRIFT: der
+ * Oberflaechen-Vertrag (`fixtures/oberflaeche.json`) liest jede exportierte
+ * Liste als Enum der Kasseneinstellungen ein, und der Dart-Zwilling schickt
+ * deren Werte durch `KasseSettings.aus`. Fehlercodes haben dort nichts
+ * verloren; sie stehen in `fixtures/kasse-texte.json`.
+ */
+export const BELEG_MAIL_FEHLER = {
+  adresse_ungueltig: 'beleg.mail_adresse_ungueltig',
+  zu_oft: 'beleg.mail_zu_oft',
+  versand_fehlgeschlagen: 'beleg.mail_fehlgeschlagen',
+  beleg_nicht_gefunden: 'beleg.mail_nicht_gefunden',
+} as const satisfies Record<string, MeldungsSchluessel>;
+
+export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
+
+/**
+ * Der Satz zu einem `code` des Backends. Einen Code, den dieses Paket noch
+ * nicht kennt, faengt der allgemeine Satz auf: das Senden ist gescheitert und
+ * darf wiederholt werden. Ein leerer Schirm waere schlimmer als ein zu
+ * allgemeiner Satz.
+ */
+export function belegMailFehler(code: string | undefined | null): MeldungsSchluessel {
+  const fehler: Record<string, MeldungsSchluessel> = BELEG_MAIL_FEHLER;
+  return (code !== undefined && code !== null && fehler[code]) || 'beleg.mail_fehlgeschlagen';
+}
 
 /** Der Satz zum Schluessel, Platzhalter ersetzt. Fehlt ein Wert, wirft es — ein `{status}` am Tresen waere schlimmer. */
 export function meldung(schluessel: MeldungsSchluessel, werte: Record<string, string | number> = {}): string {
