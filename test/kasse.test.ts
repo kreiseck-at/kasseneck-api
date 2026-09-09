@@ -286,17 +286,25 @@ test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merg
   assert.ok(!('unsinn' in g));
 });
 
-test('QR-Modus des Bondruckers: Raster als Vorgabe, ESC/POS annehmbar, Liste zur Laufzeit', () => {
+test('QR-Modus des Bondruckers: unbestimmt als Vorgabe, beide Modi annehmbar, Liste zur Laufzeit', () => {
   // Welchen QR-Befehl ein Thermodrucker versteht, entscheidet das Geraet und
   // nicht der Betrieb: derselbe Bon kommt am einen Drucker sauber heraus und
   // am naechsten als Zeichensalat. Der Wizard laesst beide Modi probedrucken
   // und merkt sich den, der lesbar war.
-  assert.equal(KASSE_GERAET_STANDARD.qrModus, 'raster');
+  //
+  // **Die Vorgabe ist 'auto' und nicht einer der beiden Modi.** Eine harte
+  // Vorgabe haette den ganzen Altbestand still umgestellt: jedes Geraet, das
+  // nie durch den Wizard lief, druckte ploetzlich anders als bisher. 'auto'
+  // heisst "hier hat niemand entschieden" — jede Kasse bleibt bei ihrer
+  // Praxis, bis ein ausdruecklicher Wert danebensteht.
+  assert.equal(KASSE_GERAET_STANDARD.qrModus, 'auto');
   const e = mergeKasseSettings(KASSE_GERAET_STANDARD, { qrModus: 'escpos' });
   assert.equal(e.qrModus, 'escpos');
+  const r = mergeKasseSettings(KASSE_GERAET_STANDARD, { qrModus: 'raster' });
+  assert.equal(r.qrModus, 'raster');
   // Als Laufzeitliste und nicht nur als Typ: der Backend-Validator und das
   // Flutter-Paket pruefen gegen genau diese Werte.
-  assert.deepEqual([...QR_MODUS], ['raster', 'escpos']);
+  assert.deepEqual([...QR_MODUS], ['auto', 'raster', 'escpos']);
 });
 
 test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
