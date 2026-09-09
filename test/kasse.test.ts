@@ -286,6 +286,19 @@ test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merg
   assert.ok(!('unsinn' in g));
 });
 
+test('QR-Modus des Bondruckers: Raster als Vorgabe, ESC/POS annehmbar, Liste zur Laufzeit', () => {
+  // Welchen QR-Befehl ein Thermodrucker versteht, entscheidet das Geraet und
+  // nicht der Betrieb: derselbe Bon kommt am einen Drucker sauber heraus und
+  // am naechsten als Zeichensalat. Der Wizard laesst beide Modi probedrucken
+  // und merkt sich den, der lesbar war.
+  assert.equal(KASSE_GERAET_STANDARD.qrModus, 'raster');
+  const e = mergeKasseSettings(KASSE_GERAET_STANDARD, { qrModus: 'escpos' });
+  assert.equal(e.qrModus, 'escpos');
+  // Als Laufzeitliste und nicht nur als Typ: der Backend-Validator und das
+  // Flutter-Paket pruefen gegen genau diese Werte.
+  assert.deepEqual([...QR_MODUS], ['raster', 'escpos']);
+});
+
 test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
   // Die Datei ist die Zusage an die Zwillinge (Backend, Flutter-Kasse). Weicht
   // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu
@@ -299,7 +312,7 @@ test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kass
 // Die Enums sind Daten, nicht nur Typen: die Zwillinge (Backend-Validator,
 // Flutter-Paket) pruefen gegen genau diese Listen.
 import {
-  DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, TASTEN_AKTIONEN,
+  DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, TASTEN_AKTIONEN, QR_MODUS,
 } from '../src/kasse/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
 
