@@ -9,16 +9,22 @@ import {
 import type { HpsPaymentResult } from './outcome.js';
 import { newHpsTransactionId } from './transaction-id.js';
 import {
+  hpsCodeInfo,
+  hpsCodeReason,
   isApproved,
   isCanceled,
   isConclusive,
+  isConclusiveAsStatus,
+  isHostUncertain,
   isNoStatement,
   isNotAbortable,
   isTechnicalError,
   isUnknownCode,
   NOT_ABORTABLE_CODE,
+  NOT_FOUND_CODE,
   TECHNICAL_ERROR_CODE,
   TRANSACTION_CANCELED_CODE,
+  type HpsCodeReason,
   type HpsTransactionResponse,
 } from './transaction-response.js';
 
@@ -110,6 +116,25 @@ import {
  * Kein [tryAbort]-Versuch bei [cancel]: die Originalzahlung ist laengst
  * abgeschlossen und antwortet gemessen mit `100010` -- ein Abbruch darauf
  * waere sinnlos.
+ *
+ * ## Stoerung beim Host: die Klaerung darf nichts schliessen (11.09.2026)
+ *
+ * Die Antwortcodeliste von hobex benennt Codes, bei denen der Host beteiligt
+ * war und das Terminal NICHT selbst storniert (`effect: 'hostUncertain'`,
+ * etwa `100007`). Fuer sie gilt zweierlei:
+ *
+ * 1. Die Zwei-9027-Regel ([ausGeschlossenerAntwort]) greift nicht. Sie
+ *    schliesst aus "das Terminal hat geantwortet und nichts gespeichert" auf
+ *    "nichts belastet" -- das stimmt fuer einen Vorgang, der am Terminal
+ *    endete, aber nicht fuer einen, dessen Ausgang beim Host liegt. Dasselbe
+ *    gilt sinngemaess fuer [cancel]: ein unveraendertes `'0'` auf die
+ *    Originalzahlung beweist dann nicht, dass die Aufhebung beim Host nicht
+ *    ankam.
+ * 2. Die Klaerung wartet trotzdem nicht das ganze Budget ab. Sagt die
+ *    Statusabfrage zweimal in Folge nichts Neues (`9027` oder erneut ein
+ *    solcher Code), endet sie sofort als `unresolved` -- das Terminal wird es
+ *    auch in 90 Sekunden nicht wissen. Meldet sie dagegen `'0'`, ist die
+ *    Zahlung genehmigt, ganz normal.
  */
 
 export interface HpsPaymentsOptions {
@@ -233,7 +258,36 @@ export function createHpsPayments(
       'Terminal beschaeftigt (HTTP 409) -- die Anfrage wurde nicht angenommen, es ist nichts geschehen',
     );
     emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: 'declined', transactionId: id, steps: [...steps] };
+    return { outcome: 'declined', transactionId: id, reason: 'terminalBusy', steps: [...steps] };
+  }
+
+  /**
+   * Benennt einen Code mit `effect: 'hostUncertain'` fuer den Nachweis: was
+   * das Terminal meldet, mit Code und hobex-Titel. Die Folgerung setzt der
+   * Aufrufer dazu.
+   */
+  function stoerung(res: HpsTransactionResponse): string {
+    const info = hpsCodeInfo(res.responseCode)!;
+    const was = info.reason === 'internalError'
+      ? 'interner Fehler des Terminals'
+      : 'Stoerung zwischen Terminal und hobex-Host, das Terminal storniert nicht selbst';
+    return `Terminal meldet ${was} (${info.code} "${info.title}")`;
+  }
+
+  /**
+   * Der Grund eines offenen Ausgangs. [antwort] ist die Antwort auf die
+   * ERZEUGENDE Anfrage (oder die zuerst gemeldete Stoerung), [letzte] die
+   * zuletzt gelesene Statusabfrage. Eine Stoerung beim Host geht vor; sonst
+   * erklaert der Code der erzeugenden Anfrage mehr als ein `9027` danach.
+   */
+  function offenerGrund(
+    antwort: HpsTransactionResponse | undefined,
+    letzte: HpsTransactionResponse | undefined,
+  ): HpsCodeReason | undefined {
+    if (antwort && isHostUncertain(antwort)) return hpsCodeReason(antwort.responseCode);
+    if (letzte && isHostUncertain(letzte)) return hpsCodeReason(letzte.responseCode);
+    if (antwort?.responseCode !== undefined) return hpsCodeReason(antwort.responseCode);
+    return hpsCodeReason(letzte?.responseCode);
   }
 
   /** Verlaufseintrag fuer eine direkte Antwort, die den Ausgang NICHT festschreibt. */
@@ -243,6 +297,12 @@ export function createHpsPayments(
     }
     if (isTechnicalError(res)) {
       return `Antwort mit technischem Fehler (${TECHNICAL_ERROR_CODE}) -- keine Aussage ueber den Vorgang, Ausgang wird geklaert`;
+    }
+    if (isHostUncertain(res)) {
+      return `${stoerung(res)} -- ob belastet wurde, weiss das Terminal nicht, Ausgang wird geklaert`;
+    }
+    if (res.responseCode === NOT_FOUND_CODE) {
+      return `Terminal kennt den Vorgang nicht (${res.responseCode} "Not Found") -- keine Aussage, Ausgang wird geklaert`;
     }
     if (isUnknownCode(res)) {
       return `Terminal nennt einen unbekannten Code (${res.responseCode})${klartext(res)} -- Ausgang wird geklaert`;
@@ -257,6 +317,22 @@ export function createHpsPayments(
     }
     if (isTechnicalError(status)) {
       return `Status: technischer Fehler (${TECHNICAL_ERROR_CODE}) -- keine Aussage ueber den Vorgang`;
+    }
+    if (isHostUncertain(status)) {
+      return `Status: ${stoerung(status)} -- keine Aussage`;
+    }
+    // Bewusst NICHT "keine Auskunft": das Wort steht fuer das gemessene 9027,
+    // und Aufrufer lesen es als solches (sastre, OpenCardPaymentService).
+    if (status.responseCode === NOT_FOUND_CODE) {
+      return `Status: Vorgang nicht gefunden (${status.responseCode}) -- keine Aussage`;
+    }
+    const info = hpsCodeInfo(status.responseCode);
+    if (info?.rejectsRequest) {
+      return `Status: Abfrage abgewiesen (${info.code} "${info.title}") -- keine Aussage ueber den Vorgang`;
+    }
+    if (info?.conclusive && !isApproved(status)) {
+      // Nur erreichbar nach einer Stoerung beim Host, siehe [resolve].
+      return `Status: abgelehnt (${info.code} "${info.title}") -- nach der Stoerung beim hobex-Host entscheidet nur eine Genehmigung`;
     }
     if (isUnknownCode(status)) {
       return `Status: unbekannter Code (${status.responseCode})${klartext(status)} -- keine Aussage`;
@@ -276,13 +352,33 @@ export function createHpsPayments(
     return text ? ` "${text}"` : '';
   }
 
-  /** Ordnet eine Terminal-Antwort ein. `null`, wenn sie nichts entscheidet. */
-  function fromResponse(res: HpsTransactionResponse, id: string, steps: string[]): HpsPaymentResult | null {
+  /**
+   * Ordnet eine Terminal-Antwort ein. `null`, wenn sie nichts entscheidet.
+   *
+   * [aufhebung]: die Antwort gehoert zu [cancel]. Ein `'0'` heisst dort
+   * "aufgehoben", und der Grund ist `'canceled'` statt `'approved'`.
+   */
+  function fromResponse(
+    res: HpsTransactionResponse,
+    id: string,
+    steps: string[],
+    aufhebung = false,
+  ): HpsPaymentResult | null {
     if (!isConclusive(res)) return null;
     const approved = res.responseCode === '0';
-    steps.push(approved ? 'Terminal: genehmigt' : `Terminal: abgelehnt (${res.responseCode})`);
+    steps.push(
+      approved
+        ? 'Terminal: genehmigt'
+        : `Terminal: abgelehnt (${res.responseCode} "${hpsCodeInfo(res.responseCode)!.title}")`,
+    );
     emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: approved ? 'approved' : 'declined', transactionId: id, response: res, steps: [...steps] };
+    return {
+      outcome: approved ? 'approved' : 'declined',
+      transactionId: id,
+      response: res,
+      reason: approved && aufhebung ? 'canceled' : hpsCodeReason(res.responseCode),
+      steps: [...steps],
+    };
   }
 
   /**
@@ -311,7 +407,7 @@ export function createHpsPayments(
       );
       return null;
     }
-    return fromResponse(res, id, steps);
+    return fromResponse(res, id, steps, true);
   }
 
   /**
@@ -372,7 +468,7 @@ export function createHpsPayments(
     if (voided) {
       steps.push(`Terminal: Aufhebung bestaetigt (${status.responseCode ?? status.state})`);
       emit('resolved', steps[steps.length - 1]!, id);
-      return { outcome: 'approved', transactionId: id, response: status, steps: [...steps] };
+      return { outcome: 'approved', transactionId: id, response: status, reason: 'canceled', steps: [...steps] };
     }
 
     if (isApproved(status)) {
@@ -393,14 +489,20 @@ export function createHpsPayments(
   /**
    * [letzteAntwort] ist die letzte Antwort, die das Terminal in dieser
    * Klaerung gab -- als `lastResponse` fuer Anzeige und Katalog,
-   * ausdruecklich NICHT als `response`.
+   * ausdruecklich NICHT als `response`. [grund] siehe [offenerGrund].
    */
-  function open(id: string, steps: string[], letzteAntwort?: HpsTransactionResponse): HpsPaymentResult {
+  function open(
+    id: string,
+    steps: string[],
+    letzteAntwort?: HpsTransactionResponse,
+    grund?: HpsCodeReason,
+  ): HpsPaymentResult {
     emit('resolved', steps[steps.length - 1]!, id);
     return {
       outcome: 'unresolved',
       transactionId: id,
       ...(letzteAntwort ? { lastResponse: letzteAntwort } : {}),
+      ...(grund ? { reason: grund } : {}),
       steps: [...steps],
     };
   }
@@ -473,34 +575,52 @@ export function createHpsPayments(
 
     steps.push('Abbruch bestaetigt -- der Vorgang war noch abbrechbar, es ist nichts belastet');
     emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: 'declined', transactionId: id, response: res, steps: [...steps] };
+    return { outcome: 'declined', transactionId: id, response: res, reason: 'aborted', steps: [...steps] };
   }
 
-  /** Klaert einen offenen Ausgang: erst abbrechen, dann abfragen -- bis das Terminal etwas sagt oder das Budget aufgebraucht ist. */
   /**
-   * `antwortMitCode` heisst: das Terminal hat auf die ERZEUGENDE Anfrage eine
-   * Antwort MIT Ergebniscode geliefert, deren Bedeutung wir nur nicht kennen.
-   * Dann ist der Vorgang am Geraet abgeschlossen -- und erst dadurch bekommt
-   * [NO_STATEMENT_CODE] (`9027`) beim Pollen einen Aussagewert, den es sonst
-   * nicht hat. Siehe [ausGeschlossenerAntwort].
+   * Klaert einen offenen Ausgang: erst abbrechen, dann abfragen -- bis das
+   * Terminal etwas sagt oder das Budget aufgebraucht ist.
+   *
+   * [antwort] ist die Antwort auf die ERZEUGENDE Anfrage, sofern eine kam.
+   * Traegt sie einen Ergebniscode, dessen Bedeutung wir nur nicht kennen, ist
+   * der Vorgang am Geraet abgeschlossen -- und erst dadurch bekommt
+   * `9027` beim Pollen einen Aussagewert, den es sonst nicht hat. Siehe
+   * [ausGeschlossenerAntwort]. Meldet sie eine Stoerung beim Host
+   * ([isHostUncertain]), bekommt `9027` diesen Aussagewert gerade NICHT --
+   * siehe Klassendoku, "Stoerung beim Host".
    */
   async function resolve(
     id: string,
     steps: string[],
-    antwortMitCode = false,
-    letzteAntwort?: HpsTransactionResponse,
+    antwort?: HpsTransactionResponse,
   ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
     const start = now();
     const elapsedMs = () => now() - start;
+    const antwortMitCode = antwort?.responseCode !== undefined;
+    // Einmal gemeldet, bleibt die Stoerung stehen -- auch wenn erst die
+    // Statusabfrage sie nennt und danach 9027 kommt.
+    let stoerungsAntwort = antwort && isHostUncertain(antwort) ? antwort : undefined;
+    let letzteAntwort = antwort;
 
-    const aborted = await tryAbort(id, steps, elapsedMs);
-    if (aborted) return aborted;
+    if (stoerungsAntwort === undefined) {
+      const aborted = await tryAbort(id, steps, elapsedMs);
+      if (aborted) return aborted;
+    } else {
+      // Der Vorgang ist am Terminal schon beendet -- mit einer Stoerung beim
+      // Host. Ein quittierter Abbruch bewiese nur, dass am Terminal nichts mehr
+      // laeuft, nicht, dass der Host nichts belastet hat.
+      steps.push('Kein Abbruchversuch -- das Terminal hat den Vorgang mit einer Stoerung beim hobex-Host beendet');
+    }
 
     let wait = 0;
     let transportFailures = 0;
     let ohneAuskunft = 0;
+    // Beantwortete Statusabfragen in Folge, die zu einem Vorgang mit
+    // Host-Stoerung nichts Neues sagen.
+    let stoerungOhneNeues = 0;
 
     while (elapsedMs() < resolveBudgetMs) {
       if (wait > 0) {
@@ -526,23 +646,49 @@ export function createHpsPayments(
         continue;
       }
 
-      const settled = fromResponse(status, id, steps);
-      if (settled) return settled;
+      if (isHostUncertain(status)) stoerungsAntwort ??= status;
+      const hostUngewiss = stoerungsAntwort !== undefined;
+
+      // Auf die Statusabfrage entscheidet nur ein Code, der den gesuchten
+      // Vorgang beschreibt -- nicht einer, der diese Abfrage abweist
+      // ([isConclusiveAsStatus]). Nach einer Stoerung beim Host entscheidet nur
+      // noch eine Genehmigung: jede andere Aussage des Terminals betrifft seinen
+      // Speicher, nicht den des Hosts.
+      if (hostUngewiss ? isApproved(status) : isConclusiveAsStatus(status)) {
+        const settled = fromResponse(status, id, steps);
+        if (settled) return settled;
+      }
 
       if (isNoStatement(status)) {
         ohneAuskunft += 1;
-        const geklaert = ausGeschlossenerAntwort(id, steps, status, antwortMitCode, ohneAuskunft);
-        if (geklaert) return geklaert;
+        if (!hostUngewiss) {
+          const geklaert = ausGeschlossenerAntwort(id, steps, status, antwortMitCode ? antwort : undefined, ohneAuskunft);
+          if (geklaert) return geklaert;
+        }
       } else {
         ohneAuskunft = 0;
       }
 
+      // Nach einer Stoerung ist jede Antwort ausser '0' (die oben schon
+      // entschieden hat) "nichts Neues".
+      stoerungOhneNeues = hostUngewiss ? stoerungOhneNeues + 1 : 0;
+
       steps.push(statusOhneErgebnis(status) ?? 'Status: noch kein Ergebniscode');
+
+      if (stoerungOhneNeues >= 2) {
+        // Siehe Klassendoku, "Stoerung beim Host": das Terminal weiss es
+        // nicht, und es wird es auch nicht wissen, wenn wir weiterfragen.
+        steps.push(
+          'Statusabfrage zweimal ohne Neues nach einer Stoerung beim hobex-Host -- '
+            + 'das Terminal kann nicht sagen, ob belastet wurde, Ausgang bleibt offen',
+        );
+        return open(id, steps, letzteAntwort, offenerGrund(stoerungsAntwort ?? antwort, letzteAntwort));
+      }
       wait = nextWait(wait);
     }
 
     steps.push('Ausgang bleibt offen');
-    return open(id, steps, letzteAntwort);
+    return open(id, steps, letzteAntwort, offenerGrund(stoerungsAntwort ?? antwort, letzteAntwort));
   }
 
   /**
@@ -568,16 +714,21 @@ export function createHpsPayments(
    * entstuende die Doppelbelastung vom 24.08.2026 an einer neuen Stelle.
    * Dieselbe Absicherung traegt bereits [fromCancelStatus].
    *
+   * [antwort] ist die Antwort MIT Code auf die erzeugende Anfrage -- oder
+   * `undefined`, wenn keine kam; dann greift die Regel nicht. Ihr Code ergibt
+   * den `reason`: er erklaert den Ausgang, das `9027` danach nicht. Der
+   * Aufrufer ruft diese Regel NICHT fuer eine Stoerung beim Host.
+   *
    * `undefined` heisst: nicht entschieden, weiter pollen.
    */
   function ausGeschlossenerAntwort(
     id: string,
     steps: string[],
     status: HpsTransactionResponse,
-    antwortMitCode: boolean,
+    antwort: HpsTransactionResponse | undefined,
     ohneAuskunft: number,
   ): HpsPaymentResult | undefined {
-    if (!antwortMitCode) return undefined;
+    if (!antwort) return undefined;
     if (ohneAuskunft < 2) return undefined;
 
     steps.push(
@@ -590,6 +741,7 @@ export function createHpsPayments(
       outcome: 'declined',
       transactionId: id,
       response: status,
+      reason: hpsCodeReason(antwort.responseCode),
       steps: [...steps],
     };
   }
@@ -610,16 +762,22 @@ export function createHpsPayments(
    *
    * Budget, Backoff und Transportfehler-Deckelung sind unveraendert aus
    * [resolve] uebernommen.
+   *
+   * [antwort] ist die direkte Antwort auf den Aufhebungs-Request, sofern eine
+   * kam. Meldete sie eine Stoerung beim Host, entscheidet ein unveraendertes
+   * `'0'` nichts -- siehe Klassendoku, "Stoerung beim Host".
    */
   async function resolveCancel(
     id: string,
     steps: string[],
-    letzteAntwort?: HpsTransactionResponse,
+    antwort?: HpsTransactionResponse,
   ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
     const start = now();
     const elapsedMs = () => now() - start;
+    const hostUngewiss = antwort !== undefined && isHostUncertain(antwort);
+    let letzteAntwort = antwort;
 
     let wait = 0;
     let transportFailures = 0;
@@ -652,6 +810,19 @@ export function createHpsPayments(
         continue;
       }
 
+      if (hostUngewiss && isApproved(status) && answeredQueries >= 2) {
+        // Siehe Klassendoku, "Stoerung beim Host": das unveraenderte '0'
+        // spiegelt nur den Speicher des Terminals. "Hat nicht gegriffen"
+        // fuehrte nach dem Tagesabschluss zu einer Rueckerstattung, die der
+        // Kunde doppelt bekaeme, falls der Host die Aufhebung doch verbucht hat.
+        steps.push(
+          'Terminal: Originalzahlung steht unveraendert (0), aber die Aufhebung endete mit einer '
+            + 'Stoerung beim hobex-Host -- ob sie dort gewirkt hat, kann das Terminal nicht sagen, '
+            + 'Ausgang bleibt offen',
+        );
+        return open(id, steps, letzteAntwort, offenerGrund(antwort, letzteAntwort));
+      }
+
       const settled = fromCancelStatus(status, id, steps, answeredQueries === 1);
       if (settled) return settled;
 
@@ -664,7 +835,7 @@ export function createHpsPayments(
     }
 
     steps.push('Ausgang bleibt offen');
-    return open(id, steps, letzteAntwort);
+    return open(id, steps, letzteAntwort, offenerGrund(antwort, letzteAntwort));
   }
 
   async function pay(paymentOptions: HpsPaymentOptions): Promise<HpsPaymentResult> {
@@ -704,7 +875,7 @@ export function createHpsPayments(
       steps.push(offeneAntwort(res));
     }
 
-    return resolve(id, steps, res?.responseCode !== undefined, res);
+    return resolve(id, steps, res);
   }
 
   /**
@@ -749,7 +920,7 @@ export function createHpsPayments(
     // Dieselbe Klaerfunktion wie [pay]: die Kennung ist die des NEUEN
     // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang,
     // und der Abbruch ist derselbe Diskriminator wie bei einer Zahlung.
-    return resolve(id, steps, res?.responseCode !== undefined, res);
+    return resolve(id, steps, res);
   }
 
   /**

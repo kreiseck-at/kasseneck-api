@@ -1,4 +1,4 @@
-// Die gemessene hobex-HPS-Codetabelle als Golden-Datei — der Vertrag mit dem
+// Die hobex-HPS-Codetabelle (gemessen und von hobex dokumentiert) als Golden-Datei — der Vertrag mit dem
 // Dart-Zwilling `kasseneck_api` (`lib/src/hobex_hps/transaction_response.dart`).
 //
 // Beide Seiten muessen sich einig sein, welcher Ergebniscode eine Aussage
@@ -11,7 +11,8 @@
 // Aufruf: `npm run fixtures:hobex-hps-codes` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
-  HPS_MEASURED_CODES,
+  HPS_CODES,
+  HPS_REASON_HINTS,
   TERMINAL_BUSY_HTTP_STATUS,
 } from '../dist/esm/payments/hobex-hps/index.js';
 
@@ -33,7 +34,20 @@ const vertrag = {
   ergaenztAn: [
     { tid: '3556988', hpsVersion: '1.11.4', firmware: '2.3.9', zeitraum: '02.09.2026', codes: ['55'] },
   ],
-  codes: HPS_MEASURED_CODES.map(({ code, meaning, conclusive }) => ({ code, meaning, conclusive })),
+  // Keine Messung, sondern die Beschreibung des Herstellers: welche Codes
+  // daher stammen, steht je Code in `source`.
+  dokumentiert: { quelle: 'Antwortcodeliste von hobex', erhalten: '11.09.2026' },
+  codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest }) => ({
+    code,
+    title,
+    meaning,
+    conclusive,
+    effect,
+    reason,
+    source,
+    rejectsRequest,
+  })),
+  gruende: HPS_REASON_HINTS,
   terminalBusyHttpStatus: TERMINAL_BUSY_HTTP_STATUS,
 };
 
@@ -42,4 +56,5 @@ writeFileSync(
   JSON.stringify(vertrag, null, 2) + '\n',
 );
 console.log('hobex-hps-codes geschrieben:', vertrag.codes.length, 'Codes,',
-  vertrag.codes.filter((c) => c.conclusive).length, 'davon schluessig');
+  vertrag.codes.filter((c) => c.conclusive).length, 'davon schluessig,',
+  vertrag.codes.filter((c) => c.effect === 'hostUncertain').length, 'ungewiss');

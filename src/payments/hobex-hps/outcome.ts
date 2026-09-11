@@ -1,4 +1,4 @@
-import type { HpsTransactionResponse } from './transaction-response.js';
+import { isHostUncertainReason, type HpsCodeReason, type HpsTransactionResponse } from './transaction-response.js';
 
 /**
  * Ausgang eines Kartenzahlvorgangs — die einzige Frage, die ein Aufrufer
@@ -38,6 +38,18 @@ export interface HpsPaymentResult {
    */
   readonly lastResponse?: HpsTransactionResponse;
   /**
+   * Worauf die Kasse reagiert -- der Grund hinter dem Ausgang, mit dem Satz
+   * fuer den Bediener in `HPS_REASON_HINTS`.
+   *
+   * Gesetzt an der Stelle, die den Ausgang entschieden hat, nicht aus
+   * [response] abgeleitet: ein bestaetigter Abbruch antwortet `'0'` und ist
+   * trotzdem `'aborted'`, und wenn die Zwei-9027-Regel eine Zahlung als
+   * abgelehnt klaert, zaehlt der Code der ZAHLUNG, nicht das `9027` danach.
+   * Fehlt, wenn kein Code etwas erklaert (die Leitung riss ab, bevor das
+   * Terminal etwas sagte) und bei einer Aufhebung, die nicht gegriffen hat.
+   */
+  readonly reason?: HpsCodeReason;
+  /**
    * Verlauf der Klaerung, in Reihenfolge — der Nachweis, der im
    * Belastungsstreit gelesen wird. Behauptet nie eine Ursache, die nicht
    * feststeht.
@@ -48,4 +60,14 @@ export interface HpsPaymentResult {
 /** Nur bei `'declined'` steht fest, dass nichts belastet wurde. */
 export function mayRetrySafely(result: Pick<HpsPaymentResult, 'outcome'>): boolean {
   return result.outcome === 'declined';
+}
+
+/**
+ * `true`, wenn der Ausgang offen ist, weil das Terminal eine Stoerung beim
+ * oder nach dem hobex-Host meldete (`effect: 'hostUncertain'`). Wichtig fuer
+ * jede SPAETERE Nachfrage: antwortet die Statusabfrage dann `9027`, heisst das
+ * hier NICHT "nichts belastet".
+ */
+export function isHostUncertainResult(result: Pick<HpsPaymentResult, 'outcome' | 'reason'>): boolean {
+  return result.outcome === 'unresolved' && isHostUncertainReason(result.reason);
 }
