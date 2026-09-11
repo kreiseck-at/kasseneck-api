@@ -41,4 +41,4 @@ export {
   gridAlsText,
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
-export { type EposPrintXmlOptions, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';

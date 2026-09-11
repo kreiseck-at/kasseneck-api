@@ -375,6 +375,10 @@ const { bytes, qrFehler, qrAusweich } = escPosLayoutErgebnis(layout, {
 });
 ```
 
+Der Epson-Weg (`eposPrintXml` / `eposDirectPrint`) rechnet genauso;
+`eposPrintXmlErgebnis` gibt dort `{ xml, qrFehler, qrAusweich }`. Sein
+Bestandswert ist 6, deshalb ist die Vorgabe dort der Deckel `mittel`.
+
 `qrFehler` heißt „Beleg ohne QR" — das gehört dem Kunden gesagt. `qrAusweich`
 heißt „gedruckt, aber der eingestellte Weg taugt für dieses Gerät nicht" — das
 gehört dem Chef gesagt. Den Bildweg fährt das Paket nur mit einem `qrMatrix`,

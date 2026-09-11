@@ -58,9 +58,21 @@ deckelt auch eine bewusst gewählte größere Modulgröße gegen den Papierrand 
   eines, das bei Modell 2 unter dem Code eine „0" ausgibt — das Parameterbyte
   `0x30` des Druckbefehls, das es nicht als Befehl erkennt. Ohne ausdrückliche
   Wahl geht **gar kein** Modellbefehl hinaus, wie bisher.
+- **Derselbe Fehler im ePOS-Weg — und dort ist er der akute.** `eposPrintXml`
+  setzte `<symbol … width="6">` fest, unabhängig von der Papierbreite: 57
+  Module plus Ruhezone sind bei sechs Punkten 390 Druckpunkte, ein 58-mm-Kopf
+  hat 384, und der Epson lässt ein zu breites Symbol weg. **Genau daran fehlte
+  am echten Beleg der QR.** Jetzt gilt dieselbe Regel — Untergrenze 4,
+  Ausnahme 3 mit Meldung, darunter kein `<symbol>`. Der Bestandswert dieses
+  Wegs ist 6, deshalb ist die Vorgabe hier der Deckel `mittel`; ohne
+  ausdrückliche Wahl ändert sich nur dort etwas, wo heute gar nichts
+  herauskommt. Neu `eposPrintXmlErgebnis` (`{ xml, qrFehler, qrAusweich }`) und
+  die Optionen `qrGroesse` an `eposPrintXml` und `eposDirectPrint`; `qrBreite`
+  bleibt, ist jetzt aber ausdrücklich die **feste** Größe und schaltet die
+  Rechnung ab.
 - **Bestandsschutz als Golden-Test.** Zwei feste SHA-256 über den gesamten
-  Bytestrom eines Belegs (58 und 80 mm) halten fest, dass sich ohne Wahl kein
-  Byte ändert. Dazu prüft `test/paket-inhalt.test.ts`, dass die Dateiliste des
+  Bytestrom eines Belegs (58 und 80 mm) und zwei weitere über das vollständige
+  ePOS-XML halten fest, dass sich ohne Wahl kein Byte ändert. Dazu prüft `test/paket-inhalt.test.ts`, dass die Dateiliste des
   Pakets eine Positivliste bleibt und im mitgelieferten `fixtures/` nichts
   Örtliches liegt.
 
