@@ -6,7 +6,7 @@ import {
   type HpsConnectFetchResponse,
 } from '../src/payments/hobex-hps/connect-client.js';
 import { createHpsPayments } from '../src/payments/hobex-hps/payments.js';
-import { mayRetrySafely } from '../src/payments/hobex-hps/outcome.js';
+import { isHostUncertainResult, mayRetrySafely } from '../src/payments/hobex-hps/outcome.js';
 import {
   HpsConnectTerminalError,
   HpsConnectTransportError,
@@ -18,9 +18,11 @@ import {
   isValidHpsTransactionId,
 } from '../src/payments/hobex-hps/transaction-id.js';
 import {
+  hpsCodeReason,
   isApproved,
   isCanceled,
   isConclusive,
+  isHostUncertain,
   isNoStatement,
   isNotAbortable,
   isTechnicalError,
@@ -942,7 +944,7 @@ test('55 in der Statusabfrage nach verlorener Antwort -> declined', async () => 
 
   assert.equal(result.outcome, 'declined');
   assert.equal(mayRetrySafely(result), true);
-  assert.ok(result.steps.some((s) => s.includes('abgelehnt (55)')), 'der Nachweis muss den gemessenen Code benennen');
+  assert.ok(result.steps.some((s) => s.includes('abgelehnt (55 "PIN falsch")')), 'der Nachweis muss den gemessenen Code benennen');
 });
 
 test('unbekannter Code bis zum Budgetende -> unresolved, lastResponse traegt Code und Klartext, response fehlt', async () => {
@@ -1008,4 +1010,210 @@ test('9003, 100019 und 100108 sind gemessene Ablehnungen -> declined', async () 
       'ein gemessener Code braucht keine Klaerungsrunde',
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Antwortcodeliste von hobex (11.09.2026) -- Zwilling der gleichnamigen
+// Gruppe in `kasseneck_api/test/hps_payments_test.dart`
+// ---------------------------------------------------------------------------
+
+function zahlungMit(code: string, status: ScriptEntry[], calls: RecordedCall[]) {
+  return buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: code })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      ...(status.length ? { '/v1/terminal/status': status } : {}),
+    },
+    calls,
+  );
+}
+
+test('hobex-Liste: Betriebs-Codes 100004/100005/100015 -> sofort declined mit Grund', async () => {
+  // Bis heute ungedeutet: jede dieser Zahlungen lief in die Klaerung und
+  // endete erst ueber die Zwei-9027-Regel. Jetzt entscheidet die direkte
+  // Antwort, ohne Abbruch und ohne Statusabfrage.
+  for (const [code, grund] of [
+    ['100004', 'cardReadFailed'],
+    ['100005', 'cardReadFailed'],
+    ['100015', 'cardDeclined'],
+  ] as const) {
+    const calls: RecordedCall[] = [];
+    const result = await zahlungMit(code, [], calls).pay({ amountCents: 2500, transactionId: '1001' });
+    assert.equal(result.outcome, 'declined', code);
+    assert.equal(result.reason, grund, code);
+    assert.equal(calls.length, 1, `${code} braucht keine Klaerung`);
+  }
+});
+
+test('hobex-Liste: 100029 (auto-reversal) -> declined, das Terminal storniert selbst', async () => {
+  const result = await zahlungMit('100029', [], []).pay({ amountCents: 2500, transactionId: '1002' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'hostTimeoutReversed');
+});
+
+test('hobex-Liste: 100998 im Rumpf und HTTP 409 -> beide terminalBusy', async () => {
+  const imRumpf = await zahlungMit('100998', [], []).pay({ amountCents: 2500, transactionId: '1003' });
+  assert.equal(imRumpf.outcome, 'declined');
+  assert.equal(imRumpf.reason, 'terminalBusy');
+
+  const payments = buildPayments(
+    { '/v1/terminal/payment': [failConnect('terminal_error', 'Terminal is busy', { terminalHttpStatus: 409 })] },
+    [],
+  );
+  const alsStatus = await payments.pay({ amountCents: 2500, transactionId: '1004' });
+  assert.equal(alsStatus.outcome, 'declined');
+  assert.equal(alsStatus.reason, 'terminalBusy');
+});
+
+test('hobex-Liste: 100007 und danach zweimal 9027 -> unresolved, NICHT declined', async () => {
+  // Genau der Fall, gegen den die Einordnung gebaut ist: das Terminal
+  // speichert nichts (9027) -- und trotzdem kann der Host belastet haben,
+  // denn das Terminal storniert hier nicht selbst.
+  const calls: RecordedCall[] = [];
+  const result = await zahlungMit('100007', [okPayment({ responseCode: '9027' })], calls)
+    .pay({ amountCents: 2500, transactionId: '1005' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(mayRetrySafely(result), false);
+  assert.equal(result.reason, 'hostFault');
+  assert.equal(isHostUncertainResult(result), true);
+  assert.equal(result.response, undefined);
+  assert.ok(result.steps[0]!.includes('100007'));
+  assert.ok(result.steps[0]!.includes('storniert nicht selbst'));
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2, 'zwei Abfragen genuegen');
+});
+
+test('hobex-Liste: 100007, dann meldet der Status 0 -> approved', async () => {
+  const result = await zahlungMit(
+    '100007',
+    [okPayment({ responseCode: '9027' }), okPayment({ responseCode: '0', approvalCode: '000193' })],
+    [],
+  ).pay({ amountCents: 2500, transactionId: '1006' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.reason, 'approved');
+});
+
+test('hobex-Liste: 100999 -> unresolved mit Grund internalError', async () => {
+  const result = await zahlungMit('100999', [okPayment({ responseCode: '9027' })], [])
+    .pay({ amountCents: 2500, transactionId: '1007' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'internalError');
+  assert.ok(result.steps[0]!.includes('interner Fehler'));
+});
+
+test('hobex-Liste: Leitung reisst ab, Status meldet zweimal 100006 -> unresolved', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '100006' })],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '1008' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostFault');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2);
+});
+
+test('hobex-Liste: unbekannter Code, Status meldet einmal 100007, dann 9027 -> die Stoerung bleibt stehen', async () => {
+  const result = await zahlungMit(
+    '51',
+    [okPayment({ responseCode: '100007' }), okPayment({ responseCode: '9027' })],
+    [],
+  ).pay({ amountCents: 2500, transactionId: '1009' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostFault');
+});
+
+test('hobex-Liste: ohne Host-Stoerung gilt die Zwei-9027-Regel weiter, Grund vom Code der Zahlung', async () => {
+  const result = await zahlungMit('51', [okPayment({ responseCode: '9027' })], [])
+    .pay({ amountCents: 2500, transactionId: '1010' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'unknown');
+});
+
+test('hobex-Liste: 100011 in der Statusabfrage schreibt nicht "keine Auskunft"', async () => {
+  const result = await zahlungMit('51', [okPayment({ responseCode: '100011' })], [])
+    .pay({ amountCents: 2500, transactionId: '1011' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.ok(result.steps.some((s) => s.includes('100011')));
+  assert.ok(!result.steps.some((s) => s.includes('keine Auskunft')));
+});
+
+test('hobex-Liste: bestaetigter Abbruch -> Grund aborted, nicht approved', async () => {
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '0' })],
+    },
+    [],
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '1012' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'aborted');
+});
+
+test('hobex-Liste: Gutschrift mit 100020 -> declined, Passwort', async () => {
+  const payments = buildPayments({ '/v1/terminal/refund': [okPayment({ responseCode: '100020' })] }, []);
+  const result = await payments.refund({ amountCents: 2500, transactionId: '1013', originalTransactionId: '900' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'refundPassword');
+});
+
+test('hobex-Liste: Aufhebung direkt 0 -> approved mit Grund canceled', async () => {
+  const payments = buildPayments({ '/v1/terminal/cancel': [okPayment({ responseCode: '0' })] }, []);
+  const result = await payments.cancel({ amountCents: 2500, transactionId: '1014' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.reason, 'canceled');
+});
+
+test('hobex-Liste: Aufhebung mit 100007, Original steht zweimal auf 0 -> unresolved, NICHT "hat nicht gegriffen"', async () => {
+  // "Hat nicht gegriffen" fuehrt nach dem Tagesabschluss zu einer
+  // Rueckerstattung. Hat der Host die Aufhebung doch verbucht, bekaeme der
+  // Kunde sein Geld zweimal.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': [okPayment({ responseCode: '100007' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '0' })],
+    },
+    calls,
+  );
+  const result = await payments.cancel({ amountCents: 2500, transactionId: '1015' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostFault');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2);
+});
+
+test('hobex-Liste: Aufhebung mit 100007, Original meldet 9011 -> approved', async () => {
+  const payments = buildPayments(
+    {
+      '/v1/terminal/cancel': [okPayment({ responseCode: '100007' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9011' })],
+    },
+    [],
+  );
+  const result = await payments.cancel({ amountCents: 2500, transactionId: '1016' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.reason, 'canceled');
+});
+
+test('hobex-Liste: Einordnung einzelner Codes', () => {
+  for (const code of ['100004', '100005', '100015']) {
+    assert.equal(isConclusive({ responseCode: code }), true, code);
+    assert.equal(isUnknownCode({ responseCode: code }), false, code);
+  }
+  for (const code of ['100006', '100007', '100023', '100024', '100026', '100027', '100999']) {
+    assert.equal(isConclusive({ responseCode: code }), false, code);
+    assert.equal(isHostUncertain({ responseCode: code }), true, code);
+    assert.equal(isUnknownCode({ responseCode: code }), false, code);
+  }
+  assert.equal(isNoStatement({ responseCode: '100011' }), false, 'die Zwei-9027-Regel ist nur fuer 9027 gemessen');
+  assert.equal(isConclusive({ responseCode: '100011' }), false);
+  for (const code of ['05', '51', '100016', '100030']) {
+    assert.equal(isUnknownCode({ responseCode: code }), true, code);
+    assert.equal(hpsCodeReason(code), 'unknown', code);
+  }
+  assert.equal(hpsCodeReason(undefined), undefined);
 });

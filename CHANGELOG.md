@@ -4,6 +4,43 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.10.0
+
+### Die Antwortcodeliste von hobex — jeder Code eingeordnet, jeder Ausgang mit Grund
+
+**Anlass:** hobex hat am 11.09.2026 die Antwortcodeliste der HPS-Anwendung
+geschickt. Drei der Codes kamen seit dem 28.08.2026 im Betrieb vor (`100004`,
+`100005`, `100015`) und waren bis jetzt ungedeutet. Jede Zahlung damit lief in
+die Klaerung und endete erst ueber die Zwei-9027-Regel. Zwilling:
+`kasseneck_api` 6.9.0, Begruendungen dort in `doc/kartenzahlung.md`.
+
+- **`HPS_CODES`** fuehrt alle 31 Codes der Liste zusammen mit den gemessenen:
+  Code, hobex-Titel, Bedeutung, Wirkung (`effect`), Grund (`reason`) und
+  Quelle (`source`). `isConclusive` liest seine Positivliste daraus.
+  `HPS_MEASURED_CODES` bleibt als abgekuendigter Name fuer dieselbe Tabelle.
+- **Was vor dem Host scheitert, ist eine Ablehnung** (Kartenlesen, EMV-Kernel,
+  Eingaben am Geraet, Geraetezustand, fehlerhafte Anfrage) -- `declined`, ohne
+  Abbruch und ohne Statusabfrage. Dazu `100029`: das Terminal storniert laut
+  hobex selbst.
+- **Neu: `effect: 'hostUncertain'`** (`isHostUncertain`) fuer `100006`,
+  `100007`, `100023`, `100024`, `100026`, `100027`, `100999`. Der Host war
+  beteiligt, das Terminal storniert nicht selbst. Die Zwei-9027-Regel greift
+  hier **nicht**; die Klaerung endet nach zwei Abfragen ohne Neues als
+  `unresolved`. Bei einer Aufhebung entscheidet ein unveraendertes `'0'` auf
+  die Originalzahlung dann ebenfalls nichts.
+- **`HpsPaymentResult.reason`** traegt fuer jeden Ausgang den Grund, den Satz
+  fuer den Bediener gibt `HPS_REASON_HINTS`. Gesetzt, wo entschieden wurde:
+  bestaetigter Abbruch `aborted`, HTTP 409 `terminalBusy`, eine ueber die
+  Zwei-9027-Regel geklaerte Zahlung mit dem Grund ihres eigenen Codes.
+  `isHostUncertainResult` sagt einer spaeteren Nachfrage, dass ein `9027` dort
+  nicht "nicht belastet" heisst.
+- `hpsCodeInfo`, `hpsCodeReason` und die Namen aller neuen Codes
+  (`CARD_READ_FAILED_CODE` usw.) sind exportiert.
+- Der Nachweis nennt bei einer Ablehnung den hobex-Titel mit
+  (`Terminal: abgelehnt (100015 "Card declined")`).
+- `fixtures/hobex-hps-codes.json` fuehrt je Code zusaetzlich `title`,
+  `effect`, `reason`, `source` und die Saetze je Grund (`gruende`).
+
 ## 0.9.4
 
 ### `qrModus` faengt bei `auto` an — sonst stellte die Vorgabe den Altbestand um
