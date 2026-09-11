@@ -34,6 +34,20 @@ export {
   wortzeilenText,
 } from './escpos.js';
 
+export {
+  type QrModulGroesse,
+  type QrGroesse,
+  QR_MODUL_DECKEL,
+  QR_RUHEZONE_MODULE,
+  QR_MINDEST_PUNKTE,
+  QR_AUSNAHME_PUNKTE,
+  QR_HOECHST_PUNKTE,
+  QR_DRUCK_PUNKTE,
+  qrModulAnzahl,
+  qrGroesseBerechnen,
+  qrGroesseFuer,
+} from './qr-groesse.js';
+
 export { escPosPrintableText } from './printable.js';
 export {
   type UsbEndpointLike, type UsbAlternateLike, type UsbInterfaceLike, type UsbConfigurationLike,
