@@ -84,7 +84,8 @@ deckelt auch eine bewusst gewählte größere Modulgröße gegen den Papierrand 
 geschickt. Drei der Codes kamen seit dem 28.08.2026 im Betrieb vor (`100004`,
 `100005`, `100015`) und waren bis jetzt ungedeutet. Jede Zahlung damit lief in
 die Klaerung und endete erst ueber die Zwei-9027-Regel. Zwilling:
-`kasseneck_api` 6.9.0, Begruendungen dort in `doc/kartenzahlung.md`.
+`kasseneck_api` 6.10.0 (6.9.0 war inzwischen vergeben), Begruendungen dort in
+`doc/kartenzahlung.md`.
 
 - **`HPS_CODES`** fuehrt alle 31 Codes der Liste zusammen mit den gemessenen:
   Code, hobex-Titel, Bedeutung, Wirkung (`effect`), Grund (`reason`) und
