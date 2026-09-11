@@ -211,6 +211,32 @@ Grund: „STORNOBELEG / Stornobuchung zu Beleg KASSE1-ID-42 / vom 11.08.2026,
 09:02 Uhr / Grund: Fehleingabe". Das Datum kommt aus `cancellationOf.timeStamp`
 (Backend seit 2026-09-04); Altbelege ohne bleiben ohne die Zeile.
 
+## Beleg per E-Mail an den Gast
+
+```ts
+const bestaetigung = await api.sendReceiptEmail({
+  fullReceiptId: beleg.fullReceiptId,   // oder api.generateFullReceiptId(receiptId)
+  to: 'gast@example.at',
+  sprache: 'de',                        // optional; heute wertet das Backend nur 'de' aus
+});
+bestaetigung.to;   // Adresse, wie das Backend sie protokolliert hat
+bestaetigung.at;   // Zeitpunkt, ISO mit Wiener Zonenoffset
+bestaetigung.via;  // 'eigen' | 'plattform' | 'plattform-fallback' | null
+```
+
+Verschickt wird ein **Link auf die öffentliche Belegseite**, kein PDF im
+Anhang: die Belegseite führt dasselbe Zeilenmodell wie Bildschirm und Bon und
+liefert dort auf Wunsch ein PDF. Der Beleg selbst bleibt unberührt (BAO §131 /
+RKSV) — das Versandprotokoll führt das Backend neben ihm.
+
+Die Kasse kommt aus der Anmeldung (Kopfzeile `cashregister-token` bzw. der
+Parameter, den `registerUserAuth` setzt), nicht aus den Optionen; ein Beleg
+einer anderen Kasse ist deshalb dieselbe Auskunft wie ein Beleg, den es nicht
+gibt. Auch hier gilt: **am Code entscheiden, nicht am Text.** Die Codes stehen
+in `RECEIPT_EMAIL_ERROR_CODES` (`isReceiptEmailErrorCode`):
+`adresse_ungueltig`, `beleg_nicht_gefunden`, `zu_oft` (5 Mails je Beleg in 24
+Stunden, 30 je Kasse und Stunde) und `versand_fehlgeschlagen`.
+
 ## Partner-API (`./partner`)
 
 Für Softwarehäuser, die Kasseneck in ihr eigenes Produkt einbauen: Betriebe

@@ -20,6 +20,9 @@ import {
   generateFullReceiptId,
   getFirstReceiptDate,
   listMyReceipts,
+  sendReceiptEmail,
+  type SendReceiptEmailOptions,
+  type SendReceiptEmailResult,
   type ListMyReceiptsOptions,
   type ReceiptList,
   type ReceiptWithCompany,
@@ -74,6 +77,8 @@ export interface KasseneckApi {
   generateFullReceiptId(receiptId: string): Promise<string>;
   /** Berichtsmonat des ersten Belegs (nicht fuer den Kassen-Benutzer-Weg). */
   getFirstReceiptDate(): Promise<ReportMonth>;
+  /** Beleg als Link auf die oeffentliche Belegseite per E-Mail schicken. */
+  sendReceiptEmail(options: SendReceiptEmailOptions): Promise<SendReceiptEmailResult>;
   /** Belegliste einer Kasse samt Kennzahlen (nur mit ID-Token, siehe receipts.ts). */
   listMyReceipts(options: ListMyReceiptsOptions): Promise<ReceiptList>;
   /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
@@ -116,6 +121,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     generateFullReceiptId: (receiptId) => generateFullReceiptId(rufen, receiptId),
     getFirstReceiptDate: () => getFirstReceiptDate(rufen),
     listMyReceipts: (o) => listMyReceipts(rufen, o),
+    sendReceiptEmail: (o) => sendReceiptEmail(rufen, o),
     listMyCashregisters: () => listMyCashregisters(rufen),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),

@@ -592,6 +592,97 @@ export async function getFirstReceiptDate(rufen: InternerTransport): Promise<Rep
   }
 }
 
+
+/**
+ * Beleg per E-Mail an den Endkunden — die Eingabe von [sendReceiptEmail].
+ *
+ * `cashregisterId` steht hier bewusst **nicht**: der Geraeteweg bindet die
+ * Kasse ueber die Kopfzeile `cashregister-token`, der Kassen-Benutzer-Weg
+ * ueber den Parameter, den `registerUserAuth` ohnehin schon setzt. Eine
+ * dritte Stelle waere nur eine Gelegenheit, eine andere Kasse zu behaupten,
+ * als die, an der man angemeldet ist — und das Backend nimmt den Belegpfad aus
+ * der angemeldeten Kasse, nicht aus der Nutzlast.
+ */
+export interface SendReceiptEmailOptions {
+  /** Verschluesselte Volltext-Belegnummer (siehe [generateFullReceiptId]). */
+  fullReceiptId: string;
+  /** Empfaengeradresse, wie der Gast sie am Tresen nennt. */
+  to: string;
+  /**
+   * Sprache der Mail. Heute wertet das Backend genau `'de'` aus; der Parameter
+   * steht im Vertrag, damit eine zweite Sprache spaeter kein neuer Vertrag ist.
+   * Ohne Angabe geht das Feld gar nicht erst hinaus.
+   */
+  sprache?: string;
+}
+
+/** Was der Versand bestaetigt (Backend: beleg-mail-endpoints.js). */
+export interface SendReceiptEmailResult {
+  /** Adresse in der Form, in der das Backend sie protokolliert hat (getrimmt, klein). */
+  to: string;
+  /** Zeitpunkt des Versands, ISO mit Wiener Zonenoffset (`2026-09-11T14:05:00+02:00`). */
+  at: string;
+  /**
+   * Versandweg: `eigen` (Postfach des Betriebs), `plattform` oder
+   * `plattform-fallback`. `null`, wenn die Antwort ihn nicht nennt — das ist
+   * eine Auskunft ueber den Weg, keine ueber den Erfolg, und darf den
+   * bestaetigten Versand nicht zu einem Fehler machen.
+   */
+  via: string | null;
+}
+
+/**
+ * Schickt einen bereits ausgestellten Beleg als **Link auf die oeffentliche
+ * Belegseite** an eine Adresse (Endpunkt `sendReceiptEmail`, Backend
+ * beleg-mail-endpoints.js). Kein PDF im Anhang: die Belegseite fuehrt dasselbe
+ * Zeilenmodell wie Bildschirm und Bon und liefert dort auf Wunsch ein PDF.
+ *
+ * **Der Beleg bleibt unberuehrt** (BAO §131/RKSV): das Versandprotokoll fuehrt
+ * das Backend in einer Unter-Sammlung neben dem Beleg.
+ *
+ * **Am Code entscheiden, nie am Text:** fachliche Fehler kommen als
+ * [KasseneckApiError] mit `code` aus [RECEIPT_EMAIL_ERROR_CODES] heraus —
+ * `adresse_ungueltig`, `beleg_nicht_gefunden` (auch fuer einen Beleg einer
+ * fremden Kasse: das Backend gibt darueber bewusst keine Auskunft), `zu_oft`
+ * (5 Mails je Beleg in 24 Stunden, 30 je Kasse und Stunde) und
+ * `versand_fehlgeschlagen`. Dieses Paket reicht sie unveraendert durch und
+ * legt keine eigenen Codes an.
+ *
+ * **Kein Wiederholen ohne Zutun des Bedieners:** ein zweiter Versuch schickt
+ * eine zweite Mail und zaehlt auf die Schleuse.
+ */
+export async function sendReceiptEmail(
+  rufen: InternerTransport,
+  options: SendReceiptEmailOptions,
+): Promise<SendReceiptEmailResult> {
+  // Getrimmt, weil beides von Hand oder per Scanner ins Feld kommt und ein
+  // angehaengtes Leerzeichen sonst als ungueltige Adresse zurueckkaeme --
+  // nach einem Aufruf, der schon eine Zeile im Protokoll gekostet hat.
+  const fullReceiptId = typeof options.fullReceiptId === 'string' ? options.fullReceiptId.trim() : '';
+  const to = typeof options.to === 'string' ? options.to.trim() : '';
+  if (fullReceiptId === '') {
+    throw new KasseneckValidationError('sendReceiptEmail', 'fullReceiptId fehlt', 'request');
+  }
+  if (to === '') {
+    throw new KasseneckValidationError('sendReceiptEmail', 'to fehlt (Empfaengeradresse)', 'request');
+  }
+  // Die Adresse selbst wird hier NICHT geprueft: das Backend prueft sie mit
+  // kreiseck_validator und antwortet mit `adresse_ungueltig`. Eine zweite,
+  // eigene Regel im Paket koennte strenger sein als die des Backends und eine
+  // gueltige Adresse abweisen, ohne dass jemand die Abweichung bemerkt.
+  const params: Record<string, unknown> = { fullReceiptId, to };
+  if (options.sprache !== undefined && options.sprache !== '') params.sprache = options.sprache;
+
+  const daten = await rufen<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
+  if (typeof daten?.to !== 'string' || daten.to === '') {
+    throw antwortfehler('sendReceiptEmail', 'Antwort nennt keine Empfaengeradresse (data.to fehlt)');
+  }
+  if (typeof daten.at !== 'string' || daten.at === '') {
+    throw antwortfehler('sendReceiptEmail', 'Antwort nennt keinen Zeitpunkt (data.at fehlt)');
+  }
+  return { to: daten.to, at: daten.at, via: typeof daten.via === 'string' && daten.via !== '' ? daten.via : null };
+}
+
 /**
  * Prueft die Gutschein-Kombination eines Belegs und liefert den ersten
  * Regelverstoss als Text (oder `null`) — Zwilling von
