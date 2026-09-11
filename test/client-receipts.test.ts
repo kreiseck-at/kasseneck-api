@@ -341,6 +341,45 @@ test('cancelReceipt ruft den Storno-Endpunkt mit Bezug und Grund und liest Restm
   assert.deepEqual(ergebnis.remaining, [0, 1]);
 });
 
+test('cancelReceipt reicht die Kartendaten der Erstattung durch', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await cancelReceipt(rufen, {
+    cashregisterId: KASSEN_ID,
+    originalReceiptId: 'kasse-1-ID-12',
+    reason: 'kunde_storniert',
+    paymentMethod: KeckPaymentMethod.creditCard,
+    creditCardProvider: CreditCardProvider.hobexHps,
+    cardPaymentId: '178834783507100000',
+    cardPaymentData: { cardNumber: '541333******0021' },
+  });
+  const { params } = gesendet(aufrufe);
+  assert.equal(params.creditCardProvider, 'hobexHps');
+  assert.equal(params.cardPaymentId, '178834783507100000');
+  assert.deepEqual(params.cardPaymentData, { cardNumber: '541333******0021' });
+});
+
+test('cancelReceipt: Kartendaten bei Barerstattung und unbekannter Anbieter gehen gar nicht erst raus', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'kunde_storniert', paymentMethod: KeckPaymentMethod.cash, cardPaymentId: 'x' }),
+    /Kartendaten/,
+  );
+  await assert.rejects(
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'kunde_storniert', creditCardProvider: 'gibtsNicht' as CreditCardProvider }),
+    /Kartenanbieter/,
+  );
+  assert.equal(aufrufe.length, 0);
+});
+
+test('cancelReceipt ohne Kartendaten schickt keine Kartenfelder', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'fehleingabe' });
+  const { params } = gesendet(aufrufe);
+  assert.equal('creditCardProvider' in params, false);
+  assert.equal('cardPaymentId' in params, false);
+  assert.equal('cardPaymentData' in params, false);
+});
+
 test('cancelReceipt nimmt auch den Beleg selbst als Bezug (Kasse und ID daraus)', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   const beleg = fromReceiptPayload({ ...BELEG_NUTZLAST, receiptId: 'kasse-1-ID-12' });
