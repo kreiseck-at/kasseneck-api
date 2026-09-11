@@ -37,7 +37,7 @@ const vertrag = {
   // Keine Messung, sondern die Beschreibung des Herstellers: welche Codes
   // daher stammen, steht je Code in `source`.
   dokumentiert: { quelle: 'Antwortcodeliste von hobex', erhalten: '11.09.2026' },
-  codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source }) => ({
+  codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest }) => ({
     code,
     title,
     meaning,
@@ -45,6 +45,7 @@ const vertrag = {
     effect,
     reason,
     source,
+    rejectsRequest,
   })),
   gruende: HPS_REASON_HINTS,
   terminalBusyHttpStatus: TERMINAL_BUSY_HTTP_STATUS,

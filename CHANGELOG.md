@@ -26,8 +26,16 @@ die Klaerung und endete erst ueber die Zwei-9027-Regel. Zwilling:
   `100007`, `100023`, `100024`, `100026`, `100027`, `100999`. Der Host war
   beteiligt, das Terminal storniert nicht selbst. Die Zwei-9027-Regel greift
   hier **nicht**; die Klaerung endet nach zwei Abfragen ohne Neues als
-  `unresolved`. Bei einer Aufhebung entscheidet ein unveraendertes `'0'` auf
-  die Originalzahlung dann ebenfalls nichts.
+  `unresolved`, nur ein `'0'` entscheidet danach noch, und ein Abbruchversuch
+  entfaellt. Bei einer Aufhebung entscheidet ein unveraendertes `'0'` auf die
+  Originalzahlung dann ebenfalls nichts.
+- **`rejectsRequest` / `isConclusiveAsStatus`:** zehn Codes weisen die Anfrage
+  selbst ab (`9002`, `100001`, `100008`, `100108`, `100009`, `100010`,
+  `100013`, `100018`, `100022`, `100998`). Auf eine Zahlung sind sie deren
+  Ablehnung, auf eine Statusabfrage sagen sie nichts ueber den gesuchten
+  Vorgang (gemessen fuer `100108`). Die Klaerung liest den Status deshalb
+  ueber `isConclusiveAsStatus` -- sonst haette ein gesperrtes Terminal eine
+  verlorene Zahlung als "nicht belastet" ausgewiesen.
 - **`HpsPaymentResult.reason`** traegt fuer jeden Ausgang den Grund, den Satz
   fuer den Bediener gibt `HPS_REASON_HINTS`. Gesetzt, wo entschieden wurde:
   bestaetigter Abbruch `aborted`, HTTP 409 `terminalBusy`, eine ueber die

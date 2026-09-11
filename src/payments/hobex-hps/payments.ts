@@ -14,6 +14,7 @@ import {
   isApproved,
   isCanceled,
   isConclusive,
+  isConclusiveAsStatus,
   isHostUncertain,
   isNoStatement,
   isNotAbortable,
@@ -325,6 +326,14 @@ export function createHpsPayments(
     if (status.responseCode === NOT_FOUND_CODE) {
       return `Status: Vorgang nicht gefunden (${status.responseCode}) -- keine Aussage`;
     }
+    const info = hpsCodeInfo(status.responseCode);
+    if (info?.rejectsRequest) {
+      return `Status: Abfrage abgewiesen (${info.code} "${info.title}") -- keine Aussage ueber den Vorgang`;
+    }
+    if (info?.conclusive && !isApproved(status)) {
+      // Nur erreichbar nach einer Stoerung beim Host, siehe [resolve].
+      return `Status: abgelehnt (${info.code} "${info.title}") -- nach der Stoerung beim hobex-Host entscheidet nur eine Genehmigung`;
+    }
     if (isUnknownCode(status)) {
       return `Status: unbekannter Code (${status.responseCode})${klartext(status)} -- keine Aussage`;
     }
@@ -596,8 +605,15 @@ export function createHpsPayments(
     let stoerungsAntwort = antwort && isHostUncertain(antwort) ? antwort : undefined;
     let letzteAntwort = antwort;
 
-    const aborted = await tryAbort(id, steps, elapsedMs);
-    if (aborted) return aborted;
+    if (stoerungsAntwort === undefined) {
+      const aborted = await tryAbort(id, steps, elapsedMs);
+      if (aborted) return aborted;
+    } else {
+      // Der Vorgang ist am Terminal schon beendet -- mit einer Stoerung beim
+      // Host. Ein quittierter Abbruch bewiese nur, dass am Terminal nichts mehr
+      // laeuft, nicht, dass der Host nichts belastet hat.
+      steps.push('Kein Abbruchversuch -- das Terminal hat den Vorgang mit einer Stoerung beim hobex-Host beendet');
+    }
 
     let wait = 0;
     let transportFailures = 0;
@@ -630,11 +646,18 @@ export function createHpsPayments(
         continue;
       }
 
-      const settled = fromResponse(status, id, steps);
-      if (settled) return settled;
-
       if (isHostUncertain(status)) stoerungsAntwort ??= status;
       const hostUngewiss = stoerungsAntwort !== undefined;
+
+      // Auf die Statusabfrage entscheidet nur ein Code, der den gesuchten
+      // Vorgang beschreibt -- nicht einer, der diese Abfrage abweist
+      // ([isConclusiveAsStatus]). Nach einer Stoerung beim Host entscheidet nur
+      // noch eine Genehmigung: jede andere Aussage des Terminals betrifft seinen
+      // Speicher, nicht den des Hosts.
+      if (hostUngewiss ? isApproved(status) : isConclusiveAsStatus(status)) {
+        const settled = fromResponse(status, id, steps);
+        if (settled) return settled;
+      }
 
       if (isNoStatement(status)) {
         ohneAuskunft += 1;
@@ -646,8 +669,9 @@ export function createHpsPayments(
         ohneAuskunft = 0;
       }
 
-      const ohneNeues = (hostUngewiss && isNoStatement(status)) || isHostUncertain(status);
-      stoerungOhneNeues = ohneNeues ? stoerungOhneNeues + 1 : 0;
+      // Nach einer Stoerung ist jede Antwort ausser '0' (die oben schon
+      // entschieden hat) "nichts Neues".
+      stoerungOhneNeues = hostUngewiss ? stoerungOhneNeues + 1 : 0;
 
       steps.push(statusOhneErgebnis(status) ?? 'Status: noch kein Ergebniscode');
 

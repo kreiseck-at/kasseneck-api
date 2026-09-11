@@ -121,6 +121,7 @@ export {
   isApproved,
   isCanceled,
   isConclusive,
+  isConclusiveAsStatus,
   isInProgress,
   isNoStatement,
   isNotAbortable,

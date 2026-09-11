@@ -29,6 +29,7 @@ const vertrag = JSON.parse(
     effect: string;
     reason: string;
     source: string;
+    rejectsRequest: boolean;
   }[];
   gruende: Record<string, string>;
   terminalBusyHttpStatus: number;
@@ -39,7 +40,7 @@ const veraltet = 'fixtures/hobex-hps-codes.json ist veraltet -- `npm run fixture
 test('Golden: die Codetabelle steht in fixtures/hobex-hps-codes.json', () => {
   assert.deepEqual(
     vertrag.codes,
-    HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source }) => ({
+    HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest }) => ({
       code,
       title,
       meaning,
@@ -47,6 +48,7 @@ test('Golden: die Codetabelle steht in fixtures/hobex-hps-codes.json', () => {
       effect,
       reason,
       source,
+      rejectsRequest,
     })),
     veraltet,
   );
@@ -131,5 +133,16 @@ test('Kein Code doppelt, jeder Grund hat einen Satz', () => {
   assert.equal(new Set(codes).size, codes.length);
   for (const c of HPS_CODES) {
     assert.ok(HPS_REASON_HINTS[c.reason].endsWith('.'), c.reason);
+  }
+});
+
+test('Genau diese Codes weisen die Anfrage selbst ab -- Zwilling: HpsCode.rejectsRequest', () => {
+  const abweisend = HPS_CODES.filter((c) => c.rejectsRequest).map((c) => c.code).sort();
+  assert.deepEqual(
+    abweisend,
+    ['100001', '100008', '100009', '100010', '100013', '100018', '100022', '100108', '100998', '9002'],
+  );
+  for (const c of HPS_CODES.filter((x) => x.rejectsRequest)) {
+    assert.equal(c.conclusive, true, c.code);
   }
 });

@@ -22,6 +22,7 @@ import {
   isApproved,
   isCanceled,
   isConclusive,
+  isConclusiveAsStatus,
   isHostUncertain,
   isNoStatement,
   isNotAbortable,
@@ -1082,6 +1083,55 @@ test('hobex-Liste: 100007 und danach zweimal 9027 -> unresolved, NICHT declined'
   assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2, 'zwei Abfragen genuegen');
 });
 
+test('hobex-Liste: nach einer Host-Stoerung kein Abbruchversuch', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '100007' })],
+      '/v1/terminal/abort': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' })],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '1017' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/abort').length, 0);
+});
+
+test('hobex-Liste: nach einer Host-Stoerung entscheidet nur 0 -- ein 100003 im Status nicht', async () => {
+  const result = await zahlungMit('100007', [okPayment({ responseCode: '100003' })], [])
+    .pay({ amountCents: 2500, transactionId: '1018' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostFault');
+  assert.ok(result.steps.some((s) => s.includes('entscheidet nur eine Genehmigung')));
+});
+
+test('hobex-Liste: Statusabfrage abgewiesen (100022, 100108, 100998, 100001) ist KEINE Ablehnung der Zahlung', async () => {
+  // Gemessen: falsche TID -> 100108 auf die Statusabfrage. Als declined
+  // gelesen hiesse ein gesperrtes Terminal "die verlorene Zahlung ist nicht
+  // belastet".
+  for (const code of ['100022', '100108', '100998', '100001']) {
+    const payments = buildPayments(
+      {
+        '/v1/terminal/payment': ['network-error'],
+        '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
+        '/v1/terminal/status': [okPayment({ responseCode: code })],
+      },
+      [],
+      { resolveBudgetMs: 20_000 },
+    );
+    const result = await payments.pay({ amountCents: 2500, transactionId: '1019' });
+    assert.equal(result.outcome, 'unresolved', code);
+    assert.ok(result.steps.some((s) => s.includes(`Abfrage abgewiesen (${code}`)), code);
+  }
+});
+
+test('hobex-Liste: dieselben Codes auf die ZAHLUNG sind eine Ablehnung', async () => {
+  const result = await zahlungMit('100022', [], []).pay({ amountCents: 2500, transactionId: '1020' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'terminalBlocked');
+});
+
 test('hobex-Liste: 100007, dann meldet der Status 0 -> approved', async () => {
   const result = await zahlungMit(
     '100007',
@@ -1216,4 +1266,11 @@ test('hobex-Liste: Einordnung einzelner Codes', () => {
     assert.equal(hpsCodeReason(code), 'unknown', code);
   }
   assert.equal(hpsCodeReason(undefined), undefined);
+  assert.equal(isConclusive({ responseCode: '100022' }), true);
+  assert.equal(isConclusiveAsStatus({ responseCode: '100022' }), false);
+  assert.equal(isConclusiveAsStatus({ responseCode: '100108' }), false);
+  for (const code of ['0', '55', '100003', '9011']) {
+    assert.equal(isConclusiveAsStatus({ responseCode: code }), true, code);
+  }
+  assert.equal(isConclusiveAsStatus({ responseCode: '9027' }), false);
 });

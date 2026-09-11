@@ -162,6 +162,13 @@ export interface HpsCode extends HpsMeasuredCode {
   readonly effect: HpsCodeEffect;
   readonly reason: HpsCodeReason;
   readonly source: HpsCodeSource;
+  /**
+   * Der Code weist die ANFRAGE selbst ab (TID, Form, Geraetezustand). Auf eine
+   * Zahlung ist das deren Ablehnung; auf eine STATUSABFRAGE heisst es nur, dass
+   * diese Abfrage nicht bedient wurde -- ueber den gesuchten Vorgang sagt es
+   * nichts (gemessen fuer `100108`). Siehe [isConclusiveAsStatus].
+   */
+  readonly rejectsRequest: boolean;
 }
 
 function code(
@@ -171,8 +178,9 @@ function code(
   effect: HpsCodeEffect,
   reason: HpsCodeReason,
   source: HpsCodeSource,
+  rejectsRequest = false,
 ): HpsCode {
-  return { code: c, title, meaning, conclusive: effect === 'conclusive', effect, reason, source };
+  return { code: c, title, meaning, conclusive: effect === 'conclusive', effect, reason, source, rejectsRequest };
 }
 
 /**
@@ -214,6 +222,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'invalidTransaction',
     'measured',
+    true,
   ),
   code(
     '9011',
@@ -278,6 +287,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'notAbortable',
     'measuredAndDocumented',
+    true,
   ),
   code(
     '100019',
@@ -297,6 +307,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalSetup',
     'measured',
+    true,
   ),
   code(
     '55',
@@ -319,6 +330,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'requestRejected',
     'documented',
+    true,
   ),
   code(
     '100004',
@@ -370,6 +382,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalSetup',
     'documented',
+    true,
   ),
   code(
     '100009',
@@ -379,6 +392,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'requestRejected',
     'documented',
+    true,
   ),
   code(
     '100011',
@@ -408,6 +422,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalFault',
     'documented',
+    true,
   ),
   code(
     '100014',
@@ -446,6 +461,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalSetup',
     'documented',
+    true,
   ),
   code(
     '100020',
@@ -473,6 +489,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalBlocked',
     'documented',
+    true,
   ),
   code(
     '100023',
@@ -551,6 +568,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'terminalBusy',
     'documented',
+    true,
   ),
   code(
     '100999',
@@ -843,6 +861,18 @@ export function isCanceled(res: Pick<HpsTransactionResponse, 'responseCode'>): b
  */
 export function isConclusive(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
   return hpsCodeInfo(res.responseCode)?.conclusive ?? false;
+}
+
+/**
+ * Wie [isConclusive], aber fuer die Antwort auf eine STATUSABFRAGE: ein Code,
+ * der die Anfrage selbst abweist (`rejectsRequest`, etwa `100022` "Terminal is
+ * blocked" oder `100108` "Invalid TID"), sagt dort nichts ueber den gesuchten
+ * Vorgang. Als `declined` gelesen, hiesse ein gesperrtes Terminal "die Zahlung
+ * ist nicht belastet".
+ */
+export function isConclusiveAsStatus(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
+  const info = hpsCodeInfo(res.responseCode);
+  return info !== undefined && info.conclusive && !info.rejectsRequest;
 }
 
 /**

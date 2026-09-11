@@ -101,6 +101,7 @@ export {
   INVALID_TRANSACTION_CODE,
   isApproved,
   isConclusive,
+  isConclusiveAsStatus,
   isHostUncertain,
   isHostUncertainResult,
   isInProgress,
