@@ -59,6 +59,7 @@ export const AUFRUFE = [
   'requestCustomerSignature',
   'sendPartnerCustomerFonLink',
   'sendPartnerWebhookTest',
+  'sendReceiptEmail',
   'setMyKasseSettings',
   'setMyRegisterDeviceSettings',
   'stripeCaptureIntent',

@@ -66,6 +66,9 @@ export {
   type ReceiptList,
   type ReceiptListStats,
   checkVoucherCombinationError,
+  type SendReceiptEmailOptions,
+  type SendReceiptEmailResult,
+  sendReceiptEmail,
 } from './receipts.js';
 
 export { listMyCashregisters } from './cashregisters.js';

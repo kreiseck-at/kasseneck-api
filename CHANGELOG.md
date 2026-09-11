@@ -4,6 +4,43 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.13.0
+
+### Beleg per E-Mail an den Gast (`sendReceiptEmail`)
+
+**Anlass:** Der Endpunkt ist im Backend live (keck#361), beide Kassen haben den
+Weg gebaut — hinter einer Schnittstelle, hinter der nichts stand, weil kein
+Paket den Aufruf kannte. Verschickt wird ein **Link auf die öffentliche
+Belegseite**, kein PDF im Anhang: die Belegseite führt dasselbe Zeilenmodell
+wie Bildschirm und Bon, ein mitgeschicktes PDF wäre dieselbe Sache ein zweites
+Mal, nur unveränderlich veraltet. Der Beleg selbst bleibt unberührt (BAO §131 /
+RKSV); das Versandprotokoll führt das Backend neben ihm.
+
+- **`sendReceiptEmail({ fullReceiptId, to, sprache? })`** — auch auf der
+  Fassade `createKasseneckApi`. Antwort: `{ to, at, via }` — Adresse in der
+  protokollierten Form, Zeitpunkt als ISO mit Wiener Zonenoffset, Versandweg
+  (`eigen`, `plattform`, `plattform-fallback`; fehlt er, ist `via` `null` und
+  nicht etwa ein Fehler — er sagt etwas über den Weg, nichts über den Erfolg).
+- **Kein `cashregisterId` in den Optionen.** Die Kasse kommt aus der Anmeldung:
+  beim Gerät über die Kopfzeile `cashregister-token`, beim Kassen-Benutzer über
+  den Parameter, den `registerUserAuth` ohnehin setzt. Eine dritte Stelle wäre
+  nur eine Gelegenheit, eine andere Kasse zu behaupten als die, an der man
+  angemeldet ist — und das Backend nimmt den Belegpfad aus der angemeldeten.
+- **`RECEIPT_EMAIL_ERROR_CODES`**, Typ `ReceiptEmailErrorCode` und der Wächter
+  `isReceiptEmailErrorCode`: `adresse_ungueltig`, `beleg_nicht_gefunden`
+  (auch für einen Beleg einer fremden Kasse — das Backend gibt darüber bewusst
+  keine Auskunft), `zu_oft` (5 Mails je Beleg in 24 Stunden, 30 je Kasse und
+  Stunde) und `versand_fehlgeschlagen`. Die Codes kommen unverändert als
+  `KasseneckApiError.code` heraus; das Paket legt keine eigenen an. **Am Code
+  entscheiden, nie am deutschen Text.**
+- Die Adresse prüft das Paket **nicht** selbst — nur leer/fehlend wird vor dem
+  Senden abgewiesen (`fullReceiptId`, `to`; beides getrimmt, weil es von Hand
+  ins Feld kommt). Eine zweite, eigene Adressregel könnte strenger sein als die
+  des Backends und eine gültige Adresse abweisen, ohne dass es auffällt.
+- `sendReceiptEmail` steht in `AUFRUFE` und damit in
+  `fixtures/oberflaeche.json` — der Zwilling `kasseneck_api` (Dart) prüft
+  dagegen.
+
 ## 0.12.0
 
 ### Storno mit Kartendaten der Erstattung
