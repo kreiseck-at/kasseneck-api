@@ -1,5 +1,12 @@
 import type { ReceiptLayout } from './layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
+import {
+  QR_DRUCK_PUNKTE,
+  QR_MINDEST_PUNKTE,
+  QR_MODUL_DECKEL,
+  qrGroesseFuer,
+  type QrModulGroesse,
+} from '../printing/index.js';
 import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
 
 /**
@@ -16,10 +23,35 @@ import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
 export interface EposPrintXmlOptions {
   /** Zeichen je Zeile; Vorgabe nach `layout.paperSize` (32/48). */
   zeichen?: number;
-  /** QR-Modulgroesse (Epson `width` 3..16), Vorgabe 6. */
+  /**
+   * **Feste** QR-Modulgroesse (Epson `width` 3..16). Gesetzt schaltet sie die
+   * Rechnung ab -- dann passt der Aufrufer selbst auf, dass das Symbol samt
+   * Ruhezone auf die Rolle geht.
+   */
   qrBreite?: number;
+  /**
+   * Deckel fuer die gerechnete QR-Modulgroesse; Vorgabe `mittel`.
+   *
+   * Warum `mittel` und nicht `auto`: `auto` deckelt beim Bestandswert des
+   * **ESC/POS**-Befehls dieses Pakets (4), dieser Weg druckt aber seit jeher
+   * mit 6. Die Vorgabe nennt den Bestandswert dieses Wegs also ausdruecklich,
+   * damit ohne Wahl kein Byte anders herauskommt.
+   */
+  qrGroesse?: QrModulGroesse;
   /** Papierschnitt am Ende, Vorgabe true. */
   cut?: boolean;
+}
+
+/**
+ * Das XML **samt** dem, was dem QR unterwegs zugestossen ist -- dieselbe
+ * Buchfuehrung wie `EscPosLayoutErgebnis` am ESC/POS-Weg.
+ */
+export interface EposPrintErgebnis {
+  xml: string;
+  /** Der Beleg ging ohne QR hinaus; das Symbol passt auch mit 3 Punkten nicht. */
+  qrFehler: string | null;
+  /** Der QR steht da, aber unter der Mindest-Modulgroesse. */
+  qrAusweich: string | null;
 }
 
 export function eposXmlEscape(text: string): string {
@@ -28,9 +60,63 @@ export function eposXmlEscape(text: string): string {
 
 const NS = 'http://www.epson-pos.com/schemas/2011/03/epos-print';
 
+/** Nur das XML; wer die QR-Meldungen braucht, nimmt [eposPrintXmlErgebnis]. */
 export function eposPrintXml(layout: ReceiptLayout, options: EposPrintXmlOptions = {}): string {
+  return eposPrintXmlErgebnis(layout, options).xml;
+}
+
+/**
+ * Wie [eposPrintXml], gibt aber zusaetzlich zurueck, was dem QR zugestossen
+ * ist.
+ *
+ * **Die QR-Modulgroesse wird gerechnet.** Vorher stand hier fest 6, unabhaengig
+ * von der Papierbreite: ein Beleg-QR mit realer RKSV-Nutzlast hat 57 Module,
+ * mit Ruhezone 65, bei sechs Punkten also 390 Druckpunkte -- und ein
+ * 58-mm-Kopf hat 384. Der Epson schneidet ein zu breites Symbol nicht ab, er
+ * laesst es weg; genau daran fehlte am echten Beleg der QR.
+ */
+export function eposPrintXmlErgebnis(
+  layout: ReceiptLayout,
+  options: EposPrintXmlOptions = {},
+): EposPrintErgebnis {
   const grid = renderReceiptGrid(layout, { zeichen: options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize] });
-  const qrBreite = Math.min(16, Math.max(3, Math.floor(options.qrBreite ?? 6)));
+  const deckel = options.qrGroesse ?? 'mittel';
+  const fest = options.qrBreite === undefined
+    ? null
+    : Math.min(16, Math.max(3, Math.floor(options.qrBreite)));
+  let qrFehler: string | null = null;
+  let qrAusweich: string | null = null;
+
+  /**
+   * Die Breite fuer eine QR-Zeile, oder `null` -- dann geht **kein** Symbol
+   * hinaus: ein Element, von dem man weiss, dass der Drucker es weglaesst,
+   * taeuscht nur einen Ausdruck vor.
+   *
+   * Eine leere Nutzlast geht unveraendert den Bestandsweg (Deckel), wie am
+   * ESC/POS-Befehl: sie ist ein Datenfehler, kein Papierfehler.
+   */
+  const qrBreiteFuer = (nutzlast: string): number | null => {
+    if (fest !== null) return fest;
+    if (nutzlast === '') return QR_MODUL_DECKEL[deckel];
+    const mass = qrGroesseFuer({
+      nutzlast,
+      papierbreitePunkte: QR_DRUCK_PUNKTE[layout.paperSize],
+      groesse: deckel,
+    });
+    if (!mass.passt) {
+      qrFehler =
+        `QR mit ${mass.module} Modulen ist fuer ${layout.paperSize === 'mm58' ? 58 : 80} mm ` +
+        `(${QR_DRUCK_PUNKTE[layout.paperSize]} Punkte) zu breit`;
+      return null;
+    }
+    if (mass.unterMindestmass) {
+      qrAusweich =
+        `QR mit ${mass.module} Modulen passt nur mit ${String(mass.punkte)} Punkten ` +
+        `je Modul -- unter dem Mindestmass von ${QR_MINDEST_PUNKTE}`;
+    }
+    return mass.punkte;
+  };
+
   const out: string[] = [];
   out.push(`<epos-print xmlns="${NS}">`);
   out.push('<text lang="de"/>');
@@ -42,11 +128,14 @@ export function eposPrintXml(layout: ReceiptLayout, options: EposPrintXmlOptions
       case 'space':
         out.push('<feed line="1"/>');
         break;
-      case 'qr':
+      case 'qr': {
+        const breite = qrBreiteFuer(z.qr ?? '');
+        if (breite === null) break;
         out.push('<text align="center"/>');
-        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${qrBreite}" height="0" size="0">${eposXmlEscape(z.qr ?? '')}</symbol>`);
+        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${breite}" height="0" size="0">${eposXmlEscape(z.qr ?? '')}</symbol>`);
         out.push('<text align="left"/>');
         break;
+      }
       case 'banner':
         out.push(`<text width="1" height="2" reverse="${z.ton === 'warnung' ? 'true' : 'false'}" em="true">${eposXmlEscape(z.text)}&#10;</text>`);
         out.push('<text width="1" height="1" reverse="false" em="false"/>');
@@ -63,7 +152,7 @@ export function eposPrintXml(layout: ReceiptLayout, options: EposPrintXmlOptions
     out.push('<cut type="feed"/>');
   }
   out.push('</epos-print>');
-  return out.join('\n');
+  return { xml: out.join('\n'), qrFehler, qrAusweich };
 }
 
 // ---------------------------------------------------------- ePOS direkt per IP
@@ -83,6 +172,10 @@ export interface EposDirectOptions {
   devid?: string;
   /** Papier des Druckers -- bestimmt das Raster; Vorgabe: das des Layouts. */
   papier?: PosPaperSize;
+  /** Feste QR-Modulgroesse; siehe [EposPrintXmlOptions.qrBreite]. */
+  qrBreite?: number;
+  /** Deckel fuer die gerechnete QR-Modulgroesse; siehe [EposPrintXmlOptions.qrGroesse]. */
+  qrGroesse?: QrModulGroesse;
   timeoutMs?: number;
 }
 
@@ -204,7 +297,10 @@ async function eposDirectSend(innerXml: string, o: EposDirectOptions, fetchFn: t
 /** Beleg direkt drucken; wirft bei Netz-/Zertifikatsproblemen, sonst die Drucker-Antwort. */
 export function eposDirectPrint(layout: ReceiptLayout, o: EposDirectOptions, fetchFn: typeof fetch = fetch): Promise<EposResponse> {
   const papier = o.papier ?? layout.paperSize;
-  return eposDirectSend(eposPrintXml({ ...layout, paperSize: papier }, { zeichen: ZEICHEN_JE_PAPIER[papier] }), o, fetchFn);
+  const xmlOptionen: EposPrintXmlOptions = { zeichen: ZEICHEN_JE_PAPIER[papier] };
+  if (o.qrBreite !== undefined) xmlOptionen.qrBreite = o.qrBreite;
+  if (o.qrGroesse !== undefined) xmlOptionen.qrGroesse = o.qrGroesse;
+  return eposDirectSend(eposPrintXml({ ...layout, paperSize: papier }, xmlOptionen), o, fetchFn);
 }
 
 /** Verbindungstest: leeres Dokument, druckt nichts, liefert den Druckerstatus. */

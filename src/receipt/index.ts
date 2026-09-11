@@ -24,7 +24,13 @@ export {
   formatCents,
 } from './layout.js';
 
-export { type EscPosLayoutOptions, escPosLayoutBytes } from './layout-escpos.js';
+export {
+  type EscPosLayoutOptions,
+  type EscPosLayoutErgebnis,
+  type QrPrintMode,
+  escPosLayoutBytes,
+  escPosLayoutErgebnis,
+} from './layout-escpos.js';
 export {
   type GridLine,
   type GridLineKind,
@@ -35,4 +41,4 @@ export {
   gridAlsText,
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
-export { type EposPrintXmlOptions, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';

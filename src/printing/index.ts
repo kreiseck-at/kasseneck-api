@@ -7,12 +7,14 @@ export {
   type PosTextSize,
   type QrSize,
   type QrCorrection,
+  type QrMatrix,
   type PosStyles,
   type PosColumn,
   type EscPosOptions,
   type EscPosTextOptions,
   type EscPosHrOptions,
   type EscPosQrOptions,
+  type EscPosQrRasterOptions,
   type EscPosDocument,
   createEscPosDocument,
   escPosBytes,
@@ -27,12 +29,28 @@ export {
   escPosHr,
   escPosRow,
   escPosQrCode,
+  escPosQrRaster,
+  qrRasterPunkte,
   encodeEscPosText,
   qrCodeBytes,
   escPosMaxCharsPerLine,
   escPosWortzeilen,
   wortzeilenText,
 } from './escpos.js';
+
+export {
+  type QrModulGroesse,
+  type QrGroesse,
+  QR_MODUL_DECKEL,
+  QR_RUHEZONE_MODULE,
+  QR_MINDEST_PUNKTE,
+  QR_AUSNAHME_PUNKTE,
+  QR_HOECHST_PUNKTE,
+  QR_DRUCK_PUNKTE,
+  qrModulAnzahl,
+  qrGroesseBerechnen,
+  qrGroesseFuer,
+} from './qr-groesse.js';
 
 export { escPosPrintableText } from './printable.js';
 export {
