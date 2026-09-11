@@ -344,6 +344,43 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 
 So zieht sich niemand den React-Adapter in ein Node-Programm.
 
+## Der QR-Code passt aufs Papier
+
+Der native QR-Befehl bekommt eine Modulgröße in Druckpunkten mit und rechnet
+selbst nicht nach, ob das Symbol samt Ruhezone auf die Rolle geht. Zu breit
+heißt bei den meisten Bondruckern nicht „abgeschnitten", sondern **gar kein
+QR** — auf einem Pflichtbeleg der schlechteste aller Ausgänge. Deshalb rechnet
+dieses Paket die Größe, statt sie zu setzen:
+
+```ts
+import { qrGroesseFuer, QR_DRUCK_PUNKTE } from '@kreiseck/kasseneck-api/printing';
+
+const mass = qrGroesseFuer({ nutzlast: beleg.qr, papierbreitePunkte: QR_DRUCK_PUNKTE.mm58 });
+// mass.punkte: Punkte je Modul, null = passt auch mit der Ausnahmegröße nicht
+// mass.unterMindestmass: gedruckt, aber unter 4 Punkten je Modul
+```
+
+Am Belegweg passiert das von selbst. `qrGroesse` ist ein **Deckel**, keine
+Vorgabe: gedruckt wird die größte Größe, die noch passt, höchstens aber der
+Deckel. `auto` (Vorgabe) deckelt beim Bestandswert 4 — ohne ausdrückliche Wahl
+ändert sich also kein Byte.
+
+```ts
+import { escPosLayoutErgebnis } from '@kreiseck/kasseneck-api/receipt';
+
+const { bytes, qrFehler, qrAusweich } = escPosLayoutErgebnis(layout, {
+  qrGroesse: 'gross',        // 'auto' | 'klein' | 'mittel' | 'gross'
+  qrModus: 'nativeModel1',   // ältere Drucker, die nur Modell 1 können
+  qrMatrix: rasterFuer,      // Notausgang: der QR als Bild statt gar nicht
+});
+```
+
+`qrFehler` heißt „Beleg ohne QR" — das gehört dem Kunden gesagt. `qrAusweich`
+heißt „gedruckt, aber der eingestellte Weg taugt für dieses Gerät nicht" — das
+gehört dem Chef gesagt. Den Bildweg fährt das Paket nur mit einem `qrMatrix`,
+das die Nutzlast in ein fertiges Raster übersetzt: hier wird bewusst weder ein
+QR gerechnet noch ein Bild verarbeitet.
+
 ## Hobex HPS über Kasseneck Connect
 
 Ein Browser hat weiterhin keine rohen TCP-Sockets — ein **direkter**

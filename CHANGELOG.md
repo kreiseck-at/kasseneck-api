@@ -4,6 +4,66 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.11.0
+
+### Die QR-Modulgröße wird gerechnet, nicht gesetzt — samt Notausgang und Modell 1
+
+**Anlass:** Am echten Beleg fehlte der QR-Code, die Probe im Drucker-Wizard
+druckte ihn. Der native QR-Befehl bekommt eine Modulgröße in Druckpunkten mit
+und rechnet nicht nach, ob das Symbol samt Ruhezone auf die Rolle geht. Ein
+Beleg-QR mit realer RKSV-Nutzlast hat 57 Module, mit Ruhezone also 65; bei
+sechs Punkten je Modul sind das 390 Druckpunkte, und ein 58-mm-Kopf hat 384.
+Zu breit heißt bei den meisten Geräten nicht „abgeschnitten", sondern **gar
+kein QR**. Der Befund stammt aus dem Flutter-Zwilling `kasseneck_api` (dort
+6.9.0), der fest mit sechs Punkten druckte; dieses Paket druckt seit jeher mit
+vier und war davon nicht betroffen. Die Regel ist trotzdem dieselbe — sie
+deckelt auch eine bewusst gewählte größere Modulgröße gegen den Papierrand ab.
+
+- **Neu `…/printing`: die Rechenregel, rein und ohne Drucker.**
+  `qrModulAnzahl(nutzlast)` gibt die Modulanzahl bei Fehlerkorrektur **M**
+  (konservativ: der native Befehl druckt mit L, das braucht nie mehr Module);
+  `qrGroesseBerechnen({ papierbreitePunkte, moduleAnzahl, groesse })` und
+  `qrGroesseFuer({ nutzlast, papierbreitePunkte, groesse })` geben ein
+  `QrGroesse` mit `punkte` (`null` = passt nicht), `module`, `breitePunkte`,
+  `unterMindestmass` und `passt`. Dazu `QrModulGroesse`, `QR_MODUL_DECKEL`,
+  `QR_RUHEZONE_MODULE` (4), `QR_MINDEST_PUNKTE` (4), `QR_AUSNAHME_PUNKTE` (3),
+  `QR_HOECHST_PUNKTE` (8) und `QR_DRUCK_PUNKTE` (58 mm = 384, 80 mm = 576 —
+  die echte Kopfbreite, nicht die Spaltenbreite 372/558).
+- **`escPosQrCode` rechnet, wenn keine feste `size` mitkommt.** `groesse` ist
+  ein **Deckel**, keine Vorgabe: gedruckt wird die größte Größe, die noch
+  passt, höchstens aber der Deckel. `auto` deckelt beim Bestandswert dieses
+  Pakets (4), `klein` 4, `mittel` 6, `gross` 8. **Ohne ausdrückliche Wahl
+  ändert sich kein Byte** — nur dort, wo heute gar nichts herauskommt, rechnet
+  die Regel herunter. (Im Flutter-Zwilling deckelt `auto` bei 6, weil dort 6
+  der Bestandswert ist; die Regel ist dieselbe, der Bestand nicht.)
+- **`EscPosDocument.qrFehler` / `.qrAusweich`.** `qrFehler` heißt „Beleg ohne
+  QR" — das Symbol passt auch mit der Ausnahmegröße nicht, und ein Befehl, von
+  dem man weiß, dass er nichts druckt, täuscht nur einen Ausdruck vor.
+  `qrAusweich` heißt „gedruckt, aber nicht auf dem eingestellten Weg" — unter
+  der Mindestgröße oder als Bild. Das eine gehört dem Kunden gesagt, das
+  andere dem Chef. `escPosReset` räumt beide weg.
+- **Neu `…/receipt`: `escPosLayoutErgebnis`** gibt `{ bytes, qrFehler,
+  qrAusweich }`; `escPosLayoutBytes` bleibt unverändert und gibt weiter nur
+  die Bytes. Neue Optionen `qrGroesse`, `qrModus` (`QrPrintMode`) und
+  `qrMatrix`.
+- **Der Notausgang.** Passt das Symbol nativ nicht aufs Papier und ist ein
+  `qrMatrix` mitgegeben, geht der QR als Rasterbild hinaus (`GS v 0`) statt
+  gar nicht — ein Pflichtbeleg ohne QR ist der schlechteste aller Ausgänge.
+  Das Raster kommt vom Aufrufer: dieses Paket rechnet keine QR-Codes und
+  verarbeitet keine Bilder. Dafür neu `escPosQrRaster`, `qrRasterPunkte` und
+  der Typ `QrMatrix`.
+- **Modell 1.** `qrCodeBytes(..., { modell1: true })` bzw. `qrModus:
+  'nativeModel1'` stellt den Wahlbefehl `GS ( k 04 00 31 41 31 00` voran. Für
+  günstige Drucker, die nur diesen älteren Symboltyp beherrschen; belegt ist
+  eines, das bei Modell 2 unter dem Code eine „0" ausgibt — das Parameterbyte
+  `0x30` des Druckbefehls, das es nicht als Befehl erkennt. Ohne ausdrückliche
+  Wahl geht **gar kein** Modellbefehl hinaus, wie bisher.
+- **Bestandsschutz als Golden-Test.** Zwei feste SHA-256 über den gesamten
+  Bytestrom eines Belegs (58 und 80 mm) halten fest, dass sich ohne Wahl kein
+  Byte ändert. Dazu prüft `test/paket-inhalt.test.ts`, dass die Dateiliste des
+  Pakets eine Positivliste bleibt und im mitgelieferten `fixtures/` nichts
+  Örtliches liegt.
+
 ## 0.10.0
 
 ### Die Antwortcodeliste von hobex — jeder Code eingeordnet, jeder Ausgang mit Grund

@@ -5,6 +5,7 @@ import {
   escPosFeed,
   escPosPrintableText,
   escPosQrCode,
+  escPosQrRaster,
   escPosReset,
   escPosText,
   type EscPosOptions,
@@ -13,7 +14,11 @@ import {
   type PosCutMode,
   type PosPaperSize,
   type QrCorrection,
+  type QrMatrix,
+  type QrModulGroesse,
   type QrSize,
+  QR_DRUCK_PUNKTE,
+  qrGroesseFuer,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
 import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
@@ -33,6 +38,21 @@ import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
  * verfaelscht werden.
  */
 
+/**
+ * Wie der Beleg-QR auf das Papier kommt — Zwilling von `QrPrintMode`
+ * (kasseneck_api/lib/enums/qr_print_mode.dart).
+ *
+ * - `native`      — der Druckbefehl `GS ( k`; der Drucker zeichnet selbst.
+ *                   Ohne Modellbefehl, also byteidentisch zum Bestand.
+ * - `nativeModel1` — derselbe Befehl mit ausdruecklicher Wahl von **Modell 1**
+ *                   (`GS ( k 04 00 31 41 31 00`). Fuer guenstige Geraete, die
+ *                   nur diesen aelteren Symboltyp beherrschen; belegt ist
+ *                   eines, das bei Modell 2 unter dem Code eine "0" ausgibt.
+ * - `imageRaster` — der QR als Rasterbild. Braucht ein Raster vom Aufrufer
+ *                   (`qrMatrix`), weil dieses Paket keine QR-Codes rechnet.
+ */
+export type QrPrintMode = 'native' | 'nativeModel1' | 'imageRaster';
+
 export interface EscPosLayoutOptions {
   /** Papierbreite; Vorgabe ist die des Layouts (dessen Spaltenbreiten daran haengen). */
   paperSize?: PosPaperSize;
@@ -40,10 +60,39 @@ export interface EscPosLayoutOptions {
   codeTable?: PosCodeTable | null;
   /** Papierschnitt am Ende: `true` (voll), `'partial'` oder `false`. Vorgabe `true`. */
   cut?: boolean | PosCutMode;
-  /** Modulgroesse des QR-Codes. */
+  /**
+   * Feste Modulgroesse des QR-Codes. Gesetzt schaltet sie die Rechnung ab —
+   * dann passt der Aufrufer selbst auf, dass das Symbol aufs Papier geht.
+   */
   qrSize?: QrSize;
   /** Fehlerkorrekturstufe des QR-Codes. */
   qrCorrection?: QrCorrection;
+  /** Deckel fuer die gerechnete Modulgroesse; Vorgabe `auto`. */
+  qrGroesse?: QrModulGroesse;
+  /** Druckweg des QR; Vorgabe `native` (der Bestandsweg). */
+  qrModus?: QrPrintMode;
+  /**
+   * Raster fuer den Bildweg — ohne das gibt es keinen Notausgang.
+   *
+   * Dieses Paket rechnet keine QR-Codes und verarbeitet keine Bilder (siehe
+   * Kopf von `layout.ts`); der Aufrufer bringt das fertige Raster mit, etwa
+   * aus der QR-Bibliothek, die er ohnehin fuer den Bildschirm benutzt.
+   */
+  qrMatrix?: (nutzlast: string) => QrMatrix;
+}
+
+/**
+ * Der Bytestrom **samt** dem, was dem QR unterwegs zugestossen ist.
+ *
+ * Zwilling von `KeckPrintResult`: `qrFehler` heisst "Beleg ohne QR,
+ * nachdrucken oder elektronisch ausgeben", `qrAusweich` heisst "gedruckt,
+ * aber der eingestellte Weg taugt fuer dieses Geraet nicht" — das eine gehoert
+ * dem Kunden gesagt, das andere dem Chef.
+ */
+export interface EscPosLayoutErgebnis {
+  bytes: Uint8Array;
+  qrFehler: string | null;
+  qrAusweich: string | null;
 }
 
 /**
@@ -73,6 +122,18 @@ function druckbaresLayout(layout: ReceiptLayout): ReceiptLayout {
  * zeigt, druckt der Drucker (Monospace, Font A: 32/48 Zeichen).
  */
 export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOptions = {}): Uint8Array {
+  return escPosLayoutErgebnis(layout, options).bytes;
+}
+
+/**
+ * Wie [escPosLayoutBytes], gibt aber zusaetzlich zurueck, was dem QR
+ * zugestossen ist. Die Bytes sind dieselben; wer die Meldungen braucht, nimmt
+ * diesen Weg.
+ */
+export function escPosLayoutErgebnis(
+  layout: ReceiptLayout,
+  options: EscPosLayoutOptions = {},
+): EscPosLayoutErgebnis {
   const paperSize = options.paperSize ?? layout.paperSize;
   const dokumentOptionen: EscPosOptions = { paperSize };
   if (options.codeTable !== undefined) {
@@ -81,9 +142,55 @@ export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOp
   const doc = createEscPosDocument(dokumentOptionen);
   escPosReset(doc);
 
+  const modus: QrPrintMode = options.qrModus ?? 'native';
   const qrOptionen: EscPosQrOptions = { align: 'center' };
   if (options.qrSize !== undefined) qrOptionen.size = options.qrSize;
   if (options.qrCorrection !== undefined) qrOptionen.correction = options.qrCorrection;
+  if (options.qrGroesse !== undefined) qrOptionen.groesse = options.qrGroesse;
+  if (modus === 'nativeModel1') qrOptionen.modell1 = true;
+  if (modus === 'imageRaster' && options.qrMatrix === undefined) {
+    throw new Error("qrModus 'imageRaster' braucht ein qrMatrix -- dieses Paket rastert nicht selbst");
+  }
+  const rasterOptionen: Parameters<typeof escPosQrRaster>[2] = { align: 'center' };
+  if (options.qrGroesse !== undefined) rasterOptionen.groesse = options.qrGroesse;
+
+  /**
+   * Eine QR-Zeile des Rasters. Hier sitzt der **Notausgang**: passt das Symbol
+   * nativ auch mit der Ausnahmegroesse nicht aufs Papier, druckt der Drucker
+   * es GAR NICHT -- er schneidet nicht ab, er laesst weg. Ein Pflichtbeleg
+   * ohne QR ist der schlechteste aller Ausgaenge, also geht der QR dann als
+   * Bild hinaus, und der Aufrufer erfaehrt es ueber `qrAusweich`.
+   *
+   * Ohne `qrMatrix` gibt es diesen Weg nicht -- dann bleibt nur die Meldung
+   * `qrFehler` aus `escPosQrCode`, und der Beleg geht ohne QR hinaus.
+   */
+  const qrZeile = (nutzlast: string): void => {
+    const raster = options.qrMatrix;
+    if (nutzlast !== '' && raster !== undefined) {
+      if (modus === 'imageRaster') {
+        escPosQrRaster(doc, raster(nutzlast), rasterOptionen);
+        return;
+      }
+      // Feste `qrSize` heisst: der Aufrufer weiss, was er tut -- dann wird
+      // weder gerechnet noch ausgewichen.
+      if (options.qrSize === undefined) {
+        const mass = qrGroesseFuer({
+          nutzlast,
+          papierbreitePunkte: QR_DRUCK_PUNKTE[paperSize],
+          groesse: options.qrGroesse ?? 'auto',
+        });
+        if (!mass.passt) {
+          doc.qrAusweich =
+            `QR mit ${mass.module} Modulen passt nativ nicht auf ` +
+            `${paperSize === 'mm58' ? 58 : 80} mm (${QR_DRUCK_PUNKTE[paperSize]} Punkte) ` +
+            `-- als Bild gedruckt`;
+          escPosQrRaster(doc, raster(nutzlast), rasterOptionen);
+          return;
+        }
+      }
+    }
+    escPosQrCode(doc, nutzlast, qrOptionen);
+  };
 
   const grid = renderReceiptGrid(druckbaresLayout(layout), { zeichen: ZEICHEN_JE_PAPIER[paperSize] });
   for (const zeile of grid.lines) {
@@ -92,7 +199,7 @@ export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOp
         escPosFeed(doc, 1);
         break;
       case 'qr':
-        escPosQrCode(doc, zeile.qr ?? '', qrOptionen);
+        qrZeile(zeile.qr ?? '');
         break;
       case 'banner': {
         // Belegart/Warnung: fett zwischen zwei Volllinien — derselbe Rahmen-
@@ -113,5 +220,5 @@ export function escPosLayoutBytes(layout: ReceiptLayout, options: EscPosLayoutOp
   if (options.cut !== false) {
     escPosCut(doc, options.cut === 'partial' ? 'partial' : 'full');
   }
-  return escPosBytes(doc);
+  return { bytes: escPosBytes(doc), qrFehler: doc.qrFehler, qrAusweich: doc.qrAusweich };
 }

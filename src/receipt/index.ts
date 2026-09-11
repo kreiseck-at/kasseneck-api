@@ -24,7 +24,13 @@ export {
   formatCents,
 } from './layout.js';
 
-export { type EscPosLayoutOptions, escPosLayoutBytes } from './layout-escpos.js';
+export {
+  type EscPosLayoutOptions,
+  type EscPosLayoutErgebnis,
+  type QrPrintMode,
+  escPosLayoutBytes,
+  escPosLayoutErgebnis,
+} from './layout-escpos.js';
 export {
   type GridLine,
   type GridLineKind,
