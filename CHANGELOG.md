@@ -4,6 +4,26 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.12.0
+
+### Storno mit Kartendaten der Erstattung
+
+**Anlass:** sastre zieht vom alten Storno-Weg (`createCancelReceipt`, ohne
+Bezug) auf `cancelReceipt` um. Bei einer Kartenerstattung haengt sastre heute
+die Terminaldaten der Gutschrift/Aufhebung an den Stornobeleg -- ueber den
+neuen Endpunkt ging das bisher nicht, der Kartenblock fiele vom Storno-Bon.
+Backend: keck#371.
+
+- **`cancelReceipt` nimmt `creditCardProvider`, `cardPaymentId` und
+  `cardPaymentData` an** -- die Daten der ERSTATTUNG, nie der Originalzahlung.
+  Nur bei Rueckzahlweg Karte: ein ausdruecklich anderer `paymentMethod` wird
+  schon hier abgewiesen, ohne Angabe entscheidet das Backend an der
+  Zahlungsart des Originals. Ein unbekannter Kartenanbieter geht gar nicht erst
+  raus.
+- Ohne Kartendaten aendert sich nichts.
+- `package-lock.json` traegt wieder die Paketversion (stand seit 0.11.0 auf
+  0.10.0).
+
 ## 0.11.0
 
 ### Die QR-Modulgröße wird gerechnet, nicht gesetzt — samt Notausgang und Modell 1

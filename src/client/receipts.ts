@@ -157,6 +157,14 @@ export type CancelReceiptOptions = {
   note?: string;
   /** Rueckzahlweg; ohne Angabe die Zahlungsart des stornierten Belegs. */
   paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
+  /**
+   * Kartendaten der ERSTATTUNG (Gutschrift oder Aufhebung am Terminal) fuer
+   * den Kartenblock am Storno-Bon -- nur bei Rueckzahlweg Karte. Beschreiben
+   * nie die Originalzahlung; das Backend uebernimmt sie nicht vom Original.
+   */
+  creditCardProvider?: CreditCardProvider;
+  cardPaymentId?: string;
+  cardPaymentData?: Record<string, unknown>;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -351,6 +359,22 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (options.paymentMethod != null) params.paymentMethod = gepruefteZahlungsart(options.paymentMethod);
+  const karte = options.creditCardProvider != null || options.cardPaymentId != null || options.cardPaymentData != null;
+  if (karte) {
+    // Ohne paymentMethod entscheidet das Backend an der Zahlungsart des
+    // Originals; ein ausdruecklich anderer Rueckzahlweg ist hier schon falsch.
+    if (params.paymentMethod != null && params.paymentMethod !== KeckPaymentMethod.creditCard.value) {
+      throw new KasseneckValidationError('cancelReceipt', 'Kartendaten gibt es nur bei paymentMethod creditCard', 'request');
+    }
+    if (options.creditCardProvider != null) {
+      if (!Object.prototype.hasOwnProperty.call(CreditCardProvider, options.creditCardProvider)) {
+        throw new KasseneckValidationError('cancelReceipt', `Kartenanbieter: unbekannter Schluessel "${options.creditCardProvider}"`, 'request');
+      }
+      params.creditCardProvider = options.creditCardProvider;
+    }
+    if (options.cardPaymentId != null && options.cardPaymentId !== '') params.cardPaymentId = options.cardPaymentId;
+    if (options.cardPaymentData != null) params.cardPaymentData = options.cardPaymentData;
+  }
 
   const daten = await rufen('cancelReceipt', params);
   const receipt = belegAusHuelle(daten, 'cancelReceipt');
