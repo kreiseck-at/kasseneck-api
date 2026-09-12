@@ -43,7 +43,7 @@
  * });
  * ```
  *
- * Mit `sitzung.customToken` meldet sich der Verbraucher bei Firebase an; das
+ * Mit `sitzung.customToken` meldet sich der Verbraucher beim Anmeldedienst an; das
  * daraus entstehende ID-Token und `sitzung.sessionId` ergeben zusammen
  * `registerUserAuth` — ab da laeuft alles Weitere ueber den ueblichen Weg.
  */

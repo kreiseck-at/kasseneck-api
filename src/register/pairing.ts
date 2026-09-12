@@ -291,9 +291,9 @@ export interface RegisterUser {
 /** Ergebnis der PIN-Anmeldung. */
 export interface RegisterUserSession {
   /**
-   * Firebase-Custom-Token. Damit meldet der Verbraucher sich bei Firebase an
+   * Custom-Token des Anmeldediensts. Damit meldet der Verbraucher sich dort an
    * und bekommt das ID-Token, das `registerUserAuth` braucht; dieses Paket
-   * kennt Firebase nicht.
+   * kennt den Anmeldedienst nicht.
    */
   customToken: string;
   /** Laufende Sitzung — Kopfzeile `register-session` jedes weiteren Aufrufs. */

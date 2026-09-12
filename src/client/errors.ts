@@ -30,7 +30,7 @@
  *   Sonderfall.
  *
  * **Geheimnisse gehoeren in keinen dieser Fehler.** Fehlermeldungen landen in
- * Protokollen und Fehlerdiensten; weder `api_key`, Kassen-Token, Firebase-
+ * Protokollen und Fehlerdiensten; weder `api_key`, Kassen-Token, ID-
  * ID-Token noch Sitzungsbezeichner duerfen dorthin. Deshalb tragen die Fehler
  * ausschliesslich Funktionsname, HTTP-Status/Inhaltstyp, den vom Paket
  * formulierten Grund und die vom Backend formulierte Meldung — nie Kopfzeilen,
@@ -63,7 +63,7 @@ export interface CauseDigest {
 
 // Bezeichner-artig: Buchstabe vorn, danach nur Bezeichnerzeichen, hoechstens
 // 64 Zeichen. Das laesst `TypeError`, `ECONNREFUSED` und `auth/internal-error`
-// durch, aber keinen Freitext und kein Firebase-ID-Token (~900 Zeichen).
+// durch, aber keinen Freitext und kein ID-Token (~900 Zeichen).
 const BEZEICHNER = /^[A-Za-z][A-Za-z0-9_./-]{0,63}$/;
 
 /**

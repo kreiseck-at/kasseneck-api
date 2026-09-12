@@ -36,7 +36,7 @@ export interface ReceiptCompany {
   logoUrl?: string;
   /** Dankestext am Belegende, je Zeile ein Eintrag. */
   thanksMessage: string[];
-  /** Kreiseck-Branding am Belegende (Firestore-Flag `branding.kreiseck_logo`). */
+  /** Kreiseck-Branding am Belegende (Konto-Flag `branding.kreiseck_logo`). */
   showKreiseckLogo: boolean;
 }
 

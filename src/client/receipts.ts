@@ -463,7 +463,7 @@ export interface ListMyReceiptsOptions {
  *
  * **Anmeldeweg:** Der Endpunkt laeuft im Backend unter
  * `checkRequest(req, 'customer', …, {allowRegisterUser: true})`, der Bearer
- * muss also ein Firebase-ID-Token sein — mit `apiKeyAuth` ist er nicht
+ * muss also ein ID-Token des Anmeldediensts sein — mit `apiKeyAuth` ist er nicht
  * erreichbar. Ausserdem prueft das Backend die Kassenzuweisung hier im Rumpf
  * (der Endpunkt laeuft mit `checkCashRegister: false`), ein Kassen-Benutzer
  * bekommt also nur die ihm zugewiesenen Kassen.

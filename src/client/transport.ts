@@ -17,7 +17,7 @@ import {
  * Der Transport macht drei Dinge und sonst nichts: Anfrage bauen (Kopfzeilen
  * von der Anmeldung, Nutzlast aus Auth-Parametern und Aufruferparametern),
  * Zeitlimit ueberwachen, und die Antworthuelle aufloesen. Er kennt keine
- * einzelne Backend-Funktion und keine Firebase-Details.
+ * einzelne Backend-Funktion und keine Details der Infrastruktur.
  *
  * Es gibt **zwei Einstiegspunkte** auf demselben Kern: [createTransport] fuer
  * die JSON-Aufrufe und [createBinaryTransport] fuer die beiden Bericht-
@@ -220,7 +220,7 @@ function createCore(options: TransportOptions) {
           throw new KasseneckNetworkError(fehlerName, true, zeitlimitMs);
         }
         // Eigene Pruefungen tragen ihren geheimnisfreien Grund weiter; von einer
-        // fremden Ursache (Firebase & Co.) bleibt nichts uebrig — weder Meldung
+        // fremden Ursache bleibt nichts uebrig — weder Meldung
         // noch Verdichtung, siehe Klassenkommentar zu KasseneckAuthError.
         const grund = ursache instanceof KasseneckAuthError ? ursache.reason : 'Anmeldung fehlgeschlagen';
         throw new KasseneckAuthError(grund, { functionName: fehlerName });
