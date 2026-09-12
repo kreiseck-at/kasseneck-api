@@ -4,6 +4,27 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.13.2
+
+### Die Paketseite erklaert, wofuer das Paket da ist
+
+**Anlass:** Wer auf npm landet, sah eine Wand aus Technik und nirgends, worum
+es geht. Die Seite traegt jetzt das Kasseneck-Logo, einen englischen Einzeiler
+fuer Besucher von aussen, und eine Tabelle, welche Pflichten einer
+oesterreichischen Registrierkasse wo erledigt werden — mit Verweisen auf die
+Wissensseiten und einem ausdruecklichen Hinweis, dass hier kein Rechtsrat steht
+und die Verantwortung beim Unternehmer bleibt. Kopf und Fuss nennen Kreiseck
+als Absender und verlinken dorthin. Am Code aendert sich nichts.
+
+### Der Vertrag nennt keinen Anmeldedienst mehr beim Namen
+
+**Anlass:** Die Doku sprach an 16 Stellen von einem bestimmten Anbieter,
+obwohl das Paket ihn gar nicht kennt: `registerUserAuth` bekommt eine Funktion,
+die ein Token liefert — woher es stammt, geht das Paket nichts an. Ein
+Implementierungsdetail im Vertrag bindet beide Seiten grundlos aneinander;
+jetzt steht dort "ID-Token des Anmeldediensts". Damit verschwindet der Name
+auch aus den ausgelieferten Typdeklarationen.
+
 ## 0.13.1
 
 ### Der 404 beim Abbruch wird benannt, nicht als Abriss gefuehrt

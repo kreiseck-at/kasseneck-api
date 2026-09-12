@@ -6,7 +6,7 @@
  *   Bearer plus die Kopfzeile `cashregister-token` (wie im Flutter-Zwilling
  *   `kasseneck_api`).
  * - `registerUserAuth` — der Weg der Browser-Kasse: ein Kassen-Benutzer, per
- *   PIN an einem gekoppelten Geraet angemeldet. Firebase-ID-Token als Bearer,
+ *   PIN an einem gekoppelten Geraet angemeldet. ID-Token als Bearer,
  *   die laufende Sitzung als Kopfzeile `register-session`, die Kasse als
  *   Parameter `cashregisterId` in der Nutzlast.
  *
@@ -14,9 +14,9 @@
  * fuehrt keine eigenen HTTP-Aufrufe, kennt den Transport nicht und haelt keinen
  * Zustand — genau deshalb ist sie austauschbar und einzeln testbar.
  *
- * Das Paket weiss **nichts** von Firebase: `registerUserAuth` bekommt eine
+ * Das Paket weiss **nichts** vom Anmeldedienst: `registerUserAuth` bekommt eine
  * Funktion, die ein gueltiges ID-Token liefert (darf `async` sein). Sie wird
- * bei **jedem** Aufruf befragt — Firebase-ID-Tokens laufen nach einer Stunde
+ * bei **jedem** Aufruf befragt — ID-Tokens laufen nach einer Stunde
  * ab, die Sitzung der Browser-Kasse lebt sogar nur 90 Sekunden und wird alle
  * 30 Sekunden erneuert; ein einmal gemerkter Wert waere also bald tot.
  */
@@ -45,7 +45,7 @@ export interface ApiKeyAuthOptions {
 }
 
 export interface RegisterUserAuthOptions {
-  /** Liefert ein gueltiges Firebase-ID-Token; wird pro Anfrage befragt. */
+  /** Liefert ein gueltiges ID-Token des Anmeldediensts; wird pro Anfrage befragt. */
   getIdToken: () => string | Promise<string>;
   /** Liefert die laufende Kassen-Sitzung; wird pro Anfrage befragt. */
   getSessionId: () => string | Promise<string>;

@@ -1,15 +1,87 @@
-# @kreiseck/kasseneck-api
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kreiseck-at/kasseneck-api/main/doc/kasseneck.gif" alt="Kasseneck — RKSV-Registrierkasse aus Österreich" width="420">
+</p>
 
-JavaScript-/TypeScript-Client für das Kasseneck-Backend — der Zwilling des
-Flutter-Pakets `kasseneck_api`. Er spricht dieselben Endpunkte, führt dieselben
-Modelle und dieselben Enum-Werte; ein eingecheckter Abzug der Dart-Enums wird
-im Test gegengeprüft, damit die beiden Pakete nicht auseinanderdriften.
+<h1 align="center">@kreiseck/kasseneck-api</h1>
 
-Das Paket deckt ab: Belege ausstellen und stornieren, Belege und Kassen
-auflisten, Berichte herunterladen, Status bei FinanzOnline abfragen,
-Stripe-Zahllinks und Hobex-Cloud-Zahlungen, das Beleg-Layout und die
-ESC/POS-Erzeugung für den Bondrucker — und unter `./partner` die
-**Partner-API**: Betriebe anlegen und bis zur laufenden Kasse begleiten.
+<p align="center">
+  <b>Austrian fiscal cash register (RKSV) for JavaScript and TypeScript — signed receipts, card payments, receipt printing.</b>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@kreiseck/kasseneck-api"><img src="https://img.shields.io/npm/v/%40kreiseck%2Fkasseneck-api?color=136B6B&label=npm" alt="npm"></a>
+  <img src="https://img.shields.io/badge/RKSV-%C2%A7%20131b%20BAO-136B6B" alt="RKSV">
+  <img src="https://img.shields.io/badge/Lizenz-Apache--2.0-136B6B" alt="Apache-2.0">
+  <a href="https://kasseneck.at"><img src="https://img.shields.io/badge/Kasseneck-kasseneck.at-132A2A" alt="kasseneck.at"></a>
+  <a href="https://kreiseck.com"><img src="https://img.shields.io/badge/von-Kreiseck-132A2A" alt="Kreiseck Software Solutions"></a>
+</p>
+
+**Kasseneck** ist eine österreichische Registrierkasse nach RKSV. Dieses Paket ist
+der JavaScript-/TypeScript-Client dafür: Ihr Code stellt Belege aus, storniert sie,
+nimmt Kartenzahlungen entgegen und druckt Bons. Es ist der Zwilling des
+Flutter-Pakets [`kasseneck_api`](https://pub.dev/packages/kasseneck_api):
+dieselben Endpunkte, dieselben Modelle, dieselben Enum-Werte, im Test
+gegeneinander geprüft.
+
+## Was eine Registrierkasse in Österreich können muss
+
+Die Registrierkassen- und Belegerteilungspflicht steht in § 131b der
+Bundesabgabenordnung, die technischen Anforderungen an die Sicherheitseinrichtung
+in der Registrierkassensicherheitsverordnung (RKSV). Daraus ergibt sich eine
+ganze Kette von Aufgaben — die Tabelle zeigt, welche davon **diese Software**
+übernimmt und welche beim Betrieb selbst bleiben:
+
+| Aufgabe | Wo sie erledigt wird |
+| --- | --- |
+| [Signaturerstellungseinheit](https://kasseneck.at/wissen/signaturerstellungseinheit) — jede Barzahlung wird signiert | Kasseneck, nichts zu installieren |
+| [Verkettung und DEP](https://kasseneck.at/wissen/dep) — jeder Beleg trägt den vorigen, das Protokoll ist exportierbar | Kasseneck-Backend |
+| [Startbeleg, Monatsbeleg, Jahresbeleg](https://kasseneck.at/wissen/startbeleg-monatsbeleg-jahresbeleg) | Kasseneck, automatisch |
+| [Meldungen an FinanzOnline](https://kasseneck.at/wissen/finanzonline) — Anmeldung, Ausfall, Außerbetriebnahme | Kasseneck-Backend |
+| [Belegerteilungspflicht](https://kasseneck.at/wissen/belegerteilungspflicht) — jeder Kunde bekommt einen Beleg | **dieses Paket** — Bon, PDF, Bildschirm oder Link |
+| [Ausfall der Signatureinheit](https://kasseneck.at/wissen/ausfall) — Sammelbeleg, Meldung, Nachsignatur | Kasseneck, automatisch |
+| [Kassennachschau](https://kasseneck.at/wissen/kassennachschau) — der Prüfer verlangt das DEP | Kasseneck, Export auf Knopfdruck |
+| Anmeldung der Kasse, Aufbewahrung, steuerliche Würdigung | **beim Unternehmer** |
+
+Kurz: Sie bauen die Kassenoberfläche, nicht die Sicherheitseinrichtung. Ein Aufruf
+von `createReceipt(...)` erzeugt einen signierten, verketteten und im DEP
+abgelegten Beleg. Die Signaturkette wird gegen das offizielle Prüfwerkzeug des
+BMF getestet.
+
+> **Kein Rechts- oder Steuerrat.** Dieser Abschnitt beschreibt, was die Software
+> tut. Er ersetzt keine Beratung und begründet keine Zusicherung, dass ein
+> bestimmter Betrieb damit alle Pflichten erfüllt. Verbindlich sind die
+> Bundesabgabenordnung, die RKSV und die Erlässe des BMF; die Verantwortung für
+> Anmeldung, Betrieb und Aufbewahrung bleibt beim Unternehmer. Ausführlicher und
+> mit Quellen: [kasseneck.at/wissen](https://kasseneck.at/wissen).
+> Stand: September 2026.
+
+## Erst ausprobieren
+
+Es gibt eine Test-Umgebung mit eigenem Schlüssel und Test-Signaturen, getrennt
+vom Echtbetrieb — die aktuellen Konditionen stehen auf
+[kasseneck.at/preise](https://kasseneck.at/preise), die Schnittstelle ist unter
+[kasseneck.at/api-doku](https://kasseneck.at/api-doku) beschrieben.
+
+## Lieber eine fertige Kasse?
+
+Dieses Paket ist für alle, die eine eigene Anwendung bauen. Wer einfach kassieren
+will, muss nichts davon programmieren:
+
+- **[Kasseneck — die fertige Registrierkasse](https://kasseneck.at)** für Telefon,
+  Tablet und Browser, inklusive Signaturerstellungseinheit und
+  FinanzOnline-Anmeldung.
+- **[Lösungen nach Branche](https://kasseneck.at/branchen)** — vom Lokal bis zum Taxi.
+- **[Preise](https://kasseneck.at/preise)**
+- **[Kontakt](https://kasseneck.at/kontakt)** — auch für Kassenwechsel,
+  Partnerschaften und eigene Integrationen.
+
+## Was drin ist
+
+Belege ausstellen und stornieren, Belege und Kassen auflisten, Berichte
+herunterladen, Status bei FinanzOnline abfragen, Stripe-Zahllinks und
+Hobex-Cloud-Zahlungen, das Beleg-Layout und die ESC/POS-Erzeugung für den
+Bondrucker — und unter `./partner` die **Partner-API**: Betriebe anlegen und bis
+zur laufenden Kasse begleiten.
 
 **Es läuft im Browser und in Node.** ESM ist das Hauptformat, CommonJS liegt
 daneben; beides mit eigenen Typdeklarationen. Node ab 20.18 (`fetch` muss
@@ -33,7 +105,7 @@ bevorzugte:
 | Weg | Wer | Wie |
 |-----|-----|-----|
 | `apiKeyAuth` | Geräte, POS-Apps, Dritte | `api_key` als Bearer + `cashregister-token`-Kopfzeile |
-| `registerUserAuth` | Browser-Kasse | Firebase-ID-Token als Bearer + `register-session`-Kopfzeile, Kasse als Parameter |
+| `registerUserAuth` | Browser-Kasse | ID-Token des Anmeldediensts als Bearer + `register-session`-Kopfzeile, Kasse als Parameter |
 
 ```ts
 import { apiKeyAuth, registerUserAuth } from '@kreiseck/kasseneck-api';
@@ -41,7 +113,7 @@ import { apiKeyAuth, registerUserAuth } from '@kreiseck/kasseneck-api';
 // Gerät/POS: der api_key gehört auf ein Gerät, nie in einen Browser.
 const geraet = apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' });
 
-// Browser-Kasse: das Paket kennt Firebase nicht — es bekommt Funktionen, die
+// Browser-Kasse: das Paket kennt den Anmeldedienst nicht — es bekommt Funktionen, die
 // ein gültiges Token bzw. die laufende Sitzung liefern. Beide werden bei JEDEM
 // Aufruf befragt (ID-Tokens laufen nach einer Stunde ab, die Kassen-Sitzung
 // nach 90 Sekunden).
@@ -66,7 +138,7 @@ const geraet = await pairRegisterDevice({ code: 'K7NPQR34', label: 'Schank' });
 const sitzung = await registerUserLogin({ ...geraet, userId: 'ru-1', pin: '1234' });
 ```
 
-Mit `sitzung.customToken` meldet sich der Verbraucher bei Firebase an; das
+Mit `sitzung.customToken` meldet sich der Verbraucher beim Anmeldedienst an; das
 daraus entstehende ID-Token und `sitzung.sessionId` ergeben `registerUserAuth`.
 
 Eine anmeldungsfreie Anmeldung gibt es dafür **nicht** — sie wäre ein
@@ -476,7 +548,7 @@ steht. Deshalb prüft das Skript auf ein `status`-Feld und nicht auf Erfolg.
 Bewusst außerhalb von `npm test`: Sie braucht Netz. Ist keines da, sagt sie es
 und endet mit 0. Aufrufe, die unter `/v1` absichtlich keine Weiterleitung
 haben — der Kassen-Weg über `kasse.kasseneck.at/api`, die Aufrufe mit
-Firebase-ID-Token — stehen mit Grund in `scripts/erreichbarkeit-ausnahmen.json`.
+ID-Token — stehen mit Grund in `scripts/erreichbarkeit-ausnahmen.json`.
 Wird eine Ausnahme erreichbar, schlägt die Prüfung an: Sonst sänke die Zahl nie.
 
 ## Vertragsdateien für die Zwillinge
@@ -520,3 +592,11 @@ ankommt.
 ## Lizenz
 
 Apache-2.0 — siehe `LICENSE` und `NOTICE`.
+
+---
+
+**Kasseneck** ist ein Produkt von
+[Kreiseck Software Solutions](https://kreiseck.com) aus Salzburg — Apps,
+Kassensysteme und Automatisierungen. Fragen zur Schnittstelle, zu eigenen
+Integrationen oder zu einer Partnerschaft:
+[kasseneck.at/kontakt](https://kasseneck.at/kontakt).

@@ -4,7 +4,7 @@ import { parseServerTimeStamp } from '../vienna-time.js';
  * Kasse — die Antwortform von `listMyCashregisters` (functions/index.js).
  *
  * Das Dart-Vorbild (`Cashregister` in kasseneck_api/lib/models/cashregister.dart)
- * liest das **Firestore-Dokument** direkt ueber das `cloud_firestore`-SDK und
+ * liest das **Datenbankdokument** direkt ueber das SDK der Echtzeit-Datenbank und
  * kommt deshalb an `token` und `aes_key`. Dieses Paket spricht das Backend
  * ausschliesslich ueber die HTTPS-Endpunkte, und die geben beides nicht her:
  *
@@ -22,7 +22,7 @@ import { parseServerTimeStamp } from '../vienna-time.js';
  * fehlendes.
  *
  * Aus demselben Grund fehlt `userId`: das Dart-Vorbild traegt es, weil es den
- * Firestore-**Pfad** kennt (`users/{uid}/cashregisters/{id}`). In dieser
+ * **Pfad** in der Datenbank kennt (`users/{uid}/cashregisters/{id}`). In dieser
  * Antwort steht es nicht, und ein Kassen-Benutzer erfaehrt die Kennung seines
  * Betriebs bewusst nie — sie steckt allein im Token.
  */

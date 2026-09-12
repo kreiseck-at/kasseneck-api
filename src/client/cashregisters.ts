@@ -7,7 +7,7 @@ import type { InternerTransport } from './aufrufe.js';
  *
  * **Anmeldeweg:** `listMyCashregisters` laeuft im Backend unter
  * `checkRequest(req, 'customer', …, {allowRegisterUser: true})` — der Bearer
- * muss also ein Firebase-ID-Token sein. Mit `apiKeyAuth` (api_key als Bearer)
+ * muss also ein ID-Token des Anmeldediensts sein. Mit `apiKeyAuth` (api_key als Bearer)
  * ist dieser Endpunkt **nicht** erreichbar; fuer die Browser-Kasse ist
  * `registerUserAuth` der Weg. Dieses Paket bildet das nicht nach — wer darf,
  * entscheidet allein das Backend. Der Hinweis steht hier, damit ein Leser
