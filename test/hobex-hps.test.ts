@@ -329,6 +329,29 @@ test('das Feld gewinnt auch in die andere Richtung: Text sagt 409, das Feld sagt
   assert.equal(result.outcome, 'approved');
 });
 
+test('HTTP 404 beim Abbruch wird benannt, nicht als Abriss gefuehrt', async () => {
+  // Am Produktivterminal (FW 2.3.9) antwortet der Abbruch damit, am Testgeraet
+  // nie. Welche der beiden Lesarten stimmt, ist ungemessen -- der Nachweis
+  // nennt deshalb beide. Verhalten unveraendert: weiter klaeren.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '5555', responseText: 'Unbekannt' })],
+      '/v1/terminal/abort': [failConnect('terminal_error', 'Terminal meldet (HTTP 404): Not Found', { terminalHttpStatus: 404 })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' })],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 2500, transactionId: '1100' });
+
+  assert.ok(result.steps.some((s) => s.includes('HTTP 404')), 'der 404 gehoert in den Nachweis');
+  assert.ok(
+    result.steps.some((s) => s.includes('Abbruch-Endpunkt')),
+    'beide Lesarten des 404 muessen dastehen',
+  );
+  assert.notEqual(result.outcome, 'approved');
+});
+
 test('HTTP 409 beim ABBRUCH ist NICHT dieselbe Aussage -- die Klaerung geht weiter', async () => {
   const calls: RecordedCall[] = [];
   const payments = buildPayments(

@@ -695,6 +695,19 @@ export const INTERNAL_ERROR_CODE = '100999';
  */
 export const TERMINAL_BUSY_HTTP_STATUS = 409;
 
+/**
+ * HTTP `404` beim Terminal-Kontakt. **Lesart ungemessen:** am Produktivgeraet
+ * (TID 3556988, Firmware 2.3.9) antwortet `POST /api/transaction/abort/...`
+ * damit, am Testgeraet (3600335) nie. Es kann "diesen Vorgang kenne ich nicht"
+ * heissen oder "diesen Endpunkt gibt es hier nicht" -- beides sagt nichts ueber
+ * die Zahlung. Bei hobex angefragt; bis dahin benennt `payments.ts` beim
+ * Abbruch beide Lesarten, statt eine zu behaupten.
+ *
+ * Wie [TERMINAL_BUSY_HTTP_STATUS] bewusst KEIN Eintrag in [HPS_CODES]: ein
+ * HTTP-Status ist kein `responseCode`.
+ */
+export const NOT_FOUND_HTTP_STATUS = 404;
+
 const CODE_BY_ID: ReadonlyMap<string, HpsCode> = new Map(HPS_CODES.map((c) => [c.code, c]));
 
 /** Der Eintrag zu [code] in [HPS_CODES], oder `undefined`, wenn seine Bedeutung nicht feststeht. */

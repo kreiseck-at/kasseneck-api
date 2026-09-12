@@ -118,6 +118,7 @@ export {
   parseHpsTransactionResponse,
   PREFLIGHT_CONNECT_CODES,
   TECHNICAL_ERROR_CODE,
+  NOT_FOUND_HTTP_STATUS,
   TERMINAL_BUSY_HTTP_STATUS,
   TRANSACTION_CANCELED_CODE,
 } from './hobex-hps/index.js';

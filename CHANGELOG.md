@@ -4,6 +4,22 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.13.1
+
+### Der 404 beim Abbruch wird benannt, nicht als Abriss gefuehrt
+
+**Anlass:** Am Produktivterminal (TID 3556988, Firmware 2.3.9) antwortet der
+Abbruch mit HTTP 404, am Testgeraet nie. Bisher war das im Nachweis nicht von
+einem Leitungsabriss zu unterscheiden -- und `steps` ist der Text, der im
+Belastungsstreit gelesen wird. Zwilling: kasseneck_api 6.12.1.
+
+- **`NOT_FOUND_HTTP_STATUS`** und **`HpsConnectTerminalError.isNotFound`**
+  (wie `isTerminalBusy`: liest bevorzugt `terminalHttpStatus`).
+- Der Abbruch schreibt beide Lesarten hin, ohne eine zu behaupten: das
+  Terminal kennt entweder den Vorgang nicht oder den Endpunkt nicht. Welche
+  zutrifft, ist ungemessen (bei hobex angefragt).
+- **Verhalten unveraendert:** weiter klaeren, nie ein Ausgang.
+
 ## 0.13.0
 
 ### Beleg per E-Mail an den Gast (`sendReceiptEmail`)
