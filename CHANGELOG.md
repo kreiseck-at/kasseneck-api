@@ -13,7 +13,8 @@ es geht. Die Seite traegt jetzt das Kasseneck-Logo, einen englischen Einzeiler
 fuer Besucher von aussen, und eine Tabelle, welche Pflichten einer
 oesterreichischen Registrierkasse wo erledigt werden — mit Verweisen auf die
 Wissensseiten und einem ausdruecklichen Hinweis, dass hier kein Rechtsrat steht
-und die Verantwortung beim Unternehmer bleibt. Am Code aendert sich nichts.
+und die Verantwortung beim Unternehmer bleibt. Kopf und Fuss nennen Kreiseck
+als Absender und verlinken dorthin. Am Code aendert sich nichts.
 
 ### Der Vertrag nennt keinen Anmeldedienst mehr beim Namen
 

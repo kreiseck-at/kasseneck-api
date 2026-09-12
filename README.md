@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/RKSV-%C2%A7%20131b%20BAO-136B6B" alt="RKSV">
   <img src="https://img.shields.io/badge/Lizenz-Apache--2.0-136B6B" alt="Apache-2.0">
   <a href="https://kasseneck.at"><img src="https://img.shields.io/badge/Kasseneck-kasseneck.at-132A2A" alt="kasseneck.at"></a>
+  <a href="https://kreiseck.com"><img src="https://img.shields.io/badge/von-Kreiseck-132A2A" alt="Kreiseck Software Solutions"></a>
 </p>
 
 **Kasseneck** ist eine österreichische Registrierkasse nach RKSV. Dieses Paket ist
@@ -591,3 +592,11 @@ ankommt.
 ## Lizenz
 
 Apache-2.0 — siehe `LICENSE` und `NOTICE`.
+
+---
+
+**Kasseneck** ist ein Produkt von
+[Kreiseck Software Solutions](https://kreiseck.com) aus Salzburg — Apps,
+Kassensysteme und Automatisierungen. Fragen zur Schnittstelle, zu eigenen
+Integrationen oder zu einer Partnerschaft:
+[kasseneck.at/kontakt](https://kasseneck.at/kontakt).
