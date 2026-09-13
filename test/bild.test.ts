@@ -80,6 +80,21 @@ test('escPosRasterBild: GS v 0 mit Byte-Breite und Hoehe, zentriert, ohne Zeilen
   assert.throws(() => escPosRasterBild(doc, { breite: 2, hoehe: 2, punkte: new Uint8Array(3) }), /Punkte/);
 });
 
+test('escPosRasterBild: Masse werden VOR dem Packen geprueft, Hoehe hoechstens 65535 Punkte', () => {
+  // GS v 0 traegt die Hoehe in yL/yH: 65536 liefe still auf 0 ueber.
+  const doc = createEscPosDocument({ paperSize: 'mm58' });
+  assert.throws(() => escPosRasterBild(doc, { breite: 1, hoehe: 65536, punkte: new Uint8Array(65536) }), /Rasterbild hoeher als 65535 Punkte/);
+  // Zu breit wirft, bevor die Punkte ueberhaupt gelesen werden: auch mit falscher Punktlaenge meldet sich die Breite.
+  assert.throws(() => escPosRasterBild(doc, { breite: 385, hoehe: 1, punkte: new Uint8Array(0) }), /breiter als der Druckkopf/);
+  assert.equal(escPosBytes(doc).length, escPosBytes(createEscPosDocument({ paperSize: 'mm58' })).length, 'nach dem Wurf steht kein Byte im Dokument');
+  // Genau 65535 geht noch.
+  const grenz = createEscPosDocument({ paperSize: 'mm58' });
+  escPosRasterBild(grenz, { breite: 1, hoehe: 65535, punkte: new Uint8Array(65535) });
+  const bytes = Array.from(escPosBytes(grenz));
+  const start = bytes.findIndex((v, i) => v === 0x1d && bytes[i + 1] === 0x76 && bytes[i + 2] === 0x30);
+  assert.deepEqual(bytes.slice(start + 4, start + 8), [1, 0, 0xff, 0xff]);
+});
+
 test('eposBildXml: mono, Punktmass, Base64 der Rasterzeilen', () => {
   const bild: RasterBild = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
   assert.equal(eposBildXml(bild), '<image width="10" height="2" color="color_1" mode="mono">/8D/wA==</image>');

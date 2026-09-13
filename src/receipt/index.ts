@@ -30,7 +30,6 @@ export {
   type QrPrintMode,
   type DruckLogo,
   pruefeLogoRaster,
-  blattFuerDruck,
   escPosLayoutBytes,
   escPosLayoutErgebnis,
 } from './layout-escpos.js';

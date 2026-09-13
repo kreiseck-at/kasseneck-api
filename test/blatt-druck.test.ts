@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { belegBlatt, blattFuerDruck, eposPrintXml, escPosLayoutBytes, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
+import { belegBlatt, eposPrintXml, escPosLayoutBytes, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
+import { blattFuerDruck } from '../src/receipt/layout-escpos.js';
 
 /**
  * Die Druckwege setzen das Blatt: Logo nach dem fuehrenden Rahmen, Marke am

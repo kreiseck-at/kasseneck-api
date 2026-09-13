@@ -182,6 +182,12 @@ export interface BelegBlattZeilenProps {
   blatt: BelegBlatt;
   /** Adresse des Firmenlogos; ohne sie bleibt der Logo-Block leer (Platz bleibt). */
   logoUrl?: string;
+  /**
+   * Zeichnet den QR in seinen Kasten (`qrBlattAnteil`). Der Kasten schliesst
+   * die Ruhezone von 4 Modulen je Seite ein und setzt Fehlerkorrektur M
+   * voraus: das Symbol also mit Korrektur M und 4 Modulen Ruhezone zeichnen
+   * und den Kasten ganz ausfuellen -- dann ist ein Modul so gross wie am Bon.
+   */
   renderQr?: (data: string) => ReactNode;
   qrVerdeckt?: boolean;
   qrVerdecktText?: string;
@@ -243,6 +249,7 @@ export interface BelegBlattViewProps extends Omit<BelegBlattZeilenProps, 'blatt'
   /** Firmenlogo und Stufe (`logoSkala`); das Pixelmass liest die Ansicht selbst. */
   logo?: { url: string; stufe: LogoStufe } | null;
   marke?: boolean;
+  /** Geraete-Einstellung fuer die QR-Modulgroesse; Vorgabe `auto` (hoechstens 6 Punkte je Modul) — wie die Druckwege. */
   qrGroesse?: QrModulGroesse;
 }
 

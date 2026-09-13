@@ -200,7 +200,7 @@ export interface ReceiptWithCompany {
   /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
   layout: ReceiptLayout | null;
   /**
-   * Registrierdaten fuer den Block „Prüfangaben” (Nullbelege, Regelwerk 2) --
+   * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2) --
    * fuer Clients, die das Layout selbst bauen; null bei altem Backend.
    */
   pruefangaben: Pruefangaben | null;

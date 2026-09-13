@@ -1057,8 +1057,13 @@ function rasterBildKopf(breite: number, hoehe: number): number[] {
  * die Bildschirm und PDF nicht haben. Die Luft um das Logo kommt aus dem Blatt.
  */
 export function escPosRasterBild(doc: EscPosDocument, bild: RasterBild, options: { align?: PosAlign } = {}): void {
-  const daten = rasterZeilenBytes(bild);
+  // Masse pruefen, BEVOR gepackt wird: ein zu breites Bild soll nicht erst
+  // Speicher fuer seine Rasterzeilen belegen. `GS v 0` traegt die Hoehe in zwei
+  // Bytes (yL yH) -- ueber 65535 Punkte liefe sie still ueber und der Drucker
+  // laese den Rest des Bilds als Befehle.
   if (bild.breite > QR_DRUCK_PUNKTE[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
+  if (bild.hoehe > 0xffff) throw new Error('Rasterbild hoeher als 65535 Punkte');
+  const daten = rasterZeilenBytes(bild);
   escPosSetStyles(doc, { align: options.align ?? 'center' });
   anhaengen(doc, rasterBildKopf(bild.breite, bild.hoehe));
   anhaengen(doc, daten);

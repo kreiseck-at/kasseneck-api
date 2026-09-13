@@ -71,11 +71,15 @@ export interface BelegBlattOptionen {
   logo?: BlattLogo | null;
   /** "erstellt mit Kasseneck" am Ende. */
   marke?: boolean;
-  /** Geraete-Einstellung fuer die QR-Modulgroesse; Vorgabe `auto`. */
+  /** Geraete-Einstellung fuer die QR-Modulgroesse; Vorgabe `auto` (hoechstens 6 Punkte je Modul) — wie die Druckwege. */
   qrGroesse?: QrModulGroesse;
 }
 
-/** 32 Zeichen sind 58 mm, 48 sind 80 mm; andere Breiten behalten das Papier des Layouts. */
+/**
+ * 32 Zeichen sind 58 mm, 48 sind 80 mm; andere Breiten behalten das Papier des
+ * Layouts. Der QR-Anteil (`qrBlattAnteil`) wird dann fuer die Kopfbreite
+ * DIESES Papiers gerechnet, nicht fuer die gewaehlte Zeichenzahl.
+ */
 export function papierFuerZeichen(zeichen: number, vorgabe: PosPaperSize): PosPaperSize {
   if (zeichen === ZEICHEN_JE_PAPIER.mm58) return 'mm58';
   if (zeichen === ZEICHEN_JE_PAPIER.mm80) return 'mm80';
@@ -111,6 +115,11 @@ export function logoRasterMass(mass: LogoMass, zeichen: number): { breite: numbe
  * Anteil der Blattbreite, den der QR am Drucker einnimmt -- dieselbe Rechnung
  * wie der Druckweg (nativ, sonst der Bildweg). Bildschirm und PDF zeigen den
  * QR in genau dieser Groesse. Leere Nutzlast: 0 (kein Symbol).
+ *
+ * Der Kasten **schliesst die Ruhezone von 4 Modulen je Seite ein** und setzt
+ * Fehlerkorrektur M voraus. Ein Zeichner (`renderQr`, PDF) muss das Symbol
+ * darum mit Fehlerkorrektur M und einer Ruhezone von 4 Modulen zeichnen, die
+ * den Kasten ganz ausfuellt -- sonst stimmt die Modulgroesse nicht mit dem Bon.
  */
 export function qrBlattAnteil(nutzlast: string, papier: PosPaperSize, groesse: QrModulGroesse = 'auto'): number {
   if (nutzlast === '') return 0;

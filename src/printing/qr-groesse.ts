@@ -115,11 +115,12 @@ const BYTE_KAPAZITAET_M: readonly number[] = [
  *
  * Alle Druckwege setzen den QR mit Fehlerkorrektur **M** (nativer
  * ESC/POS-Befehl, ePOS `level_m`; das Raster fuer den Bildweg rechnet der
- * Aufrufer ebenfalls mit M) — rechnet und druckt also mit M: gerechnete und gedruckte Modulanzahl stimmen ueberein,
- * und der Anteil am Blatt (Bildschirm, PDF) ist genau der am Bon. Die
- * Byte-Zaehlung ist konservativ: hier zaehlt UTF-8 (wie im Flutter-Zwilling),
- * waehrend `qrCodeBytes` die Nutzlast als Latin-1 sendet — UTF-8 ist nie
- * kuerzer, die Rechnung also nie zu klein.
+ * Aufrufer ebenfalls mit M) — rechnet und druckt also mit M: gerechnete und
+ * gedruckte Modulanzahl stimmen ueberein, und der Anteil am Blatt
+ * (Bildschirm, PDF) ist genau der am Bon. Die Byte-Zaehlung ist
+ * konservativ: hier zaehlt UTF-8 (wie im Flutter-Zwilling), waehrend
+ * `qrCodeBytes` die Nutzlast als Latin-1 sendet — UTF-8 ist nie kuerzer, die
+ * Rechnung also nie zu klein.
  *
  * Wirft, wenn die Nutzlast in keine Version passt — wie `qrCodeBytes` bei zu
  * langem Inhalt. Ein still zurueckgegebenes "passt nicht" haette den

@@ -18,6 +18,10 @@ Bon druckte Warnungen invers und doppelt hoch.
   `====`). ESC/POS und ePOS drucken sie als normale fette Zeilen — keine doppelte
   Höhe, kein Invertieren mehr. `grid32`/`grid48` der Belege mit Aufdruck ändern
   sich, das Zeilenmodell nicht.
+- Bekannter Unterschied, bleibt so: ESC/POS druckt `EUR` statt `€` (die
+  Ein-Byte-Codepage des Bondruckers kennt das Zeichen nicht). Bildschirm, PDF
+  und ePOS zeigen `€`; die Zeilen sind dadurch am Bon an diesen Stellen anders
+  gefüllt, das Raster bleibt gleich breit.
 - Neu `belegBlatt(layout, { zeichen, logo, marke, qrGroesse })`: Reihenfolge
   (Aufdrucke oben, Leerzeile, Logo, Leerzeile, Beleg, Marke), Logo-Maß je Stufe
   S/M/L/XL (nie hochgerechnet), QR-Anteil wie am Drucker.
@@ -30,8 +34,32 @@ Bon druckte Warnungen invers und doppelt hoch.
 - `createPrintJob` nimmt `logo` und `marke`: der Netzwerk-Drucker (Connect)
   druckt dasselbe Blatt wie USB, Bluetooth und ePOS direkt. Neu
   `rasterZeilenBase64` (gemeinsam für ePOS-`<image>` und den Druckjob).
-- Goldens `erwartet/<name>.blatt32.json`/`.blatt48.json` und
-  `erwartet/logo-probe.raster32.txt` für den Dart-Zwilling.
+- Goldens `erwartet/<name>.blatt32.json`/`.blatt48.json`,
+  `erwartet/logo-probe.raster32.txt` (mit Teiltransparenz) und
+  `erwartet/logo-probe-hoch.raster32.txt` (höhenbegrenzt) für den Dart-Zwilling.
+- `escPosRasterBild` wirft bei einer Bildhöhe über 65535 Punkten (`GS v 0` trägt
+  die Höhe in zwei Bytes).
+
+### Achtung: Brüche
+
+- **Aufdrucke im Raster.** `renderReceiptGrid` gibt jeden Aufdruck als drei
+  Zeilen `kind:'banner'` aus (`====`, Text, `====`). *Umstellen:* eigene
+  Rahmen oder Sonderstile für Aufdrucke entfernen (sie stünden sonst doppelt)
+  und nicht annehmen, dass die erste `banner`-Zeile die einzige ist — der Text
+  steht in der mittleren.
+- **`ReceiptWithCompany.logoStufe` ist Pflicht.** `getReceiptWithCompany` füllt
+  es selbst. *Umstellen:* von Hand gebaute Objekte (Tests, Vorschauen) brauchen
+  `logoStufe: 'M'`.
+- **QR-Vorgabe `auto` deckelt bei 6 Punkten je Modul (vorher 4)** — in npm und
+  Dart dasselbe. Am ESC/POS-Bon wird der QR ohne ausdrückliche Wahl größer
+  (80 mm: rund 55 % statt 37 % der Breite). *Umstellen:* wer die alte Größe
+  will, stellt `qrGroesse: 'klein'`.
+- **Nativer ESC/POS-QR mit Fehlerkorrektur M (vorher L)**, wie ePOS, Bildweg
+  und Blatt — der Kasten am Bildschirm ist damit genau der gedruckte QR.
+  Manche Nutzlasten brauchen eine Version mehr. *Umstellen:* den alten
+  Bytestrom liefert `qrCorrection: 'L'` (zusammen mit `qrGroesse: 'klein'`).
+- **ePOS-Vorgabe `qrGroesse` ist `auto`** (vorher `mittel`). Derselbe Wert,
+  kein Byte anders; nur wer die Vorgabe ausliest oder dokumentiert, merkt es.
 
 ## 0.13.2
 
