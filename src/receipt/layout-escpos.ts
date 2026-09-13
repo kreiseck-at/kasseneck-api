@@ -6,6 +6,7 @@ import {
   escPosPrintableText,
   escPosQrCode,
   escPosQrRaster,
+  escPosRasterBild,
   escPosReset,
   escPosText,
   type EscPosOptions,
@@ -17,11 +18,13 @@ import {
   type QrMatrix,
   type QrModulGroesse,
   type QrSize,
+  type RasterBild,
   QR_DRUCK_PUNKTE,
   qrGroesseFuer,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
-import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
+import { belegBlatt, logoRasterMass, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
+import { ZEICHEN_JE_PAPIER } from './grid.js';
 
 /**
  * Bruecke vom Layout-Modell zu ESC/POS-Bytes — der Bondrucker-Ausgabeweg.
@@ -53,6 +56,22 @@ import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
  */
 export type QrPrintMode = 'native' | 'nativeModel1' | 'imageRaster';
 
+/** Firmenlogo fuer den Druck: Stufe, Pixelmass des Originals und das fertige Rasterbild (`logoRaster`). */
+export interface DruckLogo {
+  stufe: LogoStufe;
+  pxBreite: number;
+  pxHoehe: number;
+  raster: RasterBild;
+}
+
+/** Das Rasterbild muss genau so gross sein, wie das Blatt das Logo setzt -- sonst stuende am Bon ein anderes Logo als am Schirm. */
+export function pruefeLogoRaster(logo: DruckLogo, mass: LogoMass, zeichen: number): void {
+  const soll = logoRasterMass(mass, zeichen);
+  if (logo.raster.breite !== soll.breite || logo.raster.hoehe !== soll.hoehe) {
+    throw new Error(`Logo-Raster ${logo.raster.breite}x${logo.raster.hoehe} passt nicht zum Blatt (${soll.breite}x${soll.hoehe})`);
+  }
+}
+
 export interface EscPosLayoutOptions {
   /** Papierbreite; Vorgabe ist die des Layouts (dessen Spaltenbreiten daran haengen). */
   paperSize?: PosPaperSize;
@@ -79,6 +98,10 @@ export interface EscPosLayoutOptions {
    * aus der QR-Bibliothek, die er ohnehin fuer den Bildschirm benutzt.
    */
   qrMatrix?: (nutzlast: string) => QrMatrix;
+  /** Firmenlogo; ohne Angabe kein Logo (Bestand). */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende (Konto-Flag `kreiseck_logo`). */
+  marke?: boolean;
 }
 
 /**
@@ -192,17 +215,31 @@ export function escPosLayoutErgebnis(
     escPosQrCode(doc, nutzlast, qrOptionen);
   };
 
-  const grid = renderReceiptGrid(druckbaresLayout(layout), { zeichen: ZEICHEN_JE_PAPIER[paperSize] });
-  for (const zeile of grid.lines) {
-    switch (zeile.kind) {
-      case 'space':
-        escPosFeed(doc, 1);
-        break;
+  const blattOptionen: BelegBlattOptionen = {
+    zeichen: ZEICHEN_JE_PAPIER[paperSize],
+    marke: options.marke === true,
+    qrGroesse: options.qrGroesse ?? 'auto',
+  };
+  if (options.logo) blattOptionen.logo = { stufe: options.logo.stufe, pxBreite: options.logo.pxBreite, pxHoehe: options.logo.pxHoehe };
+  const blatt = belegBlatt(druckbaresLayout(layout), blattOptionen);
+  // Die Groessenpruefung muss VOR dem ersten Byte scheitern -- darum hier,
+  // bevor die Schleife unten auch nur ein Zeichen schreibt.
+  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
+  if (options.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(options.logo, logoBlock, blatt.zeichen);
+  for (const block of blatt.bloecke) {
+    switch (block.art) {
       case 'qr':
-        qrZeile(zeile.qr ?? '');
+        qrZeile(block.nutzlast);
         break;
-      default:
-        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: zeile.bold } });
+      case 'logo':
+        if (options.logo) {
+          pruefeLogoRaster(options.logo, block, blatt.zeichen);
+          escPosRasterBild(doc, options.logo.raster, { align: 'center' });
+        }
+        break;
+      case 'zeile':
+        if (block.leer) escPosFeed(doc, 1);
+        else escPosText(doc, block.text.trimEnd(), { styles: { align: 'left', bold: block.fett } });
         break;
     }
   }

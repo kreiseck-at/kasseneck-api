@@ -28,6 +28,8 @@ export {
   type EscPosLayoutOptions,
   type EscPosLayoutErgebnis,
   type QrPrintMode,
+  type DruckLogo,
+  pruefeLogoRaster,
   escPosLayoutBytes,
   escPosLayoutErgebnis,
 } from './layout-escpos.js';

@@ -9,7 +9,9 @@ import {
   type QrModulGroesse,
   type RasterBild,
 } from '../printing/index.js';
-import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
+import { ZEICHEN_JE_PAPIER } from './grid.js';
+import { belegBlatt, type BelegBlattOptionen } from './blatt.js';
+import { pruefeLogoRaster, type DruckLogo } from './layout-escpos.js';
 
 /**
  * ePOS-Print XML (Epson TM-Drucker: Server Direct Print, ePOS-Print ueber
@@ -42,6 +44,10 @@ export interface EposPrintXmlOptions {
   qrGroesse?: QrModulGroesse;
   /** Papierschnitt am Ende, Vorgabe true. */
   cut?: boolean;
+  /** Firmenlogo; ohne Angabe kein Logo. */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende. */
+  marke?: boolean;
 }
 
 /**
@@ -95,7 +101,12 @@ export function eposPrintXmlErgebnis(
   layout: ReceiptLayout,
   options: EposPrintXmlOptions = {},
 ): EposPrintErgebnis {
-  const grid = renderReceiptGrid(layout, { zeichen: options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize] });
+  const zeichen = options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize];
+  const blattOptionen: BelegBlattOptionen = { zeichen, marke: options.marke === true, qrGroesse: options.qrGroesse ?? 'mittel' };
+  if (options.logo) blattOptionen.logo = { stufe: options.logo.stufe, pxBreite: options.logo.pxBreite, pxHoehe: options.logo.pxHoehe };
+  const blatt = belegBlatt(layout, blattOptionen);
+  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
+  if (options.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(options.logo, logoBlock, blatt.zeichen);
   const deckel = options.qrGroesse ?? 'mittel';
   const fest = options.qrBreite === undefined
     ? null
@@ -139,24 +150,28 @@ export function eposPrintXmlErgebnis(
   out.push('<text font="font_a"/>');
   out.push('<text align="left"/>');
   out.push('<text width="1" height="1" reverse="false" em="false"/>');
-  for (const z of grid.lines) {
-    switch (z.kind) {
-      case 'space':
-        out.push('<feed line="1"/>');
+  for (const block of blatt.bloecke) {
+    switch (block.art) {
+      case 'zeile':
+        if (block.leer) out.push('<feed line="1"/>');
+        else if (block.fett) { out.push(`<text em="true">${eposXmlEscape(block.text)}&#10;</text>`); out.push('<text em="false"/>'); }
+        else out.push(`<text>${eposXmlEscape(block.text)}&#10;</text>`);
+        break;
+      case 'logo':
+        if (options.logo) {
+          out.push('<text align="center"/>');
+          out.push(eposBildXml(options.logo.raster));
+          out.push('<text align="left"/>');
+        }
         break;
       case 'qr': {
-        const breite = qrBreiteFuer(z.qr ?? '');
+        const breite = qrBreiteFuer(block.nutzlast);
         if (breite === null) break;
         out.push('<text align="center"/>');
-        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${breite}" height="0" size="0">${eposXmlEscape(z.qr ?? '')}</symbol>`);
+        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${breite}" height="0" size="0">${eposXmlEscape(block.nutzlast)}</symbol>`);
         out.push('<text align="left"/>');
         break;
       }
-      default:
-        if (z.bold) out.push(`<text em="true">${eposXmlEscape(z.text)}&#10;</text>`);
-        else out.push(`<text>${eposXmlEscape(z.text)}&#10;</text>`);
-        if (z.bold) out.push('<text em="false"/>');
-        break;
     }
   }
   if (options.cut !== false) {
@@ -188,6 +203,10 @@ export interface EposDirectOptions {
   qrBreite?: number;
   /** Deckel fuer die gerechnete QR-Modulgroesse; siehe [EposPrintXmlOptions.qrGroesse]. */
   qrGroesse?: QrModulGroesse;
+  /** Firmenlogo; ohne Angabe kein Logo. */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende. */
+  marke?: boolean;
   timeoutMs?: number;
 }
 
@@ -312,6 +331,8 @@ export function eposDirectPrint(layout: ReceiptLayout, o: EposDirectOptions, fet
   const xmlOptionen: EposPrintXmlOptions = { zeichen: ZEICHEN_JE_PAPIER[papier] };
   if (o.qrBreite !== undefined) xmlOptionen.qrBreite = o.qrBreite;
   if (o.qrGroesse !== undefined) xmlOptionen.qrGroesse = o.qrGroesse;
+  if (o.logo) xmlOptionen.logo = o.logo;
+  if (o.marke !== undefined) xmlOptionen.marke = o.marke;
   return eposDirectSend(eposPrintXml({ ...layout, paperSize: papier }, xmlOptionen), o, fetchFn);
 }
 
