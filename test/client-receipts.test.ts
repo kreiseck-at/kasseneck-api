@@ -957,6 +957,16 @@ test('getReceiptWithCompany: Testkasse/Testsignatur, kopfId und mitgeliefertes Z
   assert.equal(a2.layout, null);
 });
 
+test('getReceiptWithCompany: logo_skala wird zur Logo-Stufe (fehlt oder unbekannt: M)', async () => {
+  const faelle: ReadonlyArray<readonly [unknown, string]> = [['XL', 'XL'], ['S', 'S'], [undefined, 'M'], ['riesig', 'M'], [3, 'M'], [null, 'M']];
+  for (const [roh, soll] of faelle) {
+    const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, ...(roh === undefined ? {} : { logo_skala: roh }) }));
+    const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
+    const antwort = await getReceiptWithCompany(rufen, 'r-1');
+    assert.equal(antwort.logoStufe, soll, `logo_skala=${String(roh)}`);
+  }
+});
+
 // --- Trinkgeld (Backend keck#201: Positionen kind:'tip', Parameter tip) -----
 
 test('sellReceipt: tip als Zahl geht unveraendert als Cent hinaus', async () => {
