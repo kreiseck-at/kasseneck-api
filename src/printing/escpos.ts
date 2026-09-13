@@ -945,9 +945,10 @@ export function escPosQrRaster(
     throw new Error('punkteJeModul muss eine Ganzzahl >= 1 sein');
   }
 
+  // Modulraster (samt Ruhezone) auf Druckpunkte skaliert -- dieselbe Bitquelle
+  // wie das Logo, nur aus einem QR-Modul-Bool statt aus Graustufen gewonnen.
   const breite = gesamtModule * punkte;
-  const byteJeZeile = Math.ceil(breite / 8);
-  const daten = new Uint8Array(byteJeZeile * breite);
+  const bildpunkte = new Uint8Array(breite * breite);
   for (let y = 0; y < breite; y++) {
     const modulY = Math.floor(y / punkte) - ruhezone;
     if (modulY < 0 || modulY >= module) continue;
@@ -956,19 +957,15 @@ export function escPosQrRaster(
       const modulX = Math.floor(x / punkte) - ruhezone;
       if (modulX < 0 || modulX >= module) continue;
       if (zeile[modulX] !== true) continue;
-      const i = y * byteJeZeile + (x >> 3);
-      daten[i] = (daten[i] as number) | (0x80 >> (x & 7));
+      bildpunkte[y * breite + x] = 1;
     }
   }
+  const daten = rasterZeilenBytes({ breite, hoehe: breite, punkte: bildpunkte });
 
   escPosSetStyles(doc, { align: options.align ?? 'center' });
   // GS v 0 m xL xH yL yH d1...dk — m = 0: normale Dichte, 1:1.
-  anhaengen(doc, [
-    GS, 0x76, 0x30, 0x00,
-    byteJeZeile & 0xff, (byteJeZeile >> 8) & 0xff,
-    breite & 0xff, (breite >> 8) & 0xff,
-    ...daten,
-  ]);
+  anhaengen(doc, rasterBildKopf(breite, breite));
+  anhaengen(doc, daten);
   anhaengen(doc, [ZEILENUMBRUCH]);
   if ((options.align ?? 'center') !== 'left') {
     escPosSetStyles(doc, { align: 'left' });
@@ -1022,6 +1019,17 @@ export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
 }
 
 /**
+ * Der `GS v 0`-Kopf (Byte-Breite, Zeilenhoehe) -- die Rasterzeilen selbst
+ * haengt der Aufrufer an. Gemeinsame Rahmung fuer das Logo (`escPosRasterBild`)
+ * und den QR-Bildweg (`escPosQrRaster`): beide drucken dasselbe Bildkommando,
+ * nur mit unterschiedlichem Nachlauf (Zeilenvorschub ja/nein).
+ */
+function rasterBildKopf(breite: number, hoehe: number): number[] {
+  const byteJeZeile = Math.ceil(breite / 8);
+  return [GS, 0x76, 0x30, 0x00, byteJeZeile & 0xff, (byteJeZeile >> 8) & 0xff, hoehe & 0xff, (hoehe >> 8) & 0xff];
+}
+
+/**
  * Ein Rasterbild (`GS v 0`) -- das Firmenlogo am Bon.
  *
  * Anders als `escPosQrRaster` folgt KEIN Zeilenvorschub: `GS v 0` schiebt das
@@ -1031,13 +1039,8 @@ export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
 export function escPosRasterBild(doc: EscPosDocument, bild: RasterBild, options: { align?: PosAlign } = {}): void {
   const daten = rasterZeilenBytes(bild);
   if (bild.breite > QR_DRUCK_PUNKTE[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
-  const byteJeZeile = Math.ceil(bild.breite / 8);
   escPosSetStyles(doc, { align: options.align ?? 'center' });
-  anhaengen(doc, [
-    GS, 0x76, 0x30, 0x00,
-    byteJeZeile & 0xff, (byteJeZeile >> 8) & 0xff,
-    bild.hoehe & 0xff, (bild.hoehe >> 8) & 0xff,
-  ]);
+  anhaengen(doc, rasterBildKopf(bild.breite, bild.hoehe));
   anhaengen(doc, daten);
   if ((options.align ?? 'center') !== 'left') {
     escPosSetStyles(doc, { align: 'left' });
