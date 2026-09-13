@@ -10,8 +10,7 @@ import {
   type RasterBild,
 } from '../printing/index.js';
 import { ZEICHEN_JE_PAPIER } from './grid.js';
-import { belegBlatt, type BelegBlattOptionen } from './blatt.js';
-import { pruefeLogoRaster, type DruckLogo } from './layout-escpos.js';
+import { blattFuerDruck, type DruckLogo } from './layout-escpos.js';
 
 /**
  * ePOS-Print XML (Epson TM-Drucker: Server Direct Print, ePOS-Print ueber
@@ -102,11 +101,7 @@ export function eposPrintXmlErgebnis(
   options: EposPrintXmlOptions = {},
 ): EposPrintErgebnis {
   const zeichen = options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize];
-  const blattOptionen: BelegBlattOptionen = { zeichen, marke: options.marke === true, qrGroesse: options.qrGroesse ?? 'mittel' };
-  if (options.logo) blattOptionen.logo = { stufe: options.logo.stufe, pxBreite: options.logo.pxBreite, pxHoehe: options.logo.pxHoehe };
-  const blatt = belegBlatt(layout, blattOptionen);
-  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
-  if (options.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(options.logo, logoBlock, blatt.zeichen);
+  const blatt = blattFuerDruck(layout, { zeichen, logo: options.logo, marke: options.marke, qrGroesse: options.qrGroesse ?? 'mittel' });
   const deckel = options.qrGroesse ?? 'mittel';
   const fest = options.qrBreite === undefined
     ? null

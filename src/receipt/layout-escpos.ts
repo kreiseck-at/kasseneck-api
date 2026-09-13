@@ -23,7 +23,7 @@ import {
   qrGroesseFuer,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
-import { belegBlatt, logoRasterMass, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
+import { belegBlatt, logoRasterMass, type BelegBlatt, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
 import { ZEICHEN_JE_PAPIER } from './grid.js';
 
 /**
@@ -70,6 +70,30 @@ export function pruefeLogoRaster(logo: DruckLogo, mass: LogoMass, zeichen: numbe
   if (logo.raster.breite !== soll.breite || logo.raster.hoehe !== soll.hoehe) {
     throw new Error(`Logo-Raster ${logo.raster.breite}x${logo.raster.hoehe} passt nicht zum Blatt (${soll.breite}x${soll.hoehe})`);
   }
+}
+
+/**
+ * Baut das Blatt fuer einen Druckweg (ESC/POS, ePOS) an EINER Stelle: die
+ * Zuordnung `DruckLogo` -> `BlattLogo` und die Groessenpruefung des mitgebrachten
+ * Rasterbilds teilen sich beide Wege -- ohne das muesste eine Aenderung daran an
+ * zwei Stellen nachgezogen werden. Wirft VOR jeder Ausgabe (also bevor der
+ * Aufrufer auch nur ein Byte/Zeichen geschrieben hat), wenn das Rasterbild nicht
+ * zur Logo-Stufe passt.
+ */
+export function blattFuerDruck(
+  layout: ReceiptLayout,
+  optionen: { zeichen: number; logo?: DruckLogo | null; marke?: boolean; qrGroesse: QrModulGroesse },
+): BelegBlatt {
+  const blattOptionen: BelegBlattOptionen = {
+    zeichen: optionen.zeichen,
+    marke: optionen.marke === true,
+    qrGroesse: optionen.qrGroesse,
+  };
+  if (optionen.logo) blattOptionen.logo = { stufe: optionen.logo.stufe, pxBreite: optionen.logo.pxBreite, pxHoehe: optionen.logo.pxHoehe };
+  const blatt = belegBlatt(layout, blattOptionen);
+  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
+  if (optionen.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(optionen.logo, logoBlock, blatt.zeichen);
+  return blatt;
 }
 
 export interface EscPosLayoutOptions {
@@ -215,27 +239,21 @@ export function escPosLayoutErgebnis(
     escPosQrCode(doc, nutzlast, qrOptionen);
   };
 
-  const blattOptionen: BelegBlattOptionen = {
+  // `blattFuerDruck` prueft das Logo-Raster bereits VOR der Rueckgabe -- die
+  // Schleife unten schreibt darum nie ein Byte auf ein falsch grosses Logo.
+  const blatt = blattFuerDruck(druckbaresLayout(layout), {
     zeichen: ZEICHEN_JE_PAPIER[paperSize],
-    marke: options.marke === true,
+    logo: options.logo,
+    marke: options.marke,
     qrGroesse: options.qrGroesse ?? 'auto',
-  };
-  if (options.logo) blattOptionen.logo = { stufe: options.logo.stufe, pxBreite: options.logo.pxBreite, pxHoehe: options.logo.pxHoehe };
-  const blatt = belegBlatt(druckbaresLayout(layout), blattOptionen);
-  // Die Groessenpruefung muss VOR dem ersten Byte scheitern -- darum hier,
-  // bevor die Schleife unten auch nur ein Zeichen schreibt.
-  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
-  if (options.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(options.logo, logoBlock, blatt.zeichen);
+  });
   for (const block of blatt.bloecke) {
     switch (block.art) {
       case 'qr':
         qrZeile(block.nutzlast);
         break;
       case 'logo':
-        if (options.logo) {
-          pruefeLogoRaster(options.logo, block, blatt.zeichen);
-          escPosRasterBild(doc, options.logo.raster, { align: 'center' });
-        }
+        if (options.logo) escPosRasterBild(doc, options.logo.raster, { align: 'center' });
         break;
       case 'zeile':
         if (block.leer) escPosFeed(doc, 1);

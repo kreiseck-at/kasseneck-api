@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { belegBlatt, eposPrintXml, escPosLayoutBytes, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
+import { belegBlatt, blattFuerDruck, eposPrintXml, escPosLayoutBytes, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
 
 /**
  * Die Druckwege setzen das Blatt: Logo nach dem fuehrenden Rahmen, Marke am
@@ -50,6 +50,15 @@ test('ePOS: <image> zentriert nach dem Rahmen, Marke als Textzeile, Leerzeilen a
   assert.ok(xml.slice(0, bild).endsWith('<text align="center"/>\n'), xml);
   assert.ok(xml.slice(bild).includes('</image>\n<text align="left"/>'), xml);
   assert.ok(xml.includes('erstellt mit Kasseneck'));
+});
+
+test('blattFuerDruck: teilt sich die Groessenpruefung mit beiden Druckwegen', () => {
+  const falsch: DruckLogo = { ...probeLogo(48), raster: { breite: 3, hoehe: 3, punkte: new Uint8Array(9) } };
+  assert.throws(() => blattFuerDruck(LAYOUT, { zeichen: 48, logo: falsch, qrGroesse: 'auto' }), /Logo-Raster/);
+
+  const ohneLogo = blattFuerDruck(LAYOUT, { zeichen: 48, marke: true, qrGroesse: 'auto' });
+  const vergleich = belegBlatt(LAYOUT, { zeichen: 48, marke: true, qrGroesse: 'auto' });
+  assert.deepEqual(ohneLogo, vergleich);
 });
 
 test('Druckwege und Blatt zaehlen dieselben Zeilen', () => {
