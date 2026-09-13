@@ -1,5 +1,20 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { LayoutAlign, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
+import { belegBlatt, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
+import type { QrModulGroesse } from '../printing/qr-groesse.js';
+
+/**
+ * Struktureller Ersatz fuer `HTMLImageElement`: `tsconfig.json` fuehrt kein
+ * `"DOM"` in `lib` (der Kern soll nicht versehentlich Browser-API nutzen), darum
+ * kompiliert `new Image()` hier nicht. Die Laufzeit stellt den Konstruktor
+ * trotzdem bereit -- nur der Typ fehlt.
+ */
+interface HTMLImageElementLike {
+  naturalWidth: number;
+  naturalHeight: number;
+  onload: (() => void) | null;
+  src: string;
+}
 
 /**
  * React-Adapter: zeichnet ein Beleg-Layout (siehe ../receipt/layout.ts).
@@ -42,6 +57,11 @@ const AUSRICHTUNG: Readonly<Record<LayoutAlign, CSSProperties['textAlign']>> = {
   right: 'right',
 };
 
+/**
+ * @deprecated Seit 0.14.0: [BelegBlattView] setzt den Beleg zeichengleich zu
+ * Bon und PDF (Raster, Logo, Marke). Diese Ansicht rechnet Spalten mit Flex
+ * und bricht darum anders um als das Papier.
+ */
 export function ReceiptLayoutView({ layout, className, renderQr, qrVerdeckt = false, qrVerdecktText }: ReceiptLayoutViewProps): ReactNode {
   const klasse = className === undefined ? 'keck-receipt' : `keck-receipt ${className}`;
   return (
@@ -156,4 +176,103 @@ function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutL
         );
       }
   }
+}
+
+export interface BelegBlattZeilenProps {
+  blatt: BelegBlatt;
+  /** Adresse des Firmenlogos; ohne sie bleibt der Logo-Block leer (Platz bleibt). */
+  logoUrl?: string;
+  renderQr?: (data: string) => ReactNode;
+  qrVerdeckt?: boolean;
+  qrVerdecktText?: string;
+  className?: string;
+}
+
+/**
+ * Das Blatt am Bildschirm -- Zeile fuer Zeile dieselben Zeichen wie am Bon und
+ * im PDF. Masse in `ch`: eine Zeichenbreite ist `1ch`, eine Zeile `2ch`, das
+ * Blatt `zeichen`ch breit. Der Verbraucher bestimmt nur Schrift (monospace,
+ * Vorgabe ueber `--keck-blatt-schrift`) und Schriftgroesse; alles andere steht
+ * im Blatt.
+ */
+export function BelegBlattZeilen({ blatt, logoUrl, renderQr, qrVerdeckt = false, qrVerdecktText, className }: BelegBlattZeilenProps): ReactNode {
+  const z = blatt.zeichen;
+  const klasse = className === undefined ? 'keck-blatt' : `keck-blatt ${className}`;
+  const blattStil: CSSProperties = {
+    width: `${z}ch`,
+    fontFamily: 'var(--keck-blatt-schrift, "DM Mono", ui-monospace, Menlo, Consolas, monospace)',
+    fontVariantLigatures: 'none',
+  };
+  return (
+    <div className={klasse} data-zeichen={z} style={blattStil}>
+      {blatt.bloecke.map((b, i) => {
+        switch (b.art) {
+          case 'zeile':
+            return (
+              <div key={i} className="keck-blatt-zeile" style={{ whiteSpace: 'pre', height: '2ch', lineHeight: '2ch', overflow: 'hidden', fontWeight: b.fett ? 'bold' : 'normal' }}>
+                {b.text}
+              </div>
+            );
+          case 'logo':
+            return (
+              <div key={i} className="keck-blatt-logo" style={{ height: `${b.hoeheZeilen * 2}ch`, display: 'flex', justifyContent: 'center' }}>
+                {logoUrl === undefined ? null : (
+                  <img src={logoUrl} alt="" aria-hidden="true" style={{ width: `${b.breiteAnteil * z}ch`, height: `${b.hoeheZeilen * 2}ch`, objectFit: 'contain' }} />
+                )}
+              </div>
+            );
+          case 'qr': {
+            const bild = renderQr !== undefined ? renderQr(b.nutzlast) : <div data-qr={b.nutzlast} aria-label="RKSV-QR-Code" />;
+            return (
+              <div key={i} className="keck-blatt-qr" style={{ display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: `${b.breiteAnteil * z}ch`, aspectRatio: '1 / 1' }}>
+                  {qrVerdeckt ? <QrVerdeckt data={b.nutzlast} text={qrVerdecktText}>{bild}</QrVerdeckt> : bild}
+                </div>
+              </div>
+            );
+          }
+        }
+      })}
+    </div>
+  );
+}
+
+export interface BelegBlattViewProps extends Omit<BelegBlattZeilenProps, 'blatt' | 'logoUrl'> {
+  layout: ReceiptLayout;
+  zeichen?: number;
+  /** Firmenlogo und Stufe (`logoSkala`); das Pixelmass liest die Ansicht selbst. */
+  logo?: { url: string; stufe: LogoStufe } | null;
+  marke?: boolean;
+  qrGroesse?: QrModulGroesse;
+}
+
+/**
+ * Laedt das Logo (fuer sein Pixelmass), baut das Blatt und zeichnet es. Bis
+ * das Bild geladen ist, fehlt der Logo-Block -- die Kasse laedt das Logo ohnehin
+ * vorab in den Browser-Cache.
+ */
+export function BelegBlattView({ layout, zeichen, logo, marke = false, qrGroesse, ...rest }: BelegBlattViewProps): ReactNode {
+  const [mass, setMass] = useState<{ url: string; breite: number; hoehe: number } | null>(null);
+  const url = logo?.url;
+  useEffect(() => {
+    if (url === undefined) return undefined;
+    let aktiv = true;
+    const Bild = (globalThis as unknown as { Image?: new () => HTMLImageElementLike }).Image;
+    if (Bild === undefined) return undefined;
+    const bild = new Bild();
+    bild.onload = () => {
+      if (aktiv && bild.naturalWidth > 0 && bild.naturalHeight > 0) setMass({ url, breite: bild.naturalWidth, hoehe: bild.naturalHeight });
+    };
+    bild.src = url;
+    return () => {
+      aktiv = false;
+    };
+  }, [url]);
+  const optionen: BelegBlattOptionen = { marke };
+  if (zeichen !== undefined) optionen.zeichen = zeichen;
+  if (qrGroesse !== undefined) optionen.qrGroesse = qrGroesse;
+  const geladen = logo != null && mass !== null && mass.url === logo.url;
+  if (geladen) optionen.logo = { stufe: logo.stufe, pxBreite: mass.breite, pxHoehe: mass.hoehe };
+  const blatt = belegBlatt(layout, optionen);
+  return geladen ? <BelegBlattZeilen blatt={blatt} logoUrl={logo.url} {...rest} /> : <BelegBlattZeilen blatt={blatt} {...rest} />;
 }
