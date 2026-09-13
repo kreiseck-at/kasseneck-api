@@ -5,7 +5,9 @@ import {
   QR_MINDEST_PUNKTE,
   QR_MODUL_DECKEL,
   qrGroesseFuer,
+  rasterZeilenBytes,
   type QrModulGroesse,
+  type RasterBild,
 } from '../printing/index.js';
 import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
 
@@ -56,6 +58,20 @@ export interface EposPrintErgebnis {
 
 export function eposXmlEscape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+/** Base64 ohne Buffer -- laeuft im Browser und in Node. */
+function base64(bytes: Uint8Array): string {
+  let binaer = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binaer += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binaer);
+}
+
+/** Ein Rasterbild als ePOS-`<image>` (einfarbig, Punktmass, Rasterzeilen Base64). */
+export function eposBildXml(bild: RasterBild): string {
+  return `<image width="${bild.breite}" height="${bild.hoehe}" color="color_1" mode="mono">${base64(rasterZeilenBytes(bild))}</image>`;
 }
 
 const NS = 'http://www.epson-pos.com/schemas/2011/03/epos-print';

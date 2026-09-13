@@ -24,8 +24,9 @@
  * CP437-Plaetze umkodiert (ä = 0x84, ü = 0x81, ß = 0xE1, ...). Zeichen ohne
  * CP437-Platz werden zu `?` — weiterhin ein Byte je Zeichen.
  *
- * Nicht enthalten (bewusst): Rasterbilder/Logos, Capability-Profile einzelner
- * Druckermodelle, Kassenlade, 1D-Barcodes.
+ * Nicht enthalten (bewusst): Bilddekodierung (PNG/JPEG liest die Huelle),
+ * Capability-Profile einzelner Druckermodelle, Kassenlade, 1D-Barcodes.
+ * Fertige einfarbige Rasterbilder (Logo) gehen ueber [escPosRasterBild].
  */
 
 import {
@@ -990,4 +991,55 @@ export function qrRasterPunkte(
     1,
     Math.min(deckel, Math.floor(QR_DRUCK_PUNKTE[paperSize] / (moduleAnzahl + 2 * ruhezone))),
   );
+}
+
+/**
+ * Einfarbiges Rasterbild in Druckpunkten, zeilenweise: `punkte[y * breite + x]`,
+ * 1 = schwarz. Entsteht fuer das Firmenlogo in `logoRaster` (receipt/bild.ts).
+ */
+export interface RasterBild {
+  readonly breite: number;
+  readonly hoehe: number;
+  readonly punkte: Uint8Array;
+}
+
+/** Die Rasterzeilen als Bytes: MSB zuerst, jede Zeile auf volle Bytes aufgefuellt. */
+export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
+  if (!istGanzzahl(bild.breite) || bild.breite < 1 || !istGanzzahl(bild.hoehe) || bild.hoehe < 1) {
+    throw new Error('Rasterbild ohne gueltiges Mass');
+  }
+  if (bild.punkte.length !== bild.breite * bild.hoehe) throw new Error('Rasterbild: Punkte passen nicht zum Mass');
+  const byteJeZeile = Math.ceil(bild.breite / 8);
+  const daten = new Uint8Array(byteJeZeile * bild.hoehe);
+  for (let y = 0; y < bild.hoehe; y++) {
+    for (let x = 0; x < bild.breite; x++) {
+      if (bild.punkte[y * bild.breite + x] !== 1) continue;
+      const i = y * byteJeZeile + (x >> 3);
+      daten[i] = (daten[i] as number) | (0x80 >> (x & 7));
+    }
+  }
+  return daten;
+}
+
+/**
+ * Ein Rasterbild (`GS v 0`) -- das Firmenlogo am Bon.
+ *
+ * Anders als `escPosQrRaster` folgt KEIN Zeilenvorschub: `GS v 0` schiebt das
+ * Papier um die Bildhoehe, ein LF danach waere eine zusaetzliche Leerzeile,
+ * die Bildschirm und PDF nicht haben. Die Luft um das Logo kommt aus dem Blatt.
+ */
+export function escPosRasterBild(doc: EscPosDocument, bild: RasterBild, options: { align?: PosAlign } = {}): void {
+  const daten = rasterZeilenBytes(bild);
+  if (bild.breite > QR_DRUCK_PUNKTE[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
+  const byteJeZeile = Math.ceil(bild.breite / 8);
+  escPosSetStyles(doc, { align: options.align ?? 'center' });
+  anhaengen(doc, [
+    GS, 0x76, 0x30, 0x00,
+    byteJeZeile & 0xff, (byteJeZeile >> 8) & 0xff,
+    bild.hoehe & 0xff, (bild.hoehe >> 8) & 0xff,
+  ]);
+  anhaengen(doc, daten);
+  if ((options.align ?? 'center') !== 'left') {
+    escPosSetStyles(doc, { align: 'left' });
+  }
 }

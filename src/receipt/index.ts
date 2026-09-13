@@ -41,7 +41,7 @@ export {
   gridAlsText,
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
-export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposBildXml, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
 
 export {
   type LogoStufe,
@@ -60,3 +60,5 @@ export {
   qrBlattAnteil,
   belegBlatt,
 } from './blatt.js';
+
+export { logoRaster } from './bild.js';
