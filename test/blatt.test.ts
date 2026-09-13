@@ -73,9 +73,10 @@ test('logoRasterMass: gerundete Druckpunkte aus dem Mass', () => {
 });
 
 test('qrBlattAnteil: die Breite, die der Drucker fuer diese Nutzlast druckt, geteilt durch die Kopfbreite', () => {
-  // 109 Byte -> Version 7 = 45 Module + 8 Ruhezone = 53; 80 mm auto: min(floor(576/53)=10, Deckel 4) = 4 -> 212/576
+  // 109 Byte -> Version 7 = 45 Module + 8 Ruhezone = 53; 80 mm auto: min(floor(576/53)=10, Deckel 6) = 6 -> 318/576
+  // Ruling 11: auto deckelt wie im Dart-Zwilling bei 6 (vorher 4 -> 212/576).
   const anteil80 = qrBlattAnteil(QR, 'mm80');
-  assert.equal(anteil80, (53 * 4) / 576);
+  assert.equal(anteil80, (53 * 6) / 576);
   assert.equal(qrBlattAnteil(QR, 'mm80', 'mittel'), (53 * 6) / 576);
   assert.equal(qrBlattAnteil('', 'mm58'), 0);
   assert.equal(papierFuerZeichen(32, 'mm80'), 'mm58');

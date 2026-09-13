@@ -460,8 +460,9 @@ const mass = qrGroesseFuer({ nutzlast: beleg.qr, papierbreitePunkte: QR_DRUCK_PU
 
 Am Belegweg passiert das von selbst. `qrGroesse` ist ein **Deckel**, keine
 Vorgabe: gedruckt wird die größte Größe, die noch passt, höchstens aber der
-Deckel. `auto` (Vorgabe) deckelt beim Bestandswert 4 — ohne ausdrückliche Wahl
-ändert sich also kein Byte.
+Deckel. `auto` (Vorgabe) deckelt bei 6 Punkten je Modul — wie im Dart-Zwilling
+und am Epson-Weg; `klein` deckelt bei 4. Alle Druckwege setzen den QR mit
+Fehlerkorrektur M.
 
 ```ts
 import { escPosLayoutErgebnis } from '@kreiseck/kasseneck-api/receipt';
@@ -474,8 +475,8 @@ const { bytes, qrFehler, qrAusweich } = escPosLayoutErgebnis(layout, {
 ```
 
 Der Epson-Weg (`eposPrintXml` / `eposDirectPrint`) rechnet genauso;
-`eposPrintXmlErgebnis` gibt dort `{ xml, qrFehler, qrAusweich }`. Sein
-Bestandswert ist 6, deshalb ist die Vorgabe dort der Deckel `mittel`.
+`eposPrintXmlErgebnis` gibt dort `{ xml, qrFehler, qrAusweich }`. Die Vorgabe
+ist auch dort `auto`.
 
 `qrFehler` heißt „Beleg ohne QR" — das gehört dem Kunden gesagt. `qrAusweich`
 heißt „gedruckt, aber der eingestellte Weg taugt für dieses Gerät nicht" — das

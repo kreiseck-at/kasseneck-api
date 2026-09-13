@@ -33,12 +33,12 @@ export interface EposPrintXmlOptions {
    */
   qrBreite?: number;
   /**
-   * Deckel fuer die gerechnete QR-Modulgroesse; Vorgabe `mittel`.
+   * Deckel fuer die gerechnete QR-Modulgroesse; Vorgabe `auto` (hoechstens 6
+   * Punkte je Modul) -- wie ESC/POS, Blatt und der Flutter-Zwilling.
    *
-   * Warum `mittel` und nicht `auto`: `auto` deckelt beim Bestandswert des
-   * **ESC/POS**-Befehls dieses Pakets (4), dieser Weg druckt aber seit jeher
-   * mit 6. Die Vorgabe nennt den Bestandswert dieses Wegs also ausdruecklich,
-   * damit ohne Wahl kein Byte anders herauskommt.
+   * Bis 0.13 stand hier `mittel`, weil `auto` damals beim ESC/POS-Wert 4
+   * deckelte und dieser Weg seit jeher mit 6 druckt. Seit `auto` ueberall 6
+   * heisst, ist das derselbe Wert: ohne Wahl kommt kein Byte anders heraus.
    */
   qrGroesse?: QrModulGroesse;
   /** Papierschnitt am Ende, Vorgabe true. */
@@ -92,8 +92,8 @@ export function eposPrintXmlErgebnis(
   options: EposPrintXmlOptions = {},
 ): EposPrintErgebnis {
   const zeichen = options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize];
-  const blatt = blattFuerDruck(layout, { zeichen, logo: options.logo, marke: options.marke, qrGroesse: options.qrGroesse ?? 'mittel' });
-  const deckel = options.qrGroesse ?? 'mittel';
+  const deckel = options.qrGroesse ?? 'auto';
+  const blatt = blattFuerDruck(layout, { zeichen, logo: options.logo, marke: options.marke, qrGroesse: deckel });
   const fest = options.qrBreite === undefined
     ? null
     : Math.min(16, Math.max(3, Math.floor(options.qrBreite)));

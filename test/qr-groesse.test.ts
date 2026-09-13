@@ -17,8 +17,8 @@ import {
 /**
  * Die Rechenregel — dieselbe Tabelle wie im Flutter-Zwilling
  * (`test/printing/qr_groesse_test.dart`). Beide Pakete pinnen die gleichen
- * Modulzahlen und die gleichen Ergebnisse; nur der Deckel von `auto` folgt dem
- * jeweiligen Bestandswert (hier 4, dort 6) und ist darum getrennt gepinnt.
+ * Modulzahlen und die gleichen Ergebnisse -- seit 0.14.0 auch denselben Deckel
+ * von `auto` (6; bis 0.13 hier 4, dort 6).
  */
 
 // ------------------------------------------------------------- Modulanzahl
@@ -119,10 +119,12 @@ test('Regel: der Deckel hebt nie an, er begrenzt nur', () => {
   }
 });
 
-test('Regel: auto deckelt beim Bestandswert dieses Pakets (4), nicht beim Flutter-Wert (6)', () => {
-  assert.equal(QR_MODUL_DECKEL.auto, 4);
-  assert.deepEqual(QR_MODUL_DECKEL, { auto: 4, klein: 4, mittel: 6, gross: 8 });
-  assert.equal(qrGroesseBerechnen({ papierbreitePunkte: 576, moduleAnzahl: 21 }).punkte, 4);
+// Ruling 11: `auto` heisst in npm und Dart dasselbe -- hoechstens 6 Punkte je
+// Modul. Bis 0.13 pinnte dieser Test hier den abweichenden Wert 4.
+test('Regel: auto deckelt wie im Dart-Zwilling bei 6; klein bleibt 4', () => {
+  assert.equal(QR_MODUL_DECKEL.auto, 6);
+  assert.deepEqual(QR_MODUL_DECKEL, { auto: 6, klein: 4, mittel: 6, gross: 8 });
+  assert.equal(qrGroesseBerechnen({ papierbreitePunkte: 576, moduleAnzahl: 21 }).punkte, 6);
 });
 
 test('Regel: unter der Mindestgroesse wird gedruckt, aber gemeldet', () => {

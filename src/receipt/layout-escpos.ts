@@ -108,9 +108,9 @@ export interface EscPosLayoutOptions {
    * dann passt der Aufrufer selbst auf, dass das Symbol aufs Papier geht.
    */
   qrSize?: QrSize;
-  /** Fehlerkorrekturstufe des QR-Codes. */
+  /** Fehlerkorrekturstufe des QR-Codes; Vorgabe `M` (wie ePOS, Bildweg und Blatt). */
   qrCorrection?: QrCorrection;
-  /** Deckel fuer die gerechnete Modulgroesse; Vorgabe `auto`. */
+  /** Deckel fuer die gerechnete Modulgroesse; Vorgabe `auto` (hoechstens 6 Punkte je Modul). */
   qrGroesse?: QrModulGroesse;
   /** Druckweg des QR; Vorgabe `native` (der Bestandsweg). */
   qrModus?: QrPrintMode;

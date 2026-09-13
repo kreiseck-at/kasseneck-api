@@ -14,10 +14,10 @@ import { qrModulAnzahl } from '../src/printing/index.js';
  * hat 384; der Drucker laesst das Symbol dann weg. Genau daran fehlte am
  * echten Beleg der QR.
  *
- * Der Bestandswert dieses Wegs ist 6 (nicht 4 wie beim ESC/POS-Befehl dieses
- * Pakets) — deshalb ist die Vorgabe hier der Deckel `mittel`. Ohne
- * ausdrueckliche Wahl aendert sich damit nur dort etwas, wo heute gar nichts
- * herauskommt.
+ * Der Bestandswert dieses Wegs ist 6. Die Vorgabe ist seit 0.14.0 `auto`, das
+ * jetzt ueberall hoechstens 6 heisst (bis 0.13 stand hier `mittel`, weil `auto`
+ * damals 4 war) -- derselbe Wert, also kein Byte anders. Ohne ausdrueckliche
+ * Wahl aendert sich damit nur dort etwas, wo heute gar nichts herauskommt.
  */
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
@@ -67,6 +67,11 @@ test('ePOS-Bestandsschutz: wo der Bestandswert passt, bleibt es bei 6', () => {
   // gedruckt werden 6 — der Deckel ist der Bestandswert dieses Wegs.
   assert.equal(symbolBreite(eposPrintXml(basis)), 6);
   assert.equal(symbolBreite(eposPrintXml({ ...roh, paperSize: 'mm80' })), 6);
+  // Die Vorgabe `auto` ist derselbe Wert wie die alte Vorgabe `mittel` (Ruling 11): kein Byte anders.
+  for (const layout of [basis, { ...roh, paperSize: 'mm80' as const }, mitQr(RKSV)]) {
+    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrGroesse: 'mittel' }));
+    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrGroesse: 'auto' }));
+  }
 });
 
 // ------------------------------------------------------------- die Rechnung

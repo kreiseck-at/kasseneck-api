@@ -129,6 +129,7 @@ export interface EscPosQrOptions {
    * die Regel in `qr-groesse.ts`.
    */
   size?: QrSize;
+  /** Fehlerkorrektur; Vorgabe `M` wie auf allen Druckwegen (siehe `qrCodeBytes`). */
   correction?: QrCorrection;
   /** Deckel fuer die gerechnete Modulgroesse; wirkungslos neben `size`. */
   groesse?: QrModulGroesse;
@@ -801,6 +802,12 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
  * es wird kein Bild uebertragen.
  *
  * Bei Kasseneck-Belegen steht hier der maschinenlesbare RKSV-Code.
+ *
+ * Fehlerkorrektur ohne Angabe: **M** (bis 0.13: L). Die Groessenrechnung
+ * (`qrModulAnzahl`), das Blatt (Anteil am Bildschirm und im PDF), der
+ * ePOS-Weg (`level_m`) und der Bildweg rechnen alle mit M — druckte der
+ * native Befehl mit L, kaeme fuer manche Nutzlasten ein kleineres Symbol
+ * heraus als der Bildschirm zeigt.
  */
 export function qrCodeBytes(
   text: string,
@@ -810,7 +817,7 @@ export function qrCodeBytes(
   if (!istGanzzahl(size) || size < 1 || size > 8) {
     throw new Error('QR-Modulgroesse muss eine Ganzzahl im Bereich 1..8 sein');
   }
-  const correction = options.correction ?? 'L';
+  const correction = options.correction ?? 'M';
   const stufe = QR_KORREKTUR[correction];
   if (stufe === undefined) {
     throw new Error(`Unbekannte QR-Fehlerkorrektur: ${String(correction)}`);
@@ -854,8 +861,8 @@ export function qrCodeBytes(
  * **gerechneter** Modulgroesse, sofern `options.size` sie nicht festlegt.
  *
  * Ohne `size` entscheidet die Regel aus `qr-groesse.ts`: so gross wie
- * moeglich, gedeckelt durch `options.groesse` (Vorgabe `auto` = der
- * Bestandswert 4 dieses Pakets). Passt das Symbol auch mit der
+ * moeglich, gedeckelt durch `options.groesse` (Vorgabe `auto` = hoechstens 6
+ * Punkte je Modul, wie im Flutter-Zwilling). Passt das Symbol auch mit der
  * Ausnahmegroesse nicht aufs Papier, geht **kein** QR-Befehl hinaus und
  * `doc.qrFehler` sagt warum: der Drucker schneidet ein zu breites Symbol
  * nicht ab, er laesst es weg — ein Befehl, von dem man weiss, dass er nichts

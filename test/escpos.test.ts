@@ -667,15 +667,17 @@ test('qrCodeBytes: Umlaut im QR-Inhalt zaehlt als ein Byte in der Laengenangabe'
   ]);
 });
 
-test('qrCode: Vorgabe zentriert, Groesse 4, Korrektur L', () => {
+test('qrCode: Vorgabe zentriert, Groesse 6 (auto), Korrektur M', () => {
   const doc = createEscPosDocument();
   escPosReset(doc);
   escPosQrCode(doc, '_R1-AT1_Demo');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
     27, 97, 49, 28, 46, 27, 116, 16, // Ausrichtung mittig
-    29, 40, 107, 3, 0, 49, 67, 4,
-    29, 40, 107, 3, 0, 49, 69, 48,
+    // Ruling 11: auto deckelt wie im Dart-Zwilling bei 6 (vorher 4).
+    29, 40, 107, 3, 0, 49, 67, 6,
+    // Ruling 12: Fehlerkorrektur M = 49 wie ePOS, Bildweg und Blatt (vorher L = 48).
+    29, 40, 107, 3, 0, 49, 69, 49,
     29, 40, 107, 15, 0, 49, 80, 48,
     95, 82, 49, 45, 65, 84, 49, 95, 68, 101, 109, 111, // "_R1-AT1_Demo"
     29, 40, 107, 3, 0, 49, 82, 48,

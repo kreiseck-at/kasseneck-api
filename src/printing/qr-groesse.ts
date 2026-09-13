@@ -11,9 +11,8 @@ import type { PosPaperSize, QrSize } from './escpos.js';
  * und ein 58-mm-Kopf hat 384. Zu breit heisst bei den meisten Geraeten nicht
  * "abgeschnitten", sondern **gar kein QR** — auf einem Pflichtbeleg der
  * schlechteste aller Ausgaenge. (Im Flutter-Zwilling war genau das der
- * belegte Fehler; dieses Paket druckt seit jeher mit vier Punkten und blieb
- * darum verschont. Die Regel ist trotzdem dieselbe: sie deckelt auch eine
- * ausdruecklich gewaehlte groessere Modulgroesse gegen den Papierrand ab.)
+ * belegte Fehler.) Die Regel deckelt darum auch eine ausdruecklich gewaehlte
+ * groessere Modulgroesse gegen den Papierrand ab.
  */
 
 // ------------------------------------------------------------------- Typen
@@ -23,23 +22,19 @@ import type { PosPaperSize, QrSize } from './escpos.js';
  * Vorgabe: gedruckt wird immer die groesste Groesse, die noch aufs Papier
  * passt, hoechstens aber diese hier.
  *
- * `auto` und `klein` decken beide bei 4 — das ist kein Versehen. 4 ist der
- * Wert, den der native Weg dieses Pakets seit jeher druckt
- * (`qrCodeBytes(..., size ?? 4)`); ohne diesen Deckel bekaeme jedes Geraet ab
- * sofort ungefragt einen groesseren QR als gestern. `auto` heisst also
- * "rechne, aber aendere den Bestand nicht".
- *
- * **Abweichung zum Flutter-Zwilling, bewusst:** dort deckelt `auto` bei 6,
- * weil dort 6 der Bestandswert ist. Die Regel ist in beiden Paketen
- * dieselbe — "so gross wie moeglich, hoechstens der Bestandswert" —, nur der
- * Bestandswert unterscheidet sich. `mittel` (6) und `gross` (8) sind in
- * beiden Paketen gleich; sie waehlt ein Mensch.
+ * `auto` heisst "gerechnet, hoechstens 6 Punkte je Modul" — in diesem Paket
+ * und im Flutter-Zwilling dasselbe. Bis 0.13 deckelte `auto` hier bei 4 (dem
+ * alten Wert des nativen ESC/POS-Wegs), in Dart bei 6; derselbe Beleg kam
+ * dadurch je nach Paket verschieden gross aus dem Drucker. Einheitlich gilt
+ * jetzt 6: der Wert von Dart und vom Epson-Weg, und ein groesseres Modul
+ * liest sich besser. `klein` (4) druckt den QR so gross wie frueher `auto`;
+ * `mittel` (6) und `gross` (8) waehlt ein Mensch.
  */
 export type QrModulGroesse = 'auto' | 'klein' | 'mittel' | 'gross';
 
 /** Groesste Modulgroesse in Druckpunkten, die der jeweilige Deckel zulaesst. */
 export const QR_MODUL_DECKEL: Readonly<Record<QrModulGroesse, number>> = {
-  auto: 4,
+  auto: 6,
   klein: 4,
   mittel: 6,
   gross: 8,
@@ -118,13 +113,13 @@ const BYTE_KAPAZITAET_M: readonly number[] = [
 /**
  * Modulanzahl, die `nutzlast` bei Fehlerkorrektur **M** braucht.
  *
- * Warum M, obwohl der native Befehl mit L druckt: M braucht bei gleicher
- * Nutzlast gleich viele oder mehr Module als L. Wer mit M rechnet und mit L
- * druckt, druckt nie breiter als gerechnet — die Rechnung ist konservativ,
- * nie knapp. Umgekehrt waere sie eine Rechnung, die aufgeht, und ein Symbol,
- * das ueber den Papierrand laeuft. Dasselbe gilt fuer die Byte-Zaehlung: hier
- * zaehlt UTF-8 (wie im Flutter-Zwilling), waehrend `qrCodeBytes` die Nutzlast
- * als Latin-1 sendet — UTF-8 ist nie kuerzer, die Rechnung also nie zu klein.
+ * Alle Druckwege setzen den QR mit Fehlerkorrektur **M** (nativer
+ * ESC/POS-Befehl, ePOS `level_m`; das Raster fuer den Bildweg rechnet der
+ * Aufrufer ebenfalls mit M) — rechnet und druckt also mit M: gerechnete und gedruckte Modulanzahl stimmen ueberein,
+ * und der Anteil am Blatt (Bildschirm, PDF) ist genau der am Bon. Die
+ * Byte-Zaehlung ist konservativ: hier zaehlt UTF-8 (wie im Flutter-Zwilling),
+ * waehrend `qrCodeBytes` die Nutzlast als Latin-1 sendet — UTF-8 ist nie
+ * kuerzer, die Rechnung also nie zu klein.
  *
  * Wirft, wenn die Nutzlast in keine Version passt — wie `qrCodeBytes` bei zu
  * langem Inhalt. Ein still zurueckgegebenes "passt nicht" haette den
