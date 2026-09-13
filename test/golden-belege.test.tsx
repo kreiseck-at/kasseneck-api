@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { CreditCardProvider } from '../src/enums/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRaster, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
+import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRasterMass, logoRaster, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 import { ReceiptLayoutView } from '../src/react/index.js';
 
 /**
@@ -79,7 +79,7 @@ for (const name of namen) {
 }
 
 test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe, Erwartung, Raster und Blatt (Drift in fremden Repos erkennbar)', () => {
-  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, Record<string, string>>; logoProbe: { raster32: string } };
+  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, Record<string, string>>; logoProbe: { raster32: string; hoch32: string } };
   assert.equal(manifest.regelwerk, 2);
   const hash = (pfad: string): string => createHash('sha256').update(readFileSync(new URL(pfad, wurzel))).digest('hex');
   for (const name of namen) {
@@ -93,6 +93,7 @@ test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe, Erwartung, Ras
     }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
   }
   assert.equal(manifest.logoProbe.raster32, hash('erwartet/logo-probe.raster32.txt'));
+  assert.equal(manifest.logoProbe.hoch32, hash('erwartet/logo-probe-hoch.raster32.txt'));
 });
 
 const PROBE_LOGO = { stufe: 'M', pxBreite: 300, pxHoehe: 120 } as const;
@@ -106,22 +107,45 @@ for (const name of namen) {
   });
 }
 
-/** Dieselbe Formel steht im Dart-Zwilling: waagrechter Verlauf, oberste 10 Zeilen durchsichtig. */
-function verlauf(b: number, h: number): Uint8Array {
+/**
+ * Dieselbe Formel steht im Dart-Zwilling (und in `scripts/belege-fixtures.mjs`).
+ *
+ * Farbe je Pixel: `g = floor(x * 255 / (b - 1))`, R = `g`, G = `(g * 3) % 256`,
+ * B = `255 - g` -- ein waagrechter Verlauf, dessen Kanaele verschieden laufen.
+ *
+ * - Probe `logo-probe.raster32.txt`: 300x100, Stufe S, 32 Zeichen (breitenbegrenzt).
+ *   Deckung je Zeile: `y < 10` -> 0; `10 <= y < 30` -> `floor((y - 10) * 255 / 19)`;
+ *   `y >= 30` -> 255. Belegt Durchsichtiges UND Teiltransparenz.
+ * - Probe `logo-probe-hoch.raster32.txt`: 100x400, Stufe S, 32 Zeichen, ueberall
+ *   deckend (255) -- der hoehenbegrenzte Zweig von `logoMass`.
+ */
+function verlauf(b: number, h: number, deckung: (y: number) => number): Uint8Array {
   const rgba = new Uint8Array(b * h * 4);
   for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) {
     const i = (y * b + x) * 4; const g = Math.floor((x * 255) / (b - 1));
-    rgba[i] = g; rgba[i + 1] = (g * 3) % 256; rgba[i + 2] = 255 - g; rgba[i + 3] = y < 10 ? 0 : 255;
+    rgba[i] = g; rgba[i + 1] = (g * 3) % 256; rgba[i + 2] = 255 - g; rgba[i + 3] = deckung(y);
   }
   return rgba;
 }
 
-test('Golden: Logo-Probe (300x100, Stufe S, 32 Zeichen) rastert Punkt fuer Punkt wie zugesagt', () => {
-  const mass = logoMass({ stufe: 'S', pxBreite: 300, pxHoehe: 100 }, 32);
-  const bild = logoRaster(verlauf(300, 100), 300, 100, mass, 32);
+function rasterText(b: number, h: number, deckung: (y: number) => number): string {
+  const bild = logoRaster(verlauf(b, h, deckung), b, h, logoMass({ stufe: 'S', pxBreite: b, pxHoehe: h }, 32), 32);
   const zeilen: string[] = [];
   for (let y = 0; y < bild.hoehe; y++) zeilen.push(Array.from(bild.punkte.slice(y * bild.breite, (y + 1) * bild.breite)).join(''));
-  assert.equal(zeilen.join('\n') + '\n', readFileSync(new URL('erwartet/logo-probe.raster32.txt', wurzel), 'utf8'));
+  return zeilen.join('\n') + '\n';
+}
+
+test('Golden: Logo-Probe (300x100, Stufe S, 32 Zeichen, Teiltransparenz) rastert Punkt fuer Punkt wie zugesagt', () => {
+  const text = rasterText(300, 100, (y) => (y < 10 ? 0 : y < 30 ? Math.floor(((y - 10) * 255) / 19) : 255));
+  assert.equal(text, readFileSync(new URL('erwartet/logo-probe.raster32.txt', wurzel), 'utf8'));
+});
+
+test('Golden: Logo-Probe hoch (100x400, Stufe S, 32 Zeichen, hoehenbegrenzt) rastert Punkt fuer Punkt wie zugesagt', () => {
+  const mass = logoMass({ stufe: 'S', pxBreite: 100, pxHoehe: 400 }, 32);
+  // Hoehenbegrenzt: 5 Zeilen = 120 Punkte fuer 400 Pixel, also Faktor 0,3 -> 30x120.
+  assert.deepEqual(logoRasterMass(mass, 32), { breite: 30, hoehe: 120 });
+  const text = rasterText(100, 400, () => 255);
+  assert.equal(text, readFileSync(new URL('erwartet/logo-probe-hoch.raster32.txt', wurzel), 'utf8'));
 });
 
 test('Golden-Belege: ESC/POS und React sind deterministisch und tragen den Belegart-Aufdruck', () => {

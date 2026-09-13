@@ -33,6 +33,34 @@ test('logoRaster: verkleinert per Flaechenmittel und ist deterministisch', () =>
   assert.throws(() => logoRaster(new Uint8Array(3), 1, 1, { breiteAnteil: 1 / 576, hoeheZeilen: 1 / 24 }, 48), /RGBA/);
 });
 
+test('logoRaster: ein deckendes schwarzes Pixel wird genau ein Punkt', () => {
+  const bild = logoRaster(Uint8Array.from([0, 0, 0, 255]), 1, 1, { breiteAnteil: 1 / 576, hoeheZeilen: 1 / 24 }, 48);
+  assert.deepEqual([bild.breite, bild.hoehe, Array.from(bild.punkte)], [1, 1, [1]]);
+});
+
+test('logoRaster: ein ganz durchsichtiges Bild bleibt Papier -- kein einziger Punkt', () => {
+  // Schwarz, aber Deckung 0: Durchsichtiges wird Papierweiss, nicht die Farbe darunter.
+  const bild = logoRaster(new Uint8Array(40 * 20 * 4), 40, 20, { breiteAnteil: 20 / 576, hoeheZeilen: 10 / 24 }, 48);
+  assert.equal(bild.punkte.length, 200);
+  assert.equal(Array.from(bild.punkte).filter((p) => p === 1).length, 0);
+});
+
+test('logoRaster: Quellmass gleich Zielmass (keine Verkleinerung) -- Schachbrett bleibt Schachbrett', () => {
+  const b = 8, h = 6;
+  const rgba = new Uint8Array(b * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) {
+    const i = (y * b + x) * 4; const v = (x + y) % 2 === 0 ? 0 : 255;
+    rgba[i] = v; rgba[i + 1] = v; rgba[i + 2] = v; rgba[i + 3] = 255;
+  }
+  const mass = { breiteAnteil: b / 576, hoeheZeilen: h / 24 };
+  const a = logoRaster(rgba, b, h, mass, 48);
+  assert.deepEqual([a.breite, a.hoehe], [b, h]);
+  // Reines Schwarz/Weiss hat keinen Rundungsfehler: Floyd-Steinberg verteilt nichts, jedes schwarze Feld ist ein Punkt.
+  assert.equal(Array.from(a.punkte).filter((p) => p === 1).length, (b * h) / 2);
+  for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) assert.equal(a.punkte[y * b + x], (x + y) % 2 === 0 ? 1 : 0, `Punkt ${x},${y}`);
+  assert.deepEqual(logoRaster(rgba, b, h, mass, 48).punkte, a.punkte, 'deterministisch');
+});
+
 test('rasterZeilenBytes: MSB zuerst, Zeilen auf volle Bytes aufgefuellt', () => {
   const bild: RasterBild = { breite: 10, hoehe: 2, punkte: Uint8Array.from([1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]) };
   assert.deepEqual(Array.from(rasterZeilenBytes(bild)), [0x80, 0x40, 0x00, 0x80]);
