@@ -33,6 +33,7 @@ export {
   qrRasterPunkte,
   type RasterBild,
   rasterZeilenBytes,
+  rasterZeilenBase64,
   escPosRasterBild,
   encodeEscPosText,
   qrCodeBytes,

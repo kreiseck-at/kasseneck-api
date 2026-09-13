@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createEscPosDocument, escPosBytes, escPosRasterBild, rasterZeilenBytes, type RasterBild } from '../src/printing/index.js';
+import { createEscPosDocument, escPosBytes, escPosRasterBild, rasterZeilenBytes, rasterZeilenBase64, type RasterBild } from '../src/printing/index.js';
 import { eposBildXml, logoRaster } from '../src/receipt/index.js';
 
 /** RGBA-Muster wie `ImageData.data`: waagrechter Verlauf schwarz->weiss, die oberste Zeile durchsichtig. */
@@ -54,5 +54,11 @@ test('escPosRasterBild: GS v 0 mit Byte-Breite und Hoehe, zentriert, ohne Zeilen
 
 test('eposBildXml: mono, Punktmass, Base64 der Rasterzeilen', () => {
   const bild: RasterBild = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
+  assert.equal(eposBildXml(bild), '<image width="10" height="2" color="color_1" mode="mono">/8D/wA==</image>');
+});
+
+test('rasterZeilenBase64: dieselben Bytes wie im ePOS-<image>', () => {
+  const bild: RasterBild = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
+  assert.equal(rasterZeilenBase64(bild), '/8D/wA==');
   assert.equal(eposBildXml(bild), '<image width="10" height="2" color="color_1" mode="mono">/8D/wA==</image>');
 });

@@ -270,6 +270,27 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   assert.equal(rz.geraet.druckerId, 'd1');
 });
 
+/**
+ * Der Druckjob traegt Logo und Marke zum Server -- im Format, das
+ * `createPrintJob` im Backend prueft (Rasterzeilen als Base64, MSB zuerst).
+ * Ohne Angabe bleibt die Nutzlast wie bisher.
+ */
+test('createPrintJob: Logo als Mass + Base64-Zeilen, Marke nur wenn gesetzt; ohne beides Nutzlast wie bisher', async () => {
+  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
+  const raster = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
+
+  const mit = transportMit({ jobId: 'j2', status: 'offen' });
+  await createPrintJob(mit.rufen, { druckerId: 'd1', layout, logo: { stufe: 'S', pxBreite: 40, pxHoehe: 20, raster }, marke: true });
+  const g = gesendet(mit.aufrufe);
+  assert.equal(g.fn, 'createPrintJob');
+  assert.deepEqual(g.params.logo, { stufe: 'S', pxBreite: 40, pxHoehe: 20, breite: 10, hoehe: 2, zeilen: '/8D/wA==' });
+  assert.equal(g.params.marke, true);
+
+  const ohne = transportMit({ jobId: 'j3', status: 'offen' });
+  await createPrintJob(ohne.rufen, { druckerId: 'd1', layout, logo: null, marke: false });
+  assert.deepEqual(Object.keys(gesendet(ohne.aufrufe).params).sort(), ['druckerId', 'layout']);
+});
+
 test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merge nimmt sie an, unbekannte Schluessel bleiben draussen', () => {
   assert.equal(KASSE_GERAET_STANDARD.connectDruckerId, '');
   assert.equal(KASSE_GERAET_STANDARD.terminalVia, 'direkt');

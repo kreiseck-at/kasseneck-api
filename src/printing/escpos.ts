@@ -1019,6 +1019,19 @@ export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
 }
 
 /**
+ * Die Rasterzeilen als Base64 -- ohne Buffer, laeuft im Browser und in Node.
+ * Eine Stelle fuer ePOS-`<image>` und den Druckjob an den Server.
+ */
+export function rasterZeilenBase64(bild: RasterBild): string {
+  const bytes = rasterZeilenBytes(bild);
+  let binaer = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binaer += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binaer);
+}
+
+/**
  * Der `GS v 0`-Kopf (Byte-Breite, Zeilenhoehe) -- die Rasterzeilen selbst
  * haengt der Aufrufer an. Gemeinsame Rahmung fuer das Logo (`escPosRasterBild`)
  * und den QR-Bildweg (`escPosQrRaster`): beide drucken dasselbe Bildkommando,

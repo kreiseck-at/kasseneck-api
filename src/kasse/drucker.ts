@@ -1,5 +1,7 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import type { ReceiptLayout } from '../receipt/layout.js';
+import { rasterZeilenBase64 } from '../printing/index.js';
+import type { DruckLogo } from '../receipt/layout-escpos.js';
 
 /**
  * Netzwerk-Bondrucker ueber Epson "Server Direct Print": das Backend fuehrt
@@ -58,6 +60,10 @@ export interface CreatePrintJobOptions {
   receiptId?: string;
   titel?: string;
   quelle?: string;
+  /** Firmenlogo als fertiges Rasterbild (`logoRaster`); der Server dekodiert keine Bilder. */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende (Konto-Flag `kreiseck_logo`). */
+  marke?: boolean;
 }
 
 export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<DruckJob> {
@@ -65,6 +71,13 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
   if (o.receiptId) params.receiptId = o.receiptId;
   if (o.titel) params.titel = o.titel;
   if (o.quelle) params.quelle = o.quelle;
+  if (o.logo) {
+    params.logo = {
+      stufe: o.logo.stufe, pxBreite: o.logo.pxBreite, pxHoehe: o.logo.pxHoehe,
+      breite: o.logo.raster.breite, hoehe: o.logo.raster.hoehe, zeilen: rasterZeilenBase64(o.logo.raster),
+    };
+  }
+  if (o.marke === true) params.marke = true;
   const daten = await rufen<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
   return { jobId: String(daten?.jobId ?? ''), status: (text(daten?.status) as DruckJobStatus) ?? 'offen', ergebnis: null };
 }
