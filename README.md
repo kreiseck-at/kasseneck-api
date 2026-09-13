@@ -483,6 +483,30 @@ gehört dem Chef gesagt. Den Bildweg fährt das Paket nur mit einem `qrMatrix`,
 das die Nutzlast in ein fertiges Raster übersetzt: hier wird bewusst weder ein
 QR gerechnet noch ein Bild verarbeitet.
 
+## Das Beleg-Blatt: überall derselbe Beleg
+
+Bildschirm, Bon, ePOS und PDF setzen dasselbe **Blatt**: Rasterzeilen, Firmenlogo,
+QR und die Marke „erstellt mit Kasseneck", mit Größen als Anteil der Blattbreite
+und in Zeilen (eine Zeile = zwei Zeichenbreiten).
+
+```tsx
+import { BelegBlattView } from '@kreiseck/kasseneck-api/react';
+
+<BelegBlattView layout={layout} logo={{ url: company.logoUrl, stufe: 'M' }} marke={company.showKreiseckLogo} renderQr={(d) => <QrSvg data={d} />} />
+```
+
+```ts
+import { escPosLayoutBytes, logoMass, logoRaster } from '@kreiseck/kasseneck-api/receipt';
+
+const mass = logoMass({ stufe: 'M', pxBreite: bild.width, pxHoehe: bild.height }, 48);
+const raster = logoRaster(imageData.data, bild.width, bild.height, mass, 48);
+escPosLayoutBytes(layout, { paperSize: 'mm80', logo: { stufe: 'M', pxBreite: bild.width, pxHoehe: bild.height, raster }, marke: true });
+```
+
+Logo-Stufen: S 42 % × 5 Zeilen, M 62 % × 8, L 80 % × 12, XL 94 % × 16 — eingepasst,
+nie hochgerechnet. Der Aufdruck (TESTKASSE, STORNOBELEG …) ist ein Rahmen aus
+`=`-Zeilen, auf jedem Weg gleich.
+
 ## Hobex HPS über Kasseneck Connect
 
 Ein Browser hat weiterhin keine rohen TCP-Sockets — ein **direkter**
@@ -516,7 +540,8 @@ Android-SDKs ohne Entsprechung hier.
 ## Was hier grundsätzlich nicht dazugehört
 
 Die Druckeransteuerung selbst (dieses Paket erzeugt die Bytes, es verschickt
-sie nicht), Firmenlogos und Rasterbilder, und die PDF-Erzeugung.
+sie nicht) und die PDF-Erzeugung. Bilder dekodieren (PNG/JPEG): das Paket
+rastert fertige RGBA-Pixel, das Laden des Bilds bleibt bei der Anwendung.
 
 ## Entwicklung
 

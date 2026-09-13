@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fromReceiptCompanyPayload, fromReceiptPayload } from '../dist/esm/models/index.js';
-import { AKTUELLES_REGELWERK, buildReceiptLayout, renderReceiptGrid, gridAlsText } from '../dist/esm/receipt/index.js';
+import { AKTUELLES_REGELWERK, buildReceiptLayout, renderReceiptGrid, gridAlsText, belegBlatt, logoMass, logoRaster } from '../dist/esm/receipt/index.js';
 
 export function ladeFixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/belege/${name}.json`, import.meta.url), 'utf8'));
@@ -32,8 +32,26 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
       writeFileSync(new URL(`../fixtures/erwartet/${name}.grid${zeichen}.txt`, import.meta.url), raster);
       grid[`grid${zeichen}`] = createHash('sha256').update(raster).digest('hex');
     }
+    // Blatt mit Probe-Logo und Marke: die Zusage an jeden Zeichner (Reihenfolge, Logo-Mass, QR-Anteil).
+    for (const zeichen of [32, 48]) {
+      const blatt = JSON.stringify(belegBlatt(layout, { zeichen, logo: { stufe: 'M', pxBreite: 300, pxHoehe: 120 }, marke: true }), null, 2) + '\n';
+      writeFileSync(new URL(`../fixtures/erwartet/${name}.blatt${zeichen}.json`, import.meta.url), blatt);
+      grid[`blatt${zeichen}`] = createHash('sha256').update(blatt).digest('hex');
+    }
     manifest[name] = { eingabe: createHash('sha256').update(readFileSync(new URL(`../fixtures/belege/${name}.json`, import.meta.url))).digest('hex'), erwartet: createHash('sha256').update(text).digest('hex'), ...grid };
   }
-  writeFileSync(new URL('../fixtures/manifest.json', import.meta.url), JSON.stringify({ regelwerk: AKTUELLES_REGELWERK, belege: manifest }, null, 2) + '\n');
+  // Logo-Probe: dieselbe Formel wie im Golden-Test und im Dart-Zwilling.
+  const pb = 300, ph = 100;
+  const rgba = new Uint8Array(pb * ph * 4);
+  for (let y = 0; y < ph; y++) for (let x = 0; x < pb; x++) {
+    const i = (y * pb + x) * 4; const g = Math.floor((x * 255) / (pb - 1));
+    rgba[i] = g; rgba[i + 1] = (g * 3) % 256; rgba[i + 2] = 255 - g; rgba[i + 3] = y < 10 ? 0 : 255;
+  }
+  const bild = logoRaster(rgba, pb, ph, logoMass({ stufe: 'S', pxBreite: pb, pxHoehe: ph }, 32), 32);
+  const rasterZeilen = [];
+  for (let y = 0; y < bild.hoehe; y++) rasterZeilen.push(Array.from(bild.punkte.slice(y * bild.breite, (y + 1) * bild.breite)).join(''));
+  const rasterText = rasterZeilen.join('\n') + '\n';
+  writeFileSync(new URL('../fixtures/erwartet/logo-probe.raster32.txt', import.meta.url), rasterText);
+  writeFileSync(new URL('../fixtures/manifest.json', import.meta.url), JSON.stringify({ regelwerk: AKTUELLES_REGELWERK, belege: manifest, logoProbe: { raster32: createHash('sha256').update(rasterText).digest('hex') } }, null, 2) + '\n');
   console.log(`${Object.keys(manifest).length} Golden-Belege erneuert`);
 }

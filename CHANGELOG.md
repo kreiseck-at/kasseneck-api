@@ -4,6 +4,35 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.14.0
+
+### Das Beleg-Blatt: ein Beleg, der überall gleich aussieht
+
+**Anlass:** Derselbe Beleg sah in der App, am Bon, in der Web-Kasse, im Panel
+und im PDF verschieden aus. Das Raster war als einzige Wahrheit gedacht, aber
+jeder Zeichner setzte Rahmen, Logo und QR selbst: das Panel stellte das Logo
+über den Testkassen-Rahmen, das PDF legte es darauf, die App zeigte keins, der
+Bon druckte Warnungen invers und doppelt hoch.
+
+- `renderReceiptGrid` gibt Aufdrucke als drei Rasterzeilen aus (`====`, Text,
+  `====`). ESC/POS und ePOS drucken sie als normale fette Zeilen — keine doppelte
+  Höhe, kein Invertieren mehr. `grid32`/`grid48` der Belege mit Aufdruck ändern
+  sich, das Zeilenmodell nicht.
+- Neu `belegBlatt(layout, { zeichen, logo, marke, qrGroesse })`: Reihenfolge
+  (Aufdrucke oben, Leerzeile, Logo, Leerzeile, Beleg, Marke), Logo-Maß je Stufe
+  S/M/L/XL (nie hochgerechnet), QR-Anteil wie am Drucker.
+- Neu `logoRaster` (RGBA → einfarbiges Rasterbild), `escPosRasterBild`,
+  `eposBildXml`; `escPosLayoutBytes` und `eposPrintXml` nehmen `logo` und `marke`.
+- Neu `BelegBlattView` / `BelegBlattZeilen` (`./react`); `ReceiptLayoutView` ist
+  `@deprecated`.
+- Neu `ReceiptWithCompany.logoStufe` (aus `logo_skala` der Beleg-Antwort,
+  Vorgabe `M`): Panel und App kannten die Logo-Stufe des Betriebs bisher nicht.
+- `createPrintJob` nimmt `logo` und `marke`: der Netzwerk-Drucker (Connect)
+  druckt dasselbe Blatt wie USB, Bluetooth und ePOS direkt. Neu
+  `rasterZeilenBase64` (gemeinsam für ePOS-`<image>` und den Druckjob).
+- Goldens `erwartet/<name>.blatt32.json`/`.blatt48.json` und
+  `erwartet/logo-probe.raster32.txt` für den Dart-Zwilling.
+
 ## 0.13.2
 
 ### Die Paketseite erklaert, wofuer das Paket da ist

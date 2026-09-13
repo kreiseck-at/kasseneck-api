@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { CreditCardProvider } from '../src/enums/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { buildReceiptLayout, escPosLayoutBytes, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
+import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRaster, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 import { ReceiptLayoutView } from '../src/react/index.js';
 
 /**
@@ -78,16 +78,50 @@ for (const name of namen) {
   });
 }
 
-test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe und Erwartung (Drift in fremden Repos erkennbar)', () => {
-  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, { eingabe: string; erwartet: string; grid32: string; grid48: string }> };
+test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe, Erwartung, Raster und Blatt (Drift in fremden Repos erkennbar)', () => {
+  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { regelwerk: number; belege: Record<string, Record<string, string>>; logoProbe: { raster32: string } };
   assert.equal(manifest.regelwerk, 2);
+  const hash = (pfad: string): string => createHash('sha256').update(readFileSync(new URL(pfad, wurzel))).digest('hex');
   for (const name of namen) {
-    const e = createHash('sha256').update(readFileSync(new URL(`belege/${name}.json`, wurzel))).digest('hex');
-    const a = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel))).digest('hex');
-    const g32 = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.grid32.txt`, wurzel))).digest('hex');
-    const g48 = createHash('sha256').update(readFileSync(new URL(`erwartet/${name}.grid48.txt`, wurzel))).digest('hex');
-    assert.deepEqual(manifest.belege[name], { eingabe: e, erwartet: a, grid32: g32, grid48: g48 }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
+    assert.deepEqual(manifest.belege[name], {
+      eingabe: hash(`belege/${name}.json`),
+      erwartet: hash(`erwartet/${name}.lines.json`),
+      grid32: hash(`erwartet/${name}.grid32.txt`),
+      grid48: hash(`erwartet/${name}.grid48.txt`),
+      blatt32: hash(`erwartet/${name}.blatt32.json`),
+      blatt48: hash(`erwartet/${name}.blatt48.json`),
+    }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
   }
+  assert.equal(manifest.logoProbe.raster32, hash('erwartet/logo-probe.raster32.txt'));
+});
+
+const PROBE_LOGO = { stufe: 'M', pxBreite: 300, pxHoehe: 120 } as const;
+
+for (const name of namen) {
+  test(`Golden-Blatt ${name}: Blatt mit Probe-Logo und Marke ist die zugesagte Folge (32 und 48 Zeichen)`, () => {
+    for (const zeichen of [32, 48] as const) {
+      const soll = JSON.parse(readFileSync(new URL(`erwartet/${name}.blatt${zeichen}.json`, wurzel), 'utf8')) as unknown;
+      assert.deepEqual(JSON.parse(JSON.stringify(belegBlatt(erwartet(name), { zeichen, logo: PROBE_LOGO, marke: true }))), soll);
+    }
+  });
+}
+
+/** Dieselbe Formel steht im Dart-Zwilling: waagrechter Verlauf, oberste 10 Zeilen durchsichtig. */
+function verlauf(b: number, h: number): Uint8Array {
+  const rgba = new Uint8Array(b * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) {
+    const i = (y * b + x) * 4; const g = Math.floor((x * 255) / (b - 1));
+    rgba[i] = g; rgba[i + 1] = (g * 3) % 256; rgba[i + 2] = 255 - g; rgba[i + 3] = y < 10 ? 0 : 255;
+  }
+  return rgba;
+}
+
+test('Golden: Logo-Probe (300x100, Stufe S, 32 Zeichen) rastert Punkt fuer Punkt wie zugesagt', () => {
+  const mass = logoMass({ stufe: 'S', pxBreite: 300, pxHoehe: 100 }, 32);
+  const bild = logoRaster(verlauf(300, 100), 300, 100, mass, 32);
+  const zeilen: string[] = [];
+  for (let y = 0; y < bild.hoehe; y++) zeilen.push(Array.from(bild.punkte.slice(y * bild.breite, (y + 1) * bild.breite)).join(''));
+  assert.equal(zeilen.join('\n') + '\n', readFileSync(new URL('erwartet/logo-probe.raster32.txt', wurzel), 'utf8'));
 });
 
 test('Golden-Belege: ESC/POS und React sind deterministisch und tragen den Belegart-Aufdruck', () => {
