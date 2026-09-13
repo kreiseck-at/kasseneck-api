@@ -42,3 +42,21 @@ export {
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
 export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+
+export {
+  type LogoStufe,
+  type BlattLogo,
+  type LogoMass,
+  type BlattBlock,
+  type BelegBlatt,
+  type BelegBlattOptionen,
+  LOGO_STUFEN,
+  PUNKTE_JE_ZEICHEN,
+  PUNKTE_JE_ZEILE,
+  MARKE_TEXT,
+  papierFuerZeichen,
+  logoMass,
+  logoRasterMass,
+  qrBlattAnteil,
+  belegBlatt,
+} from './blatt.js';
