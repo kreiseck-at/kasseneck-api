@@ -12,8 +12,8 @@ import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
 /**
  * ePOS-Print XML (Epson TM-Drucker: Server Direct Print, ePOS-Print ueber
  * HTTP) -- **aus dem Zeichenraster**: jede Rasterzeile wird eine <text>-Zeile
- * mit exakt N Zeichen und Zeilenumbruch, Aufdrucke doppelt hoch (Warnungen
- * invers), QR als <symbol>, Leerraum als <feed>, am Ende Schnitt. Kein
+ * mit exakt N Zeichen und Zeilenumbruch, Aufdrucke als Rahmen aus
+ * Rasterzeilen, QR als <symbol>, Leerraum als <feed>, am Ende Schnitt. Kein
  * eigenes Setzen -- was Bildschirm, ESC/POS und PDF zeigen, druckt der Epson
  * Zeile fuer Zeile genauso.
  *
@@ -136,10 +136,6 @@ export function eposPrintXmlErgebnis(
         out.push('<text align="left"/>');
         break;
       }
-      case 'banner':
-        out.push(`<text width="1" height="2" reverse="${z.ton === 'warnung' ? 'true' : 'false'}" em="true">${eposXmlEscape(z.text)}&#10;</text>`);
-        out.push('<text width="1" height="1" reverse="false" em="false"/>');
-        break;
       default:
         if (z.bold) out.push(`<text em="true">${eposXmlEscape(z.text)}&#10;</text>`);
         else out.push(`<text>${eposXmlEscape(z.text)}&#10;</text>`);

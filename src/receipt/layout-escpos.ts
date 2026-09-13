@@ -201,16 +201,6 @@ export function escPosLayoutErgebnis(
       case 'qr':
         qrZeile(zeile.qr ?? '');
         break;
-      case 'banner': {
-        // Belegart/Warnung: fett zwischen zwei Volllinien — derselbe Rahmen-
-        // Stil wie im Beleg-Viewer und im PDF (frueher druckte der Bon invers
-        // weiss-auf-schwarz und sah damit anders aus als jede Anzeige).
-        const rahmen = '='.repeat(ZEICHEN_JE_PAPIER[paperSize]);
-        escPosText(doc, rahmen, { styles: { align: 'left', bold: true } });
-        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: true, height: 2 } });
-        escPosText(doc, rahmen, { styles: { align: 'left', bold: true } });
-        break;
-      }
       default:
         escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: zeile.bold } });
         break;
