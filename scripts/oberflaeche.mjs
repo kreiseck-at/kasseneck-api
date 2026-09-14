@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { AUFRUFE } from '../dist/esm/client/aufrufe.js';
 import * as kasse from '../dist/esm/kasse/index.js';
 import * as partner from '../dist/esm/partner/index.js';
+import * as rechnung from '../dist/esm/rechnung/index.js';
 import { REGISTER_PERMS } from '../dist/esm/register/index.js';
 
 /** GROSS_GESCHRIEBEN -> kleinCamel: DRUCKER_ART -> druckerArt, KATPOS -> katpos. */
@@ -61,6 +62,17 @@ for (const name of Object.keys(partner).sort()) {
   partnerListen[schluessel(name)] = [...wert];
 }
 
+// Dasselbe fuer die Rechnungs-API: Fehlercodes, Gutschrift-Gruende und die
+// Werte von Steuerschema, Preismodus & Co. Die Feldbeschreibung selbst steht
+// nicht hier, sondern im Schema (`npm run fixtures:rechnung`) — hier nur, was
+// ein Zwilling als Liste nachpflegt.
+const rechnungListen = {};
+for (const name of Object.keys(rechnung).sort()) {
+  const wert = rechnung[name];
+  if (!istEnumListe(name, wert)) continue;
+  rechnungListen[schluessel(name)] = [...wert];
+}
+
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const vertrag = {
@@ -70,6 +82,7 @@ const vertrag = {
   rechte: [...REGISTER_PERMS],
   tastenAktionen: [...kasse.TASTEN_AKTIONEN],
   partner: partnerListen,
+  rechnung: rechnungListen,
 };
 
 writeFileSync(new URL('../fixtures/oberflaeche.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');

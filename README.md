@@ -437,6 +437,7 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 | `…/register` | Anmeldung der Browser-Kasse: Gerät koppeln und entkoppeln, Benutzer auflisten, per PIN anmelden, Sitzung erneuern und beenden. |
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
 | `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
+| `…/rechnung` | Rechnungs-API: Kunden anlegen und suchen, Rechnungen festgeschrieben ausstellen, Gutschrift und Storno, PDF und E-Rechnung-XML; der Vertrag als Daten. **Gehört auf einen Server.** |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 | `…/fixtures/*` | Golden-Belege (JSON): Eingaben `belege/<name>.json`, zugesagte Zeilenausgabe `erwartet/<name>.lines.json`, `manifest.json` mit Prüfsummen — dieselben Dateien prüfen Backend, Browser-Kasse und Flutter-Paket. |
 

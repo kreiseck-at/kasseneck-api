@@ -6,6 +6,7 @@ import * as kasse from '../src/kasse/index.js';
 import { TASTEN_AKTIONEN } from '../src/kasse/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
+import * as rechnung from '../src/rechnung/index.js';
 
 const vertrag = JSON.parse(
   readFileSync(new URL('../../fixtures/oberflaeche.json', import.meta.url), 'utf8'),
@@ -73,6 +74,31 @@ test('Golden: der Vertrag fuehrt JEDE Partner-Liste des Pakets, keine mehr und k
   // Ohne diese Zusicherung koennte der Erzeuger den ganzen Abschnitt
   // weglassen und der Test bliebe gruen (leer gegen leer).
   assert.ok(partnerListen.size >= 4, 'der Partner-Teil traegt keine Listen mehr — dann prueft dieser Test nichts');
+});
+
+/**
+ * Dieselbe Ableitung fuer die Rechnungs-API: Fehlercodes, Gutschrift-Gruende,
+ * Steuerschemata. Die Feldbeschreibung selbst prueft rechnung-vertrag.test.ts
+ * gegen das Schema; hier nur, was als Liste in die Oberflaeche geht.
+ */
+const rechnungRaum = rechnung as unknown as Record<string, unknown>;
+const rechnungListen = new Map<string, readonly (string | number)[]>();
+for (const name of Object.keys(rechnungRaum).sort()) {
+  const wert = rechnungRaum[name];
+  if (!/^[A-Z][A-Z0-9_]*$/.test(name)) continue;
+  if (!Array.isArray(wert)) continue;
+  if (!wert.every((eintrag) => typeof eintrag === 'string' || typeof eintrag === 'number')) continue;
+  rechnungListen.set(schluessel(name), wert as readonly (string | number)[]);
+}
+
+test('Golden: der Vertrag fuehrt JEDE Rechnungs-Liste des Pakets, keine mehr und keine weniger', () => {
+  assert.deepEqual(Object.keys(vertrag.rechnung ?? {}).sort(), [...rechnungListen.keys()].sort(), veraltet);
+  for (const [name, liste] of rechnungListen) {
+    assert.deepEqual(vertrag.rechnung[name], [...liste], `${veraltet} (rechnung.${name})`);
+  }
+  // Leer gegen leer waere gruen, ohne etwas zu pruefen.
+  assert.ok(rechnungListen.has('invoiceErrorCodes') && rechnungListen.has('creditNoteReasons'),
+    'der Rechnungs-Teil traegt seine Codes nicht mehr — dann prueft dieser Test nichts');
 });
 
 test('Die Vertragsdatei nennt die Paketversion', () => {
