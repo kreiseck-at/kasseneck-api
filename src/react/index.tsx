@@ -228,6 +228,9 @@ export function BelegBlattZeilen({ blatt, logoUrl, renderQr, qrVerdeckt = false,
               </div>
             );
           case 'qr': {
+            // Anteil 0: der QR hat auf dem Blatt keinen Platz (leer oder in keine
+            // Version passend) -- wie Bon und PDF zeigt die Ansicht dann keinen.
+            if (b.breiteAnteil <= 0) return null;
             const bild = renderQr !== undefined ? renderQr(b.nutzlast) : <div data-qr={b.nutzlast} aria-label="RKSV-QR-Code" />;
             return (
               <div key={i} className="keck-blatt-qr" style={{ display: 'flex', justifyContent: 'center' }}>

@@ -21,6 +21,7 @@ import {
   type RasterBild,
   QR_DRUCK_PUNKTE,
   qrGroesseFuer,
+  qrPasstInVersion,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
 import { belegBlatt, logoRasterMass, type BelegBlatt, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
@@ -212,6 +213,13 @@ export function escPosLayoutErgebnis(
    * `qrFehler` aus `escPosQrCode`, und der Beleg geht ohne QR hinaus.
    */
   const qrZeile = (nutzlast: string): void => {
+    // Ein Inhalt, der in keine QR-Version passt, laesst sich weder als Befehl
+    // noch als Bild drucken -- beide Wege wuerfen. Der Beleg geht ohne QR
+    // hinaus und sagt es ueber `qrFehler`, wie das Blatt (Anteil 0).
+    if (nutzlast !== '' && !qrPasstInVersion(nutzlast)) {
+      doc.qrFehler = 'QR-Inhalt passt in keine QR-Version -- Beleg ohne QR';
+      return;
+    }
     const raster = options.qrMatrix;
     if (nutzlast !== '' && raster !== undefined) {
       if (modus === 'imageRaster') {

@@ -5,6 +5,7 @@ import {
   QR_MINDEST_PUNKTE,
   QR_MODUL_DECKEL,
   qrGroesseFuer,
+  qrPasstInVersion,
   rasterZeilenBase64,
   type QrModulGroesse,
   type RasterBild,
@@ -111,6 +112,12 @@ export function eposPrintXmlErgebnis(
   const qrBreiteFuer = (nutzlast: string): number | null => {
     if (fest !== null) return fest;
     if (nutzlast === '') return QR_MODUL_DECKEL[deckel];
+    // Passt der Inhalt in keine QR-Version, gibt es kein Symbol, das der
+    // Drucker setzen koennte -- wie beim Blatt (Anteil 0) geht der Beleg ohne QR.
+    if (!qrPasstInVersion(nutzlast)) {
+      qrFehler = 'QR-Inhalt passt in keine QR-Version -- Beleg ohne QR';
+      return null;
+    }
     const mass = qrGroesseFuer({
       nutzlast,
       papierbreitePunkte: QR_DRUCK_PUNKTE[layout.paperSize],

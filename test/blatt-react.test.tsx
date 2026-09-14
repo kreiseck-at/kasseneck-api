@@ -44,3 +44,13 @@ test('BelegBlattView ohne geladenes Logo: noch kein Logo-Block (Server-Rendering
   assert.ok(!html.includes('keck-blatt-logo'));
   assert.deepEqual(zeilenAusHtml(html), belegBlatt(LAYOUT, { marke: true }).bloecke.filter((b) => b.art === 'zeile').map((b) => (b as { text: string }).text));
 });
+
+test('BelegBlattZeilen: QR mit Anteil 0 (Inhalt passt in keine QR-Version) -- kein QR-Block, renderQr wird nicht gerufen, Zeilen stehen', () => {
+  const zuLang: ReceiptLayout = { ...LAYOUT, lines: LAYOUT.lines.map((z) => (z.kind === 'qr' ? { kind: 'qr', data: 'x'.repeat(2332) } : z)) };
+  const blatt = belegBlatt(zuLang);
+  let gerufen = 0;
+  const html = renderToStaticMarkup(<BelegBlattZeilen blatt={blatt} renderQr={() => { gerufen += 1; return <i>QR</i>; }} />);
+  assert.equal(gerufen, 0);
+  assert.equal(html.includes('keck-blatt-qr'), false);
+  assert.deepEqual(zeilenAusHtml(html), blatt.bloecke.filter((b) => b.art === 'zeile').map((b) => (b as { text: string }).text));
+});

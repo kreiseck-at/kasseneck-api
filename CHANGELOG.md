@@ -25,6 +25,12 @@ Bon druckte Warnungen invers und doppelt hoch.
 - Neu `belegBlatt(layout, { zeichen, logo, marke, qrGroesse })`: Reihenfolge
   (Aufdrucke oben, Leerzeile, Logo, Leerzeile, Beleg, Marke), Logo-Maß je Stufe
   S/M/L/XL (nie hochgerechnet), QR-Anteil wie am Drucker.
+- Ein QR-Inhalt, der in keine QR-Version passt (Korrektur M, mehr als 2331
+  Byte), bekommt im Blatt den Anteil 0, statt dass `belegBlatt` wirft. Bildschirm,
+  ESC/POS und ePOS lassen den QR dann weg und melden es über `qrFehler`; der Beleg
+  steht ohne QR. **Grund:** Ein Wurf riss jeden Zeichner mit — die Bon-Ansicht der
+  Web-Kasse fiel ganz aus, Bon und PDF ebenso. Neu `qrPasstInVersion(nutzlast)`
+  (`./printing`); `qrModulAnzahl` wirft weiter.
 - Neu `logoRaster` (RGBA → einfarbiges Rasterbild), `escPosRasterBild`,
   `eposBildXml`; `escPosLayoutBytes` und `eposPrintXml` nehmen `logo` und `marke`.
 - Neu `BelegBlattView` / `BelegBlattZeilen` (`./react`); `ReceiptLayoutView` ist

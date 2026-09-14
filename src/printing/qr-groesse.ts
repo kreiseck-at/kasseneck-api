@@ -135,6 +135,19 @@ export function qrModulAnzahl(nutzlast: string): number {
 }
 
 /**
+ * Ob `nutzlast` in irgendeine QR-Version 1..40 bei Fehlerkorrektur M passt --
+ * dieselbe Tabelle wie `qrModulAnzahl`, aber ohne zu werfen.
+ *
+ * Fuer Aufrufer, denen ein zu langer Inhalt kein Programmierfehler ist,
+ * sondern ein Datenfehler, den sie selbst behandeln (das Beleg-Blatt: ohne
+ * QR weiterbauen statt den ganzen Zeichner mitzureissen).
+ */
+export function qrPasstInVersion(nutzlast: string): boolean {
+  const laenge = new TextEncoder().encode(nutzlast).length;
+  return laenge <= (BYTE_KAPAZITAET_M[BYTE_KAPAZITAET_M.length - 1] as number);
+}
+
+/**
  * Groesste Modulgroesse, mit der `moduleAnzahl` Module **samt Ruhezone** in
  * `papierbreitePunkte` passen, gedeckelt durch `groesse`.
  *

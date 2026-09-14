@@ -3,6 +3,7 @@ import {
   QR_DRUCK_PUNKTE,
   QR_RUHEZONE_MODULE,
   qrGroesseFuer,
+  qrPasstInVersion,
   qrRasterPunkte,
   type QrModulGroesse,
 } from '../printing/index.js';
@@ -123,6 +124,13 @@ export function logoRasterMass(mass: LogoMass, zeichen: number): { breite: numbe
  */
 export function qrBlattAnteil(nutzlast: string, papier: PosPaperSize, groesse: QrModulGroesse = 'auto'): number {
   if (nutzlast === '') return 0;
+  // Ein Inhalt, der in keine QR-Version passt (Fehlerkorrektur M, hoechstens
+  // 2331 Byte), wuerde hier `qrGroesseFuer` -> `qrModulAnzahl` zum Werfen
+  // bringen -- und riss damit jeden Zeichner mit, der das Blatt baut
+  // (Bildschirm, Bon, PDF). 0, wie bei leerer Nutzlast: der Beleg steht ohne
+  // QR, statt gar nicht zu stehen. `qrModulAnzahl` selbst wirft weiter -- wer
+  // es ausserhalb des Blatts aufruft, soll den Fehler sehen.
+  if (!qrPasstInVersion(nutzlast)) return 0;
   const papierPunkte = QR_DRUCK_PUNKTE[papier];
   const mass = qrGroesseFuer({ nutzlast, papierbreitePunkte: papierPunkte, groesse });
   if (mass.passt) return mass.breitePunkte / papierPunkte;

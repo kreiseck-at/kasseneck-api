@@ -85,3 +85,25 @@ test('qrBlattAnteil: die Breite, die der Drucker fuer diese Nutzlast druckt, get
   const qr = blatt.bloecke.find((b) => b.art === 'qr');
   assert.deepEqual(qr, { art: 'qr', nutzlast: QR, breiteAnteil: anteil80 });
 });
+
+test('qrBlattAnteil: ein Inhalt, der in keine QR-Version passt, ergibt 0 statt zu werfen', () => {
+  assert.equal(qrBlattAnteil('x'.repeat(2332), 'mm80'), 0);
+  // Grenze: 2331 Byte passen noch (Version 40, Korrektur M) -- Anteil > 0.
+  assert.ok(qrBlattAnteil('x'.repeat(2331), 'mm80') > 0);
+});
+
+test('belegBlatt: ein QR-Inhalt, der in keine Version passt, wirft nicht -- der Block bleibt, nur ohne Breite', () => {
+  const zuLang: ReceiptLayout = { ...TESTKASSE, lines: TESTKASSE.lines.map((z) => (z.kind === 'qr' ? { kind: 'qr', data: 'x'.repeat(2332) } : z)) };
+  assert.doesNotThrow(() => belegBlatt(zuLang, { zeichen: 48 }));
+  const ergebnis = belegBlatt(zuLang, { zeichen: 48 });
+  const qrIndex = ergebnis.bloecke.findIndex((b) => b.art === 'qr');
+  assert.ok(qrIndex >= 0, 'der QR-Block bleibt Teil des Blatts');
+  assert.deepEqual(ergebnis.bloecke[qrIndex], { art: 'qr', nutzlast: 'x'.repeat(2332), breiteAnteil: 0 });
+
+  // Dieselben Zeilenbloecke wie beim Layout ganz ohne QR-Zeile -- der QR-Block
+  // an seiner Stelle kommt oben schon dazu, sonst aendert sich nichts.
+  const ohneQr: ReceiptLayout = { ...TESTKASSE, lines: TESTKASSE.lines.filter((z) => z.kind !== 'qr') };
+  const ergebnisOhne = belegBlatt(ohneQr, { zeichen: 48 });
+  const bloeckeOhneQr = [...ergebnis.bloecke.slice(0, qrIndex), ...ergebnis.bloecke.slice(qrIndex + 1)];
+  assert.deepEqual(bloeckeOhneQr, ergebnisOhne.bloecke);
+});

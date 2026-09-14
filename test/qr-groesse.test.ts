@@ -11,6 +11,7 @@ import {
   qrGroesseBerechnen,
   qrGroesseFuer,
   qrModulAnzahl,
+  qrPasstInVersion,
   type QrModulGroesse,
 } from '../src/printing/index.js';
 
@@ -61,6 +62,14 @@ test('Modulanzahl: zaehlt Byte, nicht Zeichen — ein Umlaut kostet zwei', () =>
 
 test('Modulanzahl: zu lange Nutzlast wird gemeldet, nicht stillschweigend gekuerzt', () => {
   assert.throws(() => qrModulAnzahl('X'.repeat(2332)), /zu lang/);
+});
+
+test('qrPasstInVersion: dieselbe Grenze wie qrModulAnzahl, aber ohne zu werfen', () => {
+  assert.equal(qrPasstInVersion('X'.repeat(2331)), true);
+  assert.equal(qrPasstInVersion('X'.repeat(2332)), false);
+  assert.equal(qrPasstInVersion(''), true);
+  // Ein Umlaut zaehlt zwei Byte -- an der Grenze entscheidet das, nicht die Zeichenzahl.
+  assert.equal(qrPasstInVersion(`${'X'.repeat(2330)}ä`), false);
 });
 
 // ------------------------------------------------------------------- Regel

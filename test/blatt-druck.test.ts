@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { belegBlatt, eposPrintXml, escPosLayoutBytes, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
+import { belegBlatt, eposPrintXml, escPosLayoutBytes, escPosLayoutErgebnis, logoMass, logoRasterMass, type DruckLogo } from '../src/receipt/index.js';
+import { eposPrintXmlErgebnis } from '../src/receipt/epos.js';
 import { blattFuerDruck } from '../src/receipt/layout-escpos.js';
 
 /**
@@ -67,4 +68,33 @@ test('Druckwege und Blatt zaehlen dieselben Zeilen', () => {
   const xml = eposPrintXml(LAYOUT, { logo: probeLogo(48), marke: true, cut: false });
   const textzeilen = (xml.match(/&#10;<\/text>/g) ?? []).length + (xml.match(/<feed line="1"\/>/g) ?? []).length;
   assert.equal(textzeilen, blatt.bloecke.filter((b) => b.art === 'zeile').length);
+});
+
+/**
+ * Ein QR-Inhalt, der in keine QR-Version passt (Korrektur M, mehr als 2331
+ * Byte): kein Druckweg darf daran scheitern. Der Beleg geht ohne QR hinaus und
+ * meldet es ueber `qrFehler` -- wie das Blatt, das dem QR den Anteil 0 gibt.
+ */
+const ZU_LANG: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
+  { kind: 'text', text: 'Firma', align: 'center', bold: true },
+  { kind: 'qr', data: 'x'.repeat(2332) },
+  { kind: 'text', text: 'Danke', align: 'center', bold: false },
+] };
+
+for (const qrModus of ['native', 'nativeModel1', 'imageRaster'] as const) {
+  test(`ESC/POS ${qrModus}: QR-Inhalt ohne passende Version -- Beleg ohne QR, qrFehler gesetzt`, () => {
+    const r = escPosLayoutErgebnis(ZU_LANG, { cut: false, qrModus, qrMatrix: () => { throw new Error('Raster darf gar nicht erst angefragt werden'); } });
+    const text = latin1(r.bytes);
+    assert.ok(text.includes('Firma') && text.includes('Danke'), 'die Zeilen stehen');
+    assert.equal(text.indexOf('\x1d(k'), -1, 'kein QR-Befehl');
+    assert.equal(text.indexOf('\x1dv0'), -1, 'kein QR-Bild');
+    assert.match(r.qrFehler ?? '', /keine QR-Version/);
+  });
+}
+
+test('ePOS: QR-Inhalt ohne passende Version -- kein <symbol>, Zeilen stehen, qrFehler gesetzt', () => {
+  const r = eposPrintXmlErgebnis(ZU_LANG);
+  assert.equal(r.xml.includes('<symbol'), false);
+  assert.ok(r.xml.includes('Firma') && r.xml.includes('Danke'));
+  assert.match(r.qrFehler ?? '', /keine QR-Version/);
 });
