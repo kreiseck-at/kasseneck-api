@@ -88,6 +88,21 @@ export function papierFuerZeichen(zeichen: number, vorgabe: PosPaperSize): PosPa
 }
 
 /**
+ * Obergrenze der Logo-Pixel, die der Bildschirm noch anzeigen darf -- exakt
+ * dieselbe Grenze wie im Druck-Kit (`LOGO_PIXEL_MAX` in `druck-logo.ts`):
+ * Bon und ePOS lehnen ein Logo ueber 4096x4096px schon beim Rastern ab (ein
+ * grosses Bild blockiert das Geraet). Ohne diese Grenze wuerde der
+ * Bildschirm ein Logo zeigen, das der Bon nie druckt -- Bildschirm und
+ * Papier waeren sich uneins, genau das soll das Beleg-Blatt verhindern.
+ */
+export const LOGO_PIXEL_MAX = 4096;
+
+/** Reine Pruefung, ob ein Logo dieser Pixelmasse noch angezeigt/gedruckt werden darf. */
+export function logoPixelZulaessig(breite: number, hoehe: number): boolean {
+  return breite > 0 && hoehe > 0 && breite <= LOGO_PIXEL_MAX && hoehe <= LOGO_PIXEL_MAX;
+}
+
+/**
  * Das Logo in den Kasten seiner Stufe einpassen -- **nie hochrechnen**: ein
  * Bildpixel wird hoechstens ein Druckpunkt. Ein kleines Logo bleibt klein,
  * statt am Bon verwaschen zu werden (so hielten es PDF und Web-Kasse schon).

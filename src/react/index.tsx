@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { LayoutAlign, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
-import { belegBlatt, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
+import { belegBlatt, logoPixelZulaessig, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
 import type { QrModulGroesse } from '../printing/qr-groesse.js';
 
 /**
@@ -261,6 +261,11 @@ export interface BelegBlattViewProps extends Omit<BelegBlattZeilenProps, 'blatt'
  * Laedt das Logo (fuer sein Pixelmass), baut das Blatt und zeichnet es. Bis
  * das Bild geladen ist, fehlt der Logo-Block -- die Kasse laedt das Logo ohnehin
  * vorab in den Browser-Cache.
+ *
+ * Ein Logo ueber [logoPixelZulaessig] (4096x4096px, dieselbe Grenze wie das
+ * Druck-Kit beim Rastern fuer den Bon) bleibt hier ebenso ohne Logo-Block --
+ * sonst zeigte der Bildschirm ein Logo, das nie gedruckt wird: Bildschirm und
+ * Bon zeigen dasselbe Logo.
  */
 export function BelegBlattView({ layout, zeichen, logo, marke = false, qrGroesse, ...rest }: BelegBlattViewProps): ReactNode {
   const [mass, setMass] = useState<{ url: string; breite: number; hoehe: number } | null>(null);
@@ -272,7 +277,7 @@ export function BelegBlattView({ layout, zeichen, logo, marke = false, qrGroesse
     if (Bild === undefined) return undefined;
     const bild = new Bild();
     bild.onload = () => {
-      if (aktiv && bild.naturalWidth > 0 && bild.naturalHeight > 0) setMass({ url, breite: bild.naturalWidth, hoehe: bild.naturalHeight });
+      if (aktiv && logoPixelZulaessig(bild.naturalWidth, bild.naturalHeight)) setMass({ url, breite: bild.naturalWidth, hoehe: bild.naturalHeight });
     };
     bild.src = url;
     return () => {

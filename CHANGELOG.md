@@ -35,7 +35,13 @@ Bon druckte Warnungen invers und doppelt hoch.
 - Neu `logoRaster` (RGBA → einfarbiges Rasterbild), `escPosRasterBild`,
   `eposBildXml`; `escPosLayoutBytes` und `eposPrintXml` nehmen `logo` und `marke`.
 - Neu `BelegBlattView` / `BelegBlattZeilen` (`./react`); `ReceiptLayoutView` ist
-  `@deprecated`.
+  `@deprecated`. `BelegBlattView` zeigt ein Logo ueber 4096x4096px (oder 0)
+  ebenso wenig wie ein nicht geladenes -- neu `LOGO_PIXEL_MAX`,
+  `logoPixelZulaessig` (`./receipt`). **Grund:** Bildschirm und Bon zeigen
+  dasselbe Logo; das Druck-Kit lehnt ein zu grosses Logo beim Rastern fuer
+  den Bon schon ab (dieselbe Grenze), der Bildschirm bisher nicht -- ein
+  5000x1200px-Logo erschien am Bildschirm und im PDF, aber nie auf dem
+  gedruckten Beleg.
 - Neu `ReceiptWithCompany.logoStufe` (aus `logo_skala` der Beleg-Antwort,
   Vorgabe `M`): Panel und App kannten die Logo-Stufe des Betriebs bisher nicht.
 - `createPrintJob` nimmt `logo` und `marke`: der Netzwerk-Drucker (Connect)

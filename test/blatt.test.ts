@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
 import { renderReceiptGrid } from '../src/receipt/grid.js';
-import { LOGO_STUFEN, MARKE_TEXT, belegBlatt, logoMass, logoRasterMass, papierFuerZeichen, qrBlattAnteil } from '../src/receipt/blatt.js';
+import { LOGO_PIXEL_MAX, LOGO_STUFEN, MARKE_TEXT, belegBlatt, logoMass, logoPixelZulaessig, logoRasterMass, papierFuerZeichen, qrBlattAnteil } from '../src/receipt/blatt.js';
 
 /**
  * Das Blatt ist die vollstaendige Folge dessen, was auf dem Papier steht.
@@ -66,6 +66,17 @@ test('logoMass: in den Kasten eingepasst, nie hochgerechnet', () => {
   assert.ok(Math.abs(klein.hoeheZeilen - 50 / 24) < 1e-12);
   assert.throws(() => logoMass({ stufe: 'M', pxBreite: 0, pxHoehe: 10 }, 48), /Pixelmass/);
   assert.deepEqual(Object.keys(LOGO_STUFEN), ['S', 'M', 'L', 'XL']);
+});
+
+test('logoPixelZulaessig: dieselbe Grenze wie das Druck-Kit (4096px) -- der Bildschirm darf kein Logo zeigen, das der Bon ablehnt', () => {
+  assert.equal(LOGO_PIXEL_MAX, 4096);
+  assert.equal(logoPixelZulaessig(4096, 4096), true);
+  assert.equal(logoPixelZulaessig(4097, 4096), false);
+  assert.equal(logoPixelZulaessig(4096, 4097), false);
+  assert.equal(logoPixelZulaessig(1, 1), true);
+  assert.equal(logoPixelZulaessig(0, 100), false);
+  assert.equal(logoPixelZulaessig(100, 0), false);
+  assert.equal(logoPixelZulaessig(0, 0), false);
 });
 
 test('logoRasterMass: gerundete Druckpunkte aus dem Mass', () => {
