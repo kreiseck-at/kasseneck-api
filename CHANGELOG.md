@@ -4,6 +4,34 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.15.0
+
+### Rechnungs-API: Rechnungen statt Belege, per `api_key`
+
+**Anlass:** Fremdsysteme (Shops, Buchhaltungssoftware) konnten Rechnungen nur
+über die Endpunkte des Panels anlegen — mit Anmeldung als Mensch, als Entwurf,
+ohne geprüfte Eingabe und ohne Schutz vor einer doppelt ausgestellten Rechnung
+nach einem Zeitlimit. Eine festgeschriebene Rechnung lässt sich aber nur per
+Gutschrift zurücknehmen; ein Doppel ist also teuer.
+
+- Neuer Unterpfad `@kreiseck/kasseneck-api/rechnung` mit `createRechnungApi`:
+  Kunden (`createCustomer`, `getCustomer`, `updateCustomer`, `searchCustomers`),
+  Rechnungen (`issueInvoice`, `cancelInvoice`, `createCreditNote`, `getInvoice`,
+  `listInvoices`) und Dateien (`getInvoicePdf`, `getInvoiceXml`).
+- Anmeldung `rechnungKeyAuth`: Kontoschlüssel als Bearer, **ohne**
+  Kassen-Token — eine Rechnung entsteht am Konto, nicht an einer Kasse. Ein
+  Partner-Schlüssel oder Kassen-Token wird ohne Netzaufruf abgewiesen.
+- Der Vertrag steht als Daten in `src/rechnung/vertrag.ts` und wird als
+  `fixtures/rechnung-api.schema.json` ausgeliefert (`npm run fixtures:rechnung`),
+  dazu Beispielanfragen unter `fixtures/rechnung-api-beispiele/`. Grund: das
+  Backend und der Dart-Zwilling prüfen gegen dieselbe Datei — die Feldliste
+  kann nicht an drei Stellen auseinanderlaufen.
+- `fixtures/oberflaeche.json` führt die elf Aufrufe und einen Abschnitt
+  `rechnung` (Fehlercodes, Gutschrift-Gründe, Steuerschemata).
+- `getInvoiceXml` liefert das XML als Text im gewohnten Umschlag statt als rohe
+  Datei: so bleibt `einvoice_incomplete` ein gewöhnlicher Fehler mit
+  `missing[]`, und der Transport braucht keinen dritten Leseweg.
+
 ## 0.14.0
 
 ### Das Beleg-Blatt: ein Beleg, der überall gleich aussieht

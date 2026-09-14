@@ -8,6 +8,7 @@ import * as printing from '../src/printing/index.js';
 import * as payments from '../src/payments/index.js';
 import * as register from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
+import * as rechnung from '../src/rechnung/index.js';
 import * as react from '../src/react/index.js';
 
 /**
@@ -39,6 +40,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/payments': payments,
   '@kreiseck/kasseneck-api/register': register,
   '@kreiseck/kasseneck-api/partner': partner,
+  '@kreiseck/kasseneck-api/rechnung': rechnung,
   '@kreiseck/kasseneck-api/react': react,
 };
 
