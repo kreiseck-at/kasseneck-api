@@ -228,9 +228,10 @@ export function BelegBlattZeilen({ blatt, logoUrl, renderQr, qrVerdeckt = false,
               </div>
             );
           case 'qr': {
-            // Anteil 0: der QR hat auf dem Blatt keinen Platz (leer oder in keine
-            // Version passend) -- wie Bon und PDF zeigt die Ansicht dann keinen.
-            if (b.breiteAnteil <= 0) return null;
+            // Auch beim Anteil 0 (leer oder in keine Version passend) bekommt
+            // `renderQr` die Nutzlast: die Oberflaeche muss sagen koennen, dass
+            // der QR fehlt und ein Papierbeleg noetig ist. Bon und PDF lassen
+            // den QR dann weg und melden es ueber `qrFehler`.
             const bild = renderQr !== undefined ? renderQr(b.nutzlast) : <div data-qr={b.nutzlast} aria-label="RKSV-QR-Code" />;
             return (
               <div key={i} className="keck-blatt-qr" style={{ display: 'flex', justifyContent: 'center' }}>
