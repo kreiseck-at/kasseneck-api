@@ -31,6 +31,10 @@ export {
   escPosQrCode,
   escPosQrRaster,
   qrRasterPunkte,
+  type RasterBild,
+  rasterZeilenBytes,
+  rasterZeilenBase64,
+  escPosRasterBild,
   encodeEscPosText,
   qrCodeBytes,
   escPosMaxCharsPerLine,
@@ -48,6 +52,7 @@ export {
   QR_HOECHST_PUNKTE,
   QR_DRUCK_PUNKTE,
   qrModulAnzahl,
+  qrPasstInVersion,
   qrGroesseBerechnen,
   qrGroesseFuer,
 } from './qr-groesse.js';

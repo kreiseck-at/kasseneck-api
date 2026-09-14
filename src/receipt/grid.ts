@@ -32,7 +32,7 @@ export interface GridLine {
   text: string;
   kind: GridLineKind;
   bold: boolean;
-  /** Bei `banner`: `warnung` = invers/auffaellig, `belegart` = Rahmen. */
+  /** Bei `banner` (Rahmen- und Textzeilen): `warnung` = Test/Ausfall, `belegart` = Storno, Nullbeleg … */
   ton?: 'belegart' | 'warnung';
   /** Bei `qr`: die Nutzlast. */
   qr?: string;
@@ -90,9 +90,17 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
       case 'text':
         for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.align), kind: 'text', bold: z.bold });
         break;
-      case 'banner':
+      case 'banner': {
+        // Der Rahmen ist Teil des Rasters: eine Zeile '=' ueber die volle Breite
+        // davor und danach. So setzt ihn jeder Weg -- Bildschirm, Bon, ePOS, PDF,
+        // myPOS -- Zeichen fuer Zeichen gleich. Vorher zeichnete jeder Weg seinen
+        // eigenen Rahmen (Rechteck, doppelt hoch, invers, gefuellt).
+        const rahmen = '='.repeat(zeichen);
+        lines.push({ text: rahmen, kind: 'banner', bold: true, ton: z.ton });
         for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, 'center'), kind: 'banner', bold: true, ton: z.ton });
+        lines.push({ text: rahmen, kind: 'banner', bold: true, ton: z.ton });
         break;
+      }
       case 'rule':
         lines.push({ text: (z.char || '-').charAt(0).repeat(zeichen), kind: 'rule', bold: false });
         break;

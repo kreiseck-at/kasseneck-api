@@ -80,11 +80,11 @@ test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', 
     { kind: 'text', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEF', align: 'left', bold: false },
   ] };
   const t = renderReceiptGrid(layout).lines.map((z) => z.text.trim());
-  assert.deepEqual(t.slice(0, 2), ['TESTSIGNATUR — kein gültiger', 'Beleg']);
-  assert.deepEqual(t.slice(2, 5), ['Umsatzsteuerbefreit –', 'Kleinunternehmer gemäß § 6 Abs.', '1 Z 27 UStG.']);
-  assert.ok(t[5]!.startsWith('4  x Semmel je') && t[5]!.endsWith('3,16 B'), t[5]);
-  assert.equal(t[6], '0,79');
-  assert.deepEqual(t.slice(7), ['ABCDEFGHIJKLMNOPQRSTUVWXYZ012345', '6789ABCDEF']);
+  assert.deepEqual(t.slice(0, 4), ['='.repeat(32), 'TESTSIGNATUR — kein gültiger', 'Beleg', '='.repeat(32)]);
+  assert.deepEqual(t.slice(4, 7), ['Umsatzsteuerbefreit –', 'Kleinunternehmer gemäß § 6 Abs.', '1 Z 27 UStG.']);
+  assert.ok(t[7]!.startsWith('4  x Semmel je') && t[7]!.endsWith('3,16 B'), t[7]);
+  assert.equal(t[8], '0,79');
+  assert.deepEqual(t.slice(9), ['ABCDEFGHIJKLMNOPQRSTUVWXYZ012345', '6789ABCDEF']);
 });
 
 test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die anderen Spalten leer sind; geschuetztes Leerzeichen haelt "je 0,79" zusammen; ueberlange Woerter brechen am Bindestrich', () => {
@@ -114,7 +114,7 @@ test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die an
   assert.equal(t[10]!.trimEnd(), 'je 0,79');
 });
 
-test('Stile und Sonderzeilen: Banner fett + Ton, QR traegt die Nutzlast, Leerraum als Leerzeilen', () => {
+test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR traegt die Nutzlast, Leerraum als Leerzeilen', () => {
   const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
     { kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' },
     { kind: 'text', text: 'Fett', align: 'center', bold: true },
@@ -122,13 +122,17 @@ test('Stile und Sonderzeilen: Banner fett + Ton, QR traegt die Nutzlast, Leerrau
     { kind: 'qr', data: QR },
   ] };
   const g = renderReceiptGrid(layout);
-  assert.equal(g.lines[0]!.kind, 'banner'); assert.equal(g.lines[0]!.bold, true); assert.equal(g.lines[0]!.ton, 'belegart');
-  assert.equal(g.lines[0]!.text, ' '.repeat(10) + 'STORNOBELEG' + ' '.repeat(11));
-  assert.equal(g.lines[1]!.bold, true);
-  assert.equal(g.lines[2]!.kind, 'space'); assert.equal(g.lines[3]!.kind, 'space');
-  assert.equal(g.lines[4]!.kind, 'qr'); assert.equal(g.lines[4]!.qr, QR);
-  // Klartext-Form (Golden-Dateien): eine Zeile je Rasterzeile, QR als Platzhalter
-  assert.equal(gridAlsText(g).split('\n').length, 5);
+  // Rahmen oben, Text, Rahmen unten -- jede Ausgabe setzt ihn damit zeichengleich.
+  for (const i of [0, 1, 2]) {
+    assert.equal(g.lines[i]!.kind, 'banner'); assert.equal(g.lines[i]!.bold, true); assert.equal(g.lines[i]!.ton, 'belegart');
+  }
+  assert.equal(g.lines[0]!.text, '='.repeat(32));
+  assert.equal(g.lines[1]!.text, ' '.repeat(10) + 'STORNOBELEG' + ' '.repeat(11));
+  assert.equal(g.lines[2]!.text, '='.repeat(32));
+  assert.equal(g.lines[3]!.bold, true);
+  assert.equal(g.lines[4]!.kind, 'space'); assert.equal(g.lines[5]!.kind, 'space');
+  assert.equal(g.lines[6]!.kind, 'qr'); assert.equal(g.lines[6]!.qr, QR);
+  assert.equal(gridAlsText(g).split('\n').length, 7);
 });
 
 test('ESC/POS druckt genau die Rasterzeilen (keine eigene Spaltenrechnung mehr): Bytestrom enthaelt jede Zeile', () => {
@@ -162,4 +166,13 @@ test('Golden: grid32/grid48 der Fixtures stimmen zeichengenau', () => {
       assert.equal(gridAlsText(renderReceiptGrid(layout, { zeichen })), soll, `${name} @${zeichen}`);
     }
   }
+});
+
+test('ESC/POS: Aufdruck ohne doppelte Hoehe -- genau die drei Rasterzeilen fett', () => {
+  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [{ kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' }] };
+  const text = Array.from(escPosLayoutBytes(layout, { cut: false }), (b) => String.fromCharCode(b)).join('');
+  assert.equal((text.match(new RegExp('='.repeat(32), 'g')) ?? []).length, 2);
+  assert.ok(text.includes('STORNOBELEG'));
+  // GS ! n mit Hoehenanteil != 0 waere doppelte Hoehe
+  for (const m of text.matchAll(/\x1d!([\s\S])/g)) assert.equal(m[1]!.charCodeAt(0) & 0x0f, 0, 'doppelte Hoehe im Bytestrom');
 });

@@ -6,9 +6,9 @@ import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseRespon
 
 /**
  * ePOS-Print XML (Epson TM, Server Direct Print / ePOS-Print): aus dem
- * Zeichenraster -- jede Rasterzeile eine <text>-Zeile, Aufdrucke doppelt
- * hoch/invers, QR als <symbol>, Schnitt. Kein eigenes Setzen: was das Raster
- * zeigt, druckt der Epson Zeile fuer Zeile.
+ * Zeichenraster -- jede Rasterzeile eine <text>-Zeile, Aufdrucke als Rahmen
+ * aus Rasterzeilen, QR als <symbol>, Schnitt. Kein eigenes Setzen: was das
+ * Raster zeigt, druckt der Epson Zeile fuer Zeile.
  */
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
 const LAYOUT: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
@@ -24,13 +24,17 @@ test('eposPrintXml: Namensraum, lang de, eine <text> je Rasterzeile mit exakt N 
   const xml = eposPrintXml(LAYOUT);
   assert.ok(xml.startsWith('<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'));
   assert.ok(xml.includes('<text lang="de"/>'));
-  // Firmenzeile: escaped, zentriert aufgefuellt auf 48 Zeichen, fett
-  const firma = /<text em="true">([^<]*)&#10;<\/text>/.exec(xml);
+  // Firmenzeile: escaped, zentriert aufgefuellt auf 48 Zeichen, fett -- der Aufdruck davor
+  // liefert ebenfalls fette Zeilen (Rahmen + Text), darum gezielt nach ihrem Inhalt suchen.
+  const firma = [...xml.matchAll(/<text em="true">([^<]*)&#10;<\/text>/g)].find((m) => m[1]!.includes('Bäckerei'));
   assert.ok(firma, xml);
   assert.equal(firma![1]!.length, 48 + ('&lt;'.length - 1) + ('&gt;'.length - 1) + ('&amp;'.length - 1));
   assert.ok(firma![1]!.includes('Bäckerei &lt;Muster&gt; &amp; Söhne'));
-  // Warnrahmen: doppelt hoch + invers, wortweise auf 48 -> eine Zeile
-  assert.ok(/<text width="1" height="2" reverse="true" em="true"> *TESTSIGNATUR — kein gültiger Beleg *&#10;<\/text>/.test(xml), xml);
+  // Warnrahmen: drei fette Rasterzeilen (Rahmen, Text, Rahmen) -- kein Invertieren, keine doppelte Hoehe
+  assert.ok(!xml.includes('height="2"'), xml);
+  assert.ok(!xml.includes('reverse="true"'), xml);
+  assert.equal((xml.match(new RegExp(`<text em="true">${'='.repeat(48)}&#10;</text>`, 'g')) ?? []).length, 2, xml);
+  assert.ok(/<text em="true"> *TESTSIGNATUR — kein gültiger Beleg *&#10;<\/text>/.test(xml), xml);
   // Gesamt-Zeile: 48 Zeichen, Preis am Ende
   assert.ok(/<text>Gesamt: +5,96 €&#10;<\/text>/.test(xml), xml);
   // Linie, Leerraum, QR, Schnitt

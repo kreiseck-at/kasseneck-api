@@ -170,6 +170,7 @@ function paketMitReactFalle(): string {
     'export const jsxDEV = () => {};',
     'export const createElement = () => {};',
     'export const useState = () => {};',
+    'export const useEffect = () => {};',
     'export default {};',
     "throw new Error('REACT-WURDE-GELADEN');",
     '',

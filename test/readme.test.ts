@@ -8,10 +8,11 @@ import * as printing from '../src/printing/index.js';
 import * as payments from '../src/payments/index.js';
 import * as register from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
+import * as react from '../src/react/index.js';
 
 /**
  * Das README ist die einzige Erklaerung, die ein Verbraucher vor 69
- * Wurzel-Exporten und fuenf Unterpfaden bekommt. Ein README, das Namen nennt,
+ * Wurzel-Exporten und sechs Unterpfaden bekommt. Ein README, das Namen nennt,
  * die es nicht mehr gibt, ist schlimmer als keines — deshalb pruefen diese
  * Tests seine mechanisch pruefbaren Aussagen gegen die Oberflaeche selbst.
  *
@@ -38,6 +39,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/payments': payments,
   '@kreiseck/kasseneck-api/register': register,
   '@kreiseck/kasseneck-api/partner': partner,
+  '@kreiseck/kasseneck-api/react': react,
 };
 
 test('README: jeder importierte Name in den Beispielen gibt es wirklich', () => {

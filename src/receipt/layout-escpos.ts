@@ -6,6 +6,7 @@ import {
   escPosPrintableText,
   escPosQrCode,
   escPosQrRaster,
+  escPosRasterBild,
   escPosReset,
   escPosText,
   type EscPosOptions,
@@ -17,11 +18,14 @@ import {
   type QrMatrix,
   type QrModulGroesse,
   type QrSize,
+  type RasterBild,
   QR_DRUCK_PUNKTE,
   qrGroesseFuer,
+  qrPasstInVersion,
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
-import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
+import { belegBlatt, logoRasterMass, type BelegBlatt, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
+import { ZEICHEN_JE_PAPIER } from './grid.js';
 
 /**
  * Bruecke vom Layout-Modell zu ESC/POS-Bytes — der Bondrucker-Ausgabeweg.
@@ -53,6 +57,46 @@ import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
  */
 export type QrPrintMode = 'native' | 'nativeModel1' | 'imageRaster';
 
+/** Firmenlogo fuer den Druck: Stufe, Pixelmass des Originals und das fertige Rasterbild (`logoRaster`). */
+export interface DruckLogo {
+  stufe: LogoStufe;
+  pxBreite: number;
+  pxHoehe: number;
+  raster: RasterBild;
+}
+
+/** Das Rasterbild muss genau so gross sein, wie das Blatt das Logo setzt -- sonst stuende am Bon ein anderes Logo als am Schirm. */
+export function pruefeLogoRaster(logo: DruckLogo, mass: LogoMass, zeichen: number): void {
+  const soll = logoRasterMass(mass, zeichen);
+  if (logo.raster.breite !== soll.breite || logo.raster.hoehe !== soll.hoehe) {
+    throw new Error(`Logo-Raster ${logo.raster.breite}x${logo.raster.hoehe} passt nicht zum Blatt (${soll.breite}x${soll.hoehe})`);
+  }
+}
+
+/**
+ * Baut das Blatt fuer einen Druckweg (ESC/POS, ePOS) an EINER Stelle: die
+ * Zuordnung `DruckLogo` -> `BlattLogo` und die Groessenpruefung des mitgebrachten
+ * Rasterbilds teilen sich beide Wege -- ohne das muesste eine Aenderung daran an
+ * zwei Stellen nachgezogen werden. Wirft VOR jeder Ausgabe (also bevor der
+ * Aufrufer auch nur ein Byte/Zeichen geschrieben hat), wenn das Rasterbild nicht
+ * zur Logo-Stufe passt.
+ */
+export function blattFuerDruck(
+  layout: ReceiptLayout,
+  optionen: { zeichen: number; logo?: DruckLogo | null; marke?: boolean; qrGroesse: QrModulGroesse },
+): BelegBlatt {
+  const blattOptionen: BelegBlattOptionen = {
+    zeichen: optionen.zeichen,
+    marke: optionen.marke === true,
+    qrGroesse: optionen.qrGroesse,
+  };
+  if (optionen.logo) blattOptionen.logo = { stufe: optionen.logo.stufe, pxBreite: optionen.logo.pxBreite, pxHoehe: optionen.logo.pxHoehe };
+  const blatt = belegBlatt(layout, blattOptionen);
+  const logoBlock = blatt.bloecke.find((b) => b.art === 'logo');
+  if (optionen.logo && logoBlock && logoBlock.art === 'logo') pruefeLogoRaster(optionen.logo, logoBlock, blatt.zeichen);
+  return blatt;
+}
+
 export interface EscPosLayoutOptions {
   /** Papierbreite; Vorgabe ist die des Layouts (dessen Spaltenbreiten daran haengen). */
   paperSize?: PosPaperSize;
@@ -65,9 +109,9 @@ export interface EscPosLayoutOptions {
    * dann passt der Aufrufer selbst auf, dass das Symbol aufs Papier geht.
    */
   qrSize?: QrSize;
-  /** Fehlerkorrekturstufe des QR-Codes. */
+  /** Fehlerkorrekturstufe des QR-Codes; Vorgabe `M` (wie ePOS, Bildweg und Blatt). */
   qrCorrection?: QrCorrection;
-  /** Deckel fuer die gerechnete Modulgroesse; Vorgabe `auto`. */
+  /** Deckel fuer die gerechnete Modulgroesse; Vorgabe `auto` (hoechstens 6 Punkte je Modul). */
   qrGroesse?: QrModulGroesse;
   /** Druckweg des QR; Vorgabe `native` (der Bestandsweg). */
   qrModus?: QrPrintMode;
@@ -79,6 +123,10 @@ export interface EscPosLayoutOptions {
    * aus der QR-Bibliothek, die er ohnehin fuer den Bildschirm benutzt.
    */
   qrMatrix?: (nutzlast: string) => QrMatrix;
+  /** Firmenlogo; ohne Angabe kein Logo (Bestand). */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende (Konto-Flag `kreiseck_logo`). */
+  marke?: boolean;
 }
 
 /**
@@ -165,6 +213,13 @@ export function escPosLayoutErgebnis(
    * `qrFehler` aus `escPosQrCode`, und der Beleg geht ohne QR hinaus.
    */
   const qrZeile = (nutzlast: string): void => {
+    // Ein Inhalt, der in keine QR-Version passt, laesst sich weder als Befehl
+    // noch als Bild drucken -- beide Wege wuerfen. Der Beleg geht ohne QR
+    // hinaus und sagt es ueber `qrFehler`, wie das Blatt (Anteil 0).
+    if (nutzlast !== '' && !qrPasstInVersion(nutzlast)) {
+      doc.qrFehler = 'QR-Inhalt passt in keine QR-Version -- Beleg ohne QR';
+      return;
+    }
     const raster = options.qrMatrix;
     if (nutzlast !== '' && raster !== undefined) {
       if (modus === 'imageRaster') {
@@ -192,27 +247,25 @@ export function escPosLayoutErgebnis(
     escPosQrCode(doc, nutzlast, qrOptionen);
   };
 
-  const grid = renderReceiptGrid(druckbaresLayout(layout), { zeichen: ZEICHEN_JE_PAPIER[paperSize] });
-  for (const zeile of grid.lines) {
-    switch (zeile.kind) {
-      case 'space':
-        escPosFeed(doc, 1);
-        break;
+  // `blattFuerDruck` prueft das Logo-Raster bereits VOR der Rueckgabe -- die
+  // Schleife unten schreibt darum nie ein Byte auf ein falsch grosses Logo.
+  const blatt = blattFuerDruck(druckbaresLayout(layout), {
+    zeichen: ZEICHEN_JE_PAPIER[paperSize],
+    logo: options.logo,
+    marke: options.marke,
+    qrGroesse: options.qrGroesse ?? 'auto',
+  });
+  for (const block of blatt.bloecke) {
+    switch (block.art) {
       case 'qr':
-        qrZeile(zeile.qr ?? '');
+        qrZeile(block.nutzlast);
         break;
-      case 'banner': {
-        // Belegart/Warnung: fett zwischen zwei Volllinien — derselbe Rahmen-
-        // Stil wie im Beleg-Viewer und im PDF (frueher druckte der Bon invers
-        // weiss-auf-schwarz und sah damit anders aus als jede Anzeige).
-        const rahmen = '='.repeat(ZEICHEN_JE_PAPIER[paperSize]);
-        escPosText(doc, rahmen, { styles: { align: 'left', bold: true } });
-        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: true, height: 2 } });
-        escPosText(doc, rahmen, { styles: { align: 'left', bold: true } });
+      case 'logo':
+        if (options.logo) escPosRasterBild(doc, options.logo.raster, { align: 'center' });
         break;
-      }
-      default:
-        escPosText(doc, zeile.text.trimEnd(), { styles: { align: 'left', bold: zeile.bold } });
+      case 'zeile':
+        if (block.leer) escPosFeed(doc, 1);
+        else escPosText(doc, block.text.trimEnd(), { styles: { align: 'left', bold: block.fett } });
         break;
     }
   }

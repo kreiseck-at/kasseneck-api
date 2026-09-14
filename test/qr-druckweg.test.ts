@@ -52,8 +52,9 @@ function qrBytes(text: string, optionen: Parameters<typeof escPosQrCode>[2], pap
 
 // -------------------------------------------------- gerechnete Modulgroesse
 
-test('nativ: ohne Wahl bleibt es beim Bestandswert 4, mit Wahl rechnet die Regel', () => {
-  assert.equal(modulgroesse(qrBytes(kurz, {}).bytes), 4);
+test('nativ: ohne Wahl gilt auto (hoechstens 6, wie im Dart-Zwilling), mit Wahl rechnet die Regel', () => {
+  // Ruling 11: auto deckelt einheitlich bei 6 (bis 0.13 hier 4).
+  assert.equal(modulgroesse(qrBytes(kurz, {}).bytes), 6);
   assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'klein' }).bytes), 4);
   assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'mittel' }).bytes), 6);
   assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'gross' }).bytes), 8);
@@ -185,7 +186,8 @@ test('Belegweg: ohne Optionen ist das Ergebnis Byte fuer Byte der Bestand', () =
   const ergebnis = escPosLayoutErgebnis(basis);
   assert.deepEqual(ergebnis.bytes, escPosLayoutBytes(basis));
   assert.deepEqual([ergebnis.qrFehler, ergebnis.qrAusweich], [null, null]);
-  assert.equal(modulgroesse(ergebnis.bytes), 4);
+  // Ruling 11: 45 Module auf 58 mm, (45 + 8) * 7 passte -- auto deckelt bei 6 wie im Dart-Zwilling (vorher 4).
+  assert.equal(modulgroesse(ergebnis.bytes), 6);
 });
 
 test('Belegweg: qrGroesse waehlt den Deckel, qrModus waehlt Modell 1', () => {

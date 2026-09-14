@@ -35,6 +35,7 @@ import { euroToCents } from '../money.js';
 import { KasseneckValidationError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
 import type { Pruefangaben, ReceiptLayout } from '../receipt/layout.js';
+import type { LogoStufe } from '../receipt/blatt.js';
 
 /**
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
@@ -203,6 +204,12 @@ export interface ReceiptWithCompany {
    * fuer Clients, die das Layout selbst bauen; null bei altem Backend.
    */
   pruefangaben: Pruefangaben | null;
+  /**
+   * Groesse des Firmenlogos am Beleg (Kasse-Einstellung `logoSkala` des
+   * Betriebs). Bildschirm, Bon und PDF setzen das Logo in genau dieser Stufe;
+   * liefert das Backend sie nicht (alt), gilt `M` -- der Bestandswert.
+   */
+  logoStufe: LogoStufe;
 }
 
 /**
@@ -882,7 +889,7 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
  */
 function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
   const receipt = belegAusHuelle(daten, functionName);
-  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown; pruefangaben?: unknown };
+  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown; pruefangaben?: unknown; logo_skala?: unknown };
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
   const pa = d.pruefangaben && typeof d.pruefangaben === 'object' ? (d.pruefangaben as { karteRegistriertAm?: unknown; kasseRegistriertAm?: unknown }) : null;
   const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
@@ -894,5 +901,6 @@ function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWi
     kopfId: typeof d.kopfId === 'string' ? d.kopfId : null,
     layout,
     pruefangaben: pa ? { karteRegistriertAm: text(pa.karteRegistriertAm), kasseRegistriertAm: text(pa.kasseRegistriertAm) } : null,
+    logoStufe: d.logo_skala === 'S' || d.logo_skala === 'M' || d.logo_skala === 'L' || d.logo_skala === 'XL' ? d.logo_skala : 'M',
   };
 }

@@ -28,6 +28,8 @@ export {
   type EscPosLayoutOptions,
   type EscPosLayoutErgebnis,
   type QrPrintMode,
+  type DruckLogo,
+  pruefeLogoRaster,
   escPosLayoutBytes,
   escPosLayoutErgebnis,
 } from './layout-escpos.js';
@@ -41,4 +43,26 @@ export {
   gridAlsText,
   ZEICHEN_JE_PAPIER,
 } from './grid.js';
-export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposBildXml, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+
+export {
+  type LogoStufe,
+  type BlattLogo,
+  type LogoMass,
+  type BlattBlock,
+  type BelegBlatt,
+  type BelegBlattOptionen,
+  LOGO_STUFEN,
+  LOGO_PIXEL_MAX,
+  PUNKTE_JE_ZEICHEN,
+  PUNKTE_JE_ZEILE,
+  MARKE_TEXT,
+  papierFuerZeichen,
+  logoMass,
+  logoPixelZulaessig,
+  logoRasterMass,
+  qrBlattAnteil,
+  belegBlatt,
+} from './blatt.js';
+
+export { logoRaster } from './bild.js';

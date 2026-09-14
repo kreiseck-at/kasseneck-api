@@ -4,6 +4,76 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.14.0
+
+### Das Beleg-Blatt: ein Beleg, der überall gleich aussieht
+
+**Anlass:** Derselbe Beleg sah in der App, am Bon, in der Web-Kasse, im Panel
+und im PDF verschieden aus. Das Raster war als einzige Wahrheit gedacht, aber
+jeder Zeichner setzte Rahmen, Logo und QR selbst: das Panel stellte das Logo
+über den Testkassen-Rahmen, das PDF legte es darauf, die App zeigte keins, der
+Bon druckte Warnungen invers und doppelt hoch.
+
+- `renderReceiptGrid` gibt Aufdrucke als drei Rasterzeilen aus (`====`, Text,
+  `====`). ESC/POS und ePOS drucken sie als normale fette Zeilen — keine doppelte
+  Höhe, kein Invertieren mehr. `grid32`/`grid48` der Belege mit Aufdruck ändern
+  sich, das Zeilenmodell nicht.
+- Bekannter Unterschied, bleibt so: ESC/POS druckt `EUR` statt `€` (die
+  Ein-Byte-Codepage des Bondruckers kennt das Zeichen nicht). Bildschirm, PDF
+  und ePOS zeigen `€`; die Zeilen sind dadurch am Bon an diesen Stellen anders
+  gefüllt, das Raster bleibt gleich breit.
+- Neu `belegBlatt(layout, { zeichen, logo, marke, qrGroesse })`: Reihenfolge
+  (Aufdrucke oben, Leerzeile, Logo, Leerzeile, Beleg, Marke), Logo-Maß je Stufe
+  S/M/L/XL (nie hochgerechnet), QR-Anteil wie am Drucker.
+- Ein QR-Inhalt, der in keine QR-Version passt (Korrektur M, mehr als 2331
+  Byte), bekommt im Blatt den Anteil 0, statt dass `belegBlatt` wirft. ESC/POS
+  und ePOS lassen den QR dann weg und melden es über `qrFehler`; der Beleg steht
+  ohne QR. Die Bildschirm-Ansicht ruft `renderQr` weiter mit der Nutzlast, damit
+  die Oberfläche den fehlenden QR anzeigen kann (Papierbeleg-Hinweis). **Grund:** Ein Wurf riss jeden Zeichner mit — die Bon-Ansicht der
+  Web-Kasse fiel ganz aus, Bon und PDF ebenso. Neu `qrPasstInVersion(nutzlast)`
+  (`./printing`); `qrModulAnzahl` wirft weiter.
+- Neu `logoRaster` (RGBA → einfarbiges Rasterbild), `escPosRasterBild`,
+  `eposBildXml`; `escPosLayoutBytes` und `eposPrintXml` nehmen `logo` und `marke`.
+- Neu `BelegBlattView` / `BelegBlattZeilen` (`./react`); `ReceiptLayoutView` ist
+  `@deprecated`. `BelegBlattView` zeigt ein Logo ueber 4096x4096px (oder 0)
+  ebenso wenig wie ein nicht geladenes -- neu `LOGO_PIXEL_MAX`,
+  `logoPixelZulaessig` (`./receipt`). **Grund:** Bildschirm und Bon zeigen
+  dasselbe Logo; das Druck-Kit lehnt ein zu grosses Logo beim Rastern fuer
+  den Bon schon ab (dieselbe Grenze), der Bildschirm bisher nicht -- ein
+  5000x1200px-Logo erschien am Bildschirm und im PDF, aber nie auf dem
+  gedruckten Beleg.
+- Neu `ReceiptWithCompany.logoStufe` (aus `logo_skala` der Beleg-Antwort,
+  Vorgabe `M`): Panel und App kannten die Logo-Stufe des Betriebs bisher nicht.
+- `createPrintJob` nimmt `logo` und `marke`: der Netzwerk-Drucker (Connect)
+  druckt dasselbe Blatt wie USB, Bluetooth und ePOS direkt. Neu
+  `rasterZeilenBase64` (gemeinsam für ePOS-`<image>` und den Druckjob).
+- Goldens `erwartet/<name>.blatt32.json`/`.blatt48.json`,
+  `erwartet/logo-probe.raster32.txt` (mit Teiltransparenz) und
+  `erwartet/logo-probe-hoch.raster32.txt` (höhenbegrenzt) für den Dart-Zwilling.
+- `escPosRasterBild` wirft bei einer Bildhöhe über 65535 Punkten (`GS v 0` trägt
+  die Höhe in zwei Bytes).
+
+### Achtung: Brüche
+
+- **Aufdrucke im Raster.** `renderReceiptGrid` gibt jeden Aufdruck als drei
+  Zeilen `kind:'banner'` aus (`====`, Text, `====`). *Umstellen:* eigene
+  Rahmen oder Sonderstile für Aufdrucke entfernen (sie stünden sonst doppelt)
+  und nicht annehmen, dass die erste `banner`-Zeile die einzige ist — der Text
+  steht in der mittleren.
+- **`ReceiptWithCompany.logoStufe` ist Pflicht.** `getReceiptWithCompany` füllt
+  es selbst. *Umstellen:* von Hand gebaute Objekte (Tests, Vorschauen) brauchen
+  `logoStufe: 'M'`.
+- **QR-Vorgabe `auto` deckelt bei 6 Punkten je Modul (vorher 4)** — in npm und
+  Dart dasselbe. Am ESC/POS-Bon wird der QR ohne ausdrückliche Wahl größer
+  (80 mm: rund 55 % statt 37 % der Breite). *Umstellen:* wer die alte Größe
+  will, stellt `qrGroesse: 'klein'`.
+- **Nativer ESC/POS-QR mit Fehlerkorrektur M (vorher L)**, wie ePOS, Bildweg
+  und Blatt — der Kasten am Bildschirm ist damit genau der gedruckte QR.
+  Manche Nutzlasten brauchen eine Version mehr. *Umstellen:* den alten
+  Bytestrom liefert `qrCorrection: 'L'` (zusammen mit `qrGroesse: 'klein'`).
+- **ePOS-Vorgabe `qrGroesse` ist `auto`** (vorher `mittel`). Derselbe Wert,
+  kein Byte anders; nur wer die Vorgabe ausliest oder dokumentiert, merkt es.
+
 ## 0.13.2
 
 ### Die Paketseite erklaert, wofuer das Paket da ist

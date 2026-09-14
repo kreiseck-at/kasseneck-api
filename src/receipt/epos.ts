@@ -5,15 +5,19 @@ import {
   QR_MINDEST_PUNKTE,
   QR_MODUL_DECKEL,
   qrGroesseFuer,
+  qrPasstInVersion,
+  rasterZeilenBase64,
   type QrModulGroesse,
+  type RasterBild,
 } from '../printing/index.js';
-import { renderReceiptGrid, ZEICHEN_JE_PAPIER } from './grid.js';
+import { ZEICHEN_JE_PAPIER } from './grid.js';
+import { blattFuerDruck, type DruckLogo } from './layout-escpos.js';
 
 /**
  * ePOS-Print XML (Epson TM-Drucker: Server Direct Print, ePOS-Print ueber
  * HTTP) -- **aus dem Zeichenraster**: jede Rasterzeile wird eine <text>-Zeile
- * mit exakt N Zeichen und Zeilenumbruch, Aufdrucke doppelt hoch (Warnungen
- * invers), QR als <symbol>, Leerraum als <feed>, am Ende Schnitt. Kein
+ * mit exakt N Zeichen und Zeilenumbruch, Aufdrucke als Rahmen aus
+ * Rasterzeilen, QR als <symbol>, Leerraum als <feed>, am Ende Schnitt. Kein
  * eigenes Setzen -- was Bildschirm, ESC/POS und PDF zeigen, druckt der Epson
  * Zeile fuer Zeile genauso.
  *
@@ -30,16 +34,20 @@ export interface EposPrintXmlOptions {
    */
   qrBreite?: number;
   /**
-   * Deckel fuer die gerechnete QR-Modulgroesse; Vorgabe `mittel`.
+   * Deckel fuer die gerechnete QR-Modulgroesse; Vorgabe `auto` (hoechstens 6
+   * Punkte je Modul) -- wie ESC/POS, Blatt und der Flutter-Zwilling.
    *
-   * Warum `mittel` und nicht `auto`: `auto` deckelt beim Bestandswert des
-   * **ESC/POS**-Befehls dieses Pakets (4), dieser Weg druckt aber seit jeher
-   * mit 6. Die Vorgabe nennt den Bestandswert dieses Wegs also ausdruecklich,
-   * damit ohne Wahl kein Byte anders herauskommt.
+   * Bis 0.13 stand hier `mittel`, weil `auto` damals beim ESC/POS-Wert 4
+   * deckelte und dieser Weg seit jeher mit 6 druckt. Seit `auto` ueberall 6
+   * heisst, ist das derselbe Wert: ohne Wahl kommt kein Byte anders heraus.
    */
   qrGroesse?: QrModulGroesse;
   /** Papierschnitt am Ende, Vorgabe true. */
   cut?: boolean;
+  /** Firmenlogo; ohne Angabe kein Logo. */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende. */
+  marke?: boolean;
 }
 
 /**
@@ -56,6 +64,11 @@ export interface EposPrintErgebnis {
 
 export function eposXmlEscape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+/** Ein Rasterbild als ePOS-`<image>` (einfarbig, Punktmass, Rasterzeilen Base64). */
+export function eposBildXml(bild: RasterBild): string {
+  return `<image width="${bild.breite}" height="${bild.hoehe}" color="color_1" mode="mono">${rasterZeilenBase64(bild)}</image>`;
 }
 
 const NS = 'http://www.epson-pos.com/schemas/2011/03/epos-print';
@@ -79,8 +92,9 @@ export function eposPrintXmlErgebnis(
   layout: ReceiptLayout,
   options: EposPrintXmlOptions = {},
 ): EposPrintErgebnis {
-  const grid = renderReceiptGrid(layout, { zeichen: options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize] });
-  const deckel = options.qrGroesse ?? 'mittel';
+  const zeichen = options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize];
+  const deckel = options.qrGroesse ?? 'auto';
+  const blatt = blattFuerDruck(layout, { zeichen, logo: options.logo, marke: options.marke, qrGroesse: deckel });
   const fest = options.qrBreite === undefined
     ? null
     : Math.min(16, Math.max(3, Math.floor(options.qrBreite)));
@@ -98,6 +112,12 @@ export function eposPrintXmlErgebnis(
   const qrBreiteFuer = (nutzlast: string): number | null => {
     if (fest !== null) return fest;
     if (nutzlast === '') return QR_MODUL_DECKEL[deckel];
+    // Passt der Inhalt in keine QR-Version, gibt es kein Symbol, das der
+    // Drucker setzen koennte -- wie beim Blatt (Anteil 0) geht der Beleg ohne QR.
+    if (!qrPasstInVersion(nutzlast)) {
+      qrFehler = 'QR-Inhalt passt in keine QR-Version -- Beleg ohne QR';
+      return null;
+    }
     const mass = qrGroesseFuer({
       nutzlast,
       papierbreitePunkte: QR_DRUCK_PUNKTE[layout.paperSize],
@@ -123,28 +143,28 @@ export function eposPrintXmlErgebnis(
   out.push('<text font="font_a"/>');
   out.push('<text align="left"/>');
   out.push('<text width="1" height="1" reverse="false" em="false"/>');
-  for (const z of grid.lines) {
-    switch (z.kind) {
-      case 'space':
-        out.push('<feed line="1"/>');
+  for (const block of blatt.bloecke) {
+    switch (block.art) {
+      case 'zeile':
+        if (block.leer) out.push('<feed line="1"/>');
+        else if (block.fett) { out.push(`<text em="true">${eposXmlEscape(block.text)}&#10;</text>`); out.push('<text em="false"/>'); }
+        else out.push(`<text>${eposXmlEscape(block.text)}&#10;</text>`);
+        break;
+      case 'logo':
+        if (options.logo) {
+          out.push('<text align="center"/>');
+          out.push(eposBildXml(options.logo.raster));
+          out.push('<text align="left"/>');
+        }
         break;
       case 'qr': {
-        const breite = qrBreiteFuer(z.qr ?? '');
+        const breite = qrBreiteFuer(block.nutzlast);
         if (breite === null) break;
         out.push('<text align="center"/>');
-        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${breite}" height="0" size="0">${eposXmlEscape(z.qr ?? '')}</symbol>`);
+        out.push(`<symbol type="qrcode_model_2" level="level_m" width="${breite}" height="0" size="0">${eposXmlEscape(block.nutzlast)}</symbol>`);
         out.push('<text align="left"/>');
         break;
       }
-      case 'banner':
-        out.push(`<text width="1" height="2" reverse="${z.ton === 'warnung' ? 'true' : 'false'}" em="true">${eposXmlEscape(z.text)}&#10;</text>`);
-        out.push('<text width="1" height="1" reverse="false" em="false"/>');
-        break;
-      default:
-        if (z.bold) out.push(`<text em="true">${eposXmlEscape(z.text)}&#10;</text>`);
-        else out.push(`<text>${eposXmlEscape(z.text)}&#10;</text>`);
-        if (z.bold) out.push('<text em="false"/>');
-        break;
     }
   }
   if (options.cut !== false) {
@@ -176,6 +196,10 @@ export interface EposDirectOptions {
   qrBreite?: number;
   /** Deckel fuer die gerechnete QR-Modulgroesse; siehe [EposPrintXmlOptions.qrGroesse]. */
   qrGroesse?: QrModulGroesse;
+  /** Firmenlogo; ohne Angabe kein Logo. */
+  logo?: DruckLogo | null;
+  /** "erstellt mit Kasseneck" am Ende. */
+  marke?: boolean;
   timeoutMs?: number;
 }
 
@@ -300,6 +324,8 @@ export function eposDirectPrint(layout: ReceiptLayout, o: EposDirectOptions, fet
   const xmlOptionen: EposPrintXmlOptions = { zeichen: ZEICHEN_JE_PAPIER[papier] };
   if (o.qrBreite !== undefined) xmlOptionen.qrBreite = o.qrBreite;
   if (o.qrGroesse !== undefined) xmlOptionen.qrGroesse = o.qrGroesse;
+  if (o.logo) xmlOptionen.logo = o.logo;
+  if (o.marke !== undefined) xmlOptionen.marke = o.marke;
   return eposDirectSend(eposPrintXml({ ...layout, paperSize: papier }, xmlOptionen), o, fetchFn);
 }
 
