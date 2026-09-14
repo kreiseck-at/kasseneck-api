@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -74,4 +75,17 @@ test('BelegBlattZeilen: QR mit Anteil 0 (Inhalt passt in keine QR-Version) -- ke
   assert.deepEqual(gerufen, ['x'.repeat(2332)]);
   assert.ok(html.includes('Papierbeleg'));
   assert.deepEqual(zeilenAusHtml(html), blatt.bloecke.filter((b) => b.art === 'zeile').map((b) => (b as { text: string }).text));
+});
+
+/**
+ * Ruling A14, Nachtrag zur Pruefung: der Ladeweg selbst laeuft ohne DOM nicht
+ * (siehe oben). Damit ein spaeterer Umbau die Grenze im `onload` nicht still
+ * wieder durch eine blosse `> 0`-Pruefung ersetzt, haelt dieser Test fest, dass
+ * die Ansicht beim Laden genau `logoPixelZulaessig` fragt.
+ */
+test('BelegBlattView fragt beim Laden des Logos logoPixelZulaessig (dieselbe Grenze wie der Bon)', () => {
+  const quelle = readFileSync('src/react/index.tsx', 'utf8');
+  const onload = quelle.match(/bild\.onload\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\};/);
+  assert.ok(onload, 'onload-Handler in BelegBlattView nicht gefunden');
+  assert.match(onload[1]!, /logoPixelZulaessig\(bild\.naturalWidth,\s*bild\.naturalHeight\)/);
 });
