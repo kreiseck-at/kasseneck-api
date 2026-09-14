@@ -11,6 +11,53 @@
  * Benutzung des Clients.
  */
 
+export { createRechnungApi, type RechnungApi, type RechnungApiOptions } from './api.js';
+
+export { rechnungKeyAuth, type RechnungKeyAuthOptions } from './auth.js';
+
+export {
+  istRechnungFehler,
+  rechnungFehlerCode,
+  rechnungFeldFehler,
+  type RechnungFeldFehler,
+} from './fehler.js';
+
+export {
+  cancelInvoice,
+  createCreditNote,
+  createCustomer,
+  getCustomer,
+  getInvoice,
+  getInvoicePdf,
+  getInvoiceXml,
+  issueInvoice,
+  listInvoices,
+  searchCustomers,
+  updateCustomer,
+} from './endpunkte.js';
+
+export type {
+  CancelInvoiceRequest,
+  CancelResult,
+  CreditNoteRequest,
+  CreditNoteResult,
+  Customer,
+  CustomerInput,
+  CustomerPage,
+  CustomerSearch,
+  EInvoiceStatus,
+  Invoice,
+  InvoiceDetail,
+  InvoiceItem,
+  InvoiceItemInput,
+  InvoiceListQuery,
+  InvoicePage,
+  InvoiceRecipient,
+  InvoiceTotals,
+  IssueInvoiceRequest,
+  IssueResult,
+} from './typen.js';
+
 export {
   RECHNUNG_VERTRAG_VERSION,
   RECHNUNG_AUFRUFE,

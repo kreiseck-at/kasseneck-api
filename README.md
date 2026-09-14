@@ -426,6 +426,70 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 });
 ```
 
+## Rechnungs-API (`./rechnung`)
+
+Für Shops, Buchhaltungs- und Branchensoftware: **Rechnungen** (§ 11 UStG) —
+keine Belege — mit dem `api_key` eines Kontos ausstellen. Eine Rechnung ist
+nach dem Aufruf **festgeschrieben**: sie trägt ihre fortlaufende Nummer, ist
+unveränderlich und lässt sich nur noch per Gutschrift korrigieren.
+
+**Was die Endpunkte tun, steht in der Referenz** — `docs/api/rechnungen.md`
+im Backend. Hier steht, wie man den Client benutzt. Der Schlüssel gehört auf
+einen **Server**.
+
+```ts
+import { createRechnungApi, istRechnungFehler } from '@kreiseck/kasseneck-api/rechnung';
+
+const rechnungen = createRechnungApi({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// 1. Kunde einmal anlegen — externalId ist die eigene Kundennummer.
+let kunde;
+try {
+  kunde = await rechnungen.createCustomer({
+    type: 'company', name: 'Café Muster GmbH', country: 'AT',
+    street: 'Hauptplatz', houseNumber: '3', zip: '1010', city: 'Wien',
+    externalId: 'shop-4711',
+  });
+} catch (fehler) {
+  if (!istRechnungFehler(fehler, 'customer_exists')) throw fehler;
+  kunde = await rechnungen.getCustomer({ externalId: 'shop-4711' });
+}
+
+// 2. Ausstellen. Beträge in ganzen Cent; das Rechnungsdatum setzt der Server.
+const { invoice, replayed } = await rechnungen.issueInvoice({
+  idempotencyKey: `bestellung-${bestellnummer}`,   // gleiche Bestellung = gleiche Rechnung
+  customerId: kunde.id,
+  taxScheme: 'normal',
+  priceMode: 'net',
+  serviceStart: '2026-09-14',
+  items: [{ description: 'Beratung', quantity: 2, unit: 'Std', unitPriceCents: 5000, vatRate: 20 }],
+});
+// invoice.number, invoice.totals.grossCents (12000), invoice.statusUrl
+
+// 3. Dateien holen.
+const pdf = await rechnungen.getInvoicePdf(invoice.id);      // Uint8Array, mit Factur-X
+const xml = await rechnungen.getInvoiceXml(invoice.id, 'ubl'); // Peppol-UBL als Text
+
+// 4. Korrigieren — nur per Gutschrift.
+await rechnungen.createCreditNote({
+  idempotencyKey: `nachlass-${bestellnummer}`,
+  invoiceId: invoice.id,
+  reason: 'price_reduction',
+  items: [{ description: 'Nachlass Beratung', quantity: 1, unitPriceCents: 2000, vatRate: 20 }],
+});
+```
+
+**Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
+einem neuen: dann kommt die schon ausgestellte Rechnung zurück
+(`replayed: true`). Derselbe Schlüssel mit anderen Daten ergibt
+`idempotency_conflict`.
+
+Formfehler kommen als `validation` mit Feldpfaden (`rechnungFeldFehler(fehler)`
+→ `[{ field: 'items[0].vatRate', message }]`). Der Vertrag selbst liegt als
+Daten im Paket (`RECHNUNG_ANFRAGEN`) und als JSON Schema unter
+`@kreiseck/kasseneck-api/fixtures/rechnung-api.schema.json`; das Backend prüft
+gegen genau diese Datei.
+
 ## Unterpfade
 
 | Unterpfad | Inhalt |
