@@ -194,7 +194,9 @@ export const RECHNUNG_EINHEITEN_CODES: Readonly<Record<InvoiceUnit, string>> = O
   running_metre: 'MTR',
   kilometre: 'KMT',
   square_metre: 'MTK',
-  hectare: 'HAR',
+  // Rec 20 fuehrt fuer Hektar HAR, EN 16931 laesst davon nur H18
+  // („square hectometre", Synonym hectare) zu.
+  hectare: 'H18',
   millilitre: 'MLT',
   litre: 'LTR',
   cubic_metre: 'MTQ',
@@ -210,7 +212,8 @@ export const RECHNUNG_EINHEITEN_CODES: Readonly<Record<InvoiceUnit, string>> = O
   session: 'C62',
   trip: 'C62',
   page: 'ZP',
-  sheet: 'ST',
+  // Ebenso: ST („sheet") steht nicht in der Liste von EN 16931, LEF („leaf") schon.
+  sheet: 'LEF',
   package: 'XPK',
   box: 'XBX',
   carton: 'XCT',
