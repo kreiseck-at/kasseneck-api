@@ -19,8 +19,9 @@
 
 import type { InternerBinaerTransport, InternerTransport, Aufruf } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import type { EInvoiceFormat } from './vertrag.js';
+import type { EInvoiceFormat, InvoiceLanguage } from './vertrag.js';
 import type {
+  Brand,
   CancelInvoiceRequest,
   CancelResult,
   CreditNoteRequest,
@@ -168,9 +169,27 @@ export async function getInvoiceSetupStatus(rufen: InternerTransport): Promise<I
 
 // ---- Dateien ----------------------------------------------------------------
 
-/** Das PDF der Rechnung (bei Gutschriften: der Gutschrift), mit eingebetteter Factur-X-Datei. */
-export function getInvoicePdf(rufenBinaer: InternerBinaerTransport, invoiceId: string): Promise<Uint8Array> {
-  return rufenBinaer('getInvoicePdf', { invoiceId });
+/**
+ * Das PDF der Rechnung (bei Gutschriften: der Gutschrift), mit eingebetteter
+ * Factur-X-Datei. Mit `language` in der anderen Sprache als der Rechnung kommt
+ * eine **Uebersetzungskopie**: dieselbe Nummer, auf jeder Seite als Uebersetzung
+ * gekennzeichnet, ohne eingebettete E-Rechnung — keine eigene Rechnung.
+ */
+export function getInvoicePdf(
+  rufenBinaer: InternerBinaerTransport,
+  invoiceId: string,
+  optionen: { language?: InvoiceLanguage } = {},
+): Promise<Uint8Array> {
+  const params: Record<string, unknown> = { invoiceId };
+  if (optionen.language) params['language'] = optionen.language;
+  return rufenBinaer('getInvoicePdf', params);
+}
+
+/** Die Marken des Kontos — die Kennung geht als `brandId` in `issueInvoice`. */
+export async function listBrands(rufen: InternerTransport): Promise<Brand[]> {
+  const brands = objekt(await rufen('listBrands', {}))['brands'];
+  if (!Array.isArray(brands)) throw new KasseneckValidationError('listBrands', 'Antwort ohne brands', 'response');
+  return brands as Brand[];
 }
 
 /**

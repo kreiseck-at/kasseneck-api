@@ -51,6 +51,7 @@ export const AUFRUFE = [
   'issueInvoice',
   'listCustomerCashregisters',
   'listInvoices',
+  'listBrands',
   'listMyArticleGroups',
   'listMyArticles',
   'listMyCashregisters',

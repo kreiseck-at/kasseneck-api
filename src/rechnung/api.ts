@@ -18,12 +18,14 @@ import {
   getInvoiceSetupStatus,
   getInvoiceXml,
   issueInvoice,
+  listBrands,
   listInvoices,
   searchCustomers,
   updateCustomer,
 } from './endpunkte.js';
-import type { EInvoiceFormat } from './vertrag.js';
+import type { EInvoiceFormat, InvoiceLanguage } from './vertrag.js';
 import type {
+  Brand,
   CancelInvoiceRequest,
   CancelResult,
   CreditNoteRequest,
@@ -66,12 +68,17 @@ export interface RechnungApi {
   listInvoices(abfrage?: InvoiceListQuery): Promise<InvoicePage>;
 
   // Dateien
-  getInvoicePdf(invoiceId: string): Promise<Uint8Array>;
+  /** Mit `language` ungleich der Rechnungssprache: gekennzeichnete Uebersetzungskopie. */
+  getInvoicePdf(invoiceId: string, optionen?: { language?: InvoiceLanguage }): Promise<Uint8Array>;
   getInvoiceXml(invoiceId: string, format?: EInvoiceFormat): Promise<string>;
 
   // Freigabe und Einrichtung
   /** Darf dieses Konto ausstellen, und was fehlt noch? Laeuft auch ohne Freigabe. */
   getInvoiceSetupStatus(): Promise<InvoiceSetupStatus>;
+
+  // Marken
+  /** Die Marken des Kontos; `id` geht als `brandId` in `issueInvoice`. */
+  listBrands(): Promise<Brand[]>;
 }
 
 export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
@@ -96,9 +103,11 @@ export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
     getInvoice: (kennung) => getInvoice(rufen, kennung),
     listInvoices: (abfrage) => listInvoices(rufen, abfrage),
 
-    getInvoicePdf: (id) => getInvoicePdf(rufenBinaer, id),
+    getInvoicePdf: (id, o) => getInvoicePdf(rufenBinaer, id, o),
     getInvoiceXml: (id, format) => getInvoiceXml(rufen, id, format),
 
     getInvoiceSetupStatus: () => getInvoiceSetupStatus(rufen),
+
+    listBrands: () => listBrands(rufen),
   };
 }

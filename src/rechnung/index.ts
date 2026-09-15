@@ -32,12 +32,14 @@ export {
   getInvoiceSetupStatus,
   getInvoiceXml,
   issueInvoice,
+  listBrands,
   listInvoices,
   searchCustomers,
   updateCustomer,
 } from './endpunkte.js';
 
 export type {
+  Brand,
   CancelInvoiceRequest,
   CancelResult,
   CreditNoteRequest,
@@ -61,6 +63,8 @@ export type {
   IssueResult,
 } from './typen.js';
 
+export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './texte.js';
+
 export {
   RECHNUNG_VERTRAG_VERSION,
   RECHNUNG_AUFRUFE,
@@ -73,6 +77,9 @@ export {
   INVOICE_LIST_STATUS,
   DOC_TYPES,
   EINVOICE_FORMATS,
+  INVOICE_LANGUAGES,
+  INVOICE_UNITS,
+  RECHNUNG_EINHEITEN_CODES,
   INVOICE_SETUP_REQUIREMENTS,
   KUNDE_FELDER,
   POSITION_FELDER,
@@ -89,6 +96,8 @@ export {
   type InvoiceListStatus,
   type DocType,
   type EInvoiceFormat,
+  type InvoiceLanguage,
+  type InvoiceUnit,
   type InvoiceSetupRequirement,
   type Format,
   type Feld,

@@ -10,6 +10,8 @@ import type {
   CreditNoteReason,
   CustomerType,
   DocType,
+  InvoiceLanguage,
+  InvoiceUnit,
   InvoiceSetupRequirement,
   InvoiceListStatus,
   PriceMode,
@@ -40,6 +42,8 @@ export interface CustomerInput {
   note?: string;
   /** Kennung im eigenen System; je Konto eindeutig. */
   externalId?: string;
+  /** Sprache der Rechnungen an diesen Kunden; fehlt = `de`. Behoerden immer `de`. */
+  language?: InvoiceLanguage;
 }
 
 export interface Customer {
@@ -59,6 +63,7 @@ export interface Customer {
   isAuthority: boolean;
   note: string | null;
   externalId: string | null;
+  language: InvoiceLanguage;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -85,7 +90,8 @@ export interface InvoiceItemInput {
   subtitle?: string;
   /** Hoechstens drei Nachkommastellen. */
   quantity: number;
-  unit?: string;
+  /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
+  unit?: InvoiceUnit;
   /** Einzelpreis in ganzen Cent, im `priceMode` der Rechnung (netto oder brutto). */
   unitPriceCents: number;
   vatRate: VatRatePercent;
@@ -114,6 +120,10 @@ export interface IssueInvoiceRequest {
   items: InvoiceItemInput[];
   /** Eigene Merkmale (hoechstens 20), nie gedruckt. */
   metadata?: Record<string, string>;
+  /** Sprache dieser Rechnung; sonst die des Kunden, sonst `de`. Eine Rechnung, eine Nummer, eine Sprache. */
+  language?: InvoiceLanguage;
+  /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. Unbekannt = `brand_not_found`. */
+  brandId?: string;
 }
 
 export interface CancelInvoiceRequest {
@@ -153,6 +163,17 @@ export interface Invoice {
   statusUrl: string | null;
   statusPassword: string | null;
   metadata: Record<string, string>;
+  /** Beim Festschreiben eingefroren; aeltere Rechnungen `de`. */
+  language: InvoiceLanguage;
+  /** Die eingefrorene Marke; `id` ist `null` bei der Ersatzmarke ohne eigene Einrichtung. */
+  brand: { id: string | null; name: string | null } | null;
+}
+
+/** Eine Marke des Kontos (Logo, Farbe, Absender) — `id` geht als `brandId` in `issueInvoice`. */
+export interface Brand {
+  id: string;
+  name: string;
+  isDefault: boolean;
 }
 
 export interface InvoiceRecipient {

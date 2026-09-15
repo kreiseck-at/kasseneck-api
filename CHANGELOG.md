@@ -4,6 +4,33 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.17.0
+
+### Rechnungs-API: Sprache (de/en) und Marke je Rechnung
+
+**Anlass:** Rechnungen waren fest Deutsch und trugen immer die Standardmarke.
+Internationale Kunden bekamen deutsche Rechnungen, und wer mehrere Marken
+führt, konnte sie über die API nicht wählen. Eine übersetzte Zweitrechnung mit
+eigener Nummer wäre umsatzsteuerlich falsch (UStR Rz 1527) — deshalb eine
+Sprache je Rechnung und die andere nur als gekennzeichnete Kopie (Rz 1528).
+
+- `INVOICE_LANGUAGES` (`de`, `en`); Feld `language` am Kunden und an
+  `issueInvoice`, `brandId` an `issueInvoice`; `Invoice.language` und
+  `Invoice.brand`.
+- Neuer Aufruf `listBrands()` → `[{ id, name, isDefault }]`.
+- `getInvoicePdf(id, { language })`: in der anderen Sprache eine
+  Übersetzungskopie (gleiche Nummer, Vermerk auf jeder Seite, ohne
+  eingebettete E-Rechnung).
+- Neue Fehlercodes `language_not_allowed` (Behörden nur Deutsch) und
+  `brand_not_found` (angegebene Marke gibt es nicht — kein stiller Rückfall).
+- **Einheiten als Katalog:** `INVOICE_UNITS` (49 Einheiten) mit UN/ECE-Code in
+  `RECHNUNG_EINHEITEN_CODES`; `items[].unit` nimmt nur noch diese Schlüssel.
+  Gedruckt wird das Kürzel in der Sprache der Rechnung; freier Text wie `"Std"`
+  ist `validation`. Grund: „Stk" stand sonst auch auf englischen Rechnungen.
+- Textkatalog `RECHNUNG_TEXTE` / `rechnungText()` und
+  `fixtures/rechnung-texte.json`: alle Texte von Rechnung, Gutschrift und
+  E-Rechnung in Deutsch und Englisch, Steuerhinweise mit Gesetzesstelle.
+
 ## 0.16.0
 
 ### Rechnungs-API: Freigabe und Einrichtung vor dem ersten Ausstellen

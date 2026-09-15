@@ -33,6 +33,7 @@ export const RECHNUNG_AUFRUFE = [
   'getInvoicePdf',
   'getInvoiceXml',
   'getInvoiceSetupStatus',
+  'listBrands',
 ] as const;
 export type RechnungAufruf = (typeof RECHNUNG_AUFRUFE)[number];
 
@@ -58,6 +59,8 @@ export const INVOICE_ERROR_CODES = [
   'einvoice_incomplete',
   'invoice_api_not_enabled',
   'invoice_setup_incomplete',
+  'language_not_allowed',
+  'brand_not_found',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -91,6 +94,135 @@ export type DocType = (typeof DOC_TYPES)[number];
 
 export const EINVOICE_FORMATS = ['ubl', 'cii'] as const;
 export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
+
+/**
+ * Sprachen einer Rechnung. Die Sprache wird beim Festschreiben eingefroren;
+ * fehlt sie an Kunde oder Rechnung, gilt `de`. Behoerden bekommen immer `de`
+ * (`language_not_allowed`). Datum und Betraege bleiben in jeder Sprache
+ * oesterreichisch formatiert.
+ */
+export const INVOICE_LANGUAGES = ['de', 'en'] as const;
+export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
+
+/**
+ * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
+ * wird das Kuerzel in der Sprache der Rechnung (`RECHNUNG_TEXTE`,
+ * `einheit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
+ * (`RECHNUNG_EINHEITEN_CODES`). Ohne Angabe gilt `piece`.
+ */
+export const INVOICE_UNITS = [
+  'piece',
+  'pair',
+  'set',
+  'dozen',
+  'second',
+  'minute',
+  'hour',
+  'day',
+  'night',
+  'week',
+  'month',
+  'quarter',
+  'half_year',
+  'year',
+  'milligram',
+  'gram',
+  'kilogram',
+  'tonne',
+  'millimetre',
+  'centimetre',
+  'metre',
+  'running_metre',
+  'kilometre',
+  'square_metre',
+  'hectare',
+  'millilitre',
+  'litre',
+  'cubic_metre',
+  'kilowatt_hour',
+  'megawatt_hour',
+  'gigabyte',
+  'terabyte',
+  'flat_rate',
+  'person',
+  'licence',
+  'user',
+  'device',
+  'session',
+  'trip',
+  'page',
+  'sheet',
+  'package',
+  'box',
+  'carton',
+  'bottle',
+  'can',
+  'roll',
+  'bag',
+  'pallet',
+] as const;
+export type InvoiceUnit = (typeof INVOICE_UNITS)[number];
+
+/**
+ * UN/ECE-Code je Einheit (Recommendation 20, Verpackungen aus Recommendation 21
+ * mit `X`). Mehrere Einheiten duerfen denselben Code tragen (Meter und
+ * Laufmeter; Lizenz, Benutzer, Geraet als Stueck). Die Validatoren der
+ * E-Rechnung pruefen jeden Code im Backend (Beispiel `api-einheiten`).
+ */
+export const RECHNUNG_EINHEITEN_CODES: Readonly<Record<InvoiceUnit, string>> = Object.freeze({
+  piece: 'C62',
+  pair: 'PR',
+  set: 'SET',
+  dozen: 'DZN',
+  second: 'SEC',
+  minute: 'MIN',
+  hour: 'HUR',
+  day: 'DAY',
+  night: 'C62',
+  week: 'WEE',
+  month: 'MON',
+  quarter: 'QAN',
+  half_year: 'SAN',
+  year: 'ANN',
+  milligram: 'MGM',
+  gram: 'GRM',
+  kilogram: 'KGM',
+  tonne: 'TNE',
+  millimetre: 'MMT',
+  centimetre: 'CMT',
+  metre: 'MTR',
+  running_metre: 'MTR',
+  kilometre: 'KMT',
+  square_metre: 'MTK',
+  // Rec 20 fuehrt fuer Hektar HAR, EN 16931 laesst davon nur H18
+  // („square hectometre", Synonym hectare) zu.
+  hectare: 'H18',
+  millilitre: 'MLT',
+  litre: 'LTR',
+  cubic_metre: 'MTQ',
+  kilowatt_hour: 'KWH',
+  megawatt_hour: 'MWH',
+  gigabyte: 'E34',
+  terabyte: 'E35',
+  flat_rate: 'LS',
+  person: 'IE',
+  licence: 'C62',
+  user: 'C62',
+  device: 'C62',
+  session: 'C62',
+  trip: 'C62',
+  page: 'ZP',
+  // Ebenso: ST („sheet") steht nicht in der Liste von EN 16931, LEF („leaf") schon.
+  sheet: 'LEF',
+  package: 'XPK',
+  box: 'XBX',
+  carton: 'XCT',
+  bottle: 'XBO',
+  can: 'XCA',
+  roll: 'XRO',
+  bag: 'XSA',
+  pallet: 'XPX',
+});
 
 /**
  * Was erfuellt sein muss, bevor ueber die API ausgestellt werden darf — in
@@ -156,6 +288,8 @@ export const KUNDE_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   isAuthority: { typ: 'boolean', pflicht: false },
   note: text(1000),
   externalId: { typ: 'string', pflicht: false, min: 1, max: 120 },
+  /** Sprache der Rechnungen an diesen Kunden; fehlt = `de`. */
+  language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
 });
 
 /** Beim Aendern ist jedes Kundenfeld optional. */
@@ -168,7 +302,8 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   description: text(300, true),
   subtitle: text(1000),
   quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000, nachkomma: 3 },
-  unit: text(20),
+  /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
+  unit: { typ: 'enum', pflicht: false, werte: INVOICE_UNITS },
   unitPriceCents: { typ: 'integer', pflicht: true, min: 0, max: 100_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
@@ -213,6 +348,10 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     tracking: { typ: 'boolean', pflicht: false },
     items: positionen,
     metadata: { typ: 'map', pflicht: false, maxSchluessel: 20, schluesselMuster: '^[a-zA-Z0-9_]{1,40}$', wertMax: 500 },
+    /** Sprache dieser Rechnung; sonst die des Kunden, sonst `de`. */
+    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
+    /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
+    brandId: id,
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),
@@ -242,12 +381,15 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
   },
   getInvoicePdf: {
     invoiceId: idPflicht,
+    /** Andere Sprache als die der Rechnung: gekennzeichnete Uebersetzungskopie, keine eigene Rechnung. */
+    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
   },
   getInvoiceXml: {
     invoiceId: idPflicht,
     format: { typ: 'enum', pflicht: false, werte: EINVOICE_FORMATS },
   },
   getInvoiceSetupStatus: {},
+  listBrands: {},
 });
 
 /** Genau eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */

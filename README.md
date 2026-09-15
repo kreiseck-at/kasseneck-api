@@ -489,6 +489,41 @@ const status = await rechnungen.getInvoiceSetupStatus();
 if (!status.ready) console.warn(status.missing.map((m) => m.message).join('\n'));
 ```
 
+**Sprache und Marke.** Eine Rechnung hat eine Nummer und **eine** Sprache (`de`
+oder `en`, `INVOICE_LANGUAGES`): die der Anfrage, sonst die des Kunden
+(`customer.language`), sonst Deutsch. Sie wird beim Ausstellen eingefroren;
+Gutschriften übernehmen Sprache und Marke ihrer Rechnung. Behörden bekommen
+immer Deutsch (`language_not_allowed`). Datum und Beträge bleiben in jeder
+Sprache österreichisch formatiert.
+
+```ts
+const [marke] = await rechnungen.listBrands();              // [{ id, name, isDefault }]
+const { invoice } = await rechnungen.issueInvoice({
+  idempotencyKey: `bestellung-${bestellnummer}`,
+  customerId: kunde.id,
+  taxScheme: 'normal', priceMode: 'net', serviceStart: '2026-09-15',
+  language: 'en',                                          // sonst die Sprache des Kunden
+  brandId: marke.id,                                       // sonst die Standardmarke
+  items: [{ description: 'Consulting', quantity: 2, unitPriceCents: 5000, vatRate: 20 }],
+});
+// Dieselbe Rechnung als deutsche Übersetzung — KEINE zweite Rechnung:
+const kopie = await rechnungen.getInvoicePdf(invoice.id, { language: 'de' });
+```
+
+Die Übersetzungskopie trägt dieselbe Nummer, ist auf jeder Seite als
+„Übersetzung – keine eigene Rechnung" gekennzeichnet und hat keine eingebettete
+E-Rechnung. Eine zweite Rechnung mit eigener Nummer für dieselbe Leistung
+wäre umsatzsteuerlich ein Problem (UStR Rz 1527); die Kopie ist das nicht (Rz 1528).
+Die Texte beider Sprachen liegen als `RECHNUNG_TEXTE` bzw.
+`fixtures/rechnung-texte.json` im Paket.
+
+**Einheiten sind Schlüssel, kein freier Text.** `items[].unit` nimmt einen Wert aus
+`INVOICE_UNITS` (`piece`, `hour`, `day`, `flat_rate`, `kilogram`, `square_metre`, …;
+ohne Angabe `piece`). Gedruckt wird das Kürzel in der Sprache der Rechnung — `Stk`
+bzw. `pcs` —, und die E-Rechnung trägt den UN/ECE-Code aus
+`RECHNUNG_EINHEITEN_CODES` (`C62`, `HUR`, …). Freier Text wie `"Std"` ist
+`validation` mit Feld `items[0].unit`.
+
 **Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
 einem neuen: dann kommt die schon ausgestellte Rechnung zurück
 (`replayed: true`). Derselbe Schlüssel mit anderen Daten ergibt

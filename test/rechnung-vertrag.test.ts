@@ -6,6 +6,10 @@ import { AUFRUFE } from '../src/client/aufrufe.js';
 import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
+  INVOICE_LANGUAGES,
+  INVOICE_UNITS,
+  KUNDE_FELDER,
+  RECHNUNG_EINHEITEN_CODES,
   POSITION_FELDER,
   RECHNUNG_ANFRAGEN,
   RECHNUNG_AUFRUFE,
@@ -165,4 +169,38 @@ test('Vertrag: Rechnungsdatum, Nummer und Status sind nicht setzbar', () => {
   for (const verboten of ['invoiceDate', 'number', 'status', 'docType', 'totals']) {
     assert.ok(!felder.includes(verboten), `issueInvoice darf ${verboten} nicht annehmen`);
   }
+});
+
+// ---- Sprache und Marke (0.17.0) ----------------------------------------------
+
+test('Vertrag: Sprachen de und en, Deutsch zuerst', () => {
+  assert.deepEqual([...INVOICE_LANGUAGES], ['de', 'en']);
+});
+
+test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Sprache fuer die PDF-Kopie', () => {
+  assert.deepEqual(KUNDE_FELDER['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['brandId'], { typ: 'string', pflicht: false, min: 1, max: 128 });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.getInvoicePdf['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.listBrands, {});
+});
+
+test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['language_not_allowed', 'brand_not_found']);
+  assert.equal(INVOICE_ERROR_CODES[0], 'validation');
+});
+
+test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
+  assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('listBrands'));
+  assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
+});
+
+test('Vertrag: Einheiten sind Schluessel mit UN/ECE-Code, die Position nimmt nur sie an', () => {
+  assert.ok(INVOICE_UNITS.length >= 45, 'der Katalog soll abdecken, was Betriebe abrechnen');
+  assert.equal(new Set(INVOICE_UNITS).size, INVOICE_UNITS.length);
+  for (const einheit of INVOICE_UNITS) assert.match(einheit, /^[a-z]+(_[a-z]+)*$/);
+  assert.deepEqual(Object.keys(RECHNUNG_EINHEITEN_CODES), [...INVOICE_UNITS]);
+  for (const [einheit, code] of Object.entries(RECHNUNG_EINHEITEN_CODES)) assert.match(code, /^[A-Z0-9]{2,3}$/, einheit);
+  assert.equal(INVOICE_UNITS[0], 'piece');
+  assert.deepEqual(POSITION_FELDER['unit'], { typ: 'enum', pflicht: false, werte: INVOICE_UNITS });
 });
