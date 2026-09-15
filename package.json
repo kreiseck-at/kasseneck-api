@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "RKSV-Registrierkasse fuer JavaScript und TypeScript: signierte Belege, Storno, Kartenzahlung, Bondruck. Austrian fiscal cash register (RKSV) API client.",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -155,7 +155,7 @@
     "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",
     "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
     "fixtures:rechnung": "npm run build && node scripts/rechnung-vertrag.mjs",
-    "fixtures:rechnungstexte": "node scripts/rechnung-texte.mjs",
+    "fixtures:rechnungstexte": "npm run build && node scripts/rechnung-texte.mjs",
     "fixtures:hobex-hps-codes": "npm run build && node scripts/hobex-hps-codes.mjs",
     "fixtures:texte": "npm run build && node scripts/texte.mjs"
   },
