@@ -100,7 +100,7 @@ export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
  * - `module_active`  Modul Rechnung aktiv
  * - `api_enabled`    Rechnungs-API fuer das Konto von Kasseneck freigegeben (nur live)
  * - `live_enabled`   Konto live freigeschaltet (nur live)
- * - `company_name`, `address`, `vat_id`  Pflichtangaben des Ausstellers (§ 11 UStG;
+ * - `business_name`, `address`, `vat_id`  Pflichtangaben des Ausstellers (§ 11 UStG;
  *   `vat_id` entfaellt bei Kleinunternehmern)
  * - `bank_account`   IBAN und Kontoinhaber
  * - `number_format`  Rechnungsnummern-Format bewusst gespeichert
@@ -109,7 +109,7 @@ export const INVOICE_SETUP_REQUIREMENTS = [
   'module_active',
   'api_enabled',
   'live_enabled',
-  'company_name',
+  'business_name',
   'address',
   'vat_id',
   'bank_account',

@@ -411,7 +411,7 @@
       "module_active",
       "api_enabled",
       "live_enabled",
-      "company_name",
+      "business_name",
       "address",
       "vat_id",
       "bank_account",
