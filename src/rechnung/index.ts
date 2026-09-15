@@ -63,6 +63,8 @@ export type {
   IssueResult,
 } from './typen.js';
 
+export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './texte.js';
+
 export {
   RECHNUNG_VERTRAG_VERSION,
   RECHNUNG_AUFRUFE,
