@@ -213,7 +213,7 @@ test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async
     .filter((b) => b.erwartet.ok === true);
   assert.ok(gute.length >= 3);
   for (const b of gute) {
-    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0, ready: true, environment: 'live', missing: [] })));
+    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0, ready: true, environment: 'live', missing: [], brands: [] })));
     const api = createRechnungApi({ apiKey: API_KEY, fetch }) as unknown as Record<string, (a: unknown) => Promise<unknown>>;
     const aufruf = api[b.aufruf];
     assert.ok(aufruf, `Client kennt ${b.aufruf} nicht`);
@@ -221,4 +221,44 @@ test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async
     assert.equal(anfragen[0]!.url, `https://api.kasseneck.at/v1/${b.aufruf}`);
     assert.deepEqual(params(anfragen[0]!), b.anfrage, `${b.aufruf}: Parameter veraendert`);
   }
+});
+
+// ---- Sprache und Marke (0.17.0) ----------------------------------------------
+
+test('listBrands: ohne Parameter, liefert die Marken', async () => {
+  const brands = [{ id: 'm1', name: 'Haus', isDefault: true }, { id: 'm2', name: 'Zweit', isDefault: false }];
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ brands })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  assert.deepEqual(await api.listBrands(), brands);
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/listBrands');
+  assert.deepEqual(params(anfragen[0]!), {});
+});
+
+test('listBrands: eine Antwort ohne brands ist ein Antwortfehler', async () => {
+  const { fetch } = attrappe(antwort(erfolg({})));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await assert.rejects(api.listBrands(), (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response');
+});
+
+test('getInvoicePdf: language geht nur mit, wenn gesetzt (Uebersetzungskopie)', async () => {
+  const pdf = new TextEncoder().encode('%PDF-1.7\n');
+  const { fetch, anfragen } = attrappe(antwort(pdf, 'application/pdf'), antwort(pdf, 'application/pdf'));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await api.getInvoicePdf('inv1');
+  await api.getInvoicePdf('inv1', { language: 'de' });
+  assert.deepEqual(params(anfragen[0]!), { invoiceId: 'inv1' });
+  assert.deepEqual(params(anfragen[1]!), { invoiceId: 'inv1', language: 'de' });
+});
+
+test('Typen: Sprache und Marke an Anfrage und Rechnung', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: { ...rechnung, language: 'en', brand: { id: 'm1', name: 'Haus' } }, replayed: false })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const anfrage: IssueInvoiceRequest = {
+    idempotencyKey: 'k-en', taxScheme: 'normal', priceMode: 'net', serviceStart: '2026-09-15', language: 'en', brandId: 'm1',
+    items: [{ description: 'Consulting', quantity: 1, unitPriceCents: 5000, vatRate: 20 }],
+  };
+  const { invoice } = await api.issueInvoice(anfrage);
+  assert.deepEqual(params(anfragen[0]!), anfrage);
+  assert.equal(invoice.language, 'en');
+  assert.deepEqual(invoice.brand, { id: 'm1', name: 'Haus' });
 });

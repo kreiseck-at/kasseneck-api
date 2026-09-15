@@ -33,6 +33,7 @@ export const RECHNUNG_AUFRUFE = [
   'getInvoicePdf',
   'getInvoiceXml',
   'getInvoiceSetupStatus',
+  'listBrands',
 ] as const;
 export type RechnungAufruf = (typeof RECHNUNG_AUFRUFE)[number];
 
@@ -58,6 +59,8 @@ export const INVOICE_ERROR_CODES = [
   'einvoice_incomplete',
   'invoice_api_not_enabled',
   'invoice_setup_incomplete',
+  'language_not_allowed',
+  'brand_not_found',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -91,6 +94,15 @@ export type DocType = (typeof DOC_TYPES)[number];
 
 export const EINVOICE_FORMATS = ['ubl', 'cii'] as const;
 export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
+
+/**
+ * Sprachen einer Rechnung. Die Sprache wird beim Festschreiben eingefroren;
+ * fehlt sie an Kunde oder Rechnung, gilt `de`. Behoerden bekommen immer `de`
+ * (`language_not_allowed`). Datum und Betraege bleiben in jeder Sprache
+ * oesterreichisch formatiert.
+ */
+export const INVOICE_LANGUAGES = ['de', 'en'] as const;
+export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
 
 /**
  * Was erfuellt sein muss, bevor ueber die API ausgestellt werden darf — in
@@ -156,6 +168,8 @@ export const KUNDE_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   isAuthority: { typ: 'boolean', pflicht: false },
   note: text(1000),
   externalId: { typ: 'string', pflicht: false, min: 1, max: 120 },
+  /** Sprache der Rechnungen an diesen Kunden; fehlt = `de`. */
+  language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
 });
 
 /** Beim Aendern ist jedes Kundenfeld optional. */
@@ -213,6 +227,10 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     tracking: { typ: 'boolean', pflicht: false },
     items: positionen,
     metadata: { typ: 'map', pflicht: false, maxSchluessel: 20, schluesselMuster: '^[a-zA-Z0-9_]{1,40}$', wertMax: 500 },
+    /** Sprache dieser Rechnung; sonst die des Kunden, sonst `de`. */
+    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
+    /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
+    brandId: id,
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),
@@ -242,12 +260,15 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
   },
   getInvoicePdf: {
     invoiceId: idPflicht,
+    /** Andere Sprache als die der Rechnung: gekennzeichnete Uebersetzungskopie, keine eigene Rechnung. */
+    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
   },
   getInvoiceXml: {
     invoiceId: idPflicht,
     format: { typ: 'enum', pflicht: false, werte: EINVOICE_FORMATS },
   },
   getInvoiceSetupStatus: {},
+  listBrands: {},
 });
 
 /** Genau eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */

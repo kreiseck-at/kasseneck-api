@@ -32,12 +32,14 @@ export {
   getInvoiceSetupStatus,
   getInvoiceXml,
   issueInvoice,
+  listBrands,
   listInvoices,
   searchCustomers,
   updateCustomer,
 } from './endpunkte.js';
 
 export type {
+  Brand,
   CancelInvoiceRequest,
   CancelResult,
   CreditNoteRequest,
@@ -73,6 +75,7 @@ export {
   INVOICE_LIST_STATUS,
   DOC_TYPES,
   EINVOICE_FORMATS,
+  INVOICE_LANGUAGES,
   INVOICE_SETUP_REQUIREMENTS,
   KUNDE_FELDER,
   POSITION_FELDER,
@@ -89,6 +92,7 @@ export {
   type InvoiceListStatus,
   type DocType,
   type EInvoiceFormat,
+  type InvoiceLanguage,
   type InvoiceSetupRequirement,
   type Format,
   type Feld,

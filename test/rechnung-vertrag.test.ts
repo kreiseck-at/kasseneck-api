@@ -6,6 +6,8 @@ import { AUFRUFE } from '../src/client/aufrufe.js';
 import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
+  INVOICE_LANGUAGES,
+  KUNDE_FELDER,
   POSITION_FELDER,
   RECHNUNG_ANFRAGEN,
   RECHNUNG_AUFRUFE,
@@ -165,4 +167,28 @@ test('Vertrag: Rechnungsdatum, Nummer und Status sind nicht setzbar', () => {
   for (const verboten of ['invoiceDate', 'number', 'status', 'docType', 'totals']) {
     assert.ok(!felder.includes(verboten), `issueInvoice darf ${verboten} nicht annehmen`);
   }
+});
+
+// ---- Sprache und Marke (0.17.0) ----------------------------------------------
+
+test('Vertrag: Sprachen de und en, Deutsch zuerst', () => {
+  assert.deepEqual([...INVOICE_LANGUAGES], ['de', 'en']);
+});
+
+test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Sprache fuer die PDF-Kopie', () => {
+  assert.deepEqual(KUNDE_FELDER['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['brandId'], { typ: 'string', pflicht: false, min: 1, max: 128 });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.getInvoicePdf['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
+  assert.deepEqual(RECHNUNG_ANFRAGEN.listBrands, {});
+});
+
+test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['language_not_allowed', 'brand_not_found']);
+  assert.equal(INVOICE_ERROR_CODES[0], 'validation');
+});
+
+test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
+  assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('listBrands'));
+  assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
 });
