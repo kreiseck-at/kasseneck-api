@@ -10,6 +10,7 @@ import type {
   CreditNoteReason,
   CustomerType,
   DocType,
+  InvoiceSetupRequirement,
   InvoiceListStatus,
   PriceMode,
   TaxScheme,
@@ -235,4 +236,22 @@ export interface CreditNoteResult {
   /** Brutto, das nach dieser Gutschrift noch gutgeschrieben werden kann. */
   remainingCents: number;
   replayed: boolean;
+}
+
+// ---- Freigabe und Einrichtung -----------------------------------------------
+
+/** Ein Punkt, der vor dem Ausstellen noch fehlt. */
+export interface InvoiceSetupGap {
+  requirement: InvoiceSetupRequirement;
+  /** Was fehlt und wo es nachzutragen ist — fuer einen Menschen formuliert. */
+  message: string;
+}
+
+export interface InvoiceSetupStatus {
+  /** `true`: Rechnungen koennen ueber die API ausgestellt werden. */
+  ready: boolean;
+  /** Umgebung des Schluessels (`kr_live_…` bzw. `kr_test_…`). */
+  environment: 'live' | 'test';
+  /** Was fehlt, in der Reihenfolge von `INVOICE_SETUP_REQUIREMENTS` — leer, wenn `ready`. */
+  missing: InvoiceSetupGap[];
 }

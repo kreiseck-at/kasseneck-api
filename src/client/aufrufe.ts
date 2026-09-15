@@ -39,6 +39,7 @@ export const AUFRUFE = [
   'getFirstReceiptDate',
   'getInvoice',
   'getInvoicePdf',
+  'getInvoiceSetupStatus',
   'getInvoiceXml',
   'getKasseSettings',
   'getPartnerCustomer',

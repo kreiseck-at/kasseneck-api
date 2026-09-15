@@ -33,6 +33,8 @@ import type {
   InvoiceDetail,
   InvoiceListQuery,
   InvoicePage,
+  InvoiceSetupGap,
+  InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
 } from './typen.js';
@@ -143,6 +145,25 @@ export async function listInvoices(rufen: InternerTransport, abfrage: InvoiceLis
   const daten = await rufen('listInvoices', nutzlast(abfrage));
   const { eintraege, nextCursor } = seite<Invoice>('listInvoices', daten, 'invoices');
   return { invoices: eintraege, nextCursor };
+}
+
+// ---- Freigabe und Einrichtung ---------------------------------------------------
+
+/**
+ * Darf dieses Konto ueber die API ausstellen, und was fehlt noch? Laeuft auch
+ * ohne Freigabe und vor der Live-Freischaltung — genau dann braucht man die
+ * Antwort. Vor dem ersten `issueInvoice` aufrufen und `missing` anzeigen.
+ */
+export async function getInvoiceSetupStatus(rufen: InternerTransport): Promise<InvoiceSetupStatus> {
+  const daten = objekt(await rufen('getInvoiceSetupStatus', {}));
+  if (typeof daten['ready'] !== 'boolean' || !Array.isArray(daten['missing'])) {
+    throw new KasseneckValidationError('getInvoiceSetupStatus', 'Antwort ohne ready/missing', 'response');
+  }
+  return {
+    ready: daten['ready'],
+    environment: daten['environment'] === 'test' ? 'test' : 'live',
+    missing: daten['missing'] as InvoiceSetupGap[],
+  };
 }
 
 // ---- Dateien ----------------------------------------------------------------

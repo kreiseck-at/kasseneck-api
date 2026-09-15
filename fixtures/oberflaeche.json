@@ -1,5 +1,5 @@
 {
-  "version": "0.15.0",
+  "version": "0.16.0",
   "aufrufe": [
     "activateCashregister",
     "cancelInvoice",
@@ -25,6 +25,7 @@
     "getFirstReceiptDate",
     "getInvoice",
     "getInvoicePdf",
+    "getInvoiceSetupStatus",
     "getInvoiceXml",
     "getKasseSettings",
     "getPartnerCustomer",
@@ -395,7 +396,9 @@
       "not_cancellable",
       "partial_credit_exists",
       "credit_exceeds_invoice",
-      "einvoice_incomplete"
+      "einvoice_incomplete",
+      "invoice_api_not_enabled",
+      "invoice_setup_incomplete"
     ],
     "invoiceListStatus": [
       "final",
@@ -403,6 +406,16 @@
       "cancelled",
       "open",
       "overdue"
+    ],
+    "invoiceSetupRequirements": [
+      "module_active",
+      "api_enabled",
+      "live_enabled",
+      "business_name",
+      "address",
+      "vat_id",
+      "bank_account",
+      "number_format"
     ],
     "priceModes": [
       "net",
@@ -419,7 +432,8 @@
       "getInvoice",
       "listInvoices",
       "getInvoicePdf",
-      "getInvoiceXml"
+      "getInvoiceXml",
+      "getInvoiceSetupStatus"
     ],
     "taxSchemes": [
       "normal",

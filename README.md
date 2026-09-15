@@ -479,6 +479,16 @@ await rechnungen.createCreditNote({
 });
 ```
 
+**Vor dem ersten Ausstellen die Einrichtung abfragen.** Die Rechnungs-API muss
+für das Konto von Kasseneck freigegeben sein (live), und Firmenname, Anschrift,
+UID, Bankverbindung und Nummernformat müssen stehen — sonst antwortet
+`issueInvoice` mit `invoice_api_not_enabled` bzw. `invoice_setup_incomplete`:
+
+```ts
+const status = await rechnungen.getInvoiceSetupStatus();
+if (!status.ready) console.warn(status.missing.map((m) => m.message).join('\n'));
+```
+
 **Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
 einem neuen: dann kommt die schon ausgestellte Rechnung zurück
 (`replayed: true`). Derselbe Schlüssel mit anderen Daten ergibt

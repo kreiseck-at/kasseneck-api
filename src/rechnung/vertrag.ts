@@ -32,6 +32,7 @@ export const RECHNUNG_AUFRUFE = [
   'listInvoices',
   'getInvoicePdf',
   'getInvoiceXml',
+  'getInvoiceSetupStatus',
 ] as const;
 export type RechnungAufruf = (typeof RECHNUNG_AUFRUFE)[number];
 
@@ -55,6 +56,8 @@ export const INVOICE_ERROR_CODES = [
   'partial_credit_exists',
   'credit_exceeds_invoice',
   'einvoice_incomplete',
+  'invoice_api_not_enabled',
+  'invoice_setup_incomplete',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -88,6 +91,31 @@ export type DocType = (typeof DOC_TYPES)[number];
 
 export const EINVOICE_FORMATS = ['ubl', 'cii'] as const;
 export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
+
+/**
+ * Was erfuellt sein muss, bevor ueber die API ausgestellt werden darf — in
+ * dieser Reihenfolge meldet `getInvoiceSetupStatus`, was fehlt, und dieselben
+ * Schluessel stehen in `invoice_setup_incomplete`.
+ *
+ * - `module_active`  Modul Rechnung aktiv
+ * - `api_enabled`    Rechnungs-API fuer das Konto von Kasseneck freigegeben (nur live)
+ * - `live_enabled`   Konto live freigeschaltet (nur live)
+ * - `business_name`, `address`, `vat_id`  Pflichtangaben des Ausstellers (§ 11 UStG;
+ *   `vat_id` entfaellt bei Kleinunternehmern)
+ * - `bank_account`   IBAN und Kontoinhaber
+ * - `number_format`  Rechnungsnummern-Format bewusst gespeichert
+ */
+export const INVOICE_SETUP_REQUIREMENTS = [
+  'module_active',
+  'api_enabled',
+  'live_enabled',
+  'business_name',
+  'address',
+  'vat_id',
+  'bank_account',
+  'number_format',
+] as const;
+export type InvoiceSetupRequirement = (typeof INVOICE_SETUP_REQUIREMENTS)[number];
 
 /** Formate, die der Server mit `@kreiseck/validator` bzw. einem Muster prueft. */
 export type Format = 'email' | 'phone' | 'vatId' | 'country' | 'date' | 'shortCode';
@@ -219,6 +247,7 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     invoiceId: idPflicht,
     format: { typ: 'enum', pflicht: false, werte: EINVOICE_FORMATS },
   },
+  getInvoiceSetupStatus: {},
 });
 
 /** Genau eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */

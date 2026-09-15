@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Kasseneck Rechnungs-API",
   "version": 1,
-  "paket": "0.15.0",
+  "paket": "0.16.0",
   "aufrufe": {
     "createCustomer": {
       "anfrage": {
@@ -643,6 +643,13 @@
         ],
         "additionalProperties": false
       }
+    },
+    "getInvoiceSetupStatus": {
+      "anfrage": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
     }
   },
   "codes": [
@@ -660,7 +667,9 @@
     "not_cancellable",
     "partial_credit_exists",
     "credit_exceeds_invoice",
-    "einvoice_incomplete"
+    "einvoice_incomplete",
+    "invoice_api_not_enabled",
+    "invoice_setup_incomplete"
   ],
   "gruende": [
     "cancellation",
