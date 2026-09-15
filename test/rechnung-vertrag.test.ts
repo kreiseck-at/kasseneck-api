@@ -7,7 +7,9 @@ import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
   INVOICE_LANGUAGES,
+  INVOICE_UNITS,
   KUNDE_FELDER,
+  RECHNUNG_EINHEITEN_CODES,
   POSITION_FELDER,
   RECHNUNG_ANFRAGEN,
   RECHNUNG_AUFRUFE,
@@ -191,4 +193,14 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
   assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('listBrands'));
   assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
+});
+
+test('Vertrag: Einheiten sind Schluessel mit UN/ECE-Code, die Position nimmt nur sie an', () => {
+  assert.ok(INVOICE_UNITS.length >= 45, 'der Katalog soll abdecken, was Betriebe abrechnen');
+  assert.equal(new Set(INVOICE_UNITS).size, INVOICE_UNITS.length);
+  for (const einheit of INVOICE_UNITS) assert.match(einheit, /^[a-z]+(_[a-z]+)*$/);
+  assert.deepEqual(Object.keys(RECHNUNG_EINHEITEN_CODES), [...INVOICE_UNITS]);
+  for (const [einheit, code] of Object.entries(RECHNUNG_EINHEITEN_CODES)) assert.match(code, /^[A-Z0-9]{2,3}$/, einheit);
+  assert.equal(INVOICE_UNITS[0], 'piece');
+  assert.deepEqual(POSITION_FELDER['unit'], { typ: 'enum', pflicht: false, werte: INVOICE_UNITS });
 });

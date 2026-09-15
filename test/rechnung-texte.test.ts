@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { INVOICE_LANGUAGES } from '../src/rechnung/vertrag.js';
+import { INVOICE_LANGUAGES, INVOICE_UNITS, RECHNUNG_EINHEITEN_CODES } from '../src/rechnung/vertrag.js';
 import { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from '../src/rechnung/texte.js';
 
 const platzhalter = (s: string) => [...s.matchAll(/\{([a-zA-Z]+)\}/g)].map((m) => m[1]).sort();
@@ -28,7 +28,8 @@ test('Katalog: Englisch ist nicht einfach Deutsch (ausser neutrale Kuerzel)', ()
   // Neutral sind nur Woerter, die in beiden Sprachen gleich lauten.
   const neutral = new Set<RechnungTextSchluessel>(['pdf.tabelle.pos', 'pdf.zahlung.iban', 'pdf.zahlung.bic', 'pdf.status.link', 'zahlungsart.online', 'land.LI']);
   for (const s of schluessel) {
-    if (neutral.has(s)) continue;
+    // Kuerzel wie kg oder kWh sind international gleich; die Namen muessen uebersetzt sein.
+    if (neutral.has(s) || s.startsWith('einheit.')) continue;
     assert.notEqual(RECHNUNG_TEXTE.en[s], RECHNUNG_TEXTE.de[s], `${s} ist nicht uebersetzt`);
   }
 });
@@ -60,4 +61,16 @@ test('Golden: der Katalog steht in fixtures/rechnung-texte.json', () => {
   assert.deepEqual(datei.texte, RECHNUNG_TEXTE, veraltet);
   assert.equal(datei.version, pkg.version, veraltet);
   assert.deepEqual(datei.sprachen, [...INVOICE_LANGUAGES], veraltet);
+  assert.deepEqual(datei.einheiten, RECHNUNG_EINHEITEN_CODES, veraltet);
+});
+
+test('Katalog: jede Einheit hat Kuerzel und Namen in jeder Sprache', () => {
+  for (const sprache of INVOICE_LANGUAGES) {
+    for (const einheit of INVOICE_UNITS) {
+      assert.ok(`einheit.${einheit}` in RECHNUNG_TEXTE[sprache], `${sprache}: Kuerzel fuer ${einheit} fehlt`);
+      assert.ok(`einheitName.${einheit}` in RECHNUNG_TEXTE[sprache], `${sprache}: Name fuer ${einheit} fehlt`);
+    }
+  }
+  assert.equal(RECHNUNG_TEXTE.de['einheit.piece'], 'Stk');
+  assert.equal(RECHNUNG_TEXTE.en['einheit.piece'], 'pcs');
 });

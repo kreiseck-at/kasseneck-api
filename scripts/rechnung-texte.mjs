@@ -14,6 +14,7 @@ const datei = {
   version: paket.version,
   sprachen: [...rechnung.INVOICE_LANGUAGES],
   texte: rechnung.RECHNUNG_TEXTE,
+  einheiten: rechnung.RECHNUNG_EINHEITEN_CODES,
 };
 
 writeFileSync(new URL('../fixtures/rechnung-texte.json', import.meta.url), JSON.stringify(datei, null, 2) + '\n');

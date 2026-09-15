@@ -517,6 +517,13 @@ wäre umsatzsteuerlich ein Problem (UStR Rz 1527); die Kopie ist das nicht (Rz 1
 Die Texte beider Sprachen liegen als `RECHNUNG_TEXTE` bzw.
 `fixtures/rechnung-texte.json` im Paket.
 
+**Einheiten sind Schlüssel, kein freier Text.** `items[].unit` nimmt einen Wert aus
+`INVOICE_UNITS` (`piece`, `hour`, `day`, `flat_rate`, `kilogram`, `square_metre`, …;
+ohne Angabe `piece`). Gedruckt wird das Kürzel in der Sprache der Rechnung — `Stk`
+bzw. `pcs` —, und die E-Rechnung trägt den UN/ECE-Code aus
+`RECHNUNG_EINHEITEN_CODES` (`C62`, `HUR`, …). Freier Text wie `"Std"` ist
+`validation` mit Feld `items[0].unit`.
+
 **Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
 einem neuen: dann kommt die schon ausgestellte Rechnung zurück
 (`replayed: true`). Derselbe Schlüssel mit anderen Daten ergibt

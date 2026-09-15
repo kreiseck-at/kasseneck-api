@@ -23,6 +23,10 @@ Sprache je Rechnung und die andere nur als gekennzeichnete Kopie (Rz 1528).
   eingebettete E-Rechnung).
 - Neue Fehlercodes `language_not_allowed` (Behörden nur Deutsch) und
   `brand_not_found` (angegebene Marke gibt es nicht — kein stiller Rückfall).
+- **Einheiten als Katalog:** `INVOICE_UNITS` (49 Einheiten) mit UN/ECE-Code in
+  `RECHNUNG_EINHEITEN_CODES`; `items[].unit` nimmt nur noch diese Schlüssel.
+  Gedruckt wird das Kürzel in der Sprache der Rechnung; freier Text wie `"Std"`
+  ist `validation`. Grund: „Stk" stand sonst auch auf englischen Rechnungen.
 - Textkatalog `RECHNUNG_TEXTE` / `rechnungText()` und
   `fixtures/rechnung-texte.json`: alle Texte von Rechnung, Gutschrift und
   E-Rechnung in Deutsch und Englisch, Steuerhinweise mit Gesetzesstelle.

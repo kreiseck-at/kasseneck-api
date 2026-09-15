@@ -105,6 +105,123 @@ export const INVOICE_LANGUAGES = ['de', 'en'] as const;
 export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
 
 /**
+ * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
+ * wird das Kuerzel in der Sprache der Rechnung (`RECHNUNG_TEXTE`,
+ * `einheit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
+ * (`RECHNUNG_EINHEITEN_CODES`). Ohne Angabe gilt `piece`.
+ */
+export const INVOICE_UNITS = [
+  'piece',
+  'pair',
+  'set',
+  'dozen',
+  'second',
+  'minute',
+  'hour',
+  'day',
+  'night',
+  'week',
+  'month',
+  'quarter',
+  'half_year',
+  'year',
+  'milligram',
+  'gram',
+  'kilogram',
+  'tonne',
+  'millimetre',
+  'centimetre',
+  'metre',
+  'running_metre',
+  'kilometre',
+  'square_metre',
+  'hectare',
+  'millilitre',
+  'litre',
+  'cubic_metre',
+  'kilowatt_hour',
+  'megawatt_hour',
+  'gigabyte',
+  'terabyte',
+  'flat_rate',
+  'person',
+  'licence',
+  'user',
+  'device',
+  'session',
+  'trip',
+  'page',
+  'sheet',
+  'package',
+  'box',
+  'carton',
+  'bottle',
+  'can',
+  'roll',
+  'bag',
+  'pallet',
+] as const;
+export type InvoiceUnit = (typeof INVOICE_UNITS)[number];
+
+/**
+ * UN/ECE-Code je Einheit (Recommendation 20, Verpackungen aus Recommendation 21
+ * mit `X`). Mehrere Einheiten duerfen denselben Code tragen (Meter und
+ * Laufmeter; Lizenz, Benutzer, Geraet als Stueck). Die Validatoren der
+ * E-Rechnung pruefen jeden Code im Backend (Beispiel `api-einheiten`).
+ */
+export const RECHNUNG_EINHEITEN_CODES: Readonly<Record<InvoiceUnit, string>> = Object.freeze({
+  piece: 'C62',
+  pair: 'PR',
+  set: 'SET',
+  dozen: 'DZN',
+  second: 'SEC',
+  minute: 'MIN',
+  hour: 'HUR',
+  day: 'DAY',
+  night: 'C62',
+  week: 'WEE',
+  month: 'MON',
+  quarter: 'QAN',
+  half_year: 'SAN',
+  year: 'ANN',
+  milligram: 'MGM',
+  gram: 'GRM',
+  kilogram: 'KGM',
+  tonne: 'TNE',
+  millimetre: 'MMT',
+  centimetre: 'CMT',
+  metre: 'MTR',
+  running_metre: 'MTR',
+  kilometre: 'KMT',
+  square_metre: 'MTK',
+  hectare: 'HAR',
+  millilitre: 'MLT',
+  litre: 'LTR',
+  cubic_metre: 'MTQ',
+  kilowatt_hour: 'KWH',
+  megawatt_hour: 'MWH',
+  gigabyte: 'E34',
+  terabyte: 'E35',
+  flat_rate: 'LS',
+  person: 'IE',
+  licence: 'C62',
+  user: 'C62',
+  device: 'C62',
+  session: 'C62',
+  trip: 'C62',
+  page: 'ZP',
+  sheet: 'ST',
+  package: 'XPK',
+  box: 'XBX',
+  carton: 'XCT',
+  bottle: 'XBO',
+  can: 'XCA',
+  roll: 'XRO',
+  bag: 'XSA',
+  pallet: 'XPX',
+});
+
+/**
  * Was erfuellt sein muss, bevor ueber die API ausgestellt werden darf — in
  * dieser Reihenfolge meldet `getInvoiceSetupStatus`, was fehlt, und dieselben
  * Schluessel stehen in `invoice_setup_incomplete`.
@@ -182,7 +299,8 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   description: text(300, true),
   subtitle: text(1000),
   quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000, nachkomma: 3 },
-  unit: text(20),
+  /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
+  unit: { typ: 'enum', pflicht: false, werte: INVOICE_UNITS },
   unitPriceCents: { typ: 'integer', pflicht: true, min: 0, max: 100_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },

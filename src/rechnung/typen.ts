@@ -11,6 +11,7 @@ import type {
   CustomerType,
   DocType,
   InvoiceLanguage,
+  InvoiceUnit,
   InvoiceSetupRequirement,
   InvoiceListStatus,
   PriceMode,
@@ -89,7 +90,8 @@ export interface InvoiceItemInput {
   subtitle?: string;
   /** Hoechstens drei Nachkommastellen. */
   quantity: number;
-  unit?: string;
+  /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
+  unit?: InvoiceUnit;
   /** Einzelpreis in ganzen Cent, im `priceMode` der Rechnung (netto oder brutto). */
   unitPriceCents: number;
   vatRate: VatRatePercent;
