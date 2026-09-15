@@ -15,6 +15,7 @@ import {
   getCustomer,
   getInvoice,
   getInvoicePdf,
+  getInvoiceSetupStatus,
   getInvoiceXml,
   issueInvoice,
   listInvoices,
@@ -34,6 +35,7 @@ import type {
   InvoiceDetail,
   InvoiceListQuery,
   InvoicePage,
+  InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
 } from './typen.js';
@@ -66,6 +68,10 @@ export interface RechnungApi {
   // Dateien
   getInvoicePdf(invoiceId: string): Promise<Uint8Array>;
   getInvoiceXml(invoiceId: string, format?: EInvoiceFormat): Promise<string>;
+
+  // Freigabe und Einrichtung
+  /** Darf dieses Konto ausstellen, und was fehlt noch? Laeuft auch ohne Freigabe. */
+  getInvoiceSetupStatus(): Promise<InvoiceSetupStatus>;
 }
 
 export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
@@ -92,5 +98,7 @@ export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
 
     getInvoicePdf: (id) => getInvoicePdf(rufenBinaer, id),
     getInvoiceXml: (id, format) => getInvoiceXml(rufen, id, format),
+
+    getInvoiceSetupStatus: () => getInvoiceSetupStatus(rufen),
   };
 }

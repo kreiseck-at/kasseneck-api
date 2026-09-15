@@ -4,6 +4,25 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.16.0
+
+### Rechnungs-API: Freigabe und Einrichtung vor dem ersten Ausstellen
+
+**Anlass:** Mit 0.15.0 konnte jedes Konto mit aktivem Modul Rechnung sofort
+automatisiert Rechnungen mit fortlaufender Nummer ausstellen — auch mit einem
+Probezeitraum, ohne Bankverbindung und mit dem ungewollten Standard-Nummernformat,
+das sich mit der ersten Rechnung sperrt. Ein Fremdsystem erfuhr erst beim
+Festschreiben, dass etwas fehlt.
+
+- Neuer Aufruf `getInvoiceSetupStatus()` → `{ ready, environment, missing }`.
+  Er läuft auch ohne Freigabe und vor der Live-Freischaltung, also genau dann,
+  wenn man die Antwort braucht.
+- `INVOICE_SETUP_REQUIREMENTS`: `module_active`, `api_enabled`, `live_enabled`,
+  `company_name`, `address`, `vat_id`, `bank_account`, `number_format`.
+- Neue Fehlercodes: `invoice_api_not_enabled` (Kasseneck hat die Rechnungs-API
+  für das Konto nicht freigegeben; nur live) und `invoice_setup_incomplete`
+  (`details.missing` wie im Status).
+
 ## 0.15.0
 
 ### Rechnungs-API: Rechnungen statt Belege, per `api_key`

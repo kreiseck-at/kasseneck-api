@@ -170,6 +170,40 @@ test('Fehlercode: ein Code, den der Vertrag nicht kennt, ist kein Rechnungs-Fehl
   assert.deepEqual(rechnungFeldFehler(new Error('fremd')), []);
 });
 
+// ---- Freigabe und Einrichtung ------------------------------------------------
+
+test('getInvoiceSetupStatus: ohne Parameter, liefert ready, Umgebung und was fehlt', async () => {
+  const missing = [{ requirement: 'bank_account', message: 'IBAN fehlt.' }];
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ ready: false, environment: 'test', missing })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const status = await api.getInvoiceSetupStatus();
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/getInvoiceSetupStatus');
+  assert.deepEqual(params(anfragen[0]!), {});
+  assert.deepEqual(status, { ready: false, environment: 'test', missing });
+});
+
+test('getInvoiceSetupStatus: eine Antwort ohne ready ist ein Antwortfehler', async () => {
+  const { fetch } = attrappe(antwort(erfolg({ missing: [] })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await assert.rejects(api.getInvoiceSetupStatus(), (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response');
+});
+
+test('Freigabe und Einrichtung: eigene Codes, was fehlt steht in den Details', async () => {
+  const missing = [{ requirement: 'api_enabled', message: 'Nicht freigegeben.' }];
+  const { fetch } = attrappe(
+    antwort(fehler('Die Rechnungs-API ist für dieses Konto nicht freigegeben.', 'invoice_api_not_enabled')),
+    antwort(fehler('Die Einrichtung ist unvollständig.', 'invoice_setup_incomplete', { missing })),
+  );
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const anfrage = { idempotencyKey: 'k', taxScheme: 'normal' as const, priceMode: 'net' as const, serviceStart: '2026-09-15',
+    items: [{ description: 'A', quantity: 1, unitPriceCents: 1, vatRate: 20 as const }] };
+  const e1 = await api.issueInvoice(anfrage).catch((x: unknown) => x);
+  assert.ok(istRechnungFehler(e1, 'invoice_api_not_enabled'));
+  const e2 = await api.issueInvoice(anfrage).catch((x: unknown) => x);
+  assert.ok(istRechnungFehler(e2, 'invoice_setup_incomplete'));
+  assert.deepEqual((e2 as KasseneckApiError).details['missing'], missing);
+});
+
 // ---- Beispiele des Vertrags -------------------------------------------------
 
 test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async () => {
@@ -179,7 +213,7 @@ test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async
     .filter((b) => b.erwartet.ok === true);
   assert.ok(gute.length >= 3);
   for (const b of gute) {
-    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0 })));
+    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0, ready: true, environment: 'live', missing: [] })));
     const api = createRechnungApi({ apiKey: API_KEY, fetch }) as unknown as Record<string, (a: unknown) => Promise<unknown>>;
     const aufruf = api[b.aufruf];
     assert.ok(aufruf, `Client kennt ${b.aufruf} nicht`);
