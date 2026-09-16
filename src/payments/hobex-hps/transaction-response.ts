@@ -25,13 +25,25 @@
  * bis dahin unbenannter Code ([TECHNICAL_ERROR_CODE], `9900`) war darueber
  * schluessig und haette eine Zahlung, unter der tatsaechlich Geld geflossen
  * sein kann, als `declined` gemeldet.
+ *
+ * Seit 16.09.2026 kommt die TECS-Liste dazu (`tecs-codes.ts`): das HPS
+ * reicht die Codes der TECS-Plattform durch, auf der hobex autorisiert. Neu
+ * sind dabei [HpsCode.sendReversal] (Storno nachschicken, siehe
+ * `payments.ts`) und die Schreibweise: TECS fuehrt `0055`, das Terminal
+ * sendet `55` -- [normalizeHpsCode] macht beides zu einem Code.
+ *
+ * **Einen neuen Code aufnehmen:** Eintrag hier oder in `tecs-codes.ts`,
+ * derselbe im Dart-Zwilling, `npm run fixtures:hobex-hps-codes`; ein neuer
+ * Grund braucht in jeder Kasse eine Uebersetzung.
  */
+
+import { TECS_CODES } from './tecs-codes.js';
 
 /** Wie ein Ergebniscode den Ausgang eines Vorgangs bestimmt. */
 export type HpsCodeEffect =
   /** Schreibt den Ausgang fest: `'0'` genehmigt, jeder andere abgelehnt. */
   | 'conclusive'
-  /** Gemessen oder dokumentiert, aber KEINE Aussage (9027, 9900, 100011). */
+  /** Gemessen oder dokumentiert, aber KEINE Aussage (9027, 100011, fremde TECS-Produkte). */
   | 'noStatement'
   /**
    * Der Host war beteiligt, das Terminal storniert nicht selbst -- ob belastet
@@ -44,9 +56,12 @@ export type HpsCodeEffect =
 export type HpsCodeSource =
   /** Am Geraet gemessen (`doc/kartenzahlung.md` im Dart-Zwilling). */
   | 'measured'
-  /** Aus der Antwortcodeliste von hobex (erhalten 11.09.2026). */
+  /**
+   * Von hobex dokumentiert: HPS-Liste (11.09.2026) oder TECS-Liste
+   * (16.09.2026, dann ist `tecsTitle` gesetzt).
+   */
   | 'documented'
-  /** Beides. */
+  /** Beides: gemessen und von hobex bestaetigt. */
   | 'measuredAndDocumented';
 
 /**
@@ -58,25 +73,41 @@ export type HpsCodeSource =
  */
 export type HpsCodeReason =
   | 'approved'
+  | 'approvedWithCondition'
   | 'aborted'
   | 'noCard'
   | 'cardReadFailed'
   | 'cardDeclined'
+  | 'issuerDeclined'
+  | 'cardBlocked'
+  | 'cardExpired'
+  | 'insufficientFunds'
   | 'wrongPin'
+  | 'pinTriesExceeded'
+  | 'pinRequired'
   | 'amountInvalid'
   | 'tipNotSelected'
   | 'terminalBusy'
   | 'terminalBlocked'
   | 'terminalSetup'
+  | 'acquirerSetup'
   | 'terminalFault'
   | 'requestRejected'
+  | 'hostRejected'
+  | 'hostUnavailable'
   | 'invalidTransaction'
   | 'refundPassword'
   | 'refundDisabled'
+  | 'refundRejected'
   | 'hostTimeoutReversed'
+  | 'reversedByHost'
+  | 'voidedAfterHostFault'
   | 'hostFault'
+  | 'hostTimeout'
   | 'internalError'
   | 'canceled'
+  | 'cancelDenied'
+  | 'originalDeclined'
   | 'notAbortable'
   | 'noStatement'
   | 'technicalError'
@@ -84,61 +115,97 @@ export type HpsCodeReason =
 
 /** Der Satz fuer den Bediener je Grund, deutsch. */
 export const HPS_REASON_HINTS: Readonly<Record<HpsCodeReason, string>> = {
-  approved: 'Vom Terminal genehmigt.',
-  aborted: 'Der Vorgang wurde abgebrochen. Es wurde kein Geld bewegt.',
-  noCard: 'Es wurde keine Karte vorgehalten. Es wurde kein Geld bewegt — '
-    + 'bitte erneut versuchen.',
-  cardReadFailed: 'Die Karte konnte nicht gelesen werden. Es wurde kein Geld bewegt — '
-    + 'bitte erneut versuchen, notfalls die Karte stecken statt auflegen.',
-  cardDeclined: 'Die Karte wurde vom Terminal abgelehnt. Es wurde kein Geld bewegt '
-    + '— bitte eine andere Karte oder Zahlungsart verwenden.',
-  wrongPin: 'Die PIN war falsch. Es wurde kein Geld bewegt — bitte erneut '
-    + 'versuchen.',
-  amountInvalid: 'Das Terminal nimmt diesen Betrag nicht an. Es wurde kein Geld '
-    + 'bewegt.',
-  tipNotSelected: 'Das Trinkgeld wurde nicht rechtzeitig gewählt. Es wurde kein Geld '
-    + 'bewegt — bitte erneut versuchen.',
-  terminalBusy: 'Das Terminal ist noch mit einem anderen Vorgang beschäftigt. Es '
-    + 'wurde kein Geld bewegt — kurz warten und erneut versuchen.',
-  terminalBlocked: 'Das Terminal ist gesperrt. Es wurde kein Geld bewegt — bitte hobex '
-    + 'kontaktieren.',
-  terminalSetup: 'Das Terminal ist nicht richtig eingerichtet. Es wurde kein Geld '
-    + 'bewegt — bitte die Terminal-ID in den Einstellungen prüfen, sonst '
-    + 'hobex kontaktieren.',
-  terminalFault: 'Das Terminal meldet eine Störung. Es wurde kein Geld bewegt — '
-    + 'bitte das Terminal neu starten und erneut versuchen.',
-  requestRejected: 'Das Terminal hat die Anfrage abgewiesen. Es wurde kein Geld bewegt '
-    + '— tritt das wieder auf, bitte den Support kontaktieren.',
-  invalidTransaction: 'Das Terminal kennt die ursprüngliche Zahlung nicht. Es wurde kein '
-    + 'Geld bewegt.',
-  refundPassword: 'Das Passwort für die Gutschrift war falsch oder wurde nicht '
-    + 'eingegeben. Es wurde nichts ausgezahlt.',
-  refundDisabled: 'Gutschriften sind an diesem Terminal abgeschaltet. Es wurde nichts '
-    + 'ausgezahlt — bitte hobex kontaktieren.',
-  hostTimeoutReversed: 'hobex hat nicht rechtzeitig geantwortet, das Terminal hat den '
-    + 'Vorgang selbst storniert. Es wird kein Geld bewegt — bitte erneut '
-    + 'versuchen.',
-  hostFault: 'Die Verbindung zwischen Terminal und hobex ist gestört. Ob die '
-    + 'Karte belastet wurde, weiß das Terminal nicht — bitte nicht erneut '
-    + 'kassieren, bevor es geklärt ist.',
-  internalError: 'Das Terminal meldet einen internen Fehler. Ob die Karte belastet '
-    + 'wurde, ist unklar — bitte nicht erneut kassieren, bevor es geklärt '
-    + 'ist.',
-  canceled: 'Die Zahlung ist aufgehoben.',
-  notAbortable: 'Der Vorgang ist bereits abgeschlossen und lässt sich nicht mehr '
-    + 'abbrechen.',
-  noStatement: 'Das Terminal hat zu diesem Vorgang keine Auskunft.',
-  technicalError: 'Das Terminal meldet einen technischen Fehler; über den Vorgang '
-    + 'sagt das nichts.',
-  unknown: 'Das Terminal nennt einen Code, dessen Bedeutung nicht bekannt ist.',
+  approved:
+    'Vom Terminal genehmigt.',
+  approvedWithCondition:
+    'Das Terminal meldet eine Genehmigung mit Vorbehalt (etwa nur über einen Teilbetrag). Ob und in welcher Höhe belastet wurde, bitte am Terminalbeleg prüfen — nicht erneut kassieren, bevor es geklärt ist.',
+  aborted:
+    'Der Vorgang wurde abgebrochen. Es wurde kein Geld bewegt.',
+  noCard:
+    'Es wurde keine Karte vorgehalten. Es wurde kein Geld bewegt — bitte erneut versuchen.',
+  cardReadFailed:
+    'Die Karte konnte nicht gelesen werden. Es wurde kein Geld bewegt — bitte erneut versuchen, notfalls die Karte stecken statt auflegen.',
+  cardDeclined:
+    'Die Karte wurde vom Terminal abgelehnt. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  issuerDeclined:
+    'Die Zahlung wurde von der Bank abgelehnt. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  cardBlocked:
+    'Die Karte ist gesperrt. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  cardExpired:
+    'Die Karte ist abgelaufen. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  insufficientFunds:
+    'Das Konto ist nicht gedeckt oder das Kartenlimit ist erreicht. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  wrongPin:
+    'Die PIN war falsch. Es wurde kein Geld bewegt — bitte erneut versuchen.',
+  pinTriesExceeded:
+    'Die PIN wurde zu oft falsch eingegeben. Es wurde kein Geld bewegt — bitte eine andere Karte oder Zahlungsart verwenden.',
+  pinRequired:
+    'Die Bank verlangt die PIN. Es wurde kein Geld bewegt — bitte erneut versuchen, die Karte stecken und die PIN eingeben.',
+  amountInvalid:
+    'Das Terminal nimmt diesen Betrag nicht an. Es wurde kein Geld bewegt.',
+  tipNotSelected:
+    'Das Trinkgeld wurde nicht rechtzeitig gewählt. Es wurde kein Geld bewegt — bitte erneut versuchen.',
+  terminalBusy:
+    'Das Terminal ist noch mit einem anderen Vorgang beschäftigt. Es wurde kein Geld bewegt — kurz warten und erneut versuchen.',
+  terminalBlocked:
+    'Das Terminal ist gesperrt. Es wurde kein Geld bewegt — bitte hobex kontaktieren.',
+  terminalSetup:
+    'Das Terminal ist nicht richtig eingerichtet. Es wurde kein Geld bewegt — bitte die Terminal-ID in den Einstellungen prüfen, sonst hobex kontaktieren.',
+  acquirerSetup:
+    'hobex nimmt dieses Terminal oder diesen Händler so nicht an. Es wurde kein Geld bewegt — bitte hobex kontaktieren.',
+  terminalFault:
+    'Das Terminal meldet eine Störung. Es wurde kein Geld bewegt — bitte das Terminal neu starten und erneut versuchen.',
+  requestRejected:
+    'Das Terminal hat die Anfrage abgewiesen. Es wurde kein Geld bewegt — tritt das wieder auf, bitte den Support kontaktieren.',
+  hostRejected:
+    'hobex hat die Zahlung abgewiesen. Es wurde kein Geld bewegt — bitte erneut versuchen; tritt das wieder auf, hobex kontaktieren.',
+  hostUnavailable:
+    'Die Bank oder hobex ist gerade nicht erreichbar. Es wurde kein Geld bewegt — bitte später erneut versuchen oder eine andere Zahlungsart verwenden.',
+  invalidTransaction:
+    'Das Terminal kennt die ursprüngliche Zahlung nicht. Es wurde kein Geld bewegt.',
+  refundPassword:
+    'Das Passwort für die Gutschrift war falsch oder wurde nicht eingegeben. Es wurde nichts ausgezahlt.',
+  refundDisabled:
+    'Gutschriften sind an diesem Terminal abgeschaltet. Es wurde nichts ausgezahlt — bitte hobex kontaktieren.',
+  refundRejected:
+    'Die Gutschrift wurde abgewiesen (Betrag zu hoch, bereits erstattet oder zu viele Versuche). Es wurde nichts ausgezahlt.',
+  hostTimeoutReversed:
+    'hobex hat nicht rechtzeitig geantwortet, das Terminal hat den Vorgang selbst storniert. Es wird kein Geld bewegt — bitte erneut versuchen.',
+  reversedByHost:
+    'Die Zahlung wurde wegen einer Störung automatisch storniert. Es wurde kein Geld bewegt — bitte erneut versuchen.',
+  voidedAfterHostFault:
+    'hobex hat nicht sauber geantwortet, die Zahlung wurde deshalb sicherheitshalber storniert. Es wurde kein Geld bewegt — bitte erneut versuchen.',
+  hostFault:
+    'Die Verbindung zwischen Terminal und hobex ist gestört. Ob die Karte belastet wurde, weiß das Terminal nicht — bitte nicht erneut kassieren, bevor es geklärt ist.',
+  hostTimeout:
+    'hobex hat nicht rechtzeitig geantwortet. Ob die Karte belastet wurde, weiß das Terminal nicht — bitte nicht erneut kassieren, bevor es geklärt ist.',
+  internalError:
+    'Das Terminal meldet einen internen Fehler. Ob die Karte belastet wurde, ist unklar — bitte nicht erneut kassieren, bevor es geklärt ist.',
+  canceled:
+    'Die Zahlung ist aufgehoben.',
+  cancelDenied:
+    'Die Zahlung lässt sich nicht mehr aufheben und bleibt belastet — bitte stattdessen eine Gutschrift ausführen.',
+  originalDeclined:
+    'Die ursprüngliche Zahlung war abgelehnt; es gibt nichts aufzuheben.',
+  notAbortable:
+    'Der Vorgang ist bereits abgeschlossen und lässt sich nicht mehr abbrechen.',
+  noStatement:
+    'Das Terminal hat zu diesem Vorgang keine Auskunft.',
+  technicalError:
+    'Das Terminal meldet einen technischen Fehler; über den Vorgang sagt das nichts.',
+  unknown:
+    'Das Terminal nennt einen Code, dessen Bedeutung nicht bekannt ist.',
 };
 
 /**
- * Die beiden Gruende hinter einem Code mit `effect: 'hostUncertain'`: ob Geld
- * geflossen ist, weiss das Terminal nicht.
+ * Die Gruende hinter einem Code mit `effect: 'hostUncertain'`: ob (und wie
+ * viel) Geld geflossen ist, weiss das Terminal nicht.
  */
 export function isHostUncertainReason(reason: HpsCodeReason | undefined): boolean {
-  return reason === 'hostFault' || reason === 'internalError';
+  return reason === 'approvedWithCondition'
+    || reason === 'hostFault'
+    || reason === 'hostTimeout'
+    || reason === 'internalError';
 }
 
 /** Ein Ergebniscode, dessen Bedeutung feststeht (gemessen oder dokumentiert). */
@@ -169,6 +236,25 @@ export interface HpsCode extends HpsMeasuredCode {
    * nichts (gemessen fuer `100108`). Siehe [isConclusiveAsStatus].
    */
   readonly rejectsRequest: boolean;
+  /**
+   * Bei diesem Code wird ein Storno nachgeschickt: der Host hat nicht oder
+   * nicht brauchbar geantwortet, und das Terminal nimmt den Vorgang nicht
+   * selbst zurueck. Nur bei `effect: 'hostUncertain'`. Vorgabe von hobex
+   * (16.09.2026) zu `9908`: "ein Timeout wie jeder andere. Richtigerweise
+   * sollte in dem Fall ein Storno nachgeschickt werden."
+   */
+  readonly sendReversal: boolean;
+  /**
+   * Titel in der TECS-Liste (16.09.2026), wenn der Code dort steht -- sonst
+   * `null`. Bei gemessenen Codes weicht er vom [title] ab (`55`: "PIN
+   * falsch" gegen "Incorrect PIN").
+   */
+  readonly tecsTitle: string | null;
+}
+
+interface CodeExtra {
+  readonly sendReversal?: boolean;
+  readonly tecsTitle?: string;
 }
 
 function code(
@@ -179,8 +265,20 @@ function code(
   reason: HpsCodeReason,
   source: HpsCodeSource,
   rejectsRequest = false,
+  extra: CodeExtra = {},
 ): HpsCode {
-  return { code: c, title, meaning, conclusive: effect === 'conclusive', effect, reason, source, rejectsRequest };
+  return {
+    code: c,
+    title,
+    meaning,
+    conclusive: effect === 'conclusive',
+    effect,
+    reason,
+    source,
+    rejectsRequest,
+    sendReversal: extra.sendReversal ?? false,
+    tecsTitle: extra.tecsTitle ?? null,
+  };
 }
 
 /**
@@ -213,6 +311,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'conclusive',
     'approved',
     'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Approved Transaction / OK' },
   ),
   code(
     '9002',
@@ -221,8 +321,9 @@ export const HPS_CODES: readonly HpsCode[] = [
       + 'unzulaessig verworfen, bevor irgendetwas in Bewegung kam',
     'conclusive',
     'invalidTransaction',
-    'measured',
+    'measuredAndDocumented',
     true,
+    { tecsTitle: 'Invalid Transaction' },
   ),
   code(
     '9011',
@@ -231,7 +332,9 @@ export const HPS_CODES: readonly HpsCode[] = [
       + 'Kennung wurde storniert',
     'conclusive',
     'canceled',
-    'measured',
+    'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Transaction cancelled' },
   ),
   code(
     '9027',
@@ -240,17 +343,22 @@ export const HPS_CODES: readonly HpsCode[] = [
       + 'gerade", "Karte nicht aufgelegt" und "abgebrochen"',
     'noStatement',
     'noStatement',
-    'measured',
+    'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Original Transaction not found' },
   ),
   code(
     '9900',
     'Technical Error Database',
     '"Technical Error Database" -- gemessen im Zusammenhang mit einer '
-      + 'nicht rein numerischen Kennung; keine Aussage ueber den Vorgang '
-      + 'selbst',
-    'noStatement',
-    'technicalError',
-    'measured',
+      + 'nicht rein numerischen Kennung, NACHDEM die Karte verarbeitet war; '
+      + 'laut TECS ein Datenbankfehler im Backend -- ob belastet wurde, ist '
+      + 'offen',
+    'hostUncertain',
+    'internalError',
+    'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Technical Error: Database (General)' },
   ),
   code(
     '9003',
@@ -260,7 +368,9 @@ export const HPS_CODES: readonly HpsCode[] = [
       + 'Kartenaufforderung); nichts belastet',
     'conclusive',
     'amountInvalid',
-    'measured',
+    'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Invalid Amount' },
   ),
   code(
     '100002',
@@ -319,7 +429,9 @@ export const HPS_CODES: readonly HpsCode[] = [
       + 'eine Host-Ablehnung bleibt am Terminal abrufbar; nichts belastet',
     'conclusive',
     'wrongPin',
-    'measured',
+    'measuredAndDocumented',
+    false,
+    { tecsTitle: 'Incorrect PIN' },
   ),
   // ---- ab hier: Antwortcodeliste von hobex, erhalten 11.09.2026 ----
   code(
@@ -361,6 +473,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100007',
@@ -371,6 +485,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100008',
@@ -500,6 +616,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100024',
@@ -510,6 +628,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100025',
@@ -529,6 +649,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100027',
@@ -539,6 +661,8 @@ export const HPS_CODES: readonly HpsCode[] = [
     'hostUncertain',
     'hostFault',
     'documented',
+    false,
+    { sendReversal: true },
   ),
   code(
     '100028',
@@ -580,6 +704,7 @@ export const HPS_CODES: readonly HpsCode[] = [
     'internalError',
     'documented',
   ),
+  ...TECS_CODES,
 ];
 
 /**
@@ -710,9 +835,39 @@ export const NOT_FOUND_HTTP_STATUS = 404;
 
 const CODE_BY_ID: ReadonlyMap<string, HpsCode> = new Map(HPS_CODES.map((c) => [c.code, c]));
 
-/** Der Eintrag zu [code] in [HPS_CODES], oder `undefined`, wenn seine Bedeutung nicht feststeht. */
+const PLATZHALTER = 'xx';
+
+/** Eintraege, die eine ganze Familie abdecken (`81xx`), nach ihrem Praefix. */
+const CODE_BY_PREFIX: ReadonlyMap<string, HpsCode> = new Map(
+  HPS_CODES.filter((c) => c.code.endsWith(PLATZHALTER)).map((c) => [c.code.slice(0, -PLATZHALTER.length), c]),
+);
+
+/**
+ * Die Schreibweise, unter der [code] in [HPS_CODES] steht: ein rein
+ * numerischer Code ohne fuehrende Nullen (`0055` -> `55`, `0000` -> `0`),
+ * jeder andere unveraendert. Ohne diese Angleichung waere ein `0000` kein
+ * `0` -- und damit eine ABLEHNUNG einer genehmigten Zahlung.
+ * [parseHpsTransactionResponse] gleicht deshalb schon beim Einlesen an.
+ */
+export function normalizeHpsCode(code: string): string {
+  const c = code.trim();
+  if (!/^\d+$/.test(c)) return c;
+  const ohneNullen = c.replace(/^0+/, '');
+  return ohneNullen === '' ? '0' : ohneNullen;
+}
+
+/**
+ * Der Eintrag zu [code] in [HPS_CODES], oder `undefined`, wenn seine
+ * Bedeutung nicht feststeht. Findet beide Schreibweisen
+ * ([normalizeHpsCode]) und die Familien mit Platzhalter (`8105` -> `81xx`).
+ */
 export function hpsCodeInfo(code: string | undefined): HpsCode | undefined {
-  return code === undefined ? undefined : CODE_BY_ID.get(code);
+  if (code === undefined) return undefined;
+  const c = normalizeHpsCode(code);
+  const genau = CODE_BY_ID.get(c);
+  if (genau) return genau;
+  if (c.length === 4 && /^\d+$/.test(c)) return CODE_BY_PREFIX.get(c.slice(0, 2));
+  return undefined;
 }
 
 /**
@@ -793,7 +948,7 @@ export function parseHpsTransactionResponse(raw: unknown): HpsTransactionRespons
     // responseCode kommt teils als Zahl, teils als Zeichenkette — siehe
     // Zwilling. Ein leerer String traegt keine Aussage und wird wie ein
     // fehlendes Feld behandelt.
-    responseCode: nonEmpty(stringify(r['responseCode'])),
+    responseCode: normalizedCode(stringify(r['responseCode'])),
     responseText: asString(r['responseText']),
     state: asString(r['state']),
     raw: r,
@@ -824,6 +979,15 @@ function nonEmpty(v: string | undefined): string | undefined {
   return v === undefined || v === '' ? undefined : v;
 }
 
+/**
+ * Der Ergebniscode in der Schreibweise der Tabelle ([normalizeHpsCode]):
+ * `0000` wird `0`. Der Rumpf in `raw` bleibt unveraendert.
+ */
+function normalizedCode(v: string | undefined): string | undefined {
+  const c = nonEmpty(v?.trim());
+  return c === undefined ? undefined : normalizeHpsCode(c);
+}
+
 /** `true`, wenn der Vorgang genehmigt ist. */
 export function isApproved(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
   return res.responseCode === APPROVED_CODE;
@@ -850,7 +1014,10 @@ export function isNoStatement(res: Pick<HpsTransactionResponse, 'responseCode'>)
   return res.responseCode === NO_STATEMENT_CODE;
 }
 
-/** `true`, wenn das Terminal einen technischen Fehler meldet (9900). */
+/**
+ * `true`, wenn das Terminal einen technischen Fehler meldet (9900). Seit der
+ * TECS-Liste zugleich [isHostUncertain]: ob belastet wurde, ist offen.
+ */
 export function isTechnicalError(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
   return res.responseCode === TECHNICAL_ERROR_CODE;
 }
@@ -897,6 +1064,15 @@ export function isConclusiveAsStatus(res: Pick<HpsTransactionResponse, 'response
  */
 export function isHostUncertain(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
   return hpsCodeInfo(res.responseCode)?.effect === 'hostUncertain';
+}
+
+/**
+ * `true`, wenn zu diesem Code ein Storno nachzuschicken ist
+ * ([HpsCode.sendReversal]) -- der Host hat nicht oder nicht brauchbar
+ * geantwortet, etwa `9908`.
+ */
+export function needsReversal(res: Pick<HpsTransactionResponse, 'responseCode'>): boolean {
+  return hpsCodeInfo(res.responseCode)?.sendReversal ?? false;
 }
 
 /**
