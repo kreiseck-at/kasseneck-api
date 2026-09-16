@@ -29,9 +29,6 @@ und Fälligkeit auf dem Blatt, obwohl das Geld längst da war.
   Buchhaltung und ersetzt ihn nicht. Die Rechnung selbst ist bei jeder
   Zahlungsart erlaubt (§ 11 UStG), deshalb wird `cash` gebucht und nicht
   abgewiesen.
-- Texte: `pdf.pille.bezahltMit` / `pdf.pille.bezahltMitDatum` und
-  `zahlungsartGross.*` — die Bezahlt-Pille nennt die Zahlungsart, ein Datum nur,
-  wenn es vom Rechnungsdatum abweicht.
 
 `reference` wird gespeichert, aber nicht gedruckt: die Rechnung wird sieben
 Jahre aufbewahrt und vervielfältigt, und dem Empfänger nützt die Zahlungs-ID
