@@ -19,6 +19,7 @@ import {
   getInvoiceXml,
   issueInvoice,
   listBrands,
+  previewInvoice,
   listInvoices,
   recordInvoicePayment,
   searchCustomers,
@@ -41,6 +42,7 @@ import type {
   InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
+  PreviewResult,
   RecordPaymentRequest,
   RecordPaymentResult,
 } from './typen.js';
@@ -65,6 +67,8 @@ export interface RechnungApi {
 
   // Rechnungen
   issueInvoice(anfrage: IssueInvoiceRequest): Promise<IssueResult>;
+  /** Probelauf: pruefen und rechnen wie `issueInvoice`, ohne auszustellen. */
+  previewInvoice(anfrage: IssueInvoiceRequest): Promise<PreviewResult>;
   cancelInvoice(anfrage: CancelInvoiceRequest): Promise<CancelResult>;
   createCreditNote(anfrage: CreditNoteRequest): Promise<CreditNoteResult>;
   getInvoice(kennung: { invoiceId: string } | { number: string }): Promise<InvoiceDetail>;
@@ -103,6 +107,7 @@ export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
     searchCustomers: (suche) => searchCustomers(rufen, suche),
 
     issueInvoice: (anfrage) => issueInvoice(rufen, anfrage),
+    previewInvoice: (anfrage) => previewInvoice(rufen, anfrage),
     cancelInvoice: (anfrage) => cancelInvoice(rufen, anfrage),
     createCreditNote: (anfrage) => createCreditNote(rufen, anfrage),
     getInvoice: (kennung) => getInvoice(rufen, kennung),

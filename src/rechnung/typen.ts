@@ -176,7 +176,7 @@ export interface InvoicePayment {
 
 /**
  * Ein Hinweis zu einer erfolgreichen Antwort — kein Fehler, sondern etwas,
- * das der Aufrufer wissen sollte (heute nur `cash_receipt_required`).
+ * das der Aufrufer wissen sollte. Die Codes stehen in `INVOICE_NOTICE_CODES`.
  */
 export interface InvoiceNotice {
   code: InvoiceNoticeCode;
@@ -187,7 +187,11 @@ export interface RecordPaymentResult {
   invoice: Invoice;
   payment: InvoicePayment;
   replayed: boolean;
-  notice?: InvoiceNotice;
+  /**
+   * Hinweise zu dieser Zahlung — eine **Liste** wie bei `issueInvoice`
+   * (bis 0.21.0 ein einzelnes Objekt). Fehlt, wenn es keinen gibt.
+   */
+  notice?: InvoiceNotice[];
 }
 
 export interface CancelInvoiceRequest {
@@ -201,11 +205,24 @@ export interface CreditNoteRequest extends CancelInvoiceRequest {
   items: InvoiceItemInput[];
 }
 
+/**
+ * Summen einer Rechnung in Cent, **immer positiv** — auch bei einer Gutschrift
+ * (`docType: 'GU'`); das Vorzeichen steht im Belegtyp, nicht im Betrag.
+ * Gerechnet wird je Satz wie in [rechnungSummen].
+ */
 export interface InvoiceTotals {
   netCents: number;
   vatCents: number;
   grossCents: number;
-  byRate: { rate: number; netCents: number; vatCents: number }[];
+  /** Je USt-Satz, absteigend. `grossCents` ist `netCents + vatCents` (seit 0.22.0 mitgeliefert). */
+  byRate: InvoiceRateTotals[];
+}
+
+export interface InvoiceRateTotals {
+  rate: number;
+  netCents: number;
+  vatCents: number;
+  grossCents: number;
 }
 
 export interface EInvoiceStatus {
@@ -322,6 +339,37 @@ export interface IssueResult {
    * bar bezahlte ig. Lieferung traegt sowohl `cash_receipt_required` als auch
    * `recapitulative_statement_due`.
    */
+  notice?: InvoiceNotice[];
+}
+
+/**
+ * Was `issueInvoice` mit dieser Anfrage ausstellen wuerde — ohne Nummer, ohne
+ * Dokument, ohne Zahlung. Der Probelauf prueft wie das Ausstellen (Einrichtung,
+ * Kunde, Steuerfall, Pflichtangaben, Marke, Zahlung) und scheitert mit
+ * denselben Fehlercodes.
+ */
+export interface InvoicePreview {
+  docType: 'RE';
+  /** Heutiger Wiener Tag — der Tag, den eine sofort ausgestellte Rechnung truege. */
+  invoiceDate: string;
+  dueDate: string | null;
+  customerId: string | null;
+  /** Der abgeleitete Steuerfall. */
+  taxScheme: TaxScheme;
+  /** Warum dieser Fall gilt (z. B. `customer_country_eu_with_vat_id`). */
+  taxSchemeReason: string;
+  reverseChargeReason: ReverseChargeReason | null;
+  taxCountry: string;
+  priceMode: PriceMode;
+  totals: InvoiceTotals;
+  language: InvoiceLanguage;
+  brand: { id: string | null; name: string | null } | null;
+  einvoice: EInvoiceStatus;
+}
+
+export interface PreviewResult {
+  preview: InvoicePreview;
+  /** Dieselben Hinweise, die das Ausstellen liefern wuerde. */
   notice?: InvoiceNotice[];
 }
 

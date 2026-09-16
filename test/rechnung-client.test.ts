@@ -257,12 +257,114 @@ test('recordInvoicePayment: Parameter gehen unveraendert, Antwort traegt Rechnun
   assert.equal(ergebnis.notice, undefined, 'ohne Hinweis bleibt das Feld weg');
 });
 
-test('recordInvoicePayment: bei Bargeld traegt die Antwort den Hinweis auf die Belegpflicht', async () => {
-  const notice = { code: 'cash_receipt_required' as const, message: 'Barzahlung braucht einen Beleg.' };
+test('recordInvoicePayment: bei Bargeld traegt die Antwort den Hinweis auf die Belegpflicht, als Liste', async () => {
+  const notice = [{ code: 'cash_receipt_required' as const, message: 'Barzahlung braucht einen Beleg.' }];
   const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, payment: { ...zahlung, method: 'cash' }, replayed: false, notice })));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   const ergebnis = await api.recordInvoicePayment({ idempotencyKey: 'bar-1', invoiceId: 'inv1', method: 'cash' });
   assert.deepEqual(ergebnis.notice, notice);
+});
+
+test('recordInvoicePayment: ein Server vor 0.22.0 schickt ein einzelnes Objekt — der Client macht eine Liste daraus', async () => {
+  const einzeln = { code: 'cash_receipt_required' as const, message: 'Barzahlung braucht einen Beleg.' };
+  const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, payment: zahlung, replayed: false, notice: einzeln })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const ergebnis = await api.recordInvoicePayment({ idempotencyKey: 'bar-2', invoiceId: 'inv1', method: 'cash' });
+  assert.deepEqual(ergebnis.notice, [einzeln]);
+});
+
+// ---- Hinweise, Probelauf und Kennungen (0.22.0) -------------------------------
+
+test('issueInvoice: die Hinweise der Antwort kommen beim Aufrufer an', async () => {
+  // Bis 0.21.0 warf der Client `notice` weg: eine ig. Lieferung meldete nie,
+  // dass eine Zusammenfassende Meldung faellig ist.
+  const notice = [
+    { code: 'recapitulative_statement_due' as const, message: 'Zusammenfassende Meldung abgeben.' },
+    { code: 'cash_receipt_required' as const, message: 'Barumsatz: Beleg erteilen.' },
+  ];
+  const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false, notice })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const ergebnis = await api.issueInvoice({ idempotencyKey: 'ig-1', customerId: 'k1', priceMode: 'net', serviceStart: '2026-09-16',
+    items: [{ description: 'Ware', quantity: 1, unitPriceCents: 5000, vatRate: 0 }] });
+  assert.deepEqual(ergebnis.notice, notice);
+});
+
+test('issueInvoice: ohne Hinweis fehlt das Feld; ein kaputter Hinweis wird uebergangen, die Rechnung kommt an', async () => {
+  // Die Rechnung ist in diesem Moment schon ausgestellt: ein Fehler liesse den
+  // Aufrufer glauben, es sei nichts entstanden.
+  const gut = { code: 'cash_receipt_required', message: 'Beleg erteilen.' };
+  const { fetch } = attrappe(
+    antwort(erfolg({ invoice: rechnung, replayed: false })),
+    antwort(erfolg({ invoice: rechnung, replayed: false, notice: [{ code: 'x' }, gut, 'kaputt'] })),
+    antwort(erfolg({ invoice: rechnung, replayed: false, notice: [{ message: 'ohne code' }] })),
+  );
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const anfrage: IssueInvoiceRequest = { idempotencyKey: 'k', priceMode: 'net', serviceStart: '2026-09-16',
+    items: [{ description: 'A', quantity: 1, unitPriceCents: 1, vatRate: 20 }] };
+  const ohne = await api.issueInvoice(anfrage);
+  assert.equal('notice' in ohne, false);
+  const gemischt = await api.issueInvoice(anfrage);
+  assert.equal(gemischt.invoice.number, '2026-0042');
+  assert.deepEqual(gemischt.notice, [gut]);
+  const nurKaputt = await api.issueInvoice(anfrage);
+  assert.equal('notice' in nurKaputt, false);
+});
+
+test('previewInvoice: dieselbe Anfrage mit dryRun an issueInvoice, Antwort mit preview und Hinweisen', async () => {
+  const preview = {
+    docType: 'RE', invoiceDate: '2026-09-16', dueDate: '2026-09-30', customerId: 'k1',
+    taxScheme: 'igLieferung', taxSchemeReason: 'customer_country_eu_with_vat_id', reverseChargeReason: null, taxCountry: 'AT',
+    priceMode: 'gross', language: 'de', brand: null, einvoice: { level: 'full', formats: ['UBL', 'Factur-X'], missing: [] },
+    totals: { netCents: 2979, vatCents: 0, grossCents: 2979, byRate: [{ rate: 0, netCents: 2979, vatCents: 0, grossCents: 2979 }] },
+  };
+  const notice = [{ code: 'recapitulative_statement_due' as const, message: 'Zusammenfassende Meldung abgeben.' }];
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ preview, notice })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const anfrage: IssueInvoiceRequest = { idempotencyKey: 'bestellung-9', customerId: 'k1', priceMode: 'gross', serviceStart: '2026-09-16',
+    items: [{ description: 'A', quantity: 1, unitPriceCents: 1479, vatRate: 20 }, { description: 'B', quantity: 1, unitPriceCents: 1500, vatRate: 20 }] };
+  const ergebnis = await api.previewInvoice(anfrage);
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/issueInvoice');
+  assert.deepEqual(params(anfragen[0]!), { ...anfrage, dryRun: true });
+  assert.equal('dryRun' in anfrage, false, 'die Anfrage des Aufrufers bleibt unveraendert');
+  assert.deepEqual(ergebnis, { preview, notice });
+});
+
+test('previewInvoice: eine Antwort ohne preview ist ein Antwortfehler', async () => {
+  const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await assert.rejects(
+    api.previewInvoice({ idempotencyKey: 'k', priceMode: 'net', serviceStart: '2026-09-16',
+      items: [{ description: 'A', quantity: 1, unitPriceCents: 1, vatRate: 20 }] }),
+    (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response',
+  );
+});
+
+test('getInvoice/getCustomer: eine Kennung als blosser Text wird vor dem Senden abgewiesen', async () => {
+  const { fetch, anfragen } = attrappe();
+  const api = createRechnungApi({ apiKey: API_KEY, fetch }) as unknown as {
+    getInvoice(k: unknown): Promise<unknown>;
+    getCustomer(k: unknown): Promise<unknown>;
+  };
+  for (const [aufruf, felder] of [['getInvoice', '{ invoiceId }'], ['getCustomer', '{ customerId }']] as const) {
+    await assert.rejects(api[aufruf]('inv1'), (e: unknown) =>
+      e instanceof KasseneckValidationError && e.scope === 'request' && e.message.includes(felder));
+  }
+  assert.equal(anfragen.length, 0, 'nichts ging raus');
+});
+
+test('Feldfehler stehen auch in der Meldung — mit Pfad, hoechstens fuenf', async () => {
+  const errors = Array.from({ length: 7 }, (_x, i) => ({ field: `items[${i}].vatRate`, message: 'Satz 0.' }));
+  const { fetch } = attrappe(
+    antwort(fehler('Bitte Eingaben prüfen.', 'validation', { errors: errors.slice(0, 1) })),
+    antwort(fehler('Bitte Eingaben prüfen.', 'validation', { errors })),
+  );
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const e1 = (await api.getInvoice({ invoiceId: 'inv1' }).catch((x: unknown) => x)) as KasseneckApiError;
+  assert.equal(e1.message, 'getInvoice fehlgeschlagen: Bitte Eingaben prüfen. [items[0].vatRate: Satz 0.]');
+  assert.equal(e1.serverMessage, 'Bitte Eingaben prüfen.', 'die Servermeldung bleibt unveraendert');
+  const e2 = (await api.getInvoice({ invoiceId: 'inv1' }).catch((x: unknown) => x)) as KasseneckApiError;
+  assert.match(e2.message, /items\[4\]\.vatRate: Satz 0\. \(\+2 weitere\)\]$/);
+  assert.deepEqual(rechnungFeldFehler(e2), errors);
 });
 
 test('recordInvoicePayment: eine Antwort ohne payment ist ein Antwortfehler', async () => {
