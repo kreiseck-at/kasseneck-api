@@ -126,6 +126,8 @@ export {
   isInProgress,
   isNoStatement,
   isNotAbortable,
+  needsReversal,
+  normalizeHpsCode,
   isTechnicalError,
   isUnknownCode,
   parseHpsTransactionResponse,

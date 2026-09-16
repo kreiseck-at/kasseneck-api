@@ -20,6 +20,7 @@ import {
   isNotAbortable,
   isTechnicalError,
   isUnknownCode,
+  needsReversal,
   NOT_ABORTABLE_CODE,
   NOT_FOUND_CODE,
   TECHNICAL_ERROR_CODE,
@@ -135,6 +136,17 @@ import {
  *    solcher Code), endet sie sofort als `unresolved` -- das Terminal wird es
  *    auch in 90 Sekunden nicht wissen. Meldet sie dagegen `'0'`, ist die
  *    Zahlung genehmigt, ganz normal.
+ *
+ * ## Storno nach ausbleibender Host-Antwort (16.09.2026)
+ *
+ * Fuer einen Teil dieser Codes -- der Host hat nicht oder nicht brauchbar
+ * geantwortet, etwa `9908` -- gibt hobex vor, ein Storno nachzuschicken
+ * (`sendReversal`). [pay] tut das genau einmal, mit Kennung und Betrag der
+ * Zahlung, bevor die Statusabfrage laeuft: quittiert mit `'0'` -> `declined`
+ * mit `'voidedAfterHostFault'`; sonst weiter wie oben, und ein `9011` in der
+ * Statusabfrage heisst dann ebenfalls `declined`. Am Geraet ungemessen, siehe
+ * Dart-Zwilling. [refund] schickt kein Storno nach (TECS: `9031`), [cancel]
+ * ist selbst eines.
  */
 
 export interface HpsPaymentsOptions {
@@ -201,6 +213,12 @@ export interface HpsPayments {
 /** Teiler, mit dem das Abbruchbudget aus [HpsPaymentsOptions.resolveBudgetMs] entsteht. */
 const ABORT_BUDGET_DIVISOR = 6;
 
+/**
+ * Teiler fuer das Budget des nachgeschickten Stornos: ein Drittel, bei der
+ * Vorgabe 30 s. Ein Storno geht ueber den Host und darf Sekunden brauchen.
+ */
+const REVERSAL_BUDGET_DIVISOR = 3;
+
 export function createHpsPayments(
   client: HpsConnectClient,
   target: HpsConnectTarget,
@@ -213,6 +231,7 @@ export function createHpsPayments(
   const now = options.now ?? Date.now;
   const observer = options.observer;
   const abortBudgetMs = Math.trunc(resolveBudgetMs / ABORT_BUDGET_DIVISOR);
+  const reversalBudgetMs = Math.trunc(resolveBudgetMs / REVERSAL_BUDGET_DIVISOR);
 
   function emit(kind: 'resolving' | 'resolved', message: string, transactionId: string): void {
     if (!observer) return;
@@ -270,8 +289,12 @@ export function createHpsPayments(
     const info = hpsCodeInfo(res.responseCode)!;
     const was = info.reason === 'internalError'
       ? 'interner Fehler des Terminals'
-      : 'Stoerung zwischen Terminal und hobex-Host, das Terminal storniert nicht selbst';
-    return `Terminal meldet ${was} (${info.code} "${info.title}")`;
+      : info.reason === 'approvedWithCondition'
+        ? 'Genehmigung mit Vorbehalt'
+        : info.reason === 'hostTimeout'
+          ? 'keine rechtzeitige Antwort des hobex-Hosts, das Terminal storniert nicht selbst'
+          : 'Stoerung zwischen Terminal und hobex-Host, das Terminal storniert nicht selbst';
+    return `Terminal meldet ${was} (${res.responseCode} "${info.title}")`;
   }
 
   /**
@@ -586,6 +609,51 @@ export function createHpsPayments(
   }
 
   /**
+   * Schickt zu einer Zahlung, deren Host-Antwort ausblieb ([anlass] traegt
+   * `sendReversal`), GENAU EINMAL ein Storno nach. Ergebnis nur, wenn das
+   * Terminal es mit `'0'` quittiert; sonst `null`. Ohne [amountCents]
+   * (Gutschrift) wird nichts gesendet.
+   */
+  async function sendReversal(
+    id: string,
+    steps: string[],
+    elapsedMs: () => number,
+    amountCents: number | undefined,
+    anlass: HpsTransactionResponse,
+  ): Promise<HpsPaymentResult | null> {
+    if (amountCents === undefined) {
+      steps.push('Kein Storno nachgeschickt -- die Aufhebung einer Gutschrift laesst TECS nicht zu');
+      return null;
+    }
+    emit('resolving', `Storno wird nachgeschickt (${anlass.responseCode})`, id);
+    let res: HpsTransactionResponse;
+    try {
+      res = await withinBudget(
+        elapsedMs,
+        () => client.cancel({ ...target, transactionId: id, amountCents }),
+        reversalBudgetMs,
+      );
+    } catch (e) {
+      steps.push(
+        `Storno nachgeschickt, aber nicht bestaetigt (${describe(e)}) -- ob es wirkte, ist offen, Ausgang wird abgefragt`,
+      );
+      noteUnexpected(e, id);
+      return null;
+    }
+    if (!isApproved(res)) {
+      const titel = hpsCodeInfo(res.responseCode)?.title;
+      steps.push(
+        `Storno nachgeschickt, nicht bestaetigt (${res.responseCode ?? 'ohne Ergebniscode'}`
+          + `${titel === undefined ? '' : ` "${titel}"`}) -- Ausgang wird abgefragt`,
+      );
+      return null;
+    }
+    steps.push('Storno nachgeschickt und bestaetigt -- die Zahlung ist aufgehoben, es ist nichts belastet');
+    emit('resolved', steps[steps.length - 1]!, id);
+    return { outcome: 'declined', transactionId: id, response: res, reason: 'voidedAfterHostFault', steps: [...steps] };
+  }
+
+  /**
    * Klaert einen offenen Ausgang: erst abbrechen, dann abfragen -- bis das
    * Terminal etwas sagt oder das Budget aufgebraucht ist.
    *
@@ -601,6 +669,7 @@ export function createHpsPayments(
     id: string,
     steps: string[],
     antwort?: HpsTransactionResponse,
+    stornoCents?: number,
   ): Promise<HpsPaymentResult> {
     emit('resolving', 'Ausgang offen, Klaerung laeuft', id);
 
@@ -611,6 +680,9 @@ export function createHpsPayments(
     // Statusabfrage sie nennt und danach 9027 kommt.
     let stoerungsAntwort = antwort && isHostUncertain(antwort) ? antwort : undefined;
     let letzteAntwort = antwort;
+    // Das Storno wird hoechstens einmal erwogen; gesendet ist es nur mit Betrag.
+    let stornoErwogen = false;
+    let stornoGesendet = false;
 
     if (stoerungsAntwort === undefined) {
       const aborted = await tryAbort(id, steps, elapsedMs);
@@ -620,6 +692,12 @@ export function createHpsPayments(
       // Host. Ein quittierter Abbruch bewiese nur, dass am Terminal nichts mehr
       // laeuft, nicht, dass der Host nichts belastet hat.
       steps.push('Kein Abbruchversuch -- das Terminal hat den Vorgang mit einer Stoerung beim hobex-Host beendet');
+      if (needsReversal(stoerungsAntwort)) {
+        stornoErwogen = true;
+        stornoGesendet = stornoCents !== undefined;
+        const storniert = await sendReversal(id, steps, elapsedMs, stornoCents, stoerungsAntwort);
+        if (storniert) return storniert;
+      }
     }
 
     let wait = 0;
@@ -655,6 +733,27 @@ export function createHpsPayments(
 
       if (isHostUncertain(status)) stoerungsAntwort ??= status;
       const hostUngewiss = stoerungsAntwort !== undefined;
+
+      if (stornoGesendet && isCanceled(status)) {
+        steps.push(
+          `Status: Zahlung aufgehoben (${TRANSACTION_CANCELED_CODE}) -- das nachgeschickte Storno hat gegriffen, `
+            + 'es ist nichts belastet',
+        );
+        emit('resolved', steps[steps.length - 1]!, id);
+        return { outcome: 'declined', transactionId: id, response: status, reason: 'voidedAfterHostFault', steps: [...steps] };
+      }
+
+      if (!stornoErwogen && needsReversal(status)) {
+        // Die Zahlung selbst kam ohne Antwort zurueck, erst die Statusabfrage
+        // nennt die ausgebliebene Host-Antwort -- dasselbe Storno wie oben.
+        steps.push(statusOhneErgebnis(status)!);
+        stornoErwogen = true;
+        stornoGesendet = stornoCents !== undefined;
+        const storniert = await sendReversal(id, steps, elapsedMs, stornoCents, status);
+        if (storniert) return storniert;
+        wait = nextWait(wait);
+        continue;
+      }
 
       // Auf die Statusabfrage entscheidet nur ein Code, der den gesuchten
       // Vorgang beschreibt -- nicht einer, der diese Abfrage abweist
@@ -882,7 +981,7 @@ export function createHpsPayments(
       steps.push(offeneAntwort(res));
     }
 
-    return resolve(id, steps, res);
+    return resolve(id, steps, res, paymentOptions.amountCents);
   }
 
   /**

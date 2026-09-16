@@ -36,8 +36,11 @@ const vertrag = {
   ],
   // Keine Messung, sondern die Beschreibung des Herstellers: welche Codes
   // daher stammen, steht je Code in `source`.
-  dokumentiert: { quelle: 'Antwortcodeliste von hobex', erhalten: '11.09.2026' },
-  codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest }) => ({
+  dokumentiert: [
+    { quelle: 'Antwortcodeliste von hobex (HPS)', erhalten: '11.09.2026' },
+    { quelle: 'Antwortcodeliste von TECS, ueber hobex', erhalten: '16.09.2026', kennzeichen: 'tecsTitle' },
+  ],
+  codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest, sendReversal, tecsTitle }) => ({
     code,
     title,
     meaning,
@@ -46,6 +49,8 @@ const vertrag = {
     reason,
     source,
     rejectsRequest,
+    sendReversal,
+    tecsTitle,
   })),
   gruende: HPS_REASON_HINTS,
   terminalBusyHttpStatus: TERMINAL_BUSY_HTTP_STATUS,
@@ -57,4 +62,5 @@ writeFileSync(
 );
 console.log('hobex-hps-codes geschrieben:', vertrag.codes.length, 'Codes,',
   vertrag.codes.filter((c) => c.conclusive).length, 'davon schluessig,',
-  vertrag.codes.filter((c) => c.effect === 'hostUncertain').length, 'ungewiss');
+  vertrag.codes.filter((c) => c.effect === 'hostUncertain').length, 'ungewiss,',
+  vertrag.codes.filter((c) => c.sendReversal).length, 'mit Storno');

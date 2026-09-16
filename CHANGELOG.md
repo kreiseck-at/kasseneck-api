@@ -4,6 +4,39 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.19.0
+
+### hobex HPS: TECS-Antwortcodes eingeordnet, Storno nach ausbleibender Host-Antwort
+
+**Anlass:** hobex hat am 16.09.2026 bestätigt, dass das HPS die Codes der
+TECS-Plattform durchreicht, und deren Liste geschickt. Zu `9908` (im Betrieb am
+11.09.2026 gesehen, bisher unbekannt und damit offen): „ein Timeout wie jeder
+andere. Richtigerweise sollte in dem Fall ein Storno nachgeschickt werden.“
+
+- `HPS_CODES` führt jetzt 365 Codes; die TECS-Liste steht in
+  `src/payments/hobex-hps/tecs-codes.ts`, eine Zeile je Code.
+- `sendReversal` je Code und `needsReversal()`: bei ausbleibender oder
+  unbrauchbarer Host-Antwort schickt `pay` genau einmal ein Storno
+  (`/v1/terminal/cancel`) nach. Quittiert → `declined` mit
+  `'voidedAfterHostFault'`; sonst Klärung wie bisher, ein späteres `9011`
+  zählt ebenfalls als storniert. Gutschriften bekommen kein Storno (TECS:
+  `9031`).
+- `tecsTitle` je Code: der Titel in der TECS-Liste.
+- `normalizeHpsCode()`: `0055` und `55` sind derselbe Code; `responseCode`
+  kommt normalisiert an (`0000` → `0`), `raw` bleibt unverändert. Familien mit
+  Platzhalter (`81xx`) werden gefunden.
+- 16 neue Gründe in `HpsCodeReason` und `HPS_REASON_HINTS`, darunter
+  `issuerDeclined`, `insufficientFunds`, `cardExpired`, `hostTimeout`,
+  `approvedWithCondition`. **Kassen mit eigener Übersetzung brauchen dafür
+  Texte.**
+- Eine Genehmigung, die nicht `0` ist (`8`, `10`, `11`, `16`, `32`), bleibt
+  offen und wird nie zur Ablehnung.
+- `9900` ist jetzt `hostUncertain` (`internalError`) statt `noStatement`:
+  gemessen kam er nach verarbeiteter Karte, und die Zwei-9027-Regel hätte
+  daraus „nichts belastet“ gemacht.
+- `fixtures/hobex-hps-codes.json` führt je Code zusätzlich `sendReversal` und
+  `tecsTitle`.
+
 ## 0.18.0
 
 ### Rechnungs-API: bezahlte Rechnung und Zahlungen nachtragen

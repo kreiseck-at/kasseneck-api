@@ -1180,18 +1180,22 @@ test('hobex-Liste: Leitung reisst ab, Status meldet zweimal 100006 -> unresolved
       '/v1/terminal/payment': ['network-error'],
       '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
       '/v1/terminal/status': [okPayment({ responseCode: '100006' })],
+      '/v1/terminal/cancel': ['network-error'],
     },
     calls,
   );
   const result = await payments.pay({ amountCents: 2500, transactionId: '1008' });
   assert.equal(result.outcome, 'unresolved');
   assert.equal(result.reason, 'hostFault');
-  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 2);
+  // Die erste Abfrage nennt die Stoerung und loest das Storno aus, die beiden
+  // folgenden sagen nichts Neues.
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/cancel').length, 1);
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 3);
 });
 
 test('hobex-Liste: unbekannter Code, Status meldet einmal 100007, dann 9027 -> die Stoerung bleibt stehen', async () => {
   const result = await zahlungMit(
-    '51',
+    '5555',
     [okPayment({ responseCode: '100007' }), okPayment({ responseCode: '9027' })],
     [],
   ).pay({ amountCents: 2500, transactionId: '1009' });
@@ -1200,14 +1204,14 @@ test('hobex-Liste: unbekannter Code, Status meldet einmal 100007, dann 9027 -> d
 });
 
 test('hobex-Liste: ohne Host-Stoerung gilt die Zwei-9027-Regel weiter, Grund vom Code der Zahlung', async () => {
-  const result = await zahlungMit('51', [okPayment({ responseCode: '9027' })], [])
+  const result = await zahlungMit('5555', [okPayment({ responseCode: '9027' })], [])
     .pay({ amountCents: 2500, transactionId: '1010' });
   assert.equal(result.outcome, 'declined');
   assert.equal(result.reason, 'unknown');
 });
 
 test('hobex-Liste: 100011 in der Statusabfrage schreibt nicht "keine Auskunft"', async () => {
-  const result = await zahlungMit('51', [okPayment({ responseCode: '100011' })], [])
+  const result = await zahlungMit('5555', [okPayment({ responseCode: '100011' })], [])
     .pay({ amountCents: 2500, transactionId: '1011' });
   assert.equal(result.outcome, 'unresolved');
   assert.ok(result.steps.some((s) => s.includes('100011')));
@@ -1284,7 +1288,7 @@ test('hobex-Liste: Einordnung einzelner Codes', () => {
   }
   assert.equal(isNoStatement({ responseCode: '100011' }), false, 'die Zwei-9027-Regel ist nur fuer 9027 gemessen');
   assert.equal(isConclusive({ responseCode: '100011' }), false);
-  for (const code of ['05', '51', '100016', '100030']) {
+  for (const code of ['4711', '5555', '100016', '100030']) {
     assert.equal(isUnknownCode({ responseCode: code }), true, code);
     assert.equal(hpsCodeReason(code), 'unknown', code);
   }
@@ -1296,4 +1300,163 @@ test('hobex-Liste: Einordnung einzelner Codes', () => {
     assert.equal(isConclusiveAsStatus({ responseCode: code }), true, code);
   }
   assert.equal(isConclusiveAsStatus({ responseCode: '9027' }), false);
+});
+
+// ---- TECS-Liste (16.09.2026): Storno nach ausbleibender Host-Antwort ----
+// Zwilling: kasseneck_api test/hps_payments_test.dart, gleichnamige Gruppe.
+
+function tecsZahlung(script: Script, calls: RecordedCall[]) {
+  return buildPayments({ '/v1/terminal/abort': [okPayment({ responseCode: '100010' })], ...script }, calls);
+}
+
+const zaehle = (calls: RecordedCall[], path: ScriptPath) => calls.filter((c) => c.path === path).length;
+
+test('TECS: 9908, Storno quittiert -> declined, ohne Abbruch und ohne Abfrage', async () => {
+  // Der Fall vom 11.09.2026 (TID 3556988). hobex: "ein Timeout wie jeder
+  // andere. Richtigerweise sollte in dem Fall ein Storno nachgeschickt werden."
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1101' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'voidedAfterHostFault');
+  assert.equal(mayRetrySafely(result), true);
+  assert.equal(zaehle(calls, '/v1/terminal/abort'), 0);
+  assert.equal(zaehle(calls, '/v1/terminal/status'), 0);
+  const storno = calls.filter((c) => c.path === '/v1/terminal/cancel');
+  assert.equal(storno.length, 1);
+  assert.equal(storno[0]!.body['transactionId'], '1101');
+  assert.equal(storno[0]!.body['amountCents'], 2500);
+  assert.ok(result.steps.some((s) => s.includes('9908')));
+  assert.ok(result.steps[result.steps.length - 1]!.includes('Storno nachgeschickt und bestaetigt'));
+});
+
+test('TECS: Storno ohne Quittung, Status meldet 9011 -> declined', async () => {
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9011' })],
+    },
+    [],
+  ).pay({ amountCents: 2500, transactionId: '1102' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'voidedAfterHostFault');
+  assert.ok(result.steps.some((s) => s.includes('nicht bestaetigt (9908')));
+});
+
+test('TECS: Storno scheitert, Status zweimal 9027 -> unresolved, nie declined', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': ['network-error'],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1103' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostTimeout');
+  assert.equal(isHostUncertainResult(result), true);
+  assert.equal(zaehle(calls, '/v1/terminal/cancel'), 1);
+});
+
+test('TECS: Storno abgewiesen (9002), Status meldet 0 -> approved', async () => {
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '9002' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '1104' })],
+    },
+    [],
+  ).pay({ amountCents: 2500, transactionId: '1104' });
+  assert.equal(result.outcome, 'approved');
+});
+
+test('TECS: Leitung reisst ab, erst der Status nennt 9905 -> Storno, declined', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9905' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1105' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'voidedAfterHostFault');
+  assert.equal(zaehle(calls, '/v1/terminal/abort'), 1);
+  assert.equal(zaehle(calls, '/v1/terminal/cancel'), 1);
+});
+
+test('TECS: das Storno geht hoechstens einmal hinaus', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9908' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1106' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(zaehle(calls, '/v1/terminal/cancel'), 1);
+});
+
+test('TECS: Gutschrift mit 9908 -> kein Storno, Ausgang offen', async () => {
+  // TECS laesst die Aufhebung einer Gutschrift nicht zu (9031).
+  const calls: RecordedCall[] = [];
+  const result = await buildPayments(
+    {
+      '/v1/terminal/refund': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' })],
+    },
+    calls,
+  ).refund({ amountCents: 2500, originalTransactionId: '1000', transactionId: '1107' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(zaehle(calls, '/v1/terminal/cancel'), 0);
+  assert.equal(result.steps.filter((s) => s.includes('Kein Storno nachgeschickt')).length, 1);
+});
+
+test('TECS: Teilgenehmigung (10) -> offen, kein Storno, kein Abbruch', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '10' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '10' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1108' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'approvedWithCondition');
+  assert.equal(isHostUncertainResult(result), true);
+  assert.equal(zaehle(calls, '/v1/terminal/cancel'), 0);
+  assert.equal(zaehle(calls, '/v1/terminal/abort'), 0);
+  assert.ok(result.steps[0]!.includes('Genehmigung mit Vorbehalt'));
+});
+
+test('TECS: vierstellige Schreibweise -- 0000 genehmigt, 0051 lehnt ab', async () => {
+  const genehmigt = await tecsZahlung({ '/v1/terminal/payment': [okPayment({ responseCode: '0000' })] }, [])
+    .pay({ amountCents: 2500, transactionId: '1109' });
+  assert.equal(genehmigt.outcome, 'approved');
+
+  const abgelehnt = await tecsZahlung({ '/v1/terminal/payment': [okPayment({ responseCode: '0051' })] }, [])
+    .pay({ amountCents: 2500, transactionId: '1110' });
+  assert.equal(abgelehnt.outcome, 'declined');
+  assert.equal(abgelehnt.reason, 'insufficientFunds');
+  assert.equal(abgelehnt.response!.raw['responseCode'], '0051', 'der Rumpf bleibt, wie das Terminal ihn schickte');
+});
+
+test('TECS: Host-Ablehnung (05) entscheidet sofort', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung({ '/v1/terminal/payment': [okPayment({ responseCode: '05' })] }, calls)
+    .pay({ amountCents: 2500, transactionId: '1111' });
+  assert.equal(result.outcome, 'declined');
+  assert.equal(result.reason, 'issuerDeclined');
+  assert.equal(zaehle(calls, '/v1/terminal/status'), 0);
+  assert.deepEqual(result.steps, ['Terminal: abgelehnt (5 "declined")']);
 });
