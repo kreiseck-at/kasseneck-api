@@ -547,6 +547,41 @@ await rechnungen.recordInvoicePayment({
 `reference` wird gespeichert, aber **nicht gedruckt**; Kartendaten gehören
 ohnehin nicht auf eine Rechnung.
 
+**Vorab rechnen.** Wer kassiert, bevor die Rechnung entsteht, braucht den
+Betrag, den die Rechnung später ausweist. `rechnungSummen` rechnet ihn genau
+wie der Server; `previewInvoice` fragt den Server selbst — ein Probelauf, der
+prüft wie das Ausstellen, aber nichts festschreibt und den `idempotencyKey`
+nicht verbraucht:
+
+```ts
+import { rechnungSummen } from '@kreiseck/kasseneck-api/rechnung';
+
+const posten = [
+  { description: 'Maniküre', quantity: 1, unitPriceCents: 1479, vatRate: 20 as const },
+  { description: 'Lack', quantity: 1, unitPriceCents: 1500, vatRate: 20 as const },
+];
+rechnungSummen(posten, 'gross');
+// { netCents: 2483, vatCents: 496, grossCents: 2979, byRate: [{ rate: 20, … }] }
+
+const anfrage = { idempotencyKey: `bestellung-${bestellnummer}`, customerId: kunde.id,
+  priceMode: 'gross' as const, serviceStart: '2026-09-16', items: posten };
+const { preview, notice } = await rechnungen.previewInvoice(anfrage);
+// preview.totals, preview.taxScheme, preview.taxSchemeReason — dann:
+await rechnungen.issueInvoice(anfrage);
+```
+
+Im **Brutto-Modus** ist das Brutto je Satz der vereinbarte Preis: Netto =
+round(B × 100 / (100 + Satz)), USt = B − Netto. Im **Netto-Modus** wird die USt
+je Satz aus der Nettosumme gerundet. Gerundet wird kaufmännisch (halber Cent
+aufwärts), je Satz, dann summiert. Die Prüffälle liegen in
+`fixtures/rechnung-summen.json`. Die Summen sind auch bei Gutschriften positiv —
+das Vorzeichen steht im Belegtyp (`docType: 'GU'`).
+
+**Hinweise** (`notice`) sind immer eine Liste — bei `issueInvoice`,
+`previewInvoice` und `recordInvoicePayment`. Eine ig. Lieferung trägt
+`recapitulative_statement_due` (Zusammenfassende Meldung), eine bar bezahlte
+Rechnung zusätzlich `cash_receipt_required`.
+
 **Barumsatz ist nicht nur Bargeld.** Als Barzahlung gilt auch die Karte **vor
 Ort** an der Kasse (§ 131b Abs. 1 Z 3 UStG) — dieselbe Karte im Internet
 dagegen nicht. Weil `card` und `online` beides sein können, sagt es das
@@ -557,8 +592,8 @@ payment: { method: 'card', onSite: true }   // Terminal an der Kasse
 payment: { method: 'card' }                 // Kartenzahlung im Shop
 ```
 
-Bei `cash` (immer) und bei `onSite: true` trägt die Antwort
-`notice.code = 'cash_receipt_required'`: ein Barumsatz braucht einen Beleg
+Bei `cash` (immer) und bei `onSite: true` trägt die Antwort in der Liste
+`notice` den Eintrag `cash_receipt_required`: ein Barumsatz braucht einen Beleg
 (§ 132a BAO), bei Registrierkassenpflicht über die Registrierkasse — der
 Vermerk an der Rechnung ersetzt ihn nicht. `transfer` mit `onSite` ist ein
 Feldfehler, eine Überweisung erfolgt nicht vor Ort.

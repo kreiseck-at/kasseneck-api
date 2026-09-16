@@ -36,10 +36,12 @@ import type {
   InvoiceNotice,
   InvoicePage,
   InvoicePayment,
+  InvoicePreview,
   InvoiceSetupGap,
   InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
+  PreviewResult,
   RecordPaymentRequest,
   RecordPaymentResult,
 } from './typen.js';
@@ -70,6 +72,36 @@ function seite<T>(aufruf: Aufruf, daten: unknown, feld: string): { eintraege: T[
 
 const zahl = (wert: unknown): number => (typeof wert === 'number' && Number.isFinite(wert) ? wert : 0);
 
+/**
+ * Die Hinweise einer Antwort (`data.notice`) — immer eine Liste, `undefined`
+ * ohne Hinweis. Ein einzelnes Objekt (Server vor der Vereinheitlichung) wird
+ * zur Liste.
+ *
+ * Ein unbrauchbarer Eintrag wird uebergangen, nicht geworfen: der Aufruf hat
+ * schon gewirkt (die Rechnung ist ausgestellt, die Zahlung gebucht). Ein
+ * Fehler an dieser Stelle liesse den Aufrufer glauben, es sei nichts
+ * entstanden — und eine Wiederholung liefert die Hinweise nicht noch einmal.
+ */
+function hinweise(daten: unknown): InvoiceNotice[] | undefined {
+  const roh = objekt(daten)['notice'];
+  if (roh === undefined || roh === null) return undefined;
+  const liste = (Array.isArray(roh) ? roh : [roh]).filter(
+    (h) => typeof objekt(h)['code'] === 'string' && typeof objekt(h)['message'] === 'string',
+  );
+  return liste.length ? (liste as InvoiceNotice[]) : undefined;
+}
+
+/**
+ * Eine Kennung muss ein Objekt sein (`{ invoiceId }`, `{ customerId }` …). Ein
+ * blosser Text wuerde sonst Zeichen fuer Zeichen zu Feldern `0`, `1`, …
+ * zerlegt, und der Server koennte nur „Bitte Eingaben pruefen" antworten.
+ */
+function kennungVerlangen(aufruf: Aufruf, kennung: unknown, felder: string): void {
+  if (kennung === null || typeof kennung !== 'object' || Array.isArray(kennung)) {
+    throw new KasseneckValidationError(aufruf, `Kennung als Objekt erwartet: ${felder}`, 'request');
+  }
+}
+
 /** Anfrageobjekt als Nutzlast — flache Kopie, damit der Aufrufer sein Objekt behaelt. */
 const nutzlast = (anfrage: object): Record<string, unknown> => ({ ...(anfrage as Record<string, unknown>) });
 
@@ -90,6 +122,7 @@ export async function getCustomer(
   rufen: InternerTransport,
   kennung: { customerId: string } | { externalId: string },
 ): Promise<Customer> {
+  kennungVerlangen('getCustomer', kennung, '{ customerId } oder { externalId }');
   const daten = await rufen('getCustomer', nutzlast(kennung));
   return pflichtObjekt<Customer>('getCustomer', daten, 'customer');
 }
@@ -113,10 +146,31 @@ export async function searchCustomers(rufen: InternerTransport, suche: CustomerS
 
 export async function issueInvoice(rufen: InternerTransport, anfrage: IssueInvoiceRequest): Promise<IssueResult> {
   const daten = await rufen('issueInvoice', nutzlast(anfrage));
-  return {
+  const ergebnis: IssueResult = {
     invoice: pflichtObjekt<Invoice>('issueInvoice', daten, 'invoice'),
     replayed: objekt(daten)['replayed'] === true,
   };
+  const notice = hinweise(daten);
+  if (notice) ergebnis.notice = notice;
+  return ergebnis;
+}
+
+/**
+ * Probelauf von `issueInvoice`: dieselbe Anfrage wird geprueft und gerechnet
+ * wie beim Ausstellen, aber nichts festgeschrieben. Die Antwort nennt Summen,
+ * Steuerfall, Sprache, Marke und die Hinweise — oder scheitert mit demselben
+ * Fehlercode, mit dem das Ausstellen scheitern wuerde.
+ *
+ * Der `idempotencyKey` wird nicht verbraucht: dieselbe Anfrage laesst sich
+ * danach unveraendert ausstellen. Verbindlich ist das Ausstellen — zwischen
+ * Probelauf und Ausstellen kann sich der Kunde oder das Konto aendern.
+ */
+export async function previewInvoice(rufen: InternerTransport, anfrage: IssueInvoiceRequest): Promise<PreviewResult> {
+  const daten = await rufen('issueInvoice', { ...nutzlast(anfrage), dryRun: true });
+  const ergebnis: PreviewResult = { preview: pflichtObjekt<InvoicePreview>('issueInvoice', daten, 'preview') };
+  const notice = hinweise(daten);
+  if (notice) ergebnis.notice = notice;
+  return ergebnis;
 }
 
 export async function cancelInvoice(rufen: InternerTransport, anfrage: CancelInvoiceRequest): Promise<CancelResult> {
@@ -142,6 +196,7 @@ export async function getInvoice(
   rufen: InternerTransport,
   kennung: { invoiceId: string } | { number: string },
 ): Promise<InvoiceDetail> {
+  kennungVerlangen('getInvoice', kennung, '{ invoiceId } oder { number }');
   const daten = await rufen('getInvoice', nutzlast(kennung));
   return pflichtObjekt<InvoiceDetail>('getInvoice', daten, 'invoice');
 }
@@ -209,7 +264,8 @@ export async function recordInvoicePayment(
     payment: pflichtObjekt<InvoicePayment>('recordInvoicePayment', daten, 'payment'),
     replayed: roh['replayed'] === true,
   };
-  if (roh['notice']) ergebnis.notice = roh['notice'] as InvoiceNotice;
+  const notice = hinweise(daten);
+  if (notice) ergebnis.notice = notice;
   return ergebnis;
 }
 

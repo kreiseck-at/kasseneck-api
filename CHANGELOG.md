@@ -4,6 +4,65 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.22.0
+
+### Rechnung: Brutto bleibt Brutto, Hinweise kommen an, Probelauf
+
+**Anlass:** Rückmeldung eines Shops zur Rechnungs-API (16.09.2026).
+
+- **`issueInvoice` gab `notice` nicht weiter.** Der Typ sah die Liste vor, der
+  Aufruf übernahm sie nie — eine ig. Lieferung meldete deshalb nie, dass eine
+  Zusammenfassende Meldung fällig ist. Behoben.
+- **`recordInvoicePayment` liefert `notice` jetzt als Liste** wie
+  `issueInvoice` (bisher ein einzelnes Objekt). **Bricht die Form:** wer
+  `result.notice.code` las, liest jetzt `result.notice?.[0]?.code`. Ein Server,
+  der noch ein Objekt schickt, wird zur Liste gemacht.
+- **Neu: `rechnungSummen(items, priceMode, taxScheme?)`** rechnet die Summen so,
+  wie der Server sie ausstellt. Im Brutto-Modus ist das Brutto je Satz der
+  vereinbarte Preis: Netto = round(B × 100 / (100 + Satz)), USt = B − Netto.
+  Der Server rechnete bis dahin Netto und USt getrennt und setzte das Brutto neu
+  zusammen — 14,79 € + 15,00 € zu 20 % wurden 29,80 €. Die Prüffälle stehen in
+  `fixtures/rechnung-summen.json`; Server und Dart-Zwilling prüfen dagegen.
+- **Neu: `previewInvoice(anfrage)`** — Probelauf von `issueInvoice`
+  (`dryRun: true` im Vertrag): prüft und rechnet wie das Ausstellen, schreibt
+  nichts fest und verbraucht den `idempotencyKey` nicht. Antwort `preview` mit
+  Summen, Steuerfall samt Grund, Sprache, Marke, E-Rechnung — dazu die Hinweise.
+- **`totals.byRate[]` trägt `grossCents`.** Die Summen sind auch bei
+  Gutschriften positiv; das steht jetzt am Typ.
+- **Texte:** `pdf.tabelle.einzelBrutto`, `pdf.tabelle.betragBrutto`,
+  `pdf.summe.darinUst` — das PDF einer Brutto-Rechnung zeigt Brutto-Spalten,
+  deren Zeilen die Summe ergeben. Dazu `pdf.position.rabatt`: ein Zeilenrabatt
+  stand bisher nirgends auf dem Blatt, „2 × 24,90 = 44,82" ging für den Leser
+  nicht auf.
+- **Kennung als Text:** `getInvoice('…')` und `getCustomer('…')` werfen vor dem
+  Senden `KasseneckValidationError` (`scope: 'request'`). Bisher wurde der Text
+  Zeichen für Zeichen zu Feldern `0`, `1`, … und der Server konnte nur
+  „Bitte Eingaben prüfen." antworten.
+- **Feldfehler in der Meldung:** `KasseneckApiError.message` hängt bis zu fünf
+  Einträge aus `errors[]` an (`[items[0].vatRate: …]`); `serverMessage` und
+  `details` bleiben unverändert.
+
+## 0.21.0
+
+### Rechnung: Kataloge für den abgeleiteten Steuerfall
+
+**Anlass:** Der Server leitet den Steuerfall jetzt selbst ab, statt ihn zu
+glauben (Kundenland, Kundenart, UID, Ware oder Leistung).
+
+- `taxScheme` ist in `issueInvoice` **optional**; eine Angabe prüft der Server
+  gegen die Ableitung (`tax_scheme_mismatch`).
+- Neue Fälle `domesticReverseCharge`, `oss` und `outsideScope`; Katalog der elf
+  Gründe für den Übergang der Steuerschuld im Inland
+  (`REVERSE_CHARGE_REASONS`, mit Fundstelle und Schwelle).
+  `oss` steht im Katalog, **kann aber noch nicht ausgestellt werden** —
+  die Ländersätze folgen.
+- Positionen tragen `kind` (`goods`/`service`), weil ig. Lieferung und Reverse
+  Charge sich genau daran unterscheiden.
+- `notice` ist an `issueInvoice` eine **Liste**: eine bar bezahlte ig. Lieferung
+  trägt zwei Hinweise zugleich.
+- Die Rechnungssicht trägt `reverseChargeReason` und `taxCountry`; neuer
+  Befreiungstext für den nicht steuerbaren Umsatz (E-Rechnung, BR-O-10).
+
 ## 0.20.0
 
 ### Rechnung: richtige Steuerhinweise, Barumsatz auch mit Karte

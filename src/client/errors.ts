@@ -167,6 +167,26 @@ function sieben(wert: unknown, geheimnisse: readonly string[], tiefe: number): u
 }
 
 /** Fachlicher Fehler: HTTP 200, aber `status: 'error'` im Rumpf. */
+/**
+ * Die Feldfehler einer Pruefantwort (`errors: [{ field, message }]`) als
+ * Anhang der Fehlermeldung — sonst stuende im Log nur „Bitte Eingaben
+ * pruefen." und niemand wuesste, welches Feld gemeint ist. Hoechstens fuenf;
+ * vollstaendig bleiben sie in `details.errors`.
+ */
+function feldHinweis(details: Record<string, unknown>): string {
+  const roh = details['errors'];
+  if (!Array.isArray(roh)) return '';
+  const teile: string[] = [];
+  for (const e of roh) {
+    if (e === null || typeof e !== 'object') continue;
+    const { field, message } = e as { field?: unknown; message?: unknown };
+    if (typeof field === 'string' && typeof message === 'string') teile.push(`${field}: ${message}`);
+  }
+  if (!teile.length) return '';
+  const mehr = teile.length > 5 ? ` (+${teile.length - 5} weitere)` : '';
+  return ` [${teile.slice(0, 5).join('; ')}${mehr}]`;
+}
+
 export class KasseneckApiError extends Error {
   readonly name = 'KasseneckApiError';
   /** Aufgerufene Backend-Funktion, z. B. `createReceipt`. */
@@ -191,7 +211,7 @@ export class KasseneckApiError extends Error {
   readonly details: Record<string, unknown>;
 
   constructor(functionName: string, serverMessage: string, details: Record<string, unknown> = {}, code?: string) {
-    super(`${functionName} fehlgeschlagen: ${serverMessage}`);
+    super(`${functionName} fehlgeschlagen: ${serverMessage}${feldHinweis(details)}`);
     this.functionName = functionName;
     this.serverMessage = serverMessage;
     this.details = details;

@@ -34,6 +34,7 @@ export {
   issueInvoice,
   listBrands,
   listInvoices,
+  previewInvoice,
   recordInvoicePayment,
   searchCustomers,
   updateCustomer,
@@ -62,14 +63,19 @@ export type {
   InvoiceTotals,
   InvoiceNotice,
   InvoicePayment,
+  InvoicePreview,
+  InvoiceRateTotals,
   IssueInvoiceRequest,
   IssueResult,
   PaymentInput,
+  PreviewResult,
   RecordPaymentRequest,
   RecordPaymentResult,
 } from './typen.js';
 
 export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './texte.js';
+
+export { rechnungSummen, STEUERFREIE_FAELLE, type SummenPosition } from './summen.js';
 
 export {
   RECHNUNG_VERTRAG_VERSION,

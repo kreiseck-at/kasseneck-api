@@ -476,6 +476,12 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
      * und ein sofort geholtes PDF Zahlungsinformationen traegt.
      */
     payment: { typ: 'object', pflicht: false, felder: PAYMENT_FELDER },
+    /**
+     * Probelauf: alles pruefen und rechnen wie beim Ausstellen, aber nichts
+     * festschreiben — keine Nummer, kein Dokument, keine Zahlung, kein
+     * Idempotenz-Eintrag. Die Antwort traegt `preview` statt `invoice`.
+     */
+    dryRun: { typ: 'boolean', pflicht: false },
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),
