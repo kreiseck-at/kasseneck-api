@@ -925,7 +925,8 @@
     "vat_rate_not_in_country",
     "reverse_charge_reason_required",
     "reverse_charge_threshold",
-    "mixed_supply_not_allowed"
+    "mixed_supply_not_allowed",
+    "oss_not_enabled"
   ],
   "gruende": [
     "cancellation",

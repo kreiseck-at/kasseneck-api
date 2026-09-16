@@ -69,6 +69,7 @@ export const INVOICE_ERROR_CODES = [
   'reverse_charge_reason_required',
   'reverse_charge_threshold',
   'mixed_supply_not_allowed',
+  'oss_not_enabled',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 

@@ -194,9 +194,9 @@ test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Spr
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5), [
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-6), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
-    'reverse_charge_threshold', 'mixed_supply_not_allowed',
+    'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
