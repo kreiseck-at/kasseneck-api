@@ -41,12 +41,20 @@ const DE = {
   'pdf.summe.gesamt.rechnung': 'Gesamtbetrag',
   'pdf.summe.gesamt.gutschrift': 'Gutschriftsbetrag',
   'steuer.kleinunternehmer': 'Gemäß § 6 Abs. 1 Z 27 UStG wird keine Umsatzsteuer verrechnet (Kleinunternehmer).',
-  'steuer.igLieferung': 'Steuerfreie innergemeinschaftliche Lieferung (Art. 6 Abs. 1 UStG).',
+  'steuer.igLieferung.titel': 'Steuerfreie innergemeinschaftliche Lieferung. ',
+  'steuer.igLieferung.text':
+    'Gemäß Art. 6 Abs. 1 UStG (Art. 138 MwSt-RL 2006/112/EG). Die Erwerbsbesteuerung erfolgt durch den Abnehmer im Bestimmungsland.',
   'steuer.ausfuhr': 'Steuerfreie Ausfuhrlieferung (§ 6 Abs. 1 Z 1 UStG).',
-  'steuer.reverseCharge.titel': 'Steuerfreie Leistung – Reverse Charge. ',
+  // Reverse Charge ist KEINE Steuerbefreiung: der Umsatz bleibt steuerpflichtig,
+  // nur die Steuer schuldet der Empfaenger (§ 11 Abs. 1a UStG; der Begriff steht
+  // wortgleich in Art. 226 Nr. 11a MwSt-RL). „Steuerfrei" waere sachlich falsch
+  // und erbraechte den vorgeschriebenen Hinweis nicht.
+  'steuer.reverseCharge.titel': 'Steuerschuldnerschaft des Leistungsempfängers. ',
   'steuer.reverseCharge.text':
-    'Übergang der Steuerschuldnerschaft auf den Leistungsempfänger gem. Art. 196 MwSt-RL 2006/112/EG (innergemeinschaftliche Leistung). Die Umsatzsteuer ist vom Leistungsempfänger im Bestimmungsland abzuführen.',
-  'steuer.reverseCharge.uid': 'UID Leistungserbringer: {verkaeufer}   ·   UID Leistungsempfänger: {kaeufer}',
+    'Übergang der Steuerschuld gem. Art. 196 MwSt-RL 2006/112/EG (innergemeinschaftliche Leistung). Die Leistung ist nicht steuerfrei — die Umsatzsteuer schuldet und entrichtet der Leistungsempfänger in seinem Land.',
+  // Beide UID-Nummern: bei Reverse Charge § 11 Abs. 1a, bei der ig. Lieferung
+  // Art. 11 Abs. 2 UStG.
+  'steuer.uidZeile': 'UID Leistungserbringer: {verkaeufer}   ·   UID Leistungsempfänger: {kaeufer}',
   'pdf.zahlung.titel': 'ZAHLUNGSINFORMATIONEN',
   'pdf.zahlung.empfaenger': 'Empfänger',
   'pdf.zahlung.iban': 'IBAN',
@@ -227,12 +235,14 @@ const EN: Readonly<Record<RechnungTextSchluessel, string>> = {
   'pdf.summe.gesamt.rechnung': 'Total',
   'pdf.summe.gesamt.gutschrift': 'Credit total',
   'steuer.kleinunternehmer': 'No VAT charged pursuant to § 6 (1) no. 27 UStG (small business exemption).',
-  'steuer.igLieferung': 'VAT-exempt intra-Community supply (Art. 6 (1) UStG).',
+  'steuer.igLieferung.titel': 'VAT-exempt intra-Community supply. ',
+  'steuer.igLieferung.text':
+    'Pursuant to Art. 6 (1) UStG (Art. 138 of VAT Directive 2006/112/EC). The acquisition is taxed by the customer in the country of destination.',
   'steuer.ausfuhr': 'VAT-exempt export delivery (§ 6 (1) no. 1 UStG).',
-  'steuer.reverseCharge.titel': 'VAT-exempt service – reverse charge. ',
+  'steuer.reverseCharge.titel': 'Reverse charge – VAT liability of the recipient. ',
   'steuer.reverseCharge.text':
-    'VAT liability transferred to the recipient pursuant to Art. 196 of VAT Directive 2006/112/EC (intra-Community service). VAT is to be accounted for by the recipient in the country of destination.',
-  'steuer.reverseCharge.uid': 'VAT ID supplier: {verkaeufer}   ·   VAT ID recipient: {kaeufer}',
+    'VAT liability transferred pursuant to Art. 196 of VAT Directive 2006/112/EC (intra-Community service). The service is not VAT-exempt — the recipient owes and accounts for the VAT in their country.',
+  'steuer.uidZeile': 'VAT ID supplier: {verkaeufer}   ·   VAT ID recipient: {kaeufer}',
   'pdf.zahlung.titel': 'PAYMENT DETAILS',
   'pdf.zahlung.empfaenger': 'Payee',
   'pdf.zahlung.iban': 'IBAN',

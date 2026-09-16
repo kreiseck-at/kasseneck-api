@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "RKSV-Registrierkasse fuer JavaScript und TypeScript: signierte Belege, Storno, Kartenzahlung, Bondruck. Austrian fiscal cash register (RKSV) API client.",
   "license": "Apache-2.0",
   "author": "Kreiseck",

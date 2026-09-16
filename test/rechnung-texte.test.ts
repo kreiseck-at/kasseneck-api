@@ -35,10 +35,33 @@ test('Katalog: Englisch ist nicht einfach Deutsch (ausser neutrale Kuerzel)', ()
 });
 
 test('Katalog: Steuerhinweise nennen in jeder Sprache die Gesetzesstelle', () => {
-  const stellen: RechnungTextSchluessel[] = ['steuer.kleinunternehmer', 'steuer.igLieferung', 'steuer.ausfuhr', 'steuer.reverseCharge.text',
+  const stellen: RechnungTextSchluessel[] = ['steuer.kleinunternehmer', 'steuer.igLieferung.text', 'steuer.ausfuhr', 'steuer.reverseCharge.text',
     'einvoice.befreiung.kleinunternehmer', 'einvoice.befreiung.igLieferung', 'einvoice.befreiung.ausfuhr'];
   for (const sprache of INVOICE_LANGUAGES) {
     for (const s of stellen) assert.match(RECHNUNG_TEXTE[sprache][s], /UStG|2006\/112/, `${sprache}.${s} ohne Gesetzesstelle`);
+  }
+});
+
+test('Katalog: Reverse Charge behauptet keine Steuerbefreiung', () => {
+  // Der Umsatz bleibt steuerpflichtig, nur die Steuer schuldet der Empfaenger
+  // (§ 11 Abs. 1a UStG). „Steuerfrei" waere sachlich falsch — und der nach
+  // Art. 226 Nr. 11a MwSt-RL vorgesehene Begriff gehoert in den Titel.
+  assert.match(RECHNUNG_TEXTE.de['steuer.reverseCharge.titel'], /Steuerschuldnerschaft des Leistungsempfängers/);
+  assert.match(RECHNUNG_TEXTE.en['steuer.reverseCharge.titel'], /liability of the recipient/i);
+  for (const sprache of INVOICE_LANGUAGES) {
+    const titel = RECHNUNG_TEXTE[sprache]['steuer.reverseCharge.titel'];
+    assert.doesNotMatch(titel, /steuerfrei/i, `${sprache}: der Titel behauptet eine Befreiung`);
+    assert.doesNotMatch(titel, /VAT-exempt/i, `${sprache}: der Titel behauptet eine Befreiung`);
+  }
+});
+
+test('Katalog: die UID-Zeile gilt fuer Reverse Charge UND ig. Lieferung', () => {
+  // Beide brauchen beide UID-Nummern auf der Rechnung: § 11 Abs. 1a bzw.
+  // Art. 11 Abs. 2 UStG. Ein gemeinsamer Text, damit es nur eine Form gibt.
+  for (const sprache of INVOICE_LANGUAGES) {
+    const zeile = RECHNUNG_TEXTE[sprache]['steuer.uidZeile'];
+    assert.ok(zeile.includes('{verkaeufer}') && zeile.includes('{kaeufer}'), sprache);
+    assert.ok(RECHNUNG_TEXTE[sprache]['steuer.igLieferung.titel'].length > 0, sprache);
   }
 });
 

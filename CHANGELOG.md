@@ -4,6 +4,31 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.20.0
+
+### Rechnung: richtige Steuerhinweise, Barumsatz auch mit Karte
+
+**Anlass:** drei Befunde aus einer Durchsicht an den Primärquellen.
+
+- **Reverse Charge ist keine Steuerbefreiung.** Der Aufdruck hiess
+  „Steuerfreie Leistung – Reverse Charge" und behauptete damit eine Befreiung,
+  die es nicht gibt: der Umsatz bleibt steuerpflichtig, nur die Steuer schuldet
+  der Empfänger. Das Gesetz trennt beides (§ 11 Abs. 1 Z 3 lit. e = Hinweis auf
+  eine Befreiung, § 11 Abs. 1a = Hinweis auf die Steuerschuldnerschaft); Art. 226
+  Nr. 11a MwSt-RL nennt den Begriff wörtlich. Jetzt:
+  „Steuerschuldnerschaft des Leistungsempfängers."
+- **Ig. Lieferung** bekommt denselben Kasten wie Reverse Charge, mit **beiden**
+  UID-Nummern — Art. 11 Abs. 2 UStG verlangt sie auf der Rechnung. Der
+  Textschlüssel `steuer.reverseCharge.uid` heisst darum jetzt `steuer.uidZeile`,
+  neu sind `steuer.igLieferung.titel` und `steuer.igLieferung.text`
+  (`steuer.igLieferung` entfällt).
+- **`onSite` an der Zahlung.** Ein Barumsatz ist nicht nur Bargeld: als
+  Barzahlung gilt auch die Karte **vor Ort** (§ 131b Abs. 1 Z 3 UStG), nicht
+  aber dieselbe Karte im Internet. Weil `card`/`online` beides sein können,
+  sagt es das Fremdsystem jetzt selbst — der Hinweis `cash_receipt_required`
+  kommt bei `cash` immer und sonst nur mit `onSite: true`. `transfer` mit
+  `onSite` wird abgewiesen.
+
 ## 0.19.0
 
 ### hobex HPS: TECS-Antwortcodes eingeordnet, Storno nach ausbleibender Host-Antwort

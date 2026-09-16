@@ -545,10 +545,23 @@ await rechnungen.recordInvoicePayment({
 ```
 
 `reference` wird gespeichert, aber **nicht gedruckt**; Kartendaten gehören
-ohnehin nicht auf eine Rechnung. Bei `method: 'cash'` wird die Zahlung gebucht
-und die Antwort trägt zusätzlich `notice.code = 'cash_receipt_required'`: eine
-Barzahlung ist ein Barumsatz und braucht einen Beleg (§ 132a BAO), bei
-Registrierkassenpflicht über die Kasse — der Vermerk hier ersetzt ihn nicht.
+ohnehin nicht auf eine Rechnung.
+
+**Barumsatz ist nicht nur Bargeld.** Als Barzahlung gilt auch die Karte **vor
+Ort** an der Kasse (§ 131b Abs. 1 Z 3 UStG) — dieselbe Karte im Internet
+dagegen nicht. Weil `card` und `online` beides sein können, sagt es das
+Fremdsystem selbst:
+
+```ts
+payment: { method: 'card', onSite: true }   // Terminal an der Kasse
+payment: { method: 'card' }                 // Kartenzahlung im Shop
+```
+
+Bei `cash` (immer) und bei `onSite: true` trägt die Antwort
+`notice.code = 'cash_receipt_required'`: ein Barumsatz braucht einen Beleg
+(§ 132a BAO), bei Registrierkassenpflicht über die Registrierkasse — der
+Vermerk an der Rechnung ersetzt ihn nicht. `transfer` mit `onSite` ist ein
+Feldfehler, eine Überweisung erfolgt nicht vor Ort.
 
 **Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
 einem neuen: dann kommt die schon ausgestellte Rechnung zurück
