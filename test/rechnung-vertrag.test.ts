@@ -3,12 +3,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AUFRUFE } from '../src/client/aufrufe.js';
+import { RECHNUNG_TEXTE, type RechnungTextSchluessel } from '../src/rechnung/texte.js';
 import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
   INVOICE_LANGUAGES,
   INVOICE_NOTICE_CODES,
   INVOICE_PAYMENT_METHODS,
+  REVERSE_CHARGE_REASONS,
+  TAX_SCHEMES,
   INVOICE_UNITS,
   PAYMENT_FELDER,
   KUNDE_FELDER,
@@ -191,7 +194,10 @@ test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Spr
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-4), ['language_not_allowed', 'brand_not_found', 'not_payable', 'payment_exceeds_invoice']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5), [
+    'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
+    'reverse_charge_threshold', 'mixed_supply_not_allowed',
+  ]);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
 
@@ -220,8 +226,38 @@ test('Vertrag: Zahlung nimmt nur bekannte Arten, der Betrag ist optional und gan
   assert.equal(zahlung?.typ === 'object' ? zahlung.felder : null, PAYMENT_FELDER);
 });
 
+test('Vertrag: der Steuerfall ist optional, der Grund gehoert zum Inlands-RC', () => {
+  // Der Server leitet ab; eine Angabe wird geprueft. Pflicht waere ein
+  // Rueckschritt: dann muesste das Fremdsystem den Fall wieder selbst kennen.
+  assert.equal(RECHNUNG_ANFRAGEN.issueInvoice['taxScheme']?.pflicht, false);
+  assert.equal(RECHNUNG_ANFRAGEN.issueInvoice['reverseChargeReason']?.pflicht, false);
+  assert.ok((TAX_SCHEMES as readonly string[]).includes('domesticReverseCharge'));
+  assert.ok((TAX_SCHEMES as readonly string[]).includes('oss'));
+  assert.ok((TAX_SCHEMES as readonly string[]).includes('outsideScope'));
+  // Neue Faelle stehen hinten — gespeicherte Reihenfolgen bleiben gueltig.
+  assert.deepEqual(TAX_SCHEMES.slice(0, 5), ['normal', 'smallBusiness', 'reverseCharge', 'igLieferung', 'exportThirdCountry']);
+});
+
+test('Vertrag: jeder Reverse-Charge-Grund nennt Stelle, Schwelle und Aufdruck', () => {
+  const gruende = Object.keys(REVERSE_CHARGE_REASONS) as (keyof typeof REVERSE_CHARGE_REASONS)[];
+  assert.ok(gruende.length >= 11);
+  for (const g of gruende) {
+    const eintrag = REVERSE_CHARGE_REASONS[g];
+    assert.match(eintrag.stelle, /§|BGBl/, `${g} ohne Fundstelle`);
+    assert.ok(eintrag.schwelleCents === null || eintrag.schwelleCents > 0, g);
+    for (const sprache of INVOICE_LANGUAGES) {
+      const text = RECHNUNG_TEXTE[sprache][`steuer.rcGrund.${g}` as RechnungTextSchluessel];
+      assert.ok(text && text.length > 0, `${sprache}: Aufdruck fuer ${g} fehlt`);
+      assert.match(text, /§|BGBl/, `${sprache}.${g}: der Aufdruck traegt den Hinweis und braucht die Stelle`);
+    }
+  }
+  // Die beiden Geraete-Faelle tragen dieselbe Schwelle von 5.000 Euro.
+  assert.equal(REVERSE_CHARGE_REASONS.mobile_devices.schwelleCents, 500_000);
+  assert.equal(REVERSE_CHARGE_REASONS.it_devices.schwelleCents, 500_000);
+});
+
 test('Vertrag: Hinweise sind keine Fehler und tragen eigene Codes', () => {
-  assert.deepEqual([...INVOICE_NOTICE_CODES], ['cash_receipt_required']);
+  assert.deepEqual([...INVOICE_NOTICE_CODES], ['cash_receipt_required', 'recapitulative_statement_due', 'place_of_supply_check']);
   for (const code of INVOICE_NOTICE_CODES) {
     assert.ok(!(INVOICE_ERROR_CODES as readonly string[]).includes(code), `${code} steht faelschlich bei den Fehlern`);
   }

@@ -64,6 +64,11 @@ export const INVOICE_ERROR_CODES = [
   'brand_not_found',
   'not_payable',
   'payment_exceeds_invoice',
+  'tax_scheme_mismatch',
+  'vat_rate_not_in_country',
+  'reverse_charge_reason_required',
+  'reverse_charge_threshold',
+  'mixed_supply_not_allowed',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -77,8 +82,61 @@ export const CREDIT_NOTE_REASONS = [
 ] as const;
 export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
 
-export const TAX_SCHEMES = ['normal', 'smallBusiness', 'reverseCharge', 'igLieferung', 'exportThirdCountry'] as const;
+/**
+ * Der Steuerfall einer Rechnung. Er wird vom Server **abgeleitet** (Kundenland,
+ * Kundenart, UID, Ware oder Leistung); eine mitgeschickte Angabe muss dazu
+ * passen, sonst `tax_scheme_mismatch`. Neue Faelle stehen hinten, damit
+ * gespeicherte Reihenfolgen gueltig bleiben.
+ *
+ * - `normal`                oesterreichische Umsatzsteuer
+ * - `smallBusiness`         Kleinunternehmer (§ 6 Abs. 1 Z 27 UStG)
+ * - `reverseCharge`         Leistung an ein Unternehmen in der EU (Art. 196 MwSt-RL)
+ * - `igLieferung`           Ware an ein Unternehmen in der EU (Art. 6 Abs. 1 UStG)
+ * - `exportThirdCountry`    Ware ins Drittland (§ 6 Abs. 1 Z 1 UStG)
+ * - `domesticReverseCharge` Uebergang der Steuerschuld im Inland, Grund aus `REVERSE_CHARGE_REASONS`
+ * - `oss`                   B2C in der EU ueber den One-Stop-Shop, Satz des Ziellandes
+ * - `outsideScope`          Leistung an ein Drittlandsunternehmen — in Oesterreich nicht steuerbar
+ */
+export const TAX_SCHEMES = [
+  'normal',
+  'smallBusiness',
+  'reverseCharge',
+  'igLieferung',
+  'exportThirdCountry',
+  'domesticReverseCharge',
+  'oss',
+  'outsideScope',
+] as const;
 export type TaxScheme = (typeof TAX_SCHEMES)[number];
+
+/**
+ * Gruende fuer den Uebergang der Steuerschuld **im Inland**. Ohne Grund gibt es
+ * kein `domesticReverseCharge`: die Bedingungen sind je Fall verschieden, und
+ * keine davon laesst sich aus Betrag und Land erraten.
+ *
+ * `schwelleCents` ist das Entgelt, ab dem der Fall greift — maßgeblich ist das
+ * **in der Rechnung ausgewiesene** Entgelt, nicht der Einzelpreis; ein
+ * einheitlicher Liefervorgang darf dafuer nicht auf mehrere Rechnungen
+ * aufgeteilt werden (UStR Rz 2605d).
+ */
+export const REVERSE_CHARGE_REASONS = Object.freeze({
+  construction: { stelle: '§ 19 Abs. 1a UStG', schwelleCents: null },
+  scrap: { stelle: 'Schrott-UStV, BGBl. II Nr. 129/2007', schwelleCents: null },
+  mobile_devices: { stelle: '§ 19 Abs. 1e lit. b UStG', schwelleCents: 500_000 },
+  it_devices: { stelle: '§ 2 Z 1 UStBBKV, BGBl. II Nr. 369/2013', schwelleCents: 500_000 },
+  metals: { stelle: '§ 2 Z 4 UStBBKV', schwelleCents: null },
+  emission_certificates: { stelle: '§ 19 Abs. 1e lit. a UStG', schwelleCents: null },
+  gas_electricity: { stelle: '§ 2 Z 2 UStBBKV', schwelleCents: null },
+  energy_certificates: { stelle: '§ 2 Z 3 UStBBKV', schwelleCents: null },
+  investment_gold: { stelle: '§ 2 Z 5 UStBBKV', schwelleCents: null },
+  security_transfer: { stelle: '§ 19 Abs. 1b UStG', schwelleCents: null },
+  foreign_supplier: { stelle: '§ 19 Abs. 1 zweiter Satz UStG', schwelleCents: null },
+});
+export type ReverseChargeReason = keyof typeof REVERSE_CHARGE_REASONS;
+
+/** Ware oder Leistung — ohne das laesst sich ig. Lieferung nicht von Reverse Charge trennen. */
+export const ITEM_KINDS = ['goods', 'service'] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
 
 export const PRICE_MODES = ['net', 'gross'] as const;
 export type PriceMode = (typeof PRICE_MODES)[number];
@@ -123,7 +181,15 @@ export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
  * Hinweise, die eine erfolgreiche Antwort zusaetzlich tragen kann (`data.notice`).
  * Sie sind keine Fehler: der Aufruf hat gewirkt, es gibt nur etwas zu wissen.
  */
-export const INVOICE_NOTICE_CODES = ['cash_receipt_required'] as const;
+export const INVOICE_NOTICE_CODES = [
+  'cash_receipt_required',
+  /** Ig. Lieferung und grenzueberschreitendes Reverse Charge: die Zusammenfassende
+   *  Meldung ist materielle Voraussetzung (Art. 7 Abs. 1 Z 5 UStG). */
+  'recapitulative_statement_due',
+  /** Leistung an eine Privatperson im Drittland: der Leistungsort haengt von der
+   *  Art der Leistung ab — wir nehmen den oesterreichischen Fall an. */
+  'place_of_supply_check',
+] as const;
 export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 
 /**
@@ -326,6 +392,8 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000, nachkomma: 3 },
   /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
   unit: { typ: 'enum', pflicht: false, werte: INVOICE_UNITS },
+  /** Ware oder Leistung; ohne Angabe `goods`. Entscheidet ueber den Steuerfall. */
+  kind: { typ: 'enum', pflicht: false, werte: ITEM_KINDS },
   unitPriceCents: { typ: 'integer', pflicht: true, min: 0, max: 100_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
@@ -377,7 +445,14 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
   issueInvoice: {
     idempotencyKey: idempotencyKey(true),
     customerId: id,
-    taxScheme: { typ: 'enum', pflicht: true, werte: TAX_SCHEMES },
+    /**
+     * Optional: der Server leitet den Fall ab. Eine Angabe wird geprueft und
+     * muss passen (`tax_scheme_mismatch`) — so faellt eine falsche Zuordnung
+     * im Fremdsystem auf, statt eine falsche Rechnung zu erzeugen.
+     */
+    taxScheme: { typ: 'enum', pflicht: false, werte: TAX_SCHEMES },
+    /** Pflicht bei `domesticReverseCharge`, sonst nicht erlaubt. */
+    reverseChargeReason: { typ: 'enum', pflicht: false, werte: Object.keys(REVERSE_CHARGE_REASONS) },
     priceMode: { typ: 'enum', pflicht: true, werte: PRICE_MODES },
     serviceStart: datum(true),
     serviceEnd: datum(),
