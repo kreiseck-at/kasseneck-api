@@ -34,6 +34,7 @@ export {
   issueInvoice,
   listBrands,
   listInvoices,
+  recordInvoicePayment,
   searchCustomers,
   updateCustomer,
 } from './endpunkte.js';
@@ -59,8 +60,13 @@ export type {
   InvoiceSetupGap,
   InvoiceSetupStatus,
   InvoiceTotals,
+  InvoiceNotice,
+  InvoicePayment,
   IssueInvoiceRequest,
   IssueResult,
+  PaymentInput,
+  RecordPaymentRequest,
+  RecordPaymentResult,
 } from './typen.js';
 
 export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './texte.js';
@@ -78,6 +84,8 @@ export {
   DOC_TYPES,
   EINVOICE_FORMATS,
   INVOICE_LANGUAGES,
+  INVOICE_PAYMENT_METHODS,
+  INVOICE_NOTICE_CODES,
   INVOICE_UNITS,
   RECHNUNG_EINHEITEN_CODES,
   INVOICE_SETUP_REQUIREMENTS,
@@ -97,6 +105,8 @@ export {
   type DocType,
   type EInvoiceFormat,
   type InvoiceLanguage,
+  type InvoicePaymentMethod,
+  type InvoiceNoticeCode,
   type InvoiceUnit,
   type InvoiceSetupRequirement,
   type Format,

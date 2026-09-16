@@ -524,6 +524,32 @@ bzw. `pcs` —, und die E-Rechnung trägt den UN/ECE-Code aus
 `RECHNUNG_EINHEITEN_CODES` (`C62`, `HUR`, …). Freier Text wie `"Std"` ist
 `validation` mit Feld `items[0].unit`.
 
+**Schon bezahlt?** Wer online kassiert und danach die Rechnung stellt, gibt die
+Zahlung gleich mit: sie entsteht in derselben Transaktion wie das Festschreiben,
+und das PDF trägt dann keinen Zahlungskasten und keinen Giro-QR.
+
+```ts
+const { invoice } = await rechnungen.issueInvoice({
+  idempotencyKey: `bestellung-${bestellnummer}`,
+  customerId: kunde.id,
+  taxScheme: 'normal', priceMode: 'net', serviceStart: '2026-09-16',
+  items: [{ description: 'Beratung', quantity: 2, unitPriceCents: 5000, vatRate: 20, unit: 'hour' }],
+  payment: { method: 'card', reference: zahlung.id },      // ohne amountCents: voll bezahlt
+});                                                        // invoice.openCents === 0
+
+// Trifft das Geld erst später ein (Überweisung, Teilzahlung):
+await rechnungen.recordInvoicePayment({
+  idempotencyKey: `zahlung-${zahlung.id}`,                 // Pflicht: sonst bucht eine Wiederholung zweimal
+  invoiceId: invoice.id, method: 'transfer', amountCents: 12000, paidAt: '2026-09-20',
+});
+```
+
+`reference` wird gespeichert, aber **nicht gedruckt**; Kartendaten gehören
+ohnehin nicht auf eine Rechnung. Bei `method: 'cash'` wird die Zahlung gebucht
+und die Antwort trägt zusätzlich `notice.code = 'cash_receipt_required'`: eine
+Barzahlung ist ein Barumsatz und braucht einen Beleg (§ 132a BAO), bei
+Registrierkassenpflicht über die Kasse — der Vermerk hier ersetzt ihn nicht.
+
 **Nach einem Zeitlimit mit demselben `idempotencyKey` wiederholen**, nie mit
 einem neuen: dann kommt die schon ausgestellte Rechnung zurück
 (`replayed: true`). Derselbe Schlüssel mit anderen Daten ergibt

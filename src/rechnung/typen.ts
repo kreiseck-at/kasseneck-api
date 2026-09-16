@@ -11,6 +11,8 @@ import type {
   CustomerType,
   DocType,
   InvoiceLanguage,
+  InvoiceNoticeCode,
+  InvoicePaymentMethod,
   InvoiceUnit,
   InvoiceSetupRequirement,
   InvoiceListStatus,
@@ -124,6 +126,54 @@ export interface IssueInvoiceRequest {
   language?: InvoiceLanguage;
   /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. Unbekannt = `brand_not_found`. */
   brandId?: string;
+  /**
+   * Schon bezahlt (Shop kassiert online, Rechnung folgt). Die Zahlung entsteht
+   * in derselben Transaktion wie das Festschreiben: das PDF traegt dann keine
+   * Zahlungsinformationen und keinen Giro-QR.
+   */
+  payment?: PaymentInput;
+}
+
+/** Eine Zahlung, wie das Fremdsystem sie meldet. */
+export interface PaymentInput {
+  method: InvoicePaymentMethod;
+  /** Ohne Angabe der volle Bruttobetrag. */
+  amountCents?: number;
+  /** Ohne Angabe der heutige Wiener Tag; nie in der Zukunft. */
+  paidAt?: string;
+  /** Zahlungskennung des Fremdsystems — gespeichert, aber nicht gedruckt. */
+  reference?: string;
+}
+
+export interface RecordPaymentRequest extends PaymentInput {
+  /** Pflicht: ohne ihn bucht eine Wiederholung eine zweite Zahlung. */
+  idempotencyKey: string;
+  invoiceId: string;
+}
+
+/** Eine gebuchte Zahlung, wie die API sie zurueckgibt. */
+export interface InvoicePayment {
+  id: string;
+  amountCents: number;
+  paidAt: string;
+  method: InvoicePaymentMethod;
+  reference: string | null;
+}
+
+/**
+ * Ein Hinweis zu einer erfolgreichen Antwort — kein Fehler, sondern etwas,
+ * das der Aufrufer wissen sollte (heute nur `cash_receipt_required`).
+ */
+export interface InvoiceNotice {
+  code: InvoiceNoticeCode;
+  message: string;
+}
+
+export interface RecordPaymentResult {
+  invoice: Invoice;
+  payment: InvoicePayment;
+  replayed: boolean;
+  notice?: InvoiceNotice;
 }
 
 export interface CancelInvoiceRequest {
@@ -167,6 +217,10 @@ export interface Invoice {
   language: InvoiceLanguage;
   /** Die eingefrorene Marke; `id` ist `null` bei der Ersatzmarke ohne eigene Einrichtung. */
   brand: { id: string | null; name: string | null } | null;
+  /** Summe der gebuchten Zahlungen. */
+  paidCents: number;
+  /** Was noch offen ist; `0` heisst bezahlt. */
+  openCents: number;
 }
 
 /** Eine Marke des Kontos (Logo, Farbe, Absender) — `id` geht als `brandId` in `issueInvoice`. */

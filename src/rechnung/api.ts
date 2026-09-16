@@ -20,6 +20,7 @@ import {
   issueInvoice,
   listBrands,
   listInvoices,
+  recordInvoicePayment,
   searchCustomers,
   updateCustomer,
 } from './endpunkte.js';
@@ -40,6 +41,8 @@ import type {
   InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
+  RecordPaymentRequest,
+  RecordPaymentResult,
 } from './typen.js';
 
 export interface RechnungApiOptions {
@@ -66,6 +69,8 @@ export interface RechnungApi {
   createCreditNote(anfrage: CreditNoteRequest): Promise<CreditNoteResult>;
   getInvoice(kennung: { invoiceId: string } | { number: string }): Promise<InvoiceDetail>;
   listInvoices(abfrage?: InvoiceListQuery): Promise<InvoicePage>;
+  /** Eine spaeter eingetroffene Zahlung nachtragen; `idempotencyKey` ist Pflicht. */
+  recordInvoicePayment(anfrage: RecordPaymentRequest): Promise<RecordPaymentResult>;
 
   // Dateien
   /** Mit `language` ungleich der Rechnungssprache: gekennzeichnete Uebersetzungskopie. */
@@ -107,6 +112,8 @@ export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
     getInvoiceXml: (id, format) => getInvoiceXml(rufen, id, format),
 
     getInvoiceSetupStatus: () => getInvoiceSetupStatus(rufen),
+
+    recordInvoicePayment: (anfrage) => recordInvoicePayment(rufen, anfrage),
 
     listBrands: () => listBrands(rufen),
   };

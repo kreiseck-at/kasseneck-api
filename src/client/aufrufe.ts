@@ -64,6 +64,7 @@ export const AUFRUFE = [
   'listRegisterUsersForDevice',
   'listRegisterSessionsForDevice',
   'pairRegisterDevice',
+  'recordInvoicePayment',
   'registerPinLogin',
   'registerUserLogin',
   'renewRegisterSession',

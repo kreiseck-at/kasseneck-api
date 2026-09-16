@@ -4,6 +4,39 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.18.0
+
+### Rechnungs-API: bezahlte Rechnung und Zahlungen nachtragen
+
+**Anlass:** Die API wird vor allem von Online-Shops benutzt, die **vor** der
+Rechnung kassieren. Bisher entstand immer eine offene Rechnung — mit Giro-QR
+und Fälligkeit auf dem Blatt, obwohl das Geld längst da war.
+
+- `issueInvoice` nimmt `payment` (`method`, optional `amountCents`, `paidAt`,
+  `reference`). Die Zahlung entsteht in **derselben** Transaktion wie das
+  Festschreiben; ohne `amountCents` gilt der volle Bruttobetrag.
+- Neuer Aufruf `recordInvoicePayment` für später eintreffende Zahlungen, mit
+  **pflichtigem** `idempotencyKey` — ohne ihn bucht ein Wiederholungslauf nach
+  einem Zeitlimit eine zweite Zahlung.
+- `INVOICE_PAYMENT_METHODS` (`transfer`, `card`, `online`, `cash`);
+  `Invoice.paidCents` und `Invoice.openCents`.
+- Neue Fehlercodes `not_payable` (storniert oder Gutschrift) und
+  `payment_exceeds_invoice` (mit `remainingCents`).
+- Neu: **Hinweise** an einer erfolgreichen Antwort (`INVOICE_NOTICE_CODES`,
+  `data.notice`). Bisheriger Fall: `cash_receipt_required`. Grund: eine
+  Barzahlung ist ein Barumsatz und braucht einen Beleg (§ 132a BAO), bei
+  Registrierkassenpflicht über die Registrierkasse — der Bezahlt-Vermerk ist
+  Buchhaltung und ersetzt ihn nicht. Die Rechnung selbst ist bei jeder
+  Zahlungsart erlaubt (§ 11 UStG), deshalb wird `cash` gebucht und nicht
+  abgewiesen.
+- Texte: `pdf.pille.bezahltMit` / `pdf.pille.bezahltMitDatum` und
+  `zahlungsartGross.*` — die Bezahlt-Pille nennt die Zahlungsart, ein Datum nur,
+  wenn es vom Rechnungsdatum abweicht.
+
+`reference` wird gespeichert, aber nicht gedruckt: die Rechnung wird sieben
+Jahre aufbewahrt und vervielfältigt, und dem Empfänger nützt die Zahlungs-ID
+des Shops nichts.
+
 ## 0.17.0
 
 ### Rechnungs-API: Sprache (de/en) und Marke je Rechnung

@@ -26,7 +26,7 @@ test('Katalog: kein leerer Text, dieselben Platzhalter je Schluessel', () => {
 
 test('Katalog: Englisch ist nicht einfach Deutsch (ausser neutrale Kuerzel)', () => {
   // Neutral sind nur Woerter, die in beiden Sprachen gleich lauten.
-  const neutral = new Set<RechnungTextSchluessel>(['pdf.tabelle.pos', 'pdf.zahlung.iban', 'pdf.zahlung.bic', 'pdf.status.link', 'zahlungsart.online', 'land.LI']);
+  const neutral = new Set<RechnungTextSchluessel>(['pdf.tabelle.pos', 'pdf.zahlung.iban', 'pdf.zahlung.bic', 'pdf.status.link', 'zahlungsart.online', 'zahlungsartGross.online', 'land.LI']);
   for (const s of schluessel) {
     // Kuerzel wie kg oder kWh sind international gleich; die Namen muessen uebersetzt sein.
     if (neutral.has(s) || s.startsWith('einheit.')) continue;

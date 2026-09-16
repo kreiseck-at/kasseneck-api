@@ -7,7 +7,10 @@ import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
   INVOICE_LANGUAGES,
+  INVOICE_NOTICE_CODES,
+  INVOICE_PAYMENT_METHODS,
   INVOICE_UNITS,
+  PAYMENT_FELDER,
   KUNDE_FELDER,
   RECHNUNG_EINHEITEN_CODES,
   POSITION_FELDER,
@@ -186,13 +189,42 @@ test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Spr
 });
 
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['language_not_allowed', 'brand_not_found']);
+  // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
+  // gespeichert hat, behaelt seine Zuordnung.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-4), ['language_not_allowed', 'brand_not_found', 'not_payable', 'payment_exceeds_invoice']);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
   assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('listBrands'));
   assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
+});
+
+test('Vertrag: recordInvoicePayment ist Aufruf der Rechnungs-API und des Clients', () => {
+  assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('recordInvoicePayment'));
+  assert.ok((AUFRUFE as readonly string[]).includes('recordInvoicePayment'));
+});
+
+test('Vertrag: Zahlung nimmt nur bekannte Arten, der Betrag ist optional und ganzzahlig', () => {
+  assert.deepEqual([...INVOICE_PAYMENT_METHODS], ['transfer', 'card', 'online', 'cash']);
+  const felder = RECHNUNG_ANFRAGEN.recordInvoicePayment;
+  assert.deepEqual(felder['method'], { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS });
+  // Ohne Betrag gilt das volle Brutto; 0 Cent waere keine Zahlung.
+  assert.deepEqual(felder['amountCents'], { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 });
+  assert.equal(felder['idempotencyKey']?.pflicht, true, 'ohne Schluessel bucht eine Wiederholung zweimal');
+  assert.equal(felder['invoiceId']?.pflicht, true);
+  // Am Ausstellen haengt derselbe Block, damit es nur eine Form gibt.
+  assert.deepEqual(Object.keys(PAYMENT_FELDER), ['method', 'amountCents', 'paidAt', 'reference']);
+  const zahlung = RECHNUNG_ANFRAGEN.issueInvoice['payment'];
+  assert.equal(zahlung?.typ, 'object');
+  assert.equal(zahlung?.typ === 'object' ? zahlung.felder : null, PAYMENT_FELDER);
+});
+
+test('Vertrag: Hinweise sind keine Fehler und tragen eigene Codes', () => {
+  assert.deepEqual([...INVOICE_NOTICE_CODES], ['cash_receipt_required']);
+  for (const code of INVOICE_NOTICE_CODES) {
+    assert.ok(!(INVOICE_ERROR_CODES as readonly string[]).includes(code), `${code} steht faelschlich bei den Fehlern`);
+  }
 });
 
 test('Vertrag: Einheiten sind Schluessel mit UN/ECE-Code, die Position nimmt nur sie an', () => {
