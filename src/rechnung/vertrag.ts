@@ -108,10 +108,13 @@ export const INVOICE_LANGUAGES = ['de', 'en'] as const;
 export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
 
 /**
- * Wie eine Rechnung bezahlt wurde. Der Vermerk ist Buchhaltung, kein Beleg:
- * `cash` wird gebucht, die Antwort traegt dann zusaetzlich den Hinweis
- * `cash_receipt_required` — eine Barzahlung ist ein Barumsatz und braucht
- * einen Beleg (§ 132a BAO), bei Registrierkassenpflicht ueber die Kasse.
+ * Wie eine Rechnung bezahlt wurde. Der Vermerk ist Buchhaltung, kein Beleg.
+ *
+ * Ein **Barumsatz** ist nicht nur Bargeld: als Barzahlung gilt auch die Zahlung
+ * mit Bankomat- oder Kreditkarte **vor Ort** (§ 131b Abs. 1 Z 3 UStG), nicht
+ * aber dieselbe Karte im Internet. Weil `card` und `online` beides sein
+ * koennen, sagt das Feld `onSite` es dem Server — und nur dann traegt die
+ * Antwort den Hinweis `cash_receipt_required` (bei `cash` immer).
  */
 export const INVOICE_PAYMENT_METHODS = ['transfer', 'card', 'online', 'cash'] as const;
 export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
@@ -342,6 +345,12 @@ export const PAYMENT_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
   paidAt: datum(),
   reference: text(100),
+  /**
+   * Die Zahlung erfolgte **vor Ort** beim Unternehmer (Terminal an der Kasse,
+   * Zahlung per App am Tresen). Dann ist sie ein Barumsatz. Zu `transfer` passt
+   * das nicht — eine Ueberweisung erfolgt nie vor Ort — und wird abgewiesen.
+   */
+  onSite: { typ: 'boolean', pflicht: false },
 });
 
 export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<string, Feld>>>> = Object.freeze({
@@ -436,6 +445,7 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
     paidAt: datum(),
     reference: text(100),
+    onSite: { typ: 'boolean', pflicht: false },
   },
 });
 

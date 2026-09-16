@@ -214,7 +214,7 @@ test('Vertrag: Zahlung nimmt nur bekannte Arten, der Betrag ist optional und gan
   assert.equal(felder['idempotencyKey']?.pflicht, true, 'ohne Schluessel bucht eine Wiederholung zweimal');
   assert.equal(felder['invoiceId']?.pflicht, true);
   // Am Ausstellen haengt derselbe Block, damit es nur eine Form gibt.
-  assert.deepEqual(Object.keys(PAYMENT_FELDER), ['method', 'amountCents', 'paidAt', 'reference']);
+  assert.deepEqual(Object.keys(PAYMENT_FELDER), ['method', 'amountCents', 'paidAt', 'reference', 'onSite']);
   const zahlung = RECHNUNG_ANFRAGEN.issueInvoice['payment'];
   assert.equal(zahlung?.typ, 'object');
   assert.equal(zahlung?.typ === 'object' ? zahlung.felder : null, PAYMENT_FELDER);
