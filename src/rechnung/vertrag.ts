@@ -34,6 +34,7 @@ export const RECHNUNG_AUFRUFE = [
   'getInvoiceXml',
   'getInvoiceSetupStatus',
   'listBrands',
+  'recordInvoicePayment',
 ] as const;
 export type RechnungAufruf = (typeof RECHNUNG_AUFRUFE)[number];
 
@@ -61,6 +62,8 @@ export const INVOICE_ERROR_CODES = [
   'invoice_setup_incomplete',
   'language_not_allowed',
   'brand_not_found',
+  'not_payable',
+  'payment_exceeds_invoice',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -103,6 +106,22 @@ export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
  */
 export const INVOICE_LANGUAGES = ['de', 'en'] as const;
 export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
+
+/**
+ * Wie eine Rechnung bezahlt wurde. Der Vermerk ist Buchhaltung, kein Beleg:
+ * `cash` wird gebucht, die Antwort traegt dann zusaetzlich den Hinweis
+ * `cash_receipt_required` — eine Barzahlung ist ein Barumsatz und braucht
+ * einen Beleg (§ 132a BAO), bei Registrierkassenpflicht ueber die Kasse.
+ */
+export const INVOICE_PAYMENT_METHODS = ['transfer', 'card', 'online', 'cash'] as const;
+export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
+
+/**
+ * Hinweise, die eine erfolgreiche Antwort zusaetzlich tragen kann (`data.notice`).
+ * Sie sind keine Fehler: der Aufruf hat gewirkt, es gibt nur etwas zu wissen.
+ */
+export const INVOICE_NOTICE_CODES = ['cash_receipt_required'] as const;
+export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 
 /**
  * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
@@ -311,6 +330,20 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
 
 const positionen: Feld = { typ: 'list', pflicht: true, min: 1, max: 500, eintrag: { typ: 'object', pflicht: true, felder: POSITION_FELDER } };
 
+/**
+ * Eine Zahlung zu einer Rechnung. Ohne `amountCents` gilt der volle
+ * Bruttobetrag, ohne `paidAt` der heutige Wiener Tag. `reference` ist die
+ * Zahlungskennung des Fremdsystems (z. B. `pi_3Q...`) — sie wird gespeichert,
+ * aber **nicht gedruckt**: die Rechnung wird aufbewahrt und vervielfaeltigt,
+ * und dem Empfaenger nuetzt sie nichts.
+ */
+export const PAYMENT_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
+  method: { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS },
+  amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
+  paidAt: datum(),
+  reference: text(100),
+});
+
 export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<string, Feld>>>> = Object.freeze({
   createCustomer: {
     customer: { typ: 'object', pflicht: true, felder: KUNDE_FELDER },
@@ -352,6 +385,12 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
     /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
     brandId: id,
+    /**
+     * Schon bezahlt: die Zahlung entsteht in **derselben** Transaktion wie das
+     * Festschreiben. Sonst gaebe es einen Moment, in dem die Rechnung offen ist
+     * und ein sofort geholtes PDF Zahlungsinformationen traegt.
+     */
+    payment: { typ: 'object', pflicht: false, felder: PAYMENT_FELDER },
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),
@@ -390,6 +429,14 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
   },
   getInvoiceSetupStatus: {},
   listBrands: {},
+  recordInvoicePayment: {
+    idempotencyKey: idempotencyKey(true),
+    invoiceId: idPflicht,
+    method: { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS },
+    amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
+    paidAt: datum(),
+    reference: text(100),
+  },
 });
 
 /** Genau eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */

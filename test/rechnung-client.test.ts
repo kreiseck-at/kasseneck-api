@@ -50,6 +50,8 @@ const kopf = (a: Aufzeichnung, name: string): string | undefined => {
 };
 const params = (a: Aufzeichnung): Record<string, unknown> => JSON.parse(String(a.init.body)).params;
 
+const zahlung = { id: 'z1', amountCents: 12000, paidAt: '2026-09-20', method: 'transfer' as const, reference: null };
+
 const rechnung = {
   id: 'inv1', number: '2026-0042', docType: 'RE', status: 'final',
   invoiceDate: '2026-09-14', dueDate: '2026-09-28', customerId: 'k1',
@@ -213,7 +215,7 @@ test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async
     .filter((b) => b.erwartet.ok === true);
   assert.ok(gute.length >= 3);
   for (const b of gute) {
-    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0, ready: true, environment: 'live', missing: [], brands: [] })));
+    const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, creditNote: rechnung, customer: { id: 'k1' }, replayed: false, remainingCents: 0, ready: true, environment: 'live', missing: [], brands: [], payment: zahlung })));
     const api = createRechnungApi({ apiKey: API_KEY, fetch }) as unknown as Record<string, (a: unknown) => Promise<unknown>>;
     const aufruf = api[b.aufruf];
     assert.ok(aufruf, `Client kennt ${b.aufruf} nicht`);
@@ -238,6 +240,49 @@ test('listBrands: eine Antwort ohne brands ist ein Antwortfehler', async () => {
   const { fetch } = attrappe(antwort(erfolg({})));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   await assert.rejects(api.listBrands(), (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response');
+});
+
+// ---- Zahlungen (0.18.0) ------------------------------------------------------
+
+test('recordInvoicePayment: Parameter gehen unveraendert, Antwort traegt Rechnung und Zahlung', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, payment: zahlung, replayed: false })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const ergebnis = await api.recordInvoicePayment({
+    idempotencyKey: 'zahlung-1', invoiceId: 'inv1', method: 'transfer', amountCents: 12000, paidAt: '2026-09-20',
+  });
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/recordInvoicePayment');
+  assert.deepEqual(params(anfragen[0]!), { idempotencyKey: 'zahlung-1', invoiceId: 'inv1', method: 'transfer', amountCents: 12000, paidAt: '2026-09-20' });
+  assert.deepEqual(ergebnis.payment, zahlung);
+  assert.equal(ergebnis.replayed, false);
+  assert.equal(ergebnis.notice, undefined, 'ohne Hinweis bleibt das Feld weg');
+});
+
+test('recordInvoicePayment: bei Bargeld traegt die Antwort den Hinweis auf die Belegpflicht', async () => {
+  const notice = { code: 'cash_receipt_required' as const, message: 'Barzahlung braucht einen Beleg.' };
+  const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, payment: { ...zahlung, method: 'cash' }, replayed: false, notice })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  const ergebnis = await api.recordInvoicePayment({ idempotencyKey: 'bar-1', invoiceId: 'inv1', method: 'cash' });
+  assert.deepEqual(ergebnis.notice, notice);
+});
+
+test('recordInvoicePayment: eine Antwort ohne payment ist ein Antwortfehler', async () => {
+  const { fetch } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await assert.rejects(
+    api.recordInvoicePayment({ idempotencyKey: 'k', invoiceId: 'inv1', method: 'card' }),
+    (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response',
+  );
+});
+
+test('issueInvoice: der Zahlungsblock geht unveraendert mit', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false })));
+  const api = createRechnungApi({ apiKey: API_KEY, fetch });
+  await api.issueInvoice({
+    idempotencyKey: 'k-bezahlt', taxScheme: 'normal', priceMode: 'net', serviceStart: '2026-09-16',
+    items: [{ description: 'A', quantity: 1, unitPriceCents: 5000, vatRate: 20 }],
+    payment: { method: 'card', reference: 'pi_3Q' },
+  });
+  assert.deepEqual((params(anfragen[0]!) as Record<string, unknown>)['payment'], { method: 'card', reference: 'pi_3Q' });
 });
 
 test('getInvoicePdf: language geht nur mit, wenn gesetzt (Uebersetzungskopie)', async () => {

@@ -33,11 +33,15 @@ import type {
   Invoice,
   InvoiceDetail,
   InvoiceListQuery,
+  InvoiceNotice,
   InvoicePage,
+  InvoicePayment,
   InvoiceSetupGap,
   InvoiceSetupStatus,
   IssueInvoiceRequest,
   IssueResult,
+  RecordPaymentRequest,
+  RecordPaymentResult,
 } from './typen.js';
 
 function objekt(wert: unknown): Record<string, unknown> {
@@ -183,6 +187,30 @@ export function getInvoicePdf(
   const params: Record<string, unknown> = { invoiceId };
   if (optionen.language) params['language'] = optionen.language;
   return rufenBinaer('getInvoicePdf', params);
+}
+
+/**
+ * Eine Zahlung nachtragen, die nach dem Ausstellen eingetroffen ist
+ * (Ueberweisung, Teilzahlung). Der `idempotencyKey` ist Pflicht: ohne ihn
+ * bucht ein Wiederholungslauf nach einem Zeitlimit eine zweite Zahlung.
+ *
+ * Bei `method: 'cash'` wird die Zahlung gebucht und die Antwort traegt
+ * zusaetzlich `notice` — eine Barzahlung ist ein Barumsatz und braucht einen
+ * Beleg (§ 132a BAO), den dieser Vermerk nicht ersetzt.
+ */
+export async function recordInvoicePayment(
+  rufen: InternerTransport,
+  anfrage: RecordPaymentRequest,
+): Promise<RecordPaymentResult> {
+  const daten = await rufen('recordInvoicePayment', nutzlast(anfrage));
+  const roh = objekt(daten);
+  const ergebnis: RecordPaymentResult = {
+    invoice: pflichtObjekt<Invoice>('recordInvoicePayment', daten, 'invoice'),
+    payment: pflichtObjekt<InvoicePayment>('recordInvoicePayment', daten, 'payment'),
+    replayed: roh['replayed'] === true,
+  };
+  if (roh['notice']) ergebnis.notice = roh['notice'] as InvoiceNotice;
+  return ergebnis;
 }
 
 /** Die Marken des Kontos — die Kennung geht als `brandId` in `issueInvoice`. */
