@@ -12,6 +12,8 @@ import type {
   DocType,
   InvoiceLanguage,
   InvoiceNoticeCode,
+  ItemKind,
+  ReverseChargeReason,
   InvoicePaymentMethod,
   InvoiceUnit,
   InvoiceSetupRequirement,
@@ -94,6 +96,8 @@ export interface InvoiceItemInput {
   quantity: number;
   /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
   unit?: InvoiceUnit;
+  /** Ware oder Leistung; ohne Angabe `goods`. Entscheidet ueber den Steuerfall. */
+  kind?: ItemKind;
   /** Einzelpreis in ganzen Cent, im `priceMode` der Rechnung (netto oder brutto). */
   unitPriceCents: number;
   vatRate: VatRatePercent;
@@ -106,7 +110,10 @@ export interface IssueInvoiceRequest {
   idempotencyKey: string;
   /** Pflicht ueber 400 € brutto sowie bei Reverse Charge und ig. Lieferung. */
   customerId?: string;
-  taxScheme: TaxScheme;
+  /** Optional: der Server leitet den Fall ab und prueft eine Angabe dagegen. */
+  taxScheme?: TaxScheme;
+  /** Pflicht bei `domesticReverseCharge`. */
+  reverseChargeReason?: ReverseChargeReason;
   priceMode: PriceMode;
   /** Leistungsdatum bzw. Beginn des Leistungszeitraums. */
   serviceStart: string;
@@ -257,6 +264,8 @@ export interface InvoiceItem {
   subtitle: string;
   quantity: number;
   unit: string;
+  /** Ware oder Leistung — Altbestand ohne Angabe zaehlt als `goods`. */
+  kind: ItemKind;
   unitPriceCents: number;
   vatRate: number;
   discountPct: number;
@@ -266,6 +275,10 @@ export interface InvoiceDetail extends Invoice {
   items: InvoiceItem[];
   customer: InvoiceRecipient | null;
   taxScheme: TaxScheme;
+  /** Nur bei `domesticReverseCharge`. */
+  reverseChargeReason: ReverseChargeReason | null;
+  /** Land, dessen Steuer die Rechnung traegt; Altbestand `AT`. */
+  taxCountry: string;
   priceMode: PriceMode;
   serviceStart: string | null;
   serviceEnd: string | null;
@@ -303,6 +316,13 @@ export interface IssueResult {
   invoice: Invoice;
   /** `true`, wenn die Anfrage schon einmal ausgefuehrt wurde und die bestehende Rechnung zurueckkommt. */
   replayed: boolean;
+  /**
+   * Hinweise zu dieser Rechnung — kein Fehler, sondern etwas, das der Aufrufer
+   * wissen sollte. Eine **Liste**, weil mehrere zugleich anfallen koennen: eine
+   * bar bezahlte ig. Lieferung traegt sowohl `cash_receipt_required` als auch
+   * `recapitulative_statement_due`.
+   */
+  notice?: InvoiceNotice[];
 }
 
 export interface CancelResult {
