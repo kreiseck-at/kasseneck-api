@@ -137,6 +137,45 @@ interface Zeile {
   grossCents: number;
 }
 
+/**
+ * Verteilt die Zeilenbetraege eines Satzes so, dass sie genau die Satzsumme
+ * ergeben. Startwert ist die kaufmaennisch gerundete Zeile; der Rest geht
+ * einzeln an die Zeilen, bei denen das Runden am meisten weggenommen (bzw.
+ * zugegeben) hat. Verglichen wird auf dem Bruch, nie in Gleitkomma; bei
+ * Gleichstand bekommt die fruehere Zeile den Cent. Eine Zeile ueber 0 bekommt
+ * nie einen Cent — sonst stuende auf dem Blatt ein Betrag, den die Position
+ * nicht hat.
+ */
+function verteile(
+  gruppe: readonly Zeile[],
+  feld: 'netCents' | 'grossCents',
+  faktor: bigint,
+  nenner: bigint,
+  ziel: bigint,
+): void {
+  const werte = gruppe.map((z) => {
+    const zaehler = z.L * faktor;
+    return { z, zaehler, wert: rund(zaehler, nenner) };
+  });
+  let rest = ziel - werte.reduce((s, w) => s + w.wert, 0n);
+  if (rest !== 0n) {
+    const schritt = rest > 0n ? 1n : -1n;
+    const kandidaten = werte
+      .filter((w) => w.zaehler !== 0n)
+      .sort((a, b) => {
+        const da = (a.zaehler - a.wert * nenner) * schritt;
+        const db = (b.zaehler - b.wert * nenner) * schritt;
+        if (da !== db) return db > da ? 1 : -1;
+        return a.z.index - b.z.index;
+      });
+    for (let k = 0; rest !== 0n && kandidaten.length > 0; k = (k + 1) % kandidaten.length) {
+      kandidaten[k]!.wert += schritt;
+      rest -= schritt;
+    }
+  }
+  for (const w of werte) w.z[feld] = Number(w.wert);
+}
+
 export function rechnungRechnen(
   positionen: readonly RechenPosition[],
   optionen: RechenOptionen,
@@ -184,6 +223,13 @@ export function rechnungRechnen(
       netCents = rund(S, E);
       vatCents = rund(S * r, E * 10_000n);
       grossCents = netCents + vatCents;
+    }
+    if (bruttoPreise) {
+      verteile(gruppe, 'netCents', 10_000n, E * (10_000n + r), netCents);
+      verteile(gruppe, 'grossCents', 1n, E, grossCents);
+    } else {
+      verteile(gruppe, 'netCents', 1n, E, netCents);
+      verteile(gruppe, 'grossCents', 10_000n + r, E * 10_000n, grossCents);
     }
     byRate.push({
       rateBp,

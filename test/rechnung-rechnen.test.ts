@@ -6,7 +6,9 @@ import {
   RechenFehler,
   rechnungRechnen,
   rund,
+  type RechenPosition,
 } from '../src/rechnung/rechnen.js';
+import { zufall } from './zufall.js';
 
 test('rund: halbe Einheit vom Nullpunkt weg, auf dem Bruch', () => {
   assert.equal(rund(5n, 2n), 3n); // 2,5 -> 3
@@ -176,4 +178,103 @@ test('Grenze: genau 999.999.999,99 € gehen noch', () => {
     { priceMode: 'net' },
   );
   assert.equal(s.netCents, BETRAG_GRENZE_CENTS);
+});
+
+test('Verteilung: die Zeilen ergeben genau die Satzsumme', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(2, 81), quantityMilli: 2977, vatRateBp: 2000 },
+      { unitPriceMicros: eur(0, 81), quantityMilli: 2377, vatRateBp: 2000 },
+    ],
+    { priceMode: 'net' },
+  );
+  assert.equal(s.netCents, 1029);
+  // 836,537 und 192,537 Cent: beide verlieren beim Runden gleich viel,
+  // der Cent geht deshalb an die fruehere Zeile.
+  assert.deepEqual(s.lines.map((l) => l.netCents), [836, 193]);
+  assert.equal(s.lines[0]!.netCents + s.lines[1]!.netCents, s.byRate[0]!.netCents);
+});
+
+test('Verteilung: zwei Zeilen zu je 0,6 Cent ergeben 0 und 1', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: 6000, quantityMilli: stueck(1), vatRateBp: 0 },
+      { unitPriceMicros: 6000, quantityMilli: stueck(1), vatRateBp: 0 },
+    ],
+    { priceMode: 'net' },
+  );
+  assert.equal(s.netCents, 1);
+  assert.deepEqual(s.lines.map((l) => l.netCents), [0, 1]);
+});
+
+test('Verteilung: eine Nullzeile bekommt nie einen Cent', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(0, 0), quantityMilli: stueck(1), vatRateBp: 2000 },
+      { unitPriceMicros: 6000, quantityMilli: stueck(1), vatRateBp: 2000 },
+      { unitPriceMicros: 6000, quantityMilli: stueck(1), vatRateBp: 2000 },
+    ],
+    { priceMode: 'net' },
+  );
+  assert.equal(s.lines[0]!.netCents, 0);
+  assert.equal(s.lines[1]!.netCents + s.lines[2]!.netCents, s.byRate[0]!.netCents);
+});
+
+test('Verteilung: Brutto-Modus verteilt beide Seiten aufgehend', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(14, 79), quantityMilli: stueck(1), vatRateBp: 2000 },
+      { unitPriceMicros: eur(15, 0), quantityMilli: stueck(1), vatRateBp: 2000 },
+    ],
+    { priceMode: 'gross' },
+  );
+  const satz = s.byRate[0]!;
+  assert.equal(s.lines.reduce((x, l) => x + l.netCents, 0), satz.netCents);
+  assert.equal(s.lines.reduce((x, l) => x + l.grossCents, 0), satz.grossCents);
+  assert.deepEqual(s.lines.map((l) => l.grossCents), [1479, 1500]);
+});
+
+test('Verteilung: jede Zeile traegt ihren Satz', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(10, 0), quantityMilli: stueck(1), vatRateBp: 2000 },
+      { unitPriceMicros: eur(10, 0), quantityMilli: stueck(1), vatRateBp: 490 },
+    ],
+    { priceMode: 'net' },
+  );
+  assert.deepEqual(s.lines.map((l) => l.rateBp), [2000, 490]);
+});
+
+test('Verteilung: gemischte Vorzeichen gehen ebenfalls auf', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(3, 33), quantityMilli: 3333, vatRateBp: 1000 },
+      { unitPriceMicros: eur(1, 11), quantityMilli: -1111, vatRateBp: 1000 },
+    ],
+    { priceMode: 'net' },
+  );
+  assert.equal(s.lines.reduce((x, l) => x + l.netCents, 0), s.byRate[0]!.netCents);
+});
+
+test('Eigenschaft: Zeilen gehen immer auf, und keine Zeile weicht um mehr als 1 Cent ab', () => {
+  const r = zufall(20_260_918);
+  const saetze = [0, 490, 1000, 1300, 1900, 2000];
+  for (let lauf = 0; lauf < 20_000; lauf++) {
+    const anzahl = 1 + Math.floor(r() * 6);
+    const positionen: RechenPosition[] = Array.from({ length: anzahl }, () => ({
+      unitPriceMicros: Math.floor(r() * 50_000_000),
+      quantityMilli: Math.floor(r() * 20_000) - 2000,
+      discountBp: Math.floor(r() * 10_001),
+      vatRateBp: saetze[Math.floor(r() * saetze.length)]!,
+    }));
+    const modus = r() < 0.5 ? 'net' : 'gross';
+    const s = rechnungRechnen(positionen, { priceMode: modus });
+    for (const satz of s.byRate) {
+      const zeilen = s.lines.filter((l) => l.rateBp === satz.rateBp);
+      assert.equal(zeilen.reduce((x, l) => x + l.netCents, 0), satz.netCents, `netto @${satz.rateBp}`);
+      assert.equal(zeilen.reduce((x, l) => x + l.grossCents, 0), satz.grossCents, `brutto @${satz.rateBp}`);
+    }
+    assert.equal(s.byRate.reduce((x, b) => x + b.netCents, 0), s.netCents);
+    assert.equal(s.netCents + s.vatCents, s.grossCents);
+  }
 });
