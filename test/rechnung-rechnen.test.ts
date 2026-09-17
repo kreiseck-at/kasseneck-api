@@ -41,6 +41,28 @@ test('Pruefaelle von Hand: die Faelle aus der Spec stehen drin', () => {
   }
 });
 
+const zufallDatei = JSON.parse(
+  readFileSync(new URL('../../fixtures/rechnung-rechnen-zufall.json', import.meta.url), 'utf8'),
+) as { seed: number; faelle: KernFall[] };
+
+test('Pruefaelle aus der Referenz: jeder Fall trifft genau', () => {
+  assert.ok(zufallDatei.faelle.length >= 300);
+  for (const f of zufallDatei.faelle) {
+    assert.deepEqual(
+      rechnungRechnen(f.positionen, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
+      f.erwartet,
+      f.name,
+    );
+  }
+});
+
+test('Pruefaelle aus der Referenz: die Pflichtklassen sind dabei', () => {
+  const namen = zufallDatei.faelle.map((f) => f.name).join('\n');
+  for (const klasse of ['2^53', '2^63', 'Abzugszeile', 'Rabatt 100 %', 'Menge 0', 'Gleichstand', 'halber Cent', 'steuerfrei']) {
+    assert.match(namen, new RegExp(klasse.replace('^', '\\^')));
+  }
+});
+
 test('rund: halbe Einheit vom Nullpunkt weg, auf dem Bruch', () => {
   assert.equal(rund(5n, 2n), 3n); // 2,5 -> 3
   assert.equal(rund(-5n, 2n), -3n); // -2,5 -> -3
