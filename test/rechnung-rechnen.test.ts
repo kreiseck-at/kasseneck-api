@@ -273,6 +273,22 @@ test('Verteilung: eine Nullzeile bekommt nie einen Cent', () => {
   assert.equal(s.lines[1]!.netCents + s.lines[2]!.netCents, s.byRate[0]!.netCents);
 });
 
+test('Verteilung: eine Zeile ohne Betrag bekommt keinen Rundungscent', () => {
+  const s = rechnungRechnen(
+    [
+      { unitPriceMicros: eur(0, 0), quantityMilli: stueck(1), vatRateBp: 2000 },
+      { unitPriceMicros: 25000, quantityMilli: stueck(1), vatRateBp: 2000 },
+    ],
+    { priceMode: 'net' },
+  );
+  // Beide Zeilen runden beim Aufrunden auf und stehen mit Rest 0 gleich da —
+  // trotzdem darf der Index nicht ueber den Cent entscheiden: die Nullzeile
+  // bleibt bei 0, den Cent traegt die Zeile mit dem tatsaechlichen Betrag.
+  assert.deepEqual(s.lines.map((l) => l.netCents), [0, 3]);
+  assert.deepEqual(s.lines.map((l) => l.grossCents), [0, 4]);
+  assert.equal(s.lines.reduce((x, l) => x + l.grossCents, 0), s.grossCents);
+});
+
 test('Verteilung: Brutto-Modus verteilt beide Seiten aufgehend', () => {
   const s = rechnungRechnen(
     [

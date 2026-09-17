@@ -267,6 +267,24 @@
         "byRate": [{ "rateBp": 2000, "netCents": 127, "vatCents": 25, "grossCents": 152 }],
         "lines": [{ "netCents": 127, "grossCents": 152, "rateBp": 2000 }]
       }
+    },
+    {
+      "name": "Nullzeile bekommt keinen Rundungscent: 0,00 € und 2,5 Cent netto zu 20 %",
+      "priceMode": "net",
+      "positionen": [
+        { "unitPriceMicros": 0, "quantityMilli": 1000, "vatRateBp": 2000 },
+        { "unitPriceMicros": 25000, "quantityMilli": 1000, "vatRateBp": 2000 }
+      ],
+      "erwartet": {
+        "netCents": 3,
+        "vatCents": 1,
+        "grossCents": 4,
+        "byRate": [{ "rateBp": 2000, "netCents": 3, "vatCents": 1, "grossCents": 4 }],
+        "lines": [
+          { "netCents": 0, "grossCents": 0, "rateBp": 2000 },
+          { "netCents": 3, "grossCents": 4, "rateBp": 2000 }
+        ]
+      }
     }
   ]
 }
