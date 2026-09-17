@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   BETRAG_GRENZE_CENTS,
@@ -9,6 +10,36 @@ import {
   type RechenPosition,
 } from '../src/rechnung/rechnen.js';
 import { zufall } from './zufall.js';
+
+interface KernFall {
+  name: string;
+  priceMode: 'net' | 'gross';
+  taxScheme?: string;
+  positionen: RechenPosition[];
+  erwartet: ReturnType<typeof rechnungRechnen>;
+}
+
+const handDatei = JSON.parse(
+  readFileSync(new URL('../../fixtures/rechnung-rechnen.json', import.meta.url), 'utf8'),
+) as { faelle: KernFall[] };
+
+test('Pruefaelle von Hand: jeder Fall trifft genau', () => {
+  assert.ok(handDatei.faelle.length >= 15, 'zu wenige Faelle');
+  for (const f of handDatei.faelle) {
+    assert.deepEqual(
+      rechnungRechnen(f.positionen, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
+      f.erwartet,
+      f.name,
+    );
+  }
+});
+
+test('Pruefaelle von Hand: die Faelle aus der Spec stehen drin', () => {
+  const namen = handDatei.faelle.map((f) => f.name).join('\n');
+  for (const stichwort of ['29,79', '21,35', '550,17', '0,000004', 'Gleichstand', 'Abzugszeile']) {
+    assert.match(namen, new RegExp(stichwort.replace('.', '\\.')));
+  }
+});
 
 test('rund: halbe Einheit vom Nullpunkt weg, auf dem Bruch', () => {
   assert.equal(rund(5n, 2n), 3n); // 2,5 -> 3
