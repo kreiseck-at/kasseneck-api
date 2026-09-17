@@ -257,3 +257,111 @@ export function rechnungRechnen(
   }
   return ergebnis;
 }
+
+export type UmwandlungsGrund = 'kein_zahlwert' | 'nachkommastellen' | 'ausserhalb';
+
+export type Umwandlung =
+  | { ok: true; position: RechenPosition & Record<string, unknown> }
+  | { ok: false; feld: 'unitPrice' | 'quantity' | 'vatRate' | 'discountPct'; grund: UmwandlungsGrund };
+
+/**
+ * Wandelt eine Zahl ueber ihren kuerzesten Dezimaltext in eine Ganzzahl mit
+ * `stellen` Nachkommastellen. Kein Gleitkomma-Rechnen: `0.1 * 1000` ist
+ * 100.00000000000001, `String(0.1)` dagegen genau "0.1". Mehr Stellen als
+ * erlaubt ergeben `null` — auch Gleitkomma-Rauschen wie 0.30000000000000004,
+ * das mit 17 Stellen dasteht.
+ */
+function ganzAusDezimaltext(wert: number, stellen: number): number | null {
+  if (typeof wert !== 'number' || !Number.isFinite(wert)) return null;
+  const treffer = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(String(wert));
+  if (!treffer) return null;
+  const [, vorzeichen = '', ganzTeil = '0', bruchTeil = '', hoch = '0'] = treffer;
+  const verschiebung = Number(hoch);
+  let ziffern = `${ganzTeil}${bruchTeil}`;
+  let nachkomma = bruchTeil.length - verschiebung;
+  if (nachkomma < 0) {
+    ziffern += '0'.repeat(-nachkomma);
+    nachkomma = 0;
+  }
+  if (nachkomma > stellen) {
+    // Nur echte Nullen am Ende duerfen wegfallen (1.20 bei 1 Stelle).
+    const zuviel = nachkomma - stellen;
+    if (!/^0+$/.test(ziffern.slice(-zuviel))) return null;
+    ziffern = ziffern.slice(0, -zuviel);
+    nachkomma = stellen;
+  }
+  const skaliert = `${ziffern}${'0'.repeat(stellen - nachkomma)}`;
+  const zahl = Number(`${vorzeichen}${skaliert}`);
+  return Number.isSafeInteger(zahl) ? zahl : null;
+}
+
+const EURO_FELDER = ['unitPrice', 'quantity', 'vatRate', 'discountPct'] as const;
+
+/**
+ * Euro-Position → Ganzzahl-Form, verlustfrei oder mit Grund abgelehnt. Die
+ * EINE Stelle, die das tut: Panel (beim Lesen), SEPA-Lauf, Umrechnungsskript
+ * und das Festschreiben benutzen alle diese Funktion, damit niemand eine
+ * zweite Auslegung baut.
+ *
+ * Eine Position, die schon `unitPriceMicros` traegt, kommt unveraendert
+ * zurueck — die Funktion ist die Formweiche, nicht eine blinde Umrechnung.
+ *
+ * Fehlende Menge und fehlender Satz gelten als 0, weil der Server bisher so
+ * abgerechnet hat. Ein fehlender Preis dagegen ist NIE 0: sonst wuerde eine
+ * Position, der nur der Preis fehlt, still zur 0-€-Zeile.
+ */
+export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
+  if (typeof item.unitPriceMicros === 'number') {
+    return { ok: true, position: item as unknown as RechenPosition & Record<string, unknown> };
+  }
+
+  const roh = item.unitPrice;
+  if (typeof roh !== 'number' || !Number.isFinite(roh)) {
+    return { ok: false, feld: 'unitPrice', grund: 'kein_zahlwert' };
+  }
+  const micros = ganzAusDezimaltext(Math.abs(roh), 6);
+  if (micros === null) return { ok: false, feld: 'unitPrice', grund: 'nachkommastellen' };
+  if (micros > GRENZEN.unitPriceMicros[1]) return { ok: false, feld: 'unitPrice', grund: 'ausserhalb' };
+
+  const zahl = (
+    feld: 'quantity' | 'vatRate' | 'discountPct',
+    stellen: number,
+    max: number,
+    vielfaches = 1,
+  ):
+    | { ok: true; wert: number }
+    | { ok: false; grund: UmwandlungsGrund } => {
+    const w = item[feld];
+    if (w === undefined || w === null) return { ok: true, wert: 0 };
+    if (typeof w !== 'number' || !Number.isFinite(w)) return { ok: false, grund: 'kein_zahlwert' };
+    const ganz = ganzAusDezimaltext(w, stellen);
+    if (ganz === null) return { ok: false, grund: 'nachkommastellen' };
+    const wert = ganz * vielfaches;
+    if (wert < (feld === 'quantity' ? -max : 0) || wert > max) return { ok: false, grund: 'ausserhalb' };
+    return { ok: true, wert };
+  };
+
+  const menge = zahl('quantity', 3, GRENZEN.quantityMilli[1]);
+  if (!menge.ok) return { ok: false, feld: 'quantity', grund: menge.grund };
+  // USt-Saetze haben in der Praxis hoechstens eine Nachkommastelle (4,9 / 10 / 13 / 20 %).
+  // Die Skala vatRateBp bleibt Hundertstel-Prozent, darum ×10 nach der Umwandlung — so faellt
+  // Rauschen wie 4,95 % durch, ohne die zulaessige Feinheit der Skala selbst zu senken.
+  const satz = zahl('vatRate', 1, 10_000, 10);
+  if (!satz.ok) return { ok: false, feld: 'vatRate', grund: satz.grund };
+  const rabatt = zahl('discountPct', 2, 10_000);
+  if (!rabatt.ok) return { ok: false, feld: 'discountPct', grund: rabatt.grund };
+
+  const rest: Record<string, unknown> = { ...item };
+  for (const feld of EURO_FELDER) delete rest[feld];
+
+  return {
+    ok: true,
+    position: {
+      ...rest,
+      unitPriceMicros: micros,
+      quantityMilli: roh < 0 ? -menge.wert : menge.wert,
+      discountBp: rabatt.wert,
+      vatRateBp: satz.wert,
+    },
+  };
+}
