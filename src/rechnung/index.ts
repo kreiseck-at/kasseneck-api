@@ -78,6 +78,26 @@ export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './tex
 export { rechnungSummen, STEUERFREIE_FAELLE, type SummenPosition } from './summen.js';
 
 export {
+  anteiligerPreis,
+  BETRAG_GRENZE_CENTS,
+  positionAusEuro,
+  preisText,
+  RechenFehler,
+  rechnungRechnen,
+  rund,
+  satzSchluessel,
+  satzText,
+  type RechenErgebnis,
+  type RechenFehlerCode,
+  type RechenOptionen,
+  type RechenPosition,
+  type SatzSumme,
+  type Umwandlung,
+  type UmwandlungsGrund,
+  type ZeilenBetrag,
+} from './rechnen.js';
+
+export {
   RECHNUNG_VERTRAG_VERSION,
   RECHNUNG_AUFRUFE,
   INVOICE_ERROR_CODES,

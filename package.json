@@ -129,6 +129,16 @@
         "default": "./dist/cjs/rechnung/index.js"
       }
     },
+    "./rechnung/rechnen": {
+      "import": {
+        "types": "./dist/esm/rechnung/rechnen.d.ts",
+        "default": "./dist/esm/rechnung/rechnen.js"
+      },
+      "require": {
+        "types": "./dist/cjs/rechnung/rechnen.d.ts",
+        "default": "./dist/cjs/rechnung/rechnen.js"
+      }
+    },
     "./fixtures/*": "./fixtures/*"
   },
   "files": [

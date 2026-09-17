@@ -12,8 +12,9 @@
  * Grenzfaelle gleich runden. Mit Ganzzahlen gibt es keine Reihenfolge mehr, an
  * der etwas auseinanderlaufen koennte.
  *
- * Dieser Unterpfad ist rein: kein Transport, kein api_key, keine Abhaengigkeit
- * ausser Typen. Er wird im Browser gebuendelt (Panel) und im Server geladen.
+ * Dieser Unterpfad ist rein: kein Transport, kein Zugangsschluessel, keine
+ * Abhaengigkeit ausser Typen. Er wird im Browser gebuendelt (Panel) und im
+ * Server geladen.
  *
  * Spec: docs/specs/2026-09-17-rechnung-ganzzahlen-design.md § 5.
  */
