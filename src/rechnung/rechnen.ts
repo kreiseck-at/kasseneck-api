@@ -128,18 +128,76 @@ function ganzzahl(wert: unknown, feld: GrenzFeld, index: number): number {
   return wert;
 }
 
+interface Zeile {
+  index: number;
+  rateBp: number;
+  /** Zeilenbetrag als Zaehler ueber E, im Preismodus der Rechnung. */
+  L: bigint;
+  netCents: number;
+  grossCents: number;
+}
+
 export function rechnungRechnen(
   positionen: readonly RechenPosition[],
   optionen: RechenOptionen,
 ): RechenErgebnis {
   const steuerfrei = STEUERFREIE_FAELLE.includes(optionen.taxScheme ?? 'normal');
-  for (const [index, p] of positionen.entries()) {
-    ganzzahl(p.unitPriceMicros, 'unitPriceMicros', index);
-    ganzzahl(p.quantityMilli, 'quantityMilli', index);
-    ganzzahl(p.discountBp ?? 0, 'discountBp', index);
-    ganzzahl(p.vatRateBp ?? 0, 'vatRateBp', index);
+  const bruttoPreise = optionen.priceMode === 'gross' && !steuerfrei;
+
+  const zeilen: Zeile[] = positionen.map((p, index) => {
+    const preis = BigInt(ganzzahl(p.unitPriceMicros, 'unitPriceMicros', index));
+    const menge = BigInt(ganzzahl(p.quantityMilli, 'quantityMilli', index));
+    const rabatt = BigInt(ganzzahl(p.discountBp ?? 0, 'discountBp', index));
+    const satz = ganzzahl(p.vatRateBp ?? 0, 'vatRateBp', index);
+    return {
+      index,
+      rateBp: steuerfrei ? 0 : satz,
+      L: preis * menge * (10_000n - rabatt) * 1_000_000n,
+      netCents: 0,
+      grossCents: 0,
+    };
+  });
+
+  const jeSatz = new Map<number, Zeile[]>();
+  for (const z of zeilen) {
+    const gruppe = jeSatz.get(z.rateBp);
+    if (gruppe) gruppe.push(z);
+    else jeSatz.set(z.rateBp, [z]);
   }
-  void steuerfrei;
-  void E;
-  return { netCents: 0, vatCents: 0, grossCents: 0, byRate: [], lines: [] };
+
+  const byRate: SatzSumme[] = [];
+  for (const [rateBp, gruppe] of jeSatz) {
+    const r = BigInt(rateBp);
+    const S = gruppe.reduce((s, z) => s + z.L, 0n);
+    let netCents: bigint;
+    let vatCents: bigint;
+    let grossCents: bigint;
+    if (bruttoPreise) {
+      grossCents = rund(S, E);
+      netCents = rund(grossCents * 10_000n, 10_000n + r);
+      vatCents = grossCents - netCents;
+    } else {
+      netCents = rund(S, E);
+      vatCents = rund(S * r, E * 10_000n);
+      grossCents = netCents + vatCents;
+    }
+    byRate.push({
+      rateBp,
+      netCents: Number(netCents),
+      vatCents: Number(vatCents),
+      grossCents: Number(grossCents),
+    });
+  }
+  byRate.sort((a, b) => b.rateBp - a.rateBp);
+
+  const summe = (feld: 'netCents' | 'vatCents' | 'grossCents'): number =>
+    byRate.reduce((s, r) => s + r[feld], 0);
+
+  return {
+    netCents: summe('netCents'),
+    vatCents: summe('vatCents'),
+    grossCents: summe('grossCents'),
+    byRate,
+    lines: zeilen.map((z) => ({ netCents: z.netCents, grossCents: z.grossCents, rateBp: z.rateBp })),
+  };
 }
