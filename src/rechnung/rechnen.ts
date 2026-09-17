@@ -356,3 +356,46 @@ export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
     },
   };
 }
+
+/**
+ * Anteiliger Preis fuer einen Teilzeitraum (erste Rechnung eines Abos).
+ * War der Ursprungspreis centgenau, bleibt auch der Anteil centgenau — sonst
+ * stuende auf der ersten Rechnung ein Preis mit sechs Stellen, wo bisher zwei
+ * standen. Ausnahme: Preise unter 1 € behalten ihre feinen Dezimalstellen.
+ */
+export function anteiligerPreis(unitPriceMicros: number, monate: number, intervall: number): number {
+  const micros = BigInt(unitPriceMicros);
+  const anteil = rund(micros * BigInt(monate), BigInt(intervall));
+  if (unitPriceMicros < 1_000_000) return Number(anteil);
+  return Number(rund(anteil, 10_000n) * 10_000n);
+}
+
+/**
+ * Schluessel eines USt-Satzes in den gespeicherten Maps (`creditedCents.byRate`,
+ * `invoice_stats.vatByRate`): der Prozenttext mit Punkt, genau wie
+ * `String(satz)` ihn bisher gebildet hat. NICHT fuer die Anzeige — dafuer gibt
+ * es `satzText`.
+ */
+export function satzSchluessel(rateBp: number): string {
+  return String(rateBp / 100);
+}
+
+/** Ein USt-Satz fuer die Anzeige: oesterreichisch mit Komma, ohne nachlaufende Nullen. */
+export function satzText(rateBp: number): string {
+  return satzSchluessel(rateBp).replace('.', ',');
+}
+
+/**
+ * Ein Einzelpreis fuer die Anzeige: mindestens zwei, hoechstens sechs
+ * Nachkommastellen, Tausenderpunkt, Komma als Trennzeichen — in jeder Sprache
+ * oesterreichisch, wie die Betraege auf dem Blatt.
+ */
+export function preisText(unitPriceMicros: number): string {
+  const negativ = unitPriceMicros < 0;
+  const betrag = Math.abs(unitPriceMicros);
+  const ganz = Math.trunc(betrag / 1_000_000);
+  let bruch = String(betrag % 1_000_000).padStart(6, '0');
+  while (bruch.length > 2 && bruch.endsWith('0')) bruch = bruch.slice(0, -1);
+  const mitPunkten = String(ganz).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negativ ? '-' : ''}${mitPunkten},${bruch}`;
+}
