@@ -361,12 +361,12 @@ export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
  * Anteiliger Preis fuer einen Teilzeitraum (erste Rechnung eines Abos).
  * War der Ursprungspreis centgenau, bleibt auch der Anteil centgenau — sonst
  * stuende auf der ersten Rechnung ein Preis mit sechs Stellen, wo bisher zwei
- * standen. Ausnahme: Preise unter 1 € behalten ihre feinen Dezimalstellen.
+ * standen.
  */
 export function anteiligerPreis(unitPriceMicros: number, monate: number, intervall: number): number {
   const micros = BigInt(unitPriceMicros);
   const anteil = rund(micros * BigInt(monate), BigInt(intervall));
-  if (unitPriceMicros < 1_000_000) return Number(anteil);
+  if (unitPriceMicros % 10_000 !== 0) return Number(anteil);
   return Number(rund(anteil, 10_000n) * 10_000n);
 }
 

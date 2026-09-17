@@ -8,7 +8,14 @@ test('anteiligerPreis: 7 von 12 Monaten aus 100,00 € sind 58,33 €', () => {
 });
 
 test('anteiligerPreis: ein Mikropreis bleibt fein', () => {
-  assert.equal(anteiligerPreis(250_000, 7, 12), 145_833);
+  // 0,00025 € ist NICHT centgenau (250 µ€), der Anteil bleibt deshalb in µ€:
+  // 250 × 7 / 12 = 145,83 -> 146 µ€.
+  assert.equal(anteiligerPreis(250, 7, 12), 146);
+});
+
+test('anteiligerPreis: ein centgenauer Preis bleibt centgenau', () => {
+  // 0,25 € sind 250.000 µ€ und centgenau: 0,25 × 7 / 12 = 0,1458… -> 0,15 €.
+  assert.equal(anteiligerPreis(250_000, 7, 12), 150_000);
 });
 
 test('satzSchluessel: derselbe Text wie String(satz) — die Statistik haengt daran', () => {
