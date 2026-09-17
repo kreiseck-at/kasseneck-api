@@ -89,6 +89,19 @@
       "name": "Preis ueber 10^12 Mikro-Euro liegt ausserhalb",
       "item": { "unitPrice": 1000001, "quantity": 1 },
       "erwartet": { "ok": false, "feld": "unitPrice", "grund": "ausserhalb" }
+    },
+    {
+      "name": "Satz mit zwei Nachkommastellen (4,95 %) ist verlustfrei",
+      "item": { "unitPrice": 1, "quantity": 1, "vatRate": 4.95 },
+      "erwartet": {
+        "ok": true,
+        "position": { "unitPriceMicros": 1000000, "quantityMilli": 1000, "discountBp": 0, "vatRateBp": 495 }
+      }
+    },
+    {
+      "name": "Satz mit drei Nachkommastellen (4,955 %) wird abgelehnt",
+      "item": { "unitPrice": 1, "quantity": 1, "vatRate": 4.955 },
+      "erwartet": { "ok": false, "feld": "vatRate", "grund": "nachkommastellen" }
     }
   ]
 }

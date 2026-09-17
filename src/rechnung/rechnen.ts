@@ -323,12 +323,7 @@ export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
   if (micros === null) return { ok: false, feld: 'unitPrice', grund: 'nachkommastellen' };
   if (micros > GRENZEN.unitPriceMicros[1]) return { ok: false, feld: 'unitPrice', grund: 'ausserhalb' };
 
-  const zahl = (
-    feld: 'quantity' | 'vatRate' | 'discountPct',
-    stellen: number,
-    max: number,
-    vielfaches = 1,
-  ):
+  const zahl = (feld: 'quantity' | 'vatRate' | 'discountPct', stellen: number, max: number):
     | { ok: true; wert: number }
     | { ok: false; grund: UmwandlungsGrund } => {
     const w = item[feld];
@@ -336,17 +331,13 @@ export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
     if (typeof w !== 'number' || !Number.isFinite(w)) return { ok: false, grund: 'kein_zahlwert' };
     const ganz = ganzAusDezimaltext(w, stellen);
     if (ganz === null) return { ok: false, grund: 'nachkommastellen' };
-    const wert = ganz * vielfaches;
-    if (wert < (feld === 'quantity' ? -max : 0) || wert > max) return { ok: false, grund: 'ausserhalb' };
-    return { ok: true, wert };
+    if (ganz < (feld === 'quantity' ? -max : 0) || ganz > max) return { ok: false, grund: 'ausserhalb' };
+    return { ok: true, wert: ganz };
   };
 
   const menge = zahl('quantity', 3, GRENZEN.quantityMilli[1]);
   if (!menge.ok) return { ok: false, feld: 'quantity', grund: menge.grund };
-  // USt-Saetze haben in der Praxis hoechstens eine Nachkommastelle (4,9 / 10 / 13 / 20 %).
-  // Die Skala vatRateBp bleibt Hundertstel-Prozent, darum ×10 nach der Umwandlung — so faellt
-  // Rauschen wie 4,95 % durch, ohne die zulaessige Feinheit der Skala selbst zu senken.
-  const satz = zahl('vatRate', 1, 10_000, 10);
+  const satz = zahl('vatRate', 2, 10_000);
   if (!satz.ok) return { ok: false, feld: 'vatRate', grund: satz.grund };
   const rabatt = zahl('discountPct', 2, 10_000);
   if (!rabatt.ok) return { ok: false, feld: 'discountPct', grund: rabatt.grund };

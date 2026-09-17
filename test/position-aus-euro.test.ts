@@ -53,7 +53,7 @@ test('Umwandler: zu viele Stellen werden abgelehnt, auch Gleitkomma-Rauschen', (
     [{ unitPrice: 0.30000000000000004 }, 'unitPrice'],
     [{ unitPrice: 1, quantity: 1.0001 }, 'quantity'],
     [{ unitPrice: 1, quantity: 1, discountPct: 12.345 }, 'discountPct'],
-    [{ unitPrice: 1, quantity: 1, vatRate: 4.95 }, 'vatRate'],
+    [{ unitPrice: 1, quantity: 1, vatRate: 4.955 }, 'vatRate'],
   ];
   for (const [item, feld] of faelle) {
     const e = positionAusEuro(item) as Extract<Umwandlung, { ok: false }>;
@@ -61,6 +61,14 @@ test('Umwandler: zu viele Stellen werden abgelehnt, auch Gleitkomma-Rauschen', (
     assert.equal(e.feld, feld);
     assert.equal(e.grund, 'nachkommastellen');
   }
+});
+
+test('Umwandler: zwei Nachkommastellen im Satz sind verlustfrei', () => {
+  // Der Umwandler prueft Verlustfreiheit, nicht ob es den Satz gibt: 4,95 %
+  // sind genau 495 Hundertstel-Prozent (Spec § 5.9: 2 Stellen bei Satz und Rabatt).
+  const e = positionAusEuro({ unitPrice: 1, quantity: 1, vatRate: 4.95 });
+  assert.equal(e.ok, true);
+  if (e.ok) assert.equal(e.position.vatRateBp, 495);
 });
 
 test('Umwandler: Text, NaN und unmoegliche Werte', () => {
