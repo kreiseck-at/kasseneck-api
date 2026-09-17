@@ -144,18 +144,22 @@ export function rechnungRechnen(
   const steuerfrei = STEUERFREIE_FAELLE.includes(optionen.taxScheme ?? 'normal');
   const bruttoPreise = optionen.priceMode === 'gross' && !steuerfrei;
 
+  const grenze = BigInt(BETRAG_GRENZE_CENTS) * E;
   const zeilen: Zeile[] = positionen.map((p, index) => {
     const preis = BigInt(ganzzahl(p.unitPriceMicros, 'unitPriceMicros', index));
     const menge = BigInt(ganzzahl(p.quantityMilli, 'quantityMilli', index));
     const rabatt = BigInt(ganzzahl(p.discountBp ?? 0, 'discountBp', index));
     const satz = ganzzahl(p.vatRateBp ?? 0, 'vatRateBp', index);
-    return {
-      index,
-      rateBp: steuerfrei ? 0 : satz,
-      L: preis * menge * (10_000n - rabatt) * 1_000_000n,
-      netCents: 0,
-      grossCents: 0,
-    };
+    const L = preis * menge * (10_000n - rabatt) * 1_000_000n;
+    if ((L < 0n ? -L : L) > grenze) {
+      throw new RechenFehler(
+        'amount_too_large',
+        `items[${index}] uebersteigt ${BETRAG_GRENZE_CENTS} Cent`,
+        'unitPriceMicros',
+        index,
+      );
+    }
+    return { index, rateBp: steuerfrei ? 0 : satz, L, netCents: 0, grossCents: 0 };
   });
 
   const jeSatz = new Map<number, Zeile[]>();
@@ -193,11 +197,17 @@ export function rechnungRechnen(
   const summe = (feld: 'netCents' | 'vatCents' | 'grossCents'): number =>
     byRate.reduce((s, r) => s + r[feld], 0);
 
-  return {
+  const ergebnis: RechenErgebnis = {
     netCents: summe('netCents'),
     vatCents: summe('vatCents'),
     grossCents: summe('grossCents'),
     byRate,
     lines: zeilen.map((z) => ({ netCents: z.netCents, grossCents: z.grossCents, rateBp: z.rateBp })),
   };
+  for (const feld of ['netCents', 'vatCents', 'grossCents'] as const) {
+    if (Math.abs(ergebnis[feld]) > BETRAG_GRENZE_CENTS) {
+      throw new RechenFehler('amount_too_large', `Die Rechnung uebersteigt ${BETRAG_GRENZE_CENTS} Cent (${feld})`);
+    }
+  }
+  return ergebnis;
 }

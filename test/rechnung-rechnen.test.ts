@@ -142,3 +142,38 @@ test('Rabatt 100 %: die Zeile zaehlt nicht', () => {
   );
   assert.deepEqual({ net: s.netCents, ust: s.vatCents }, { net: 0, ust: 0 });
 });
+
+test('Grenze: eine einzelne Zeile ueber 999.999.999,99 € fliegt mit Index', () => {
+  try {
+    rechnungRechnen(
+      [{ unitPriceMicros: 1_000_000_000_000, quantityMilli: stueck(2000), vatRateBp: 0 }],
+      { priceMode: 'net' },
+    );
+    throw new Error('kein Fehler geworfen');
+  } catch (e) {
+    const f = e as RechenFehler;
+    assert.equal(f.code, 'amount_too_large');
+    assert.equal(f.index, 0);
+  }
+});
+
+test('Grenze: viele erlaubte Zeilen, deren Summe zu gross wird', () => {
+  const eine = { unitPriceMicros: 1_000_000_000_000, quantityMilli: stueck(900), vatRateBp: 0 };
+  const positionen = Array.from({ length: 3 }, () => eine);
+  try {
+    rechnungRechnen(positionen, { priceMode: 'net' });
+    throw new Error('kein Fehler geworfen');
+  } catch (e) {
+    const f = e as RechenFehler;
+    assert.equal(f.code, 'amount_too_large');
+    assert.equal(f.index, undefined);
+  }
+});
+
+test('Grenze: genau 999.999.999,99 € gehen noch', () => {
+  const s = rechnungRechnen(
+    [{ unitPriceMicros: 999_999_999_990, quantityMilli: stueck(1000), vatRateBp: 0 }],
+    { priceMode: 'net' },
+  );
+  assert.equal(s.netCents, BETRAG_GRENZE_CENTS);
+});
