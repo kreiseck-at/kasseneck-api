@@ -325,9 +325,24 @@ test('Verteilung: gemischte Vorzeichen gehen ebenfalls auf', () => {
   assert.equal(s.lines.reduce((x, l) => x + l.netCents, 0), s.byRate[0]!.netCents);
 });
 
+/**
+ * Abstand des zugeteilten Cents vom exakten Bruchwert der Zeile, in Cent
+ * (bis auf 1/1000 genau, ueber Ganzzahl-Division ermittelt — kein Gleitkomma,
+ * das bei den hier vorkommenden Groessenordnungen selbst Rauschen erzeugen
+ * wuerde). `zaehler`/`nenner` sind derselbe Bruch, den `rechnungRechnen`
+ * intern rundet, `cent` der Wert, der der Zeile am Ende zugeteilt wurde.
+ */
+function abweichungCent(zaehler: bigint, nenner: bigint, cent: number): number {
+  const diff = BigInt(cent) * nenner - zaehler;
+  const diffAbs = diff < 0n ? -diff : diff;
+  return Number((diffAbs * 1000n) / nenner) / 1000;
+}
+
 test('Eigenschaft: Zeilen gehen immer auf, und keine Zeile weicht um mehr als 1 Cent ab', () => {
   const r = zufall(20_260_918);
   const saetze = [0, 490, 1000, 1300, 1900, 2000];
+  const E = 10n ** 17n;
+  let maxAbweichung = 0;
   for (let lauf = 0; lauf < 20_000; lauf++) {
     const anzahl = 1 + Math.floor(r() * 6);
     const positionen: RechenPosition[] = Array.from({ length: anzahl }, () => ({
@@ -345,5 +360,31 @@ test('Eigenschaft: Zeilen gehen immer auf, und keine Zeile weicht um mehr als 1 
     }
     assert.equal(s.byRate.reduce((x, b) => x + b.netCents, 0), s.netCents);
     assert.equal(s.netCents + s.vatCents, s.grossCents);
+
+    // Je Zeile: derselbe Bruch, den der Kern intern rundet, gegen den
+    // tatsaechlich zugeteilten Cent — nicht nur, dass die Zeilen aufgehen.
+    for (let i = 0; i < positionen.length; i++) {
+      const p = positionen[i]!;
+      const zeile = s.lines[i]!;
+      const L = BigInt(p.unitPriceMicros) * BigInt(p.quantityMilli) *
+        (10_000n - BigInt(p.discountBp ?? 0)) * 1_000_000n;
+      const satzBp = BigInt(zeile.rateBp);
+      let netZaehler: bigint, netNenner: bigint, bruttoZaehler: bigint, bruttoNenner: bigint;
+      if (modus === 'gross') {
+        bruttoZaehler = L; bruttoNenner = E;
+        netZaehler = L * 10_000n; netNenner = E * (10_000n + satzBp);
+      } else {
+        netZaehler = L; netNenner = E;
+        bruttoZaehler = L * (10_000n + satzBp); bruttoNenner = E * 10_000n;
+      }
+      const abwNetto = abweichungCent(netZaehler, netNenner, zeile.netCents);
+      const abwBrutto = abweichungCent(bruttoZaehler, bruttoNenner, zeile.grossCents);
+      assert.ok(abwNetto <= 1, `Netto-Zeile weicht ${abwNetto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
+      assert.ok(abwBrutto <= 1, `Brutto-Zeile weicht ${abwBrutto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
+      maxAbweichung = Math.max(maxAbweichung, abwNetto, abwBrutto);
+    }
   }
+  // Die Schranke haelt, liegt aber nahe an 1 Cent — dieser Lauf (fester Seed,
+  // ueber 100.000 gepruefte Zeilen) misst bis zu 0,999 Cent.
+  assert.ok(maxAbweichung <= 1, `hoechste gemessene Abweichung: ${maxAbweichung} Cent`);
 });
