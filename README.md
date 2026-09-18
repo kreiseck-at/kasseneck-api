@@ -600,10 +600,12 @@ Grund, wenn das nicht geht. Die Prüffälle liegen in
 `fixtures/rechnung-rechnen.json`, `fixtures/rechnung-rechnen-zufall.json` und
 `fixtures/position-aus-euro.json`. **Noch nicht zusammengeführt** mit
 `rechnungSummen`: bis 0.24.0 rechnen beide parallel und weichen an
-Halbcent-Grenzen bewusst voneinander ab — bis zu 1 Cent bei einmal gerundeten
-Werten (Netto und USt im Netto-Modus, Brutto im Brutto-Modus) und bis zu
-2 Cent bei abgeleiteten (Summe zweier Rundungen). Der Kern rundet dort
-richtig, `rechnungSummen` rechnet weiterhin wie der Server heute. Verbindlich
+Halbcent-Grenzen bewusst voneinander ab — **je USt-Satz** bis zu 1 Cent bei
+einmal gerundeten Werten (Netto und USt im Netto-Modus, Brutto im
+Brutto-Modus) und bis zu 2 Cent bei abgeleiteten (Summe zweier Rundungen). Bei
+mehreren Sätzen summiert sich das: eine Rechnung über drei Sätze kann deshalb
+3 Cent auseinanderliegen. Der Kern rundet dort richtig, `rechnungSummen`
+rechnet weiterhin wie der Server heute. Verbindlich
 für den ausgewiesenen Betrag bleibt bis dahin `previewInvoice`.
 
 **Hinweise** (`notice`) sind immer eine Liste — bei `issueInvoice`,

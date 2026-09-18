@@ -84,7 +84,7 @@ test('README: die Unterpfad-Tabelle nennt genau die deklarierten Unterpfade', ()
   }
   // Und umgekehrt: kein erfundener Unterpfad in der Tabelle — ein- UND
   // zweiteilig (z. B. `/rechnung/rechnen`).
-  for (const treffer of README.matchAll(/\| `…(\/[a-z]+(?:\/[a-z]+)?)` \|/g)) {
+  for (const treffer of README.matchAll(/\| `…((?:\/[a-z]+)+)` \|/g)) {
     assert.ok(deklariert.includes(treffer[1] ?? ''), `README beschreibt einen Unterpfad, den es nicht gibt: ${treffer[1]}`);
   }
 });

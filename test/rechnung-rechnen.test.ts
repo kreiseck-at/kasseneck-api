@@ -335,7 +335,9 @@ test('Verteilung: gemischte Vorzeichen gehen ebenfalls auf', () => {
 function abweichungCent(zaehler: bigint, nenner: bigint, cent: number): number {
   const diff = BigInt(cent) * nenner - zaehler;
   const diffAbs = diff < 0n ? -diff : diff;
-  return Number((diffAbs * 1000n) / nenner) / 1000;
+  // Aufgerundet, nie abgeschnitten: der gemeldete Wert darf den echten Abstand
+  // nicht kleiner aussehen lassen, sonst waere die Schranke in Wahrheit 1,001.
+  return Number((diffAbs * 1000n + nenner - 1n) / nenner) / 1000;
 }
 
 test('Eigenschaft: Zeilen gehen immer auf, und keine Zeile weicht um mehr als 1 Cent ab', () => {
@@ -379,12 +381,20 @@ test('Eigenschaft: Zeilen gehen immer auf, und keine Zeile weicht um mehr als 1 
       }
       const abwNetto = abweichungCent(netZaehler, netNenner, zeile.netCents);
       const abwBrutto = abweichungCent(bruttoZaehler, bruttoNenner, zeile.grossCents);
-      assert.ok(abwNetto <= 1, `Netto-Zeile weicht ${abwNetto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
-      assert.ok(abwBrutto <= 1, `Brutto-Zeile weicht ${abwBrutto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
+      // Die Seite, deren Zielsumme `rund(Summe)` ist, bleibt echt unter 1 Cent;
+      // die abgeleitete Seite darf 1 Cent erreichen, weil dort zwei Rundungen
+      // zusammenkommen (Spec 5.3).
+      const eigeneNetto = modus === 'net';
+      assert.ok(eigeneNetto ? abwNetto < 1 : abwNetto <= 1,
+        `Netto-Zeile weicht ${abwNetto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
+      assert.ok(eigeneNetto ? abwBrutto <= 1 : abwBrutto < 1,
+        `Brutto-Zeile weicht ${abwBrutto} Cent vom exakten Wert ab (Lauf ${lauf}, Zeile ${i})`);
       maxAbweichung = Math.max(maxAbweichung, abwNetto, abwBrutto);
     }
   }
-  // Die Schranke haelt, liegt aber nahe an 1 Cent — dieser Lauf (fester Seed,
-  // ueber 100.000 gepruefte Zeilen) misst bis zu 0,999 Cent.
-  assert.ok(maxAbweichung <= 1, `hoechste gemessene Abweichung: ${maxAbweichung} Cent`);
+  // Untere Schranke statt oberer: die obere haelt schon jede Zeile einzeln fest.
+  // Hier steht, dass die Messung ueberhaupt beisst — gaebe abweichungCent immer 0
+  // zurueck, bliebe oben alles gruen. Dieser Lauf (fester Seed, 69.809 gepruefte
+  // Zeilen) kommt der Schranke bis auf 0,999 Cent nahe.
+  assert.ok(maxAbweichung > 0.5, `hoechste gemessene Abweichung: ${maxAbweichung} Cent`);
 });
