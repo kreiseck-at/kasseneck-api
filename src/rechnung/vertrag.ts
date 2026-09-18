@@ -70,6 +70,8 @@ export const INVOICE_ERROR_CODES = [
   'reverse_charge_threshold',
   'mixed_supply_not_allowed',
   'oss_not_enabled',
+  'einvoice_unavailable', // zu dieser Rechnung entsteht keine E-Rechnung, Grund in `reason`
+  'amount_too_large', // Betrag ueber der Grenze des Ganzzahlkerns; erst ab dessen Umstieg gesendet
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 

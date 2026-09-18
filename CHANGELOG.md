@@ -25,9 +25,17 @@ Ein Cent Unterschied im Brutto-Modus hat das am 16.09.2026 sichtbar gemacht.
 - **Prüffälle im Paket:** `fixtures/rechnung-rechnen.json` (20 Fälle von
   Hand), `fixtures/rechnung-rechnen-zufall.json` (400 aus einer unabhängigen
   Referenz in Python) und `fixtures/position-aus-euro.json`. Server,
-  Dart-Zwilling und Panel prüfen gegen dieselben Dateien.
-- **Unverändert:** `rechnungSummen`, `fixtures/rechnung-summen.json` und das
-  API-Schema. Der Kern rundet an Halbcent-Grenzen richtig, `rechnungSummen`
+  Dart-Zwilling und Panel werden gegen dieselben Dateien prüfen.
+- **Fehlerkatalog um zwei Codes erweitert:** `einvoice_unavailable` (zu dieser
+  Rechnung entsteht keine E-Rechnung, Grund im `reason`) und
+  `amount_too_large` (Betrag über der Grenze des Ganzzahlkerns) — beide hinten
+  angehängt, damit gespeicherte Reihenfolgen gültig bleiben. Der Katalog geht
+  dem Server bewusst voraus, damit Fremdsysteme beide Codes behandeln können,
+  bevor der Server sie sendet; heute sendet der Server keinen von beiden,
+  `amount_too_large` erst ab dessen Umstieg auf den Ganzzahlkern.
+- **Unverändert:** `rechnungSummen`, `fixtures/rechnung-summen.json` und Form
+  von Anfrage und Antwort der Rechnungs-API — der Fehlerkatalog wächst nur
+  additiv (s. o.). Der Kern rundet an Halbcent-Grenzen richtig, `rechnungSummen`
   rechnet weiterhin wie der Server heute; beides wird in 0.24.0
   zusammengeführt. Wer schon vorab genau rechnen will, nimmt `previewInvoice`.
 
