@@ -594,12 +594,17 @@ rechnungRechnen(
 // { netCents: 1233, vatCents: 246, grossCents: 1479, byRate: [{ rateBp: 2000, … }], lines: […] }
 ```
 
-`positionAusEuro(item)` wandelt eine Euro-Position (`unitPriceCents`,
-`quantity`, `vatRate`) verlustfrei in diese Form um oder nennt Feld und Grund,
-wenn das nicht geht. Die Prüffälle liegen in `fixtures/rechnung-rechnen.json`
-und `fixtures/rechnung-rechnen-zufall.json`. **Noch nicht zusammengeführt**
-mit `rechnungSummen`: bis 0.24.0 rechnen beide parallel, mit denselben
-Ergebnissen an den Rundungsgrenzen, die hier geprüft sind.
+`positionAusEuro(item)` wandelt eine Euro-Position (`unitPrice`, `quantity`,
+`vatRate`, `discountPct`) verlustfrei in diese Form um oder nennt Feld und
+Grund, wenn das nicht geht. Die Prüffälle liegen in
+`fixtures/rechnung-rechnen.json`, `fixtures/rechnung-rechnen-zufall.json` und
+`fixtures/position-aus-euro.json`. **Noch nicht zusammengeführt** mit
+`rechnungSummen`: bis 0.24.0 rechnen beide parallel und weichen an
+Halbcent-Grenzen bewusst voneinander ab — bis zu 1 Cent bei einmal gerundeten
+Werten (Netto und USt im Netto-Modus, Brutto im Brutto-Modus) und bis zu
+2 Cent bei abgeleiteten (Summe zweier Rundungen). Der Kern rundet dort
+richtig, `rechnungSummen` rechnet weiterhin wie der Server heute. Verbindlich
+für den ausgewiesenen Betrag bleibt bis dahin `previewInvoice`.
 
 **Hinweise** (`notice`) sind immer eine Liste — bei `issueInvoice`,
 `previewInvoice` und `recordInvoicePayment`. Eine ig. Lieferung trägt
