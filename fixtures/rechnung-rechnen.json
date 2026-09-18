@@ -285,6 +285,20 @@
           { "netCents": 3, "grossCents": 4, "rateBp": 2000 }
         ]
       }
+    },
+    {
+      "name": "Rabatt auf Schüttgut: 0,149999 € × 50.000 − 10 % netto zu 20 % ergibt 6.749,96 € netto (der rabattierte Einzelpreis ist kein ganzer Cent mehr — wer vor der Multiplikation ganzzahlig teilt, landet bei 674.995 statt 674.996)",
+      "priceMode": "net",
+      "positionen": [
+        { "unitPriceMicros": 149999, "quantityMilli": 50000000, "discountBp": 1000, "vatRateBp": 2000 }
+      ],
+      "erwartet": {
+        "netCents": 674996,
+        "vatCents": 134999,
+        "grossCents": 809995,
+        "byRate": [{ "rateBp": 2000, "netCents": 674996, "vatCents": 134999, "grossCents": 809995 }],
+        "lines": [{ "netCents": 674996, "grossCents": 809995, "rateBp": 2000 }]
+      }
     }
   ]
 }

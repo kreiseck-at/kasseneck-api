@@ -26,8 +26,10 @@ const MUTANTEN = [
   ['Rundung halb-gerade', 'const ganz = (2n * betrag + b) / (2n * b);', 'const ganz = (2n * betrag + b - 1n) / (2n * b);'],
   ['je Zeile statt je Satz runden', 'const S = gruppe.reduce((s, z) => s + z.L, 0n);', 'const S = gruppe.reduce((s, z) => s + rund(z.L, E) * E, 0n);'],
   ['Brutto-Formel wie Weg 1', 'netCents = rund(grossCents * 10_000n, 10_000n + r);', 'netCents = rund(S * 10_000n, E * (10_000n + r));'],
+  ['USt aus dem gerundeten Netto statt aus der Summe', 'vatCents = rund(S * r, E * 10_000n);', 'vatCents = rund(netCents * r, 10_000n);'],
   ['Rabatt per Ganzzahldivision auf den Einzelpreis', 'const L = preis * menge * (10_000n - rabatt) * 1_000_000n;', 'const L = (preis * (10_000n - rabatt) / 10_000n) * menge * 10_000n * 1_000_000n;'],
   ['byRate aufsteigend', 'byRate.sort((a, b) => b.rateBp - a.rateBp);', 'byRate.sort((a, b) => a.rateBp - b.rateBp);'],
+  ['Verteilung aufsteigend nach Rest', 'if (da !== db) return db > da ? 1 : -1;', 'if (da !== db) return da > db ? 1 : -1;'],
   ['Gleichstand an die spaetere Zeile', 'return a.z.index - b.z.index;', 'return b.z.index - a.z.index;'],
   ['Nullzeile bekommt Cent', '.filter((w) => w.zaehler !== 0n)', '.filter(() => true)'],
   ['Satzschluessel mit Komma', "return String(rateBp / 100);", "return String(rateBp / 100).replace('.', ',');"],
@@ -46,7 +48,17 @@ try {
     }
     writeFileSync(DATEI, original.replace(suchen, ersetzen));
     try {
-      execSync('npx tsc -p tsconfig.test.json && node --test "test-dist/test/*.test.js"', { stdio: 'pipe' });
+      execSync('npx tsc -p tsconfig.test.json', { stdio: 'pipe' });
+    } catch {
+      // Ein reiner Uebersetzungsfehler ist kein Treffer der Suite — kein Test ist
+      // dabei gelaufen, die Mutante beweist nichts. Trotzdem als ueberlebend
+      // zaehlen, sonst faellt die Luecke unter den Tisch.
+      console.error(`Skriptfehler: ${name} uebersetzt nicht — Mutante beweist nichts`);
+      ueberlebt.push(name);
+      continue;
+    }
+    try {
+      execSync('node --test "test-dist/test/*.test.js"', { stdio: 'pipe' });
       console.error(`ueberlebt: ${name}`);
       ueberlebt.push(name);
     } catch {
@@ -56,5 +68,8 @@ try {
 } finally {
   copyFileSync(SICHERUNG, DATEI);
   rmSync(SICHERUNG);
+  // Nach dem Wiederherstellen neu uebersetzen — sonst steht in test-dist noch
+  // die letzte Mutante, und ein direkter Lauf gegen test-dist prueft mutierten Code.
+  execSync('npx tsc -p tsconfig.test.json', { stdio: 'pipe' });
 }
 process.exit(ueberlebt.length ? 1 : 0);
