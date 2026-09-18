@@ -577,6 +577,30 @@ aufwärts), je Satz, dann summiert. Die Prüffälle liegen in
 `fixtures/rechnung-summen.json`. Die Summen sind auch bei Gutschriften positiv —
 das Vorzeichen steht im Belegtyp (`docType: 'GU'`).
 
+**Vorab rechnen, ohne Server.** `@kreiseck/kasseneck-api/rechnung/rechnen` ist
+der reine Rechenkern dahinter: kein Transport, kein Zugangsschlüssel, läuft
+auch im Browser (Panel). Er rechnet intern mit ganzen Zahlen (BigInt) statt
+Gleitkomma und rundet genau einmal je USt-Satz — Preise in Millionstel Euro
+(`unitPriceMicros`), Mengen in Tausendstel (`quantityMilli`), Rabatt und Satz
+in Hundertstel-Prozent (`discountBp`, `vatRateBp`):
+
+```ts
+import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
+
+rechnungRechnen(
+  [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
+  { priceMode: 'gross' },
+);
+// { netCents: 1233, vatCents: 246, grossCents: 1479, byRate: [{ rateBp: 2000, … }], lines: […] }
+```
+
+`positionAusEuro(item)` wandelt eine Euro-Position (`unitPriceCents`,
+`quantity`, `vatRate`) verlustfrei in diese Form um oder nennt Feld und Grund,
+wenn das nicht geht. Die Prüffälle liegen in `fixtures/rechnung-rechnen.json`
+und `fixtures/rechnung-rechnen-zufall.json`. **Noch nicht zusammengeführt**
+mit `rechnungSummen`: bis 0.24.0 rechnen beide parallel, mit denselben
+Ergebnissen an den Rundungsgrenzen, die hier geprüft sind.
+
 **Hinweise** (`notice`) sind immer eine Liste — bei `issueInvoice`,
 `previewInvoice` und `recordInvoicePayment`. Eine ig. Lieferung trägt
 `recapitulative_statement_due` (Zusammenfassende Meldung), eine bar bezahlte

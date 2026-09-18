@@ -4,6 +4,33 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.23.0
+
+### Rechnung: der Rechenkern in ganzen Zahlen
+
+**Anlass:** Vier Umsetzungen (Server, dieses Paket, Dart, Panel) mussten dieselbe
+Reihenfolge von Gleitkomma-Schritten nachbauen, damit Grenzfälle gleich runden.
+Ein Cent Unterschied im Brutto-Modus hat das am 16.09.2026 sichtbar gemacht.
+
+- **Neu: Unterpfad `@kreiseck/kasseneck-api/rechnung/rechnen`** — rein, ohne
+  Transport, auch für den Browser. Darin:
+  - `rechnungRechnen(positionen, { priceMode, taxScheme })` rechnet exakt in
+    ganzen Zahlen (BigInt) und rundet einmal je USt-Satz. Preise in Millionstel
+    Euro, Mengen in Tausendstel, Rabatt und Satz in Hundertstel-Prozent.
+  - `positionAusEuro(item)` wandelt eine Euro-Position verlustfrei um oder
+    nennt Feld und Grund.
+  - `anteiligerPreis`, `satzSchluessel`, `satzText`, `preisText`.
+  - `RechenFehler` mit `code` (`amount_too_large`, `kein_ganzzahlwert`,
+    `ausserhalb`), Feld und Index.
+- **Prüffälle im Paket:** `fixtures/rechnung-rechnen.json` (20 Fälle von
+  Hand), `fixtures/rechnung-rechnen-zufall.json` (400 aus einer unabhängigen
+  Referenz in Python) und `fixtures/position-aus-euro.json`. Server,
+  Dart-Zwilling und Panel prüfen gegen dieselben Dateien.
+- **Unverändert:** `rechnungSummen`, `fixtures/rechnung-summen.json` und das
+  API-Schema. Der Kern rundet an Halbcent-Grenzen richtig, `rechnungSummen`
+  rechnet weiterhin wie der Server heute; beides wird in 0.24.0
+  zusammengeführt. Wer schon vorab genau rechnen will, nimmt `previewInvoice`.
+
 ## 0.22.0
 
 ### Rechnung: Brutto bleibt Brutto, Hinweise kommen an, Probelauf
