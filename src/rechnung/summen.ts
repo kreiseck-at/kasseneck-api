@@ -21,6 +21,10 @@
 
 import type { InvoiceRateTotals, InvoiceTotals } from './typen.js';
 import type { PriceMode, TaxScheme } from './vertrag.js';
+import { STEUERFREIE_FAELLE } from './rechnen.js';
+
+/** Aus dem Kern uebernommen, damit Kern und Huelle nie auseinanderlaufen. */
+export { STEUERFREIE_FAELLE };
 
 /** Was fuer die Summe zaehlt — `InvoiceItemInput` passt unveraendert. */
 export interface SummenPosition {
@@ -29,16 +33,6 @@ export interface SummenPosition {
   vatRate: number;
   discountPct?: number;
 }
-
-/** Steuerfaelle, in denen die Rechnung keine Steuer ausweist: jede Zeile zaehlt zu 0 %. */
-export const STEUERFREIE_FAELLE: readonly TaxScheme[] = Object.freeze([
-  'smallBusiness',
-  'reverseCharge',
-  'igLieferung',
-  'exportThirdCountry',
-  'domesticReverseCharge',
-  'outsideScope',
-]);
 
 /** Auf Cent gerundete Euro — dieselbe Rundung wie am Server (halber Cent vom Nullpunkt weg). */
 function euroRund(n: number): number {

@@ -9,6 +9,7 @@ import * as payments from '../src/payments/index.js';
 import * as register from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/rechnung/index.js';
+import * as rechnungRechnen from '../src/rechnung/rechnen.js';
 import * as react from '../src/react/index.js';
 
 /**
@@ -41,6 +42,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/register': register,
   '@kreiseck/kasseneck-api/partner': partner,
   '@kreiseck/kasseneck-api/rechnung': rechnung,
+  '@kreiseck/kasseneck-api/rechnung/rechnen': rechnungRechnen,
   '@kreiseck/kasseneck-api/react': react,
 };
 
@@ -80,8 +82,9 @@ test('README: die Unterpfad-Tabelle nennt genau die deklarierten Unterpfade', ()
   for (const unterpfad of deklariert) {
     assert.ok(README.includes(`\`…${unterpfad}\``), `README beschreibt den Unterpfad ${unterpfad} nicht`);
   }
-  // Und umgekehrt: kein erfundener Unterpfad in der Tabelle.
-  for (const treffer of README.matchAll(/\| `…(\/[a-z]+)` \|/g)) {
+  // Und umgekehrt: kein erfundener Unterpfad in der Tabelle — ein- UND
+  // zweiteilig (z. B. `/rechnung/rechnen`).
+  for (const treffer of README.matchAll(/\| `…((?:\/[a-z]+)+)` \|/g)) {
     assert.ok(deklariert.includes(treffer[1] ?? ''), `README beschreibt einen Unterpfad, den es nicht gibt: ${treffer[1]}`);
   }
 });

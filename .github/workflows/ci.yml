@@ -31,5 +31,17 @@ jobs:
           git diff --exit-code fixtures/ \
             || { echo "Standardwerte geaendert, Vertrag nicht mitgezogen — fixtures:* ausfuehren und mitcommitten"; exit 1; }
 
+      - name: Orakel-Datei der Zufallsfaelle gegen die Python-Referenz
+        run: |
+          # scripts/rechnung-referenz.py braucht nur die Python-Standardbibliothek
+          # (argparse, json, random, fractions, pathlib) — kein pip install noetig,
+          # Python 3 liegt auf ubuntu-latest bereits bei.
+          python3 --version
+          python3 scripts/rechnung-referenz.py --pruefe fixtures/rechnung-rechnen-zufall.json
+          python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 \
+            --ziel /tmp/rechnung-rechnen-zufall-neu.json
+          diff -u fixtures/rechnung-rechnen-zufall.json /tmp/rechnung-rechnen-zufall-neu.json \
+            || { echo "fixtures/rechnung-rechnen-zufall.json weicht von der aus demselben Seed neu erzeugten Datei ab — von Hand geaendert?"; exit 1; }
+
       - name: Verbraucherprobe am echten Tarball
         run: npm run check:consumer

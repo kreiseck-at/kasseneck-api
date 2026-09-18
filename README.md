@@ -577,6 +577,37 @@ aufwärts), je Satz, dann summiert. Die Prüffälle liegen in
 `fixtures/rechnung-summen.json`. Die Summen sind auch bei Gutschriften positiv —
 das Vorzeichen steht im Belegtyp (`docType: 'GU'`).
 
+**Vorab rechnen, ohne Server.** `@kreiseck/kasseneck-api/rechnung/rechnen` ist
+der reine Rechenkern dahinter: kein Transport, kein Zugangsschlüssel, läuft
+auch im Browser (Panel). Er rechnet intern mit ganzen Zahlen (BigInt) statt
+Gleitkomma und rundet genau einmal je USt-Satz — Preise in Millionstel Euro
+(`unitPriceMicros`), Mengen in Tausendstel (`quantityMilli`), Rabatt und Satz
+in Hundertstel-Prozent (`discountBp`, `vatRateBp`):
+
+```ts
+import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
+
+rechnungRechnen(
+  [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
+  { priceMode: 'gross' },
+);
+// { netCents: 1233, vatCents: 246, grossCents: 1479, byRate: [{ rateBp: 2000, … }], lines: […] }
+```
+
+`positionAusEuro(item)` wandelt eine Euro-Position (`unitPrice`, `quantity`,
+`vatRate`, `discountPct`) verlustfrei in diese Form um oder nennt Feld und
+Grund, wenn das nicht geht. Die Prüffälle liegen in
+`fixtures/rechnung-rechnen.json`, `fixtures/rechnung-rechnen-zufall.json` und
+`fixtures/position-aus-euro.json`. **Noch nicht zusammengeführt** mit
+`rechnungSummen`: bis 0.24.0 rechnen beide parallel und weichen an
+Halbcent-Grenzen bewusst voneinander ab — **je USt-Satz** bis zu 1 Cent bei
+einmal gerundeten Werten (Netto und USt im Netto-Modus, Brutto im
+Brutto-Modus) und bis zu 2 Cent bei abgeleiteten (Summe zweier Rundungen). Bei
+mehreren Sätzen summiert sich das: eine Rechnung über drei Sätze kann deshalb
+3 Cent auseinanderliegen. Der Kern rundet dort richtig, `rechnungSummen`
+rechnet weiterhin wie der Server heute. Verbindlich
+für den ausgewiesenen Betrag bleibt bis dahin `previewInvoice`.
+
 **Hinweise** (`notice`) sind immer eine Liste — bei `issueInvoice`,
 `previewInvoice` und `recordInvoicePayment`. Eine ig. Lieferung trägt
 `recapitulative_statement_due` (Zusammenfassende Meldung), eine bar bezahlte
@@ -621,6 +652,7 @@ gegen genau diese Datei.
 | `…/kasse` | Kachel-Kasse: Kassen-Einstellungen (betriebsweit / je Gerät), Artikelgruppen und Artikel für Kacheln, Rabattverteilung je Steuersatz, Reichweiten der Kassen-Rechte |
 | `…/partner` | Partner-API: Betriebe anlegen, FinanzOnline-Link, Signatur, Kassen, Zugangsdaten, Webhooks samt Signaturprüfung. **Gehört auf einen Server.** |
 | `…/rechnung` | Rechnungs-API: Kunden anlegen und suchen, Rechnungen festgeschrieben ausstellen, Gutschrift und Storno, PDF und E-Rechnung-XML; der Vertrag als Daten. **Gehört auf einen Server.** |
+| `…/rechnung/rechnen` | Reiner Rechenkern für Rechnungssummen (Ganzzahlen, kein Transport, keine Abhängigkeit außer Typen) — darf auch im Browser laufen. |
 | `…/react` | Dünner React-Adapter, der ein Beleg-Layout zeichnet. Braucht React. |
 | `…/fixtures/*` | Golden-Belege (JSON): Eingaben `belege/<name>.json`, zugesagte Zeilenausgabe `erwartet/<name>.lines.json`, `manifest.json` mit Prüfsummen — dieselben Dateien prüfen Backend, Browser-Kasse und Flutter-Paket. |
 

@@ -39,6 +39,7 @@ import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kassene
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret } from '@kreiseck/kasseneck-api/partner';
+import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
@@ -61,6 +62,10 @@ export const drucker = listMyPrinters(rufen);
 export const partner = createPartnerApi;
 export const webhookPruefen = verifyWebhookSignature;
 export type Geheimnis = KasseneckSecret;
+export const summen = rechnungRechnen(
+  [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
+  { priceMode: 'gross' },
+);
 // Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
 // weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
 // auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein

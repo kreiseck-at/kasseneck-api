@@ -193,11 +193,13 @@ test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Spr
 
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
-  // gespeichert hat, behaelt seine Zuordnung.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-6), [
+  // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
+  // derselben Stelle wie zuvor, die beiden neuen (0.23.0) hinten dran.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-8, -2), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['einvoice_unavailable', 'amount_too_large']);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
 
