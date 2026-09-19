@@ -4,6 +4,12 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.24.0
+
+- ESC/POS: `ESC a` steht vor `ESC $`, eine volle Zeile bekommt keinen Positionsbefehl mehr.
+  Der Drucker nimmt die Ausrichtung nur am Zeilenanfang an; bisher blieb nach dem QR-Code die
+  Zentrierung stehen und zentrierte jede Zeile darunter ein zweites Mal.
+
 ## 0.23.0
 
 ### Rechnung: der Rechenkern in ganzen Zahlen

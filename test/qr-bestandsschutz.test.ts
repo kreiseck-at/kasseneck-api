@@ -23,6 +23,15 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
  * setzt Fehlerkorrektur M statt L. Die Werte vom Stand 0.8.0 bleiben als
  * Beweis stehen: mit `klein` und `L` kommt Byte fuer Byte der alte Strom
  * heraus -- die neuen Werte unterscheiden sich also nur in diesen zwei Punkten.
+ *
+ * Ausrichtung-vor-Position-Umbau: eine weitere, ebenso bewusste Abweichung.
+ * Jede volle Textzeile dieses Belegs verliert den ueberfluessigen Positions-
+ * befehl `ESC $ 0 0` (Zwilling: `generator.dart`, `_text`, `colInd===0 &&
+ * colWidth===12`); das betrifft praktisch jede Zeile, weil dieser Beleg keine
+ * echten Spalten setzt. Gegenprobe: der alte und der neue Bytestrom wurden
+ * tokenisiert (ESC-/GS-/FS-Befehle statt Rohbytes) und stimmen bis auf genau
+ * diese entfallenen `ESC $`-Token ueberein -- weder QR-Nutzlast noch sonst ein
+ * Befehl hat sich verschoben.
  */
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
@@ -35,13 +44,18 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
   const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm58' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
-    // Ruling 11/12: QR mit 6 Punkten je Modul und Korrektur M (vorher 00be1eff…, 4 Punkte, L).
-    '16c5b606c57b4e9fa5157258026d3416a80e57394b48fceb3a9de5d3179206b1',
+    // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher 16c5b606…).
+    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
+    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
+    // 19 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
+    '08c1d6f7ef72ba70243772c4f8fcceb6883f550be886d29ed4eea7ef9725e2c7',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    '00be1effb300ecae1ddade6de0cf72be33f3933ad582c5ccf5f95bb8b27e38a6',
+    // Ausrichtung-vor-Position wirkt auch hier (vorher 00be1eff…), gleiche
+    // Gegenprobe wie oben (19 entfallene `ESC $`-Token, sonst nichts anders).
+    '8b9eb8cc2cfe46651e750a1572079fdf88302a69c061698a95182453426b57f6',
   );
 });
 
@@ -49,13 +63,18 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm80' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
-    // Ruling 11/12: QR mit 6 Punkten je Modul und Korrektur M (vorher e8edc30e…, 4 Punkte, L).
-    'e2424f0326fddf1a09babf807637e81448ca980c1da982566606ac1142f828e8',
+    // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher e2424f03…).
+    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
+    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
+    // 18 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
+    '49c45fd80d76b45d01ba99748d3ec9d92cb236eb99aa1524b74b80de389b01eb',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    'e8edc30e61d3867f42f0278f890e482abf3e46c9157ee2e30b10b8698dcabc1b',
+    // Ausrichtung-vor-Position wirkt auch hier (vorher e8edc30e…), gleiche
+    // Gegenprobe wie oben (18 entfallene `ESC $`-Token, sonst nichts anders).
+    '76755a9c2ebb177b7eac803287f1f2a9bf64e9103930cdaaac50f0f966edb31f',
   );
 });
 
