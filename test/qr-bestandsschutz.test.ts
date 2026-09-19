@@ -45,12 +45,16 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher 16c5b606…).
+    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
+    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
+    // 19 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
     '08c1d6f7ef72ba70243772c4f8fcceb6883f550be886d29ed4eea7ef9725e2c7',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    // Ausrichtung-vor-Position wirkt auch hier (vorher 00be1eff…).
+    // Ausrichtung-vor-Position wirkt auch hier (vorher 00be1eff…), gleiche
+    // Gegenprobe wie oben (19 entfallene `ESC $`-Token, sonst nichts anders).
     '8b9eb8cc2cfe46651e750a1572079fdf88302a69c061698a95182453426b57f6',
   );
 });
@@ -60,12 +64,16 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher e2424f03…).
+    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
+    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
+    // 18 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
     '49c45fd80d76b45d01ba99748d3ec9d92cb236eb99aa1524b74b80de389b01eb',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    // Ausrichtung-vor-Position wirkt auch hier (vorher e8edc30e…).
+    // Ausrichtung-vor-Position wirkt auch hier (vorher e8edc30e…), gleiche
+    // Gegenprobe wie oben (18 entfallene `ESC $`-Token, sonst nichts anders).
     '76755a9c2ebb177b7eac803287f1f2a9bf64e9103930cdaaac50f0f966edb31f',
   );
 });

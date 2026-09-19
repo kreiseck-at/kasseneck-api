@@ -531,11 +531,6 @@ export function escPosSetStyles(doc: EscPosDocument, styles: PosStyles = {}): vo
 }
 
 /**
- * Interner Textdruck: Stil senden (Ausrichtung zuerst), absolute Position
- * setzen (`ESC $`, ausser bei einer vollen Zeile), Bytes ausgeben. [colInd]/
- * [colWidth] beschreiben die Spalte im Zwoelftel-Raster.
- */
-/**
  * Wortweiser Umbruch von (kodierten) Text-Bytes auf hoechstens `max` Zeichen
  * je Zeile: geschnitten wird am letzten Leerzeichen innerhalb der Grenze
  * (das Leerzeichen selbst faellt weg); gibt es keines, hart bei `max` --
@@ -624,6 +619,11 @@ export function wortzeilenText(text: string, max: number): string[] {
   return out;
 }
 
+/**
+ * Interner Textdruck: Stil senden (Ausrichtung zuerst), absolute Position
+ * setzen (`ESC $`, ausser bei einer vollen Zeile), Bytes ausgeben. [colInd]/
+ * [colWidth] beschreiben die Spalte im Zwoelftel-Raster.
+ */
 function textIntern(
   doc: EscPosDocument,
   textBytes: Uint8Array,
