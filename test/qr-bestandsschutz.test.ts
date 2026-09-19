@@ -32,6 +32,16 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
  * tokenisiert (ESC-/GS-/FS-Befehle statt Rohbytes) und stimmen bis auf genau
  * diese entfallenen `ESC $`-Token ueberein -- weder QR-Nutzlast noch sonst ein
  * Befehl hat sich verschoben.
+ *
+ * Rueckweg-Entfernung (0.25.0): der Sofort-Reset der Ausrichtung direkt nach
+ * dem QR faellt weg, weil die Ursache (Positionsbefehl mitten in der Zeile)
+ * seit 0.24.0 behoben ist -- der naechste echte Stil-Aufruf (das Element nach
+ * dem QR) setzt die Ausrichtung ohnehin selbst zurueck, jetzt an seiner
+ * eigenen Zeile statt vorgezogen. Gegenprobe: der Bytestrom vor und nach der
+ * Entfernung wurde tokenisiert verglichen -- die einzige Abweichung ist genau
+ * diese Verschiebung der Trias `ESC a 0 / FS. / ESC t` vom Punkt direkt nach
+ * dem QR-Druckbefehl an die Stelle vor dem naechsten Element; sonst ist der
+ * Strom byteidentisch.
  */
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
@@ -44,18 +54,17 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
   const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm58' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
-    // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher 16c5b606…).
-    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
-    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
-    // 19 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
-    '08c1d6f7ef72ba70243772c4f8fcceb6883f550be886d29ed4eea7ef9725e2c7',
+    // Rueckweg-Entfernung (vorher 08c1d6f7…): Ausrichtung-Trias nach dem QR
+    // verschiebt sich zum naechsten Element, siehe Kopfkommentar. Belegt:
+    // tokenisierter Vorher/Nachher-Vergleich, einzige Abweichung ist genau
+    // diese Verschiebung.
+    '7589f2fa8b9de73efddf4095add15b6d54b7e8638f02532c0498701e5df28a1d',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    // Ausrichtung-vor-Position wirkt auch hier (vorher 00be1eff…), gleiche
-    // Gegenprobe wie oben (19 entfallene `ESC $`-Token, sonst nichts anders).
-    '8b9eb8cc2cfe46651e750a1572079fdf88302a69c061698a95182453426b57f6',
+    // Rueckweg-Entfernung (vorher 8b9eb8cc…), gleiche Gegenprobe wie oben.
+    '35a02b3c5efa1448a752223772a3c379ed86897b8c35421a0db772839e166178',
   );
 });
 
@@ -63,18 +72,14 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm80' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
-    // Ausrichtung-vor-Position: volle Zeilen verlieren `ESC $ 0 0` (vorher e2424f03…).
-    // Belegt: alter und neuer Bytestrom dieses Belegs tokenisiert verglichen
-    // (ESC-/GS-/FS-Befehle statt Rohbytes) -- einziger Unterschied sind die
-    // 18 entfallenen `ESC $`-Token, QR-Nutzlast und alles andere identisch.
-    '49c45fd80d76b45d01ba99748d3ec9d92cb236eb99aa1524b74b80de389b01eb',
+    // Rueckweg-Entfernung (vorher 49c45fd8…), gleiche Gegenprobe wie oben.
+    'fb1520fb7705c9ef486c3aa2ff302bbedb79832ed9665de9afc668939beef2a8',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
-    // Ausrichtung-vor-Position wirkt auch hier (vorher e8edc30e…), gleiche
-    // Gegenprobe wie oben (18 entfallene `ESC $`-Token, sonst nichts anders).
-    '76755a9c2ebb177b7eac803287f1f2a9bf64e9103930cdaaac50f0f966edb31f',
+    // Rueckweg-Entfernung (vorher 76755a9c…), gleiche Gegenprobe wie oben.
+    'b82394e68f0d0f74eff3285ec6567693fa3eef800625fb7695fd8fad86981f47',
   );
 });
 
