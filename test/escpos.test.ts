@@ -39,6 +39,12 @@ import {
  * Der Vorspann jeder Beleg-Folge (`ESC @` + `ESC t 16`) entspricht dem
  * Produktionspfad des Flutter-Pakets: `print_paper.dart` ruft
  * `generator.reset()` und danach `setGlobalCodeTable('CP1252')`.
+ *
+ * Seit dem Ausrichtung-vor-Position-Umbau (Fassung 7.1.0 des Dart-Zwillings,
+ * `generator.dart`, `_text`) gilt weiterhin dasselbe Verfahren: die Bytes
+ * stammen aus dem Dart-Programm, nicht aus dieser Umsetzung. `ESC a` steht
+ * jetzt vor `ESC $`, und eine volle Zeile (`colInd === 0 && colWidth === 12`)
+ * bekommt gar keinen Positionsbefehl mehr.
  */
 
 // Vergleicht Byte fuer Byte und meldet im Fehlerfall Hex.
@@ -104,8 +110,7 @@ test('text: Positionierung, Kanji aus, Codepage, Inhalt, Zeilenumbruch', () => {
   escPosText(doc, 'Hallo');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16, // ESC @ / ESC t 16
-    27, 36, 0, 0, // ESC $ 0 0 (absolute Position)
-    28, 46, // FS . (Kanji aus)
+    28, 46, // FS . (Kanji aus) -- volle Zeile, kein Positionsbefehl
     27, 116, 16, // ESC t 16
     72, 97, 108, 108, 111, // "Hallo"
     10,
@@ -118,12 +123,31 @@ test('text: zentriert und fett setzt ESC a 1 und ESC E 1', () => {
   escPosText(doc, 'BELEG', { styles: { align: 'center', bold: true } });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    27, 97, 49, // ESC a '1'
+    27, 97, 49, // ESC a '1' -- vor dem Inhalt, keine Position (volle Zeile)
     27, 69, 1, // ESC E 1
     28, 46, 27, 116, 16,
     66, 69, 76, 69, 71,
     10,
+  ]);
+});
+
+test('volle Zeile nach zentrierter Zeile: Ausrichtung vor dem Inhalt, kein Positionsbefehl', () => {
+  // Zwilling von `escpos_generator_test.dart`. `ESC a` gilt am Drucker nur am
+  // Zeilenanfang; stand `ESC $` davor, blieb die Zentrierung (zuletzt vom
+  // QR-Code gesetzt) fuer alles darunter stehen und zentrierte die bereits
+  // auf volle Breite zentrierte Rasterzeile ein zweites Mal.
+  //
+  // Die zentrierte Zeile davor ist die Vorbedingung, nicht Beiwerk:
+  // `escPosSetStyles` schreibt `ESC a` nur bei einem Wechsel, und ein frisches
+  // Dokument steht ohnehin auf links.
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosText(doc, 'X', { styles: { align: 'center' } });
+  escPosText(doc, 'Danke', { styles: { align: 'left' } });
+  gleicheBytes(escPosBytes(doc), [
+    27, 64, 27, 116, 16,
+    27, 97, 49, 28, 46, 27, 116, 16, 88, 10, // "X" zentriert, keine Position
+    27, 97, 48, 28, 46, 27, 116, 16, 68, 97, 110, 107, 101, 10, // "Danke" wieder links
   ]);
 });
 
@@ -133,8 +157,7 @@ test('text: doppelte Hoehe und Breite ergibt GS ! 0x11', () => {
   escPosText(doc, 'XL', { styles: { height: 2, width: 2 } });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    29, 33, 17, // GS ! 0x11 = 16*(2-1) + (2-1)
+    29, 33, 17, // GS ! 0x11 = 16*(2-1) + (2-1) -- volle Zeile, kein Positionsbefehl
     28, 46, 27, 116, 16,
     88, 76,
     10,
@@ -147,8 +170,7 @@ test('text: nur doppelte Hoehe ergibt GS ! 0x01', () => {
   escPosText(doc, 'H2', { styles: { height: 2 } });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    29, 33, 1,
+    29, 33, 1, // volle Zeile, kein Positionsbefehl
     28, 46, 27, 116, 16,
     72, 50,
     10,
@@ -161,8 +183,7 @@ test('text: unterstrichen und rechtsbuendig ergibt ESC a 2 und ESC - 1', () => {
   escPosText(doc, 'U', { styles: { underline: true, align: 'right' } });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    27, 97, 50, // ESC a '2'
+    27, 97, 50, // ESC a '2' -- vor dem Inhalt, keine Position (volle Zeile)
     27, 45, 1, // ESC - 1
     28, 46, 27, 116, 16,
     85,
@@ -176,8 +197,7 @@ test('text: linesAfter haengt zusaetzliche Zeilenvorschuebe an', () => {
   escPosText(doc, 'X', { linesAfter: 2 });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     88,
     10, 10, 10,
   ]);
@@ -191,9 +211,9 @@ test('text: Stile werden nur bei Aenderung gesendet und wieder abgeschaltet', ()
   escPosText(doc, 'C');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 27, 69, 1, 28, 46, 27, 116, 16, 65, 10, // A: fett an
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 66, 10, // B: kein zweites ESC E 1
-    27, 36, 0, 0, 27, 69, 0, 28, 46, 27, 116, 16, 67, 10, // C: fett aus
+    27, 69, 1, 28, 46, 27, 116, 16, 65, 10, // A: fett an, keine Position (volle Zeile)
+    28, 46, 27, 116, 16, 66, 10, // B: kein zweites ESC E 1
+    27, 69, 0, 28, 46, 27, 116, 16, 67, 10, // C: fett aus
   ]);
 });
 
@@ -205,8 +225,7 @@ test('Kodierung: deutsche Umlaute ergeben je genau ein Byte (Latin-1/CP1252)', (
   escPosText(doc, 'Grüße Öl');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     71, 114, 252, 223, 101, 32, 214, 108, // G r ü ß e ' ' Ö l
     10,
   ]);
@@ -261,8 +280,7 @@ test('Kodierung: typografische Zeichen werden wie im Vorbild ersetzt', () => {
   escPosText(doc, 'a’b´c•d');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     97, 39, 98, 39, 99, 42, 100, // a ' b ' c * d
     10,
   ]);
@@ -358,9 +376,9 @@ test('printableText: Ersetzung aendert die Laenge und damit die Spaltenbreite', 
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 67, 111, 108, 97, // "Cola"
-    27, 36, 17, 1, // ESC $ 273 — acht Zeichen rechtsbuendig
+    28, 46, 27, 116, 16, 27, 36, 0, 0, 67, 111, 108, 97, // "Cola", Position nach dem Stil
     27, 97, 50, 28, 46, 27, 116, 16,
+    27, 36, 17, 1, // ESC $ 273 — acht Zeichen rechtsbuendig
     50, 44, 53, 48, 32, 69, 85, 82, // "2,50 EUR"
     10,
   ]);
@@ -374,8 +392,7 @@ test('hr: 58 mm fuellt 32 Zeichen', () => {
   escPosHr(doc);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     10,
@@ -388,8 +405,7 @@ test('hr: 80 mm fuellt 48 Zeichen', () => {
   escPosHr(doc);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
@@ -403,8 +419,7 @@ test('hr: eigenes Zeichen, eigene Laenge, zusaetzliche Zeile', () => {
   escPosHr(doc, { ch: '=', len: 8, linesAfter: 1 });
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     61, 61, 61, 61, 61, 61, 61, 61,
     10, 10,
   ]);
@@ -421,9 +436,10 @@ test('row: zwei Spalten, rechte Spalte wird ueber ESC $ positioniert', () => {
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 67, 111, 108, 97, // "Cola" ab Position 0
+    28, 46, 27, 116, 16, 27, 36, 0, 0, 67, 111, 108, 97, // "Cola" ab Position 0
+    27, 97, 50, 28, 46, 27, 116, 16,
     27, 36, 64, 1, // ESC $ 320
-    27, 97, 50, 28, 46, 27, 116, 16, 50, 44, 53, 48, // "2,50"
+    50, 44, 53, 48, // "2,50"
     10,
   ]);
 });
@@ -438,11 +454,13 @@ test('row: drei Spalten mit Umlaut behalten die Spaltenpositionen', () => {
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 49, // "1"
+    28, 46, 27, 116, 16, 27, 36, 0, 0, 49, // "1"
+    28, 46, 27, 116, 16, // "Käse" = 4 Bytes
     27, 36, 61, 0, // ESC $ 61
-    28, 46, 27, 116, 16, 75, 228, 115, 101, // "Käse" = 4 Bytes
+    75, 228, 115, 101,
+    27, 97, 50, 28, 46, 27, 116, 16,
     27, 36, 64, 1, // ESC $ 320
-    27, 97, 50, 28, 46, 27, 116, 16, 57, 44, 57, 48, // "9,90"
+    57, 44, 57, 48, // "9,90"
     10,
   ]);
 });
@@ -459,9 +477,9 @@ test('row: rechtsbuendige Spalte rechnet mit Byte-Laenge, nicht mit UTF-8', () =
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 120,
-    27, 36, 52, 1, // ESC $ 308
+    28, 46, 27, 116, 16, 27, 36, 0, 0, 120,
     27, 97, 50, 28, 46, 27, 116, 16,
+    27, 36, 52, 1, // ESC $ 308
     71, 114, 246, 223, 101, // "Größe"
     10,
   ]);
@@ -476,9 +494,9 @@ test('row: 15 Umlaut-Zeichen passen in die Spalte (kein Umbruch)', () => {
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, 27, 36, 0, 0,
     196, 214, 220, 228, 246, 252, 223, 196, 214, 220, 228, 246, 252, 223, 196,
-    27, 36, 185, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, 27, 36, 185, 0,
     10,
   ]);
 });
@@ -492,10 +510,12 @@ test('row: 80 mm, zentrierte Spalte', () => {
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
+    27, 97, 49, 28, 46, 27, 116, 16,
     27, 36, 84, 0, // ESC $ 84
-    27, 97, 49, 28, 46, 27, 116, 16, 65,
+    65,
+    27, 97, 48, 28, 46, 27, 116, 16,
     27, 36, 185, 0, // ESC $ 185
-    27, 97, 48, 28, 46, 27, 116, 16, 66,
+    66,
     10,
   ]);
 });
@@ -513,16 +533,16 @@ test('row: zu langer Spalteninhalt laeuft in eine Folgezeile statt verloren zu g
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    // erste Zeile (byte-gleich zum Vorbild)
-    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    // erste Zeile (byte-gleich zum Vorbild, nur ohne die ueberfluessige Position der vollen Spalte)
+    28, 46, 27, 116, 16, 27, 36, 0, 0,
     69, 105, 110, 32, 115, 101, 104, 114, 32, 108, 97, 110, 103, 101, 114, // "Ein sehr langer"
-    27, 36, 185, 0, 28, 46, 27, 116, 16, 88,
+    28, 46, 27, 116, 16, 27, 36, 185, 0, 88,
     10,
     // Fortsetzungszeile -- ohne das fuehrende Leerzeichen: der Umbruch ist
     // wortweise, das Trennzeichen faellt an der Zeilengrenze weg.
-    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, 27, 36, 0, 0,
     65, 114, 116, 105, 107, 101, 108, 110, 97, 109, 101, // "Artikelname"
-    27, 36, 185, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, 27, 36, 185, 0,
     10,
   ]);
 });
@@ -735,8 +755,8 @@ test('setGlobalFont: Schrift B setzt ESC M 1 und aendert die Zeilenbreite auf 42
   const erwartet = [
     27, 64, 27, 116, 16,
     27, 77, 1, // ESC M 1
-    27, 36, 0, 0, 28, 46, 27, 116, 16, 102, 98, 10, // "fb"
-    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, 102, 98, 10, // "fb", volle Zeile ohne Positionsbefehl
+    28, 46, 27, 116, 16,
     ...new Array<number>(42).fill(45), // 42 Striche statt 32
     10,
   ];
@@ -753,7 +773,7 @@ test('setGlobalFont: eigene Zeilenbreite wirkt auf die Trennlinie', () => {
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
     27, 77, 1,
-    27, 36, 0, 0, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16, // volle Zeile, kein Positionsbefehl
     ...new Array<number>(20).fill(45),
     10,
   ]);
@@ -766,11 +786,9 @@ test('Stile: invertiert und um 90 Grad gedreht, danach wieder zurueck', () => {
   escPosText(doc, 'normal');
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 36, 0, 0,
-    27, 86, 1, // ESC V 1 (90 Grad)
+    27, 86, 1, // ESC V 1 (90 Grad) -- volle Zeile, kein Positionsbefehl
     29, 66, 1, // GS B 1 (invertiert)
     28, 46, 27, 116, 16, 73, 78, 86, 10,
-    27, 36, 0, 0,
     27, 86, 0, // ESC V 0
     29, 66, 0, // GS B 0
     28, 46, 27, 116, 16, 110, 111, 114, 109, 97, 108, 10,
@@ -931,7 +949,7 @@ test('printing: laesst sich in einem eigenen Node-Prozess allein laden', () => {
   const ausgabe = execFileSync(process.execPath, ['--input-type=module', '-e', programm], {
     encoding: 'utf8',
   });
-  assert.equal(ausgabe, '27,64,27,116,16,27,36,0,0,28,46,27,116,16,252,10');
+  assert.equal(ausgabe, '27,64,27,116,16,28,46,27,116,16,252,10');
 });
 
 test('Bau: der Tarball traegt keine Sourcemaps, die ins Leere zeigen', () => {

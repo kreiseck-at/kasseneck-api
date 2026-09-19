@@ -531,8 +531,9 @@ export function escPosSetStyles(doc: EscPosDocument, styles: PosStyles = {}): vo
 }
 
 /**
- * Interner Textdruck: absolute Position setzen (`ESC $`), Stil senden, Bytes
- * ausgeben. [colInd]/[colWidth] beschreiben die Spalte im Zwoelftel-Raster.
+ * Interner Textdruck: Stil senden (Ausrichtung zuerst), absolute Position
+ * setzen (`ESC $`, ausser bei einer vollen Zeile), Bytes ausgeben. [colInd]/
+ * [colWidth] beschreiben die Spalte im Zwoelftel-Raster.
  */
 /**
  * Wortweiser Umbruch von (kodierten) Text-Bytes auf hoechstens `max` Zeichen
@@ -636,23 +637,31 @@ function textIntern(
   const colInd = optionen.colInd ?? 0;
   const colWidth = optionen.colWidth ?? 12;
 
-  const breiteJeZeichen = zeichenBreite(doc, stile);
-  let von = spaltenPosition(doc, colInd);
+  // Ausrichtung vor Position -- `ESC a` gilt nur am Zeilenanfang, nach `ESC $`
+  // verwirft der Drucker ihn. Zwilling von `_text` in generator.dart.
+  escPosSetStyles(doc, optionen.styles);
 
-  if (colWidth !== 12) {
-    const bis = spaltenPosition(doc, colInd + colWidth) - doc.spaceBetweenRows;
-    const textLaenge = textBytes.length * breiteJeZeichen;
-    if (stile.align === 'right') {
-      von = bis - textLaenge;
-    } else if (stile.align === 'center') {
-      von = von + (bis - von) / 2 - textLaenge / 2;
+  // Eine volle Zeile beginnt am linken Rand; ein Positionsbefehl dafuer waere
+  // nicht nur ueberfluessig, er entwertet die Ausrichtung.
+  if (!(colInd === 0 && colWidth === 12)) {
+    const breiteJeZeichen = zeichenBreite(doc, stile);
+    let von = spaltenPosition(doc, colInd);
+
+    if (colWidth !== 12) {
+      const bis = spaltenPosition(doc, colInd + colWidth) - doc.spaceBetweenRows;
+      const textLaenge = textBytes.length * breiteJeZeichen;
+      if (stile.align === 'right') {
+        von = bis - textLaenge;
+      } else if (stile.align === 'center') {
+        von = von + (bis - von) / 2 - textLaenge / 2;
+      }
+      if (von < 0) von = 0;
     }
-    if (von < 0) von = 0;
+
+    const position = runden(von);
+    anhaengen(doc, [...C_POS, position & 0xff, (position >> 8) & 0xff]);
   }
 
-  const position = runden(von);
-  anhaengen(doc, [...C_POS, position & 0xff, (position >> 8) & 0xff]);
-  escPosSetStyles(doc, optionen.styles);
   anhaengen(doc, textBytes);
 }
 
