@@ -4,6 +4,15 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.25.0
+
+- ESC/POS: den Sofort-Reset der Ausrichtung direkt nach QR-Code, QR-Rasterbild und
+  Logo-Rasterbild entfernt. Er behandelte nur ein Symptom: seit 0.24.0 steht `ESC a`
+  ohnehin vor `ESC $`, und eine volle Zeile bekommt gar keinen Positionsbefehl mehr —
+  der Ausrichtungsbefehl des naechsten Elements steht damit selbst immer am
+  Zeilenanfang und gilt. Der erzeugte Bytestrom ist dadurch wieder deckungsgleich mit
+  dem Dart-Zwilling; bisher war dieser Reset der einzige Unterschied zwischen beiden.
+
 ## 0.24.0
 
 - ESC/POS: `ESC a` steht vor `ESC $`, eine volle Zeile bekommt keinen Positionsbefehl mehr.

@@ -916,14 +916,6 @@ export function escPosQrCode(
     }
   }
   if (drucken) anhaengen(doc, qrCodeBytes(text, qrOptionen));
-
-  // Ausrichtung SOFORT zuruecksetzen: `ESC a` gilt nur am Zeilenanfang. Die
-  // Spalten-Positionierung (`ESC $`) schickt ihren Reset sonst mitten in der
-  // Zeile — Epson ignoriert ihn, und alles nach dem QR rueckte nach rechts
-  // (belegt am TM-T20, 2026-08-20).
-  if ((options.align ?? 'center') !== 'left') {
-    escPosSetStyles(doc, { align: 'left' });
-  }
 }
 
 /**
@@ -983,9 +975,6 @@ export function escPosQrRaster(
   anhaengen(doc, rasterBildKopf(breite, breite));
   anhaengen(doc, daten);
   anhaengen(doc, [ZEILENUMBRUCH]);
-  if ((options.align ?? 'center') !== 'left') {
-    escPosSetStyles(doc, { align: 'left' });
-  }
 }
 
 /**
@@ -1076,7 +1065,4 @@ export function escPosRasterBild(doc: EscPosDocument, bild: RasterBild, options:
   escPosSetStyles(doc, { align: options.align ?? 'center' });
   anhaengen(doc, rasterBildKopf(bild.breite, bild.hoehe));
   anhaengen(doc, daten);
-  if ((options.align ?? 'center') !== 'left') {
-    escPosSetStyles(doc, { align: 'left' });
-  }
 }

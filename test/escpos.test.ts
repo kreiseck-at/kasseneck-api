@@ -702,8 +702,10 @@ test('qrCode: Vorgabe zentriert, Groesse 6 (auto), Korrektur M', () => {
     95, 82, 49, 45, 65, 84, 49, 95, 68, 101, 109, 111, // "_R1-AT1_Demo"
     29, 40, 107, 3, 0, 49, 82, 48,
     29, 40, 107, 3, 0, 49, 81, 48,
-    // Ausrichtung sofort zurueck auf links (ESC a gilt nur am Zeilenanfang)
-    27, 97, 48, 28, 46, 27, 116, 16,
+    // Kein Ruecksetzen mehr auf links: seit 0.24.0 schreibt textIntern die
+    // Ausrichtung selbst vor die Position, eine volle Zeile bekommt gar
+    // keinen Positionsbefehl -- der naechste Aufrufer setzt seine Ausrichtung
+    // also ohnehin am Zeilenanfang.
   ]);
 });
 
