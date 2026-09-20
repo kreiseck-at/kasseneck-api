@@ -56,7 +56,6 @@ export {
   LOGO_PIXEL_MAX,
   PUNKTE_JE_ZEICHEN,
   PUNKTE_JE_ZEILE,
-  MARKE_TEXT,
   papierFuerZeichen,
   logoMass,
   logoPixelZulaessig,
@@ -66,3 +65,6 @@ export {
 } from './blatt.js';
 
 export { logoRaster } from './bild.js';
+
+export { type MarkeRasterDaten, MARKE_RASTER, MARKE_PFADE } from './marke-daten.js';
+export { markeBild } from './marke.js';

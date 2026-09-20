@@ -24,19 +24,20 @@ function probeLogo(zeichen: number): DruckLogo {
 
 const latin1 = (b: Uint8Array): string => Array.from(b, (v) => String.fromCharCode(v)).join('');
 
-test('ESC/POS: Rahmen, dann Bild, dann Firmenname; Marke am Ende', () => {
+test('ESC/POS: Rahmen, dann Bild, dann Firmenname, dann die Marke als eigenes Rasterbild am Ende', () => {
   const text = latin1(escPosLayoutBytes(LAYOUT, { cut: false, logo: probeLogo(48), marke: true }));
   const rahmenEnde = text.indexOf('='.repeat(48), text.indexOf('TESTKASSE'));
   const bild = text.indexOf('\x1dv0');
   const firma = text.indexOf('Bäckerei Muster'.replace('ä', '\xe4'));
+  const markenbild = text.lastIndexOf('\x1dv0');
   assert.ok(rahmenEnde > 0 && bild > rahmenEnde && firma > bild, `Reihenfolge: ${rahmenEnde} ${bild} ${firma}`);
-  assert.ok(text.lastIndexOf('erstellt mit Kasseneck') > firma);
+  assert.ok(markenbild > firma, 'die Marke steht als eigenes Rasterbild nach dem Firmennamen');
+  assert.notEqual(bild, markenbild, 'Firmenlogo und Marke sind zwei verschiedene Bildbefehle');
 });
 
-test('ESC/POS: ohne Logo-Option kein Bild, ohne Marke keine Markenzeile (Bestand unveraendert)', () => {
+test('ESC/POS: ohne Logo-Option und ohne Marke kein Bild (Bestand unveraendert)', () => {
   const text = latin1(escPosLayoutBytes(LAYOUT, { cut: false }));
   assert.equal(text.indexOf('\x1dv0'), -1);
-  assert.equal(text.indexOf('erstellt mit'), -1);
 });
 
 test('ESC/POS und ePOS: Rasterbild in falscher Groesse wird abgewiesen', () => {
@@ -45,13 +46,17 @@ test('ESC/POS und ePOS: Rasterbild in falscher Groesse wird abgewiesen', () => {
   assert.throws(() => eposPrintXml(LAYOUT, { logo: falsch }), /Logo-Raster/);
 });
 
-test('ePOS: <image> zentriert nach dem Rahmen, Marke als Textzeile, Leerzeilen als feed', () => {
+test('ePOS: Firmenlogo und Marke stehen als eigene <image>-Bloecke, je zentriert', () => {
   const xml = eposPrintXml(LAYOUT, { logo: probeLogo(48), marke: true });
-  const bild = xml.indexOf('<image ');
-  assert.ok(bild > xml.indexOf('TESTKASSE') && bild < xml.indexOf('Bäckerei'), xml);
-  assert.ok(xml.slice(0, bild).endsWith('<text align="center"/>\n'), xml);
-  assert.ok(xml.slice(bild).includes('</image>\n<text align="left"/>'), xml);
-  assert.ok(xml.includes('erstellt mit Kasseneck'));
+  const bilder = [...xml.matchAll(/<image /g)].map((m) => m.index);
+  assert.equal(bilder.length, 2, 'Firmenlogo und Marke');
+  const [logoBild, markeBild] = bilder as [number, number];
+  assert.ok(logoBild > xml.indexOf('TESTKASSE') && logoBild < xml.indexOf('Bäckerei'), xml);
+  assert.ok(markeBild > xml.indexOf('Bäckerei'), 'die Marke steht nach dem uebrigen Beleg');
+  assert.ok(xml.slice(0, logoBild).endsWith('<text align="center"/>\n'), xml);
+  assert.ok(xml.slice(logoBild).includes('</image>\n<text align="left"/>'), xml);
+  assert.ok(xml.slice(xml.indexOf('Bäckerei'), markeBild).endsWith('<text align="center"/>\n'), xml);
+  assert.ok(xml.slice(markeBild).includes('</image>\n<text align="left"/>'), xml);
 });
 
 test('blattFuerDruck: teilt sich die Groessenpruefung mit beiden Druckwegen', () => {

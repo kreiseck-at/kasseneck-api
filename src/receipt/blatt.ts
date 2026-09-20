@@ -9,6 +9,7 @@ import {
 } from '../printing/index.js';
 import type { ReceiptLayout } from './layout.js';
 import { renderReceiptGrid, ZEICHEN_JE_PAPIER, type GridLine } from './grid.js';
+import { MARKE_RASTER } from './marke-daten.js';
 
 /**
  * Das Beleg-Blatt: die vollstaendige Folge dessen, was auf dem Papier steht --
@@ -38,9 +39,6 @@ export const LOGO_STUFEN: Readonly<Record<LogoStufe, { readonly breiteAnteil: nu
 export const PUNKTE_JE_ZEICHEN = 12;
 export const PUNKTE_JE_ZEILE = 24;
 
-/** Die Marke am Belegende (Konto-Flag `kreiseck_logo`) -- Text, damit jeder Weg sie gleich setzt. */
-export const MARKE_TEXT = 'erstellt mit Kasseneck';
-
 export interface BlattLogo {
   stufe: LogoStufe;
   /** Pixelmass des Originalbilds -- ohne das laesst sich nicht einpassen. */
@@ -58,7 +56,8 @@ export interface LogoMass {
 export type BlattBlock =
   | { readonly art: 'zeile'; readonly text: string; readonly fett: boolean; readonly leer: boolean }
   | { readonly art: 'logo'; readonly breiteAnteil: number; readonly hoeheZeilen: number }
-  | { readonly art: 'qr'; readonly nutzlast: string; readonly breiteAnteil: number };
+  | { readonly art: 'qr'; readonly nutzlast: string; readonly breiteAnteil: number }
+  | { readonly art: 'marke'; readonly breite: number; readonly hoehe: number };
 
 export interface BelegBlatt {
   readonly zeichen: number;
@@ -70,7 +69,7 @@ export interface BelegBlattOptionen {
   zeichen?: number;
   /** Firmenlogo; ohne Angabe kein Logo-Block. */
   logo?: BlattLogo | null;
-  /** "erstellt mit Kasseneck" am Ende. */
+  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   marke?: boolean;
   /** Geraete-Einstellung fuer die QR-Modulgroesse; Vorgabe `auto` (hoechstens 6 Punkte je Modul) — wie die Druckwege. */
   qrGroesse?: QrModulGroesse;
@@ -152,12 +151,6 @@ export function qrBlattAnteil(nutzlast: string, papier: PosPaperSize, groesse: Q
   return ((mass.module + 2 * QR_RUHEZONE_MODULE) * qrRasterPunkte(papier, mass.module, { groesse })) / papierPunkte;
 }
 
-function zentriert(text: string, zeichen: number): string {
-  const t = text.length > zeichen ? text.slice(0, zeichen) : text;
-  const links = Math.floor((zeichen - t.length) / 2);
-  return ' '.repeat(links) + t + ' '.repeat(zeichen - t.length - links);
-}
-
 export function belegBlatt(layout: ReceiptLayout, optionen: BelegBlattOptionen = {}): BelegBlatt {
   const grid = renderReceiptGrid(layout, optionen.zeichen === undefined ? {} : { zeichen: optionen.zeichen });
   const zeichen = grid.zeichen;
@@ -186,8 +179,15 @@ export function belegBlatt(layout: ReceiptLayout, optionen: BelegBlattOptionen =
   }
   for (; i < grid.lines.length; i += 1) bloecke.push(block(grid.lines[i]!));
   if (optionen.marke === true) {
-    bloecke.push(leerzeile);
-    bloecke.push({ art: 'zeile', text: zentriert(MARKE_TEXT, zeichen), fett: false, leer: false });
+    // Das Raster deckt nur die beiden bekannten Papierbreiten ab (`MARKE_RASTER`).
+    // Faende sich hier eine dritte, faellt die Marke weg statt ein Raster in
+    // falscher Groesse zu drucken -- derselbe Grundsatz wie beim Firmenlogo:
+    // eine Marke ist Zierde, der Beleg ist Pflicht.
+    const raster = MARKE_RASTER[papier];
+    if (raster) {
+      bloecke.push(leerzeile);
+      bloecke.push({ art: 'marke', breite: raster.breite, hoehe: raster.hoehe });
+    }
   }
   return { zeichen, bloecke };
 }

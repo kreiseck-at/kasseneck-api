@@ -70,7 +70,10 @@ for (const name of namen) {
       assert.equal(qrFehler, null, `${name}/${zeichen}: QR fiel aus`);
       const ist = eposFolge(xml);
       assert.equal(ist.length, soll.bloecke.length, `${name}/${zeichen}: Anzahl der gesetzten Bloecke`);
-      assert.equal(xml.split('<image').length - 1, 1, `${name}/${zeichen}: genau ein Logo`);
+      // Firmenlogo UND Marke sind je ein <image>-Befehl -- die Zuordnung, welches
+      // welches ist, uebernimmt die Reihenfolge weiter unten (Blockart aus dem Golden).
+      const bildBloecke = soll.bloecke.filter((b) => b.art === 'logo' || b.art === 'marke').length;
+      assert.equal(xml.split('<image').length - 1, bildBloecke, `${name}/${zeichen}: Anzahl der Bilder`);
       const papier = papierFuerZeichen(zeichen, layout.paperSize);
       soll.bloecke.forEach((b, i) => {
         const g = ist[i]!;
@@ -88,6 +91,11 @@ for (const name of namen) {
             }
             break;
           case 'logo':
+            assert.deepEqual(g, { art: 'logo' }, wo);
+            break;
+          case 'marke':
+            // Der Parser unterscheidet Bildbefehle nicht nach Inhalt -- ein
+            // <image> ist ein <image>, ob Firmenlogo oder Marke.
             assert.deepEqual(g, { art: 'logo' }, wo);
             break;
           case 'qr': {

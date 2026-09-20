@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
 import { renderReceiptGrid } from '../src/receipt/grid.js';
-import { LOGO_PIXEL_MAX, LOGO_STUFEN, MARKE_TEXT, belegBlatt, logoMass, logoPixelZulaessig, logoRasterMass, papierFuerZeichen, qrBlattAnteil } from '../src/receipt/blatt.js';
+import { LOGO_PIXEL_MAX, LOGO_STUFEN, belegBlatt, logoMass, logoPixelZulaessig, logoRasterMass, papierFuerZeichen, qrBlattAnteil } from '../src/receipt/blatt.js';
 
 /**
  * Das Blatt ist die vollstaendige Folge dessen, was auf dem Papier steht.
@@ -46,12 +46,17 @@ test('ohne fuehrenden Rahmen beginnt das Blatt mit dem Logo (keine Leerzeile dav
   assert.deepEqual(blatt.bloecke[1], { art: 'zeile', text: ' '.repeat(48), fett: false, leer: true });
 });
 
-test('Marke: Leerzeile und zentriert "erstellt mit Kasseneck" ganz am Ende', () => {
-  const blatt = belegBlatt(TESTKASSE, { marke: true, zeichen: 32 });
-  const letzte = blatt.bloecke.slice(-2);
-  assert.deepEqual(letzte[0], { art: 'zeile', text: ' '.repeat(32), fett: false, leer: true });
-  assert.deepEqual(letzte[1], { art: 'zeile', text: '     erstellt mit Kasseneck     ', fett: false, leer: false });
-  assert.equal(MARKE_TEXT, 'erstellt mit Kasseneck');
+test('mit Marke steht am Ende ein Markenblock, keine Textzeile', () => {
+  const blatt = belegBlatt(TESTKASSE, { zeichen: 32, marke: true });
+  const letzter = blatt.bloecke[blatt.bloecke.length - 1];
+  assert.equal(letzter?.art, 'marke');
+  const alsText = blatt.bloecke.map((b) => (b.art === 'zeile' ? b.text : '')).join('\n');
+  assert.ok(!alsText.includes('erstellt mit Kasseneck'), 'die Textzeile ist ersetzt, nicht ergaenzt');
+});
+
+test('ohne Marke entsteht kein Markenblock', () => {
+  const blatt = belegBlatt(TESTKASSE, { zeichen: 32, marke: false });
+  assert.ok(!blatt.bloecke.some((b) => b.art === 'marke'));
 });
 
 test('logoMass: in den Kasten eingepasst, nie hochgerechnet', () => {

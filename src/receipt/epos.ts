@@ -11,7 +11,9 @@ import {
   type RasterBild,
 } from '../printing/index.js';
 import { ZEICHEN_JE_PAPIER } from './grid.js';
+import { papierFuerZeichen } from './blatt.js';
 import { blattFuerDruck, type DruckLogo } from './layout-escpos.js';
+import { markeBild } from './marke.js';
 
 /**
  * ePOS-Print XML (Epson TM-Drucker: Server Direct Print, ePOS-Print ueber
@@ -46,7 +48,7 @@ export interface EposPrintXmlOptions {
   cut?: boolean;
   /** Firmenlogo; ohne Angabe kein Logo. */
   logo?: DruckLogo | null;
-  /** "erstellt mit Kasseneck" am Ende. */
+  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   marke?: boolean;
 }
 
@@ -93,6 +95,7 @@ export function eposPrintXmlErgebnis(
   options: EposPrintXmlOptions = {},
 ): EposPrintErgebnis {
   const zeichen = options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize];
+  const papier = papierFuerZeichen(zeichen, layout.paperSize);
   const deckel = options.qrGroesse ?? 'auto';
   const blatt = blattFuerDruck(layout, { zeichen, logo: options.logo, marke: options.marke, qrGroesse: deckel });
   const fest = options.qrBreite === undefined
@@ -156,6 +159,11 @@ export function eposPrintXmlErgebnis(
           out.push(eposBildXml(options.logo.raster));
           out.push('<text align="left"/>');
         }
+        break;
+      case 'marke':
+        out.push('<text align="center"/>');
+        out.push(eposBildXml(markeBild(papier)));
+        out.push('<text align="left"/>');
         break;
       case 'qr': {
         const breite = qrBreiteFuer(block.nutzlast);
