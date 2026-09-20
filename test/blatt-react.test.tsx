@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { belegBlatt } from '../src/receipt/index.js';
+import { belegBlatt, PUNKTE_JE_ZEICHEN } from '../src/receipt/index.js';
 import { BelegBlattView, BelegBlattZeilen } from '../src/react/index.js';
-import { logoPixelZulaessig } from '../src/receipt/index.js';
+import { logoPixelZulaessig, MARKE_PFADE } from '../src/receipt/index.js';
 
 const LAYOUT: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
   { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
@@ -39,6 +39,24 @@ test('BelegBlattZeilen: Logo in Blattanteil und Zeilen, QR in seinem Anteil, Rei
   assert.ok(iRahmen >= 0 && iRahmen < html.indexOf('keck-blatt-logo') && html.indexOf('keck-blatt-logo') < html.indexOf('Gesamt:'));
   assert.ok(html.indexOf('keck-blatt-qr') > html.indexOf('Gesamt:'));
   assert.ok(html.includes('data-inhalt="QR-INHALT"'));
+});
+
+test('BelegBlattZeilen: mit Marke steht ein SVG aus MARKE_PFADE, in der Groesse des Markenblocks', () => {
+  const blatt = belegBlatt(LAYOUT, { marke: true });
+  const markeBlock = blatt.bloecke.find((b) => b.art === 'marke') as { breite: number; hoehe: number };
+  const html = renderToStaticMarkup(<BelegBlattZeilen blatt={blatt} />);
+  assert.ok(html.includes('keck-blatt-marke'), html);
+  assert.ok(html.includes(`viewBox="0 0 ${MARKE_PFADE.breite} ${MARKE_PFADE.hoehe}"`), html);
+  assert.equal((html.match(/<path /g) ?? []).length, MARKE_PFADE.pfade.length, 'jeder Pfad steht im SVG');
+  assert.ok(html.includes(`width="${markeBlock.breite / PUNKTE_JE_ZEICHEN}ch"`), html);
+  assert.ok(html.includes(`height="${markeBlock.hoehe / PUNKTE_JE_ZEICHEN}ch"`), html);
+});
+
+test('BelegBlattZeilen: ohne Marke kein SVG', () => {
+  const blatt = belegBlatt(LAYOUT);
+  const html = renderToStaticMarkup(<BelegBlattZeilen blatt={blatt} />);
+  assert.ok(!html.includes('keck-blatt-marke'), html);
+  assert.ok(!html.includes('<svg'), html);
 });
 
 test('BelegBlattView ohne geladenes Logo: noch kein Logo-Block (Server-Rendering), Marke und Zeilen stehen', () => {
