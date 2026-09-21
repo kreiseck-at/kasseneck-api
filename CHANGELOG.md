@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.26.0
+
+- Beleg: Am Ende steht das Kasseneck-Logo als Bild statt der Zeile „erstellt mit Kasseneck".
+  Das Raster entsteht beim Bauen in den beiden Druckmaßen (352 × 51 für 80 mm, 234 × 34 für 58 mm);
+  zur Laufzeit wird nichts gerastert, damit beide Pakete denselben Bytestrom erzeugen.
+- `MARKE_TEXT` entfällt. Wer die Marke selbst gesetzt hat, nimmt jetzt den Blockart `marke`.
+
 ## 0.25.0
 
 - ESC/POS: den Sofort-Reset der Ausrichtung direkt nach QR-Code, QR-Rasterbild und
