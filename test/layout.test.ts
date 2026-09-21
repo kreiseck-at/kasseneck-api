@@ -8,6 +8,7 @@ import {
   buildReceiptLayout,
   formatCents,
   escPosLayoutBytes,
+  PUNKTE_JE_ZEICHEN,
   type LayoutLine,
   type ReceiptLayout,
   SMALL_BUSINESS_NOTICE,
@@ -585,10 +586,29 @@ test('ESC/POS: Umlaute bleiben erhalten und werden als ein Byte kodiert', () => 
   assert.ok(enthaeltText(bytes, 'Café Kreiseck'));
 });
 
+test('ESC/POS: der Druckbereich folgt dem Blatt, nicht dem Geraet', () => {
+  // Der Fund am Papier (21.09.): ein 58-mm-Blatt auf einem 80-mm-Drucker
+  // setzte den Text in die linken 384 Punkte, QR und Logo aber mittig in die
+  // 576 des Geraets -- alles Bildhafte stand gegenueber dem Text nach rechts
+  // gerueckt. Der Drucker kann es nicht besser wissen, solange ihm niemand
+  // sagt, welche Flaeche gemeint ist. Genau das sagt `GS W` jetzt, und zwar
+  // in der Breite des Blatts: Zeichen je Zeile mal 12 Punkte.
+  for (const [paperSize, zeichen] of [['mm58', 32], ['mm80', 48]] as const) {
+    const bytes = escPosLayoutBytes({ ...buildReceiptLayout(BELEG, FIRMA), paperSize });
+    const punkte = zeichen * PUNKTE_JE_ZEICHEN;
+    assert.deepEqual(
+      Array.from(bytes.slice(0, 10)),
+      [27, 64, 29, 76, 0, 0, 29, 87, punkte & 0xff, punkte >> 8],
+      `${paperSize}: Druckbereich muss ${punkte} Punkte breit sein`,
+    );
+  }
+});
+
 test('ESC/POS: der Bytestrom traegt Vorspann, QR-Inhalt und Schnitt', () => {
   const bytes = escPosLayoutBytes(buildReceiptLayout(BELEG, FIRMA));
-  // Vorspann wie im Vorbild: ESC @ (Init) und ESC t 16 (CP1252).
-  assert.deepEqual(Array.from(bytes.slice(0, 5)), [27, 64, 27, 116, 16]);
+  // Vorspann wie im Vorbild: ESC @ (Init), der Druckbereich des Blatts
+  // (GS L 0 / GS W 384 -- 32 Zeichen a 12 Punkte) und ESC t 16 (CP1252).
+  assert.deepEqual(Array.from(bytes.slice(0, 13)), [27, 64, 29, 76, 0, 0, 29, 87, 128, 1, 27, 116, 16]);
   assert.ok(enthaeltText(bytes, QR_INHALT), 'QR-Inhalt fehlt im Bytestrom');
   // GS V 0 — voller Schnitt am Ende.
   assert.deepEqual(Array.from(bytes.slice(-3)), [29, 86, 48]);

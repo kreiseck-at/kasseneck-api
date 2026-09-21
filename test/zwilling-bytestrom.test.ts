@@ -23,6 +23,9 @@ import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
  * Mal, weil sie dort eine andere Frage beantworten (Bestandsgeraete) als hier
  * (Zwillings-Gleichheit).
  *
+ * Die vier Digests sind mit 0.26.0 einmal neu gezogen worden: seither traegt
+ * der Vorspann den Druckbereich des Blatts (`GS L` / `GS W`, acht Bytes).
+ *
  * Der QR laeuft im nativen Modus, weil nur der ohne gerastertes Bild auskommt
  * und damit in beiden Paketen aus derselben Quelle entsteht -- das gerasterte
  * Symbol baut jede Seite mit ihrer eigenen QR-Bibliothek, dort ist
@@ -47,17 +50,17 @@ const digest = (paperSize: 'mm58' | 'mm80', marke: boolean): string =>
   createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { marke })).digest('hex');
 
 test('58 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', false), '7589f2fa8b9de73efddf4095add15b6d54b7e8638f02532c0498701e5df28a1d');
+  assert.equal(digest('mm58', false), '42a673115d099035009a72aa171d0785f1ec697bd9042a669720e3b416d6d749');
 });
 
 test('80 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', false), 'fb1520fb7705c9ef486c3aa2ff302bbedb79832ed9665de9afc668939beef2a8');
+  assert.equal(digest('mm80', false), '76d9c93b23f062ffa53ff1a0cba53a2b2f0db3dd9bd36ad6cced638c20e547d8');
 });
 
 test('58 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', true), 'b85ee5c1e9f69ce0e566596d06b4415115b2b13ac756fb87fae3b072be81e858');
+  assert.equal(digest('mm58', true), '98e98cfdbd54741634a6b2189970c72ea01594c97f193ca8f69c6df4b5013a34');
 });
 
 test('80 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', true), '77f594a7205004164233ced3cd3da8263d3325634d25610253b23c9c9d12aed7');
+  assert.equal(digest('mm80', true), '31fee883750041872ce63d07e5f4ba819be78892f6569611b4bdc98f66913fe6');
 });

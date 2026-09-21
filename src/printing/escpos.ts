@@ -218,6 +218,8 @@ const C_UNDERLINE_OFF = [ESC, 0x2d, 0x00] as const; // ESC - 0
 const C_UNDERLINE_1DOT = [ESC, 0x2d, 0x01] as const; // ESC - 1
 const C_BOLD_ON = [ESC, 0x45, 0x01] as const; // ESC E 1
 const C_BOLD_OFF = [ESC, 0x45, 0x00] as const; // ESC E 0
+const C_LEFT_MARGIN = [GS, 0x4c] as const; // GS L nL nH
+const C_PRINT_AREA = [GS, 0x57] as const; // GS W nL nH
 const C_FONT_A = [ESC, 0x4d, 0x00] as const; // ESC M 0
 const C_FONT_B = [ESC, 0x4d, 0x01] as const; // ESC M 1
 const C_TURN90_ON = [ESC, 0x56, 0x01] as const; // ESC V 1
@@ -243,6 +245,15 @@ const PAPIER_MM: Readonly<Record<PosPaperSize, number>> = { mm58: 58, mm80: 80 }
 
 /** Druckbreite in Punkten je Papierformat — aus enums.dart (EscPaperSize.width). */
 const PAPIER_BREITE: Readonly<Record<PosPaperSize, number>> = { mm58: 372, mm80: 558 };
+
+/**
+ * Breite des **Blatts** in Punkten: Zeichen je Zeile in Font A mal 12 Punkte.
+ *
+ * Das ist bewusst NICHT `PAPIER_BREITE` (372/558, das Erbe aus enums.dart fuer
+ * die Spaltenrechnung), sondern das Raster, in dem der Text wirklich steht --
+ * ein Zeichen in Font A ist 12 Punkte breit, 32 Zeichen also 384 Punkte.
+ */
+const BLATT_PUNKTE: Readonly<Record<PosPaperSize, number>> = { mm58: 32 * 12, mm80: 48 * 12 };
 
 /** Zeichen je Zeile nach Papier und Schrift — aus generator.dart. */
 const ZEICHEN_JE_ZEILE: Readonly<Record<PosPaperSize, Readonly<Record<PosFont, number>>>> = {
@@ -424,6 +435,7 @@ export function escPosBytes(doc: EscPosDocument): Uint8Array {
  */
 export function escPosReset(doc: EscPosDocument): void {
   anhaengen(doc, C_INIT);
+  escPosSetDruckbereich(doc);
   doc.styles = vollstaendigeStile();
   // Wie `PrintPaper.reset()` im Flutter-Zwilling: ein neu begonnener Beleg
   // erbt die QR-Meldungen des vorigen nicht.
@@ -431,6 +443,30 @@ export function escPosReset(doc: EscPosDocument): void {
   doc.qrAusweich = null;
   escPosSetGlobalCodeTable(doc, doc.globalCodeTable);
   escPosSetGlobalFont(doc, doc.globalFont);
+}
+
+/**
+ * `GS L` + `GS W`: linker Rand auf 0, Druckbereich auf die Breite des Blatts.
+ *
+ * **Warum das noetig ist.** `ESC a 1` mittelt nicht im Blatt, sondern im
+ * Druckbereich des *Geraets*. Steht das Blatt auf 58 mm (32 Zeichen) und
+ * haengt ein 80-mm-Drucker daran, setzt er den Text in die linken 384 Punkte,
+ * mittelt QR, Logo und Marke aber in seinen 576 -- am Papier sitzt dann alles
+ * Bildhafte gegenueber dem Text nach rechts gerueckt. Am Geraet nachgestellt
+ * und bestaetigt: mit diesen acht Bytes im Vorspann steht beides buendig.
+ *
+ * Der Befehl beschreibt also nicht das Papier, sondern das Blatt: er sagt dem
+ * Drucker, welche Flaeche gemeint ist, statt ihn raten zu lassen. Passt das
+ * Geraet ohnehin zum Blatt (der Regelfall), ist es sein eigener Vorgabewert
+ * und aendert am Druckbild nichts.
+ *
+ * Es ist dieselbe Fehlerklasse wie in 0.24.0 und 0.25.0: eine Ausrichtung,
+ * die sich am falschen Bezug orientiert.
+ */
+export function escPosSetDruckbereich(doc: EscPosDocument): void {
+  const punkte = BLATT_PUNKTE[doc.paperSize];
+  anhaengen(doc, [...C_LEFT_MARGIN, 0, 0]);
+  anhaengen(doc, [...C_PRINT_AREA, punkte & 0xff, punkte >> 8]);
 }
 
 /**
