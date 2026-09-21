@@ -555,6 +555,35 @@ test('row: eine verworfene Ausrichtung in Spalte 2 bleibt fuer die naechste echt
   );
 });
 
+test('row: 80 mm, rechtsbuendige Spalte mit doppelter Schriftbreite -- die Positionsrechnung zaehlt weiterhin richtig', () => {
+  // Sichert die Spaltenarithmetik, die seit der Ausrichtung-vor-Position-
+  // Umstellung HINTER der Stilausgabe steht: `escPosSetStyles` (mit `GS !`
+  // fuer die doppelte Breite) laeuft jetzt vor der Positionsrechnung, nicht
+  // mehr danach -- die Rechnung muss trotzdem noch mit dem angeforderten
+  // Stil (nicht dem zuvor gesendeten) rechnen.
+  //
+  // Handrechnung (mm80 = 558 Punkte, 48 Zeichen/Zeile bei Fontgroesse A):
+  //   Spalte 2 (colInd 5, colWidth 7): bis = 558*12/12 - 1 - 5 = 552
+  //   Zeichenbreite doppelt = (558/48)*2 = 23,25; "XY" = 2 Zeichen = 46,5 Punkte
+  //   rechtsbuendig: von = 552 - 46,5 = 505,5 -> gerundet 506 = 0x01FA (250, 1)
+  const doc = createEscPosDocument({ paperSize: 'mm80' });
+  escPosReset(doc);
+  escPosRow(doc, [
+    { text: 'AB', width: 5 },
+    { text: 'XY', width: 7, styles: { align: 'right', width: 2 } },
+  ]);
+  gleicheBytes(escPosBytes(doc), [
+    27, 64, 27, 116, 16,
+    28, 46, 27, 116, 16, 27, 36, 0, 0, 65, 66, // "AB" ab Position 0
+    27, 97, 50, // ESC a 2 (rechts)
+    29, 33, 16, // GS ! 16 -- doppelte Breite, einfache Hoehe
+    28, 46, 27, 116, 16,
+    27, 36, 250, 1, // ESC $ 506
+    88, 89, // "XY"
+    10,
+  ]);
+});
+
 test('row: zu langer Spalteninhalt laeuft in eine Folgezeile statt verloren zu gehen', () => {
   // Bewusste Abweichung vom Vorbild: dort wird das Ergebnis des rekursiven
   // row()-Aufrufs verworfen, der Rest ist damit weg. Die erste Zeile ist
