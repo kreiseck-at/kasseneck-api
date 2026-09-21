@@ -501,7 +501,15 @@ test('row: 15 Umlaut-Zeichen passen in die Spalte (kein Umbruch)', () => {
   ]);
 });
 
-test('row: 80 mm, zentrierte Spalte', () => {
+test('row: 80 mm, zentrierte Spalte am Zeilenanfang -- Drucker bekommt links, nicht die Ausrichtung der Spalte', () => {
+  // Die Position der Spalte wird weiterhin von Hand zentriert berechnet
+  // (ESC $ 84 bleibt); an den Drucker geht dafuer links, nicht zentriert --
+  // links ist schon der Anfangszustand eines frischen Dokuments, darum
+  // entfaellt `ESC a` hier ganz. Ginge stattdessen "zentriert" hinaus,
+  // wuerde der Drucker seine eigene Zentrierung auf die GANZE Zeile
+  // anwenden, bis zum naechsten Zeilenumbruch -- dieselbe Fehlerklasse wie
+  // der behobene Ausrichtungsfehler, hier auf Spaltenebene statt auf
+  // Zeilenebene.
   const doc = createEscPosDocument({ paperSize: 'mm80' });
   escPosReset(doc);
   escPosRow(doc, [
@@ -510,10 +518,11 @@ test('row: 80 mm, zentrierte Spalte', () => {
   ]);
   gleicheBytes(escPosBytes(doc), [
     27, 64, 27, 116, 16,
-    27, 97, 49, 28, 46, 27, 116, 16,
-    27, 36, 84, 0, // ESC $ 84
+    // kein ESC a: der Drucker steht schon auf links, das wird erzwungen statt zentriert
+    28, 46, 27, 116, 16,
+    27, 36, 84, 0, // ESC $ 84 -- die Zentrierung steckt nur noch in der Position
     65,
-    27, 97, 48, 28, 46, 27, 116, 16,
+    28, 46, 27, 116, 16,
     27, 36, 185, 0, // ESC $ 185
     66,
     10,

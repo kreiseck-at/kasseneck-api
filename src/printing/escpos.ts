@@ -636,14 +636,27 @@ function textIntern(
   const stile = vollstaendigeStile(optionen.styles);
   const colInd = optionen.colInd ?? 0;
   const colWidth = optionen.colWidth ?? 12;
+  const volleZeile = colInd === 0 && colWidth === 12;
+
+  // Bekommt die Spalte ohnehin eine von Hand berechnete Position (siehe
+  // unten), darf an den Drucker nur "links" gehen -- nie ihre eigentliche
+  // Ausrichtung. `ESC a` wirkt nicht auf die Spalte, sondern auf die ganze
+  // Zeile bis zum naechsten Zeilenumbruch: eine zentrierte oder rechts-
+  // buendige erste Spalte wuerde sonst den Drucker seine eigene Zentrierung
+  // auf jede weitere Spalte derselben Zeile anwenden lassen -- dieselbe
+  // Fehlerklasse wie der behobene Ausrichtungsfehler, eine Ebene tiefer.
+  // Die tatsaechliche Ausrichtung fliesst nur noch in die Positionsrechnung
+  // unten ein (ueber `stile`, nicht ueber diesen Befehl).
+  const stileFuerDrucker: PosStyles | undefined =
+    colInd === 0 && !volleZeile ? { ...optionen.styles, align: 'left' } : optionen.styles;
 
   // Ausrichtung vor Position -- `ESC a` gilt nur am Zeilenanfang, nach `ESC $`
   // verwirft der Drucker ihn. Zwilling von `_text` in generator.dart.
-  escPosSetStyles(doc, optionen.styles);
+  escPosSetStyles(doc, stileFuerDrucker);
 
   // Eine volle Zeile beginnt am linken Rand; ein Positionsbefehl dafuer waere
   // nicht nur ueberfluessig, er entwertet die Ausrichtung.
-  if (!(colInd === 0 && colWidth === 12)) {
+  if (!volleZeile) {
     const breiteJeZeichen = zeichenBreite(doc, stile);
     let von = spaltenPosition(doc, colInd);
 
