@@ -10,6 +10,14 @@ nur der Grund überlebt den nächsten Umbau.
   Das Raster entsteht beim Bauen in den beiden Druckmaßen (352 × 51 für 80 mm, 234 × 34 für 58 mm);
   zur Laufzeit wird nichts gerastert, damit beide Pakete denselben Bytestrom erzeugen.
 - `MARKE_TEXT` entfällt. Wer die Marke selbst gesetzt hat, nimmt jetzt den Blockart `marke`.
+- ESC/POS: `row()` gibt der ersten Spalte am Drucker nur noch links, nie ihre eigentliche
+  Ausrichtung — eine zentrierte oder rechtsbündige erste Spalte ließ den Drucker seine
+  eigene Ausrichtung sonst auf jede weitere Spalte derselben Zeile anwenden (dieselbe
+  Fehlerklasse wie der in 0.24.0/0.25.0 behobene Ausrichtungsfehler, eine Ebene tiefer).
+  Die tatsächliche Ausrichtung fließt weiterhin in die von Hand berechnete Position ein.
+- ESC/POS: ein `ESC a`, das der Drucker mitten in der Zeile (Spalte ab der zweiten)
+  wortlos verwirft, gilt intern nicht mehr als gesetzt — eine spätere, echte Zeile hielt
+  sich sonst fälschlich schon für umgestellt und unterließ den Befehl.
 
 ## 0.25.0
 
