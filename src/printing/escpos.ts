@@ -476,17 +476,30 @@ export function escPosSetGlobalFont(
  * Sendet die Stilbefehle, die sich gegenueber dem zuletzt gesendeten Stand
  * geaendert haben. Fehlende Felder in [styles] gelten als Vorgabe: wer fett
  * weglaesst, schaltet fett also ab.
+ *
+ * `zeilenanfang` (Vorgabe `true`) sagt, ob dieser Aufruf am Anfang einer
+ * Druckzeile steht. Nur dort nimmt der Drucker `ESC a` (Ausrichtung)
+ * ueberhaupt an; mitten in der Zeile verwirft er den Befehl wortlos. Der
+ * Bytestrom bekommt ihn trotzdem -- die Bytefolge soll sich dadurch nicht
+ * aendern --, aber der intern gemerkte Zustand darf sich NICHT auf den neuen
+ * Wert stellen: sonst haelt eine spaetere, echte Zeile die Ausrichtung
+ * faelschlich schon fuer gesetzt und unterlaesst den Befehl.
  */
-export function escPosSetStyles(doc: EscPosDocument, styles: PosStyles = {}): void {
+export function escPosSetStyles(
+  doc: EscPosDocument,
+  styles: PosStyles = {},
+  optionen: { zeilenanfang?: boolean } = {},
+): void {
   const neu = vollstaendigeStile(styles);
   const alt = doc.styles;
+  const zeilenanfang = optionen.zeilenanfang ?? true;
 
   if (neu.align !== alt.align) {
     anhaengen(
       doc,
       neu.align === 'left' ? C_ALIGN_LEFT : neu.align === 'center' ? C_ALIGN_CENTER : C_ALIGN_RIGHT,
     );
-    alt.align = neu.align;
+    if (zeilenanfang) alt.align = neu.align;
   }
   if (neu.bold !== alt.bold) {
     anhaengen(doc, neu.bold ? C_BOLD_ON : C_BOLD_OFF);
@@ -652,7 +665,7 @@ function textIntern(
 
   // Ausrichtung vor Position -- `ESC a` gilt nur am Zeilenanfang, nach `ESC $`
   // verwirft der Drucker ihn. Zwilling von `_text` in generator.dart.
-  escPosSetStyles(doc, stileFuerDrucker);
+  escPosSetStyles(doc, stileFuerDrucker, { zeilenanfang: colInd === 0 });
 
   // Eine volle Zeile beginnt am linken Rand; ein Positionsbefehl dafuer waere
   // nicht nur ueberfluessig, er entwertet die Ausrichtung.

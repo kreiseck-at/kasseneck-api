@@ -529,6 +529,32 @@ test('row: 80 mm, zentrierte Spalte am Zeilenanfang -- Drucker bekommt links, ni
   ]);
 });
 
+test('row: eine verworfene Ausrichtung in Spalte 2 bleibt fuer die naechste echte Zeile spuerbar', () => {
+  // Spalte 2 (colInd != 0) verlangt rechts -- der Drucker verwirft `ESC a`
+  // dort wortlos, weil es nicht am Zeilenanfang steht. Der Zustand darf sich
+  // den Wechsel trotzdem NICHT merken: sonst haelt die naechste echte Zeile
+  // (volle Breite, wirklich am Zeilenanfang) den Drucker faelschlich schon
+  // fuer rechtsbuendig und unterlaesst den Befehl -- die verworfene
+  // Ausrichtung bliebe dann fuer immer links stehen, obwohl "rechts"
+  // verlangt ist.
+  const doc = createEscPosDocument();
+  escPosReset(doc);
+  escPosRow(doc, [
+    { text: 'A', width: 6 },
+    { text: 'B', width: 6, styles: { align: 'right' } },
+  ]);
+  const nachDerZeile = escPosBytes(doc).length;
+  escPosText(doc, 'C', { styles: { align: 'right' } });
+  // Nur der Ausschnitt, den `escPosText('C', …)` selbst angehaengt hat --
+  // ein `ESC a 2` aus der Zeile davor (dort verworfen) zaehlt nicht.
+  const neu = Array.from(escPosBytes(doc)).slice(nachDerZeile);
+  const hat = (folge: number[]) => neu.some((_, i) => folge.every((b, j) => neu[i + j] === b));
+  assert.ok(
+    hat([27, 97, 50]),
+    'ESC a 2 (rechts) muss erneut vor "C" stehen -- der Drucker steht real noch auf links',
+  );
+});
+
 test('row: zu langer Spalteninhalt laeuft in eine Folgezeile statt verloren zu gehen', () => {
   // Bewusste Abweichung vom Vorbild: dort wird das Ergebnis des rekursiven
   // row()-Aufrufs verworfen, der Rest ist damit weg. Die erste Zeile ist
