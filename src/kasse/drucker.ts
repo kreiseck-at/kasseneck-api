@@ -62,7 +62,7 @@ export interface CreatePrintJobOptions {
   quelle?: string;
   /** Firmenlogo als fertiges Rasterbild (`logoRaster`); der Server dekodiert keine Bilder. */
   logo?: DruckLogo | null;
-  /** "erstellt mit Kasseneck" am Ende (Konto-Flag `kreiseck_logo`). */
+  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   marke?: boolean;
 }
 

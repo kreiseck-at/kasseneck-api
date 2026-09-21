@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { LayoutAlign, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
-import { belegBlatt, logoPixelZulaessig, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
+import { belegBlatt, logoPixelZulaessig, PUNKTE_JE_ZEICHEN, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
+import { MARKE_PFADE } from '../receipt/marke-daten.js';
 import type { QrModulGroesse } from '../printing/qr-groesse.js';
 
 /**
@@ -225,6 +226,17 @@ export function BelegBlattZeilen({ blatt, logoUrl, renderQr, qrVerdeckt = false,
                 {logoUrl === undefined ? null : (
                   <img src={logoUrl} alt="" aria-hidden="true" style={{ width: `${b.breiteAnteil * z}ch`, height: `${b.hoeheZeilen * 2}ch`, objectFit: 'contain' }} />
                 )}
+              </div>
+            );
+          case 'marke':
+            // Kein Rasterbild wie am Bon: Dieses Paket hat bewusst keine
+            // Abhaengigkeiten, und die Pfade liegen ohnehin schon vor (PDF
+            // zeichnet dieselben). Ein SVG bleibt in jeder Aufloesung scharf.
+            return (
+              <div key={i} className="keck-blatt-marke" style={{ height: `${b.hoehe / PUNKTE_JE_ZEICHEN}ch`, display: 'flex', justifyContent: 'center' }}>
+                <svg viewBox={`0 0 ${MARKE_PFADE.breite} ${MARKE_PFADE.hoehe}`} width={`${b.breite / PUNKTE_JE_ZEICHEN}ch`} height={`${b.hoehe / PUNKTE_JE_ZEICHEN}ch`} role="img" aria-label="Kasseneck" fill="currentColor">
+                  {MARKE_PFADE.pfade.map((d, j) => <path key={j} d={d} />)}
+                </svg>
               </div>
             );
           case 'qr': {

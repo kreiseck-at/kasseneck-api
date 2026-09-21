@@ -26,6 +26,7 @@ import {
 import type { ReceiptLayout } from './layout.js';
 import { belegBlatt, logoRasterMass, type BelegBlatt, type BelegBlattOptionen, type LogoStufe, type LogoMass } from './blatt.js';
 import { ZEICHEN_JE_PAPIER } from './grid.js';
+import { markeBild } from './marke.js';
 
 /**
  * Bruecke vom Layout-Modell zu ESC/POS-Bytes — der Bondrucker-Ausgabeweg.
@@ -125,7 +126,7 @@ export interface EscPosLayoutOptions {
   qrMatrix?: (nutzlast: string) => QrMatrix;
   /** Firmenlogo; ohne Angabe kein Logo (Bestand). */
   logo?: DruckLogo | null;
-  /** "erstellt mit Kasseneck" am Ende (Konto-Flag `kreiseck_logo`). */
+  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   marke?: boolean;
 }
 
@@ -262,6 +263,9 @@ export function escPosLayoutErgebnis(
         break;
       case 'logo':
         if (options.logo) escPosRasterBild(doc, options.logo.raster, { align: 'center' });
+        break;
+      case 'marke':
+        escPosRasterBild(doc, markeBild(paperSize), { align: 'center' });
         break;
       case 'zeile':
         if (block.leer) escPosFeed(doc, 1);

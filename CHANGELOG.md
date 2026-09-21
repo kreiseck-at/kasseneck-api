@@ -4,6 +4,36 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.26.0
+
+- Beleg: Am Ende steht das Kasseneck-Logo als Bild statt der Zeile „erstellt mit Kasseneck".
+  Das Raster entsteht beim Bauen in den beiden Druckmaßen (352 × 51 für 80 mm, 234 × 34 für 58 mm);
+  zur Laufzeit wird nichts gerastert, damit beide Pakete denselben Bytestrom erzeugen.
+- **ESC/POS: der Vorspann setzt den Druckbereich auf die Breite des Blatts** (`GS L 0` +
+  `GS W`, acht Bytes hinter `ESC @`). `ESC a 1` mittelt nicht im Blatt, sondern in der
+  Fläche des *Geräts*: Ein 58-mm-Blatt auf einem 80-mm-Drucker setzte den Text in die
+  linken 384 Punkte, QR, Logo und Marke aber mittig in die 576 — alles Bildhafte stand
+  gegenüber dem Text nach rechts gerückt. Am Gerät nachgestellt und behoben. Passen Gerät
+  und Blatt zusammen (der Regelfall), ist der gesetzte Wert der Vorgabewert des Druckers
+  und das Druckbild bleibt unverändert; die Bestandsschutz-Digests sind allein wegen
+  dieser acht Bytes neu gezogen (Gegenprobe byteweise: sonst hat sich nichts verschoben).
+  Der ePOS-Weg trägt denselben Bezugsfehler und ist noch offen — die ePOS-Print-Einheit
+  des Prüfgeräts war nicht erreichbar, und ungeprüft geht dorthin nichts.
+- `MARKE_TEXT` entfällt. Wer die Marke selbst gesetzt hat, nimmt jetzt den Blockart `marke`.
+- ESC/POS: `row()` gibt der ersten Spalte am Drucker nur noch links, nie ihre eigentliche
+  Ausrichtung — eine zentrierte oder rechtsbündige erste Spalte ließ den Drucker seine
+  eigene Ausrichtung sonst auf jede weitere Spalte derselben Zeile anwenden (dieselbe
+  Fehlerklasse wie der in 0.24.0/0.25.0 behobene Ausrichtungsfehler, eine Ebene tiefer).
+  Die tatsächliche Ausrichtung fließt weiterhin in die von Hand berechnete Position ein.
+- ESC/POS: ein `ESC a`, das der Drucker mitten in der Zeile (Spalte ab der zweiten)
+  wortlos verwirft, gilt intern nicht mehr als gesetzt — eine spätere, echte Zeile hielt
+  sich sonst fälschlich schon für umgestellt und unterließ den Befehl.
+- Prüfung: Der Zwillingsabgleich am **Bytestrom** ist jetzt Teil der Test-Suite
+  (`test/zwilling-bytestrom.test.ts`) statt eines Skripts von Hand. Vier SHA-256 über den
+  fertigen Bon (58/80 mm, mit und ohne Marke) stehen wortgleich im Dart-Paket; wer in
+  einem der beiden Pakete am Druckweg dreht, macht dort oder hier rot. Die bisherigen
+  gemeinsamen Prüffälle deckten Raster, Zeilen und Blatt ab — alles Stufen vor den Bytes.
+
 ## 0.25.0
 
 - ESC/POS: den Sofort-Reset der Ausrichtung direkt nach QR-Code, QR-Rasterbild und

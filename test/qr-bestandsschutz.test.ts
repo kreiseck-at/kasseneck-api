@@ -33,6 +33,18 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
  * diese entfallenen `ESC $`-Token ueberein -- weder QR-Nutzlast noch sonst ein
  * Befehl hat sich verschoben.
  *
+ * Druckbereich (0.26.0): der Vorspann setzt jetzt `GS L 0` und `GS W` mit der
+ * Breite des Blatts. Alle vier Digests unten sind deshalb neu gezogen; der
+ * Strom ist um genau diese acht Bytes laenger, sonst unveraendert (Gegenprobe:
+ * Byte fuer Byte verglichen, die Abweichung liegt ausschliesslich zwischen
+ * `ESC @` und `ESC t`). **Am Druckbild eines Bestandsgeraets aendert das
+ * nichts**, solange Geraet und Blatt zusammenpassen -- dann ist der gesetzte
+ * Wert der Vorgabewert des Druckers. Es aendert das Bild genau dort, wo es
+ * heute falsch ist: Blatt und Geraet verschieden breit (58-mm-Blatt auf einem
+ * 80-mm-Drucker), wo der Drucker Bilder bisher in seiner eigenen Flaeche
+ * mittelte und QR, Logo und Marke damit neben dem Text standen. Am Geraet
+ * nachgestellt und bestaetigt.
+ *
  * Rueckweg-Entfernung (0.25.0): der Sofort-Reset der Ausrichtung direkt nach
  * dem QR faellt weg, weil die Ursache (Positionsbefehl mitten in der Zeile)
  * seit 0.24.0 behoben ist -- der naechste echte Stil-Aufruf (das Element nach
@@ -58,13 +70,13 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
     // verschiebt sich zum naechsten Element, siehe Kopfkommentar. Belegt:
     // tokenisierter Vorher/Nachher-Vergleich, einzige Abweichung ist genau
     // diese Verschiebung.
-    '7589f2fa8b9de73efddf4095add15b6d54b7e8638f02532c0498701e5df28a1d',
+    '42a673115d099035009a72aa171d0785f1ec697bd9042a669720e3b416d6d749',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 8b9eb8cc…), gleiche Gegenprobe wie oben.
-    '35a02b3c5efa1448a752223772a3c379ed86897b8c35421a0db772839e166178',
+    '4b7a313760cc264b3c47fee7ca9300acdcd5dfa30a8b685cdbbd3074e5dbd8ae',
   );
 });
 
@@ -73,13 +85,13 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 49c45fd8…), gleiche Gegenprobe wie oben.
-    'fb1520fb7705c9ef486c3aa2ff302bbedb79832ed9665de9afc668939beef2a8',
+    '76d9c93b23f062ffa53ff1a0cba53a2b2f0db3dd9bd36ad6cced638c20e547d8',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 76755a9c…), gleiche Gegenprobe wie oben.
-    'b82394e68f0d0f74eff3285ec6567693fa3eef800625fb7695fd8fad86981f47',
+    'e091c1f5ff791fc2c561ac91c005fe11443798cb31e0ae3a9ac02b5ae98e107b',
   );
 });
 
