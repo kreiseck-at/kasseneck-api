@@ -18,6 +18,11 @@ nur der Grund überlebt den nächsten Umbau.
 - ESC/POS: ein `ESC a`, das der Drucker mitten in der Zeile (Spalte ab der zweiten)
   wortlos verwirft, gilt intern nicht mehr als gesetzt — eine spätere, echte Zeile hielt
   sich sonst fälschlich schon für umgestellt und unterließ den Befehl.
+- Prüfung: Der Zwillingsabgleich am **Bytestrom** ist jetzt Teil der Test-Suite
+  (`test/zwilling-bytestrom.test.ts`) statt eines Skripts von Hand. Vier SHA-256 über den
+  fertigen Bon (58/80 mm, mit und ohne Marke) stehen wortgleich im Dart-Paket; wer in
+  einem der beiden Pakete am Druckweg dreht, macht dort oder hier rot. Die bisherigen
+  gemeinsamen Prüffälle deckten Raster, Zeilen und Blatt ab — alles Stufen vor den Bytes.
 
 ## 0.25.0
 
