@@ -163,6 +163,7 @@
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
     "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",
+    "fixtures:marke": "node scripts/marke-raster.mjs",
     "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
     "fixtures:rechnung": "npm run build && node scripts/rechnung-vertrag.mjs",
     "fixtures:rechnungstexte": "npm run build && node scripts/rechnung-texte.mjs",

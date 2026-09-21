@@ -10,6 +10,28 @@ function base64Bytes(base64: string): Uint8Array {
 }
 
 /**
+ * Entpackt gepackte Rasterzeilen (Base64, MSB zuerst, je Zeile auf volle Bytes
+ * aufgefuellt -- die Form von [rasterZeilenBytes]) in ein Punkt-je-Byte-Bild.
+ *
+ * Eigene, exportierte Funktion statt Code inline in `markeBild`: ein
+ * Rundlauf-Test (packen mit `rasterZeilenBytes`, entpacken hiermit) kann so
+ * denselben Entpacker pruefen, den die Marke zur Laufzeit auch benutzt --
+ * ein vertauschter Bit-Index waere sonst nur am schiefen Ausdruck sichtbar.
+ */
+export function entpackeRasterBits(bits: string, breite: number, hoehe: number): RasterBild {
+  const byteJeZeile = Math.ceil(breite / 8);
+  const roh = base64Bytes(bits);
+  const punkte = new Uint8Array(breite * hoehe);
+  for (let y = 0; y < hoehe; y++) {
+    for (let x = 0; x < breite; x++) {
+      const byte = roh[y * byteJeZeile + (x >> 3)] as number;
+      punkte[y * breite + x] = (byte >> (7 - (x & 7))) & 1;
+    }
+  }
+  return { breite, hoehe, punkte };
+}
+
+/**
  * Die Marke als Rasterbild fuer diese Papierbreite.
  *
  * Entpackt die gepackten Zeilen in ein Punkt-je-Byte-Bild, wie es
@@ -19,14 +41,5 @@ function base64Bytes(base64: string): Uint8Array {
  */
 export function markeBild(paperSize: PosPaperSize): RasterBild {
   const d = MARKE_RASTER[paperSize];
-  const byteJeZeile = Math.ceil(d.breite / 8);
-  const roh = base64Bytes(d.bits);
-  const punkte = new Uint8Array(d.breite * d.hoehe);
-  for (let y = 0; y < d.hoehe; y++) {
-    for (let x = 0; x < d.breite; x++) {
-      const byte = roh[y * byteJeZeile + (x >> 3)] as number;
-      punkte[y * d.breite + x] = (byte >> (7 - (x & 7))) & 1;
-    }
-  }
-  return { breite: d.breite, hoehe: d.hoehe, punkte };
+  return entpackeRasterBits(d.bits, d.breite, d.hoehe);
 }

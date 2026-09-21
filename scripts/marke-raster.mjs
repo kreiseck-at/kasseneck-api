@@ -3,6 +3,7 @@
 // ein 1-Bit-Raster je Druckbreite (fuer den Bondruck) und die Pfade (fuer PDF
 // und Bildschirm). Laeuft selten -- nur wenn sich die Marke aendert.
 //
+//   npm run fixtures:marke -- [pfad/zur/kasseneck-logo.svg]
 //   node scripts/marke-raster.mjs [pfad/zur/kasseneck-logo.svg]
 //
 // Braucht ImageMagick (`magick`) im Pfad. Das ist eine Werkbank-Abhaengigkeit,
