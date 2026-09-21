@@ -206,7 +206,7 @@ export interface EposDirectOptions {
   qrGroesse?: QrModulGroesse;
   /** Firmenlogo; ohne Angabe kein Logo. */
   logo?: DruckLogo | null;
-  /** "erstellt mit Kasseneck" am Ende. */
+  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   marke?: boolean;
   timeoutMs?: number;
 }
