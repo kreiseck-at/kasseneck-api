@@ -17,6 +17,7 @@ import {
   KUNDE_FELDER,
   RECHNUNG_EINHEITEN_CODES,
   POSITION_FELDER,
+  POSITION_PREIS_GENAU_EINS,
   RECHNUNG_ANFRAGEN,
   RECHNUNG_AUFRUFE,
   RECHNUNG_VERTRAG_VERSION,
@@ -74,10 +75,44 @@ test('Vertrag: Fehlercodes und Gruende sind eindeutige Bezeichner', () => {
   }
 });
 
-test('Vertrag: Betraege sind ganze Cent, nie Kommazahlen', () => {
-  const preis = POSITION_FELDER['unitPriceCents'];
-  assert.ok(preis && preis.typ === 'integer' && preis.pflicht);
-  assert.equal(preis.typ === 'integer' ? preis.min : undefined, 0);
+test('Vertrag: Betraege sind ganze Zahlen, nie Kommazahlen', () => {
+  for (const name of ['unitPriceCents', 'unitPriceMicros'] as const) {
+    const preis = POSITION_FELDER[name];
+    assert.ok(preis && preis.typ === 'integer', `${name} muss ganzzahlig sein`);
+    assert.equal(preis.typ === 'integer' ? preis.min : undefined, 0, `${name}.min`);
+  }
+});
+
+// § 9.1: genau eines der beiden Preisfelder. Als zwei PFLICHTfelder liesse
+// sich das nicht ausdruecken, als zwei optionale waere eine Position ohne
+// Preis gueltig -- darum sind beide optional UND in der Genau-eins-Regel.
+test('Vertrag: der Preis einer Position ist Cent ODER Mikro-Euro', () => {
+  for (const name of ['unitPriceCents', 'unitPriceMicros'] as const) {
+    assert.equal(POSITION_FELDER[name]?.pflicht, false, `${name} darf nicht Pflicht sein`);
+  }
+  assert.deepEqual(
+    POSITION_PREIS_GENAU_EINS.map((g) => [...g]),
+    [['unitPriceCents'], ['unitPriceMicros']],
+  );
+});
+
+// Derselbe Bereich, nur feiner aufgeloest: 10^12 Mikro-Euro und 10^8 Cent
+// sind beide 10.000.000,00 €. Eine andere Obergrenze waere eine stille
+// Bereichsaenderung je nachdem, welches Feld ein Kunde benutzt.
+test('Vertrag: beide Preisfelder decken denselben Betragsbereich', () => {
+  const cents = POSITION_FELDER['unitPriceCents'];
+  const micros = POSITION_FELDER['unitPriceMicros'];
+  assert.ok(cents?.typ === 'integer' && micros?.typ === 'integer');
+  if (cents.typ !== 'integer' || micros.typ !== 'integer') return;
+  assert.equal(micros.max, cents.max * 10_000);
+});
+
+test('Vertrag: die Menge reicht bis 10^9 (passend zu quantityMilli)', () => {
+  const menge = POSITION_FELDER['quantity'];
+  assert.ok(menge?.typ === 'number');
+  if (menge.typ !== 'number') return;
+  assert.equal(menge.max, 1_000_000_000);
+  assert.equal(menge.nachkomma, 3);
 });
 
 test('Vertrag: idempotencyKey ist Pflicht bei allem, was eine Rechnung erzeugt', () => {

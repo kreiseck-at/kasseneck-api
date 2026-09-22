@@ -349,7 +349,20 @@ export type Feld =
   | { typ: 'number'; pflicht: boolean; min: number; max: number; nachkomma: number; exklusivMin?: boolean }
   | { typ: 'boolean'; pflicht: boolean }
   | { typ: 'enum'; pflicht: boolean; werte: readonly (string | number)[] }
-  | { typ: 'object'; pflicht: boolean; felder: Readonly<Record<string, Feld>> }
+  | {
+    typ: 'object'; pflicht: boolean; felder: Readonly<Record<string, Feld>>;
+    /**
+     * Feldgruppen, von denen GENAU EINE gesetzt sein muss (§ 9.1). Jede Gruppe
+     * ist eine Liste von Feldnamen; im JSON Schema wird daraus
+     * `oneOf: [{ required: [...] }, ...]`.
+     *
+     * Gebraucht fuer den Preis einer Position: `unitPriceCents` ODER
+     * `unitPriceMicros`, nie beides und nie keines. Als zwei Pflichtfelder
+     * liesse sich das nicht ausdruecken, und als zwei optionale waere eine
+     * Position ohne Preis gueltig.
+     */
+    genauEins?: readonly (readonly string[])[];
+  }
   | { typ: 'list'; pflicht: boolean; min: number; max: number; eintrag: Feld }
   | { typ: 'map'; pflicht: boolean; maxSchluessel: number; schluesselMuster: string; wertMax: number };
 
@@ -388,21 +401,47 @@ const KUNDE_PATCH: Readonly<Record<string, Feld>> = Object.freeze(
   Object.fromEntries(Object.entries(KUNDE_FELDER).map(([name, feld]) => [name, { ...feld, pflicht: false }])),
 );
 
-/** Eine Rechnungs- oder Gutschriftsposition. Preise in ganzen Cent. */
+/**
+ * Eine Rechnungs- oder Gutschriftsposition.
+ *
+ * Der Preis steht in ganzen Cent (`unitPriceCents`) ODER in Mikro-Euro
+ * (`unitPriceMicros`, 10⁻⁶ €) — genau eines von beiden (§ 9.1). Der Mikropreis
+ * loest denselben Bereich feiner auf: 10¹² Mikro-Euro sind dieselben
+ * 10.000.000,00 €, die 10⁸ Cent ausdruecken. Er ist noetig fuer Preise
+ * unterhalb eines Cents (Verbrauchsabrechnung, Stueckpreise im Zehntelcent),
+ * die bisher gerundet eingereicht werden mussten.
+ */
 export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   description: text(300, true),
   subtitle: text(1000),
-  quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000, nachkomma: 3 },
+  quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000_000, nachkomma: 3 },
   /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
   unit: { typ: 'enum', pflicht: false, werte: INVOICE_UNITS },
   /** Ware oder Leistung; ohne Angabe `goods`. Entscheidet ueber den Steuerfall. */
   kind: { typ: 'enum', pflicht: false, werte: ITEM_KINDS },
-  unitPriceCents: { typ: 'integer', pflicht: true, min: 0, max: 100_000_000 },
+  /** Einzelpreis in ganzen Cent. Alternative zu `unitPriceMicros`. */
+  unitPriceCents: { typ: 'integer', pflicht: false, min: 0, max: 100_000_000 },
+  /** Einzelpreis in Mikro-Euro (10⁻⁶ €). Alternative zu `unitPriceCents`. */
+  unitPriceMicros: { typ: 'integer', pflicht: false, min: 0, max: 1_000_000_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
 });
 
-const positionen: Feld = { typ: 'list', pflicht: true, min: 1, max: 500, eintrag: { typ: 'object', pflicht: true, felder: POSITION_FELDER } };
+/** Genau einer der beiden Preise je Position (§ 9.1). */
+export const POSITION_PREIS_GENAU_EINS: readonly (readonly string[])[] = Object.freeze([
+  Object.freeze(['unitPriceCents']),
+  Object.freeze(['unitPriceMicros']),
+]);
+
+const positionen: Feld = {
+  typ: 'list',
+  pflicht: true,
+  min: 1,
+  max: 500,
+  eintrag: {
+    typ: 'object', pflicht: true, felder: POSITION_FELDER, genauEins: POSITION_PREIS_GENAU_EINS,
+  },
+};
 
 /**
  * Eine Zahlung zu einer Rechnung. Ohne `amountCents` gilt der volle
