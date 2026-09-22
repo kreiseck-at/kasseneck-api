@@ -4,6 +4,25 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.27.0
+
+- **Rechnungs-API: der Einzelpreis einer Position darf in Mikro-Euro stehen** (`unitPriceMicros`,
+  10⁻⁶ €). Genau eines von `unitPriceCents` und `unitPriceMicros` — beide Felder sind dafür
+  optional, und die neue Genau-eins-Regel am Positions-Objekt wird im JSON Schema zu
+  `oneOf: [{required:['unitPriceCents']}, {required:['unitPriceMicros']}]`. Grund: Preise unterhalb
+  eines Cents (Verbrauchsabrechnung, Stückpreise im Zehntelcent) mussten bisher schon beim
+  Einreichen gerundet werden; der Rundungsfehler steckte danach in jeder Zeile.
+  **Bricht die Form:** wer den Typ `IssueInvoiceItem` selbst baut, bekommt `unitPriceCents` jetzt
+  als optionales Feld. Anfragen, die es setzen, bleiben unverändert gültig.
+- Der Mikropreis deckt denselben Betragsbereich wie die Cent-Angabe (10¹² Mikro-Euro = 10⁸ Cent =
+  10.000.000,00 €). Eine eigene Obergrenze wäre eine stille Bereichsänderung, je nachdem welches
+  Feld ein Aufrufer benutzt.
+- Die Menge reicht bis 10⁹ statt 10⁶, passend zu `quantityMilli` der gespeicherten Form.
+- **Noch nicht enthalten:** `rechnungSummen` rechnet weiterhin wie bisher, nicht über den exakten
+  Kern. Das gehört zum Stichtag der Umstellung (Schalter `ganzzahlPflicht`): solange der Server
+  eine Rechnung nach dem alten Weg ausstellt, darf eine Vorschau im Aufrufer nicht schon exakt
+  runden — sie zeigte sonst an Halbcent-Grenzen einen anderen Cent als die Rechnung.
+
 ## 0.26.0
 
 - Beleg: Am Ende steht das Kasseneck-Logo als Bild statt der Zeile „erstellt mit Kasseneck".

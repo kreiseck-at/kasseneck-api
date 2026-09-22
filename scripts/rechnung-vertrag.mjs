@@ -41,7 +41,7 @@ function schema(feld) {
     case 'enum':
       return { enum: [...feld.werte] };
     case 'object':
-      return objekt(feld.felder);
+      return objekt(feld.felder, feld.genauEins);
     case 'list':
       return { type: 'array', minItems: feld.min, maxItems: feld.max, items: schema(feld.eintrag) };
     case 'map':
@@ -56,7 +56,7 @@ function schema(feld) {
   }
 }
 
-function objekt(felder) {
+function objekt(felder, genauEins) {
   const properties = {};
   const required = [];
   for (const [name, feld] of Object.entries(felder)) {
@@ -65,6 +65,10 @@ function objekt(felder) {
   }
   const s = { type: 'object', properties };
   if (required.length) s.required = required;
+  // Genau eine der Gruppen (§ 9.1): `oneOf` trifft zu, wenn GENAU EIN
+  // Unterschema passt -- fehlen beide Preise, passt keines; stehen beide da,
+  // passen zwei. Beides ist ungueltig, und genau das ist gemeint.
+  if (genauEins) s.oneOf = genauEins.map((gruppe) => ({ required: [...gruppe] }));
   s.additionalProperties = false;
   return s;
 }

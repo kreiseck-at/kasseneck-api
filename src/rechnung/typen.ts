@@ -98,8 +98,16 @@ export interface InvoiceItemInput {
   unit?: InvoiceUnit;
   /** Ware oder Leistung; ohne Angabe `goods`. Entscheidet ueber den Steuerfall. */
   kind?: ItemKind;
-  /** Einzelpreis in ganzen Cent, im `priceMode` der Rechnung (netto oder brutto). */
-  unitPriceCents: number;
+  /**
+   * Einzelpreis in ganzen Cent, im `priceMode` der Rechnung (netto oder
+   * brutto). Genau eines von `unitPriceCents` und `unitPriceMicros`.
+   */
+  unitPriceCents?: number;
+  /**
+   * Einzelpreis in Mikro-Euro (10⁻⁶ €), fuer Preise unterhalb eines Cents.
+   * Genau eines von `unitPriceCents` und `unitPriceMicros`.
+   */
+  unitPriceMicros?: number;
   vatRate: VatRatePercent;
   /** Zeilenrabatt in Prozent, hoechstens zwei Nachkommastellen. */
   discountPct?: number;
@@ -283,7 +291,15 @@ export interface InvoiceItem {
   unit: string;
   /** Ware oder Leistung — Altbestand ohne Angabe zaehlt als `goods`. */
   kind: ItemKind;
+  /**
+   * Einzelpreis in ganzen Cent — eine ANZEIGEHILFE: kaufmaennisch aus
+   * `unitPriceMicros` gerundet, und damit 0, sobald der Preis unter einem
+   * halben Cent liegt. Verbindlich sind `unitPriceMicros` und die Betraege je
+   * Position (§ 9.3).
+   */
   unitPriceCents: number;
+  /** Einzelpreis in Mikro-Euro (10⁻⁶ €) — der verbindliche Preis. */
+  unitPriceMicros?: number;
   vatRate: number;
   discountPct: number;
 }
