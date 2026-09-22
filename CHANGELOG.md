@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.27.1
+
+- Drei Beispiele zum Mikropreis in `fixtures/rechnung-api-beispiele/`: der Sub-Cent-Fall
+  (3.500.000 × 0,000004 € = 14,00 € netto), beide Preise gesetzt und kein Preis gesetzt. Sie sind
+  zugleich die Prüfvektoren, die Server und Dart-Zwilling gegen ihre eigene Prüfung fahren — ein
+  Beispiel, das nur in der Doku steht, veraltet unbemerkt.
+
 ## 0.27.0
 
 - **Rechnungs-API: der Einzelpreis einer Position darf in Mikro-Euro stehen** (`unitPriceMicros`,
