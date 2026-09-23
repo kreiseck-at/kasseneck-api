@@ -11,6 +11,7 @@ import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/rechnung/index.js';
 import * as rechnungRechnen from '../src/rechnung/rechnen.js';
 import * as react from '../src/react/index.js';
+import * as kasse from '../src/kasse/index.js';
 
 /**
  * Das README ist die einzige Erklaerung, die ein Verbraucher vor 69
@@ -23,6 +24,8 @@ import * as react from '../src/react/index.js';
  */
 
 const README = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
+/** Die kurze deutsche Einstiegsseite; reist nicht im Tarball mit, wird aber genauso geprueft. */
+const README_DE = readFileSync(new URL('../../README.de.md', import.meta.url), 'utf8');
 const PAKET = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
   name: string;
   files: string[];
@@ -44,19 +47,72 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/rechnung': rechnung,
   '@kreiseck/kasseneck-api/rechnung/rechnen': rechnungRechnen,
   '@kreiseck/kasseneck-api/react': react,
+  '@kreiseck/kasseneck-api/kasse': kasse,
 };
 
-test('README: jeder importierte Name in den Beispielen gibt es wirklich', () => {
-  const importe = [...README.matchAll(/import \{([^}]+)\} from '([^']+)'/g)];
-  assert.ok(importe.length >= 3, 'im README stehen keine Beispiel-Importe mehr');
+function pruefeImporte(text: string, datei: string, mindestens: number): void {
+  const importe = [...text.matchAll(/import \{([^}]+)\} from '([^']+)'/g)];
+  assert.ok(importe.length >= mindestens, `in ${datei} stehen keine Beispiel-Importe mehr`);
   for (const treffer of importe) {
     const modul = MODULE[treffer[2] ?? ''];
-    assert.ok(modul, `README importiert aus einem unbekannten Modul: ${treffer[2]}`);
+    assert.ok(modul, `${datei} importiert aus einem unbekannten Modul: ${treffer[2]}`);
     for (const roh of (treffer[1] ?? '').split(',')) {
       const name = roh.trim();
       if (!name) continue;
-      assert.ok(name in modul, `README nennt "${name}" aus ${treffer[2]} — den Export gibt es nicht`);
+      assert.ok(name in modul, `${datei} nennt "${name}" aus ${treffer[2]} — den Export gibt es nicht`);
     }
+  }
+}
+
+test('README: jeder importierte Name in den Beispielen gibt es wirklich', () => {
+  pruefeImporte(README, 'README.md', 3);
+});
+
+test('README.de.md: jeder importierte Name im Beispiel gibt es wirklich', () => {
+  pruefeImporte(README_DE, 'README.de.md', 2);
+});
+
+test('README und README.de.md verweisen aufeinander (absolute Adressen, npm zeigt relative schlecht an)', () => {
+  assert.ok(
+    README.includes('https://github.com/kreiseck-at/kasseneck-api/blob/main/README.de.md'),
+    'README.md verlinkt die deutsche Seite nicht',
+  );
+  assert.ok(
+    README_DE.includes('https://github.com/kreiseck-at/kasseneck-api/blob/main/README.md'),
+    'README.de.md verlinkt das vollstaendige README nicht',
+  );
+});
+
+test('README: kein Geviertstrich im Text', () => {
+  for (const [datei, text] of [['README.md', README], ['README.de.md', README_DE]] as const) {
+    const zeile = text.split('\n').findIndex((z) => z.includes('\u2014'));
+    assert.equal(zeile, -1, `${datei} Zeile ${zeile + 1} enthaelt einen Geviertstrich`);
+  }
+});
+
+test('README: das Glossar fuehrt die vereinbarten Begriffe (wortgleich mit dem Dart-Zwilling)', () => {
+  const glossar = README.slice(README.indexOf('## Glossary'));
+  assert.ok(README.includes('## Glossary'), 'README hat keinen Abschnitt Glossary');
+  for (const [deutsch, englisch] of [
+    ['Beleg', 'receipt'],
+    ['Startbeleg', 'start receipt'],
+    ['Nullbeleg', 'zero receipt'],
+    ['Monatsbeleg', 'monthly receipt'],
+    ['Jahresbeleg', 'annual receipt'],
+    ['Schlussbeleg', 'final receipt'],
+    ['Storno', 'cancellation'],
+    ['Signaturerstellungseinheit', 'signature creation unit'],
+    ['DEP (Datenerfassungsprotokoll)', 'data capture log (DEP)'],
+    ['Kassennachschau', 'cash register audit'],
+    ['Belegerteilungspflicht', 'obligation to issue receipts'],
+    ['Registrierkasse', 'fiscal cash register'],
+    ['Umsatzzähler', 'turnover counter'],
+    ['Außerbetriebnahme', 'decommissioning'],
+    ['Ausfall der Signatureinheit', 'signature unit failure'],
+    ['Rechnung', 'invoice'],
+    ['USt', 'VAT'],
+  ]) {
+    assert.ok(glossar.includes(`| ${deutsch} | ${englisch} |`), `Glossar: "${deutsch}" -> "${englisch}" fehlt`);
   }
 });
 
@@ -110,4 +166,13 @@ test('README liegt im Tarball', () => {
     PAKET.files.some((eintrag) => eintrag === 'README.md'),
     'README.md fehlt in files',
   );
+});
+
+test('README: der erste Absatz nennt die Suchbegriffe, unter denen das Paket gefunden werden soll', () => {
+  const start = README.indexOf('**Kasseneck** is');
+  assert.ok(start >= 0, 'der Einleitungsabsatz fehlt');
+  const absatz = README.slice(start, README.indexOf('\n\n', start));
+  for (const begriff of ['Austria', 'RKSV', 'fiscal cash register', 'Registrierkasse', 'receipt signing', 'TypeScript']) {
+    assert.ok(absatz.includes(begriff), `der erste Absatz nennt "${begriff}" nicht`);
+  }
 });
