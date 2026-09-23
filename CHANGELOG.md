@@ -4,6 +4,18 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.27.2
+
+- **README auf Englisch** und jede Angabe gegen den Code geprüft. Anfragen kommen inzwischen auch
+  aus dem Ausland, und auf npm ist Englisch die Erwartung. RKSV-Begriffe bleiben deutsch und
+  werden beim ersten Vorkommen erklärt; ein Glossar am Ende nennt dieselben Begriffe wie der
+  Dart-Zwilling. Eine kurze deutsche Einstiegsseite liegt als `README.de.md` im Repo.
+- Dabei berichtigt: Beispiele, die nicht kompilierten (`business` statt `betrieb`, `automatic`
+  statt `automatisch`, Einheit `'Std'`, optionale `logoUrl`), die Option `regelwerk` statt
+  `layoutRegeln`, die Druckwege (WebUSB, ePOS, Druckaufträge gehören zum Paket), `refund` und
+  `cancel` am HPS-Terminal, sechs statt drei anmeldungsfreie Aufrufe und § 131b **BAO**.
+- `package.json`: Beschreibung englisch zuerst, weitere englische Schlagwörter.
+
 ## 0.27.1
 
 - Drei Beispiele zum Mikropreis in `fixtures/rechnung-api-beispiele/`: der Sub-Cent-Fall
