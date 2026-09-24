@@ -172,7 +172,7 @@ export type InvoiceLanguage = (typeof INVOICE_LANGUAGES)[number];
  * Wie eine Rechnung bezahlt wurde. Der Vermerk ist Buchhaltung, kein Beleg.
  *
  * Ein **Barumsatz** ist nicht nur Bargeld: als Barzahlung gilt auch die Zahlung
- * mit Bankomat- oder Kreditkarte **vor Ort** (§ 131b Abs. 1 Z 3 UStG), nicht
+ * mit Bankomat- oder Kreditkarte **vor Ort** (§ 131b Abs. 1 Z 3 BAO), nicht
  * aber dieselbe Karte im Internet. Weil `card` und `online` beides sein
  * koennen, sagt das Feld `onSite` es dem Server — und nur dann traegt die
  * Antwort den Hinweis `cash_receipt_required` (bei `cash` immer).

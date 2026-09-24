@@ -839,13 +839,14 @@ positive for credit notes too; the sign is in the document type
 (`docType: 'GU'`). Test cases: `fixtures/rechnung-rechnen.json`,
 `fixtures/rechnung-rechnen-zufall.json`, `fixtures/position-aus-euro.json`.
 
-**`rechnungSummen` still uses the previous formula.** The older helper in
-`…/rechnung` works on `unitPriceCents` lines and does not yet run through the
-core. At half-cent boundaries it can differ from an invoice issued today by
-one cent per VAT rate, and by a few cents across several rates. Example:
-€ 21.35 net at 10 % gives € 23.48 gross with `rechnungSummen`, but € 23.49
-with the core and on the invoice. Use `rechnungRechnen` or `previewInvoice` in
-new code. Test cases for the old formula: `fixtures/rechnung-summen.json`.
+**`rechnungSummen` is deprecated.** The older helper in `…/rechnung` works on
+`unitPriceCents` lines with the previous floating-point formula and does not
+run through the core. At half-cent boundaries it can differ from an invoice
+issued today by one cent per VAT rate, and by a few cents across several
+rates. Example: € 21.35 net at 10 % gives € 23.48 gross with `rechnungSummen`,
+but € 23.49 with the core and on the invoice. It stays unchanged for existing
+callers; use `rechnungRechnen` or `previewInvoice` in new code. Test cases for
+the old formula: `fixtures/rechnung-summen.json`.
 
 ## Development
 

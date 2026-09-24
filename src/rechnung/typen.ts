@@ -160,7 +160,7 @@ export interface PaymentInput {
   reference?: string;
   /**
    * Die Zahlung erfolgte vor Ort beim Unternehmer (Terminal an der Kasse).
-   * Dann ist sie ein Barumsatz — auch mit Karte (§ 131b Abs. 1 Z 3 UStG) — und
+   * Dann ist sie ein Barumsatz — auch mit Karte (§ 131b Abs. 1 Z 3 BAO) — und
    * die Antwort traegt den Hinweis `cash_receipt_required`. Zu `transfer`
    * passt das Kennzeichen nicht und wird abgewiesen.
    */

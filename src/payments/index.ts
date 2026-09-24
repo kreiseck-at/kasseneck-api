@@ -22,9 +22,10 @@
  * Terminal spricht. Das ist kein Widerspruch zur Umgebungsgrenze, sondern ein
  * zweiter, seit `hobex-hps.js` genutzter Weg um sie herum.
  *
- * Wer Gutschrift oder Storno am HPS-Terminal braucht, braucht weiterhin die
- * Flutter-App: Connect exponiert dafuer (noch) keinen Endpunkt, siehe
- * `hobex-hps/connect-client.ts`.
+ * Gutschrift und Storno am HPS-Terminal laufen ebenfalls ueber Connect
+ * (`POST /v1/terminal/refund` bzw. `/cancel`): `HpsPayments.refund`/`cancel`
+ * mit `HpsRefundOptions`/`HpsCancelOptions`, darunter
+ * `HpsConnectClient.refund`/`cancel`, siehe `hobex-hps/connect-client.ts`.
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** **Keiner** der
  * vier Cloud-Zahlungs-Endpunkte (Stripe, Hobex-Cloud) setzt `allowRegisterUser`;
@@ -61,12 +62,15 @@ export {
 export {
   type CardPaymentOutcome,
   type HpsConnectClient,
+  type HpsConnectCancelOptions,
   type HpsConnectClientOptions,
   type HpsConnectFetch,
   type HpsConnectFetchResponse,
   type HpsConnectPaymentOptions,
+  type HpsConnectRefundOptions,
   type HpsConnectTarget,
   type HpsConnectTransactionOptions,
+  type HpsCancelOptions,
   type HpsCode,
   type HpsCodeEffect,
   type HpsCodeReason,
@@ -79,6 +83,7 @@ export {
   type HpsPayments,
   type HpsPaymentResult,
   type HpsPaymentsOptions,
+  type HpsRefundOptions,
   type HpsTransactionIdGeneratorOptions,
   type HpsTransactionResponse,
   ABORTED_CODE,
