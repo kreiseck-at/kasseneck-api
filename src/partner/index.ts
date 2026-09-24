@@ -143,6 +143,8 @@ export type {
   KundenStatus,
   KundenZeile,
   AvvStand,
+  VertragStand,
+  KundenFonStand,
   ListCustomersOptions,
   KundenListe,
   Kunde,

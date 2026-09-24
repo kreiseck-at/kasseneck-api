@@ -6,6 +6,7 @@ import antworten from './fixtures/partner-v3-antworten.json' with { type: 'json'
 import { createPartnerApi, PARTNER_BASE_URL } from '../src/partner/api.js';
 import { parseWebhookEvent, type ContractAcceptedEventData } from '../src/partner/webhooks.js';
 import type { Betrieb } from '../src/partner/typen.js';
+import { PARTNER_FEHLER_CODES, partnerFehlerRat } from '../src/partner/fehler.js';
 import { DEFAULT_BASE_URL, apiKeyAuth, createKasseneckApi } from '../src/index.js';
 import { createRechnungApi } from '../src/rechnung/api.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
@@ -138,6 +139,47 @@ test('v3: ein Betrieb mit den Werten der /v1 ist ein Compilerfehler', () => {
     contacts: [{ name: 'A', email: 'a@b.at', roles: ['kasse'] }],
   };
   assert.ok(betrieb);
+});
+
+test('v3: Liste und Einzelsicht fuehren fon, avv und terms so, wie der Server sie schickt', async () => {
+  const { api } = stelle();
+  const zeile = (await api.listPartnerCustomers()).customers[0]!;
+  assert.deepEqual(zeile.fon, { configured: false, linkSentAt: null, linkOpenedAt: null });
+  assert.deepEqual(zeile.avv, { status: 'confirmed', version: '1.0', confirmedAt: 1788052010642, mode: 'power_of_attorney' });
+  assert.deepEqual(zeile.terms, { status: 'pending', version: null, confirmedAt: null });
+
+  const k = await api.getPartnerCustomer('cust_1');
+  assert.deepEqual(k.fon, { configured: false, verifiedAt: null, linkSentAt: null, linkSentTo: null, linkOpenedAt: null });
+  assert.equal(k.terms?.status, 'pending');
+  assert.equal(k.avv?.status, 'confirmed');
+
+  // Fehlen sie in der Antwort, bleibt es bei null: kein erfundenes pending.
+  const holen: FetchLike = async () => antwort({ status: 'success', message: '', data: { customers: [{ customerId: 'c' }] } });
+  const ohne = (await createPartnerApi({ partnerKey: PARTNER_KEY, fetch: holen }).listPartnerCustomers()).customers[0]!;
+  assert.equal(ohne.fon, null);
+  assert.equal(ohne.avv, null);
+  assert.equal(ohne.terms, null);
+});
+
+// ---------------------------------------------------------------------------
+// Fehlercodes
+// ---------------------------------------------------------------------------
+
+/**
+ * Rot-Probe: `vertrag_offen` oder `kennung_fehlt` aus PARTNER_FEHLER_CODES
+ * streichen, dann faellt dieser Test. Die Liste der Schnittstellen-Codes kommt
+ * aus dem Katalog des Backends (fehlerKatalogFuer('api')), nicht von Hand.
+ */
+test('v3: jeder Code, den die Schnittstelle liefern kann, steht in PARTNER_FEHLER_CODES und hat einen Satz', () => {
+  const backend = A['fehlerCodesApi'] as string[];
+  const hier = PARTNER_FEHLER_CODES as readonly string[];
+  for (const code of backend) {
+    assert.ok(hier.includes(code), `${code} fehlt in PARTNER_FEHLER_CODES`);
+    assert.ok((partnerFehlerRat(code) ?? '').length > 20, `${code}: kein Handlungssatz`);
+  }
+  // Umgekehrt: zwei Codes fuehrt dieses Paket, die der Katalog nur fuer
+  // Portal/Admin kennt. Benannt, damit ein weiterer nicht still dazukommt.
+  assert.deepEqual(hier.filter((c) => !backend.includes(c)), ['kein_partnerbetrieb', 'request_not_found']);
 });
 
 // ---------------------------------------------------------------------------

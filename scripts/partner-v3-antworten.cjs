@@ -71,6 +71,8 @@ const raus = {
       pc.deliveryView('dlv_1', { webhookId: 'wh_1', type: 'signature.ready', eventId: 'evt_1', status: 'zugestellt', versuche: 2, letzterVersuchAt: T + 8, naechsterVersuchAt: null, statusCode: 200, antwort: 'ok', createdAt: T }),
     ],
   }),
+  // Die Codes, die die Schnittstelle liefern kann (Flaeche 'api' oder 'beide').
+  fehlerCodesApi: pc.fehlerKatalogFuer('api').map((f) => f.code),
   ereignisse: {
     'customer.terms_accepted': vok3.ereignisNachAussen('customer.terms_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'nutzung', version: '1.0', confirmedAt: T, source: 'einrichten' }),
     'customer.avv_accepted': vok3.ereignisNachAussen('customer.avv_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'avv', version: '1.0', confirmedAt: T, source: 'partner_vollmacht' }),

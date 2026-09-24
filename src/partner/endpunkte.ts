@@ -24,7 +24,9 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { alsSecret } from './secret.js';
 import type {
   AvvStand,
+  KundenFonStand,
   KundenZeile,
+  VertragStand,
   ActivateCashregisterResult,
   CreateCashregisterOptions,
   CreateCashregisterResult,
@@ -248,25 +250,37 @@ function kundenZeile(eintrag: unknown): KundenZeile {
     appId: textOderNull(k['appId']),
     env: text(k['env']) === 'test' ? ('test' as const) : ('live' as const),
     createdAt: zahlOderNull(k['createdAt']),
+    fon: fonStand(k['fon']),
     avv: avvStand(k['avv']),
+    terms: vertragStand(k['terms']),
   };
 }
 
+function fonStand(wert: unknown): KundenFonStand | null {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
+  const f = wert as Record<string, unknown>;
+  return {
+    configured: jaNein(f['configured']),
+    linkSentAt: zahlOderNull(f['linkSentAt']),
+    linkOpenedAt: zahlOderNull(f['linkOpenedAt']),
+  };
+}
+
+function vertragStand(wert: unknown): VertragStand | null {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
+  const v = wert as Record<string, unknown>;
+  return { status: text(v['status']), version: textOderNull(v['version']), confirmedAt: zahlOderNull(v['confirmedAt']) };
+}
+
 /**
- * Der Vertragsstand, **falls** die Antwort ihn ueberhaupt fuehrt — heute tut
- * sie das nicht, dann bleibt es bei `null`. Kein erfundenes `offen`: „nicht
- * mitgeliefert" und „nicht bestaetigt" duerfen fuer einen Aufrufer nicht
- * dasselbe sein.
+ * Der AVV-Stand, **falls** die Antwort ihn fuehrt; sonst `null`. Kein
+ * erfundenes `pending`: „nicht mitgeliefert" und „nicht bestaetigt" duerfen
+ * fuer einen Aufrufer nicht dasselbe sein.
  */
 function avvStand(wert: unknown): AvvStand | null {
-  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
-  const a = wert as Record<string, unknown>;
-  return {
-    status: text(a['status']),
-    version: textOderNull(a['version']),
-    confirmedAt: zahlOderNull(a['confirmedAt']),
-    mode: textOderNull(a['mode']),
-  };
+  const v = vertragStand(wert);
+  if (!v) return null;
+  return { ...v, mode: textOderNull((wert as Record<string, unknown>)['mode']) };
 }
 
 /** Ein Betrieb mit allem, was der Partner ueber ihn sehen darf — nie Geheimnisse. */
@@ -283,7 +297,13 @@ export async function getPartnerCustomer(rufen: InternerTransport, customerId: s
     createdAt: zahlOderNull(k['createdAt']),
     createdVia: textOderNull(k['createdVia']),
     business: objekt(k['business']),
-    fon: { configured: jaNein(fon['configured']), verifiedAt: zahlOderNull(fon['verifiedAt']) },
+    fon: {
+      configured: jaNein(fon['configured']),
+      verifiedAt: zahlOderNull(fon['verifiedAt']),
+      linkSentAt: zahlOderNull(fon['linkSentAt']),
+      linkSentTo: textOderNull(fon['linkSentTo']),
+      linkOpenedAt: zahlOderNull(fon['linkOpenedAt']),
+    },
     access:
       zugang === null || typeof zugang !== 'object'
         ? null

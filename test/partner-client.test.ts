@@ -509,7 +509,7 @@ test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlu
  * faellt sofort mit dem fehlenden Namen. Ein Code, den nur eine Seite kennt,
  * ist fuer einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
  */
-test('Partner: der Fehlerkatalog ist vollstaendig — 28 Codes der Schnittstelle, 12 des Portals', () => {
+test('Partner: der Fehlerkatalog ist vollstaendig — 30 Codes der Schnittstelle, 12 des Portals', () => {
   assert.deepEqual([...PARTNER_FEHLER_CODES], [
     'validation',
     'rate_limited',
@@ -523,6 +523,7 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 28 Codes der Schnittstelle
     'zugang_nicht_erlaubt',
     'email_taken',
     'no_email',
+    'kennung_fehlt',
     'fon_missing',
     'signature_pending',
     'request_not_found',
@@ -535,12 +536,13 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 28 Codes der Schnittstelle
     'module_inactive',
     'cashregister_limit',
     'cashregister_not_found',
+    'vertrag_offen',
     'activation_failed',
     'webhook_limit',
     'webhook_inactive',
     'event_not_subscribed',
   ]);
-  assert.equal(PARTNER_FEHLER_CODES.length, 28);
+  assert.equal(PARTNER_FEHLER_CODES.length, 30);
 
   assert.deepEqual([...PARTNER_PORTAL_FEHLER_CODES], [
     'app_locked',
@@ -578,7 +580,9 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 28 Codes der Schnittstelle
 
   // Ein abgeschaffter Code darf keinen Handlungssatz behalten — sonst raet
   // dieses Paket zu einem Weg, den es nicht mehr gibt.
-  for (const weg of ['vertrag_offen', 'modus_not_allowed', 'vollmacht_fehlt', 'text_changed', 'no_card_available']) {
+  // (`vertrag_offen` stand hier, bis das Backend ihn wieder fuer die
+  // Schnittstelle fuehrte: partner-core.FEHLER_KATALOG, flaeche 'beide'.)
+  for (const weg of ['modus_not_allowed', 'vollmacht_fehlt', 'text_changed', 'no_card_available']) {
     assert.equal(partnerFehlerRat(weg), undefined, `${weg} steht nicht mehr im Katalog`);
     assert.equal(istPartnerFehlerCode(weg), false, weg);
   }

@@ -264,26 +264,45 @@ export interface CreateCustomerResult {
 }
 
 /**
- * Stand des Auftragsverarbeitungsvertrags eines Betriebs.
- *
- * **Vertraege wirken im Partner-Weg nicht mehr** (Stand 2026-08-31): keine
- * Antwort fuehrt dieses Feld, kein Schritt in `naechsteSchritte` verlangt
- * einen Vertrag, und eine Kasse geht deswegen nicht weniger live. Der Typ
- * bleibt, damit eine Antwort, die ihn doch noch traegt, lesbar durchkommt —
- * **vorausgesetzt wird er nirgends**. Fuer selbst registrierte Kunden gibt es
- * die Maschinerie weiterhin, aber nicht ueber diese Schnittstelle.
- */
-/**
  * Wie das Partnerkonto den AVV handhabt; `/v1` sagte `direkt`, `vollmacht`,
  * `unterauftrag`.
  */
 export type AvvMode = 'direct' | 'power_of_attorney' | 'subprocessor';
 
-export interface AvvStand {
-  status: string;
+/**
+ * Stand eines Vertrags des Betriebs mit Kasseneck: `pending` (noch nicht
+ * bestaetigt), `confirmed`, `outdated` (eine neuere Pflichtfassung ist zu
+ * bestaetigen) oder `not_required` (Testumgebung).
+ *
+ * **Die Vertraege wirken:** live geht ohne beide (AVV und Nutzungsvertrag)
+ * keine Kasse live, `activateCashregister` antwortet dann `vertrag_offen`. Der
+ * Betrieb bestaetigt sie selbst ueber den Einrichtungs-Link
+ * (`sendPartnerCustomerFonLink`); die Ereignisse `customer.avv_accepted` und
+ * `customer.terms_accepted` melden die Bestaetigung. In der Testumgebung sind
+ * sie nicht noetig.
+ */
+export interface VertragStand {
+  status: 'pending' | 'confirmed' | 'outdated' | 'not_required' | (string & {});
   version: string | null;
   confirmedAt: number | null;
+}
+
+/**
+ * Stand des Auftragsverarbeitungsvertrags (AVV, Art. 28 DSGVO). Zusaetzlich zu
+ * [VertragStand] der Status `via_partner` (der Partnervertrag deckt den AVV,
+ * Weg `subprocessor`) und `mode`, der Weg des Partnerkontos.
+ */
+export interface AvvStand extends VertragStand {
+  status: VertragStand['status'] | 'via_partner';
   mode: AvvMode | (string & {}) | null;
+}
+
+/** FinanzOnline-Stand in der Liste: ist der Link draussen, geoeffnet, der Zugang geprueft? */
+export interface KundenFonStand {
+  configured: boolean;
+  linkSentAt: number | null;
+  /** Erste Oeffnung; wird mit einem Ersatz-Link zurueckgesetzt. */
+  linkOpenedAt: number | null;
 }
 
 export interface KundenZeile {
@@ -293,12 +312,15 @@ export interface KundenZeile {
   appId: string | null;
   env: PartnerEnv;
   createdAt: number | null;
+  /** FinanzOnline-Stand; `null`, wenn die Antwort ihn nicht fuehrt. */
+  fon: KundenFonStand | null;
   /**
-   * Vertragsstand, falls die Antwort ihn ueberhaupt fuehrt — heute tut sie das
-   * nicht, der Wert ist dann `null`. Siehe [AvvStand]: nichts in diesem Client
-   * setzt ihn voraus.
+   * AVV-Stand; `null`, wenn die Antwort ihn nicht fuehrt. Kein erfundenes
+   * `pending`: "nicht mitgeliefert" und "nicht bestaetigt" sind zweierlei.
    */
   avv: AvvStand | null;
+  /** Stand des Nutzungsvertrags; `null`, wenn die Antwort ihn nicht fuehrt. */
+  terms: VertragStand | null;
 }
 
 export interface ListCustomersOptions {
@@ -321,7 +343,8 @@ export interface Kunde extends KundenZeile {
   createdAt: number | null;
   createdVia: string | null;
   business: Record<string, unknown>;
-  fon: { configured: boolean; verifiedAt: number | null };
+  /** In der Einzelsicht zusaetzlich: wann geprueft, an welche (maskierte) Adresse der Link ging. */
+  fon: KundenFonStand & { verifiedAt: number | null; linkSentTo: string | null };
   access: { email: string | null; invitedAt: number | null; acceptedAt: number | null } | null;
 }
 

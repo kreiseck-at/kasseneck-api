@@ -42,6 +42,19 @@ nur der Grund überlebt den nächsten Umbau.
   `lastAttemptAt`/`nextAttemptAt`; `BetriebSteuer.uid` heißt `vatId` (ein `uid` wies der Server
   als unbekanntes Feld ab); Kassenschritt `signature` statt `signatur`, Kassenstatus
   `in_progress` statt `laeuft`.
+- **`PARTNER_FEHLER_CODES` um `kennung_fehlt` und `vertrag_offen` ergänzt**, beide mit
+  Handlungssatz. Grund: der Katalog des Backends (`partner-core.FEHLER_KATALOG`, Fläche `beide`)
+  führt sie für die Schnittstelle; `kennung_fehlt` kommt aus `sendPartnerCustomerFonLink`,
+  `vertrag_offen` live aus `activateCashregister`. Ein Code, den das Paket nicht kennt, sah für
+  einen Aufrufer aus wie „gibt es nicht“.
+- **Liste und Einzelsicht eines Betriebs führen `fon`, `avv` und `terms`** in der Form, die der
+  Server schickt (`VertragStand`, `KundenFonStand`; die Einzelsicht zusätzlich `verifiedAt` und
+  `linkSentTo`). Fehlen sie in der Antwort, bleibt es bei `null`. Der Kommentar an `AvvStand`
+  behauptete, Verträge wirkten im Partner-Weg nicht mehr; tatsächlich geht live ohne AVV und
+  Nutzungsvertrag keine Kasse live (`vertrag_offen`). Berichtigt, ebenso in `ablauf.ts`.
+- `check:erreichbar` prüft die Partner-Aufrufe unter `/v3` (abgelesen aus der Partner-Fassade des
+  Baus), alles andere weiter unter `/v1`. Ein `not_found` aus JSON gilt nicht mehr als erreichbar:
+  unter `/v3` antwortet der Rand auf einen nicht gerouteten Namen selbst mit JSON.
 - **Unverändert:** Belege, Rechnungen, Kasse, Druck, Zahlungen und React sprechen weiter `/v1`
   (`DEFAULT_BASE_URL`), bis es dort eine `/v3` gibt. Die Fehlercodes bleiben in dieser Stufe wie
   in `/v1`, ebenso die Prüfung der Webhook-Signatur. `reportCustomerVertrag` (unter `/v3`

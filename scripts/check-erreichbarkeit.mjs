@@ -28,11 +28,18 @@
  * Testlauf im Zug oder in einem abgeschotteten Bauknecht darf daran nicht
  * scheitern. Ist das Netz nicht erreichbar, sagt das Skript es und endet mit 0.
  *
+ * **Zwei Adressen.** Die Partner-Aufrufe spricht das Paket seit 0.28.0 unter
+ * `/v3` (PARTNER_BASE_URL), alles andere weiter unter `/v1`
+ * (DEFAULT_BASE_URL). Geprueft wird jeder Aufruf unter der Adresse, die das
+ * Paket fuer ihn wirklich benutzt; welche das sind, liest das Skript aus der
+ * Partner-Fassade des Baus ab, nicht aus einer Zweitliste.
+ *
  * Aufruf: `npm run check:erreichbar`
  */
 import { readFileSync } from 'node:fs';
 
 const BASIS = 'https://api.kasseneck.at/v1';
+const BASIS_PARTNER = 'https://api.kasseneck.at/v3';
 
 /**
  * Frist je Aufruf, ueber den **ganzen** Abruf -- Verbindung, Antwortkopf UND
@@ -59,14 +66,29 @@ async function aufrufeLaden() {
 }
 
 /**
+ * Die Aufrufe, die das Paket unter `/v3` spricht: die Methoden der
+ * Partner-Fassade. Abgelesen aus dem Bau, nie aufgerufen; der Schluessel ist
+ * nur formgerecht, damit die Fassade entsteht.
+ */
+async function partnerAufrufeLaden() {
+  const partner = await import('../dist/esm/partner/index.js');
+  if (partner.PARTNER_BASE_URL !== BASIS_PARTNER) {
+    process.stderr.write(`PARTNER_BASE_URL ist ${partner.PARTNER_BASE_URL}, dieses Skript prueft ${BASIS_PARTNER}.\n`);
+    process.exit(1);
+  }
+  const fassade = partner.createPartnerApi({ partnerKey: 'pk_test_NURFUERDIEFORMNURFUERDIEFORM', fetch: async () => { throw new Error('nie'); } });
+  return new Set(Object.keys(fassade).filter((name) => typeof fassade[name] === 'function' && name !== 'fehlerRat'));
+}
+
+/**
  * Setzt einen Aufruf ohne Anmeldung ab und sagt, was zurueckkam.
  * Wirft nie: ein Netzfehler ist ein Ergebnis wie jedes andere.
  */
-async function abfragen(aufruf) {
+async function abfragen(aufruf, basis) {
   const abbruch = new AbortController();
   const wecker = setTimeout(() => abbruch.abort(), FRIST_MS);
   try {
-    const antwort = await fetch(`${BASIS}/${aufruf}`, {
+    const antwort = await fetch(`${basis}/${aufruf}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ params: {} }),
@@ -103,6 +125,11 @@ function bewerten(status, rumpf) {
   }
   if (typeof geparst.status !== 'string') {
     return { erreichbar: false, netzfehler: false, befund: `HTTP ${status}, JSON ohne status-Feld` };
+  }
+  // Unter /v3 antwortet der Rand auf einen Namen, den er nicht routet, selbst
+  // mit JSON (code not_found). Das ist eine Function, aber nicht die gesuchte.
+  if (geparst.code === 'not_found' || (geparst.data && geparst.data.code === 'not_found')) {
+    return { erreichbar: false, netzfehler: false, befund: `HTTP ${status}, not_found -- der Endpunkt ist unter dieser Version nicht geroutet` };
   }
   return { erreichbar: true, netzfehler: false, befund: `HTTP ${status}, status="${geparst.status}"` };
 }
@@ -164,6 +191,12 @@ function ausnahmenLaden(aufrufe) {
 }
 
 const aufrufe = await aufrufeLaden();
+const partnerAufrufe = await partnerAufrufeLaden();
+const fremdePartner = [...partnerAufrufe].filter((name) => !aufrufe.includes(name));
+if (fremdePartner.length > 0) {
+  process.stderr.write(`Partner-Aufrufe, die AUFRUFE nicht fuehrt: ${fremdePartner.join(', ')}\n`);
+  process.exit(1);
+}
 const { nachName: ausnahmen, maengel } = ausnahmenLaden(aufrufe);
 
 if (maengel.length > 0) {
@@ -181,14 +214,18 @@ if (!netz.ok) {
   process.exit(0);
 }
 
-process.stdout.write(`Erreichbarkeit unter ${BASIS} (Aufruf ohne Anmeldung, ${aufrufe.length} Aufrufe)\n\n`);
+process.stdout.write(
+  `Erreichbarkeit unter ${BASIS} und ${BASIS_PARTNER} (Partner, ${partnerAufrufe.size} Aufrufe); ` +
+    `Aufruf ohne Anmeldung, ${aufrufe.length} Aufrufe\n\n`,
+);
 
 const fehler = [];
 let bestaetigt = 0;
 
 for (const aufruf of aufrufe) {
   const ausnahme = ausnahmen.get(aufruf);
-  const ergebnis = await abfragen(aufruf);
+  const basis = partnerAufrufe.has(aufruf) ? BASIS_PARTNER : BASIS;
+  const ergebnis = await abfragen(aufruf, basis);
 
   if (ausnahme) {
     if (ergebnis.erreichbar) {
@@ -207,9 +244,9 @@ for (const aufruf of aufrufe) {
 
   if (ergebnis.erreichbar) {
     bestaetigt += 1;
-    process.stdout.write(`  ok ${aufruf.padEnd(29)} ${ergebnis.befund}\n`);
+    process.stdout.write(`  ok ${aufruf.padEnd(29)} ${basis === BASIS_PARTNER ? '/v3 ' : '/v1 '}${ergebnis.befund}\n`);
   } else {
-    fehler.push(`${aufruf}: dort antwortet KEINE Function -- ${ergebnis.befund}`);
+    fehler.push(`${aufruf} (${basis}): dort antwortet KEINE Function -- ${ergebnis.befund}`);
     process.stdout.write(`  X  ${aufruf.padEnd(29)} ${ergebnis.befund}\n`);
   }
 }
