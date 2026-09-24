@@ -4,6 +4,25 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.27.3
+
+- **`rechnungSummen` ist als veraltet markiert** (`@deprecated`), das Rechenergebnis bleibt
+  unverändert. Grund: seit dem 23.09.2026, 17:05 Uhr stellt der Server jede neue Rechnung über den
+  exakten Kern (`rechnungRechnen`) aus; `rechnungSummen` rechnet nach Weg 2 und liegt an
+  Halbcent-Grenzen einen Cent je Satz daneben (21,35 € netto zu 10 %: 23,48 € statt 23,49 €). Auf
+  den Kern umgestellt wird bewusst nicht: der Server schaltet ihn je Konto über `ganzzahlPflicht`,
+  Entwürfe außerhalb des Ausstellens rechnet er teils weiter nach Weg 2, und
+  `fixtures/rechnung-summen.json` prüfen Backend und Dart-Zwilling. Der Kopfkommentar behauptete
+  noch, die Funktion rechne „genau so wie der Server“; das ist berichtigt, README ebenso.
+- **`HpsRefundOptions`, `HpsCancelOptions`, `HpsConnectRefundOptions` und
+  `HpsConnectCancelOptions` werden unter `…/payments` exportiert** (nur hinzugefügt). Die Aufrufe
+  `refund`/`cancel` gab es dort schon, ihre Optionstypen nicht. Der Kopfkommentar von
+  `src/payments/index.ts` sagte noch, Gutschrift und Storno gingen nur über die Flutter-App; das
+  gilt seit Connect `/v1/terminal/refund` bzw. `/cancel` nicht mehr.
+- § 131b Abs. 1 Z 3 steht in der **BAO**, nicht im UStG: an `INVOICE_PAYMENT_METHODS` und
+  `PaymentInput.onSite` berichtigt (Wortlaut gegen das RIS geprüft). Ein Test hält künftig jede
+  Zuordnung von § 131 ff. zum UStG in `src/` fest.
+
 ## 0.27.2
 
 - **README auf Englisch** und jede Angabe gegen den Code geprüft. Anfragen kommen inzwischen auch

@@ -1,7 +1,16 @@
 /**
- * Summen einer Rechnung vorab rechnen — genau so, wie der Server sie beim
- * Ausstellen rechnet. Fuer Shops, die kassieren, bevor die Rechnung entsteht,
- * und denselben Betrag brauchen, den die Rechnung spaeter ausweist.
+ * Summen einer Rechnung vorab rechnen, nach der frueheren Formel (Weg 2,
+ * Gleitkomma). Gedacht fuer Shops, die kassieren, bevor die Rechnung entsteht.
+ *
+ * **Veraltet.** Seit dem 23.09.2026, 17:05 Uhr stellt der Server jede neue
+ * Rechnung ueber den exakten Ganzzahl-Kern aus (`rechnungRechnen` in
+ * `…/rechnung/rechnen`). An Halbcent-Grenzen weicht diese Funktion davon um
+ * einen Cent je Satz ab (21,35 EUR netto zu 10 %: hier 23,48 EUR, auf der
+ * Rechnung 23,49 EUR). Die Formel bleibt trotzdem, wie sie ist: der Server
+ * schaltet den Kern je Konto ueber einen Schalter und rechnet Entwuerfe
+ * ausserhalb des Ausstellens teils weiter nach Weg 2, und Backend und
+ * Dart-Zwilling pruefen gegen `fixtures/rechnung-summen.json`. Neuer Code
+ * nimmt `rechnungRechnen` oder `previewInvoice`.
  *
  * Die Regel (je USt-Satz, Betraege in Cent, kaufmaennisch gerundet):
  *
@@ -55,6 +64,12 @@ function centRund(x: number): number {
  * Server einen steuerfreien Fall ab (etwa eine ig. Lieferung), gehoert dieser
  * Fall hierher — sonst rechnet die Funktion Steuer, die die Rechnung nicht
  * ausweist.
+ *
+ * @deprecated Seit 0.27.3: rechnet nach der frueheren Formel (Weg 2) und kann
+ * an Halbcent-Grenzen um einen Cent je Satz von einer heute ausgestellten
+ * Rechnung abweichen. Stattdessen `rechnungRechnen` aus
+ * `@kreiseck/kasseneck-api/rechnung/rechnen` (Euro-Positionen ueber
+ * `positionAusEuro`) oder `previewInvoice` verwenden.
  */
 export function rechnungSummen(
   items: readonly SummenPosition[],
