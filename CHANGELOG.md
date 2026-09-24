@@ -4,6 +4,64 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.28.0
+
+- **Bricht `./partner` (und nur das): der Partner-Teil spricht jetzt die englische Partner-API
+  `/v3`.** Vorgabe-Adresse ist `PARTNER_BASE_URL` (`https://api.kasseneck.at/v3`), `baseUrl` bleibt
+  einstellbar. Grund: das Backend führt die Partner-API ab `/v3` durchgehend englisch (Feldnamen
+  und jeder Wert, auf den ein Programm verzweigt), `/v1` ist abgekündigt (Kopfzeilen `Deprecation`
+  und `Sunset`). `/v3` weist die deutschen Werte der `/v1` mit `validation` ab statt sie still zu
+  übersetzen; ein Client, der weiter `einzel` oder `wien` schickt, bekäme nur noch Fehler.
+  Minor-Sprung, weil 0.x: wer `./partner` benutzt, muss umstellen, alles andere nicht.
+- Umbenannte Werte (alt → neu): `legalForm` `einzel`/`verein`/`sonstige` →
+  `sole_proprietor`/`association`/`other`; `state` `burgenland` … `wien` → `AT-1` … `AT-9`;
+  Kontaktrollen `geschaeftsfuehrung`/`buchhaltung`/`technik`/`kasse` →
+  `management`/`accounting`/`technical`/`pos`; `avv.mode` `direkt`/`vollmacht`/`unterauftrag` →
+  `direct`/`power_of_attorney`/`subprocessor`; Entgelt `entgelt {cents, rhythmus, test}` →
+  `fee {cents, interval, test}` mit `monthly`/`yearly`/`once` (neu gelesen an
+  `createPartnerCustomer` und `requestCustomerSignature`); Historiengründe
+  `karte_eingetragen`/`fon` → `card_entered`/`finanzonline`; Zustellstatus
+  `zugestellt`/`offen`/`fehlgeschlagen`/`verworfen` → `delivered`/`pending`/`failed`/`dropped`;
+  `deletePartnerWebhook` liefert `{ webhookId, deleted }` statt nur der Kennung; Ereignisse
+  `customer.terms_accepted`/`customer.avv_accepted` mit `kind` `terms`/`avv` und den englischen
+  Quellen (`setup_link`, `process_link`, `partner_power_of_attorney`, `admin_paper`,
+  `paper_upload`), beschrieben durch den neuen Typ `ContractAcceptedEventData`.
+- Neue englische Typen `LegalForm`, `AustrianState`, `ContactRole`, `AvvMode`, `FeeInterval`,
+  `PartnerFee`, `SignatureHistoryReason`, `WebhookApiVersion`, `WebhookDeliveryStatus`;
+  `Rechtsform`, `Bundesland` und `KontaktRolle` bleiben als veraltete Aliase.
+- **Webhooks tragen `apiVersion`** (`v1` oder `v3`; fehlt es, ist es ein Bestands-Webhook und damit
+  `v1`). Die Sprache der Nutzlast folgt dem Webhook, nicht dem Pfad: ein unter `/v1` angelegter
+  schickt weiter deutsch, bis er mit `updatePartnerWebhook(id, { apiVersion: 'v3' })` umgestellt
+  wird; zurück gibt es nicht. `lastDelivery` ist jetzt das Objekt `{ at, status, statusCode }`,
+  das der Server schon immer schickte (der Typ sagte `number`).
+- Dabei berichtigt, was schon unter `/v1` englisch war und hier noch deutsch gelesen wurde (und
+  darum leer blieb): `getCustomerSignatureStatus` liest `signature` statt `signatur` und neu
+  `signatures[]` und `customerId`; ein Antrag trägt `kind` statt `art`, die Historie `from`/`to`
+  statt `von`/`nach`; `requestCustomerSignature` sendet `kind` statt `art`;
+  `sendPartnerWebhookTest` liest `event` statt `ereignis`; Zustellungen tragen
+  `lastAttemptAt`/`nextAttemptAt`; `BetriebSteuer.uid` heißt `vatId` (ein `uid` wies der Server
+  als unbekanntes Feld ab); Kassenschritt `signature` statt `signatur`, Kassenstatus
+  `in_progress` statt `laeuft`.
+- **`PARTNER_FEHLER_CODES` um `kennung_fehlt` und `vertrag_offen` ergänzt**, beide mit
+  Handlungssatz. Grund: der Katalog des Backends (`partner-core.FEHLER_KATALOG`, Fläche `beide`)
+  führt sie für die Schnittstelle; `kennung_fehlt` kommt aus `sendPartnerCustomerFonLink`,
+  `vertrag_offen` live aus `activateCashregister`. Ein Code, den das Paket nicht kennt, sah für
+  einen Aufrufer aus wie „gibt es nicht“.
+- **Liste und Einzelsicht eines Betriebs führen `fon`, `avv` und `terms`** in der Form, die der
+  Server schickt (`VertragStand`, `KundenFonStand`; die Einzelsicht zusätzlich `verifiedAt` und
+  `linkSentTo`). Fehlen sie in der Antwort, bleibt es bei `null`. Der Kommentar an `AvvStand`
+  behauptete, Verträge wirkten im Partner-Weg nicht mehr; tatsächlich geht live ohne AVV und
+  Nutzungsvertrag keine Kasse live (`vertrag_offen`). Berichtigt, ebenso in `ablauf.ts`.
+- `check:erreichbar` prüft die Partner-Aufrufe unter `/v3` (abgelesen aus der Partner-Fassade des
+  Baus), alles andere weiter unter `/v1`. Ein `not_found` aus JSON gilt nicht mehr als erreichbar:
+  unter `/v3` antwortet der Rand auf einen nicht gerouteten Namen selbst mit JSON.
+- **Unverändert:** Belege, Rechnungen, Kasse, Druck, Zahlungen und React sprechen weiter `/v1`
+  (`DEFAULT_BASE_URL`), bis es dort eine `/v3` gibt. Die Fehlercodes bleiben in dieser Stufe wie
+  in `/v1`, ebenso die Prüfung der Webhook-Signatur. `reportCustomerVertrag` (unter `/v3`
+  `reportCustomerContract`) führt dieses Paket nicht und bekommt es auch jetzt nicht.
+- Die Tests lesen echte `/v3`-Antworten: `test/fixtures/partner-v3-antworten.json` entsteht aus
+  den Sichten des Backends, durch dessen `/v3`-Rand gereicht (`scripts/partner-v3-antworten.cjs`).
+
 ## 0.27.3
 
 - **`rechnungSummen` ist als veraltet markiert** (`@deprecated`), das Rechenergebnis bleibt

@@ -42,6 +42,36 @@ const listen: Record<string, readonly (string | number)[]> = {
   WEBHOOK_RETRY_PLAN_SEC,
 };
 
+/**
+ * Eintraege, die NACH dem Abzug dazukamen und dort nie ankommen werden.
+ *
+ * Das Dart-Paket fuehrt seit langem keinen Partner-Client mehr
+ * (kasseneck_api 9.0.2 auf origin/main: kein lib/src/partner, zwillinge.yaml
+ * nennt die Partner-Aufrufe `nicht_zutreffend`, "bekommt bewusst keinen
+ * Partner-Zwilling"). Der Abzug beschreibt also Dart 5.3.0 und waechst nicht
+ * mehr. Was das Backend seither an Codes der Schnittstelle ergaenzt hat, steht
+ * hier, benannt und begruendet, statt den Abzug so zu faelschen, als haette
+ * Dart es.
+ */
+const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
+  // Beide in partner-core.FEHLER_KATALOG mit flaeche 'beide': kennung_fehlt aus
+  // sendPartnerCustomerFonLink, vertrag_offen aus activateCashregister (live).
+  PARTNER_FEHLER_CODES: ['kennung_fehlt', 'vertrag_offen'],
+};
+
+test('Partner: die Nachtraege stehen wirklich nur hier und nicht im Abzug', () => {
+  // Sonst deckte die Ausnahme einen Eintrag, den es auf beiden Seiten gibt,
+  // und saenke nie.
+  for (const [name, nachtraege] of Object.entries(NACH_DEM_ABZUG)) {
+    const hier = listen[name] as readonly string[];
+    const dort = abzugAls[name] as string[];
+    for (const eintrag of nachtraege) {
+      assert.ok(hier.includes(eintrag), `${name}: ${eintrag} fehlt hier`);
+      assert.ok(!dort.includes(eintrag), `${name}: ${eintrag} steht schon im Abzug, die Ausnahme ist tot`);
+    }
+  }
+});
+
 test('Partner: der Abzug nennt seine Quelle', () => {
   // Ohne diese Zeile weiss niemand, welchen Stand des Dart-Pakets die Datei
   // beschreibt — und ein Abzug ohne Herkunft ist eine Behauptung.
@@ -53,7 +83,8 @@ test('Partner: jede Liste steht in beiden Sprachen — und in derselben Reihenfo
   for (const [name, hier] of Object.entries(listen)) {
     const dort = abzugAls[name];
     assert.ok(Array.isArray(dort), `${name} fehlt im Abzug des Dart-Pakets`);
-    assert.deepEqual([...hier], dort, `${name} weicht vom Dart-Zwilling ab`);
+    const nachtraege = new Set<string | number>(NACH_DEM_ABZUG[name] ?? []);
+    assert.deepEqual([...hier].filter((x) => !nachtraege.has(x)), dort, `${name} weicht vom Dart-Zwilling ab`);
   }
 });
 

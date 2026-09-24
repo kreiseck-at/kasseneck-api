@@ -45,6 +45,8 @@ export const PARTNER_FEHLER_CODES = [
   'zugang_nicht_erlaubt',
   'email_taken',
   'no_email',
+  // FinanzOnline-Link
+  'kennung_fehlt',
   // Signatur
   'fon_missing',
   'signature_pending',
@@ -59,6 +61,7 @@ export const PARTNER_FEHLER_CODES = [
   'module_inactive',
   'cashregister_limit',
   'cashregister_not_found',
+  'vertrag_offen',
   'activation_failed',
   // Webhooks
   'webhook_limit',
@@ -129,11 +132,13 @@ const RAT: Record<PartnerCode, string> = {
     'Die Steuernummer ist bei Kasseneck bereits registriert. Die Zuordnung zum Partner macht Kasseneck — hello@kasseneck.at.',
   customer_limit: 'Das Tageslimit fuer neue Betriebe ist erreicht (data.max, data.resetAt). Morgen weiter.',
   zugang_nicht_erlaubt:
-    'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne zugang{invite:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.canCreateAccess).',
+    'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne access{invite:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.canCreateAccess).',
   email_taken:
     'Fuer diese E-Mail gibt es schon einen Kasseneck-Zugang. Eine andere Adresse waehlen, auf die Einladung verzichten oder den Betrieb zuordnen lassen.',
   no_email:
     'Im Konto des Betriebs steht keine E-Mail-Adresse. Ohne sie geht weder eine Einladung noch der FinanzOnline-Link hinaus.',
+  kennung_fehlt:
+    'Am Betrieb ist keine Steuernummer hinterlegt, ohne sie gibt es keinen Einrichtungs-Link. Die Steuernummer bei Kasseneck nachtragen lassen (hello@kasseneck.at), dann sendPartnerCustomerFonLink erneut.',
   fon_missing:
     'Der Betrieb hat noch keinen FinanzOnline-Zugang. sendPartnerCustomerFonLink senden und customer.fon_verified abwarten. Betrifft das ANMELDEN der Signatureinheit, nicht das Beantragen.',
   signature_pending: 'Fuer diesen Betrieb laeuft bereits ein Antrag. Auf signature.ready warten.',
@@ -141,9 +146,9 @@ const RAT: Record<PartnerCode, string> = {
   signature_missing:
     'Der Betrieb hat ueberhaupt keine Signatur, und jede Kasse bezieht sich auf eine. Zuerst requestCustomerSignature.',
   signature_unknown:
-    'Die genannte signaturId gehoert nicht zu diesem Betrieb. getCustomerSignatureStatus nennt die seinen.',
+    'Die genannte signatureRequestId gehoert nicht zu diesem Betrieb. getCustomerSignatureStatus nennt die seinen.',
   signature_ambiguous:
-    'Der Betrieb hat mehrere Signaturen; welche die Kasse benutzt, muss dastehen. Eine aus data.choices als signaturId mitgeben.',
+    'Der Betrieb hat mehrere Signaturen; welche die Kasse benutzt, muss dastehen. Eine aus data.choices als signatureRequestId mitgeben.',
   signature_not_ready:
     'Die Signatur DIESER Kasse ist noch nicht bereit. Auf signature.ready warten; eine mit automatic:true angelegte Kasse geht danach von selbst live.',
   signature_limit:
@@ -152,6 +157,8 @@ const RAT: Record<PartnerCode, string> = {
   module_inactive: 'Das Modul (data.modul) ist fuer diesen Betrieb nicht gebucht. Kasseneck schaltet es frei.',
   cashregister_limit: 'Hoechstens 20 Registrierkassen je Betrieb. Eine bestehende nutzen.',
   cashregister_not_found: 'Diese cashregisterId gibt es bei diesem Betrieb nicht.',
+  vertrag_offen:
+    'Nur live: der Betrieb hat Auftragsverarbeitungs- und Nutzungsvertrag noch nicht bestaetigt. An der Kasse aendert sich nichts. Den Betrieb ueber den Einrichtungs-Link bestaetigen lassen (sendPartnerCustomerFonLink, Stand in avv/terms von getPartnerCustomer), danach activateCashregister erneut.',
   activation_failed:
     'Die Inbetriebnahme blieb an data.step haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
   webhook_limit: 'Hoechstens 10 Webhook-Endpunkte je Partner. Einen ungenutzten loeschen.',

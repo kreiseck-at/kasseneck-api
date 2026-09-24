@@ -22,11 +22,11 @@ import {
  * Alle Ereignisse, die ein Webhook abonnieren **und proben** kann. Ein
  * Endpunkt bekommt ausschliesslich die, die in seiner `events`-Liste stehen.
  *
- * Kasseneck fuehrt daneben interne Ereignisse (etwa den Abschluss eines
- * Auftragsverarbeitungsvertrags). Sie stehen hier bewusst nicht: sie lassen
- * sich weder abonnieren noch mit [sendPartnerWebhookTest] ausloesen, und ein
- * Name in dieser Liste, den niemand bestellen kann, waere ein Versprechen ohne
- * Deckung.
+ * **Noch nicht in der Liste:** `customer.avv_accepted` und
+ * `customer.terms_accepted`. Das Backend bietet sie inzwischen zum Abonnieren
+ * an; die Liste wird mit dem Dart-Zwilling gemeinsam erweitert, weil beide
+ * gegeneinander geprueft werden. Abonnieren geht trotzdem schon (`events`
+ * nimmt jeden Namen), die Nutzlast beschreibt [ContractAcceptedEventData].
  */
 export const PARTNER_WEBHOOK_EVENTS = [
   'customer.created',
@@ -91,6 +91,50 @@ export interface PartnerWebhookEvent<T = Record<string, unknown>> {
   data: T;
 }
 
+/**
+ * Die Sprache der Nutzlast eines Webhooks. Ein unter `/v1` angelegter Webhook
+ * spricht `v1` (deutsche Werte), ein unter `/v3` angelegter `v3`. Umstellen
+ * geht nur vorwaerts, mit `updatePartnerWebhook(id, { apiVersion: 'v3' })`;
+ * zurueck auf `v1` gibt es absichtlich nicht.
+ *
+ * Die Sprache der **Antworten** folgt dagegen dem Pfad: dieser Client ruft
+ * `/v3` und bekommt englische Antworten, gleich welche `apiVersion` ein
+ * Webhook hat.
+ */
+export type WebhookApiVersion = 'v1' | 'v3';
+
+/** Art des Vertrags in `customer.avv_accepted` / `customer.terms_accepted`. */
+export type ContractKind = 'avv' | 'terms';
+
+/**
+ * Wo der Betrieb bestaetigt hat. Unter `v1` hiessen die ersten fuenf
+ * `einrichten`, `prozess`, `partner_vollmacht`, `admin_papier`,
+ * `papier_upload`; `app` und `portal` sind in beiden Sprachen gleich.
+ */
+export type ContractSource =
+  | 'setup_link'
+  | 'process_link'
+  | 'partner_power_of_attorney'
+  | 'admin_paper'
+  | 'paper_upload'
+  | 'app'
+  | 'portal'
+  | (string & {});
+
+/**
+ * Nutzlast von `customer.avv_accepted` und `customer.terms_accepted` in der
+ * Sprache `v3`. Ein Webhook mit `apiVersion: 'v1'` schickt hier weiter
+ * `kind: 'nutzung'` und die deutschen Quellen.
+ */
+export interface ContractAcceptedEventData {
+  customerId: string;
+  companyName: string;
+  kind: ContractKind;
+  version: string;
+  confirmedAt: number;
+  source: ContractSource;
+}
+
 // ---------------------------------------------------------------------------
 // Eingehende Zustellung auswerten
 // ---------------------------------------------------------------------------
@@ -152,14 +196,24 @@ export async function parseWebhookEvent(optionen: VerifyWebhookOptions): Promise
 // Endpunkte verwalten
 // ---------------------------------------------------------------------------
 
+/** Stand einer Zustellung; `/v1` sagte `offen`, `zugestellt`, `fehlgeschlagen`, `verworfen`. */
+export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'dropped';
+
 export interface PartnerWebhook {
   webhookId: string;
+  /** Sprache der Nutzlast; fehlt sie in der Antwort, ist es ein Bestands-Webhook und damit `v1`. */
+  apiVersion: WebhookApiVersion | (string & {});
   url: string;
   events: string[];
   active: boolean;
   description: string | null;
   createdAt: number | null;
-  lastDelivery: number | null;
+  /** Die letzte Zustellung; `null`, solange keine versucht wurde. */
+  lastDelivery: {
+    at: number | null;
+    status: WebhookDeliveryStatus | (string & {});
+    statusCode: number | null;
+  } | null;
   /** Fehlversuche in Folge — steigt der Wert, stimmt beim Empfaenger etwas nicht. */
   consecutiveFailures: number;
 }
@@ -193,6 +247,18 @@ export interface WebhookPatch {
   events?: (PartnerWebhookEventType | (string & {}))[];
   description?: string;
   active?: boolean;
+  /**
+   * Stellt die Nutzlast auf Englisch um. Nur `'v3'` ist moeglich: zurueck auf
+   * `v1` geht nicht, damit ein Partner nicht versehentlich wieder deutsche
+   * Nutzlasten bekommt.
+   */
+  apiVersion?: 'v3';
+}
+
+export interface DeleteWebhookResult {
+  webhookId: string;
+  /** Unter `/v1` hiess das Feld `geloescht`. */
+  deleted: boolean;
 }
 
 export interface WebhookListe {
@@ -206,11 +272,11 @@ export interface WebhookZustellung {
   webhookId: string;
   event: string;
   eventId: string;
-  /** `offen`, `zugestellt` oder `fehlgeschlagen`. */
-  status: string;
+  /** `dropped`: der Webhook wurde vor der Faelligkeit deaktiviert oder geloescht. */
+  status: WebhookDeliveryStatus | (string & {});
   attempts: number;
-  letzterVersuchAt: number | null;
-  naechsterVersuchAt: number | null;
+  lastAttemptAt: number | null;
+  nextAttemptAt: number | null;
   statusCode: number | null;
   /** Auszug der Antwort des Empfaengers, hoechstens 500 Zeichen. */
   response: string | null;
@@ -221,16 +287,30 @@ function objekt(wert: unknown): Record<string, unknown> {
   return wert !== null && typeof wert === 'object' && !Array.isArray(wert) ? (wert as Record<string, unknown>) : {};
 }
 
+function letzteZustellung(wert: unknown): PartnerWebhook['lastDelivery'] {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
+  const z = wert as Record<string, unknown>;
+  return {
+    at: typeof z['at'] === 'number' ? z['at'] : null,
+    status: typeof z['status'] === 'string' ? z['status'] : '',
+    statusCode: typeof z['statusCode'] === 'number' ? z['statusCode'] : null,
+  };
+}
+
 function webhook(eintrag: unknown): PartnerWebhook {
   const w = objekt(eintrag);
   return {
     webhookId: typeof w['webhookId'] === 'string' ? w['webhookId'] : '',
+    // Fehlt das Feld, ist es ein Bestands-Webhook: der spricht v1. Kein
+    // `v3` aus Kulanz, sonst verzweigt ein Empfaenger auf englische Werte,
+    // die nie kommen.
+    apiVersion: typeof w['apiVersion'] === 'string' && w['apiVersion'] ? w['apiVersion'] : 'v1',
     url: typeof w['url'] === 'string' ? w['url'] : '',
     events: Array.isArray(w['events']) ? w['events'].filter((e): e is string => typeof e === 'string') : [],
     active: w['active'] !== false,
     description: typeof w['description'] === 'string' ? w['description'] : null,
     createdAt: typeof w['createdAt'] === 'number' ? w['createdAt'] : null,
-    lastDelivery: typeof w['lastDelivery'] === 'number' ? w['lastDelivery'] : null,
+    lastDelivery: letzteZustellung(w['lastDelivery']),
     consecutiveFailures: typeof w['consecutiveFailures'] === 'number' ? w['consecutiveFailures'] : 0,
   };
 }
@@ -329,19 +409,36 @@ export async function updatePartnerWebhook(
   return webhook(daten['webhook']);
 }
 
-/** Loescht einen Endpunkt. Danach kommt dort nichts mehr an. */
-export async function deletePartnerWebhook(rufen: InternerTransport, webhookId: string): Promise<string> {
+/**
+ * Loescht einen Endpunkt. Danach kommt dort nichts mehr an; offene
+ * Zustellungen werden verworfen (`dropped`).
+ */
+export async function deletePartnerWebhook(
+  rufen: InternerTransport,
+  webhookId: string,
+): Promise<DeleteWebhookResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('deletePartnerWebhook', 'webhookId fehlt', 'request');
   const daten = objekt(await rufen<unknown>('deletePartnerWebhook', { webhookId: id }));
-  return typeof daten['webhookId'] === 'string' ? daten['webhookId'] : id;
+  return {
+    webhookId: typeof daten['webhookId'] === 'string' ? daten['webhookId'] : id,
+    deleted: daten['deleted'] === true,
+  };
+}
+
+/** Eine Zustellung der Probe, so wie `sendPartnerWebhookTest` sie meldet. */
+export interface WebhookTestZustellung {
+  deliveryId: string;
+  webhookId: string;
+  status: WebhookDeliveryStatus | (string & {});
+  statusCode: number | null;
 }
 
 export interface WebhookTestResult {
   eventId: string;
   /** Welches Ereignis geprobt wurde — ohne Angabe `webhook.test`. */
-  ereignis: string;
-  deliveries: unknown[];
+  event: string;
+  deliveries: WebhookTestZustellung[];
 }
 
 /**
@@ -377,8 +474,16 @@ export async function sendPartnerWebhookTest(
   );
   return {
     eventId: typeof daten['eventId'] === 'string' ? daten['eventId'] : '',
-    ereignis: typeof daten['ereignis'] === 'string' ? daten['ereignis'] : ereignis || 'webhook.test',
-    deliveries: Array.isArray(daten['deliveries']) ? daten['deliveries'] : [],
+    event: typeof daten['event'] === 'string' ? daten['event'] : ereignis || 'webhook.test',
+    deliveries: (Array.isArray(daten['deliveries']) ? daten['deliveries'] : []).map((eintrag) => {
+      const z = objekt(eintrag);
+      return {
+        deliveryId: typeof z['deliveryId'] === 'string' ? z['deliveryId'] : '',
+        webhookId: typeof z['webhookId'] === 'string' ? z['webhookId'] : id,
+        status: typeof z['status'] === 'string' ? z['status'] : '',
+        statusCode: typeof z['statusCode'] === 'number' ? z['statusCode'] : null,
+      };
+    }),
   };
 }
 
@@ -408,8 +513,8 @@ export async function listPartnerWebhookDeliveries(
       eventId: txt(z['eventId']) ?? '',
       status: txt(z['status']) ?? '',
       attempts: zahl(z['attempts']) ?? 0,
-      letzterVersuchAt: zahl(z['letzterVersuchAt']),
-      naechsterVersuchAt: zahl(z['naechsterVersuchAt']),
+      lastAttemptAt: zahl(z['lastAttemptAt']),
+      nextAttemptAt: zahl(z['nextAttemptAt']),
       statusCode: zahl(z['statusCode']),
       response: txt(z['response']),
       createdAt: zahl(z['createdAt']),

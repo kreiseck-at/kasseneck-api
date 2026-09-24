@@ -167,7 +167,7 @@ adapter:
 | `…/payments` | Stripe payment links, Hobex cloud (both HTTP endpoints of the backend), and Hobex **HPS** via **Kasseneck Connect** (local device agent that talks to the terminal). |
 | `…/register` | Sign-in for the browser register: pair and unpair a device, list its users and sessions, sign in by PIN, renew and end the session. |
 | `…/kasse` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, tip recipients, the register's message catalogue. |
-| `…/partner` | Partner API: create businesses, FinanzOnline link, signature, cash registers, credentials, webhooks with signature verification. **Belongs on a server.** |
+| `…/partner` | Partner API (`/v3`, English): create businesses, FinanzOnline link, signature, cash registers, credentials, webhooks with signature verification. **Belongs on a server.** |
 | `…/rechnung` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
 | `…/rechnung/rechnen` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
 | `…/react` | Thin React adapter that renders a receipt layout or a receipt sheet. Needs React. |
@@ -537,6 +537,14 @@ receipts on their behalf.
 The partner key (`pk_live_…`) belongs on a **server**. It can create
 businesses and, with the extra scope `credentials:read`, fetch their secrets.
 
+This subpath talks to the English Partner API **`/v3`**
+(`PARTNER_BASE_URL`, `https://api.kasseneck.at/v3`): every field name and
+every value your code branches on is English. Texts for humans (`message`,
+`note`, `statusText`, `nextSteps`) stay German, and so do the error codes for
+now. Everything else in this package (receipts, invoices, the register,
+printing, payments) still uses `/v1` (`DEFAULT_BASE_URL`) until those
+endpoints have a `/v3` of their own.
+
 ```ts
 import { createPartnerApi, istPartnerFehler } from '@kreiseck/kasseneck-api/partner';
 
@@ -545,7 +553,7 @@ const partner = createPartnerApi({ partnerKey: process.env.KASSENECK_PARTNER_KEY
 const { customerId } = await partner.createPartnerCustomer({
   appId: 'app_…',
   idempotencyKey: customerNumber, // your own number; protects against duplicates
-  business,                       // master data (type Betrieb): name, legal form, address, tax details, contacts
+  business,                       // master data (type Betrieb): legalForm 'sole_proprietor', state 'AT-5', …
   // env: 'test' is allowed even with a LIVE key: that is how you rehearse the
   // whole chain without a second key. Never the other way round.
 });
@@ -571,6 +579,47 @@ try {
   }
 }
 ```
+
+### Migrating from 0.27.x
+
+0.28.0 is a breaking change for `./partner` only. The client now calls `/v3`
+instead of `/v1`, and `/v3` rejects the German values of `/v1` with
+`validation` instead of translating them. Stored data that goes into
+`createPartnerCustomer` must use the new values:
+
+| Where | 0.27.x (`/v1`) | 0.28.0 (`/v3`) |
+|---|---|---|
+| `business.legalForm` | `einzel`, `verein`, `sonstige` | `sole_proprietor`, `association`, `other` (`eu`, `og`, `kg`, `gmbh`, `gmbhcokg`, `ag` unchanged) |
+| `business.state` | `burgenland` … `wien` | `AT-1` … `AT-9` (ISO 3166-2) |
+| `business.contacts[].roles` | `geschaeftsfuehrung`, `buchhaltung`, `technik`, `kasse` | `management`, `accounting`, `technical`, `pos` |
+| `business.taxDetails` | `uid` (type only; the server always wanted `vatId`) | `vatId` |
+| `avv.mode` | `direkt`, `vollmacht`, `unterauftrag` | `direct`, `power_of_attorney`, `subprocessor` |
+| fee on `createPartnerCustomer` / `requestCustomerSignature` | not read (`entgelt {cents, rhythmus, test}`) | `fee {cents, interval, test}`, `interval`: `monthly`, `yearly`, `once` |
+| signature `history[].reason` | `karte_eingetragen`, `fon` | `card_entered`, `finanzonline` |
+| delivery `status`, `lastDelivery.status` | `zugestellt`, `offen`, `fehlgeschlagen`, `verworfen` | `delivered`, `pending`, `failed`, `dropped` |
+| `deletePartnerWebhook` | returned the `webhookId` | returns `{ webhookId, deleted }` |
+| event `customer.terms_accepted` | `kind: 'nutzung'` | `kind: 'terms'` |
+| event `source` | `einrichten`, `prozess`, `partner_vollmacht`, `admin_papier`, `papier_upload` | `setup_link`, `process_link`, `partner_power_of_attorney`, `admin_paper`, `paper_upload` |
+
+Field names in this client that were German are English now as well:
+`SignaturStand.signatur` is `signature` (plus `signatures[]`), a request's
+`art` is `kind`, history `von`/`nach` are `from`/`to`,
+`WebhookTestResult.ereignis` is `event`, a delivery's
+`letzterVersuchAt`/`naechsterVersuchAt` are `lastAttemptAt`/`nextAttemptAt`,
+and `requestCustomerSignature(id, { kind })` replaces `{ art }`. A webhook
+now shows `apiVersion` and `lastDelivery { at, status, statusCode }`. The
+types `Rechtsform`, `Bundesland` and `KontaktRolle` remain as deprecated
+aliases of `LegalForm`, `AustrianState` and `ContactRole`.
+
+**Webhook payloads have a language of their own.** A webhook created through
+`/v1` keeps sending German payloads (`apiVersion: 'v1'`), whatever path you
+call. Switch it once, there is no way back:
+
+```ts
+await partner.updatePartnerWebhook(webhookId, { apiVersion: 'v3' });
+```
+
+Webhook signature verification is unchanged.
 
 ### A test event is not a cash register
 

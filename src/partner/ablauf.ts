@@ -10,9 +10,10 @@
  * Fehler. Hier steht sie vorher — abfragbar, ausgebbar, und in
  * [naechsterSchritt] auch beantwortbar.
  *
- * **Ohne Vertragsschritt.** Auftragsverarbeitungsvertraege wirken in diesem
- * Weg nicht mehr (Stand 2026-08-31): kein Aufruf meldet einen, keine Kasse
- * bleibt deswegen stehen.
+ * **Kein eigener Vertragsschritt.** AVV und Nutzungsvertrag bestaetigt der
+ * Betrieb ueber denselben Einrichtungs-Link wie seinen FinanzOnline-Zugang
+ * (Schritt `fon`). Live geht ohne beide keine Kasse live
+ * (`vertrag_offen`); den Stand zeigen `avv` und `terms` am Betrieb.
  *
  * Zwei Dinge laufen bewusst **parallel**: der Signaturantrag und das Anlegen
  * der Kasse. Eine mit `automatic:true` angelegte Kasse wartet, bis die

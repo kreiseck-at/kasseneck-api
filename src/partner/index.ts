@@ -12,9 +12,13 @@
  * Was hier steht, ist die Benutzung dieses Clients.
  *
  * Reihenfolge der Kette: [PARTNER_ABLAUF].
+ *
+ * **Seit 0.28.0 spricht dieser Teil die englische `/v3`** ([PARTNER_BASE_URL]).
+ * Alles andere im Paket (Belege, Rechnungen, Kasse, Druck, Zahlungen) bleibt
+ * auf `/v1`, bis es dort eine `/v3` gibt.
  */
 
-export { createPartnerApi, type PartnerApi, type PartnerApiOptions } from './api.js';
+export { createPartnerApi, PARTNER_BASE_URL, type PartnerApi, type PartnerApiOptions } from './api.js';
 
 export { partnerKeyAuth, partnerKeyEnv, type PartnerKeyAuthOptions } from './auth.js';
 
@@ -80,6 +84,13 @@ export {
   type PartnerWebhook,
   type CreateWebhookOptions,
   type CreateWebhookResult,
+  type DeleteWebhookResult,
+  type WebhookApiVersion,
+  type WebhookDeliveryStatus,
+  type WebhookTestZustellung,
+  type ContractKind,
+  type ContractSource,
+  type ContractAcceptedEventData,
   type WebhookPatch,
   type WebhookListe,
   type WebhookZustellung,
@@ -110,6 +121,15 @@ export type {
   PartnerScope,
   PartnerApp,
   PartnerInfo,
+  LegalForm,
+  AustrianState,
+  ContactRole,
+  AvvMode,
+  FeeInterval,
+  PartnerFee,
+  SignatureHistoryReason,
+  RequestSignatureOptions,
+  CustomerSignature,
   Rechtsform,
   Bundesland,
   KontaktRolle,
@@ -123,6 +143,8 @@ export type {
   KundenStatus,
   KundenZeile,
   AvvStand,
+  VertragStand,
+  KundenFonStand,
   ListCustomersOptions,
   KundenListe,
   Kunde,
