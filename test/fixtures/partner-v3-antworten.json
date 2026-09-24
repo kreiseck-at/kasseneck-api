@@ -1,0 +1,481 @@
+{
+  "_quelle": "scripts/partner-v3-antworten.cjs: echte Sichten des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Stand keck#470. Nicht von Hand pflegen.",
+  "createPartnerCustomer": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "customerId": "cust_1",
+      "status": "created",
+      "env": "live",
+      "companyName": "Baeckerei Jobst e.U.",
+      "appId": "a_1",
+      "access": {
+        "invited": false,
+        "sentTo": null
+      },
+      "nextSteps": [
+        "FinanzOnline-Zugang einrichten lassen."
+      ],
+      "fee": {
+        "cents": 1500,
+        "test": false,
+        "interval": "monthly"
+      }
+    }
+  },
+  "getPartnerCustomer": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "customer": {
+        "customerId": "cust_1",
+        "companyName": "Baeckerei Jobst e.U.",
+        "status": "signature_ready",
+        "statusAt": 1788052010642,
+        "env": "live",
+        "liveEnabled": true,
+        "appId": "a_1",
+        "createdAt": 1788052009642,
+        "createdVia": "api",
+        "business": {
+          "companyName": "Baeckerei Jobst e.U.",
+          "legalForm": "sole_proprietor",
+          "email": "office@jobst.at",
+          "address": {
+            "street": "Hauptstrasse",
+            "number": "12a",
+            "zip": "1010",
+            "city": "Wien"
+          },
+          "state": "AT-9",
+          "companyRegister": null,
+          "court": null,
+          "courtCode": null,
+          "web": null,
+          "phone": null,
+          "industry": null,
+          "taxDetails": {
+            "taxNumber": "12-345/6789",
+            "vatId": "ATU12345675",
+            "gln": null,
+            "smallBusiness": false
+          },
+          "contacts": [
+            {
+              "name": "Anna Jobst",
+              "email": "anna@jobst.at",
+              "roles": [
+                "management",
+                "pos"
+              ]
+            }
+          ],
+          "billingEmail": "office@jobst.at",
+          "taxAdvisor": null
+        },
+        "fon": {
+          "configured": false,
+          "verifiedAt": null,
+          "linkSentAt": null,
+          "linkSentTo": null,
+          "linkOpenedAt": null
+        },
+        "access": null,
+        "avv": {
+          "status": "confirmed",
+          "version": "1.0",
+          "confirmedAt": 1788052010642,
+          "mode": "power_of_attorney"
+        },
+        "terms": {
+          "status": "pending",
+          "version": null,
+          "confirmedAt": null
+        }
+      }
+    }
+  },
+  "listPartnerCustomers": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "customers": [
+        {
+          "customerId": "cust_1",
+          "companyName": "Baeckerei Jobst e.U.",
+          "status": "signature_ready",
+          "appId": "a_1",
+          "env": "live",
+          "createdAt": 1788052009642,
+          "fon": {
+            "configured": false,
+            "linkSentAt": null,
+            "linkOpenedAt": null
+          },
+          "avv": {
+            "status": "confirmed",
+            "version": "1.0",
+            "confirmedAt": 1788052010642,
+            "mode": "power_of_attorney"
+          },
+          "terms": {
+            "status": "pending",
+            "version": null,
+            "confirmedAt": null
+          }
+        }
+      ],
+      "cursor": null,
+      "total": 1
+    }
+  },
+  "requestCustomerSignature": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "request": {
+        "requestId": "req_1",
+        "status": "ready",
+        "statusText": "Bereit",
+        "kind": "signature_card",
+        "vdaId": "AT1",
+        "signatureId": "sig_1",
+        "error": null,
+        "requestedVia": "api",
+        "createdAt": 1788052010642,
+        "updatedAt": 1788052010647,
+        "history": [
+          {
+            "from": null,
+            "to": "requested",
+            "at": 1788052010642,
+            "reason": "api"
+          },
+          {
+            "from": "requested",
+            "to": "assigned",
+            "at": 1788052010643,
+            "reason": "card_entered"
+          },
+          {
+            "from": "assigned",
+            "to": "registered",
+            "at": 1788052010644,
+            "reason": "finanzonline"
+          },
+          {
+            "from": "registered",
+            "to": "ready",
+            "at": 1788052010645,
+            "reason": null
+          }
+        ]
+      },
+      "replayed": true,
+      "fee": {
+        "cents": 4900,
+        "test": false,
+        "interval": "once"
+      }
+    }
+  },
+  "getCustomerSignatureStatus": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "customerId": "cust_1",
+      "signature": {
+        "ready": true,
+        "signatureId": "sig_1",
+        "vdaId": "AT1"
+      },
+      "signatures": [
+        {
+          "signatureRequestId": "req_1",
+          "status": "ready",
+          "statusText": "Bereit",
+          "inProgress": false,
+          "ready": true,
+          "kind": "signature_card",
+          "vdaId": "AT1",
+          "requestId": "req_1",
+          "signatureId": "sig_1",
+          "error": null,
+          "createdAt": 1788052010642,
+          "updatedAt": 1788052010647
+        }
+      ],
+      "requests": [
+        {
+          "requestId": "req_1",
+          "status": "ready",
+          "statusText": "Bereit",
+          "kind": "signature_card",
+          "vdaId": "AT1",
+          "signatureId": "sig_1",
+          "error": null,
+          "requestedVia": "api",
+          "createdAt": 1788052010642,
+          "updatedAt": 1788052010647,
+          "history": [
+            {
+              "from": null,
+              "to": "requested",
+              "at": 1788052010642,
+              "reason": "api"
+            },
+            {
+              "from": "requested",
+              "to": "assigned",
+              "at": 1788052010643,
+              "reason": "card_entered"
+            },
+            {
+              "from": "assigned",
+              "to": "registered",
+              "at": 1788052010644,
+              "reason": "finanzonline"
+            },
+            {
+              "from": "registered",
+              "to": "ready",
+              "at": 1788052010645,
+              "reason": null
+            }
+          ]
+        }
+      ],
+      "fon": {
+        "present": true,
+        "verifiedAt": 1788052010642
+      }
+    }
+  },
+  "createPartnerWebhook": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "webhook": {
+        "webhookId": "wh_1",
+        "apiVersion": "v3",
+        "url": "https://api.example.at/kasseneck",
+        "events": [
+          "cashregister.live"
+        ],
+        "active": true,
+        "description": null,
+        "createdAt": 1788052010642,
+        "lastDelivery": null,
+        "consecutiveFailures": 0
+      },
+      "secret": "whsec_neu"
+    }
+  },
+  "listPartnerWebhooks": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "webhooks": [
+        {
+          "webhookId": "wh_alt",
+          "apiVersion": "v1",
+          "url": "https://api.example.at/kasseneck",
+          "events": [
+            "cashregister.live"
+          ],
+          "active": true,
+          "description": null,
+          "createdAt": 1788052010642,
+          "lastDelivery": {
+            "at": 1788052010651,
+            "status": "dropped",
+            "statusCode": null
+          },
+          "consecutiveFailures": 0
+        },
+        {
+          "webhookId": "wh_1",
+          "apiVersion": "v3",
+          "url": "https://api.example.at/kasseneck",
+          "events": [
+            "cashregister.live"
+          ],
+          "active": true,
+          "description": null,
+          "createdAt": 1788052010642,
+          "lastDelivery": {
+            "at": 1788052010651,
+            "status": "delivered",
+            "statusCode": 200
+          },
+          "consecutiveFailures": 0
+        }
+      ],
+      "events": [
+        {
+          "key": "customer.created",
+          "text": "Betrieb angelegt"
+        },
+        {
+          "key": "customer.updated",
+          "text": "Betrieb geändert"
+        },
+        {
+          "key": "customer.status_changed",
+          "text": "Status des Betriebs geändert"
+        },
+        {
+          "key": "customer.fon_verified",
+          "text": "FinanzOnline-Zugang geprüft"
+        },
+        {
+          "key": "customer.live_enabled",
+          "text": "Betrieb freigeschaltet"
+        },
+        {
+          "key": "customer.avv_accepted",
+          "text": "Auftragsverarbeitungsvertrag abgeschlossen"
+        },
+        {
+          "key": "customer.terms_accepted",
+          "text": "Nutzungsvertrag bestätigt"
+        },
+        {
+          "key": "signature.requested",
+          "text": "Signatur beantragt"
+        },
+        {
+          "key": "signature.ready",
+          "text": "Signatur bereit"
+        },
+        {
+          "key": "signature.failed",
+          "text": "Signatur fehlgeschlagen"
+        },
+        {
+          "key": "cashregister.created",
+          "text": "Kasse angelegt"
+        },
+        {
+          "key": "cashregister.live",
+          "text": "Kasse in Betrieb"
+        },
+        {
+          "key": "cashregister.failed",
+          "text": "Inbetriebnahme fehlgeschlagen"
+        },
+        {
+          "key": "app.version.accepted",
+          "text": "App-Version abgenommen"
+        },
+        {
+          "key": "app.version.rejected",
+          "text": "App-Version abgelehnt"
+        },
+        {
+          "key": "webhook.test",
+          "text": "Testereignis"
+        }
+      ]
+    }
+  },
+  "updatePartnerWebhook": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "webhook": {
+        "webhookId": "wh_alt",
+        "apiVersion": "v3",
+        "url": "https://api.example.at/kasseneck",
+        "events": [
+          "cashregister.live"
+        ],
+        "active": true,
+        "description": null,
+        "createdAt": 1788052010642,
+        "lastDelivery": {
+          "at": 1788052010651,
+          "status": "dropped",
+          "statusCode": null
+        },
+        "consecutiveFailures": 0
+      }
+    }
+  },
+  "deletePartnerWebhook": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "webhookId": "wh_1",
+      "deleted": true
+    }
+  },
+  "sendPartnerWebhookTest": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "eventId": "evt_1",
+      "event": "signature.ready",
+      "deliveries": [
+        {
+          "deliveryId": "dlv_1",
+          "webhookId": "wh_1",
+          "status": "pending",
+          "statusCode": null
+        }
+      ]
+    }
+  },
+  "listPartnerWebhookDeliveries": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "deliveries": [
+        {
+          "deliveryId": "dlv_2",
+          "webhookId": "wh_1",
+          "event": "customer.created",
+          "eventId": "evt_2",
+          "status": "dropped",
+          "attempts": 1,
+          "lastAttemptAt": 1788052010662,
+          "nextAttemptAt": null,
+          "statusCode": null,
+          "response": null,
+          "createdAt": 1788052010652
+        },
+        {
+          "deliveryId": "dlv_1",
+          "webhookId": "wh_1",
+          "event": "signature.ready",
+          "eventId": "evt_1",
+          "status": "delivered",
+          "attempts": 2,
+          "lastAttemptAt": 1788052010650,
+          "nextAttemptAt": null,
+          "statusCode": 200,
+          "response": "ok",
+          "createdAt": 1788052010642
+        }
+      ]
+    }
+  },
+  "ereignisse": {
+    "customer.terms_accepted": {
+      "customerId": "cust_1",
+      "companyName": "Baeckerei Jobst e.U.",
+      "kind": "terms",
+      "version": "1.0",
+      "confirmedAt": 1788052010642,
+      "source": "setup_link"
+    },
+    "customer.avv_accepted": {
+      "customerId": "cust_1",
+      "companyName": "Baeckerei Jobst e.U.",
+      "kind": "avv",
+      "version": "1.0",
+      "confirmedAt": 1788052010642,
+      "source": "partner_power_of_attorney"
+    }
+  }
+}

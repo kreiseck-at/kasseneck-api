@@ -33,6 +33,7 @@ import {
   updatePartnerWebhook,
   type CreateWebhookOptions,
   type CreateWebhookResult,
+  type DeleteWebhookResult,
   type PartnerWebhook,
   type WebhookListe,
   type PartnerWebhookEventType,
@@ -53,14 +54,31 @@ import type {
   KundenListe,
   ListCustomersOptions,
   PartnerInfo,
+  RequestSignatureOptions,
   RequestSignatureResult,
   SignaturStand,
 } from './typen.js';
 
+/**
+ * Die Basis-URL der Partner-API: `/v3`, die englische Fassung.
+ *
+ * Nur der Partner-Teil spricht `/v3`. Belege, Rechnungen, Kasse und Zahlungen
+ * laufen weiter ueber [DEFAULT_BASE_URL] (`/v1`), bis es fuer sie eine `/v3`
+ * gibt. Die Partner-Endpunkte unter `/v1` antworten weiter, deutsch und
+ * abgekuendigt (Kopfzeilen `Deprecation`/`Sunset`); dieser Client spricht sie
+ * nicht mehr.
+ */
+export const PARTNER_BASE_URL = 'https://api.kasseneck.at/v3';
+
 export interface PartnerApiOptions {
   /** Partner-Schluessel `pk_test_…` / `pk_live_…`. Gehoert auf einen Server. */
   partnerKey: string;
-  /** Abweichende Basis-URL; Vorgabe `https://api.kasseneck.at/v1`. */
+  /**
+   * Abweichende Basis-URL; Vorgabe [PARTNER_BASE_URL]
+   * (`https://api.kasseneck.at/v3`). Die Antworten werden in der Form der
+   * `/v3` gelesen: eine `/v1`-Adresse hier liefert deutsche Werte, die diese
+   * Typen nicht beschreiben.
+   */
   baseUrl?: string;
   /** Zeitlimit je Aufruf in Millisekunden. */
   timeoutMs?: number;
@@ -79,10 +97,7 @@ export interface PartnerApi {
   sendPartnerCustomerFonLink(customerId: string): Promise<FonLinkResult>;
 
   // Signatur
-  requestCustomerSignature(
-    customerId: string,
-    optionen?: { art?: string; additional?: boolean },
-  ): Promise<RequestSignatureResult>;
+  requestCustomerSignature(customerId: string, optionen?: RequestSignatureOptions): Promise<RequestSignatureResult>;
   getCustomerSignatureStatus(customerId: string): Promise<SignaturStand>;
 
   // Kassen
@@ -102,7 +117,7 @@ export interface PartnerApi {
   createPartnerWebhook(optionen: CreateWebhookOptions): Promise<CreateWebhookResult>;
   listPartnerWebhooks(): Promise<WebhookListe>;
   updatePartnerWebhook(webhookId: string, patch: WebhookPatch): Promise<PartnerWebhook>;
-  deletePartnerWebhook(webhookId: string): Promise<string>;
+  deletePartnerWebhook(webhookId: string): Promise<DeleteWebhookResult>;
   /**
    * Neues Secret fuer denselben Endpunkt — dieselbe `webhookId`, dieselben
    * Ereignisse. Das alte gilt ab der Antwort nicht mehr.
@@ -130,7 +145,7 @@ export interface PartnerApi {
 export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
   const rufen = createTransport({
     auth: partnerKeyAuth({ partnerKey: optionen.partnerKey }),
-    baseUrl: optionen.baseUrl,
+    baseUrl: optionen.baseUrl ?? PARTNER_BASE_URL,
     timeoutMs: optionen.timeoutMs,
     fetch: optionen.fetch,
   }) as InternerTransport;

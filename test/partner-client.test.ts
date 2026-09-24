@@ -73,7 +73,7 @@ test('Partner: der Schluessel geht als Bearer raus, ohne Kassen-Token', async ()
   const { api, gesehen } = stelle(erfolg({ partner: { id: 'ptn_1', name: 'Muster GmbH', status: 'aktiv' }, env: 'live' }));
   await api.getPartnerInfo();
   const a = gesehen[0]!;
-  assert.equal(a.url, 'https://api.kasseneck.at/v1/getPartnerInfo');
+  assert.equal(a.url, 'https://api.kasseneck.at/v3/getPartnerInfo');
   assert.equal(a.init.method, 'POST');
   assert.equal(a.init.headers['Authorization'], `Bearer ${PARTNER_KEY}`);
   // Ein Partner arbeitet nie an einer Kasse — die Kopfzeile hat hier nichts verloren.
@@ -115,7 +115,7 @@ const BETRIEB = {
   legalForm: 'eu',
   email: 'chef@jobst.at',
   address: { street: 'Hauptstrasse', number: '12a', zip: '5020', city: 'Salzburg' },
-  state: 'salzburg',
+  state: 'AT-5',
   taxDetails: { taxNumber: '12-345/6789', smallBusiness: false },
   contacts: [{ name: 'Anna Jobst', email: 'anna@jobst.at' }],
 } as const;
@@ -299,7 +299,7 @@ test('Partner: sendPartnerCustomerFonLink gibt den Empfaenger maskiert zurueck',
 test('Partner: requestCustomerSignature liefert den Antrag; ein zweiter Ruf den laufenden', async () => {
   const { api, gesehen } = stelle(
     erfolg({
-      request: { requestId: 'req_1', status: 'requested', statusText: 'Beantragt', art: 'signature_card', history: [] },
+      request: { requestId: 'req_1', status: 'requested', statusText: 'Beantragt', kind: 'signature_card', history: [] },
       replayed: true,
       note: 'Es lief bereits ein Antrag.',
     }),
@@ -320,13 +320,13 @@ test('Partner: requestCustomerSignature liefert den Antrag; ein zweiter Ruf den 
 test('Partner: getCustomerSignatureStatus trennt "bereit" von "registriert"', async () => {
   const { api } = stelle(
     erfolg({
-      signatur: { ready: false, signatureId: null, vdaId: null },
+      signature: { ready: false, signatureId: null, vdaId: null },
       requests: [{ requestId: 'req_1', status: 'registered', statusText: 'Bei FinanzOnline registriert', history: [] }],
       fon: { present: true, verifiedAt: 7 },
     }),
   );
   const s = await api.getCustomerSignatureStatus('cust_1');
-  assert.equal(s.signatur.ready, false);
+  assert.equal(s.signature.ready, false);
   assert.equal(s.requests[0]?.status, 'registered');
   assert.equal(s.fon.present, true);
 });
@@ -420,11 +420,11 @@ test('Partner: listPartnerWebhooks bringt den Ereignis-Katalog mit', async () =>
 });
 
 test('Partner: updatePartnerWebhook verlangt eine Aenderung, deletePartnerWebhook eine Kennung', async () => {
-  const { api, gesehen } = stelle(erfolg({ webhook: { webhookId: 'wh_1', active: false } }), erfolg({ webhookId: 'wh_1', geloescht: true }));
+  const { api, gesehen } = stelle(erfolg({ webhook: { webhookId: 'wh_1', active: false } }), erfolg({ webhookId: 'wh_1', deleted: true }));
   const w = await api.updatePartnerWebhook('wh_1', { active: false });
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { webhookId: 'wh_1', patch: { active: false } });
   assert.equal(w.active, false);
-  assert.equal(await api.deletePartnerWebhook('wh_1'), 'wh_1');
+  assert.deepEqual(await api.deletePartnerWebhook('wh_1'), { webhookId: 'wh_1', deleted: true });
   await assert.rejects(() => api.updatePartnerWebhook('wh_1', {}), KasseneckValidationError);
   await assert.rejects(() => api.deletePartnerWebhook(''), KasseneckValidationError);
 });
@@ -449,7 +449,7 @@ test('Partner: sendPartnerWebhookTest und listPartnerWebhookDeliveries', async (
   );
   const t = await api.sendPartnerWebhookTest('wh_1');
   assert.equal(t.eventId, 'evt_1');
-  assert.equal(t.ereignis, 'webhook.test', 'ohne Angabe ist die Probe die Leitungsprobe');
+  assert.equal(t.event, 'webhook.test', 'ohne Angabe ist die Probe die Leitungsprobe');
   const z = await api.listPartnerWebhookDeliveries({ webhookId: 'wh_1', limit: 10 });
   assert.deepEqual(rumpfVon(gesehen[1]!).params, { webhookId: 'wh_1', limit: 10 });
   assert.equal(z[0]?.status, 'failed');
@@ -467,11 +467,11 @@ test('Partner: sendPartnerWebhookTest und listPartnerWebhookDeliveries', async (
  */
 test('Partner: eine Probe kann jedes abonnierte Ereignis ausloesen, nicht nur webhook.test', async () => {
   const { api, gesehen } = stelle(
-    erfolg({ eventId: 'evt_2', ereignis: 'signature.ready', deliveries: [{ deliveryId: 'dlv_2' }] }),
+    erfolg({ eventId: 'evt_2', event: 'signature.ready', deliveries: [{ deliveryId: 'dlv_2' }] }),
   );
   const t = await api.sendPartnerWebhookTest('wh_1', 'signature.ready');
   assert.deepEqual(rumpfVon(gesehen[0]!).params, { webhookId: 'wh_1', event: 'signature.ready' });
-  assert.equal(t.ereignis, 'signature.ready');
+  assert.equal(t.event, 'signature.ready');
   assert.equal(t.eventId, 'evt_2');
 
   // Ohne Ereignis darf auch keines mitgehen: ein leeres `event` waere fuer den

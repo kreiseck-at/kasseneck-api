@@ -37,7 +37,10 @@ import type {
   Kunde,
   KundenListe,
   ListCustomersOptions,
+  CustomerSignature,
+  PartnerFee,
   PartnerInfo,
+  RequestSignatureOptions,
   RequestSignatureResult,
   SignaturAntrag,
   SignaturStand,
@@ -73,6 +76,18 @@ function zahlOderNull(wert: unknown): number | null {
 
 function jaNein(wert: unknown, rueckfall = false): boolean {
   return typeof wert === 'boolean' ? wert : rueckfall;
+}
+
+/**
+ * Das gebuchte Entgelt (`fee`), falls die Antwort eines fuehrt. Ohne Betrag
+ * ist es keines: ein erfundenes `0` saehe aus wie ein kostenloser Posten.
+ */
+function entgelt(wert: unknown): PartnerFee | null {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
+  const f = wert as Record<string, unknown>;
+  const cents = zahlOderNull(f['cents']);
+  if (cents === null) return null;
+  return { cents, interval: text(f['interval']), test: jaNein(f['test']) };
 }
 
 /**
@@ -197,6 +212,7 @@ export async function createPartnerCustomer(
     appId: text(daten['appId'], appId),
     access: { invited: jaNein(zugang['invited']), sentTo: textOderNull(zugang['sentTo']) },
     nextSteps: liste(daten['nextSteps']).filter((s): s is string => typeof s === 'string'),
+    fee: entgelt(daten['fee']),
     replayed: jaNein(daten['replayed']),
   };
 }
@@ -331,7 +347,7 @@ function antrag(eintrag: unknown): SignaturAntrag {
     requestId: text(a['requestId']),
     status: text(a['status']),
     statusText: text(a['statusText']),
-    art: text(a['art'], 'signature_card'),
+    kind: text(a['kind'], 'signature_card'),
     vdaId: textOderNull(a['vdaId']),
     signatureId: textOderNull(a['signatureId']),
     error:
@@ -348,8 +364,8 @@ function antrag(eintrag: unknown): SignaturAntrag {
     history: liste(a['history']).map((h) => {
       const e = objekt(h);
       return {
-        von: textOderNull(e['von']),
-        nach: text(e['nach']),
+        from: textOderNull(e['from']),
+        to: text(e['to']),
         at: zahlOderNull(e['at']) ?? 0,
         reason: textOderNull(e['reason']),
       };
@@ -362,8 +378,8 @@ function antrag(eintrag: unknown): SignaturAntrag {
  * Vertrauensdiensteanbieter **auf diesen Betrieb** ausstellen und meldet sie
  * bei FinanzOnline an; einen Vorrat fertiger Karten gibt es nicht.
  *
- * Der Antrag erzeugt sofort ein Signatur-OBJEKT: `antrag.requestId` ist
- * zugleich die `signaturId`, auf die sich eine Kasse beruft — auch solange
+ * Der Antrag erzeugt sofort ein Signatur-OBJEKT: `request.requestId` ist
+ * zugleich die `signatureRequestId`, auf die sich eine Kasse beruft — auch solange
  * noch keine Karte zugewiesen ist.
  *
  * **Je Betrieb laeuft nur ein Antrag.** Ein zweiter Aufruf liefert den
@@ -376,13 +392,13 @@ function antrag(eintrag: unknown): SignaturAntrag {
 export async function requestCustomerSignature(
   rufen: InternerTransport,
   customerId: string,
-  optionen: { art?: string; additional?: boolean } = {},
+  optionen: RequestSignatureOptions = {},
 ): Promise<RequestSignatureResult> {
   const id = pflicht(customerId, 'requestCustomerSignature', 'customerId');
   const daten = objekt(
     await rufen<unknown>('requestCustomerSignature', {
       customerId: id,
-      art: optionen.art,
+      kind: optionen.kind,
       additional: optionen.additional,
     }),
   );
@@ -390,24 +406,53 @@ export async function requestCustomerSignature(
     request: antrag(verlangt(daten['request'], 'requestCustomerSignature', 'request')),
     replayed: jaNein(daten['replayed']),
     note: textOderNull(daten['note']),
+    fee: entgelt(daten['fee']),
   };
 }
 
-/** Stand der Signatur eines Betriebs samt aller Antraege und des FON-Zugangs. */
+function signaturEinzeln(eintrag: unknown): CustomerSignature {
+  const s = objekt(eintrag);
+  const fehler = s['error'];
+  return {
+    signatureRequestId: text(s['signatureRequestId']),
+    status: text(s['status']),
+    statusText: text(s['statusText']),
+    inProgress: jaNein(s['inProgress']),
+    ready: jaNein(s['ready']),
+    kind: text(s['kind'], 'signature_card'),
+    vdaId: textOderNull(s['vdaId']),
+    requestId: textOderNull(s['requestId']),
+    signatureId: textOderNull(s['signatureId']),
+    error:
+      fehler === null || typeof fehler !== 'object'
+        ? null
+        : {
+            code: textOderNull(objekt(fehler)['code']),
+            message: textOderNull(objekt(fehler)['message']),
+            rc: textOderNull(objekt(fehler)['rc']),
+          },
+    createdAt: zahlOderNull(s['createdAt']),
+    updatedAt: zahlOderNull(s['updatedAt']),
+  };
+}
+
+/** Stand der Signatur eines Betriebs samt aller Signaturen, Antraege und des FON-Zugangs. */
 export async function getCustomerSignatureStatus(
   rufen: InternerTransport,
   customerId: string,
 ): Promise<SignaturStand> {
   const id = pflicht(customerId, 'getCustomerSignatureStatus', 'customerId');
   const daten = objekt(await rufen<unknown>('getCustomerSignatureStatus', { customerId: id }));
-  const signatur = objekt(daten['signatur']);
+  const signatur = objekt(daten['signature']);
   const fon = objekt(daten['fon']);
   return {
-    signatur: {
+    customerId: text(daten['customerId'], id),
+    signature: {
       ready: jaNein(signatur['ready']),
       signatureId: textOderNull(signatur['signatureId']),
       vdaId: textOderNull(signatur['vdaId']),
     },
+    signatures: liste(daten['signatures']).map(signaturEinzeln),
     requests: liste(daten['requests']).map(antrag),
     fon: { present: jaNein(fon['present']), verifiedAt: zahlOderNull(fon['verifiedAt']) },
   };
@@ -451,12 +496,12 @@ function kasse(eintrag: unknown): Kasse {
  *
  * **Jede Kasse bezieht sich auf eine Signatur.** Ohne eine einzige — auch eine
  * noch laufende zaehlt — entsteht keine (`signature_missing`); bei mehreren
- * muss `signaturId` dastehen (`signature_ambiguous`).
+ * muss `signatureRequestId` dastehen (`signature_ambiguous`).
  *
  * **Darf vor der fertigen Signatur aufgerufen werden:** die Kasse bleibt dann
- * auf `entwurf` und geht von selbst live, sobald IHRE Signatur bereit ist
- * (`automatic:true`, Vorgabe). `inbetriebnahme.reason` sagt, warum gerade
- * nichts lief: `signature_not_ready` oder `automatik_aus`.
+ * auf `draft` und geht von selbst live, sobald IHRE Signatur bereit ist
+ * (`automatic:true`, Vorgabe). `activation.reason` sagt, warum gerade
+ * nichts lief: `signature_not_ready` oder `automation_off`.
  *
  * Hoechstens 20 Kassen je Betrieb (`cashregister_limit`); ohne gebuchtes Modul
  * `module_inactive`.

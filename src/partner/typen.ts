@@ -12,6 +12,10 @@
  * einfuehrt, soll diesen Client nicht zum Absturz bringen, sondern ihn
  * durchreichen. Eingabetypen sind dagegen eng — ein Tippfehler soll ein
  * Compilerfehler sein und keine `validation`-Antwort vom Server.
+ *
+ * **Die Formen sind die der `/v3`** (seit 0.28.0): Feldnamen und Werte, auf
+ * die ein Programm verzweigt, sind englisch; Texte fuer Menschen (`message`,
+ * `note`, `statusText`, `nextSteps`) bleiben deutsch, die Fehlercodes ebenso.
  */
 
 import type { KasseneckSecret } from './secret.js';
@@ -83,20 +87,34 @@ export interface PartnerInfo {
 // Betrieb anlegen
 // ---------------------------------------------------------------------------
 
-export type Rechtsform = 'einzel' | 'eu' | 'og' | 'kg' | 'gmbh' | 'gmbhcokg' | 'ag' | 'verein' | 'sonstige';
+/**
+ * Rechtsform des Betriebs, so wie `/v3` sie schreibt und liest.
+ *
+ * Die oesterreichischen Kurzformen (`eu`, `og`, `kg`, `gmbh`, `gmbhcokg`, `ag`)
+ * bleiben wie sie sind; nur die drei Woerter, die es auf Englisch gibt, sind
+ * englisch. `/v3` weist die deutschen Werte aus `/v1` (`einzel`, `verein`,
+ * `sonstige`) mit `validation` ab, statt sie still zu uebersetzen.
+ */
+export type LegalForm = 'sole_proprietor' | 'eu' | 'og' | 'kg' | 'gmbh' | 'gmbhcokg' | 'ag' | 'association' | 'other';
 
-export type Bundesland =
-  | 'burgenland'
-  | 'kaernten'
-  | 'niederoesterreich'
-  | 'oberoesterreich'
-  | 'salzburg'
-  | 'steiermark'
-  | 'tirol'
-  | 'vorarlberg'
-  | 'wien';
+/** @deprecated Seit 0.28.0 dasselbe wie [LegalForm] (englische Werte der `/v3`). */
+export type Rechtsform = LegalForm;
 
-export type KontaktRolle = 'geschaeftsfuehrung' | 'buchhaltung' | 'technik' | 'kasse';
+/**
+ * Bundesland als ISO-3166-2-Code: `AT-1` Burgenland, `AT-2` Kaernten,
+ * `AT-3` Niederoesterreich, `AT-4` Oberoesterreich, `AT-5` Salzburg,
+ * `AT-6` Steiermark, `AT-7` Tirol, `AT-8` Vorarlberg, `AT-9` Wien.
+ */
+export type AustrianState = 'AT-1' | 'AT-2' | 'AT-3' | 'AT-4' | 'AT-5' | 'AT-6' | 'AT-7' | 'AT-8' | 'AT-9';
+
+/** @deprecated Seit 0.28.0 dasselbe wie [AustrianState] (ISO-Codes der `/v3`). */
+export type Bundesland = AustrianState;
+
+/** Rolle einer Kontaktperson; `/v1` sagte `geschaeftsfuehrung`, `buchhaltung`, `technik`, `kasse`. */
+export type ContactRole = 'management' | 'accounting' | 'technical' | 'pos';
+
+/** @deprecated Seit 0.28.0 dasselbe wie [ContactRole] (englische Werte der `/v3`). */
+export type KontaktRolle = ContactRole;
 
 export interface BetriebAdresse {
   street: string;
@@ -111,8 +129,11 @@ export interface BetriebSteuer {
   /** Steuernummer im Format `12-345/6789`; die Pruefziffer wird geprueft. */
   taxNumber: string;
   smallBusiness: boolean;
-  /** UID, z. B. `ATU12345675`. */
-  uid?: string;
+  /**
+   * UID, z. B. `ATU12345675`. Heisst auf der Leitung `vatId` (auch schon unter
+   * `/v1`); ein `uid` wies der Server als unbekanntes Feld ab.
+   */
+  vatId?: string;
   /** GLN, 13 Ziffern. */
   gln?: string;
 }
@@ -121,7 +142,7 @@ export interface BetriebKontakt {
   name: string;
   email: string;
   phone?: string;
-  roles?: KontaktRolle[];
+  roles?: ContactRole[];
 }
 
 export interface BetriebSteuerberater {
@@ -147,11 +168,11 @@ export interface BetriebSteuerberater {
  */
 export interface Betrieb {
   companyName: string;
-  legalForm: Rechtsform;
+  legalForm: LegalForm;
   /** Anmeldung des Betriebs im Kasseneck-Panel; darf dort noch keinen Zugang haben. */
   email: string;
   address: BetriebAdresse;
-  state: Bundesland;
+  state: AustrianState;
   taxDetails: BetriebSteuer;
   /** Mindestens einer, hoechstens zehn. */
   contacts: BetriebKontakt[];
@@ -212,6 +233,22 @@ export type KundenStatus =
   | 'blocked'
   | (string & {});
 
+/** Abrechnungsrhythmus eines Entgelts; `/v1` sagte `monat`, `jahr`, `einmal`. */
+export type FeeInterval = 'monthly' | 'yearly' | 'once';
+
+/**
+ * Das Entgelt, das mit einem Aufruf gebucht wurde: nur dann in der Antwort,
+ * wenn die Konditionen des Partners dafuer einen Preis vorsehen. Unter `/v1`
+ * hiess es `entgelt` mit `rhythmus`.
+ */
+export interface PartnerFee {
+  /** Betrag in ganzen Cent. */
+  cents: number;
+  interval: FeeInterval | (string & {});
+  /** `true` fuer einen Testbetrieb: gebucht, aber nicht verrechnet. */
+  test: boolean;
+}
+
 export interface CreateCustomerResult {
   customerId: string;
   status: KundenStatus;
@@ -220,6 +257,8 @@ export interface CreateCustomerResult {
   appId: string;
   access: { invited: boolean; sentTo: string | null };
   nextSteps: string[];
+  /** Das gebuchte Entgelt; `null`, wenn die Konditionen keinen Preis dafuer vorsehen. */
+  fee: PartnerFee | null;
   /** `true`, wenn derselbe `idempotencyKey` schon einmal ankam. */
   replayed: boolean;
 }
@@ -234,11 +273,17 @@ export interface CreateCustomerResult {
  * **vorausgesetzt wird er nirgends**. Fuer selbst registrierte Kunden gibt es
  * die Maschinerie weiterhin, aber nicht ueber diese Schnittstelle.
  */
+/**
+ * Wie das Partnerkonto den AVV handhabt; `/v1` sagte `direkt`, `vollmacht`,
+ * `unterauftrag`.
+ */
+export type AvvMode = 'direct' | 'power_of_attorney' | 'subprocessor';
+
 export interface AvvStand {
   status: string;
   version: string | null;
   confirmedAt: number | null;
-  mode: string | null;
+  mode: AvvMode | (string & {}) | null;
 }
 
 export interface KundenZeile {
@@ -292,9 +337,9 @@ export interface FonLinkResult {
 // ---------------------------------------------------------------------------
 
 /**
- * `beantragt → zugeteilt → registriert → bereit`. `registriert` heisst: die
- * Einheit ist FinanzOnline bekannt; `bereit` heisst: sie darf signieren. In der
- * Testumgebung wird ohne `registriert` direkt `bereit` erreicht.
+ * `requested → assigned → registered → ready`. `registered` heisst: die
+ * Einheit ist FinanzOnline bekannt; `ready` heisst: sie darf signieren. In der
+ * Testumgebung wird ohne `registered` direkt `ready` erreicht.
  */
 export type SignaturAntragStatus =
   | 'requested'
@@ -305,18 +350,33 @@ export type SignaturAntragStatus =
   | 'cancelled'
   | (string & {});
 
+/**
+ * Gruende in der Historie eines Signaturantrags. `card_entered` und
+ * `finanzonline` hiessen unter `/v1` `karte_eingetragen` und `fon`.
+ */
+export type SignatureHistoryReason =
+  | 'api'
+  | 'portal'
+  | 'card_entered'
+  | 'finanzonline'
+  | 'automation_off'
+  | 'test_environment'
+  | 'no_stock'
+  | (string & {});
+
 export interface SignaturHistorieEintrag {
-  von: string | null;
-  nach: string;
+  from: SignaturAntragStatus | null;
+  to: SignaturAntragStatus;
   at: number;
-  reason: string | null;
+  reason: SignatureHistoryReason | null;
 }
 
 export interface SignaturAntrag {
   requestId: string;
   status: SignaturAntragStatus;
   statusText: string;
-  art: string;
+  /** Art der Signatureinheit; heute nur `signature_card`. */
+  kind: string;
   vdaId: string | null;
   signatureId: string | null;
   error: { code: string | null; message: string | null; rc: string | null } | null;
@@ -326,15 +386,48 @@ export interface SignaturAntrag {
   history: SignaturHistorieEintrag[];
 }
 
+export interface RequestSignatureOptions {
+  /** Art der Signatureinheit; heute nur `signature_card` (Vorgabe). */
+  kind?: string;
+  /** `true` beantragt eine WEITERE Signatur, obwohl schon eine besteht. */
+  additional?: boolean;
+}
+
 export interface RequestSignatureResult {
   request: SignaturAntrag;
   /** `true`, wenn schon ein Antrag lief — dann ist es der laufende. */
   replayed: boolean;
   note: string | null;
+  /** Das gebuchte Entgelt; `null`, wenn die Konditionen keinen Preis dafuer vorsehen. */
+  fee: PartnerFee | null;
+}
+
+/**
+ * Eine Signatur des Betriebs, einzeln. Ein Betrieb kann mehrere haben
+ * (Ersatzkarte, zweiter Standort); `signatureRequestId` ist die Kennung, auf die
+ * sich eine Kasse beruft.
+ */
+export interface CustomerSignature {
+  signatureRequestId: string;
+  status: SignaturAntragStatus | 'decommissioned';
+  statusText: string;
+  inProgress: boolean;
+  ready: boolean;
+  kind: string;
+  vdaId: string | null;
+  requestId: string | null;
+  signatureId: string | null;
+  error: { code: string | null; message: string | null; rc: string | null } | null;
+  createdAt: number | null;
+  updatedAt: number | null;
 }
 
 export interface SignaturStand {
-  signatur: { ready: boolean; signatureId: string | null; vdaId: string | null };
+  customerId: string;
+  /** Die Kurzform: hat der Betrieb ueberhaupt eine brauchbare Signatur? */
+  signature: { ready: boolean; signatureId: string | null; vdaId: string | null };
+  /** Jede Signatur einzeln. */
+  signatures: CustomerSignature[];
   requests: SignaturAntrag[];
   fon: { present: boolean; verifiedAt: number | null };
 }
@@ -344,9 +437,9 @@ export interface SignaturStand {
 // ---------------------------------------------------------------------------
 
 /** Die Schritte der Inbetriebnahme, in dieser Reihenfolge. */
-export type KassenSchritt = 'signatur' | 'register_cashregister' | 'start_receipt' | 'transmit_start_receipt' | (string & {});
+export type KassenSchritt = 'signature' | 'register_cashregister' | 'start_receipt' | 'transmit_start_receipt' | (string & {});
 
-export type KassenStatus = 'draft' | 'laeuft' | 'live' | 'failed' | (string & {});
+export type KassenStatus = 'draft' | 'in_progress' | 'live' | 'failed' | (string & {});
 
 export interface Kasse {
   cashregisterId: string;
@@ -399,7 +492,7 @@ export interface CreateCashregisterResult {
     started: boolean;
     ok: boolean | null;
     step: KassenSchritt | null;
-    /** `signature_not_ready` oder `automatik_aus`, wenn nicht gestartet wurde. */
+    /** `signature_not_ready` oder `automation_off`, wenn nicht gestartet wurde. */
     reason: string | null;
   };
 }
