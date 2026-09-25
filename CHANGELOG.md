@@ -33,6 +33,15 @@ Rechenweg ändert sich.
   Grund: `MELDUNGEN` führt nur Sätze (die Wächter beider Kassen erkennen Sätze daran), „Rest" ist
   keiner – muss aber in beiden Kassen gleich heißen. Die Zahlarten folgen dem Bon
   („Kartenzahlung", „Barzahlung").
+- **Vier weitere Sätze unter `getrennt.*`**: `sitzung_unlesbar` (eine auf dem Gerät abgelegte
+  Sitzung lässt sich nicht mehr lesen – auf schon belastete Karten hinweisen, im Panel oder am
+  Terminal nachsehen lassen), `ablage_fehlgeschlagen` (die Ablage schlägt fehl – vor dem
+  Neuladen warnen, sonst verschwinden belastete Karten aus der Liste), `zu_viele_zahlungen`
+  (höchstens 20 Zahlungen je Beleg) und `entkoppeln_offene_karten` (ein entkoppeltes Gerät hatte
+  noch offene Kartenzahlungen – die Beträge stehen daneben, der Satz selbst bleibt ohne
+  Platzhalter). Grund: die Ablage der Teilzahlung läuft rein lokal auf dem Gerät; geht sie
+  verloren oder lässt sie sich nicht lesen, ist eine schon belastete Karte das teure Risiko, und
+  der Satz muss zum Nachschauen anleiten statt zum Weiterkassieren zu verleiten.
 - **Einstellung `zahlGetrennt`** (Betrieb, Standard `false`) und **Tasten-Aktion `getrennt`**
   (ohne Vorgabe-Taste). Grund: für Betriebe ohne Bedarf bleibt die Kasse, wie sie ist; eine
   unerprobte Vorgabe-Taste finge womöglich der Browser ab. Das Backend (`kasse-settings-core.js`)

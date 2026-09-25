@@ -145,6 +145,10 @@ const MELDUNGEN_ROH = {
   'getrennt.karte_zurueckbuchen_unklar': { text: 'Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.', platzhalter: ['betrag', 'kennung'] },
   'getrennt.extern_zurueckbuchen': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.', platzhalter: ['betrag'] },
   'getrennt.sitzung_offen': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', platzhalter: ['betrag'] },
+  'getrennt.sitzung_unlesbar': { text: 'Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen.' },
+  'getrennt.ablage_fehlgeschlagen': { text: 'Die getrennte Zahlung ließ sich auf diesem Gerät nicht speichern – bitte die Kasse bis zum Abschluss dieses Belegs nicht neu laden, sonst stehen belastete Karten womöglich nicht mehr in der Liste.' },
+  'getrennt.zu_viele_zahlungen': { text: 'Ein Beleg lässt höchstens 20 Zahlungen zu.' },
+  'getrennt.entkoppeln_offene_karten': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten).' },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen

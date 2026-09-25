@@ -362,6 +362,18 @@
         "betrag"
       ]
     },
+    "getrennt.sitzung_unlesbar": {
+      "text": "Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen."
+    },
+    "getrennt.ablage_fehlgeschlagen": {
+      "text": "Die getrennte Zahlung ließ sich auf diesem Gerät nicht speichern – bitte die Kasse bis zum Abschluss dieses Belegs nicht neu laden, sonst stehen belastete Karten womöglich nicht mehr in der Liste."
+    },
+    "getrennt.zu_viele_zahlungen": {
+      "text": "Ein Beleg lässt höchstens 20 Zahlungen zu."
+    },
+    "getrennt.entkoppeln_offene_karten": {
+      "text": "Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten)."
+    },
     "beleg.link_kopiert": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
