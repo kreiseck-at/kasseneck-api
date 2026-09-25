@@ -1,6 +1,7 @@
 import { KeckPaymentMethod, ReceiptType } from '../enums/index.js';
 import { euroToCents } from '../money.js';
 import { readEnumKey } from './enum-payload.js';
+import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload } from './receipt-payment.js';
 
 /**
  * Belegzeile einer Liste — die Form, die `listMyReceipts` liefert
@@ -60,6 +61,13 @@ export interface ReceiptSummary {
   stornoStand: 'offen' | 'teil' | 'voll';
   /** Nur am Nullbeleg, nur fuer Kassen-Benutzer: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
   zeroKind?: ZeroKind;
+  /**
+   * Zahlungsliste, nur bei Belegen, die eine tragen. Die Liste liefert nur
+   * die oeffentlichen Felder (id, method, amountCents, provider,
+   * tenderedCents, changeCents, refundOf) — Anbieter-Interna
+   * (`providerPaymentId`, `providerData`) bleiben im Backend.
+   */
+  payments?: ReceiptPayment[];
 }
 
 export interface ReceiptSummaryPayload {
@@ -79,6 +87,7 @@ export interface ReceiptSummaryPayload {
   cancellationReason?: string | null;
   stornoStand?: string | null;
   zeroKind?: string | null;
+  payments?: ReceiptPaymentPayload[] | null;
 }
 
 export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): ReceiptSummary {
@@ -103,5 +112,6 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     stornoStand: payload.stornoStand === 'teil' || payload.stornoStand === 'voll' ? payload.stornoStand : 'offen',
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
+    ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
   };
 }

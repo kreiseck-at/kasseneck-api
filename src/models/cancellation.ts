@@ -34,6 +34,12 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
  *
  * Nur Auth-/Parameterfehler (Sitzung abgelaufen, Pflichtfeld fehlt) kommen
  * ohne Code; dort bleibt `code` undefined.
+ *
+ * Die vier `STORNO_…`-Codes am Ende gehoeren zur Rueckzahlung je Zahlung
+ * (mehrere Zahlungen je Beleg); Formfehler an `payments` selbst melden die
+ * Codes aus [PAYMENT_ERROR_CODES]. Unter `/v3` schreibt der Rand des Backends
+ * alle Codes klein (`storno_payments_required`); [isCancellationErrorCode]
+ * erkennt beide Schreibweisen.
  */
 export const CANCELLATION_ERROR_CODES = [
   'beleg_nicht_gefunden',        // Original fehlt oder gehoert nicht zu dieser Kasse
@@ -50,12 +56,20 @@ export const CANCELLATION_ERROR_CODES = [
   'nur_eigene_belege',           // Recht "eigene", fremder Beleg
   'kasse_unvollstaendig',        // api_key/token fehlen am Konto bzw. an der Kasse
   'storno_fehlgeschlagen',       // der Storno-Beleg selbst wurde abgelehnt (z. B. Signatur)
+  // Mehrere Zahlungen je Beleg (Rueckzahlung je Zahlung):
+  'STORNO_PAYMENTS_REQUIRED',         // Teilstorno eines Belegs mit mehreren Zahlungen ohne payments
+  'STORNO_REFUND_EXCEEDS_PAYMENT',    // Rueckzahlungen auf eine Zahlung uebersteigen deren Rest
+  'STORNO_REFUND_REFERENCE_REQUIRED', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
+  'STORNO_REFUND_REFERENCE_UNKNOWN',  // refundOf nennt keine Zahlung des Originals
 ] as const;
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];
 
-export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode {
-  return typeof value === 'string' && (CANCELLATION_ERROR_CODES as readonly string[]).includes(value);
+const CANCELLATION_ERROR_CODES_GROSS = new Set(CANCELLATION_ERROR_CODES.map((c) => c.toUpperCase()));
+
+/** Erkennt einen Code aus [CANCELLATION_ERROR_CODES], unabhaengig von Gross-/Kleinschreibung (`/v3`). */
+export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode | Lowercase<CancellationErrorCode> {
+  return typeof value === 'string' && CANCELLATION_ERROR_CODES_GROSS.has(value.toUpperCase());
 }
 
 /** Bezug eines Storno-Belegs auf sein Original. */

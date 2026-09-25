@@ -11,6 +11,7 @@ import {
 import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
 import type { Cancellation, CancellationOf, CancellationReason } from './cancellation.js';
 import { istZeroKind, type ZeroKind } from './receipt-summary.js';
+import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload, toReceiptPaymentPayload } from './receipt-payment.js';
 
 /**
  * Beleg — Zwilling der Beleg-Nutzlast von `KasseneckReceipt` in
@@ -63,6 +64,12 @@ export interface Receipt {
   cancellations?: Cancellation[];
   /** Nur an Nullbelegen: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
   zeroKind?: ZeroKind;
+  /**
+   * Zahlungsliste (mehrere Zahlungen je Beleg), nur vorhanden, wenn der Beleg
+   * sie traegt. Altbelege haben keine; dort gelten `paymentMethod` und die
+   * Kartenfelder. Siehe [ReceiptPayment].
+   */
+  payments?: ReceiptPayment[];
 }
 
 export interface ReceiptPayload {
@@ -88,6 +95,8 @@ export interface ReceiptPayload {
   customProjectId: string | null;
   /** Nur bei Belegen mit Trinkgeld (siehe [Receipt.tipCents]). */
   tipCents?: number | null;
+  /** Nur bei Belegen mit Zahlungsliste (siehe [Receipt.payments]). */
+  payments?: ReceiptPaymentPayload[] | null;
 }
 
 /**
@@ -145,6 +154,7 @@ export function toReceiptPayload(receipt: Receipt): ReceiptPayload {
     signatureSuccess: receipt.signatureSuccess ?? null,
     customProjectId: receipt.customProjectId ?? null,
     ...(receipt.tipCents != null ? { tipCents: receipt.tipCents } : {}),
+    ...(receipt.payments != null ? { payments: receipt.payments.map(toReceiptPaymentPayload) } : {}),
   };
 }
 
@@ -182,6 +192,7 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
+    ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
   };
 }
 
