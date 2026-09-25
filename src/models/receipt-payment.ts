@@ -33,6 +33,12 @@ export interface ReceiptPayment {
   providerData?: Record<string, unknown>;
   /** Nur am Storno: `id` der Originalzahlung, die erstattet wird. */
   refundOf?: string;
+  /**
+   * Trinkgeld, das mit dieser Zahlung gegeben wurde, in ganzen Cent — TEIL
+   * von `amountCents` (das Terminal bucht Betrag + Trinkgeld zusammen). Nur
+   * an Verkaufs-/Trainingsbelegen.
+   */
+  tipCents?: number;
 }
 
 /** Nutzlast-Form einer Zahlung (Backend-Dokument bzw. Antwort). */
@@ -46,6 +52,7 @@ export interface ReceiptPaymentPayload {
   providerPaymentId?: string;
   providerData?: Record<string, unknown>;
   refundOf?: string;
+  tipCents?: number;
 }
 
 /**
@@ -59,6 +66,8 @@ export interface ReceiptPaymentPayload {
  *   (`providerPaymentId` ausser bei `custom`), bei `online` optional, sonst
  *   nicht erlaubt; am Storno beschreiben sie die Erstattung und sind optional.
  * - `refundOf`: nur am Storno.
+ * - `tipCents`: Trinkgeld dieser Zahlung, ganze Cent > 0, Teil von
+ *   `amountCents`; nur am Verkauf, nie neben `tip` (den Rest prueft der Server).
  */
 export interface ReceiptPaymentInput {
   method: KeckPaymentMethod | KeckPaymentMethodKey;
@@ -68,6 +77,7 @@ export interface ReceiptPaymentInput {
   providerPaymentId?: string;
   providerData?: Record<string, unknown>;
   refundOf?: string;
+  tipCents?: number;
 }
 
 /** Lesepfad: nur vorhandene Felder uebernehmen, nichts ergaenzen. */
@@ -82,6 +92,7 @@ export function fromReceiptPaymentPayload(payload: ReceiptPaymentPayload): Recei
     ...(typeof payload.providerPaymentId === 'string' ? { providerPaymentId: payload.providerPaymentId } : {}),
     ...(payload.providerData != null && typeof payload.providerData === 'object' ? { providerData: payload.providerData } : {}),
     ...(typeof payload.refundOf === 'string' ? { refundOf: payload.refundOf } : {}),
+    ...(typeof payload.tipCents === 'number' ? { tipCents: payload.tipCents } : {}),
   };
 }
 
@@ -101,5 +112,6 @@ export function toReceiptPaymentPayload(payment: ReceiptPayment): ReceiptPayment
     ...(payment.providerPaymentId !== undefined ? { providerPaymentId: payment.providerPaymentId } : {}),
     ...(payment.providerData !== undefined ? { providerData: payment.providerData } : {}),
     ...(payment.refundOf !== undefined ? { refundOf: payment.refundOf } : {}),
+    ...(payment.tipCents !== undefined ? { tipCents: payment.tipCents } : {}),
   };
 }

@@ -62,7 +62,7 @@
     },
     {
       "art": "zeile",
-      "text": "Beleg-ID:                          AT0-KASSE1-70",
+      "text": "Beleg-ID:                          AT0-KASSE1-77",
       "fett": false,
       "leer": false
     },
@@ -74,7 +74,7 @@
     },
     {
       "art": "zeile",
-      "text": "1  x Schnitzel                           18,90 B",
+      "text": "2  x Schnitzel je 18,90                  37,80 B",
       "fett": false,
       "leer": false
     },
@@ -86,7 +86,19 @@
     },
     {
       "art": "zeile",
+      "text": "1  x Apfelstrudel                         4,65 B",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
       "text": "4  x Wein 1/4 je 5,00                    20,00 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Trinkgeld Personal                        6,00 D",
       "fett": false,
       "leer": false
     },
@@ -104,7 +116,7 @@
     },
     {
       "art": "zeile",
-      "text": "B 10%       2,31        23,14              25,45",
+      "text": "B 10%       4,45        44,55              49,00",
       "fett": false,
       "leer": false
     },
@@ -116,13 +128,19 @@
     },
     {
       "art": "zeile",
+      "text": "D 0%        0,00        6,00                6,00",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
       "text": "------------------------------------------------",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Gesamt:                                  45,45 €",
+      "text": "Gesamt:                                  75,00 €",
       "fett": false,
       "leer": false
     },
@@ -134,19 +152,43 @@
     },
     {
       "art": "zeile",
-      "text": "1. Kartenzahlung                         20,00 €",
+      "text": "1. Kartenzahlung                         22,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "2. Kartenzahlung                         15,00 €",
+      "text": "  davon Trinkgeld                         2,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "3. Barzahlung                            10,45 €",
+      "text": "2. Kartenzahlung                         18,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  davon Trinkgeld                         3,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "3. Kartenzahlung                         24,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "4. Barzahlung                            11,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  davon Trinkgeld                         1,00 €",
       "fett": false,
       "leer": false
     },
@@ -158,7 +200,7 @@
     },
     {
       "art": "zeile",
-      "text": "Rückgeld:                                 9,55 €",
+      "text": "Rückgeld:                                 9,00 €",
       "fett": false,
       "leer": false
     },
@@ -170,7 +212,7 @@
     },
     {
       "art": "qr",
-      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-70_2026-09-25T10:15:30_20,00_25,45_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
+      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-77_2026-09-25T10:15:30_20,00_49,00_0,00_6,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
       "breiteAnteil": 0.5520833333333334
     },
     {
@@ -211,7 +253,7 @@
     },
     {
       "art": "zeile",
-      "text": "Gesamtbetrag:                          20,00 EUR",
+      "text": "Gesamtbetrag:                          22,00 EUR",
       "fett": false,
       "leer": false
     },
@@ -253,7 +295,7 @@
     },
     {
       "art": "zeile",
-      "text": "                Receipt: TX-9901                ",
+      "text": "                Receipt: TX-9904                ",
       "fett": false,
       "leer": false
     },
@@ -283,7 +325,7 @@
     },
     {
       "art": "zeile",
-      "text": "             Sale Amount EUR 15,00              ",
+      "text": "             Sale Amount EUR 18,00              ",
       "fett": false,
       "leer": false
     },
@@ -295,13 +337,67 @@
     },
     {
       "art": "zeile",
-      "text": "           Authorization Code 123401            ",
+      "text": "           Authorization Code 123404            ",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "               Sequence Number: 1               ",
+      "text": "               Sequence Number: 4               ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                3. Kartenzahlung                ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  Sumup Beleg                   ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kartentyp:                                  VISA",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kartennummer:                **** **** **** 1881",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlungstyp:                         CONTACTLESS",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Gesamtbetrag:                          24,00 EUR",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Transaktionscode:                     TFQ2M8C4XP",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Modus:                               CONTACTLESS",
       "fett": false,
       "leer": false
     },

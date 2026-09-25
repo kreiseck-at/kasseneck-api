@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import { fromReceiptPayload, type ReceiptPaymentPayload } from '../src/models/index.js';
 import { buildReceiptLayout, renderReceiptGrid, gridAlsText, type ReceiptLayout } from '../src/receipt/index.js';
-import { CARD_PROVIDER_LABEL, cardProviderLabel } from '../src/receipt/layout.js';
 
 /**
  * Aufschluesselung mehrerer Zahlungen im Beleg-Layout (`payments`). Die
@@ -33,24 +32,6 @@ const raster = (layout: ReceiptLayout, zeichen: 32 | 48): string[] => gridAlsTex
 const ueberschriften = (layout: ReceiptLayout): string[] =>
   layout.lines.filter((z) => z.kind === 'text' && z.bold && z.align === 'center').map((z) => (z as { text: string }).text);
 
-test('Anbieter-Labels: woertliche Kopie von CARD_PROVIDER_LABEL aus functions/gemeinsam/helper.js', () => {
-  // Abgeschrieben aus kasseneck functions/gemeinsam/helper.js (CARD_PROVIDER_LABEL),
-  // nicht aus diesem Paket abgeleitet.
-  const backend = {
-    gpTomAndroid: 'GP Tom',
-    gpTomIos: 'GP Tom',
-    hobexCloudApi: 'Hobex',
-    hobexHps: 'Hobex',
-    sumup: 'SumUp',
-    myposPro: 'myPOS',
-    custom: 'Sonstige',
-  };
-  assert.deepEqual({ ...CARD_PROVIDER_LABEL }, backend);
-  // Unbekannt (auch stripe): der Rohwert, wie cardProviderLabel im Backend.
-  assert.equal(cardProviderLabel('stripe'), 'stripe');
-  assert.equal(cardProviderLabel('neuerAnbieter'), 'neuerAnbieter');
-});
-
 test('Leere Zahlungsliste: der alte Weg ueber paymentMethod und die Kartenfelder', () => {
   const ohne = layoutMit('karte-sumup', {});
   const leer = layoutMit('karte-sumup', { payments: [] });
@@ -70,7 +51,7 @@ test('Rueckgeld ohne changeCents: gegeben minus Betrag', () => {
     { id: 'p2', method: 'boltCash', amountCents: 2545, tenderedCents: 3000 },
   ];
   const zeilen = raster(layoutMit('split-karte-karte-bar', { payments }), 32);
-  const i = zeilen.indexOf('Bolt Cash                25,45 €');
+  const i = zeilen.indexOf('2. Bolt Cash             25,45 €');
   assert.ok(i > 0, zeilen.join('\n'));
   assert.equal(zeilen[i + 1], 'Gegeben:                 30,00 €');
   assert.equal(zeilen[i + 2], 'Rückgeld:                 4,55 €');
@@ -81,14 +62,17 @@ test('Ohne gegebenen Betrag keine Gegeben-/Rueckgeld-Zeilen; Karten bekommen sie
     { id: 'p1', method: 'creditCard', amountCents: 2000, provider: 'custom', tenderedCents: 5000 },
     { id: 'p2', method: 'cash', amountCents: 2545 },
   ];
-  const text = raster(layoutMit('split-karte-karte-bar', { payments }), 32).join('\n');
+  const zeilen = raster(layoutMit('split-karte-karte-bar', { payments }), 32);
+  const text = zeilen.join('\n');
   assert.ok(!text.includes('Gegeben:'));
   assert.ok(!text.includes('Rückgeld:'));
-  // custom hat keinen Block, bekommt aber sein Label.
-  assert.ok(text.includes('Kartenzahlung            20,00 €\n(Sonstige)'), text);
+  // Kein Anbieter mehr in der Liste, auch nicht bei custom; custom hat keinen Block.
+  assert.ok(zeilen.includes('1. Kartenzahlung         20,00 €'), text);
+  assert.ok(zeilen.includes('2. Barzahlung            25,45 €'), text);
+  assert.ok(!text.includes('Sonstige'));
 });
 
-test('58 mm: Betraege bis 9999,99 (auch negativ) brechen nie, das lange Label bricht vor der Klammer', () => {
+test('58 mm: Betraege bis 9999,99 (auch negativ) stehen ungebrochen in der Zeile ihrer Zahlung', () => {
   for (const cents of [999999, -999999]) {
     const payments: ReceiptPaymentPayload[] = [
       { id: 'p1', method: 'creditCard', amountCents: cents, provider: 'gpTomIos' },
@@ -96,29 +80,76 @@ test('58 mm: Betraege bis 9999,99 (auch negativ) brechen nie, das lange Label br
     ];
     const zeilen = raster(layoutMit('split-langer-betrag', { payments }), 32);
     const betrag = cents > 0 ? '9999,99 €' : '-9999,99 €';
-    const karte = zeilen.findIndex((z) => z.startsWith('Kartenzahlung') && z.endsWith(betrag));
-    assert.ok(karte > 0, zeilen.join('\n'));
-    assert.equal(zeilen[karte + 1]!.trimEnd(), '(GP Tom)');
-    const uber = zeilen.findIndex((z) => z.startsWith('Uber Card (Hobex)') && z.endsWith(betrag));
-    assert.ok(uber > 0, zeilen.join('\n'));
+    assert.ok(zeilen.some((z) => z.startsWith('1. Kartenzahlung') && z.endsWith(betrag)), zeilen.join('\n'));
+    assert.ok(zeilen.some((z) => z.startsWith('2. Uber Card') && z.endsWith(betrag)), zeilen.join('\n'));
   }
 });
 
-test('Zahlart-Label: Anbieter nur bei Kartenzahlarten, unbekannte Zahlart als Rohwert', () => {
+test('Trinkgeld je Zahlung: eingerueckt direkt unter der Zahlung, vor Gegeben/Rueckgeld', () => {
   const payments: ReceiptPaymentPayload[] = [
-    { id: 'p1', method: 'online', amountCents: 2000, provider: 'stripe', providerPaymentId: 'pi_1', providerData: { paymentMethodType: 'eps', epsBank: 'bank_austria' } },
-    { id: 'p2', method: 'neueZahlart', amountCents: 2545 },
+    { id: 'p1', method: 'creditCard', amountCents: 2000, tipCents: 150, provider: 'custom' },
+    { id: 'p2', method: 'cash', amountCents: 2545, tipCents: 45, tenderedCents: 3000 },
+  ];
+  const zeilen = raster(layoutMit('split-karte-karte-bar', { payments }), 32);
+  const i = zeilen.indexOf('1. Kartenzahlung         20,00 €');
+  assert.deepEqual(zeilen.slice(i, i + 6), [
+    '1. Kartenzahlung         20,00 €',
+    '  davon Trinkgeld         1,50 €',
+    '2. Barzahlung            25,45 €',
+    '  davon Trinkgeld         0,45 €',
+    'Gegeben:                 30,00 €',
+    'Rückgeld:                 4,55 €',
+  ]);
+});
+
+test('Trinkgeld bei genau einer Zahlung: unter „Zahlungsart:", ohne Nummern', () => {
+  const payments: ReceiptPaymentPayload[] = [{ id: 'p1', method: 'cash', amountCents: 4545, tipCents: 200, tenderedCents: 5000 }];
+  const zeilen = raster(layoutMit('split-karte-karte-bar', { paymentMethod: 'cash', payments }), 32);
+  const i = zeilen.indexOf('Zahlungsart:          Barzahlung');
+  assert.ok(i > 0, zeilen.join('\n'));
+  assert.deepEqual(zeilen.slice(i + 1, i + 4), [
+    '  davon Trinkgeld         2,00 €',
+    'Gegeben:                 50,00 €',
+    'Rückgeld:                 4,55 €',
+  ]);
+  // tipCents 0 oder fehlend: keine Zeile.
+  const ohne = raster(layoutMit('split-karte-karte-bar', { paymentMethod: 'cash', payments: [{ ...payments[0], tipCents: 0 }] }), 32);
+  assert.ok(!ohne.join('\n').includes('davon Trinkgeld'));
+});
+
+test('Kartenbloecke: bei mehreren Zahlungen steht die Nummer aus der Liste davor, bei einer nicht', () => {
+  const nummerUndKopf = (l: ReceiptLayout): string[] => {
+    const aus: string[] = [];
+    l.lines.forEach((z, i) => {
+      if (z.kind === 'text' && z.bold && /Beleg$|Stripe/.test(z.text)) {
+        const davor = l.lines[i - 1]!;
+        aus.push(`${davor.kind === 'text' && !davor.bold && davor.align === 'center' ? davor.text : '-'} | ${z.text}`);
+      }
+    });
+    return aus;
+  };
+  assert.deepEqual(nummerUndKopf(layoutMit('split-karte-karte-bar', {})), ['1. Kartenzahlung | Sumup Beleg', '2. Kartenzahlung | GP Tom Beleg']);
+  const eine: ReceiptPaymentPayload[] = [{ id: 'p1', method: 'creditCard', amountCents: 4545, provider: 'sumup', providerData: { cardType: 'VISA' } }];
+  const l = layoutMit('split-karte-karte-bar', { paymentMethod: 'creditCard', payments: eine });
+  const kopf = l.lines.findIndex((z) => z.kind === 'text' && z.text === 'Sumup Beleg');
+  assert.deepEqual(l.lines[kopf - 1], { kind: 'space', lines: 1 });
+});
+
+test('Zahlart-Label: unbekannte Zahlart als Rohwert, Stripe-Block mit Nummer und Kennung', () => {
+  const payments: ReceiptPaymentPayload[] = [
+    { id: 'p1', method: 'neueZahlart', amountCents: 2545 },
+    { id: 'p2', method: 'online', amountCents: 2000, provider: 'stripe', providerPaymentId: 'pi_1', providerData: { paymentMethodType: 'eps', epsBank: 'bank_austria' } },
   ];
   const l = layoutMit('split-karte-karte-bar', { payments });
   const zeilen = raster(l, 48);
-  assert.ok(zeilen.includes('Onlinezahlung                            20,00 €'), zeilen.join('\n'));
-  assert.ok(zeilen.includes('neueZahlart                              25,45 €'), zeilen.join('\n'));
-  // Der Stripe-Block kommt trotzdem, mit der Kennung aus providerPaymentId.
+  assert.ok(zeilen.includes('1. neueZahlart                           25,45 €'), zeilen.join('\n'));
+  assert.ok(zeilen.includes('2. Onlinezahlung                         20,00 €'), zeilen.join('\n'));
   assert.deepEqual(ueberschriften(l).filter((t) => /Beleg$|Stripe/.test(t)), ['Online-Zahlung (Stripe)']);
+  assert.ok(zeilen.some((z) => z.trim() === '2. Onlinezahlung'));
   assert.ok(zeilen.some((z) => z.trim() === 'Referenz: pi_1'));
 });
 
-test('Kartenbloecke in Zahlungsreihenfolge; ohne Terminaldaten oder mit unbekanntem Anbieter kein Block', () => {
+test('Kartenbloecke in Zahlungsreihenfolge; ohne Terminaldaten oder mit unbekanntem Anbieter weder Block noch Nummer', () => {
   const payments: ReceiptPaymentPayload[] = [
     { id: 'p1', method: 'creditCard', amountCents: 1000, provider: 'myposPro', providerData: { TID: 'M1', date_time: '260925101530', pan: '****4720' } },
     { id: 'p2', method: 'creditCard', amountCents: 1000, provider: 'sumup' },
@@ -127,4 +158,6 @@ test('Kartenbloecke in Zahlungsreihenfolge; ohne Terminaldaten oder mit unbekann
   ];
   const l = layoutMit('split-karte-karte-bar', { payments });
   assert.deepEqual(ueberschriften(l).filter((t) => /Beleg$/.test(t)), ['MyPos Beleg', 'Hobex Beleg']);
+  const nummern = l.lines.filter((z) => z.kind === 'text' && !z.bold && z.align === 'center' && /^\d+\. /.test(z.text)).map((z) => (z as { text: string }).text);
+  assert.deepEqual(nummern, ['1. Kartenzahlung', '4. Kartenzahlung']);
 });

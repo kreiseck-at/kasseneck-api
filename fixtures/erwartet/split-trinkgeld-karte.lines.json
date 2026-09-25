@@ -221,7 +221,7 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Kartenzahlung (SumUp)",
+          "text": "1. Kartenzahlung",
           "width": 8,
           "align": "left"
         },
@@ -236,7 +236,22 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Barzahlung",
+          "text": "  davon Trinkgeld",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "3,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "2. Barzahlung",
           "width": 8,
           "align": "left"
         },
@@ -288,6 +303,12 @@
     {
       "kind": "space",
       "lines": 1
+    },
+    {
+      "kind": "text",
+      "text": "1. Kartenzahlung",
+      "align": "center",
+      "bold": false
     },
     {
       "kind": "text",

@@ -17,13 +17,15 @@ D 0%        0,00        3,00                3,00
 ------------------------------------------------
 Gesamt:                                  40,80 €
 Zahlungsarten:                                  
-Kartenzahlung (SumUp)                    20,80 €
-Barzahlung                               20,00 €
+1. Kartenzahlung                         20,80 €
+  davon Trinkgeld                         3,00 €
+2. Barzahlung                            20,00 €
 Gegeben:                                 50,00 €
 Rückgeld:                                30,00 €
                                                 
                    [QR-Code]                    
                                                 
+                1. Kartenzahlung                
                   Sumup Beleg                   
 Kartentyp:                            MASTERCARD
 Kartennummer:                **** **** **** 4720

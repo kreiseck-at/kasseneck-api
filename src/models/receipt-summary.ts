@@ -64,7 +64,7 @@ export interface ReceiptSummary {
   /**
    * Zahlungsliste, nur bei Belegen, die eine tragen. Die Liste liefert nur
    * die oeffentlichen Felder (id, method, amountCents, provider,
-   * tenderedCents, changeCents, refundOf) — Anbieter-Interna
+   * tenderedCents, changeCents, refundOf, tipCents) — Anbieter-Interna
    * (`providerPaymentId`, `providerData`) bleiben im Backend.
    */
   payments?: ReceiptPayment[];

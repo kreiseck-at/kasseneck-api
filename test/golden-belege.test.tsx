@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
 });
 
 /**
@@ -90,7 +90,7 @@ test('Kartenanbieter: mit Zahlungsliste hat jede Zahlung mit Terminaldaten einen
     assert.equal(bloecke, mitDaten, `${name}: ${bloecke} Kartenbloecke fuer ${mitDaten} Zahlungen mit Terminaldaten`);
     geprueft += 1;
   }
-  assert.ok(geprueft >= 7, `nur ${geprueft} Belege mit Zahlungsliste geprueft`);
+  assert.ok(geprueft >= 9, `nur ${geprueft} Belege mit Zahlungsliste geprueft`);
 });
 
 for (const name of namen) {

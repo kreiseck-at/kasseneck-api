@@ -176,19 +176,19 @@
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung (SumUp)                   -20,00 €",
+      "text": "1. Kartenzahlung                        -20,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung (GP Tom)                  -15,00 €",
+      "text": "2. Kartenzahlung                        -15,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Barzahlung                              -10,45 €",
+      "text": "3. Barzahlung                           -10,45 €",
       "fett": false,
       "leer": false
     },
@@ -208,6 +208,12 @@
       "text": "                                                ",
       "fett": false,
       "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                2. Kartenzahlung                ",
+      "fett": false,
+      "leer": false
     },
     {
       "art": "zeile",

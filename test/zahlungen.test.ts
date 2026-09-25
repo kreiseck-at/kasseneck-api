@@ -155,6 +155,8 @@ test('PAYMENT_ERROR_CODES: exakt ZAHLUNGS_FEHLERCODES des Backends, gleiche Reih
     'TIP_PAYMENT_METHOD_REQUIRED',
     'TIP_EXCEEDS_PAYMENT',
     'PAYMENT_REFUND_NOT_ALLOWED',
+    'PAYMENT_TIP_INVALID',
+    'TIP_CONFLICT',
   ]);
   assert.equal(Object.isFrozen(PAYMENT_ERROR_CODES), true);
 });
@@ -251,6 +253,26 @@ test('createReceipt mit payments und Trinkgeld: tip.paymentMethod geht mit', asy
   assert.deepEqual(params.tip, { cents: 200, paymentMethod: 'cash' });
 });
 
+test('payments[].tipCents: geht je Zahlung hinaus und wird gelesen/geschrieben, nur wenn vorhanden', async () => {
+  const { rufen, aufrufe } = weg(VERKAUF);
+  await createReceipt(rufen, {
+    receiptType: ReceiptType.standard,
+    items: [MENUE],
+    payments: [
+      { method: 'creditCard', amountCents: 2200, tipCents: 200, provider: CreditCardProvider.sumup, providerPaymentId: 'TX-1' },
+      { method: 'cash', amountCents: 2545 },
+    ],
+  });
+  assert.deepEqual(gesendet(aufrufe).params.payments, [
+    { method: 'creditCard', amountCents: 2200, tipCents: 200, provider: 'sumup', providerPaymentId: 'TX-1' },
+    { method: 'cash', amountCents: 2545 },
+  ]);
+  const beleg = fromReceiptPayload({ ...NUTZLAST, payments: [{ id: 'p1', method: 'cash', amountCents: 4545, tipCents: 300 }, { id: 'p2', method: 'cash', amountCents: 1 }] } as ReceiptPayloadRead);
+  assert.equal(beleg.payments?.[0]?.tipCents, 300);
+  assert.equal('tipCents' in (beleg.payments?.[1] ?? {}), false);
+  assert.deepEqual(toReceiptPayload(beleg).payments, [{ id: 'p1', method: 'cash', amountCents: 4545, tipCents: 300 }, { id: 'p2', method: 'cash', amountCents: 1 }]);
+});
+
 // PAYMENTS_CONFLICT im Backend (zahlungs-eingang.js): payments nie zusammen
 // mit paymentMethod oder einem der drei Kartenfelder.
 test('payments zusammen mit paymentMethod oder Kartenfeldern: Eingabefehler, nichts geht hinaus', async () => {
@@ -282,6 +304,10 @@ test('payments: Form wird vor dem Senden geprueft', async () => {
     [[{ method: 'cash', amountCents: -100 }], /amountCents/],
     [[{ method: 'cash', amountCents: '4545' }], /amountCents/],
     [[{ method: 'cash', amountCents: 4545, tenderedCents: 50.5 }], /tenderedCents/],
+    [[{ method: 'cash', amountCents: 4545, tipCents: 0 }], /tipCents/],
+    [[{ method: 'cash', amountCents: 4545, tipCents: -5 }], /tipCents/],
+    [[{ method: 'cash', amountCents: 4545, tipCents: 1.5 }], /tipCents/],
+    [[{ method: 'cash', amountCents: 4545, tipCents: '200' }], /tipCents/],
     [[{ method: 'gibtsNicht', amountCents: 4545 }], /Zahlungsart/],
     [[{ method: 'mixed', amountCents: 4545 }], /mixed/],
     [[{ method: KeckPaymentMethod.mixed, amountCents: 4545 }], /mixed/],

@@ -176,19 +176,13 @@
     },
     {
       "art": "zeile",
-      "text": "Barzahlung              -10,45 €",
+      "text": "1. Barzahlung           -10,45 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung            -1,10 €",
-      "fett": false,
-      "leer": false
-    },
-    {
-      "art": "zeile",
-      "text": "(SumUp)                         ",
+      "text": "2. Kartenzahlung         -1,10 €",
       "fett": false,
       "leer": false
     },

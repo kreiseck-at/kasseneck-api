@@ -14,7 +14,7 @@
     "showKreiseckLogo": false
   },
   "receipt": {
-    "receiptId": "AT0-KASSE1-73",
+    "receiptId": "AT0-KASSE1-78",
     "cashregisterId": "KASSE1",
     "timeStamp": "2026-09-25T10:15:30",
     "items": [
@@ -27,7 +27,7 @@
       {
         "name": "Trinkgeld Personal",
         "quantity": 1,
-        "unitPriceCents": 300,
+        "unitPriceCents": 420,
         "vatRate": 0,
         "kind": "tip",
         "recipient": {
@@ -38,13 +38,13 @@
       }
     ],
     "vouchers": [],
-    "paymentMethod": "mixed",
+    "paymentMethod": "creditCard",
     "turnoverCounterAES256ICM": "UMSATZ",
     "signaturePreviousReceipt": "VORGAENGER",
     "certificateSerialNumber": "6F0404F0",
     "receiptType": "standard",
     "sig": "eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT",
-    "qr": "_R1-AT1_KASSE1_AT0-KASSE1-73_2026-09-25T10:15:30_0,00_37,80_0,00_3,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
+    "qr": "_R1-AT1_KASSE1_AT0-KASSE1-78_2026-09-25T10:15:30_0,00_37,80_0,00_4,20_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
     "fullReceiptId": "VOLL",
     "customerDetails": [],
     "legalMessage": [],
@@ -52,29 +52,22 @@
       {
         "id": "p1",
         "method": "creditCard",
-        "amountCents": 2080,
-        "tipCents": 300,
+        "amountCents": 4200,
+        "tipCents": 420,
         "provider": "sumup",
         "providerPaymentId": "TEZBA9K7QK",
         "providerData": {
           "cardType": "MASTERCARD",
           "cardLastDigits": "4720",
           "paymentType": "CONTACTLESS",
-          "amount": 2080,
+          "amount": 4200,
           "currency": "EUR",
           "transactionCode": "TEZBA9K7QK",
           "entryMode": "contactless"
         }
-      },
-      {
-        "id": "p2",
-        "method": "cash",
-        "amountCents": 2000,
-        "tenderedCents": 5000,
-        "changeCents": 3000
       }
     ],
-    "tipCents": 300
+    "tipCents": 420
   },
   "options": {
     "paperSize": "mm58"

@@ -134,19 +134,19 @@
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung            20,80 €",
+      "text": "1. Kartenzahlung         20,80 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "(SumUp)                         ",
+      "text": "  davon Trinkgeld         3,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Barzahlung               20,00 €",
+      "text": "2. Barzahlung            20,00 €",
       "fett": false,
       "leer": false
     },
@@ -178,6 +178,12 @@
       "text": "                                ",
       "fett": false,
       "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "        1. Kartenzahlung        ",
+      "fett": false,
+      "leer": false
     },
     {
       "art": "zeile",

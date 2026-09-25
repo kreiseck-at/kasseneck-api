@@ -33,6 +33,8 @@ export const PAYMENT_ERROR_CODES = Object.freeze([
   'TIP_PAYMENT_METHOD_REQUIRED',  // mehrere Zahlarten, tip.paymentMethod fehlt
   'TIP_EXCEEDS_PAYMENT',          // Trinkgeld uebersteigt die Zahlungen seiner Zahlart
   'PAYMENT_REFUND_NOT_ALLOWED',   // refundOf ausserhalb eines Stornos oder kein String
+  'PAYMENT_TIP_INVALID',          // tipCents keine Ganzzahl, <= 0, > amountCents oder nicht am Verkauf
+  'TIP_CONFLICT',                 // tip und payments[].tipCents zugleich
 ] as const);
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[number];

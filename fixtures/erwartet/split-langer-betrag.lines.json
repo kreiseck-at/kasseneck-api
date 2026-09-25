@@ -181,7 +181,7 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Kartenzahlung (GP Tom)",
+          "text": "1. Kartenzahlung",
           "width": 8,
           "align": "left"
         },
@@ -196,7 +196,7 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Barzahlung",
+          "text": "2. Barzahlung",
           "width": 8,
           "align": "left"
         },
@@ -248,6 +248,12 @@
     {
       "kind": "space",
       "lines": 1
+    },
+    {
+      "kind": "text",
+      "text": "1. Kartenzahlung",
+      "align": "center",
+      "bold": false
     },
     {
       "kind": "text",

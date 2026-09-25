@@ -16,14 +16,14 @@ B 10%   224,47  2244,65  2469,12
 --------------------------------
 Gesamt:                2469,12 €
 Zahlungsarten:                  
-Kartenzahlung          1234,56 €
-(GP Tom)                        
-Barzahlung             1234,56 €
+1. Kartenzahlung       1234,56 €
+2. Barzahlung          1234,56 €
 Gegeben:               1300,00 €
 Rückgeld:                65,44 €
                                 
            [QR-Code]            
                                 
+        1. Kartenzahlung        
           GP Tom Beleg          
            Batch: 12            
         Receipt: TX-9902        

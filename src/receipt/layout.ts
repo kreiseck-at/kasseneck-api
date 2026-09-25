@@ -490,16 +490,23 @@ function anbieterBlock(provider: unknown, daten: Record<string, unknown>, id: st
  * Die Kartenzahlungsbloecke des Belegs. Mit Zahlungsliste (`payments`) je
  * Zahlung mit Anbieter und Terminaldaten ein Block, in Zahlungsreihenfolge --
  * zwei Karten desselben Anbieters ergeben zwei Bloecke; die alten
- * Einzelfelder zaehlen dann nicht. Ohne (oder mit leerer) Liste der bisherige Weg ueber
+ * Einzelfelder zaehlen dann nicht. Bei mehreren Zahlungen steht vor jedem
+ * Block, nicht fett und zentriert, die Nummer der Zahlung aus der
+ * Aufschluesselung („2. Kartenzahlung") -- so ist jeder Block seiner Zeile
+ * zuzuordnen. Ohne (oder mit leerer) Liste der bisherige Weg ueber
  * `creditCardProvider`/`cardPaymentData`/`cardPaymentId`.
  */
 function kartenblock(receipt: Receipt): LayoutLine[] {
-  if (receipt.payments != null && receipt.payments.length > 0) {
+  const zahlungen = receipt.payments;
+  if (zahlungen != null && zahlungen.length > 0) {
     const zeilen: LayoutLine[] = [];
-    for (const zahlung of receipt.payments) {
-      if (zahlung.provider == null || zahlung.providerData == null) continue;
-      zeilen.push(...anbieterBlock(zahlung.provider, zahlung.providerData, zahlung.providerPaymentId ?? null));
-    }
+    zahlungen.forEach((zahlung, i) => {
+      if (zahlung.provider == null || zahlung.providerData == null) return;
+      const block = anbieterBlock(zahlung.provider, zahlung.providerData, zahlung.providerPaymentId ?? null);
+      if (block.length === 0) return;
+      if (zahlungen.length > 1) zeilen.push(textZeile(zahlungNummerText(zahlung, i), 'center'));
+      zeilen.push(...block);
+    });
     return zeilen;
   }
   const daten = receipt.cardPaymentData;
@@ -514,28 +521,6 @@ function zahlungsartText(wert: Receipt['paymentMethod'] | ReceiptPayment['method
   return typeof wert === 'string' ? wert : '';
 }
 
-/**
- * Lesbare Bezeichnung je Kartenanbieter -- Zwilling von `CARD_PROVIDER_LABEL`
- * (functions/gemeinsam/helper.js), dieselbe Liste wie in Bericht und
- * Beleg-Mail. Unbekannte Werte (auch `stripe`): der Rohwert.
- */
-export const CARD_PROVIDER_LABEL: Readonly<Record<string, string>> = {
-  gpTomAndroid: 'GP Tom',
-  gpTomIos: 'GP Tom',
-  hobexCloudApi: 'Hobex',
-  hobexHps: 'Hobex',
-  sumup: 'SumUp',
-  myposPro: 'myPOS',
-  custom: 'Sonstige',
-};
-
-/** Zwilling von `cardProviderLabel` (functions/gemeinsam/helper.js). */
-export function cardProviderLabel(provider: string): string {
-  return CARD_PROVIDER_LABEL[provider] || provider;
-}
-
-/** Kartenzahlarten -- Zwilling von `KARTEN_ZAHLARTEN` (functions/gemeinsam/zahlungen-core.js). */
-const KARTEN_ZAHLARTEN: readonly string[] = ['creditCard', 'uberCard', 'boltCard'];
 /** Barzahlarten -- Zwilling von `BAR_ZAHLARTEN` (functions/gemeinsam/tip-core.js). */
 const BAR_ZAHLARTEN: readonly string[] = ['cash', 'uberCash', 'boltCash'];
 
@@ -545,19 +530,18 @@ function zahlartSchluessel(wert: ReceiptPayment['method']): string {
 }
 
 /**
- * Text einer Zahlung in der Aufschluesselung -- wie die Beleg-Mail
- * (functions/beleg-mail-core.js): Zahlart, bei Kartenzahlarten mit Anbieter
- * der Anbieter in Klammern. Innerhalb der Klammer stehen geschuetzte
- * Leerzeichen: bricht die Zeile auf 58 mm um, dann VOR der Klammer
- * („Kartenzahlung" / „(GP Tom)"), nie mitten im Anbieternamen.
+ * Nummerierter Text einer Zahlung („1. Kartenzahlung", „3. Barzahlung") --
+ * in der Aufschluesselung und ueber ihrem Kartenblock dieselbe Nummer, in
+ * Zahlungsreihenfolge ab 1.
  */
-function zahlungText(zahlung: ReceiptPayment): string {
-  const art = zahlungsartText(zahlung.method);
-  const provider = zahlung.provider;
-  if (!KARTEN_ZAHLARTEN.includes(zahlartSchluessel(zahlung.method)) || typeof provider !== 'string' || provider === '') {
-    return art;
-  }
-  return `${art} (${cardProviderLabel(provider).replace(/ /g, '\u00a0')})`;
+function zahlungNummerText(zahlung: ReceiptPayment, index: number): string {
+  return `${index + 1}. ${zahlungsartText(zahlung.method)}`;
+}
+
+/** „davon Trinkgeld" eingerueckt unter einer Zahlung, die Trinkgeld traegt. */
+function zahlungTrinkgeldZeilen(zahlung: ReceiptPayment): LayoutLine[] {
+  if (typeof zahlung.tipCents !== 'number' || zahlung.tipCents <= 0) return [];
+  return [paarZeile('  davon Trinkgeld', `${formatCents(zahlung.tipCents)} €`, 8, 4)];
 }
 
 /**
@@ -581,11 +565,12 @@ function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
  * - Genau eine Zahlung: dieselbe Zeile, Label aus der Zahlung.
  * - Mehrere Zahlungen (auch zwei Karten, die `paymentMethod: creditCard`
  *   ergeben -- entschieden wird an der Laenge, nie an `mixed`): „Zahlungsarten:"
- *   und je Zahlung eine Zeile mit Betrag. Breite 8:4 -- auf 58 mm bleiben der
- *   Betragsspalte elf Zeichen, genug fuer „-9999,99 €"; ein langes Label
- *   bricht links um, der Betrag nie.
+ *   und je Zahlung eine nummerierte Zeile mit Betrag, ohne Anbieter (der
+ *   steht im Kartenblock mit derselben Nummer). Breite 8:4 -- auf 58 mm
+ *   bleiben der Betragsspalte elf Zeichen, genug fuer „-9999,99 €".
  *
- * Unter jeder Barzahlung mit gegebenem Betrag stehen „Gegeben:" und
+ * Unter jeder Zahlung in dieser Reihenfolge: „davon Trinkgeld" (bei
+ * `tipCents`), dann bei einer Barzahlung mit gegebenem Betrag „Gegeben:" und
  * „Rückgeld:".
  */
 function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
@@ -595,13 +580,14 @@ function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
   }
   if (zahlungen.length === 1) {
     const zahlung = zahlungen[0]!;
-    return [paarZeile('Zahlungsart:', zahlungsartText(zahlung.method)), ...barZeilen(zahlung)];
+    return [paarZeile('Zahlungsart:', zahlungsartText(zahlung.method)), ...zahlungTrinkgeldZeilen(zahlung), ...barZeilen(zahlung)];
   }
   const zeilen: LayoutLine[] = [textZeile('Zahlungsarten:')];
-  for (const zahlung of zahlungen) {
-    zeilen.push(paarZeile(zahlungText(zahlung), `${formatCents(zahlung.amountCents)} €`, 8, 4));
+  zahlungen.forEach((zahlung, i) => {
+    zeilen.push(paarZeile(zahlungNummerText(zahlung, i), `${formatCents(zahlung.amountCents)} €`, 8, 4));
+    zeilen.push(...zahlungTrinkgeldZeilen(zahlung));
     zeilen.push(...barZeilen(zahlung));
-  }
+  });
   return zeilen;
 }
 

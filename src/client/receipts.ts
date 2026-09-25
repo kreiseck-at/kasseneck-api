@@ -942,6 +942,13 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string)
       }
       aus['tenderedCents'] = gegeben;
     }
+    if (z['tipCents'] !== undefined) {
+      const trinkgeld = z['tipCents'];
+      if (typeof trinkgeld !== 'number' || !Number.isInteger(trinkgeld) || trinkgeld <= 0) {
+        throw fehler(`Zahlung ${nr}: tipCents muss eine ganze Zahl groesser als 0 sein.`);
+      }
+      aus['tipCents'] = trinkgeld;
+    }
     if (z['provider'] !== undefined) {
       aus['provider'] = kartenanbieter(String(z['provider']));
     }

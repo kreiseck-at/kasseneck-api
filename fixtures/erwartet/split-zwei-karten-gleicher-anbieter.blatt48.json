@@ -134,13 +134,13 @@
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung (SumUp)                    25,00 €",
+      "text": "1. Kartenzahlung                         25,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung (SumUp)                    20,45 €",
+      "text": "2. Kartenzahlung                         20,45 €",
       "fett": false,
       "leer": false
     },
@@ -160,6 +160,12 @@
       "text": "                                                ",
       "fett": false,
       "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                1. Kartenzahlung                ",
+      "fett": false,
+      "leer": false
     },
     {
       "art": "zeile",
@@ -208,6 +214,12 @@
       "text": "                                                ",
       "fett": false,
       "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                2. Kartenzahlung                ",
+      "fett": false,
+      "leer": false
     },
     {
       "art": "zeile",

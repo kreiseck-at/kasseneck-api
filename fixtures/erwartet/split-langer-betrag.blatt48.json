@@ -116,13 +116,13 @@
     },
     {
       "art": "zeile",
-      "text": "Kartenzahlung (GP Tom)                 1234,56 €",
+      "text": "1. Kartenzahlung                       1234,56 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Barzahlung                             1234,56 €",
+      "text": "2. Barzahlung                          1234,56 €",
       "fett": false,
       "leer": false
     },
@@ -154,6 +154,12 @@
       "text": "                                                ",
       "fett": false,
       "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                1. Kartenzahlung                ",
+      "fett": false,
+      "leer": false
     },
     {
       "art": "zeile",

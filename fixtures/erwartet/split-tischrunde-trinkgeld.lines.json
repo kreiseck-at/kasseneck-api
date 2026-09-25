@@ -73,7 +73,7 @@
           "align": "left"
         },
         {
-          "text": "AT0-KASSE1-71",
+          "text": "AT0-KASSE1-77",
           "width": 6,
           "align": "right"
         }
@@ -87,12 +87,12 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "1  x Schnitzel",
+          "text": "2  x Schnitzel je 18,90",
           "width": 7,
           "align": "left"
         },
         {
-          "text": "18,90 B",
+          "text": "37,80 B",
           "width": 5,
           "align": "right"
         }
@@ -117,6 +117,21 @@
       "kind": "columns",
       "columns": [
         {
+          "text": "1  x Apfelstrudel",
+          "width": 7,
+          "align": "left"
+        },
+        {
+          "text": "4,65 B",
+          "width": 5,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
           "text": "4  x Wein 1/4 je 5,00",
           "width": 7,
           "align": "left"
@@ -124,6 +139,21 @@
         {
           "text": "20,00 A",
           "width": 5,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "Trinkgeld Personal",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "6,00 D",
+          "width": 4,
           "align": "right"
         }
       ]
@@ -166,17 +196,17 @@
           "align": "left"
         },
         {
-          "text": "2,31",
+          "text": "4,45",
           "width": 3,
           "align": "left"
         },
         {
-          "text": "23,14",
+          "text": "44,55",
           "width": 3,
           "align": "left"
         },
         {
-          "text": "25,45",
+          "text": "49,00",
           "width": 3,
           "align": "right"
         }
@@ -208,6 +238,31 @@
       ]
     },
     {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "D 0%",
+          "width": 3,
+          "align": "left"
+        },
+        {
+          "text": "0,00",
+          "width": 3,
+          "align": "left"
+        },
+        {
+          "text": "6,00",
+          "width": 3,
+          "align": "left"
+        },
+        {
+          "text": "6,00",
+          "width": 3,
+          "align": "right"
+        }
+      ]
+    },
+    {
       "kind": "rule",
       "char": "-"
     },
@@ -220,7 +275,7 @@
           "align": "left"
         },
         {
-          "text": "45,45 €",
+          "text": "75,00 €",
           "width": 6,
           "align": "right"
         }
@@ -241,7 +296,22 @@
           "align": "left"
         },
         {
-          "text": "25,00 €",
+          "text": "22,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "  davon Trinkgeld",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "2,00 €",
           "width": 4,
           "align": "right"
         }
@@ -256,7 +326,97 @@
           "align": "left"
         },
         {
-          "text": "20,45 €",
+          "text": "18,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "  davon Trinkgeld",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "3,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "3. Kartenzahlung",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "24,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "4. Barzahlung",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "11,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "  davon Trinkgeld",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "1,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "Gegeben:",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "20,00 €",
+          "width": 4,
+          "align": "right"
+        }
+      ]
+    },
+    {
+      "kind": "columns",
+      "columns": [
+        {
+          "text": "Rückgeld:",
+          "width": 8,
+          "align": "left"
+        },
+        {
+          "text": "9,00 €",
           "width": 4,
           "align": "right"
         }
@@ -268,7 +428,7 @@
     },
     {
       "kind": "qr",
-      "data": "_R1-AT1_KASSE1_AT0-KASSE1-71_2026-09-25T10:15:30_20,00_25,45_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR"
+      "data": "_R1-AT1_KASSE1_AT0-KASSE1-77_2026-09-25T10:15:30_20,00_49,00_0,00_6,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR"
     },
     {
       "kind": "space",
@@ -340,7 +500,7 @@
           "align": "left"
         },
         {
-          "text": "25,00 EUR",
+          "text": "22,00 EUR",
           "width": 6,
           "align": "right"
         }
@@ -383,6 +543,82 @@
     {
       "kind": "text",
       "text": "2. Kartenzahlung",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "GP Tom Beleg",
+      "align": "center",
+      "bold": true
+    },
+    {
+      "kind": "text",
+      "text": "Batch: 12",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "Receipt: TX-9904",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "TID: T-55",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "A0000000031010",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "VISA CREDIT CONTACTLESS",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "**** **** **** 4720",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "Sale Amount EUR 18,00",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "PIN OK",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "Authorization Code 123404",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "text",
+      "text": "Sequence Number: 4",
+      "align": "center",
+      "bold": false
+    },
+    {
+      "kind": "space",
+      "lines": 1
+    },
+    {
+      "kind": "text",
+      "text": "3. Kartenzahlung",
       "align": "center",
       "bold": false
     },
@@ -446,7 +682,7 @@
           "align": "left"
         },
         {
-          "text": "20,45 EUR",
+          "text": "24,00 EUR",
           "width": 6,
           "align": "right"
         }
