@@ -38,11 +38,11 @@ test('Leere Zahlungsliste: der alte Weg ueber paymentMethod und die Kartenfelder
   assert.deepEqual(leer, ohne);
 });
 
-test('Mit Zahlungsliste zaehlen die alten Kartenfelder nicht mehr', () => {
-  const payments: ReceiptPaymentPayload[] = [{ id: 'p1', method: 'cash', amountCents: 12000 }];
+test('Mit mehreren Zahlungen zaehlen die alten Kartenfelder nicht mehr', () => {
+  const payments: ReceiptPaymentPayload[] = [{ id: 'p1', method: 'cash', amountCents: 6000 }, { id: 'p2', method: 'cash', amountCents: 6000 }];
   const l = layoutMit('karte-sumup', { paymentMethod: 'cash', payments });
   assert.deepEqual(ueberschriften(l).filter((t) => /Beleg$/.test(t)), []);
-  assert.ok(raster(l, 32).includes('Zahlungsart:          Barzahlung'));
+  assert.ok(raster(l, 32).includes('1. Barzahlung            60,00 €'));
 });
 
 test('Rueckgeld ohne changeCents: gegeben minus Betrag', () => {
@@ -53,8 +53,8 @@ test('Rueckgeld ohne changeCents: gegeben minus Betrag', () => {
   const zeilen = raster(layoutMit('split-karte-karte-bar', { payments }), 32);
   const i = zeilen.indexOf('2. Bolt Cash             25,45 €');
   assert.ok(i > 0, zeilen.join('\n'));
-  assert.equal(zeilen[i + 1], 'Gegeben:                 30,00 €');
-  assert.equal(zeilen[i + 2], 'Rückgeld:                 4,55 €');
+  assert.equal(zeilen[i + 1], '  Gegeben:               30,00 €');
+  assert.equal(zeilen[i + 2], '  Rückgeld:               4,55 €');
 });
 
 test('Ohne gegebenen Betrag keine Gegeben-/Rueckgeld-Zeilen; Karten bekommen sie nie', () => {
@@ -97,8 +97,8 @@ test('Trinkgeld je Zahlung: eingerueckt direkt unter der Zahlung, vor Gegeben/Ru
     '  davon Trinkgeld         1,50 €',
     '2. Barzahlung            25,45 €',
     '  davon Trinkgeld         0,45 €',
-    'Gegeben:                 30,00 €',
-    'Rückgeld:                 4,55 €',
+    '  Gegeben:               30,00 €',
+    '  Rückgeld:               4,55 €',
   ]);
 });
 
@@ -109,8 +109,8 @@ test('Trinkgeld bei genau einer Zahlung: unter „Zahlungsart:", ohne Nummern', 
   assert.ok(i > 0, zeilen.join('\n'));
   assert.deepEqual(zeilen.slice(i + 1, i + 4), [
     '  davon Trinkgeld         2,00 €',
-    'Gegeben:                 50,00 €',
-    'Rückgeld:                 4,55 €',
+    '  Gegeben:               50,00 €',
+    '  Rückgeld:               4,55 €',
   ]);
   // tipCents 0 oder fehlend: keine Zeile.
   const ohne = raster(layoutMit('split-karte-karte-bar', { paymentMethod: 'cash', payments: [{ ...payments[0], tipCents: 0 }] }), 32);
@@ -160,4 +160,20 @@ test('Kartenbloecke in Zahlungsreihenfolge; ohne Terminaldaten oder mit unbekann
   assert.deepEqual(ueberschriften(l).filter((t) => /Beleg$/.test(t)), ['MyPos Beleg', 'Hobex Beleg']);
   const nummern = l.lines.filter((z) => z.kind === 'text' && !z.bold && z.align === 'center' && /^\d+\. /.test(z.text)).map((z) => (z as { text: string }).text);
   assert.deepEqual(nummern, ['1. Kartenzahlung', '4. Kartenzahlung']);
+});
+
+test('Eine Zahlung ohne providerData neben den Altfeldern: der bisherige Kartenblock, wie ohne Liste', () => {
+  const alt = layoutMit('karte-sumup', {});
+  for (const zahlung of [
+    { id: 'p1', method: 'creditCard', amountCents: 12000, provider: 'sumup', providerPaymentId: 'TEZBA9K7QK' },
+    { id: 'p1', method: 'creditCard', amountCents: 12000 },
+  ] as ReceiptPaymentPayload[]) {
+    assert.deepEqual(layoutMit('karte-sumup', { payments: [zahlung] }), alt, JSON.stringify(zahlung));
+  }
+  // Traegt die Zahlung eigene Terminaldaten, gelten diese, nicht die Altfelder.
+  const eigene = layoutMit('karte-sumup', { payments: [{ id: 'p1', method: 'creditCard', amountCents: 12000, provider: 'gpTomAndroid', providerData: { batchNumber: 1 } }] });
+  assert.deepEqual(ueberschriften(eigene).filter((t) => /Beleg$/.test(t)), ['GP Tom Beleg']);
+  // Zwei Zahlungen ohne Daten: kein Rueckfall, die Altfelder zaehlen nicht.
+  const zwei = layoutMit('karte-sumup', { payments: [{ id: 'p1', method: 'creditCard', amountCents: 6000, provider: 'sumup' }, { id: 'p2', method: 'cash', amountCents: 6000 }] });
+  assert.deepEqual(ueberschriften(zwei).filter((t) => /Beleg$/.test(t)), []);
 });

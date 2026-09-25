@@ -17,8 +17,8 @@ Gesamt:                                2469,12 €
 Zahlungsarten:                                  
 1. Kartenzahlung                       1234,56 €
 2. Barzahlung                          1234,56 €
-Gegeben:                               1300,00 €
-Rückgeld:                                65,44 €
+  Gegeben:                             1300,00 €
+  Rückgeld:                              65,44 €
                                                 
                    [QR-Code]                    
                                                 

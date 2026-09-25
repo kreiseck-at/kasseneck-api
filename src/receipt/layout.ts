@@ -494,11 +494,17 @@ function anbieterBlock(provider: unknown, daten: Record<string, unknown>, id: st
  * Block, nicht fett und zentriert, die Nummer der Zahlung aus der
  * Aufschluesselung („2. Kartenzahlung") -- so ist jeder Block seiner Zeile
  * zuzuordnen. Ohne (oder mit leerer) Liste der bisherige Weg ueber
- * `creditCardProvider`/`cardPaymentData`/`cardPaymentId`.
+ * `creditCardProvider`/`cardPaymentData`/`cardPaymentId` -- ebenso bei
+ * hoechstens einer Zahlung ohne `providerData`, wenn die Altfelder gesetzt sind.
  */
 function kartenblock(receipt: Receipt): LayoutLine[] {
   const zahlungen = receipt.payments;
-  if (zahlungen != null && zahlungen.length > 0) {
+  // Eine einzelne Zahlung ohne Terminaldaten neben gesetzten Altfeldern
+  // (creditCardProvider + cardPaymentData): der bisherige Block, wie ohne Liste.
+  const altfelderTragen = zahlungen != null && zahlungen.length <= 1
+    && zahlungen.every((z) => z.providerData == null)
+    && receipt.creditCardProvider != null && receipt.cardPaymentData != null;
+  if (zahlungen != null && zahlungen.length > 0 && !altfelderTragen) {
     const zeilen: LayoutLine[] = [];
     zahlungen.forEach((zahlung, i) => {
       if (zahlung.provider == null || zahlung.providerData == null) return;
@@ -553,8 +559,8 @@ function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
   if (!BAR_ZAHLARTEN.includes(zahlartSchluessel(zahlung.method)) || typeof zahlung.tenderedCents !== 'number') return [];
   const rueckgeld = typeof zahlung.changeCents === 'number' ? zahlung.changeCents : zahlung.tenderedCents - zahlung.amountCents;
   return [
-    paarZeile('Gegeben:', `${formatCents(zahlung.tenderedCents)} €`, 8, 4),
-    paarZeile('Rückgeld:', `${formatCents(rueckgeld)} €`, 8, 4),
+    paarZeile('  Gegeben:', `${formatCents(zahlung.tenderedCents)} €`, 8, 4),
+    paarZeile('  Rückgeld:', `${formatCents(rueckgeld)} €`, 8, 4),
   ];
 }
 
@@ -571,7 +577,8 @@ function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
  *
  * Unter jeder Zahlung in dieser Reihenfolge: „davon Trinkgeld" (bei
  * `tipCents`), dann bei einer Barzahlung mit gegebenem Betrag „Gegeben:" und
- * „Rückgeld:".
+ * „Rückgeld:" -- alles, was zu einer Zahlung gehoert, zwei Zeichen eingerueckt,
+ * die Zahlung selbst buendig.
  */
 function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
   const zahlungen = receipt.payments;

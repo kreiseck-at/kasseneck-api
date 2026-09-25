@@ -281,7 +281,7 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Gegeben:",
+          "text": "  Gegeben:",
           "width": 8,
           "align": "left"
         },
@@ -296,7 +296,7 @@
       "kind": "columns",
       "columns": [
         {
-          "text": "Rückgeld:",
+          "text": "  Rückgeld:",
           "width": 8,
           "align": "left"
         },

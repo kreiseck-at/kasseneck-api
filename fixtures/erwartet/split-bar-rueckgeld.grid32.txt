@@ -19,8 +19,8 @@ A 20%   0,93    4,67        5,60
 --------------------------------
 Gesamt:                  10,34 €
 Zahlungsart:          Barzahlung
-Gegeben:                 50,00 €
-Rückgeld:                39,66 €
+  Gegeben:               50,00 €
+  Rückgeld:              39,66 €
                                 
            [QR-Code]            
                                 

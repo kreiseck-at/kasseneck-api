@@ -21,8 +21,8 @@ Zahlungsarten:
 1. Kartenzahlung                         20,00 €
 2. Kartenzahlung                         15,00 €
 3. Barzahlung                            10,45 €
-Gegeben:                                 20,00 €
-Rückgeld:                                 9,55 €
+  Gegeben:                               20,00 €
+  Rückgeld:                               9,55 €
                                                 
                    [QR-Code]                    
                                                 

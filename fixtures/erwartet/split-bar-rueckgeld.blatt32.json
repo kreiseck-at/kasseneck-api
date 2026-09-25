@@ -140,13 +140,13 @@
     },
     {
       "art": "zeile",
-      "text": "Gegeben:                 50,00 €",
+      "text": "  Gegeben:               50,00 €",
       "fett": false,
       "leer": false
     },
     {
       "art": "zeile",
-      "text": "Rückgeld:                39,66 €",
+      "text": "  Rückgeld:              39,66 €",
       "fett": false,
       "leer": false
     },
