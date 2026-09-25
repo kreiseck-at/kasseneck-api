@@ -1,5 +1,5 @@
 {
-  "_quelle": "kasseneck_api/lib/enums (Flutter-Paket, pubspec.yaml version: 4.8.0) — von Hand uebertragen, nicht generiert; KeckPaymentMethod.mixed (mehrere Zahlungen je Beleg) kommt im Dart-Zwilling mit derselben Version",
+  "_quelle": "kasseneck_api/lib/enums (Flutter-Paket, zuletzt abgeglichen mit pubspec.yaml version: 9.0.2) — von Hand uebertragen, nicht generiert; KeckPaymentMethod.mixed (mehrere Zahlungen je Beleg) ist in 9.0.2 noch nicht enthalten und kommt mit dem naechsten Dart-Release zusammen mit diesem npm-Release",
   "ReceiptType": {
     "start": { "needsItems": false, "isZero": true, "allowsVouchers": false },
     "standard": { "needsItems": true, "isZero": false, "allowsVouchers": true },

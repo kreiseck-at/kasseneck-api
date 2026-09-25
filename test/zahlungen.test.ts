@@ -20,7 +20,9 @@ import * as wurzel from '../src/index.js';
 
 /**
  * Mehrere Zahlungen je Beleg (`payments`) — Zwilling von
- * functions/gemeinsam/zahlungen-core.js und functions/zahlungs-eingang.js.
+ * functions/gemeinsam/zahlungen-core.js (pruefeZahlungen, ZAHLUNGS_FEHLERCODES),
+ * functions/zahlungs-eingang.js (PAYMENTS_CONFLICT) und
+ * functions/gemeinsam/storno-core.js (STORNO_FEHLERCODES).
  * Die Feldnamen und Codes sind aus dem Backend abgeschrieben, nicht aus der
  * Umsetzung dieses Pakets abgeleitet.
  */
@@ -134,6 +136,7 @@ test('KeckPaymentMethod.mixed: keine Karte, Label wie paymentMethodToString im B
 
 // --- Fehlercodes ----------------------------------------------------------
 
+// Quelle: functions/gemeinsam/zahlungen-core.js ZAHLUNGS_FEHLERCODES.
 test('PAYMENT_ERROR_CODES: exakt ZAHLUNGS_FEHLERCODES des Backends, gleiche Reihenfolge', () => {
   assert.deepEqual([...PAYMENT_ERROR_CODES], [
     'PAYMENTS_INVALID',
@@ -156,6 +159,8 @@ test('PAYMENT_ERROR_CODES: exakt ZAHLUNGS_FEHLERCODES des Backends, gleiche Reih
   assert.equal(Object.isFrozen(PAYMENT_ERROR_CODES), true);
 });
 
+// /v3-Namen: functions/gemeinsam/api-vokabular-v3.js FEHLERCODES bildet jeden
+// Zahlungscode 1:1 auf seine Kleinschreibung ab.
 test('isPaymentErrorCode: gross (/v1, intern) und klein (/v3) erkannt, Fremdes nicht', () => {
   assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), true);
   assert.equal(isPaymentErrorCode('payments_sum_mismatch'), true);
@@ -398,4 +403,38 @@ test('Ohne payments: Parameter von sellReceipt, createReceipt und cancelReceipt 
     JSON.stringify(gesendet(b.aufrufe).params),
     '{"cashregisterId":"kasse-1","originalReceiptId":"kasse-1-ID-40","reason":"fehleingabe","paymentMethod":"cash"}',
   );
+});
+
+// Wie im Backend (zahlungs-eingang.js: gesetzt()): `payments: null` gilt als
+// nicht angegeben — kein Konflikt, kein Feld in der Nutzlast.
+test('payments: null zaehlt als fehlend, bei createReceipt wie bei cancelReceipt', async () => {
+  const a = weg(VERKAUF);
+  await createReceipt(a.rufen, { receiptType: ReceiptType.standard, items: [MENUE], paymentMethod: 'cash', payments: null } as never);
+  assert.deepEqual(gesendet(a.aufrufe).params, {
+    receiptType: 'standard',
+    items: [{ name: 'Menue', quantity: 1, unitPriceCents: 4545, vatRate: 10 }],
+    paymentMethod: 'cash',
+  });
+  const b = weg(STORNO);
+  await cancelReceipt(b.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'fehleingabe', paymentMethod: 'cash', payments: null } as never);
+  assert.deepEqual(gesendet(b.aufrufe).params, {
+    cashregisterId: KASSEN_ID,
+    originalReceiptId: 'kasse-1-ID-40',
+    reason: 'fehleingabe',
+    paymentMethod: 'cash',
+  });
+});
+
+// Beide Verkaufsformen sind eigene Schnittstellen (SellReceiptOptions bleibt
+// eine erweiterbare interface) und gehen an sellReceipt wie an die API.
+test('SellReceiptWithPaymentsOptions: ueber die Paketwurzel nutzbar, sellReceipt nimmt beide Formen', async () => {
+  const mitListe: wurzel.SellReceiptWithPaymentsOptions = { items: [MENUE], payments: [{ method: 'cash', amountCents: 4545 }] };
+  interface EigeneOptionen extends wurzel.SellReceiptOptions { notiz?: string }
+  const klassisch: EigeneOptionen = { paymentMethod: 'cash', items: [MENUE], notiz: 'x' };
+  const a = weg(VERKAUF);
+  await sellReceipt(a.rufen, mitListe);
+  assert.deepEqual(gesendet(a.aufrufe).params.payments, [{ method: 'cash', amountCents: 4545 }]);
+  const b = weg(VERKAUF);
+  await sellReceipt(b.rufen, klassisch);
+  assert.equal(gesendet(b.aufrufe).params.paymentMethod, 'cash');
 });

@@ -140,17 +140,26 @@ export interface CreateReceiptOptions extends ReceiptCommonOptions {
   vouchers?: Voucher[];
 }
 
-/**
- * Verkauf: entweder eine Zahlungsart (`paymentMethod`, Kartenfelder aus
- * [ReceiptCommonOptions]) oder die Zahlungsliste `payments` — nie beides.
- */
-export type SellReceiptOptions = ReceiptCommonOptions & {
+/** Verkauf mit einer Zahlungsart (`paymentMethod`, Kartenfelder aus [ReceiptCommonOptions]). */
+export interface SellReceiptOptions extends ReceiptCommonOptions {
+  paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey;
+  payments?: undefined;
   items?: ReceiptItem[];
   vouchers?: Voucher[];
-} & (
-  | { paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey; payments?: undefined }
-  | { payments: ReceiptPaymentInput[]; paymentMethod?: undefined }
-);
+}
+
+/**
+ * Verkauf mit mehreren Zahlungen (`payments`, siehe [ReceiptPaymentInput]).
+ * Ohne `paymentMethod` und ohne die Kartenfelder aus [ReceiptCommonOptions] —
+ * die Kartenangaben stehen in der einzelnen Zahlung (Backend:
+ * `PAYMENTS_CONFLICT`, zur Laufzeit ebenso geprueft).
+ */
+export interface SellReceiptWithPaymentsOptions extends ReceiptCommonOptions {
+  payments: ReceiptPaymentInput[];
+  paymentMethod?: undefined;
+  items?: ReceiptItem[];
+  vouchers?: Voucher[];
+}
 
 /**
  * `customerDetails` fehlt hier absichtlich (wie im Flutter-Vorbild): die
@@ -291,7 +300,8 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
   }
 
-  if (options.payments !== undefined) {
+  // `payments: null` gilt wie im Backend (zahlungs-eingang.js) als nicht angegeben.
+  if (options.payments != null) {
     // Der alte Storno-Weg und der Null-/Startbeleg nehmen keine Zahlungsliste
     // (Backend: PAYMENTS_NOT_ALLOWED); ein Storno mit mehreren Zahlungen
     // laeuft ueber cancelReceipt.
@@ -351,7 +361,7 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 }
 
 /** Normalbeleg (Verkauf) nach RKSV. */
-export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
+export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
 }
 
@@ -361,7 +371,7 @@ export function sellReceipt(rufen: InternerTransport, options: SellReceiptOption
  */
 export function sellReceiptWithCompany(
   rufen: InternerTransport,
-  options: SellReceiptOptions,
+  options: SellReceiptOptions | SellReceiptWithPaymentsOptions,
 ): Promise<ReceiptWithCompany> {
   return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
 }
@@ -399,7 +409,8 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
     throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
   }
-  const zahlungen = options.payments !== undefined ? gepruefteStornoZahlungen(options) : undefined;
+  // `payments: null` gilt wie im Backend als nicht angegeben.
+  const zahlungen = options.payments != null ? gepruefteStornoZahlungen(options) : undefined;
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
   if (options.note !== undefined && options.note !== '') params.note = options.note;

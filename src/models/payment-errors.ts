@@ -11,8 +11,10 @@
  *
  * Schreibweise: auf `/v1`, `/v2` und intern kommen die Codes gross
  * (`PAYMENTS_SUM_MISMATCH`), unter `/v3` schreibt der Rand des Backends sie
- * klein (`payments_sum_mismatch`). [isPaymentErrorCode] erkennt beide; wer
- * selbst vergleicht, vergleicht `code.toUpperCase()`.
+ * klein (`payments_sum_mismatch`, functions/gemeinsam/api-vokabular-v3.js:
+ * jeder dieser Codes 1:1 in Kleinschreibung, anders als die Storno-Codes).
+ * [isPaymentErrorCode] erkennt beide; wer selbst vergleicht, vergleicht
+ * `code.toUpperCase()`.
  */
 export const PAYMENT_ERROR_CODES = Object.freeze([
   'PAYMENTS_INVALID',             // payments ist keine Liste oder hat mehr als 20 Eintraege

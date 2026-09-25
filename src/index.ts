@@ -129,6 +129,7 @@ export {
   isKasseneckValidationError,
   type ReceiptCommonOptions,
   type SellReceiptOptions,
+  type SellReceiptWithPaymentsOptions,
   type TipOptions,
   type TipRecipientShare,
   type CancelReceiptOptions,

@@ -37,9 +37,13 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
  *
  * Die vier `STORNO_…`-Codes am Ende gehoeren zur Rueckzahlung je Zahlung
  * (mehrere Zahlungen je Beleg); Formfehler an `payments` selbst melden die
- * Codes aus [PAYMENT_ERROR_CODES]. Unter `/v3` schreibt der Rand des Backends
- * alle Codes klein (`storno_payments_required`); [isCancellationErrorCode]
- * erkennt beide Schreibweisen.
+ * Codes aus [PAYMENT_ERROR_CODES].
+ *
+ * Die Werte hier sind die von `/v1` und intern. Unter `/v3` heissen die
+ * Storno-Codes nach dem /v3-Vokabular anders (`already_cancelled`,
+ * `cancellation_payments_required`, functions/gemeinsam/api-vokabular-v3.js);
+ * diese Namen kommen mit der Umstellung des Pakets auf `/v3`.
+ * [isCancellationErrorCode] prueft darum exakt.
  */
 export const CANCELLATION_ERROR_CODES = [
   'beleg_nicht_gefunden',        // Original fehlt oder gehoert nicht zu dieser Kasse
@@ -65,11 +69,8 @@ export const CANCELLATION_ERROR_CODES = [
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];
 
-const CANCELLATION_ERROR_CODES_GROSS = new Set(CANCELLATION_ERROR_CODES.map((c) => c.toUpperCase()));
-
-/** Erkennt einen Code aus [CANCELLATION_ERROR_CODES], unabhaengig von Gross-/Kleinschreibung (`/v3`). */
-export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode | Lowercase<CancellationErrorCode> {
-  return typeof value === 'string' && CANCELLATION_ERROR_CODES_GROSS.has(value.toUpperCase());
+export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode {
+  return typeof value === 'string' && (CANCELLATION_ERROR_CODES as readonly string[]).includes(value);
 }
 
 /** Bezug eines Storno-Belegs auf sein Original. */

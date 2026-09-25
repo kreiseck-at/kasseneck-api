@@ -56,7 +56,7 @@ test('remainingQuantities: Belegmengen minus Stornos und frische Reservierungen,
   assert.deepEqual(remainingQuantities(fromReceiptPayload(NUTZLAST), jetzt), [4, 1]);
 });
 
-// Fehlercodes: dieselbe Liste wie functions/storno-core.js STORNO_FEHLERCODES.
+// Fehlercodes: dieselbe Liste wie functions/gemeinsam/storno-core.js STORNO_FEHLERCODES.
 // Die Kasse entscheidet am Code (KasseneckApiError.code), nie am Text.
 test('Fehlercode-Katalog: dieselben achtzehn Codes wie das Backend, als Liste und Waechter', () => {
   assert.deepEqual([...CANCELLATION_ERROR_CODES], [
@@ -72,16 +72,10 @@ test('Fehlercode-Katalog: dieselben achtzehn Codes wie das Backend, als Liste un
   assert.equal(isCancellationErrorCode('Beleg ist bereits vollständig storniert.'), false);
   assert.equal(isCancellationErrorCode(undefined), false);
   assert.equal(isCancellationErrorCode(42), false);
-});
-
-// Unter /v3 schreibt der Rand des Backends die Codes klein
-// ('storno_payments_required'); auf /v1 und intern kommen sie gross. Der
-// Waechter erkennt beide Schreibweisen.
-test('isCancellationErrorCode erkennt die Codes in beiden Schreibweisen', () => {
-  assert.equal(isCancellationErrorCode('storno_payments_required'), true);
-  assert.equal(isCancellationErrorCode('storno_refund_reference_unknown'), true);
-  assert.equal(isCancellationErrorCode('BEREITS_STORNIERT'), true);
-  assert.equal(isCancellationErrorCode('storno_payments'), false);
+  // Exakter Vergleich: die /v3-Namen (functions/gemeinsam/api-vokabular-v3.js)
+  // sind umbenannt, nicht nur klein geschrieben, und kommen erst mit /v3.
+  assert.equal(isCancellationErrorCode('storno_payments_required'), false);
+  assert.equal(isCancellationErrorCode('BEREITS_STORNIERT'), false);
 });
 
 // Der gewaehrte Rabattgutschein-Ausgleich je Eintrag (Cent je Steuertopf) muss
