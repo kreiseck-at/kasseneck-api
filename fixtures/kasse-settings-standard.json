@@ -51,6 +51,7 @@
     "rueckgeld": true,
     "schnellbar": false,
     "kassierenModus": "seite",
+    "zahlGetrennt": false,
     "logoBild": "",
     "wzSeite": "mitte",
     "wzPos": 50,
@@ -120,7 +121,8 @@
       ],
       "korbLeeren": [
         "Mod+C"
-      ]
+      ],
+      "getrennt": []
     },
     "druckerAn": false,
     "druckerArt": "sdp",

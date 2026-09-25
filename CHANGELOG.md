@@ -4,6 +4,33 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.31.0
+
+Texte und Einstellung für „Getrennt zahlen" an der Kasse (ein Tisch zahlt in Teilen, ein Beleg mit
+mehreren Zahlungen). Nur Texte, eine Einstellung und eine Tasten-Aktion; kein Aufruf und kein
+Rechenweg ändert sich.
+
+- **Neue Sätze in `MELDUNGEN`** unter `getrennt.*` (Hinweis zur Einstellung, Prüfungen der
+  Teilzahlung, gesperrter Warenkorb, Rückbuchung bar/Terminal/Karte ohne Anbindung, angefangene
+  Sitzung nach dem Neuladen) und unter `storno.*` (Rückgabe je Zahlung, Gutschrift am Terminal).
+  Grund: Browser-Kasse und Kassen-App sollen am Tresen dieselben Worte sagen; eine schon belastete
+  Karte nennt in jedem Satz den Betrag, und keiner rät zum zweiten Kassieren.
+- **`STORNO_ZAHLUNG_FEHLER`**: Zuordnung der Backend-Codes `STORNO_PAYMENTS_REQUIRED`,
+  `STORNO_REFUND_EXCEEDS_PAYMENT`, `STORNO_REFUND_REFERENCE_REQUIRED`,
+  `STORNO_REFUND_REFERENCE_UNKNOWN` und `PAYMENTS_SUM_MISMATCH` zu ihrem Satz, auch in
+  `fixtures/kasse-texte.json` (`stornoZahlungFehler`). Grund: beide Kassen entscheiden am Code,
+  nie am Wortlaut des Backends.
+- **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
+  („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
+  zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.
+  Grund: `MELDUNGEN` führt nur Sätze (die Wächter beider Kassen erkennen Sätze daran), „Rest" ist
+  keiner – muss aber in beiden Kassen gleich heißen. Die Zahlarten folgen dem Bon
+  („Kartenzahlung", „Barzahlung").
+- **Einstellung `zahlGetrennt`** (Betrieb, Standard `false`) und **Tasten-Aktion `getrennt`**
+  (ohne Vorgabe-Taste). Grund: für Betriebe ohne Bedarf bleibt die Kasse, wie sie ist; eine
+  unerprobte Vorgabe-Taste finge womöglich der Browser ab. Das Backend (`kasse-settings-core.js`)
+  muss beide nachziehen, sonst verwirft sein Validator den Wert beim Speichern.
+
 ## 0.30.0
 
 Mehrere Zahlungen je Beleg. Setzt ein Backend mit `payments` voraus (keck, live seit

@@ -148,6 +148,8 @@ export interface KasseSettingsBetrieb {
   wzSkala: KasseWzSkala;
   zahlBar: boolean; zahlKarte: boolean; kartenanbieter: KasseKartenanbieter; trinkgeld: boolean; tgModus: KasseTgModus; tgStufen: Schalterkarte;
   tgSplit: boolean; rueckgeld: boolean; schnellbar: boolean; kassierenModus: KasseKassierenModus;
+  /** Getrennt zahlen: dritter Knopf neben Bar und Karte, ein Beleg mit mehreren Zahlungen. */
+  zahlGetrennt: boolean;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
   tgChips: number[];
   /** Rabatt-Chips in Prozent — dieselben Regeln wie tgChips, vom Chef einstellbar. */
@@ -160,7 +162,7 @@ export interface KasseSettingsBetrieb {
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen. */
-export const KASSE_TASTEN_AKTIONEN = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren'] as const;
+export const KASSE_TASTEN_AKTIONEN = ['kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck', 'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren', 'getrennt'] as const;
 export type KasseTastenAktion = typeof KASSE_TASTEN_AKTIONEN[number];
 /** Kurzer Name, damit alle Enum-Listen gleich heissen; der alte bleibt gueltig. */
 export const TASTEN_AKTIONEN = KASSE_TASTEN_AKTIONEN;
@@ -185,6 +187,9 @@ export const KASSE_TASTEN_STANDARD: Readonly<KasseTastenkarte> = Object.freeze({
   // verschiedenen Momenten (Korb vor dem Kassieren, Gegeben-Feld darin) —
   // der Verteiler laesst die nicht zustaendige Aktion durchfallen.
   korbLeeren: ['Mod+C'],
+  // Bewusst ohne Vorgabe: jede freie Mod-Taste ist in irgendeinem Browser
+  // belegt oder am Geraet unerprobt. Der Chef vergibt sie, wenn er sie braucht.
+  getrennt: [],
 });
 
 export interface KasseSettingsGeraet {
@@ -231,7 +236,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   menge: 'x', notiz: false, suche: false, rabatt: 'aus',
   zahlBar: true, zahlKarte: false, kartenanbieter: 'keiner', trinkgeld: false, tgModus: 'beides',
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
-  schnellbar: false, kassierenModus: 'seite',
+  schnellbar: false, kassierenModus: 'seite', zahlGetrennt: false,
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
   logoBild: '', wzSeite: 'mitte', wzPos: 50, wzPosV: 50, wzStaerke: 6, logoSkala: 'M', wzSkala: 'M',
   glas: true, hinweise: true,

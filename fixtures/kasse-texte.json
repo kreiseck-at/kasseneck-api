@@ -1,5 +1,5 @@
 {
-  "version": "0.30.0",
+  "version": "0.31.0",
   "meldungen": {
     "netz.keine_verbindung": {
       "text": "Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen."
@@ -255,6 +255,110 @@
     "storno.position_fehlt": {
       "text": "Bitte mindestens eine Position wählen."
     },
+    "storno.zahlungen_fehlen": {
+      "text": "Dieser Beleg wurde in mehreren Zahlungen bezahlt – bitte angeben, wie zurückgegeben wird."
+    },
+    "storno.rueckgabe_zu_hoch": {
+      "text": "Eine Rückgabe ist höher als der Rest ihrer Zahlung – bitte die Beträge prüfen."
+    },
+    "storno.rueckgabe_ohne_bezug": {
+      "text": "Eine Rückgabe nennt keine Zahlung des Belegs – bitte das Storno neu beginnen."
+    },
+    "storno.rueckgabe_bezug_unbekannt": {
+      "text": "Eine Rückgabe nennt eine Zahlung, die es am Beleg nicht gibt – bitte das Storno neu beginnen."
+    },
+    "storno.summe_passt_nicht": {
+      "text": "Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen."
+    },
+    "storno.gutschrift_laeuft": {
+      "text": "Gutschrift über {betrag} am Terminal …",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "storno.gutschrift_fehlgeschlagen": {
+      "text": "Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet."
+    },
+    "storno.extern_gutschreiben": {
+      "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.einstellung_hinweis": {
+      "text": "Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles."
+    },
+    "getrennt.betrag_ueber_offen": {
+      "text": "Der Betrag ist höher als offen – höchstens {betrag}.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.trinkgeld_ueber_betrag": {
+      "text": "Das Trinkgeld ist höher als der Betrag dieser Zahlung."
+    },
+    "getrennt.gegeben_zu_wenig": {
+      "text": "Gegeben ist weniger als der Betrag dieser Zahlung."
+    },
+    "getrennt.noch_offen": {
+      "text": "Es sind noch {betrag} offen – abschließen geht erst, wenn alles kassiert ist.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.summe_passt_nicht": {
+      "text": "Die Zahlungen ergeben nicht den Betrag des Belegs – bitte die Liste prüfen."
+    },
+    "getrennt.korb_gesperrt": {
+      "text": "Der Warenkorb ist gesperrt, solange Zahlungen kassiert sind – erst abschließen oder die Zahlungen entfernen."
+    },
+    "getrennt.wechsel_gesperrt": {
+      "text": "Zurück zu Bar oder Karte geht erst, wenn keine Zahlung mehr kassiert ist."
+    },
+    "getrennt.bar_zurueckgeben": {
+      "text": "Bitte {betrag} Bargeld an den Gast zurückgeben.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.karte_zurueckbuchen_laeuft": {
+      "text": "Die Kartenzahlung über {betrag} wird am Terminal zurückgebucht …",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.karte_zurueckgebucht": {
+      "text": "Die Kartenzahlung über {betrag} ist am Terminal zurückgebucht.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.karte_zurueckbuchen_fehlgeschlagen": {
+      "text": "Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
+    "getrennt.karte_zurueckbuchen_unklar": {
+      "text": "Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
+    "getrennt.extern_zurueckbuchen": {
+      "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.sitzung_offen": {
+      "text": "Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
     "beleg.link_kopiert": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
@@ -509,5 +613,107 @@
     "zu_oft": "beleg.mail_zu_oft",
     "versand_fehlgeschlagen": "beleg.mail_fehlgeschlagen",
     "beleg_nicht_gefunden": "beleg.mail_nicht_gefunden"
+  },
+  "stornoZahlungFehler": {
+    "STORNO_PAYMENTS_REQUIRED": "storno.zahlungen_fehlen",
+    "STORNO_REFUND_EXCEEDS_PAYMENT": "storno.rueckgabe_zu_hoch",
+    "STORNO_REFUND_REFERENCE_REQUIRED": "storno.rueckgabe_ohne_bezug",
+    "STORNO_REFUND_REFERENCE_UNKNOWN": "storno.rueckgabe_bezug_unbekannt",
+    "PAYMENTS_SUM_MISMATCH": "storno.summe_passt_nicht"
+  },
+  "beschriftungen": {
+    "getrennt.knopf": {
+      "text": "Getrennt"
+    },
+    "getrennt.einstellung": {
+      "text": "Getrennt zahlen"
+    },
+    "getrennt.zu_zahlen": {
+      "text": "Zu zahlen"
+    },
+    "getrennt.offen": {
+      "text": "Offen"
+    },
+    "getrennt.zahlung": {
+      "text": "Zahlung {n}",
+      "platzhalter": [
+        "n"
+      ]
+    },
+    "getrennt.betrag": {
+      "text": "Betrag"
+    },
+    "getrennt.zahlart": {
+      "text": "Zahlart"
+    },
+    "getrennt.rest": {
+      "text": "Rest"
+    },
+    "getrennt.teilen": {
+      "text": "÷ {n}",
+      "platzhalter": [
+        "n"
+      ]
+    },
+    "getrennt.trinkgeld_bezug": {
+      "text": "% von diesem Betrag"
+    },
+    "getrennt.kassieren": {
+      "text": "Zahlung {n} kassieren",
+      "platzhalter": [
+        "n"
+      ]
+    },
+    "getrennt.davon_trinkgeld": {
+      "text": "davon Trinkgeld {betrag}",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.entfernen": {
+      "text": "Entfernen"
+    },
+    "getrennt.alles_abbrechen": {
+      "text": "Alles abbrechen"
+    },
+    "getrennt.weiter_kassieren": {
+      "text": "Weiter kassieren"
+    },
+    "getrennt.alles_zurueckbuchen": {
+      "text": "Alles zurückbuchen"
+    },
+    "getrennt.am_terminal_zurueckgebucht": {
+      "text": "Am Terminal zurückgebucht"
+    },
+    "zahlart.kartenzahlung": {
+      "text": "Kartenzahlung"
+    },
+    "zahlart.barzahlung": {
+      "text": "Barzahlung"
+    },
+    "zahlart.mehrere": {
+      "text": "Mehrere"
+    },
+    "storno.wie_zurueckgeben": {
+      "text": "Wie zurückgeben?"
+    },
+    "storno.wie_bezahlt": {
+      "text": "wie bezahlt"
+    },
+    "storno.bar": {
+      "text": "bar"
+    },
+    "storno.alles_bar": {
+      "text": "Alles bar"
+    },
+    "storno.rest_der_zahlung": {
+      "text": "Rest {betrag}",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "storno.am_terminal_gutgeschrieben": {
+      "text": "Am Terminal gutgeschrieben"
+    }
   }
 }

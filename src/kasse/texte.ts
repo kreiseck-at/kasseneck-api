@@ -108,6 +108,40 @@ const MELDUNGEN_ROH = {
   'storno.fehlgeschlagen': { text: 'Das Storno ist fehlgeschlagen.' },
   'storno.grund_fehlt': { text: 'Bitte einen Grund wählen.' },
   'storno.position_fehlt': { text: 'Bitte mindestens eine Position wählen.' },
+  // Storno eines Belegs mit mehreren Zahlungen: je Zahlung wird zurückgegeben,
+  // und der Server prueft jede Rueckgabe gegen den Rest ihrer Zahlung. Welcher
+  // Code welchen Satz bekommt, steht in STORNO_ZAHLUNG_FEHLER.
+  'storno.zahlungen_fehlen': { text: 'Dieser Beleg wurde in mehreren Zahlungen bezahlt – bitte angeben, wie zurückgegeben wird.' },
+  'storno.rueckgabe_zu_hoch': { text: 'Eine Rückgabe ist höher als der Rest ihrer Zahlung – bitte die Beträge prüfen.' },
+  'storno.rueckgabe_ohne_bezug': { text: 'Eine Rückgabe nennt keine Zahlung des Belegs – bitte das Storno neu beginnen.' },
+  'storno.rueckgabe_bezug_unbekannt': { text: 'Eine Rückgabe nennt eine Zahlung, die es am Beleg nicht gibt – bitte das Storno neu beginnen.' },
+  'storno.summe_passt_nicht': { text: 'Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen.' },
+  // Die Gutschrift am Terminal laeuft VOR dem Senden des Stornos. Scheitert
+  // sie, ist nichts gesendet – der Satz sagt beides, damit niemand eine halbe
+  // Rueckgabe vermutet.
+  'storno.gutschrift_laeuft': { text: 'Gutschrift über {betrag} am Terminal …', platzhalter: ['betrag'] },
+  'storno.gutschrift_fehlgeschlagen': { text: 'Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet.' },
+  'storno.extern_gutschreiben': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.', platzhalter: ['betrag'] },
+
+  // --- Getrennt zahlen -----------------------------------------------------
+  // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
+  // belastete Karte: jeder Satz, der sie betrifft, nennt den Betrag, und keiner
+  // raet dazu, noch einmal zu kassieren.
+  'getrennt.einstellung_hinweis': { text: 'Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles.' },
+  'getrennt.betrag_ueber_offen': { text: 'Der Betrag ist höher als offen – höchstens {betrag}.', platzhalter: ['betrag'] },
+  'getrennt.trinkgeld_ueber_betrag': { text: 'Das Trinkgeld ist höher als der Betrag dieser Zahlung.' },
+  'getrennt.gegeben_zu_wenig': { text: 'Gegeben ist weniger als der Betrag dieser Zahlung.' },
+  'getrennt.noch_offen': { text: 'Es sind noch {betrag} offen – abschließen geht erst, wenn alles kassiert ist.', platzhalter: ['betrag'] },
+  'getrennt.summe_passt_nicht': { text: 'Die Zahlungen ergeben nicht den Betrag des Belegs – bitte die Liste prüfen.' },
+  'getrennt.korb_gesperrt': { text: 'Der Warenkorb ist gesperrt, solange Zahlungen kassiert sind – erst abschließen oder die Zahlungen entfernen.' },
+  'getrennt.wechsel_gesperrt': { text: 'Zurück zu Bar oder Karte geht erst, wenn keine Zahlung mehr kassiert ist.' },
+  'getrennt.bar_zurueckgeben': { text: 'Bitte {betrag} Bargeld an den Gast zurückgeben.', platzhalter: ['betrag'] },
+  'getrennt.karte_zurueckbuchen_laeuft': { text: 'Die Kartenzahlung über {betrag} wird am Terminal zurückgebucht …', platzhalter: ['betrag'] },
+  'getrennt.karte_zurueckgebucht': { text: 'Die Kartenzahlung über {betrag} ist am Terminal zurückgebucht.', platzhalter: ['betrag'] },
+  'getrennt.karte_zurueckbuchen_fehlgeschlagen': { text: 'Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.', platzhalter: ['betrag', 'kennung'] },
+  'getrennt.karte_zurueckbuchen_unklar': { text: 'Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.', platzhalter: ['betrag', 'kennung'] },
+  'getrennt.extern_zurueckbuchen': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.', platzhalter: ['betrag'] },
+  'getrennt.sitzung_offen': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', platzhalter: ['betrag'] },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
@@ -253,6 +287,87 @@ export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
 export function belegMailFehler(code: string | undefined | null): MeldungsSchluessel {
   const fehler: Record<string, MeldungsSchluessel> = BELEG_MAIL_FEHLER;
   return (code !== undefined && code !== null && fehler[code]) || 'beleg.mail_fehlgeschlagen';
+}
+
+/**
+ * Storno eines Belegs mit mehreren Zahlungen: welcher `code` des Backends
+ * welchen Satz bekommt. Dieselbe Idee wie BELEG_MAIL_FEHLER – beide Kassen
+ * entscheiden am Code, nie am Satz des Backends. Ein Code, der hier fehlt,
+ * geht den allgemeinen Weg der Storno-Fehler (`storno.fehlgeschlagen`).
+ */
+export const STORNO_ZAHLUNG_FEHLER = {
+  STORNO_PAYMENTS_REQUIRED: 'storno.zahlungen_fehlen',
+  STORNO_REFUND_EXCEEDS_PAYMENT: 'storno.rueckgabe_zu_hoch',
+  STORNO_REFUND_REFERENCE_REQUIRED: 'storno.rueckgabe_ohne_bezug',
+  STORNO_REFUND_REFERENCE_UNKNOWN: 'storno.rueckgabe_bezug_unbekannt',
+  PAYMENTS_SUM_MISMATCH: 'storno.summe_passt_nicht',
+} as const satisfies Record<string, MeldungsSchluessel>;
+
+export type StornoZahlungFehlercode = keyof typeof STORNO_ZAHLUNG_FEHLER;
+
+/**
+ * Beschriftungen: Knoepfe, Ueberschriften, Zeilennamen – was kein Satz ist.
+ *
+ * Getrennt von MELDUNGEN, weil dort jeder Eintrag ein Satz ist (gross am
+ * Anfang, Satzzeichen am Schluss) und die Waechter beider Kassen daran
+ * Saetze erkennen. „Rest" oder „÷ {n}" sind keine Saetze, muessen aber in
+ * beiden Kassen gleich heissen. Dieselben Regeln sonst: Schluessel
+ * `bereich.name`, nie umgedeutet, Platzhalter exakt die im Text, `nur` nennt
+ * die Seite.
+ *
+ * Die Woerter der Zahlarten folgen dem Bon („Kartenzahlung", „Barzahlung",
+ * „Zahlung {n}", „davon Trinkgeld").
+ */
+const BESCHRIFTUNGEN_ROH = {
+  // --- Getrennt zahlen -----------------------------------------------------
+  'getrennt.knopf': { text: 'Getrennt' },
+  'getrennt.einstellung': { text: 'Getrennt zahlen' },
+  'getrennt.zu_zahlen': { text: 'Zu zahlen' },
+  'getrennt.offen': { text: 'Offen' },
+  'getrennt.zahlung': { text: 'Zahlung {n}', platzhalter: ['n'] },
+  'getrennt.betrag': { text: 'Betrag' },
+  'getrennt.zahlart': { text: 'Zahlart' },
+  'getrennt.rest': { text: 'Rest' },
+  'getrennt.teilen': { text: '÷ {n}', platzhalter: ['n'] },
+  'getrennt.trinkgeld_bezug': { text: '% von diesem Betrag' },
+  'getrennt.kassieren': { text: 'Zahlung {n} kassieren', platzhalter: ['n'] },
+  'getrennt.davon_trinkgeld': { text: 'davon Trinkgeld {betrag}', platzhalter: ['betrag'] },
+  'getrennt.entfernen': { text: 'Entfernen' },
+  'getrennt.alles_abbrechen': { text: 'Alles abbrechen' },
+  'getrennt.weiter_kassieren': { text: 'Weiter kassieren' },
+  'getrennt.alles_zurueckbuchen': { text: 'Alles zurückbuchen' },
+  'getrennt.am_terminal_zurueckgebucht': { text: 'Am Terminal zurückgebucht' },
+
+  // --- Zahlarten in Listen (Kassieren, Storno, Belegliste) -----------------
+  'zahlart.kartenzahlung': { text: 'Kartenzahlung' },
+  'zahlart.barzahlung': { text: 'Barzahlung' },
+  // Beleg mit mehreren Zahlungen (`paymentMethod: 'mixed'` oder mehr als eine
+  // Zahlung): weder Bar noch Karte, auch nicht im Filter.
+  'zahlart.mehrere': { text: 'Mehrere' },
+
+  // --- Storno eines Belegs mit mehreren Zahlungen --------------------------
+  'storno.wie_zurueckgeben': { text: 'Wie zurückgeben?' },
+  'storno.wie_bezahlt': { text: 'wie bezahlt' },
+  'storno.bar': { text: 'bar' },
+  'storno.alles_bar': { text: 'Alles bar' },
+  'storno.rest_der_zahlung': { text: 'Rest {betrag}', platzhalter: ['betrag'] },
+  'storno.am_terminal_gutgeschrieben': { text: 'Am Terminal gutgeschrieben' },
+} as const satisfies Record<string, Meldung>;
+
+export type BeschriftungsSchluessel = keyof typeof BESCHRIFTUNGEN_ROH;
+export const BESCHRIFTUNGEN: Record<BeschriftungsSchluessel, Meldung> = BESCHRIFTUNGEN_ROH;
+
+/** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `meldung`. */
+export function beschriftung(schluessel: BeschriftungsSchluessel, werte: Record<string, string | number> = {}): string {
+  return ersetze(`beschriftung(${schluessel})`, BESCHRIFTUNGEN[schluessel].text, werte);
+}
+
+function ersetze(wo: string, text: string, werte: Record<string, string | number>): string {
+  return text.replace(/\{([a-z]+)\}/g, (_, name: string) => {
+    const wert = werte[name];
+    if (wert === undefined) throw new Error(`${wo}: Platzhalter {${name}} ohne Wert`);
+    return String(wert);
+  });
 }
 
 /** Der Satz zum Schluessel, Platzhalter ersetzt. Fehlt ein Wert, wirft es — ein `{status}` am Tresen waere schlimmer. */
