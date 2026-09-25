@@ -38,6 +38,18 @@ const antrag = {
     { von: 'registriert', nach: 'bereit', at: T + 3, grund: null },
   ],
 };
+// Ein zweiter, gescheiterter Antrag desselben Betriebs -- zeigt, dass
+// request.error.code durch denselben /v3-Rand wie jeder andere Fehlercode
+// geht (fon_fehler -> finanzonline_error), nicht nur die Huelle einer
+// Fehlerantwort.
+const antragFehlgeschlagen = {
+  status: 'fehlgeschlagen', art: 'signaturkarte', vdaId: null, signatureId: null, angefordertVon: { via: 'api' }, createdAt: T, updatedAt: T + 2,
+  fehler: { code: 'fon_fehler', meldung: 'FinanzOnline hat die Anmeldung der Signatureinheit abgelehnt.', rc: 'B13' },
+  historie: [
+    { von: null, nach: 'beantragt', at: T, grund: 'api' },
+    { von: 'beantragt', nach: 'fehlgeschlagen', at: T + 1, grund: null },
+  ],
+};
 const webhookDoc = { url: 'https://api.example.at/kasseneck', events: ['cashregister.live'], aktiv: true, beschreibung: null, createdAt: T, letzteZustellung: { at: T + 9, status: 'verworfen', statusCode: null }, fehlerInFolge: 0 };
 const webhookV3 = { ...webhookDoc, apiVersion: 'v3', letzteZustellung: { at: T + 9, status: 'zugestellt', statusCode: 200 } };
 
@@ -57,7 +69,7 @@ const raus = {
     customerId: 'cust_1',
     signature: { ready: true, signatureId: 'sig_1', vdaId: 'AT1' },
     signatures: [sc.signaturView({ signaturId: 'req_1', status: 'bereit', art: 'signaturkarte', vdaId: 'AT1', requestId: 'req_1', signatureId: 'sig_1', createdAt: T, updatedAt: T + 5 })],
-    requests: [sc.antragView('req_1', antrag)],
+    requests: [sc.antragView('req_1', antrag), sc.antragView('req_2', antragFehlgeschlagen)],
     fon: { present: true, verifiedAt: T },
   }),
   createPartnerWebhook: aus('createPartnerWebhook', { webhook: pc.webhookView('wh_1', { ...webhookDoc, apiVersion: 'v3', letzteZustellung: null }, true), secret: 'whsec_neu' }),
@@ -71,8 +83,13 @@ const raus = {
       pc.deliveryView('dlv_1', { webhookId: 'wh_1', type: 'signature.ready', eventId: 'evt_1', status: 'zugestellt', versuche: 2, letzterVersuchAt: T + 8, naechsterVersuchAt: null, statusCode: 200, antwort: 'ok', createdAt: T }),
     ],
   }),
-  // Die Codes, die die Schnittstelle liefern kann (Flaeche 'api' oder 'beide').
-  fehlerCodesApi: pc.fehlerKatalogFuer('api').map((f) => f.code),
+  // Die Codes, die die Schnittstelle liefern kann (Flaeche 'api' oder 'beide'),
+  // durch denselben Fehlerzweig wie jede echte Fehlerantwort gereicht
+  // (antwortNachAussen -> fehlerNachAussen -> fehlerCodeNachAussen): nicht die
+  // rohen Katalogwerte, sondern das, was /v3 wirklich schickt.
+  fehlerCodesApi: pc
+    .fehlerKatalogFuer('api')
+    .map((f) => vok3.antwortNachAussen('__fehlerkatalog__', { status: 'error', message: f.wann, data: { code: f.code } }).data.code),
   ereignisse: {
     'customer.terms_accepted': vok3.ereignisNachAussen('customer.terms_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'nutzung', version: '1.0', confirmedAt: T, source: 'einrichten' }),
     'customer.avv_accepted': vok3.ereignisNachAussen('customer.avv_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'avv', version: '1.0', confirmedAt: T, source: 'partner_vollmacht' }),

@@ -166,20 +166,34 @@ test('v3: Liste und Einzelsicht fuehren fon, avv und terms so, wie der Server si
 // ---------------------------------------------------------------------------
 
 /**
- * Rot-Probe: `vertrag_offen` oder `kennung_fehlt` aus PARTNER_FEHLER_CODES
- * streichen, dann faellt dieser Test. Die Liste der Schnittstellen-Codes kommt
- * aus dem Katalog des Backends (fehlerKatalogFuer('api')), nicht von Hand.
+ * Rot-Probe: einen der neuen Vertrags-Codes (z. B. `power_of_attorney_missing`)
+ * aus PARTNER_FEHLER_CODES streichen, dann faellt dieser Test. Die Liste der
+ * Schnittstellen-Codes kommt aus dem Katalog des Backends
+ * (`fehlerKatalogFuer('api')`), durch denselben Fehlerzweig wie jede echte
+ * `/v3`-Antwort uebersetzt (`fehlerCodesApi` in der Fixture) — nicht von Hand.
  */
-test('v3: jeder Code, den die Schnittstelle liefern kann, steht in PARTNER_FEHLER_CODES und hat einen Satz', () => {
+test('v3: jeder Code, den die Schnittstelle liefern kann, steht englisch in PARTNER_FEHLER_CODES und hat einen Satz', () => {
   const backend = A['fehlerCodesApi'] as string[];
   const hier = PARTNER_FEHLER_CODES as readonly string[];
   for (const code of backend) {
     assert.ok(hier.includes(code), `${code} fehlt in PARTNER_FEHLER_CODES`);
     assert.ok((partnerFehlerRat(code) ?? '').length > 20, `${code}: kein Handlungssatz`);
   }
-  // Umgekehrt: zwei Codes fuehrt dieses Paket, die der Katalog nur fuer
-  // Portal/Admin kennt. Benannt, damit ein weiterer nicht still dazukommt.
-  assert.deepEqual(hier.filter((c) => !backend.includes(c)), ['kein_partnerbetrieb', 'request_not_found']);
+  // Umgekehrt: PARTNER_FEHLER_CODES fuehrt nichts, was die Schnittstelle laut
+  // Katalog nicht liefern kann.
+  assert.deepEqual(hier.filter((c) => !backend.includes(c)), []);
+  // Kein deutscher Rest: die alten deutschen Schluessel duerfen nirgends mehr
+  // in der Liste stehen, die Server-Antwort kommt seit 0.29.0 durchgehend
+  // englisch an.
+  const deutschesRelikt = [
+    'zugang_nicht_erlaubt', 'kennung_fehlt', 'vertrag_offen',
+    'art_not_allowed', 'modus_not_allowed', 'vollmacht_fehlt',
+  ];
+  for (const d of deutschesRelikt) assert.ok(!hier.includes(d), `${d} steht noch deutsch in PARTNER_FEHLER_CODES`);
+  // Admin-only, nie oeffentlich (siehe Kopfkommentar in fehler.ts): duerfen
+  // nicht wieder auftauchen.
+  assert.ok(!hier.includes('kein_partnerbetrieb'));
+  assert.ok(!hier.includes('request_not_found'));
 });
 
 // ---------------------------------------------------------------------------
@@ -219,6 +233,21 @@ test('v3: getCustomerSignatureStatus liest signature, signatures[] und requests[
   assert.equal(s.signatures[0]?.ready, true);
   assert.equal(s.signatures[0]?.kind, 'signature_card');
   assert.equal(s.requests[0]?.history[1]?.reason, 'card_entered');
+});
+
+/**
+ * Rot-Probe: in der Fixture `antragFehlgeschlagen.fehler.code` auf
+ * `finanzonline_error` vorausuebersetzen (statt `fon_fehler` roh) — dann
+ * uebersetzt der Generator gar nichts mehr, und dieser Test wuerde trotzdem
+ * gruen bleiben. Er prueft darum den ECHTEN /v3-Rand: das Backend liefert
+ * `fon_fehler`, `api-vokabular-v3.js` macht daraus `finanzonline_error`.
+ */
+test('v3: ein Signaturfehler im Erfolgsfall (requests[].error.code) kommt englisch an', async () => {
+  const { api } = stelle();
+  const s = await api.getCustomerSignatureStatus('cust_1');
+  assert.equal(s.requests[0]?.error, null);
+  assert.equal(s.requests[1]?.error?.code, 'finanzonline_error');
+  assert.equal(s.requests[1]?.error?.rc, 'B13');
 });
 
 // ---------------------------------------------------------------------------
@@ -305,6 +334,9 @@ test('v3: keine Fixture-Antwort fuehrt ein deutsches Feld oder einen deutschen W
     'einzel', 'verein', 'sonstige', 'wien', 'salzburg', 'geschaeftsfuehrung', 'buchhaltung', 'technik', 'kasse',
     'direkt', 'vollmacht', 'unterauftrag', 'karte_eingetragen', 'fon', 'zugestellt', 'offen', 'fehlgeschlagen',
     'verworfen', 'nutzung', 'einrichten', 'prozess', 'partner_vollmacht', 'admin_papier', 'papier_upload',
+    // Fehlercodes: die deutschen Rohformen duerfen den /v3-Rand nie verlassen.
+    'zugang_nicht_erlaubt', 'kennung_fehlt', 'vertrag_offen', 'art_not_allowed', 'modus_not_allowed',
+    'vollmacht_fehlt', 'fon_fehler', 'kunde_nicht_gefunden', 'unvollstaendig',
   ]);
   const funde: string[] = [];
   const pruefe = (wert: unknown, pfad: string): void => {

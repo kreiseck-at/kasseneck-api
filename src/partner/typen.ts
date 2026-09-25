@@ -387,6 +387,14 @@ export type SignatureHistoryReason =
   | 'no_stock'
   | (string & {});
 
+/**
+ * `error.code` eines Signaturantrags oder einer Signatur (`SignaturAntrag`,
+ * `CustomerSignature`). Hiess unter `/v1` `kunde_nicht_gefunden` /
+ * `unvollstaendig` / `fon_fehler`; dieser Client spricht seit 0.28.0 nur noch
+ * `/v3` und sieht darum nur die englische Form.
+ */
+export type SignatureErrorCode = 'customer_not_found' | 'incomplete' | 'finanzonline_error' | (string & {});
+
 export interface SignaturHistorieEintrag {
   from: SignaturAntragStatus | null;
   to: SignaturAntragStatus;
@@ -402,7 +410,7 @@ export interface SignaturAntrag {
   kind: string;
   vdaId: string | null;
   signatureId: string | null;
-  error: { code: string | null; message: string | null; rc: string | null } | null;
+  error: { code: SignatureErrorCode | null; message: string | null; rc: string | null } | null;
   requestedVia: string | null;
   createdAt: number | null;
   updatedAt: number | null;
@@ -440,7 +448,7 @@ export interface CustomerSignature {
   vdaId: string | null;
   requestId: string | null;
   signatureId: string | null;
-  error: { code: string | null; message: string | null; rc: string | null } | null;
+  error: { code: SignatureErrorCode | null; message: string | null; rc: string | null } | null;
   createdAt: number | null;
   updatedAt: number | null;
 }

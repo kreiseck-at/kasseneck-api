@@ -176,7 +176,7 @@ test('Partner: die Umgebungen sind genau die beiden des Backends', () => {
 
 test('Partner: darfZugangEinrichten fehlt = NEIN, nicht "vielleicht"', async () => {
   // Eine Berechtigung, die nicht ausdruecklich dasteht, hat man nicht. Ein
-  // `true` aus Kulanz erzeugte einen Aufruf, der zugang_nicht_erlaubt bekommt
+  // `true` aus Kulanz erzeugte einen Aufruf, der access_not_allowed bekommt
   // — und dabei entsteht NICHTS, auch kein Betrieb.
   const ohne = stelle(erfolg({ partner: { id: 'p1', name: 'A', status: 'aktiv' }, env: 'live', scopes: [], key: {}, apps: [] }));
   assert.equal((await ohne.api.getPartnerInfo()).partner.canCreateAccess, false);
@@ -503,30 +503,30 @@ test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlu
 });
 
 /**
- * Der Katalog, Code fuer Code, gegen `docs/api/fehlercodes.json` im Backend.
+ * Der Katalog, Code fuer Code, gegen `docs/api/fehlercodes.json` im Backend
+ * (Fläche `api`/`beide`, seit 0.29.0 in der `/v3`-Schreibweise aus dessen
+ * `v3`-Zuordnung).
  *
  * Rot-Probe: einen Code aus PARTNER_FEHLER_CODES streichen — dieser Test
  * faellt sofort mit dem fehlenden Namen. Ein Code, den nur eine Seite kennt,
  * ist fuer einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
  */
-test('Partner: der Fehlerkatalog ist vollstaendig — 30 Codes der Schnittstelle, 12 des Portals', () => {
+test('Partner: der Fehlerkatalog ist vollstaendig — 37 Codes der Schnittstelle, 12 des Portals', () => {
   assert.deepEqual([...PARTNER_FEHLER_CODES], [
     'validation',
     'rate_limited',
     'app_not_found',
     'app_not_accepted',
-    'kein_partnerbetrieb',
     'live_not_allowed',
     'customer_exists',
     'customer_conflict',
     'customer_limit',
-    'zugang_nicht_erlaubt',
+    'access_not_allowed',
     'email_taken',
     'no_email',
-    'kennung_fehlt',
+    'tax_number_missing',
     'fon_missing',
     'signature_pending',
-    'request_not_found',
     'signature_missing',
     'signature_unknown',
     'signature_ambiguous',
@@ -536,13 +536,22 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 30 Codes der Schnittstelle
     'module_inactive',
     'cashregister_limit',
     'cashregister_not_found',
-    'vertrag_offen',
+    'contracts_pending',
+    'kind_not_allowed',
+    'mode_not_allowed',
+    'power_of_attorney_missing',
+    'not_found',
+    'no_version',
+    'not_required',
+    'unknown_version',
+    'text_changed',
+    'already_accepted',
     'activation_failed',
     'webhook_limit',
     'webhook_inactive',
     'event_not_subscribed',
   ]);
-  assert.equal(PARTNER_FEHLER_CODES.length, 30);
+  assert.equal(PARTNER_FEHLER_CODES.length, 37);
 
   assert.deepEqual([...PARTNER_PORTAL_FEHLER_CODES], [
     'app_locked',
@@ -578,11 +587,24 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 30 Codes der Schnittstelle
     assert.equal(istPartnerFehlerCode(code), false, code);
   }
 
-  // Ein abgeschaffter Code darf keinen Handlungssatz behalten — sonst raet
-  // dieses Paket zu einem Weg, den es nicht mehr gibt.
-  // (`vertrag_offen` stand hier, bis das Backend ihn wieder fuer die
-  // Schnittstelle fuehrte: partner-core.FEHLER_KATALOG, flaeche 'beide'.)
-  for (const weg of ['modus_not_allowed', 'vollmacht_fehlt', 'text_changed', 'no_card_available']) {
+  // Ein Code, den es nicht (mehr) gibt, darf keinen Handlungssatz behalten —
+  // sonst raet dieses Paket zu einem Weg, den es nicht gibt.
+  // - `modus_not_allowed`/`vollmacht_fehlt`/`art_not_allowed`: die deutschen
+  //   Rohformen der Vertrags-Codes — seit 0.29.0 stehen nur noch ihre
+  //   `/v3`-Uebersetzungen im Katalog (`mode_not_allowed`,
+  //   `power_of_attorney_missing`, `kind_not_allowed`).
+  // - `zugang_nicht_erlaubt`/`kennung_fehlt`/`vertrag_offen`: dieselbe Regel
+  //   fuer die drei Codes, die der Server frueher noch roh durchreichte.
+  // - `kein_partnerbetrieb`/`request_not_found`: admin-only, erreichen `/v3`
+  //   nie (siehe Kopfkommentar in fehler.ts) — standen hier bis 0.28.0
+  //   versehentlich mit.
+  // - `no_card_available`: gibt es im Katalog des Backends nie, reine
+  //   Gegenprobe fuer einen erfundenen Code.
+  for (const weg of [
+    'modus_not_allowed', 'vollmacht_fehlt', 'art_not_allowed',
+    'zugang_nicht_erlaubt', 'kennung_fehlt', 'vertrag_offen',
+    'kein_partnerbetrieb', 'request_not_found', 'no_card_available',
+  ]) {
     assert.equal(partnerFehlerRat(weg), undefined, `${weg} steht nicht mehr im Katalog`);
     assert.equal(istPartnerFehlerCode(weg), false, weg);
   }
