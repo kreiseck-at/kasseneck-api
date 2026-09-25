@@ -115,6 +115,9 @@ const MELDUNGEN_ROH = {
   'storno.rueckgabe_zu_hoch': { text: 'Eine Rückgabe ist höher als der Rest ihrer Zahlung – bitte die Beträge prüfen.' },
   'storno.rueckgabe_ohne_bezug': { text: 'Eine Rückgabe nennt keine Zahlung des Belegs – bitte das Storno neu beginnen.' },
   'storno.rueckgabe_bezug_unbekannt': { text: 'Eine Rückgabe nennt eine Zahlung, die es am Beleg nicht gibt – bitte das Storno neu beginnen.' },
+  // Die Antwort kam, aber der Ausgang ist offen: der Storno-Beleg kann schon
+  // signiert sein. Wer jetzt noch einmal storniert, storniert womoeglich doppelt.
+  'storno.ergebnis_unklar': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren, sondern die Belegliste in ein paar Minuten neu laden.' },
   'storno.summe_passt_nicht': { text: 'Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen.' },
   // Die Gutschrift am Terminal laeuft VOR dem Senden des Stornos. Scheitert
   // sie, ist nichts gesendet – der Satz sagt beides, damit niemand eine halbe
@@ -290,8 +293,9 @@ export function belegMailFehler(code: string | undefined | null): MeldungsSchlue
 }
 
 /**
- * Storno eines Belegs mit mehreren Zahlungen: welcher `code` des Backends
- * welchen Satz bekommt. Dieselbe Idee wie BELEG_MAIL_FEHLER – beide Kassen
+ * Storno eines Belegs mit mehreren Zahlungen, dazu der offene Ausgang
+ * (`STORNO_OUTCOME_UNKNOWN`, gilt fuer jedes Storno): welcher `code` des
+ * Backends welchen Satz bekommt. Dieselbe Idee wie BELEG_MAIL_FEHLER – beide Kassen
  * entscheiden am Code, nie am Satz des Backends. Ein Code, der hier fehlt,
  * geht den allgemeinen Weg der Storno-Fehler (`storno.fehlgeschlagen`).
  */
@@ -301,6 +305,7 @@ export const STORNO_ZAHLUNG_FEHLER = {
   STORNO_REFUND_REFERENCE_REQUIRED: 'storno.rueckgabe_ohne_bezug',
   STORNO_REFUND_REFERENCE_UNKNOWN: 'storno.rueckgabe_bezug_unbekannt',
   PAYMENTS_SUM_MISMATCH: 'storno.summe_passt_nicht',
+  STORNO_OUTCOME_UNKNOWN: 'storno.ergebnis_unklar',
 } as const satisfies Record<string, MeldungsSchluessel>;
 
 export type StornoZahlungFehlercode = keyof typeof STORNO_ZAHLUNG_FEHLER;

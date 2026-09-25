@@ -265,7 +265,7 @@ test('Storno mit mehreren Zahlungen: jeder Code ist ein echter Backend-Code und 
   }
   const saetze = Object.values(STORNO_ZAHLUNG_FEHLER);
   assert.equal(new Set(saetze).size, saetze.length, 'zwei Codes zeigen auf denselben Satz');
-  for (const code of ['STORNO_PAYMENTS_REQUIRED', 'STORNO_REFUND_EXCEEDS_PAYMENT', 'STORNO_REFUND_REFERENCE_REQUIRED', 'STORNO_REFUND_REFERENCE_UNKNOWN', 'PAYMENTS_SUM_MISMATCH']) {
+  for (const code of ['STORNO_PAYMENTS_REQUIRED', 'STORNO_REFUND_EXCEEDS_PAYMENT', 'STORNO_REFUND_REFERENCE_REQUIRED', 'STORNO_REFUND_REFERENCE_UNKNOWN', 'PAYMENTS_SUM_MISMATCH', 'STORNO_OUTCOME_UNKNOWN']) {
     assert.ok(code in STORNO_ZAHLUNG_FEHLER, code);
   }
 });
@@ -303,4 +303,13 @@ test('stornoZahlungFehler faengt jeden unbekannten Code mit dem allgemeinen Stor
   for (const unbekannt of ['GIBT_ES_NICHT', '', undefined, null]) {
     assert.equal(stornoZahlungFehler(unbekannt), 'storno.fehlgeschlagen', String(unbekannt));
   }
+});
+
+test('ein offener Storno-Ausgang warnt vor dem zweiten Stornieren', () => {
+  assert.equal(stornoZahlungFehler('STORNO_OUTCOME_UNKNOWN'), 'storno.ergebnis_unklar');
+  const text = MELDUNGEN['storno.ergebnis_unklar'].text;
+  assert.match(text, /nicht erneut stornieren/);
+  assert.match(text, /Belegliste/);
+  // /v3 benennt um; die Zuordnung prueft exakt wie isCancellationErrorCode.
+  assert.equal(stornoZahlungFehler('cancellation_outcome_unknown'), 'storno.fehlgeschlagen');
 });

@@ -19,7 +19,14 @@ Rechenweg ändert sich.
   `STORNO_REFUND_EXCEEDS_PAYMENT`, `STORNO_REFUND_REFERENCE_REQUIRED`,
   `STORNO_REFUND_REFERENCE_UNKNOWN` und `PAYMENTS_SUM_MISMATCH` zu ihrem Satz, auch in
   `fixtures/kasse-texte.json` (`stornoZahlungFehler`). Grund: beide Kassen entscheiden am Code,
-  nie am Wortlaut des Backends.
+  nie am Wortlaut des Backends. `stornoZahlungFehler(code)` liefert den Schlüssel dazu, ein
+  unbekannter Code fällt auf `storno.fehlgeschlagen` (wie `belegMailFehler`).
+- **Neuer Storno-Code `STORNO_OUTCOME_UNKNOWN`** am Ende von `CANCELLATION_ERROR_CODES` (Zwilling
+  von `STORNO_FEHLERCODES` in `functions/gemeinsam/storno-core.js`; unter `/v3`
+  `cancellation_outcome_unknown`, `isCancellationErrorCode` prüft weiter exakt) mit dem Satz
+  `storno.ergebnis_unklar`. Grund: der Storno-Beleg kann schon signiert sein, obwohl der Ausgang
+  offen ist; wer dann noch einmal storniert, storniert womöglich doppelt. Der Satz rät darum,
+  nicht zu wiederholen und die Belegliste später neu zu laden.
 - **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
   („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
   zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.
