@@ -57,13 +57,16 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
   // `tax_number_missing`/`contracts_pending`: dieselben zwei wie zuvor
   // (`kennung_fehlt` aus sendPartnerCustomerFonLink, `vertrag_offen` aus
   // activateCashregister live), seit 0.29.0 in ihrer `/v3`-Schreibweise.
-  // Die uebrigen neun sind reportCustomerContract/reportCustomerVertrag
+  // Die uebrigen acht sind reportCustomerContract/reportCustomerVertrag
   // (partner-core.FEHLER_KATALOG, flaeche 'api'/'beide'); dieser Endpunkt
-  // existierte in Dart 5.3.0 so wenig wie in diesem Paket.
+  // existierte in Dart 5.3.0 so wenig wie in diesem Paket. `not_required`
+  // gehoert NICHT dazu: derselbe Server-Zweig, aber ueber die Partner-API
+  // unerreichbar, darum in fehler.ts seit dieser Korrektur weder hier noch
+  // dort gefuehrt (siehe Kopfkommentar dort).
   PARTNER_FEHLER_CODES: [
     'tax_number_missing', 'contracts_pending',
     'kind_not_allowed', 'mode_not_allowed', 'power_of_attorney_missing',
-    'not_found', 'no_version', 'not_required', 'unknown_version', 'text_changed', 'already_accepted',
+    'not_found', 'no_version', 'unknown_version', 'text_changed', 'already_accepted',
   ],
 };
 

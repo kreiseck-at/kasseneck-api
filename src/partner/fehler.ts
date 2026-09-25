@@ -35,13 +35,16 @@
  * weiterhin, siehe die Ausnahme in `test/partner-enums.test.ts`.
  *
  * **Die Vertrags-Codes (`kind_not_allowed`, `mode_not_allowed`,
- * `power_of_attorney_missing`, `not_found`, `no_version`, `not_required`,
+ * `power_of_attorney_missing`, `not_found`, `no_version`,
  * `unknown_version`, `text_changed`, `already_accepted`) stehen hier, obwohl
  * dieses Paket `reportCustomerContract` nicht anbietet.** Der Katalog des
  * Backends fuehrt sie mit `flaeche: 'api'`/`'beide'`, dieselbe Regel wie bei
  * den Portal-Codes oben: vollstaendig heisst vollstaendig, auch fuer einen
  * Endpunkt, den (noch) kein Aufruf dieses Clients ausloest. Ein Server-Update,
  * das den Endpunkt ergaenzt, bräuchte dann keinen zweiten Fehlerkatalog-Umbau.
+ * `not_required` fehlt bewusst: derselbe gemeinsame Server-Zweig wie die
+ * anderen sechs, aber ueber die Partner-API nicht erreichbar (der Server hat
+ * ihn aus `FEHLER_KATALOG` entfernt, siehe `partner-core.js` im Backend).
  */
 
 import { KasseneckApiError } from '../client/errors.js';
@@ -90,7 +93,6 @@ export const PARTNER_FEHLER_CODES = [
   'power_of_attorney_missing',
   'not_found',
   'no_version',
-  'not_required',
   'unknown_version',
   'text_changed',
   'already_accepted',
@@ -201,7 +203,6 @@ const RAT: Record<PartnerCode, string> = {
   not_found:
     'Die genannte customerId gehoert nicht zu diesem Partner-Konto oder existiert nicht. listPartnerCustomers nennt die eigenen.',
   no_version: 'Fuer die gemeldete Vertragsart gibt es derzeit keine gueltige Fassung. Bei Kasseneck nachfragen.',
-  not_required: 'Dieser Vertrag ist fuer den gemeldeten Betrieb nicht erforderlich. Nichts zu tun.',
   unknown_version: 'Die gemeldete Vertragsversion gibt es nicht. Die aktuell geltende Fassung neu abrufen.',
   text_changed:
     'Der gezeigte Vertragstext hat sich seit dem Laden geaendert (data.textHash traegt die aktuell geltende Pruefsumme). Neu laden und danach erneut bestaetigen lassen.',
