@@ -19,6 +19,32 @@
  * unterscheiden. Deshalb stehen hier BEIDE Flaechen: die der Schnittstelle
  * ([PARTNER_FEHLER_CODES]) und die des Partner-Portals
  * ([PARTNER_PORTAL_FEHLER_CODES]).
+ *
+ * **Seit 0.29.0 englisch, wie der Rest von `/v3`.** Dieser Client spricht seit
+ * 0.28.0 ausschliesslich `/v3` (`PARTNER_BASE_URL`): die paar deutschen Codes,
+ * die der Server bis dahin noch roh durchreichte, kommen jetzt genauso englisch
+ * an wie alle anderen. [PARTNER_FEHLER_CODES] fuehrt deshalb ausnahmslos die
+ * `/v3`-Schreibweise aus `fehlercodes.json`s `v3`-Zuordnung (deutsch -> englisch);
+ * ein Aufrufer bekommt vom Server nie mehr die deutsche Form.
+ *
+ * **`kein_partnerbetrieb` und `request_not_found` fehlen absichtlich.** Beide
+ * sind admin-only (`partner-endpoints.js`, ausserhalb von `FEHLER_KATALOG`) und
+ * erreichen `/v3` nie: ein Partner-Aufruf kann sie unter keinem Pfad bekommen.
+ * Sie standen frueher versehentlich in dieser Liste; `dart-partner.json` (ein
+ * eingefrorener Abzug aus Dart 5.3.0, bevor das korrigiert wurde) fuehrt sie
+ * weiterhin, siehe die Ausnahme in `test/partner-enums.test.ts`.
+ *
+ * **Die Vertrags-Codes (`kind_not_allowed`, `mode_not_allowed`,
+ * `power_of_attorney_missing`, `not_found`, `no_version`,
+ * `unknown_version`, `text_changed`, `already_accepted`) stehen hier, obwohl
+ * dieses Paket `reportCustomerContract` nicht anbietet.** Der Katalog des
+ * Backends fuehrt sie mit `flaeche: 'api'`/`'beide'`, dieselbe Regel wie bei
+ * den Portal-Codes oben: vollstaendig heisst vollstaendig, auch fuer einen
+ * Endpunkt, den (noch) kein Aufruf dieses Clients ausloest. Ein Server-Update,
+ * das den Endpunkt ergaenzt, bräuchte dann keinen zweiten Fehlerkatalog-Umbau.
+ * `not_required` fehlt bewusst: derselbe gemeinsame Server-Zweig wie die
+ * anderen sechs, aber ueber die Partner-API nicht erreichbar (der Server hat
+ * ihn aus `FEHLER_KATALOG` entfernt, siehe `partner-core.js` im Backend).
  */
 
 import { KasseneckApiError } from '../client/errors.js';
@@ -36,21 +62,19 @@ export const PARTNER_FEHLER_CODES = [
   'rate_limited',
   'app_not_found',
   'app_not_accepted',
-  'kein_partnerbetrieb',
   'live_not_allowed',
   // Betrieb anlegen
   'customer_exists',
   'customer_conflict',
   'customer_limit',
-  'zugang_nicht_erlaubt',
+  'access_not_allowed',
   'email_taken',
   'no_email',
   // FinanzOnline-Link
-  'kennung_fehlt',
+  'tax_number_missing',
   // Signatur
   'fon_missing',
   'signature_pending',
-  'request_not_found',
   'signature_missing',
   'signature_unknown',
   'signature_ambiguous',
@@ -61,7 +85,17 @@ export const PARTNER_FEHLER_CODES = [
   'module_inactive',
   'cashregister_limit',
   'cashregister_not_found',
-  'vertrag_offen',
+  'contracts_pending',
+  // Vertraege (reportCustomerContract: dieses Paket bietet den Endpunkt nicht
+  // an, der Katalog fuehrt die Codes trotzdem vollstaendig, siehe oben)
+  'kind_not_allowed',
+  'mode_not_allowed',
+  'power_of_attorney_missing',
+  'not_found',
+  'no_version',
+  'unknown_version',
+  'text_changed',
+  'already_accepted',
   'activation_failed',
   // Webhooks
   'webhook_limit',
@@ -123,26 +157,23 @@ const RAT: Record<PartnerCode, string> = {
   app_not_found: 'Die appId gibt es nicht. getPartnerInfo liefert die eigenen Apps samt id.',
   app_not_accepted:
     'Diese App hat noch keine abgenommene Version. Mit einem pk_test_-Schluessel oder mit env:"test" geht es sofort weiter; live erst nach der Abnahme.',
-  kein_partnerbetrieb:
-    'Dieser Betrieb gehoert nicht zu diesem Partner-Konto. Die eigenen stehen in listPartnerCustomers.',
   live_not_allowed:
     'Ein Test-Schluessel erzeugt nichts Echtes. Fuer einen Live-Betrieb den Live-Schluessel nehmen — umgekehrt darf ein Live-Schluessel mit env:"test" sehr wohl einen Testbetrieb anlegen.',
   customer_exists: 'Diesen Betrieb gibt es schon (data.customerId). Mit derselben customerId weiterarbeiten.',
   customer_conflict:
     'Die Steuernummer ist bei Kasseneck bereits registriert. Die Zuordnung zum Partner macht Kasseneck — hello@kasseneck.at.',
   customer_limit: 'Das Tageslimit fuer neue Betriebe ist erreicht (data.max, data.resetAt). Morgen weiter.',
-  zugang_nicht_erlaubt:
+  access_not_allowed:
     'Fuer dieses Partner-Konto sind Zugaenge zum Kundenpanel nicht freigeschaltet — es entstand NICHTS, auch kein Betrieb. Ohne access{invite:true} erneut anlegen oder die Freischaltung erfragen (Stand: getPartnerInfo.partner.canCreateAccess).',
   email_taken:
     'Fuer diese E-Mail gibt es schon einen Kasseneck-Zugang. Eine andere Adresse waehlen, auf die Einladung verzichten oder den Betrieb zuordnen lassen.',
   no_email:
     'Im Konto des Betriebs steht keine E-Mail-Adresse. Ohne sie geht weder eine Einladung noch der FinanzOnline-Link hinaus.',
-  kennung_fehlt:
+  tax_number_missing:
     'Am Betrieb ist keine Steuernummer hinterlegt, ohne sie gibt es keinen Einrichtungs-Link. Die Steuernummer bei Kasseneck nachtragen lassen (hello@kasseneck.at), dann sendPartnerCustomerFonLink erneut.',
   fon_missing:
     'Der Betrieb hat noch keinen FinanzOnline-Zugang. sendPartnerCustomerFonLink senden und customer.fon_verified abwarten. Betrifft das ANMELDEN der Signatureinheit, nicht das Beantragen.',
   signature_pending: 'Fuer diesen Betrieb laeuft bereits ein Antrag. Auf signature.ready warten.',
-  request_not_found: 'Diese signaturId gibt es nicht. getCustomerSignatureStatus nennt die des Betriebs.',
   signature_missing:
     'Der Betrieb hat ueberhaupt keine Signatur, und jede Kasse bezieht sich auf eine. Zuerst requestCustomerSignature.',
   signature_unknown:
@@ -154,11 +185,28 @@ const RAT: Record<PartnerCode, string> = {
   signature_limit:
     'Hoechstens zehn Signaturen je Betrieb. Eine bestehende benutzen, statt mit additional:true eine weitere zu beantragen.',
   signature_failed: 'FinanzOnline hat die Anmeldung abgelehnt (data.rc). Kasseneck klaert das — hello@kasseneck.at.',
-  module_inactive: 'Das Modul (data.modul) ist fuer diesen Betrieb nicht gebucht. Kasseneck schaltet es frei.',
+  module_inactive: 'Das Modul (data.module, z. B. "cash_register", Text in data.detail) ist fuer diesen Betrieb nicht gebucht. Kasseneck schaltet es frei.',
   cashregister_limit: 'Hoechstens 20 Registrierkassen je Betrieb. Eine bestehende nutzen.',
   cashregister_not_found: 'Diese cashregisterId gibt es bei diesem Betrieb nicht.',
-  vertrag_offen:
+  contracts_pending:
     'Nur live: der Betrieb hat Auftragsverarbeitungs- und Nutzungsvertrag noch nicht bestaetigt. An der Kasse aendert sich nichts. Den Betrieb ueber den Einrichtungs-Link bestaetigen lassen (sendPartnerCustomerFonLink, Stand in avv/terms von getPartnerCustomer), danach activateCashregister erneut.',
+  // -- Vertraege (reportCustomerContract) ------------------------------------
+  // Dieser Client bietet den Endpunkt (noch) nicht an; die Codes stehen hier
+  // nur fuer die Katalogseite und fuer einen Aufrufer, der die rohe Antwort
+  // selbst auswertet (siehe Kopfkommentar der Datei).
+  kind_not_allowed:
+    'reportCustomerContract mit einer anderen Art als "avv". Der Vollmachtsweg nimmt nur den Auftragsverarbeitungsvertrag entgegen. Dieser Client bietet den Endpunkt nicht an.',
+  mode_not_allowed:
+    'Der Vollmachtsweg ist fuer dieses Partner-Konto nicht freigeschaltet. Kasseneck fragen (hello@kasseneck.at).',
+  power_of_attorney_missing:
+    'Der Partnervertrag mit dem Vollmachts-Kapitel ist noch nicht bestaetigt. Erst danach nimmt der Vollmachtsweg Meldungen entgegen.',
+  not_found:
+    'Die genannte customerId gehoert nicht zu diesem Partner-Konto oder existiert nicht. listPartnerCustomers nennt die eigenen.',
+  no_version: 'Fuer die gemeldete Vertragsart gibt es derzeit keine gueltige Fassung. Bei Kasseneck nachfragen.',
+  unknown_version: 'Die gemeldete Vertragsversion gibt es nicht. Die aktuell geltende Fassung neu abrufen.',
+  text_changed:
+    'Der gezeigte Vertragstext hat sich seit dem Laden geaendert (data.textHash traegt die aktuell geltende Pruefsumme). Neu laden und danach erneut bestaetigen lassen.',
+  already_accepted: 'Diese Fassung ist bereits bestaetigt (data.contractId). Nichts weiter zu tun.',
   activation_failed:
     'Die Inbetriebnahme blieb an data.step haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
   webhook_limit: 'Hoechstens 10 Webhook-Endpunkte je Partner. Einen ungenutzten loeschen.',
@@ -205,7 +253,7 @@ export function istPartnerFehler(error: unknown, code: PartnerCode): boolean {
 export interface PartnerFeldFehler {
   /**
    * Der Feldpfad, so wie er im gesendeten Betrieb steht — verschachtelt und je
-   * Kontakt: `address.land`, `tax_details.ustid`, `contacts.1.abteilung`.
+   * Kontakt: `address.zip`, `taxDetails.taxNumber`, `contacts.0.email`.
    */
   field: string;
   message: string;
