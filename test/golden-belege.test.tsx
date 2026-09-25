@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'storno-rabatt', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
 });
 
 /**
@@ -70,6 +70,27 @@ test('Kartenanbieter: wer Terminaldaten mitbringt, bekommt einen Block', () => {
     if (!ueberschrift) ohneBlock.push(name);
   }
   assert.deepEqual(ohneBlock, []);
+});
+
+/**
+ * Mit Zahlungsliste: JEDE Zahlung mit Terminaldaten bekommt ihren eigenen
+ * Block -- zwei Karten desselben Anbieters ergeben zwei Ueberschriften, keine
+ * wird verschluckt. Gezaehlt wird gegen die Zahl der Zahlungen, nicht gegen
+ * die Zahl der Anbieter.
+ */
+test('Kartenanbieter: mit Zahlungsliste hat jede Zahlung mit Terminaldaten einen eigenen Block', () => {
+  let geprueft = 0;
+  for (const name of namen) {
+    const zahlungen = lade(name).receipt.payments as { provider?: string; providerData?: unknown }[] | undefined;
+    if (zahlungen == null) continue;
+    const mitDaten = zahlungen.filter((z) => z.provider != null && z.provider !== 'custom' && z.providerData != null).length;
+    const bloecke = erwartet(name).lines.filter(
+      (z) => z.kind === 'text' && z.bold && z.align === 'center' && /Beleg$|Stripe/.test(z.text),
+    ).length;
+    assert.equal(bloecke, mitDaten, `${name}: ${bloecke} Kartenbloecke fuer ${mitDaten} Zahlungen mit Terminaldaten`);
+    geprueft += 1;
+  }
+  assert.ok(geprueft >= 7, `nur ${geprueft} Belege mit Zahlungsliste geprueft`);
 });
 
 for (const name of namen) {

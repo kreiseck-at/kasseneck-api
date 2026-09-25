@@ -12,6 +12,7 @@ import {
   type Receipt,
   type ReceiptCompany,
   type ReceiptItem,
+  type ReceiptPayment,
   type Voucher,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
@@ -454,15 +455,13 @@ function stripeBlock(daten: Record<string, unknown>, cardPaymentId: string | nul
 }
 
 /**
- * Der Kartenzahlungsblock des Belegs -- fuer JEDEN Anbieter, den das Backend
- * kennt. Ohne `cardPaymentData` bleibt der Block weg; ein unbekannter Anbieter
- * ebenfalls, still und ohne Fehler: ein Beleg muss sich immer zeigen lassen.
+ * Der Kartenzahlungsblock eines Anbieters -- fuer JEDEN Anbieter, den das
+ * Backend kennt. Ein unbekannter Anbieter bekommt keinen Block, still und
+ * ohne Fehler: ein Beleg muss sich immer zeigen lassen.
  */
-function kartenblock(receipt: Receipt): LayoutLine[] {
-  const daten = receipt.cardPaymentData;
-  if (daten == null) return [];
+function anbieterBlock(provider: unknown, daten: Record<string, unknown>, id: string | null): LayoutLine[] {
   const zeilen = ((): LayoutLine[] => {
-    switch (receipt.creditCardProvider) {
+    switch (provider) {
       case 'hobexHps':
       case 'hobexCloudApi':
         return hobexBlock(daten);
@@ -474,7 +473,7 @@ function kartenblock(receipt: Receipt): LayoutLine[] {
       case 'myposPro':
         return myposBlock(daten);
       case 'stripe':
-        return stripeBlock(daten, receipt.cardPaymentId ?? null);
+        return stripeBlock(daten, id);
       default:
         return [];
     }
@@ -487,11 +486,123 @@ function kartenblock(receipt: Receipt): LayoutLine[] {
   return [...zeilen, { kind: 'space', lines: 1 }];
 }
 
-function zahlungsartText(wert: Receipt['paymentMethod']): string {
+/**
+ * Die Kartenzahlungsbloecke des Belegs. Mit Zahlungsliste (`payments`) je
+ * Zahlung mit Anbieter und Terminaldaten ein Block, in Zahlungsreihenfolge --
+ * zwei Karten desselben Anbieters ergeben zwei Bloecke; die alten
+ * Einzelfelder zaehlen dann nicht. Ohne (oder mit leerer) Liste der bisherige Weg ueber
+ * `creditCardProvider`/`cardPaymentData`/`cardPaymentId`.
+ */
+function kartenblock(receipt: Receipt): LayoutLine[] {
+  if (receipt.payments != null && receipt.payments.length > 0) {
+    const zeilen: LayoutLine[] = [];
+    for (const zahlung of receipt.payments) {
+      if (zahlung.provider == null || zahlung.providerData == null) continue;
+      zeilen.push(...anbieterBlock(zahlung.provider, zahlung.providerData, zahlung.providerPaymentId ?? null));
+    }
+    return zeilen;
+  }
+  const daten = receipt.cardPaymentData;
+  if (daten == null) return [];
+  return anbieterBlock(receipt.creditCardProvider, daten, receipt.cardPaymentId ?? null);
+}
+
+function zahlungsartText(wert: Receipt['paymentMethod'] | ReceiptPayment['method']): string {
   if (wert != null && typeof wert === 'object') {
     return wert.label;
   }
   return typeof wert === 'string' ? wert : '';
+}
+
+/**
+ * Lesbare Bezeichnung je Kartenanbieter -- Zwilling von `CARD_PROVIDER_LABEL`
+ * (functions/gemeinsam/helper.js), dieselbe Liste wie in Bericht und
+ * Beleg-Mail. Unbekannte Werte (auch `stripe`): der Rohwert.
+ */
+export const CARD_PROVIDER_LABEL: Readonly<Record<string, string>> = {
+  gpTomAndroid: 'GP Tom',
+  gpTomIos: 'GP Tom',
+  hobexCloudApi: 'Hobex',
+  hobexHps: 'Hobex',
+  sumup: 'SumUp',
+  myposPro: 'myPOS',
+  custom: 'Sonstige',
+};
+
+/** Zwilling von `cardProviderLabel` (functions/gemeinsam/helper.js). */
+export function cardProviderLabel(provider: string): string {
+  return CARD_PROVIDER_LABEL[provider] || provider;
+}
+
+/** Kartenzahlarten -- Zwilling von `KARTEN_ZAHLARTEN` (functions/gemeinsam/zahlungen-core.js). */
+const KARTEN_ZAHLARTEN: readonly string[] = ['creditCard', 'uberCard', 'boltCard'];
+/** Barzahlarten -- Zwilling von `BAR_ZAHLARTEN` (functions/gemeinsam/tip-core.js). */
+const BAR_ZAHLARTEN: readonly string[] = ['cash', 'uberCash', 'boltCash'];
+
+function zahlartSchluessel(wert: ReceiptPayment['method']): string {
+  if (wert != null && typeof wert === 'object') return wert.value;
+  return typeof wert === 'string' ? wert : '';
+}
+
+/**
+ * Text einer Zahlung in der Aufschluesselung -- wie die Beleg-Mail
+ * (functions/beleg-mail-core.js): Zahlart, bei Kartenzahlarten mit Anbieter
+ * der Anbieter in Klammern. Innerhalb der Klammer stehen geschuetzte
+ * Leerzeichen: bricht die Zeile auf 58 mm um, dann VOR der Klammer
+ * („Kartenzahlung" / „(GP Tom)"), nie mitten im Anbieternamen.
+ */
+function zahlungText(zahlung: ReceiptPayment): string {
+  const art = zahlungsartText(zahlung.method);
+  const provider = zahlung.provider;
+  if (!KARTEN_ZAHLARTEN.includes(zahlartSchluessel(zahlung.method)) || typeof provider !== 'string' || provider === '') {
+    return art;
+  }
+  return `${art} (${cardProviderLabel(provider).replace(/ /g, '\u00a0')})`;
+}
+
+/**
+ * Gegeben/Rueckgeld unter einer Barzahlung mit `tenderedCents`. Fehlt
+ * `changeCents` (der Server rechnet es sonst selbst), ergibt es sich aus
+ * gegeben minus Betrag.
+ */
+function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
+  if (!BAR_ZAHLARTEN.includes(zahlartSchluessel(zahlung.method)) || typeof zahlung.tenderedCents !== 'number') return [];
+  const rueckgeld = typeof zahlung.changeCents === 'number' ? zahlung.changeCents : zahlung.tenderedCents - zahlung.amountCents;
+  return [
+    paarZeile('Gegeben:', `${formatCents(zahlung.tenderedCents)} €`, 8, 4),
+    paarZeile('Rückgeld:', `${formatCents(rueckgeld)} €`, 8, 4),
+  ];
+}
+
+/**
+ * Die Zahlungszeilen unter „Gesamt:".
+ *
+ * - Ohne Zahlungsliste: „Zahlungsart: <Label>" aus `paymentMethod`, wie immer.
+ * - Genau eine Zahlung: dieselbe Zeile, Label aus der Zahlung.
+ * - Mehrere Zahlungen (auch zwei Karten, die `paymentMethod: creditCard`
+ *   ergeben -- entschieden wird an der Laenge, nie an `mixed`): „Zahlungsarten:"
+ *   und je Zahlung eine Zeile mit Betrag. Breite 8:4 -- auf 58 mm bleiben der
+ *   Betragsspalte elf Zeichen, genug fuer „-9999,99 €"; ein langes Label
+ *   bricht links um, der Betrag nie.
+ *
+ * Unter jeder Barzahlung mit gegebenem Betrag stehen „Gegeben:" und
+ * „Rückgeld:".
+ */
+function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
+  const zahlungen = receipt.payments;
+  if (zahlungen == null || zahlungen.length === 0) {
+    return [paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod))];
+  }
+  if (zahlungen.length === 1) {
+    const zahlung = zahlungen[0]!;
+    return [paarZeile('Zahlungsart:', zahlungsartText(zahlung.method)), ...barZeilen(zahlung)];
+  }
+  const zeilen: LayoutLine[] = [textZeile('Zahlungsarten:')];
+  for (const zahlung of zahlungen) {
+    zeilen.push(paarZeile(zahlungText(zahlung), `${formatCents(zahlung.amountCents)} €`, 8, 4));
+    zeilen.push(...barZeilen(zahlung));
+  }
+  return zeilen;
 }
 
 // -------------------------------------------------------- Kleinunternehmer
@@ -1105,7 +1216,7 @@ export function buildReceiptLayout(
     lines.push({ kind: 'rule', char: '-' });
   }
   lines.push(paarZeile('Gesamt:', `${formatCents(summeCents)} €`));
-  lines.push(paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod)));
+  lines.push(...zahlungsZeilen(receipt));
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis
