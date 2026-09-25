@@ -243,6 +243,36 @@
               "reason": null
             }
           ]
+        },
+        {
+          "requestId": "req_2",
+          "status": "failed",
+          "statusText": "Fehlgeschlagen",
+          "kind": "signature_card",
+          "vdaId": null,
+          "signatureId": null,
+          "error": {
+            "code": "finanzonline_error",
+            "message": "FinanzOnline hat die Anmeldung der Signatureinheit abgelehnt.",
+            "rc": "B13"
+          },
+          "requestedVia": "api",
+          "createdAt": 1788052010642,
+          "updatedAt": 1788052010644,
+          "history": [
+            {
+              "from": null,
+              "to": "requested",
+              "at": 1788052010642,
+              "reason": "api"
+            },
+            {
+              "from": "requested",
+              "to": "failed",
+              "at": 1788052010643,
+              "reason": null
+            }
+          ]
         }
       ],
       "fon": {
@@ -469,10 +499,10 @@
     "customer_exists",
     "customer_conflict",
     "customer_limit",
-    "zugang_nicht_erlaubt",
+    "access_not_allowed",
     "email_taken",
     "no_email",
-    "kennung_fehlt",
+    "tax_number_missing",
     "fon_missing",
     "signature_pending",
     "signature_missing",
@@ -484,7 +514,15 @@
     "module_inactive",
     "cashregister_limit",
     "cashregister_not_found",
-    "vertrag_offen",
+    "contracts_pending",
+    "kind_not_allowed",
+    "mode_not_allowed",
+    "power_of_attorney_missing",
+    "not_found",
+    "no_version",
+    "unknown_version",
+    "text_changed",
+    "already_accepted",
     "activation_failed",
     "webhook_limit",
     "webhook_inactive",

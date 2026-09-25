@@ -128,6 +128,7 @@ export type {
   FeeInterval,
   PartnerFee,
   SignatureHistoryReason,
+  SignatureErrorCode,
   RequestSignatureOptions,
   CustomerSignature,
   Rechtsform,

@@ -539,11 +539,11 @@ businesses and, with the extra scope `credentials:read`, fetch their secrets.
 
 This subpath talks to the English Partner API **`/v3`**
 (`PARTNER_BASE_URL`, `https://api.kasseneck.at/v3`): every field name and
-every value your code branches on is English. Texts for humans (`message`,
-`note`, `statusText`, `nextSteps`) stay German, and so do the error codes for
-now. Everything else in this package (receipts, invoices, the register,
-printing, payments) still uses `/v1` (`DEFAULT_BASE_URL`) until those
-endpoints have a `/v3` of their own.
+every value your code branches on is English, including every error code
+(`PARTNER_FEHLER_CODES`). Texts for humans (`message`, `note`, `statusText`,
+`nextSteps`) stay German. Everything else in this package (receipts,
+invoices, the register, printing, payments) still uses `/v1`
+(`DEFAULT_BASE_URL`) until those endpoints have a `/v3` of their own.
 
 ```ts
 import { createPartnerApi, istPartnerFehler } from '@kreiseck/kasseneck-api/partner';
@@ -620,6 +620,42 @@ await partner.updatePartnerWebhook(webhookId, { apiVersion: 'v3' });
 ```
 
 Webhook signature verification is unchanged.
+
+### Migrating from 0.28.x
+
+0.29.0 is a breaking change for `./partner` only, and only for
+`PARTNER_FEHLER_CODES`: three codes that the server still sent in their
+German `/v1` spelling under 0.28.0 now come through English, matching every
+other value on `/v3`.
+
+| 0.28.x | 0.29.0 |
+|---|---|
+| `zugang_nicht_erlaubt` | `access_not_allowed` |
+| `kennung_fehlt` | `tax_number_missing` |
+| `vertrag_offen` | `contracts_pending` |
+
+`partnerFehlerRat()` and `istPartnerFehler()` follow: look up the new,
+English key. A build that still checks the old German string will no longer
+match, silently, so this is worth a search across your codebase.
+
+Two codes that never reached this package's own error handling
+(`kein_partnerbetrieb`, `request_not_found`, both admin-only and outside the
+backend's public catalog) are gone from `PARTNER_FEHLER_CODES`. If you were
+checking for them, that check was already dead code: the server never sent
+them to a partner call.
+
+`PARTNER_FEHLER_CODES` also gained nine codes for `reportCustomerContract`
+(`kind_not_allowed`, `mode_not_allowed`, `power_of_attorney_missing`,
+`not_found`, `no_version`, `not_required`, `unknown_version`, `text_changed`,
+`already_accepted`), each with a `partnerFehlerRat()` sentence. This package
+still does not expose that endpoint; the codes are here for completeness (a
+catalog page, or code that reads the raw error yourself), not because a call
+of this client can produce them.
+
+The signature error type `SignaturAntrag.error.code` /
+`CustomerSignature.error.code` is now `SignatureErrorCode`
+(`customer_not_found` | `incomplete` | `finanzonline_error` | any other
+string), a documented union instead of a bare `string | null`.
 
 ### A test event is not a cash register
 

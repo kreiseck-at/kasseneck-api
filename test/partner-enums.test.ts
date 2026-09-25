@@ -54,9 +54,42 @@ const listen: Record<string, readonly (string | number)[]> = {
  * Dart es.
  */
 const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
-  // Beide in partner-core.FEHLER_KATALOG mit flaeche 'beide': kennung_fehlt aus
-  // sendPartnerCustomerFonLink, vertrag_offen aus activateCashregister (live).
-  PARTNER_FEHLER_CODES: ['kennung_fehlt', 'vertrag_offen'],
+  // `tax_number_missing`/`contracts_pending`: dieselben zwei wie zuvor
+  // (`kennung_fehlt` aus sendPartnerCustomerFonLink, `vertrag_offen` aus
+  // activateCashregister live), seit 0.29.0 in ihrer `/v3`-Schreibweise.
+  // Die uebrigen acht sind reportCustomerContract/reportCustomerVertrag
+  // (partner-core.FEHLER_KATALOG, flaeche 'api'/'beide'); dieser Endpunkt
+  // existierte in Dart 5.3.0 so wenig wie in diesem Paket. `not_required`
+  // gehoert NICHT dazu: derselbe Server-Zweig, aber ueber die Partner-API
+  // unerreichbar, darum in fehler.ts seit dieser Korrektur weder hier noch
+  // dort gefuehrt (siehe Kopfkommentar dort).
+  PARTNER_FEHLER_CODES: [
+    'tax_number_missing', 'contracts_pending',
+    'kind_not_allowed', 'mode_not_allowed', 'power_of_attorney_missing',
+    'not_found', 'no_version', 'unknown_version', 'text_changed', 'already_accepted',
+  ],
+};
+
+/**
+ * Umgekehrt: Codes, die der eingefrorene Dart-Abzug noch fuehrt, dieses Paket
+ * seit 0.29.0 aber nicht mehr: `kein_partnerbetrieb` und `request_not_found`
+ * sind admin-only (`functions-partner/partner-endpoints.js`, ausserhalb von
+ * `FEHLER_KATALOG`) und erreichten `/v3` nie; sie standen bis 0.28.0
+ * versehentlich in PARTNER_FEHLER_CODES (siehe Kopfkommentar in fehler.ts).
+ * Der Dart-Snapshot ist aelter als diese Korrektur und aendert sich nicht mehr.
+ */
+const NICHT_MEHR_OEFFENTLICH: Record<string, readonly string[]> = {
+  PARTNER_FEHLER_CODES: ['kein_partnerbetrieb', 'request_not_found'],
+};
+
+/**
+ * Codes, die der Dart-Abzug noch deutsch fuehrt und die der Server seit
+ * `/v3` (0.28.0 fuer die Route, 0.29.0 fuer die Codes selbst) englisch
+ * schickt. Nur fuer den Ordnungsvergleich unten; Dart bekommt nie `/v3` und
+ * kennt diese Schreibweise darum nicht.
+ */
+const V3_UEBERSETZT: Record<string, Record<string, string>> = {
+  PARTNER_FEHLER_CODES: { zugang_nicht_erlaubt: 'access_not_allowed' },
 };
 
 test('Partner: die Nachtraege stehen wirklich nur hier und nicht im Abzug', () => {
@@ -68,6 +101,19 @@ test('Partner: die Nachtraege stehen wirklich nur hier und nicht im Abzug', () =
     for (const eintrag of nachtraege) {
       assert.ok(hier.includes(eintrag), `${name}: ${eintrag} fehlt hier`);
       assert.ok(!dort.includes(eintrag), `${name}: ${eintrag} steht schon im Abzug, die Ausnahme ist tot`);
+    }
+  }
+});
+
+test('Partner: die Streichungen stehen wirklich nur im Abzug und nicht mehr hier', () => {
+  // Sonst deckte die Ausnahme einen Eintrag, der auf beiden Seiten fehlt, und
+  // saenke nie.
+  for (const [name, gestrichen] of Object.entries(NICHT_MEHR_OEFFENTLICH)) {
+    const hier = listen[name] as readonly string[];
+    const dort = abzugAls[name] as string[];
+    for (const eintrag of gestrichen) {
+      assert.ok(dort.includes(eintrag), `${name}: ${eintrag} steht nicht mehr im Abzug, die Ausnahme ist tot`);
+      assert.ok(!hier.includes(eintrag), `${name}: ${eintrag} steht hier noch`);
     }
   }
 });
@@ -84,7 +130,12 @@ test('Partner: jede Liste steht in beiden Sprachen — und in derselben Reihenfo
     const dort = abzugAls[name];
     assert.ok(Array.isArray(dort), `${name} fehlt im Abzug des Dart-Pakets`);
     const nachtraege = new Set<string | number>(NACH_DEM_ABZUG[name] ?? []);
-    assert.deepEqual([...hier].filter((x) => !nachtraege.has(x)), dort, `${name} weicht vom Dart-Zwilling ab`);
+    const gestrichen = new Set<string | number>(NICHT_MEHR_OEFFENTLICH[name] ?? []);
+    const uebersetzt = V3_UEBERSETZT[name] ?? {};
+    const dortUebersetzt = (dort as (string | number)[])
+      .filter((x) => !gestrichen.has(x))
+      .map((x) => (typeof x === 'string' && x in uebersetzt ? uebersetzt[x]! : x));
+    assert.deepEqual([...hier].filter((x) => !nachtraege.has(x)), dortUebersetzt, `${name} weicht vom Dart-Zwilling ab`);
   }
 });
 
@@ -108,12 +159,20 @@ test('Partner: die Marke test steht im Umschlag beider Sprachen', () => {
 
 test('Partner: jeder Code des Abzugs hat hier auch einen Handlungssatz', () => {
   // Die Liste allein reicht nicht: ein Code ohne Satz sieht aus wie behandelt
-  // und sagt nichts.
+  // und sagt nichts. Ausnahmen: die beiden admin-only Codes aus
+  // NICHT_MEHR_OEFFENTLICH (dieses Paket fuehrt sie seit 0.29.0 bewusst nicht
+  // mehr, siehe dort) fallen weg; `zugang_nicht_erlaubt` steht wie in Dart
+  // deutsch im Abzug, hat hier aber nur noch unter seiner `/v3`-Schreibweise
+  // einen Satz (V3_UEBERSETZT).
+  const gestrichen = new Set(NICHT_MEHR_OEFFENTLICH['PARTNER_FEHLER_CODES'] ?? []);
+  const uebersetzt = V3_UEBERSETZT['PARTNER_FEHLER_CODES'] ?? {};
   const codes = [
     ...(abzugAls['PARTNER_FEHLER_CODES'] as string[]),
     ...(abzugAls['PARTNER_PORTAL_FEHLER_CODES'] as string[]),
-  ];
-  assert.equal(codes.length, 40, 'der Katalog des Backends hat 28 API- und 12 Portal-Codes');
+  ]
+    .filter((c) => !gestrichen.has(c))
+    .map((c) => uebersetzt[c] ?? c);
+  assert.equal(codes.length, 38, 'der Katalog des Backends hat 26 API- und 12 Portal-Codes ohne die zwei Streichungen');
   for (const code of codes) {
     const rat = partnerFehlerRat(code);
     assert.ok(rat && rat.length > 20, `${code}: kein brauchbarer Handlungssatz`);
