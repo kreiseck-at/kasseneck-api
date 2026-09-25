@@ -511,7 +511,7 @@ test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlu
  * faellt sofort mit dem fehlenden Namen. Ein Code, den nur eine Seite kennt,
  * ist fuer einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
  */
-test('Partner: der Fehlerkatalog ist vollstaendig — 37 Codes der Schnittstelle, 12 des Portals', () => {
+test('Partner: der Fehlerkatalog ist vollstaendig: 37 Codes der Schnittstelle, 12 des Portals', () => {
   assert.deepEqual([...PARTNER_FEHLER_CODES], [
     'validation',
     'rate_limited',
@@ -587,16 +587,16 @@ test('Partner: der Fehlerkatalog ist vollstaendig — 37 Codes der Schnittstelle
     assert.equal(istPartnerFehlerCode(code), false, code);
   }
 
-  // Ein Code, den es nicht (mehr) gibt, darf keinen Handlungssatz behalten —
+  // Ein Code, den es nicht (mehr) gibt, darf keinen Handlungssatz behalten:
   // sonst raet dieses Paket zu einem Weg, den es nicht gibt.
   // - `modus_not_allowed`/`vollmacht_fehlt`/`art_not_allowed`: die deutschen
-  //   Rohformen der Vertrags-Codes — seit 0.29.0 stehen nur noch ihre
+  //   Rohformen der Vertrags-Codes. Seit 0.29.0 stehen nur noch ihre
   //   `/v3`-Uebersetzungen im Katalog (`mode_not_allowed`,
   //   `power_of_attorney_missing`, `kind_not_allowed`).
   // - `zugang_nicht_erlaubt`/`kennung_fehlt`/`vertrag_offen`: dieselbe Regel
   //   fuer die drei Codes, die der Server frueher noch roh durchreichte.
   // - `kein_partnerbetrieb`/`request_not_found`: admin-only, erreichen `/v3`
-  //   nie (siehe Kopfkommentar in fehler.ts) — standen hier bis 0.28.0
+  //   nie (siehe Kopfkommentar in fehler.ts). Standen hier bis 0.28.0
   //   versehentlich mit.
   // - `no_card_available`: gibt es im Katalog des Backends nie, reine
   //   Gegenprobe fuer einen erfundenen Code.

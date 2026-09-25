@@ -21,7 +21,7 @@
  * ([PARTNER_PORTAL_FEHLER_CODES]).
  *
  * **Seit 0.29.0 englisch, wie der Rest von `/v3`.** Dieser Client spricht seit
- * 0.28.0 ausschliesslich `/v3` (`PARTNER_BASE_URL`) — die paar deutschen Codes,
+ * 0.28.0 ausschliesslich `/v3` (`PARTNER_BASE_URL`): die paar deutschen Codes,
  * die der Server bis dahin noch roh durchreichte, kommen jetzt genauso englisch
  * an wie alle anderen. [PARTNER_FEHLER_CODES] fuehrt deshalb ausnahmslos die
  * `/v3`-Schreibweise aus `fehlercodes.json`s `v3`-Zuordnung (deutsch -> englisch);
@@ -29,7 +29,7 @@
  *
  * **`kein_partnerbetrieb` und `request_not_found` fehlen absichtlich.** Beide
  * sind admin-only (`partner-endpoints.js`, ausserhalb von `FEHLER_KATALOG`) und
- * erreichen `/v3` nie — ein Partner-Aufruf kann sie unter keinem Pfad bekommen.
+ * erreichen `/v3` nie: ein Partner-Aufruf kann sie unter keinem Pfad bekommen.
  * Sie standen frueher versehentlich in dieser Liste; `dart-partner.json` (ein
  * eingefrorener Abzug aus Dart 5.3.0, bevor das korrigiert wurde) fuehrt sie
  * weiterhin, siehe die Ausnahme in `test/partner-enums.test.ts`.
@@ -38,7 +38,7 @@
  * `power_of_attorney_missing`, `not_found`, `no_version`, `not_required`,
  * `unknown_version`, `text_changed`, `already_accepted`) stehen hier, obwohl
  * dieses Paket `reportCustomerContract` nicht anbietet.** Der Katalog des
- * Backends fuehrt sie mit `flaeche: 'api'`/`'beide'` — dieselbe Regel wie bei
+ * Backends fuehrt sie mit `flaeche: 'api'`/`'beide'`, dieselbe Regel wie bei
  * den Portal-Codes oben: vollstaendig heisst vollstaendig, auch fuer einen
  * Endpunkt, den (noch) kein Aufruf dieses Clients ausloest. Ein Server-Update,
  * das den Endpunkt ergaenzt, bräuchte dann keinen zweiten Fehlerkatalog-Umbau.
@@ -83,7 +83,7 @@ export const PARTNER_FEHLER_CODES = [
   'cashregister_limit',
   'cashregister_not_found',
   'contracts_pending',
-  // Vertraege (reportCustomerContract — dieses Paket bietet den Endpunkt nicht
+  // Vertraege (reportCustomerContract: dieses Paket bietet den Endpunkt nicht
   // an, der Katalog fuehrt die Codes trotzdem vollstaendig, siehe oben)
   'kind_not_allowed',
   'mode_not_allowed',
@@ -193,11 +193,11 @@ const RAT: Record<PartnerCode, string> = {
   // nur fuer die Katalogseite und fuer einen Aufrufer, der die rohe Antwort
   // selbst auswertet (siehe Kopfkommentar der Datei).
   kind_not_allowed:
-    'reportCustomerContract mit einer anderen Art als "avv" — der Vollmachtsweg nimmt nur den Auftragsverarbeitungsvertrag entgegen. Dieser Client bietet den Endpunkt nicht an.',
+    'reportCustomerContract mit einer anderen Art als "avv". Der Vollmachtsweg nimmt nur den Auftragsverarbeitungsvertrag entgegen. Dieser Client bietet den Endpunkt nicht an.',
   mode_not_allowed:
     'Der Vollmachtsweg ist fuer dieses Partner-Konto nicht freigeschaltet. Kasseneck fragen (hello@kasseneck.at).',
   power_of_attorney_missing:
-    'Der Partnervertrag mit dem Vollmachts-Kapitel ist noch nicht bestaetigt — erst danach nimmt der Vollmachtsweg Meldungen entgegen.',
+    'Der Partnervertrag mit dem Vollmachts-Kapitel ist noch nicht bestaetigt. Erst danach nimmt der Vollmachtsweg Meldungen entgegen.',
   not_found:
     'Die genannte customerId gehoert nicht zu diesem Partner-Konto oder existiert nicht. listPartnerCustomers nennt die eigenen.',
   no_version: 'Fuer die gemeldete Vertragsart gibt es derzeit keine gueltige Fassung. Bei Kasseneck nachfragen.',

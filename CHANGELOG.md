@@ -12,25 +12,25 @@ nur der Grund überlebt den nächsten Umbau.
   Schlüssel neu); die `RAT`-Tabelle und `partnerFehlerRat` folgen. Grund: 0.28.0 stellte den
   Partner-Teil auf `/v3` um, liess aber ein paar Codes, die der Server bis dahin noch roh
   durchreichte, unuebersetzt in ihrer `/v1`-Schreibweise stehen (siehe dessen Eintrag "Die
-  Fehlercodes bleiben in dieser Stufe wie in `/v1`") — der Server schickt seit dieser Version
+  Fehlercodes bleiben in dieser Stufe wie in `/v1`"): der Server schickt seit dieser Version
   wirklich nur noch englische Codes, und dieses Paket folgt.
 - **`PARTNER_FEHLER_CODES` um neun Codes von `reportCustomerContract` ergänzt**: `kind_not_allowed`,
   `mode_not_allowed`, `power_of_attorney_missing`, `not_found`, `no_version`, `not_required`,
   `unknown_version`, `text_changed`, `already_accepted`, mit Handlungssatz. Der Katalog des
   Backends (`partner-core.FEHLER_KATALOG`, Fläche `api`/`beide`) führt sie für die Schnittstelle,
-  obwohl dieses Paket `reportCustomerContract` selbst nicht anbietet — derselbe Grund wie bei den
+  obwohl dieses Paket `reportCustomerContract` selbst nicht anbietet: derselbe Grund wie bei den
   Portal-Codes: eine halbe Liste ist schlimmer als keine, und ein Code, den nur eine Seite kennt,
   ist für einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
 - **`kein_partnerbetrieb` und `request_not_found` aus `PARTNER_FEHLER_CODES` entfernt.** Beide sind
-  admin-only (`partner-endpoints.js`) und stehen gar nicht in `partner-core.FEHLER_KATALOG` — ein
+  admin-only (`partner-endpoints.js`) und stehen gar nicht in `partner-core.FEHLER_KATALOG`; ein
   Partner-Aufruf konnte sie unter keinem Pfad je bekommen. Sie standen seit jeher versehentlich in
   der Liste; ein Aufrufer, der auf sie prüfte, prüfte auf einen Fall, der nie eintritt.
 - `module_inactive`s Handlungssatz nennt jetzt `data.module`/`data.detail` statt `data.modul` (die
-  Werte selbst, z. B. `cash_register`, waren mit 0.28.0 schon englisch — nur der Text hier hinkte
+  Werte selbst, z. B. `cash_register`, waren mit 0.28.0 schon englisch, nur der Text hier hinkte
   nach).
 - Neuer Typ `SignatureErrorCode` (`customer_not_found` | `incomplete` | `finanzonline_error`) für
-  `SignaturAntrag.error.code` und `CustomerSignature.error.code` — bisher `string | null` ohne
-  jeden Hinweis auf die möglichen Werte, nach demselben Muster wie `SignatureHistoryReason`.
+  `SignaturAntrag.error.code` und `CustomerSignature.error.code` (bisher `string | null` ohne
+  jeden Hinweis auf die möglichen Werte), nach demselben Muster wie `SignatureHistoryReason`.
 - `PartnerFeldFehler.field`s Beispiele sind nicht mehr `address.land`/`tax_details.ustid` (Namen,
   die `/v3` als unbekanntes Feld abweist), sondern echte `/v3`-Pfade: `address.zip`,
   `taxDetails.taxNumber`, `contacts.0.email`.

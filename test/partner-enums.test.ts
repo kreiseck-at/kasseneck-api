@@ -58,7 +58,7 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
   // (`kennung_fehlt` aus sendPartnerCustomerFonLink, `vertrag_offen` aus
   // activateCashregister live), seit 0.29.0 in ihrer `/v3`-Schreibweise.
   // Die uebrigen neun sind reportCustomerContract/reportCustomerVertrag
-  // (partner-core.FEHLER_KATALOG, flaeche 'api'/'beide') — dieser Endpunkt
+  // (partner-core.FEHLER_KATALOG, flaeche 'api'/'beide'); dieser Endpunkt
   // existierte in Dart 5.3.0 so wenig wie in diesem Paket.
   PARTNER_FEHLER_CODES: [
     'tax_number_missing', 'contracts_pending',
@@ -69,7 +69,7 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
 
 /**
  * Umgekehrt: Codes, die der eingefrorene Dart-Abzug noch fuehrt, dieses Paket
- * seit 0.29.0 aber nicht mehr — `kein_partnerbetrieb` und `request_not_found`
+ * seit 0.29.0 aber nicht mehr: `kein_partnerbetrieb` und `request_not_found`
  * sind admin-only (`functions-partner/partner-endpoints.js`, ausserhalb von
  * `FEHLER_KATALOG`) und erreichten `/v3` nie; sie standen bis 0.28.0
  * versehentlich in PARTNER_FEHLER_CODES (siehe Kopfkommentar in fehler.ts).
@@ -82,7 +82,7 @@ const NICHT_MEHR_OEFFENTLICH: Record<string, readonly string[]> = {
 /**
  * Codes, die der Dart-Abzug noch deutsch fuehrt und die der Server seit
  * `/v3` (0.28.0 fuer die Route, 0.29.0 fuer die Codes selbst) englisch
- * schickt. Nur fuer den Ordnungsvergleich unten — Dart bekommt nie `/v3` und
+ * schickt. Nur fuer den Ordnungsvergleich unten; Dart bekommt nie `/v3` und
  * kennt diese Schreibweise darum nicht.
  */
 const V3_UEBERSETZT: Record<string, Record<string, string>> = {

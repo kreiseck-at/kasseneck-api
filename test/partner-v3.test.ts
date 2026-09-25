@@ -170,7 +170,7 @@ test('v3: Liste und Einzelsicht fuehren fon, avv und terms so, wie der Server si
  * aus PARTNER_FEHLER_CODES streichen, dann faellt dieser Test. Die Liste der
  * Schnittstellen-Codes kommt aus dem Katalog des Backends
  * (`fehlerKatalogFuer('api')`), durch denselben Fehlerzweig wie jede echte
- * `/v3`-Antwort uebersetzt (`fehlerCodesApi` in der Fixture) — nicht von Hand.
+ * `/v3`-Antwort uebersetzt (`fehlerCodesApi` in der Fixture), nicht von Hand.
  */
 test('v3: jeder Code, den die Schnittstelle liefern kann, steht englisch in PARTNER_FEHLER_CODES und hat einen Satz', () => {
   const backend = A['fehlerCodesApi'] as string[];
@@ -237,7 +237,7 @@ test('v3: getCustomerSignatureStatus liest signature, signatures[] und requests[
 
 /**
  * Rot-Probe: in der Fixture `antragFehlgeschlagen.fehler.code` auf
- * `finanzonline_error` vorausuebersetzen (statt `fon_fehler` roh) — dann
+ * `finanzonline_error` vorausuebersetzen (statt `fon_fehler` roh): dann
  * uebersetzt der Generator gar nichts mehr, und dieser Test wuerde trotzdem
  * gruen bleiben. Er prueft darum den ECHTEN /v3-Rand: das Backend liefert
  * `fon_fehler`, `api-vokabular-v3.js` macht daraus `finanzonline_error`.
