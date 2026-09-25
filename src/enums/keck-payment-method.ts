@@ -7,6 +7,11 @@ import { defineEnum } from './define-enum.js';
  * `label` ist das deutsche Anzeige-Label fuer die Zahlungsart-Zeile auf dem Beleg.
  * Muss 1:1 mit dem Backend-Mapping `paymentMethodToString` (functions/helper.js)
  * uebereinstimmen.
+ *
+ * `mixed` vergibt nur der Server: ein Beleg mit mehreren Zahlungen
+ * verschiedener Zahlart (`payments`) traegt ihn als Einzelfeld
+ * `paymentMethod`. Lesen ist erlaubt, Senden nicht — wer mehrere Zahlarten
+ * kassiert, schickt die Zahlungsliste, nie `mixed`.
  */
 export const KeckPaymentMethod = defineEnum({
   cash: { value: 'cash', needsCreditCard: false, label: 'Barzahlung' },
@@ -18,6 +23,7 @@ export const KeckPaymentMethod = defineEnum({
   boltApp: { value: 'boltApp', needsCreditCard: false, label: 'Bolt App' },
   boltCash: { value: 'boltCash', needsCreditCard: false, label: 'Bolt Cash' },
   boltCard: { value: 'boltCard', needsCreditCard: true, label: 'Bolt Card' },
+  mixed: { value: 'mixed', needsCreditCard: false, label: 'Mehrere Zahlungsarten' },
 });
 
 export type KeckPaymentMethodKey = keyof typeof KeckPaymentMethod;

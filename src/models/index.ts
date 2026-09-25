@@ -34,6 +34,14 @@ export {
   remainingQuantities,
 } from './cancellation.js';
 export {
+  type ReceiptPayment,
+  type ReceiptPaymentPayload,
+  type ReceiptPaymentInput,
+  fromReceiptPaymentPayload,
+  toReceiptPaymentPayload,
+} from './receipt-payment.js';
+export { type PaymentErrorCode, PAYMENT_ERROR_CODES, isPaymentErrorCode } from './payment-errors.js';
+export {
   type ReceiptEmailErrorCode,
   RECEIPT_EMAIL_ERROR_CODES,
   isReceiptEmailErrorCode,

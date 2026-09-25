@@ -4,6 +4,49 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.30.0
+
+Mehrere Zahlungen je Beleg. Setzt ein Backend mit `payments` voraus (keck, live seit
+2026-09-25); gegen einen älteren Server bleibt alles ohne `payments` wie bisher. Nichts bricht:
+ein Beleg ohne Zahlungsliste liest, sendet und druckt sich byte-gleich wie in 0.29.0.
+
+- **`Receipt` und `ReceiptSummary` tragen `payments` (`ReceiptPayment[]`), wenn der Server sie
+  liefert**, je Zahlung Zahlart, `amountCents`, bei Bar `tenderedCents`/Rückgeld, bei Karte
+  Anbieter und Terminaldaten, bei Stornos `refundOf`, dazu `tipCents` (Trinkgeld je Zahlung).
+  Grund: ein Tisch zahlt mit zwei Karten und dem Rest bar, und das Einzelfeld `paymentMethod`
+  konnte das nicht abbilden. Altbelege ohne Liste lesen sich unverändert (`payments` fehlt).
+- **`KeckPaymentMethod.mixed` („Mehrere Zahlungsarten")**, nur zum Lesen. Der Server setzt ihn als
+  `paymentMethod`, wenn die Zahlungen verschiedene Zahlarten haben; wer ihn selbst sendet, wird
+  schon im Client abgewiesen. Grund: sonst wäre ein solcher Beleg für einen älteren Leser eine
+  unbekannte Zahlart; zum Kassieren gibt es die Zahlungsliste.
+- **`payments` bei `sellReceipt`, `createReceipt` und `cancelReceipt`**, mit Form- und
+  Konfliktprüfung im Client (`payments` zusammen mit `paymentMethod` oder Kartenfeldern ergibt
+  `PAYMENTS_CONFLICT`; `payments: null` gilt als nicht angegeben). Für `sellReceipt` gibt es den
+  neuen Typ `SellReceiptWithPaymentsOptions`; `SellReceiptOptions` bleibt ein `interface` und
+  bekommt nur das optionale `payments?: undefined`, damit bestehender Code unverändert kompiliert
+  und die beiden Wege sich nicht mischen lassen. Beim Storno nennt `refundOf` die Zahlung des
+  Originals, auf die zurückgezahlt wird.
+- **`PAYMENT_ERROR_CODES` (18 Codes) und `isPaymentErrorCode`**, Zwilling von
+  `ZAHLUNGS_FEHLERCODES` im Backend (gleiche Codes, gleiche Reihenfolge). `isPaymentErrorCode`
+  erkennt auch die kleingeschriebene `/v3`-Schreibweise, weil `/v3` diese Codes 1:1 klein
+  ausliefert. Grund: am Code entscheiden, nie am Text.
+- **`CANCELLATION_ERROR_CODES` um vier `STORNO_…`-Codes ergänzt** (`STORNO_PAYMENTS_REQUIRED`,
+  `STORNO_REFUND_EXCEEDS_PAYMENT`, `STORNO_REFUND_REFERENCE_REQUIRED`,
+  `STORNO_REFUND_REFERENCE_UNKNOWN`) für die Rückzahlung je Zahlung. `isCancellationErrorCode`
+  prüft weiter exakt: unter `/v3` heißen die Storno-Codes nach dem Vokabular anders (nicht bloß
+  klein), die Namen kommen mit der Umstellung des Pakets auf `/v3`.
+- **Beleg-Layout: bei mehr als einer Zahlung eine nummerierte Aufschlüsselung** unter „Gesamt:"
+  („Zahlungsarten:", dann „1. Kartenzahlung", „2. Barzahlung" … samt Betrag; der Betrag bricht
+  auf 58 mm nie). Darunter eingerückt „davon Trinkgeld", „Gegeben" und „Rückgeld" der jeweiligen
+  Zahlung; die Kartenblöcke kommen je Zahlung in Zahlungsreihenfolge, jeweils mit derselben
+  Nummer darüber. Grund: auf dem Bon muss nachvollziehbar sein, welcher Betrag wie bezahlt wurde
+  und zu welcher Zahlung ein Terminal-Block gehört.
+- **Bei genau einer Zahlung bleibt der Beleg wie bisher**, nur „davon Trinkgeld", „Gegeben" und
+  „Rückgeld" stehen jetzt eingerückt unter „Zahlungsart:". Ohne Zahlungsliste ändert sich nichts:
+  alle bisherigen Vertragsbeispiele (`fixtures/erwartet`) und der Bytestrom-Zwilling sind
+  unverändert. Neu sind neun Beispiele `split-*`/`storno-split-*` (Karte+Karte+Bar,
+  Tischrunde mit Trinkgeld, Rückgeld, langer Betrag, Voll- und Teilstorno).
+
 ## 0.29.0
 
 - **Bricht `./partner` (und nur das): `PARTNER_FEHLER_CODES` ist jetzt durchgehend englisch,

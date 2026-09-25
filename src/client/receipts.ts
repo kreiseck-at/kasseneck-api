@@ -29,6 +29,7 @@ import {
   type CancellationOf,
   type CancellationReason,
   isCancellationReason,
+  type ReceiptPaymentInput,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
@@ -128,12 +129,34 @@ export interface CreateReceiptOptions extends ReceiptCommonOptions {
    * ausdruecklich uebergebene `paymentMethod` sticht.
    */
   paymentMethodFromServer?: string;
+  /**
+   * Mehrere Zahlungen je Beleg (siehe [ReceiptPaymentInput]). Schliesst
+   * `paymentMethod`, `paymentMethodFromServer` und die Kartenfelder aus —
+   * die Kartenangaben gehoeren dann in die einzelne Zahlung (Backend:
+   * `PAYMENTS_CONFLICT`). Nur bei `standard` und `training`.
+   */
+  payments?: ReceiptPaymentInput[];
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
 
+/** Verkauf mit einer Zahlungsart (`paymentMethod`, Kartenfelder aus [ReceiptCommonOptions]). */
 export interface SellReceiptOptions extends ReceiptCommonOptions {
   paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey;
+  payments?: undefined;
+  items?: ReceiptItem[];
+  vouchers?: Voucher[];
+}
+
+/**
+ * Verkauf mit mehreren Zahlungen (`payments`, siehe [ReceiptPaymentInput]).
+ * Ohne `paymentMethod` und ohne die Kartenfelder aus [ReceiptCommonOptions] —
+ * die Kartenangaben stehen in der einzelnen Zahlung (Backend:
+ * `PAYMENTS_CONFLICT`, zur Laufzeit ebenso geprueft).
+ */
+export interface SellReceiptWithPaymentsOptions extends ReceiptCommonOptions {
+  payments: ReceiptPaymentInput[];
+  paymentMethod?: undefined;
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
@@ -166,6 +189,14 @@ export type CancelReceiptOptions = {
   creditCardProvider?: CreditCardProvider;
   cardPaymentId?: string;
   cardPaymentData?: Record<string, unknown>;
+  /**
+   * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
+   * Originalzahlung). Schliesst `paymentMethod` und die Kartenfelder aus
+   * (Backend: `PAYMENTS_CONFLICT`). Ohne Angabe spiegelt der Server die
+   * Restbetraege jeder Originalzahlung; ein Teilstorno eines Belegs mit
+   * mehreren Zahlungen braucht sie (`STORNO_PAYMENTS_REQUIRED`).
+   */
+  payments?: ReceiptPaymentInput[];
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -269,6 +300,22 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
   }
 
+  // `payments: null` gilt wie im Backend (zahlungs-eingang.js) als nicht angegeben.
+  if (options.payments != null) {
+    // Der alte Storno-Weg und der Null-/Startbeleg nehmen keine Zahlungsliste
+    // (Backend: PAYMENTS_NOT_ALLOWED); ein Storno mit mehreren Zahlungen
+    // laeuft ueber cancelReceipt.
+    if (typ.value === ReceiptType.cancellation.value) {
+      throw eingabefehler('payments am Storno gehen nur ueber cancelReceipt.');
+    }
+    if (typ.value !== ReceiptType.standard.value && typ.value !== ReceiptType.training.value) {
+      throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
+    }
+    const konflikt = zahlungsKonflikt(options);
+    if (konflikt != null) throw eingabefehler(konflikt);
+    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt');
+  }
+
   // Vom Aufrufer kommt sie geprueft, vom Server roh — siehe die beiden Felder
   // in [CreateReceiptOptions]. Die Typpruefung allein reicht dafuer nicht: ein
   // Verbraucher ohne Typen faellt durch dieses Netz, und ein Tippfehler in der
@@ -314,7 +361,7 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 }
 
 /** Normalbeleg (Verkauf) nach RKSV. */
-export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
+export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt> {
   return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
 }
 
@@ -324,7 +371,7 @@ export function sellReceipt(rufen: InternerTransport, options: SellReceiptOption
  */
 export function sellReceiptWithCompany(
   rufen: InternerTransport,
-  options: SellReceiptOptions,
+  options: SellReceiptOptions | SellReceiptWithPaymentsOptions,
 ): Promise<ReceiptWithCompany> {
   return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
 }
@@ -362,9 +409,12 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
     throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
   }
+  // `payments: null` gilt wie im Backend als nicht angegeben.
+  const zahlungen = options.payments != null ? gepruefteStornoZahlungen(options) : undefined;
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
   if (options.note !== undefined && options.note !== '') params.note = options.note;
+  if (zahlungen !== undefined) params.payments = zahlungen;
   if (options.paymentMethod != null) params.paymentMethod = gepruefteZahlungsart(options.paymentMethod);
   const karte = options.creditCardProvider != null || options.cardPaymentId != null || options.cardPaymentData != null;
   if (karte) {
@@ -820,15 +870,116 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   return nutzlast;
 }
 
-/** Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht. */
+/**
+ * Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht.
+ * `mixed` wirft ebenfalls: den Wert vergibt nur der Server (Beleg mit
+ * mehreren Zahlarten); gesendet wird stattdessen die Zahlungsliste.
+ */
 function gepruefteZahlungsart(wert: KeckPaymentMethod | KeckPaymentMethodKey): string {
-  if (typeof wert === 'object') {
-    return wert.value;
+  let zahlungsart: string;
+  if (typeof wert === 'object' && wert !== null) {
+    zahlungsart = wert.value;
+  } else {
+    if (typeof wert !== 'string' || !Object.prototype.hasOwnProperty.call(KeckPaymentMethod, wert)) {
+      throw eingabefehler(`Zahlungsart: unbekannter Schluessel "${String(wert)}"`);
+    }
+    zahlungsart = KeckPaymentMethod[wert as KeckPaymentMethodKey].value;
   }
-  if (!Object.prototype.hasOwnProperty.call(KeckPaymentMethod, wert)) {
-    throw eingabefehler(`Zahlungsart: unbekannter Schluessel "${wert}"`);
+  if (zahlungsart === KeckPaymentMethod.mixed.value) {
+    throw eingabefehler('Zahlungsart "mixed" vergibt nur der Server – mehrere Zahlarten gehen als payments hinaus.');
   }
-  return KeckPaymentMethod[wert as KeckPaymentMethodKey].value;
+  return zahlungsart;
+}
+
+/** Hoechstzahl der Zahlungen je Beleg (Backend: MAX_ZAHLUNGEN). */
+const MAX_ZAHLUNGEN = 20;
+
+/**
+ * `payments` neben einer Einzel-Zahlungsart oder Kartenfeldern? Liefert den
+ * Grund (Backend: PAYMENTS_CONFLICT), sonst null. Nie still eines bevorzugen.
+ */
+function zahlungsKonflikt(options: {
+  paymentMethod?: unknown;
+  paymentMethodFromServer?: unknown;
+  creditCardProvider?: unknown;
+  cardPaymentId?: unknown;
+  cardPaymentData?: unknown;
+}): string | null {
+  for (const feld of ['paymentMethod', 'paymentMethodFromServer', 'creditCardProvider', 'cardPaymentId', 'cardPaymentData'] as const) {
+    if (options[feld] != null) {
+      return `payments und ${feld} duerfen nicht gemeinsam gesendet werden – Kartenangaben gehoeren in die Zahlung.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Zahlungsliste pruefen und in Nutzlast-Form bringen — Formpruefung wie
+ * `pruefeZahlungen` im Backend, soweit sie ohne Beleg und Zahlbetrag geht
+ * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
+ * etwas hinausgeht.
+ */
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string): Record<string, unknown>[] {
+  const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
+  if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
+  if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
+  return roh.map((eintrag: unknown, i) => {
+    const nr = i + 1;
+    if (eintrag == null || typeof eintrag !== 'object' || Array.isArray(eintrag)) {
+      throw fehler(`Zahlung ${nr}: kein gueltiges Objekt.`);
+    }
+    const z = eintrag as Record<string, unknown>;
+    const method = gepruefteZahlungsart(z['method'] as KeckPaymentMethod | KeckPaymentMethodKey);
+    const betrag = z['amountCents'];
+    if (typeof betrag !== 'number' || !Number.isInteger(betrag) || (storno ? betrag >= 0 : betrag <= 0)) {
+      throw fehler(`Zahlung ${nr}: amountCents muss eine ganze Zahl ${storno ? 'kleiner' : 'groesser'} als 0 sein.`);
+    }
+    const aus: Record<string, unknown> = { method, amountCents: betrag };
+    if (z['tenderedCents'] !== undefined) {
+      const gegeben = z['tenderedCents'];
+      if (storno || typeof gegeben !== 'number' || !Number.isInteger(gegeben) || gegeben < betrag) {
+        throw fehler(`Zahlung ${nr}: tenderedCents muss eine ganze Zahl von mindestens amountCents sein (nur am Verkauf).`);
+      }
+      aus['tenderedCents'] = gegeben;
+    }
+    if (z['tipCents'] !== undefined) {
+      const trinkgeld = z['tipCents'];
+      if (typeof trinkgeld !== 'number' || !Number.isInteger(trinkgeld) || trinkgeld <= 0) {
+        throw fehler(`Zahlung ${nr}: tipCents muss eine ganze Zahl groesser als 0 sein.`);
+      }
+      aus['tipCents'] = trinkgeld;
+    }
+    if (z['provider'] !== undefined) {
+      aus['provider'] = kartenanbieter(String(z['provider']));
+    }
+    if (z['providerPaymentId'] !== undefined) {
+      if (typeof z['providerPaymentId'] !== 'string' || z['providerPaymentId'] === '') {
+        throw fehler(`Zahlung ${nr}: providerPaymentId muss ein nicht-leerer Text sein.`);
+      }
+      aus['providerPaymentId'] = z['providerPaymentId'];
+    }
+    if (z['providerData'] !== undefined) {
+      const daten = z['providerData'];
+      if (daten === null || typeof daten !== 'object' || Array.isArray(daten)) {
+        throw fehler(`Zahlung ${nr}: providerData muss ein Objekt sein.`);
+      }
+      aus['providerData'] = daten;
+    }
+    if (z['refundOf'] !== undefined) {
+      if (!storno || typeof z['refundOf'] !== 'string' || z['refundOf'] === '') {
+        throw fehler(`Zahlung ${nr}: refundOf gibt es nur am Storno, als id der Originalzahlung.`);
+      }
+      aus['refundOf'] = z['refundOf'];
+    }
+    return aus;
+  });
+}
+
+/** `payments` am Storno: Konflikt mit Zahlungsart/Kartenfeldern, dann Form. */
+function gepruefteStornoZahlungen(options: CancelReceiptOptions): Record<string, unknown>[] {
+  const konflikt = zahlungsKonflikt(options);
+  if (konflikt != null) throw new KasseneckValidationError('cancelReceipt', konflikt, 'request');
+  return gepruefteZahlungen(options.payments, true, 'cancelReceipt');
 }
 
 /** Kartenanbieter pruefen — er stammt vom Aufrufer, nicht aus Serverdaten. */

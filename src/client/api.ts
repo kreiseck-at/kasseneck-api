@@ -27,6 +27,7 @@ import {
   type ReceiptList,
   type ReceiptWithCompany,
   type SellReceiptOptions,
+  type SellReceiptWithPaymentsOptions,
   type CancelReceiptOptions,
   type CancelReceiptResult,
   type CreateCancelReceiptOptions,
@@ -60,9 +61,9 @@ import { renewRegisterSession, endRegisterSession } from '../register/session.js
  */
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
-  sellReceipt(options: SellReceiptOptions): Promise<Receipt>;
+  sellReceipt(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt>;
   /** Normalbeleg samt Firmen-/Druckdaten fuer den Belegdruck. */
-  sellReceiptWithCompany(options: SellReceiptOptions): Promise<ReceiptWithCompany>;
+  sellReceiptWithCompany(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<ReceiptWithCompany>;
   /** Storno eines bestehenden Belegs — voll oder in Teilen, ueber den Storno-Endpunkt. */
   cancelReceipt(options: CancelReceiptOptions): Promise<CancelReceiptResult>;
   /** Storno aus frei uebergebenen Positionen. */

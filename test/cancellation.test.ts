@@ -56,18 +56,26 @@ test('remainingQuantities: Belegmengen minus Stornos und frische Reservierungen,
   assert.deepEqual(remainingQuantities(fromReceiptPayload(NUTZLAST), jetzt), [4, 1]);
 });
 
-// Fehlercodes: dieselbe Liste wie functions/storno-core.js STORNO_FEHLERCODES.
+// Fehlercodes: dieselbe Liste wie functions/gemeinsam/storno-core.js STORNO_FEHLERCODES.
 // Die Kasse entscheidet am Code (KasseneckApiError.code), nie am Text.
-test('Fehlercode-Katalog: dieselben vierzehn Codes wie das Backend, als Liste und Waechter', () => {
+test('Fehlercode-Katalog: dieselben achtzehn Codes wie das Backend, als Liste und Waechter', () => {
   assert.deepEqual([...CANCELLATION_ERROR_CODES], [
     'beleg_nicht_gefunden', 'belegart_nicht_stornierbar', 'trainingsbeleg', 'bereits_storniert',
     'position_ungueltig', 'menge_ueber_rest', 'grund_unbekannt', 'anmerkung_zu_lang', 'items_ungueltig',
     'kasse_nicht_zugewiesen', 'keine_berechtigung', 'nur_eigene_belege', 'kasse_unvollstaendig',
     'storno_fehlgeschlagen',
+    'STORNO_PAYMENTS_REQUIRED', 'STORNO_REFUND_EXCEEDS_PAYMENT', 'STORNO_REFUND_REFERENCE_REQUIRED',
+    'STORNO_REFUND_REFERENCE_UNKNOWN',
   ]);
   assert.equal(isCancellationErrorCode('bereits_storniert'), true);
+  assert.equal(isCancellationErrorCode('STORNO_REFUND_EXCEEDS_PAYMENT'), true);
   assert.equal(isCancellationErrorCode('Beleg ist bereits vollständig storniert.'), false);
   assert.equal(isCancellationErrorCode(undefined), false);
+  assert.equal(isCancellationErrorCode(42), false);
+  // Exakter Vergleich: die /v3-Namen (functions/gemeinsam/api-vokabular-v3.js)
+  // sind umbenannt, nicht nur klein geschrieben, und kommen erst mit /v3.
+  assert.equal(isCancellationErrorCode('storno_payments_required'), false);
+  assert.equal(isCancellationErrorCode('BEREITS_STORNIERT'), false);
 });
 
 // Der gewaehrte Rabattgutschein-Ausgleich je Eintrag (Cent je Steuertopf) muss
