@@ -306,6 +306,16 @@ export const STORNO_ZAHLUNG_FEHLER = {
 export type StornoZahlungFehlercode = keyof typeof STORNO_ZAHLUNG_FEHLER;
 
 /**
+ * Der Satz zu einem `code` des Backends beim Storno mit mehreren Zahlungen.
+ * Einen Code, den dieses Paket noch nicht kennt, faengt der allgemeine Satz
+ * `storno.fehlgeschlagen` auf – wie bei `belegMailFehler`.
+ */
+export function stornoZahlungFehler(code: string | undefined | null): MeldungsSchluessel {
+  const fehler: Record<string, MeldungsSchluessel> = STORNO_ZAHLUNG_FEHLER;
+  return (code !== undefined && code !== null && fehler[code]) || 'storno.fehlgeschlagen';
+}
+
+/**
  * Beschriftungen: Knoepfe, Ueberschriften, Zeilennamen – was kein Satz ist.
  *
  * Getrennt von MELDUNGEN, weil dort jeder Eintrag ein Satz ist (gross am

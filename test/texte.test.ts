@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler, beschriftung, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
+import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler, stornoZahlungFehler, beschriftung, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
 import type { MeldungsSchluessel } from '../src/kasse/texte.js';
 import { CANCELLATION_ERROR_CODES } from '../src/models/cancellation.js';
 import { PAYMENT_ERROR_CODES } from '../src/models/payment-errors.js';
@@ -294,4 +294,13 @@ test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
   assert.equal(beschriftung('getrennt.knopf'), 'Getrennt');
   assert.equal(beschriftung('getrennt.einstellung'), 'Getrennt zahlen');
   assert.throws(() => beschriftung('getrennt.zahlung'), /\{n\}/);
+});
+
+test('stornoZahlungFehler faengt jeden unbekannten Code mit dem allgemeinen Storno-Satz auf', () => {
+  for (const [code, schluessel] of Object.entries(STORNO_ZAHLUNG_FEHLER)) {
+    assert.equal(stornoZahlungFehler(code), schluessel, code);
+  }
+  for (const unbekannt of ['GIBT_ES_NICHT', '', undefined, null]) {
+    assert.equal(stornoZahlungFehler(unbekannt), 'storno.fehlgeschlagen', String(unbekannt));
+  }
 });
