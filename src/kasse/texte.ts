@@ -62,7 +62,7 @@ const MELDUNGEN_ROH = {
   'abschluss.unklar': { text: 'Unklar, ob der Beleg entstanden ist — die Antwort kam nicht an. Bitte nicht noch einmal abschließen: der Beleg kann bereits erstellt und signiert sein. Im Panel unter „Belege“ nachsehen; nur wenn er dort fehlt, den Verkauf erneut abschließen.' },
   'abschluss.nullbeleg_fehlgeschlagen': { text: 'Der Nullbeleg konnte nicht erstellt werden.' },
   'abschluss.signatur_ausgefallen': { text: 'Die Signatureinheit hat nicht geantwortet. Der Beleg ist gültig und trägt den Vermerk „Sicherheitseinrichtung ausgefallen“.' },
-  // Erledigen darf nur bestaetigen, was am Server auch wirklich steht — sonst
+  // Erledigen darf nur bestaetigen, was am Server auch wirklich steht – sonst
   // gilt ein Betrag als abgehakt, zu dem es nie einen Beleg gab.
   'abschluss.erledigen_frage': { text: 'Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {betrag} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.', platzhalter: ['betrag'] },
 
@@ -81,11 +81,11 @@ const MELDUNGEN_ROH = {
   'kartenzahlung.karte_gebucht_beleg_offen': { text: 'Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.', platzhalter: ['betrag', 'kennung'] },
   'kartenzahlung.karte_gebucht_korb_geaendert': { text: 'Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.', platzhalter: ['betrag', 'kennung'] },
   'kartenzahlung.connect_nicht_verbunden': { text: 'Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.', nur: ['web'] },
-  // Solange die Karte belastet ist, darf am Korb nichts mehr veraendert werden —
+  // Solange die Karte belastet ist, darf am Korb nichts mehr veraendert werden –
   // sonst passt der Beleg nicht mehr zum Betrag, der schon abgebucht ist.
   'kartenzahlung.korb_gesperrt_karte_belastet': { text: 'Die Karte ist bereits belastet – Warenkorb, Rabatt und Trinkgeld bleiben gesperrt, bis der Beleg entsteht oder die Karte zurückerstattet ist.' },
   // Entkoppeln trennt das Geraet vom Konto, nicht die gebuchte Kartenzahlung
-  // vom Terminal — die muss weiterhin von Hand storniert werden.
+  // vom Terminal – die muss weiterhin von Hand storniert werden.
   'kartenzahlung.entkoppeln_karte_belastet': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Terminal zurückerstattet werden (Betrag siehe unten).' },
   'terminal.keines_gefunden': { text: 'Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'terminal.nicht_bereit': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {antwort} — TID prüfen.', platzhalter: ['antwort'], nur: ['web'] },
@@ -137,6 +137,10 @@ const MELDUNGEN_ROH = {
   // klar ist, ob das Storno steht, darf keine Gutschrift laufen -- sonst geht
   // Geld zurueck ohne Storno-Beleg.
   'storno.ergebnis_unklar_karten': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg am Terminal gutschreiben.' },
+  // Die Liste der Karten nach dem gebuchten Storno wird geschlossen, obwohl
+  // nicht jede Karte abgehakt ist: einmal nachfragen -- eine vergessene
+  // Gutschrift faellt sonst erst dem Gast auf.
+  'storno.karten_nicht_abgehakt': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede am Terminal gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -156,7 +160,7 @@ const MELDUNGEN_ROH = {
   'getrennt.karte_zurueckbuchen_fehlgeschlagen': { text: 'Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.', platzhalter: ['betrag', 'kennung'] },
   'getrennt.karte_zurueckbuchen_unklar': { text: 'Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.', platzhalter: ['betrag', 'kennung'] },
   // Das Terminal meldet eine Gutschrift, die hier noch als offene Ruecknahme
-  // steht — ein zweites Zurueckbuchen waere die doppelte Rueckgabe.
+  // steht – ein zweites Zurueckbuchen waere die doppelte Rueckgabe.
   'getrennt.karte_bereits_zurueckgebucht': { text: 'Das Terminal meldet, dass die Kartenzahlung über {betrag} bereits gutgeschrieben wurde (Kennung {kennung}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.', platzhalter: ['betrag', 'kennung'] },
   'getrennt.extern_zurueckbuchen': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.', platzhalter: ['betrag'] },
   'getrennt.sitzung_offen': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', platzhalter: ['betrag'] },

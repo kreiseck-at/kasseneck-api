@@ -234,7 +234,7 @@ test('der Wizard fragt, bevor er speichert, und sagt beim Abbruch, dass nichts b
 // wird nie umgedeutet, und ein Wortlaut aendert sich nicht nebenbei.
 const getrenntNeu = [
   ...Object.keys(MELDUNGEN).filter((s) => s.startsWith('getrennt.') || Object.values(STORNO_ZAHLUNG_FEHLER).includes(s as never)
-    || s === 'storno.karten_gutschreiben' || s === 'storno.ergebnis_unklar_karten').map((s) => MELDUNGEN[s as MeldungsSchluessel].text),
+    || s === 'storno.karten_gutschreiben' || s === 'storno.ergebnis_unklar_karten' || s === 'storno.karten_nicht_abgehakt').map((s) => MELDUNGEN[s as MeldungsSchluessel].text),
   ...Object.values(BESCHRIFTUNGEN).map((b) => b.text),
 ];
 
@@ -351,4 +351,13 @@ test('ein offener Storno-Ausgang mit Karten haelt die Gutschrift zurueck, bis da
 
 test('Getrennt zahlen: erneutes Zurueckbuchen heisst in beiden Kassen gleich', () => {
   assert.equal(beschriftung('getrennt.erneut_zurueckbuchen'), 'Erneut zurückbuchen');
+});
+
+test('Storno: nicht abgehakte Karten fragen vor dem Schliessen einmal nach', () => {
+  const eintrag = MELDUNGEN['storno.karten_nicht_abgehakt'];
+  assert.equal(eintrag.platzhalter, undefined);
+  assert.equal(eintrag.nur, undefined);
+  assert.match(eintrag.text, /am Terminal gutschreiben/);
+  assert.match(eintrag.text, /noch einmal drücken/);
+  assert.ok(!eintrag.text.includes('\u2014'));
 });
