@@ -10,6 +10,11 @@ Texte und Einstellung für „Getrennt zahlen" an der Kasse (ein Tisch zahlt in 
 mehreren Zahlungen). Nur Texte, eine Einstellung und eine Tasten-Aktion; kein Aufruf und kein
 Rechenweg ändert sich.
 
+- **`tenderedCents` an jeder Barzahlung**: die Doku an `ReceiptPaymentInput` und
+  `PAYMENT_TENDERED_INVALID` sagte „höchstens an einer Zahlung“. Das Backend erlaubt jetzt jeder
+  Barzahlung ihren eigenen gegebenen Betrag. Grund: beim getrennten Zahlen gibt jeder Gast selbst,
+  der Bon zeigte Gegeben/Rückgeld aber nur beim letzten. Der Bon druckte schon je Zahlung; ein Test
+  hält drei Barzahlungen mit je eigenem Rückgeld fest.
 - **Neue Sätze in `MELDUNGEN`** unter `getrennt.*` (Hinweis zur Einstellung, Prüfungen der
   Teilzahlung, gesperrter Warenkorb, Rückbuchung bar/Terminal/Karte ohne Anbindung, angefangene
   Sitzung nach dem Neuladen) und unter `storno.*` (Rückgabe je Zahlung, Karten nach dem Storno von Hand gutschreiben).

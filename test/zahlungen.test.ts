@@ -240,6 +240,22 @@ test('sellReceipt mit payments: Liste geht in Backend-Form hinaus, kein paymentM
   assert.equal(beleg.payments?.length, 2);
 });
 
+test('sellReceipt getrennt bar: jede Barzahlung behaelt ihr tenderedCents', async () => {
+  const { rufen, aufrufe } = weg(VERKAUF);
+  await sellReceipt(rufen, {
+    items: [MENUE],
+    payments: [
+      { method: 'cash', amountCents: 2000, tenderedCents: 5000 },
+      { method: 'cash', amountCents: 2545, tenderedCents: 3000 },
+    ],
+  });
+  const { params } = gesendet(aufrufe);
+  assert.deepEqual(params['payments'], [
+    { method: 'cash', amountCents: 2000, tenderedCents: 5000 },
+    { method: 'cash', amountCents: 2545, tenderedCents: 3000 },
+  ]);
+});
+
 test('createReceipt mit payments und Trinkgeld: tip.paymentMethod geht mit', async () => {
   const { rufen, aufrufe } = weg(VERKAUF);
   await createReceipt(rufen, {

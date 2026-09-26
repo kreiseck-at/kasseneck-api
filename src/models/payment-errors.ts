@@ -20,7 +20,7 @@ export const PAYMENT_ERROR_CODES = Object.freeze([
   'PAYMENTS_INVALID',             // payments ist keine Liste oder hat mehr als 20 Eintraege
   'PAYMENT_METHOD_INVALID',       // Zahlart unbekannt oder mixed
   'PAYMENT_AMOUNT_INVALID',       // amountCents keine Ganzzahl, 0 oder falsches Vorzeichen
-  'PAYMENT_TENDERED_INVALID',     // tenderedCents an Nicht-Bar-Zahlung, zu klein oder doppelt
+  'PAYMENT_TENDERED_INVALID',     // tenderedCents an Nicht-Bar-Zahlung, zu klein oder am Storno
   'PAYMENT_PROVIDER_INVALID',     // Karte ohne/mit unbekanntem provider, providerPaymentId fehlt
   'PAYMENT_PROVIDER_NOT_ALLOWED', // Anbieterfelder an einer Zahlung, die weder Karte noch online ist
   'PAYMENTS_SUM_MISMATCH',        // Summe != Zahlbetrag (Antwort nennt data.expectedCents)
