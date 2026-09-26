@@ -116,6 +116,16 @@ export interface Cancellation {
    * nichts gewaehrt (Altbestand vor dieser Regel) — der naechste Storno holt nach.
    */
   promoAdjustmentCents?: Record<string, number>;
+  /**
+   * Rueckzahlung je Zahlung, die DIESER Storno-Eintrag auf eine Zahlung des
+   * Originals verbucht hat (`refundOf`) -- Zahlungs-ID auf positive Cent,
+   * Zwilling von `functions/gemeinsam/storno-core.js` `refundedByPayment`.
+   * Ueber alle Eintraege darf je Zahlung nie mehr zurueck, als bezahlt wurde
+   * (siehe dort `restJeZahlung`). Ein Eintrag ohne das Feld (vor dieser Regel
+   * oder ohne Zahlungsmodell gebucht) zaehlt dabei 0 je Zahlung. Auch am
+   * `pending`-Eintrag vorhanden, sobald reserviert wird.
+   */
+  refundedByPayment?: Record<string, number>;
 }
 
 /** Ab wann eine liegengebliebene Reservierung nicht mehr zaehlt (wie im Backend). */

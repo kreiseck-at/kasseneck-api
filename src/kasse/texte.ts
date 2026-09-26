@@ -62,6 +62,9 @@ const MELDUNGEN_ROH = {
   'abschluss.unklar': { text: 'Unklar, ob der Beleg entstanden ist — die Antwort kam nicht an. Bitte nicht noch einmal abschließen: der Beleg kann bereits erstellt und signiert sein. Im Panel unter „Belege“ nachsehen; nur wenn er dort fehlt, den Verkauf erneut abschließen.' },
   'abschluss.nullbeleg_fehlgeschlagen': { text: 'Der Nullbeleg konnte nicht erstellt werden.' },
   'abschluss.signatur_ausgefallen': { text: 'Die Signatureinheit hat nicht geantwortet. Der Beleg ist gültig und trägt den Vermerk „Sicherheitseinrichtung ausgefallen“.' },
+  // Erledigen darf nur bestaetigen, was am Server auch wirklich steht — sonst
+  // gilt ein Betrag als abgehakt, zu dem es nie einen Beleg gab.
+  'abschluss.erledigen_frage': { text: 'Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {betrag} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.', platzhalter: ['betrag'] },
 
   // --- Kartenzahlung -------------------------------------------------------
   'kartenzahlung.nicht_moeglich': { text: 'Kartenzahlung nicht möglich.' },
@@ -78,6 +81,12 @@ const MELDUNGEN_ROH = {
   'kartenzahlung.karte_gebucht_beleg_offen': { text: 'Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.', platzhalter: ['betrag', 'kennung'] },
   'kartenzahlung.karte_gebucht_korb_geaendert': { text: 'Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.', platzhalter: ['betrag', 'kennung'] },
   'kartenzahlung.connect_nicht_verbunden': { text: 'Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden — Einstellungen → Kasseneck Connect.', nur: ['web'] },
+  // Solange die Karte belastet ist, darf am Korb nichts mehr veraendert werden —
+  // sonst passt der Beleg nicht mehr zum Betrag, der schon abgebucht ist.
+  'kartenzahlung.korb_gesperrt_karte_belastet': { text: 'Die Karte ist bereits belastet – Warenkorb, Rabatt und Trinkgeld bleiben gesperrt, bis der Beleg entsteht oder die Karte zurückerstattet ist.' },
+  // Entkoppeln trennt das Geraet vom Konto, nicht die gebuchte Kartenzahlung
+  // vom Terminal — die muss weiterhin von Hand storniert werden.
+  'kartenzahlung.entkoppeln_karte_belastet': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Terminal zurückerstattet werden (Betrag siehe unten).' },
   'terminal.keines_gefunden': { text: 'Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'terminal.nicht_bereit': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {antwort} — TID prüfen.', platzhalter: ['antwort'], nur: ['web'] },
   'gptom.app_fehlt': { text: 'Die GP-Tom-App ist auf diesem Gerät nicht da.', nur: ['app'] },
@@ -124,7 +133,17 @@ const MELDUNGEN_ROH = {
   // Rueckgabe vermutet.
   'storno.gutschrift_laeuft': { text: 'Gutschrift über {betrag} am Terminal …', platzhalter: ['betrag'] },
   'storno.gutschrift_fehlgeschlagen': { text: 'Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet.' },
+  // Die Verbindung zum Terminal riss waehrend der Gutschrift ab: anders als bei
+  // storno.gutschrift_fehlgeschlagen ist hier offen, ob die Gutschrift durchging.
+  'storno.gutschrift_unklar': { text: 'Unklar, ob die Gutschrift über {betrag} am Terminal durchgegangen ist – das Storno wurde nicht gesendet. Bitte am Terminal-Beleg nachsehen, bevor es erneut versucht wird.', platzhalter: ['betrag'] },
   'storno.extern_gutschreiben': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.', platzhalter: ['betrag'] },
+  // Die Gutschrift ist am Terminal gebucht, das Storno selbst aber nicht — der
+  // teuerste Zustand: eine zweite Gutschrift waere die doppelte Rueckgabe.
+  'storno.gutgeschrieben_nicht_gebucht': { text: 'Die Karte wurde am Terminal mit {betrag} gutgeschrieben (Kennung {kennung}), aber das Storno wurde nicht gebucht – nicht erneut gutschreiben, sondern das Storno wiederholen oder im Panel klären.', platzhalter: ['betrag', 'kennung'] },
+  // Eine liegengebliebene, gespeicherte Gutschrift stammt aus einem
+  // abgebrochenen Storno-Versuch — sie muss geklaert werden, bevor neu
+  // storniert wird, sonst zaehlt sie doppelt.
+  'storno.gutschrift_pruefen': { text: 'Am Gerät liegt eine gespeicherte Gutschrift zu diesem Beleg aus einem früheren Storno-Versuch – bitte Belegliste oder Terminal prüfen und die Gutschrift übernehmen oder verwerfen.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -143,6 +162,9 @@ const MELDUNGEN_ROH = {
   'getrennt.karte_zurueckgebucht': { text: 'Die Kartenzahlung über {betrag} ist am Terminal zurückgebucht.', platzhalter: ['betrag'] },
   'getrennt.karte_zurueckbuchen_fehlgeschlagen': { text: 'Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.', platzhalter: ['betrag', 'kennung'] },
   'getrennt.karte_zurueckbuchen_unklar': { text: 'Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.', platzhalter: ['betrag', 'kennung'] },
+  // Das Terminal meldet eine Gutschrift, die hier noch als offene Ruecknahme
+  // steht — ein zweites Zurueckbuchen waere die doppelte Rueckgabe.
+  'getrennt.karte_bereits_zurueckgebucht': { text: 'Das Terminal meldet, dass die Kartenzahlung über {betrag} bereits gutgeschrieben wurde (Kennung {kennung}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.', platzhalter: ['betrag', 'kennung'] },
   'getrennt.extern_zurueckbuchen': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.', platzhalter: ['betrag'] },
   'getrennt.sitzung_offen': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', platzhalter: ['betrag'] },
   'getrennt.sitzung_unlesbar': { text: 'Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen.' },
@@ -338,6 +360,13 @@ export function stornoZahlungFehler(code: string | undefined | null): MeldungsSc
  * „Zahlung {n}", „davon Trinkgeld").
  */
 const BESCHRIFTUNGEN_ROH = {
+  // --- Allgemein -------------------------------------------------------------
+  'allgemein.abbrechen': { text: 'Abbrechen' },
+
+  // --- Abschluss -------------------------------------------------------------
+  'abschluss.beleg_vorhanden': { text: 'Beleg ist vorhanden – erledigen' },
+  'abschluss.erledigen': { text: 'Erledigen' },
+
   // --- Getrennt zahlen -----------------------------------------------------
   'getrennt.knopf': { text: 'Getrennt' },
   'getrennt.einstellung': { text: 'Getrennt zahlen' },
@@ -356,6 +385,12 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.weiter_kassieren': { text: 'Weiter kassieren' },
   'getrennt.alles_zurueckbuchen': { text: 'Alles zurückbuchen' },
   'getrennt.am_terminal_zurueckgebucht': { text: 'Am Terminal zurückgebucht' },
+  'getrennt.karte_zurueckbuchen': { text: 'Karte zurückbuchen' },
+  'getrennt.trotzdem_neu_koppeln': { text: 'Trotzdem neu koppeln' },
+  'getrennt.zahlung_behalten': { text: 'Zahlung behalten' },
+  'getrennt.klaeren': { text: 'Klären' },
+  'getrennt.wurde_belastet': { text: 'Wurde belastet – übernehmen' },
+  'getrennt.nicht_belastet': { text: 'Nicht belastet – verwerfen' },
 
   // --- Zahlarten in Listen (Kassieren, Storno, Belegliste) -----------------
   'zahlart.kartenzahlung': { text: 'Kartenzahlung' },
@@ -371,6 +406,8 @@ const BESCHRIFTUNGEN_ROH = {
   'storno.alles_bar': { text: 'Alles bar' },
   'storno.rest_der_zahlung': { text: 'Rest {betrag}', platzhalter: ['betrag'] },
   'storno.am_terminal_gutgeschrieben': { text: 'Am Terminal gutgeschrieben' },
+  'storno.nicht_gutgeschrieben': { text: 'Nicht gutgeschrieben' },
+  'storno.differenz': { text: 'Differenz' },
 } as const satisfies Record<string, Meldung>;
 
 export type BeschriftungsSchluessel = keyof typeof BESCHRIFTUNGEN_ROH;

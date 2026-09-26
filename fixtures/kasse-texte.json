@@ -91,6 +91,12 @@
     "abschluss.signatur_ausgefallen": {
       "text": "Die Signatureinheit hat nicht geantwortet. Der Beleg ist gültig und trägt den Vermerk „Sicherheitseinrichtung ausgefallen“."
     },
+    "abschluss.erledigen_frage": {
+      "text": "Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {betrag} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
     "kartenzahlung.nicht_moeglich": {
       "text": "Kartenzahlung nicht möglich."
     },
@@ -134,6 +140,12 @@
       "nur": [
         "web"
       ]
+    },
+    "kartenzahlung.korb_gesperrt_karte_belastet": {
+      "text": "Die Karte ist bereits belastet – Warenkorb, Rabatt und Trinkgeld bleiben gesperrt, bis der Beleg entsteht oder die Karte zurückerstattet ist."
+    },
+    "kartenzahlung.entkoppeln_karte_belastet": {
+      "text": "Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Terminal zurückerstattet werden (Betrag siehe unten)."
     },
     "terminal.keines_gefunden": {
       "text": "Kein Hobex-Terminal gefunden — ist es eingeschaltet und im selben Netz wie dieser Rechner?",
@@ -282,11 +294,27 @@
     "storno.gutschrift_fehlgeschlagen": {
       "text": "Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet."
     },
+    "storno.gutschrift_unklar": {
+      "text": "Unklar, ob die Gutschrift über {betrag} am Terminal durchgegangen ist – das Storno wurde nicht gesendet. Bitte am Terminal-Beleg nachsehen, bevor es erneut versucht wird.",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
     "storno.extern_gutschreiben": {
       "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.",
       "platzhalter": [
         "betrag"
       ]
+    },
+    "storno.gutgeschrieben_nicht_gebucht": {
+      "text": "Die Karte wurde am Terminal mit {betrag} gutgeschrieben (Kennung {kennung}), aber das Storno wurde nicht gebucht – nicht erneut gutschreiben, sondern das Storno wiederholen oder im Panel klären.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
+    "storno.gutschrift_pruefen": {
+      "text": "Am Gerät liegt eine gespeicherte Gutschrift zu diesem Beleg aus einem früheren Storno-Versuch – bitte Belegliste oder Terminal prüfen und die Gutschrift übernehmen oder verwerfen."
     },
     "getrennt.einstellung_hinweis": {
       "text": "Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles."
@@ -345,6 +373,13 @@
     },
     "getrennt.karte_zurueckbuchen_unklar": {
       "text": "Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.",
+      "platzhalter": [
+        "betrag",
+        "kennung"
+      ]
+    },
+    "getrennt.karte_bereits_zurueckgebucht": {
+      "text": "Das Terminal meldet, dass die Kartenzahlung über {betrag} bereits gutgeschrieben wurde (Kennung {kennung}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.",
       "platzhalter": [
         "betrag",
         "kennung"
@@ -638,6 +673,15 @@
     "STORNO_OUTCOME_UNKNOWN": "storno.ergebnis_unklar"
   },
   "beschriftungen": {
+    "allgemein.abbrechen": {
+      "text": "Abbrechen"
+    },
+    "abschluss.beleg_vorhanden": {
+      "text": "Beleg ist vorhanden – erledigen"
+    },
+    "abschluss.erledigen": {
+      "text": "Erledigen"
+    },
     "getrennt.knopf": {
       "text": "Getrennt"
     },
@@ -701,6 +745,24 @@
     "getrennt.am_terminal_zurueckgebucht": {
       "text": "Am Terminal zurückgebucht"
     },
+    "getrennt.karte_zurueckbuchen": {
+      "text": "Karte zurückbuchen"
+    },
+    "getrennt.trotzdem_neu_koppeln": {
+      "text": "Trotzdem neu koppeln"
+    },
+    "getrennt.zahlung_behalten": {
+      "text": "Zahlung behalten"
+    },
+    "getrennt.klaeren": {
+      "text": "Klären"
+    },
+    "getrennt.wurde_belastet": {
+      "text": "Wurde belastet – übernehmen"
+    },
+    "getrennt.nicht_belastet": {
+      "text": "Nicht belastet – verwerfen"
+    },
     "zahlart.kartenzahlung": {
       "text": "Kartenzahlung"
     },
@@ -730,6 +792,12 @@
     },
     "storno.am_terminal_gutgeschrieben": {
       "text": "Am Terminal gutgeschrieben"
+    },
+    "storno.nicht_gutgeschrieben": {
+      "text": "Nicht gutgeschrieben"
+    },
+    "storno.differenz": {
+      "text": "Differenz"
     }
   }
 }

@@ -46,6 +46,28 @@ Rechenweg ändert sich.
   (ohne Vorgabe-Taste). Grund: für Betriebe ohne Bedarf bleibt die Kasse, wie sie ist; eine
   unerprobte Vorgabe-Taste finge womöglich der Browser ab. Das Backend (`kasse-settings-core.js`)
   muss beide nachziehen, sonst verwirft sein Validator den Wert beim Speichern.
+- **`Cancellation` trägt `refundedByPayment`** (Zahlungs-ID auf positive Cent), Zwilling der
+  gleichnamigen Backend-Ablage (`functions/gemeinsam/storno-core.js`). Die Lesung
+  (`fromReceiptPayload`) behält nur ganzzahlige, nicht negative Werte, verwirft ungültige
+  Einträge einzeln statt den ganzen Eintrag zu verwerfen, und lässt das Feld weg, wenn die
+  Nutzlast es nicht trägt — bestehende Belege lesen sich unverändert. Auch am `pending`-Eintrag
+  vorhanden. Grund: über alle Storno-Einträge darf je Zahlung nie mehr zurückgehen, als bezahlt
+  wurde; ohne das Feld ließe sich das am Client nicht nachvollziehen.
+- **Weitere Sätze in `MELDUNGEN`**: `getrennt.karte_bereits_zurueckgebucht` (das Terminal meldet
+  eine Gutschrift, die hier noch als offene Rückbuchung steht), `storno.gutschrift_unklar` (die
+  Verbindung riss während der Gutschrift ab), `storno.gutgeschrieben_nicht_gebucht` (Terminal hat
+  gutgeschrieben, das Storno selbst wurde nicht gebucht), `storno.gutschrift_pruefen` (eine
+  liegengebliebene, gespeicherte Gutschrift aus einem früheren Storno-Versuch),
+  `abschluss.erledigen_frage` (nur erledigen, was wirklich in der Belegliste steht),
+  `kartenzahlung.korb_gesperrt_karte_belastet` und `kartenzahlung.entkoppeln_karte_belastet`.
+  Grund: jeder dieser Zustände ist eine schon belastete oder gutgeschriebene Karte ohne
+  passenden Beleg — der teuerste Fehler am Tresen ist die doppelte Buchung, und kein Satz davon
+  darf zum Wiederholen raten, ohne vorher den Terminal-Beleg zu nennen.
+- **Weitere `BESCHRIFTUNGEN`**: `allgemein.abbrechen`, `abschluss.beleg_vorhanden`,
+  `abschluss.erledigen`, `getrennt.karte_zurueckbuchen`, `getrennt.trotzdem_neu_koppeln`,
+  `getrennt.zahlung_behalten`, `getrennt.klaeren`, `getrennt.wurde_belastet`,
+  `getrennt.nicht_belastet`, `storno.nicht_gutgeschrieben`, `storno.differenz`. Grund: Knöpfe zu
+  den neuen Sätzen oben, in beiden Kassen gleich beschriftet.
 
 ## 0.30.0
 
