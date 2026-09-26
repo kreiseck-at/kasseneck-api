@@ -234,7 +234,7 @@ test('der Wizard fragt, bevor er speichert, und sagt beim Abbruch, dass nichts b
 // wird nie umgedeutet, und ein Wortlaut aendert sich nicht nebenbei.
 const getrenntNeu = [
   ...Object.keys(MELDUNGEN).filter((s) => s.startsWith('getrennt.') || Object.values(STORNO_ZAHLUNG_FEHLER).includes(s as never)
-    || s.startsWith('storno.gutschrift_') || s === 'storno.extern_gutschreiben').map((s) => MELDUNGEN[s as MeldungsSchluessel].text),
+    || s === 'storno.karten_gutschreiben' || s === 'storno.ergebnis_unklar_karten').map((s) => MELDUNGEN[s as MeldungsSchluessel].text),
   ...Object.values(BESCHRIFTUNGEN).map((b) => b.text),
 ];
 
@@ -249,7 +249,7 @@ test('Getrennt zahlen: jeder Satz zur belasteten Karte nennt den Betrag und raet
     assert.match(MELDUNGEN[s].text, /Terminal-Beleg/, s);
     assert.doesNotMatch(MELDUNGEN[s].text, /kassieren/, s);
   }
-  for (const s of ['getrennt.extern_zurueckbuchen', 'getrennt.bar_zurueckgeben', 'getrennt.sitzung_offen', 'storno.extern_gutschreiben'] as const) {
+  for (const s of ['getrennt.extern_zurueckbuchen', 'getrennt.bar_zurueckgeben', 'getrennt.sitzung_offen'] as const) {
     assert.deepEqual(MELDUNGEN[s].platzhalter, ['betrag'], s);
   }
   for (const s of Object.keys(MELDUNGEN).filter((k) => k.startsWith('getrennt.'))) {
@@ -312,4 +312,43 @@ test('ein offener Storno-Ausgang warnt vor dem zweiten Stornieren', () => {
   assert.match(text, /Belegliste/);
   // /v3 benennt um; die Zuordnung prueft exakt wie isCancellationErrorCode.
   assert.equal(stornoZahlungFehler('cancellation_outcome_unknown'), 'storno.fehlgeschlagen');
+});
+
+test('Storno getrennt bezahlter Belege: Karten gehen erst nach dem gebuchten Storno von Hand zurueck', () => {
+  const liste = MELDUNGEN['storno.karten_gutschreiben'];
+  // Der Satz steht ueber einer Liste mit Betrag je Karte -- er selbst bleibt
+  // ohne Platzhalter und passt fuer eine wie fuer mehrere Karten.
+  assert.equal(liste.platzhalter, undefined);
+  assert.equal(liste.nur, undefined);
+  assert.match(liste.text, /gebucht/);
+  assert.match(liste.text, /Terminal gutschreiben/);
+  assert.match(liste.text, /abhaken/);
+  // Die automatische Gutschrift kommt erst mit Server-Unterstuetzung; bis
+  // dahin fuehrt der Katalog keinen Satz dafuer.
+  for (const alt of ['storno.gutschrift_laeuft', 'storno.gutschrift_fehlgeschlagen', 'storno.gutschrift_unklar',
+    'storno.gutgeschrieben_nicht_gebucht', 'storno.gutschrift_pruefen', 'storno.extern_gutschreiben']) {
+    assert.ok(!(alt in MELDUNGEN), alt);
+  }
+  for (const alt of ['storno.am_terminal_gutgeschrieben', 'storno.nicht_gutgeschrieben']) {
+    assert.ok(!(alt in BESCHRIFTUNGEN), alt);
+  }
+});
+
+test('ein offener Storno-Ausgang mit Karten haelt die Gutschrift zurueck, bis das Storno in der Belegliste steht', () => {
+  const eintrag = MELDUNGEN['storno.ergebnis_unklar_karten'];
+  assert.equal(eintrag.platzhalter, undefined);
+  assert.equal(eintrag.nur, undefined);
+  assert.match(eintrag.text, /nicht erneut stornieren/);
+  assert.match(eintrag.text, /noch keine Karte gutschreiben/);
+  assert.match(eintrag.text, /Belegliste/);
+  assert.match(eintrag.text, /am Terminal gutschreiben/);
+  // Der Code selbst zeigt weiter auf den allgemeinen Satz; welchen die Kasse
+  // zeigt, entscheidet sie am gesendeten Vorschlag.
+  assert.equal(stornoZahlungFehler('STORNO_OUTCOME_UNKNOWN'), 'storno.ergebnis_unklar');
+  assert.ok(eintrag.text.startsWith('Unklar, ob das Storno entstanden ist – es kann bereits signiert sein.'));
+  assert.ok(MELDUNGEN['storno.ergebnis_unklar'].text.startsWith('Unklar, ob das Storno entstanden ist – es kann bereits signiert sein.'));
+});
+
+test('Getrennt zahlen: erneutes Zurueckbuchen heisst in beiden Kassen gleich', () => {
+  assert.equal(beschriftung('getrennt.erneut_zurueckbuchen'), 'Erneut zurückbuchen');
 });

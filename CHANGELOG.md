@@ -12,7 +12,7 @@ Rechenweg ändert sich.
 
 - **Neue Sätze in `MELDUNGEN`** unter `getrennt.*` (Hinweis zur Einstellung, Prüfungen der
   Teilzahlung, gesperrter Warenkorb, Rückbuchung bar/Terminal/Karte ohne Anbindung, angefangene
-  Sitzung nach dem Neuladen) und unter `storno.*` (Rückgabe je Zahlung, Gutschrift am Terminal).
+  Sitzung nach dem Neuladen) und unter `storno.*` (Rückgabe je Zahlung, Karten nach dem Storno von Hand gutschreiben).
   Grund: Browser-Kasse und Kassen-App sollen am Tresen dieselben Worte sagen; eine schon belastete
   Karte nennt in jedem Satz den Betrag, und keiner rät zum zweiten Kassieren.
 - **`STORNO_ZAHLUNG_FEHLER`**: Zuordnung der Backend-Codes `STORNO_PAYMENTS_REQUIRED`,
@@ -54,11 +54,7 @@ Rechenweg ändert sich.
   vorhanden. Grund: über alle Storno-Einträge darf je Zahlung nie mehr zurückgehen, als bezahlt
   wurde; ohne das Feld ließe sich das am Client nicht nachvollziehen.
 - **Weitere Sätze in `MELDUNGEN`**: `getrennt.karte_bereits_zurueckgebucht` (das Terminal meldet
-  eine Gutschrift, die hier noch als offene Rückbuchung steht), `storno.gutschrift_unklar` (die
-  Verbindung riss während der Gutschrift ab), `storno.gutgeschrieben_nicht_gebucht` (Terminal hat
-  gutgeschrieben, das Storno selbst wurde nicht gebucht), `storno.gutschrift_pruefen` (eine
-  liegengebliebene, gespeicherte Gutschrift aus einem früheren Storno-Versuch),
-  `abschluss.erledigen_frage` (nur erledigen, was wirklich in der Belegliste steht),
+  eine Gutschrift, die hier noch als offene Rückbuchung steht), `abschluss.erledigen_frage` (nur erledigen, was wirklich in der Belegliste steht),
   `kartenzahlung.korb_gesperrt_karte_belastet` und `kartenzahlung.entkoppeln_karte_belastet`.
   Grund: jeder dieser Zustände ist eine schon belastete oder gutgeschriebene Karte ohne
   passenden Beleg — der teuerste Fehler am Tresen ist die doppelte Buchung, und kein Satz davon
@@ -66,8 +62,22 @@ Rechenweg ändert sich.
 - **Weitere `BESCHRIFTUNGEN`**: `allgemein.abbrechen`, `abschluss.beleg_vorhanden`,
   `abschluss.erledigen`, `getrennt.karte_zurueckbuchen`, `getrennt.trotzdem_neu_koppeln`,
   `getrennt.zahlung_behalten`, `getrennt.klaeren`, `getrennt.wurde_belastet`,
-  `getrennt.nicht_belastet`, `storno.nicht_gutgeschrieben`, `storno.differenz`. Grund: Knöpfe zu
-  den neuen Sätzen oben, in beiden Kassen gleich beschriftet.
+  `getrennt.nicht_belastet`, `getrennt.erneut_zurueckbuchen`, `storno.differenz`. Grund: Knöpfe
+  zu den neuen Sätzen oben, in beiden Kassen gleich beschriftet.
+- **Storno eines Belegs mit mehreren Zahlungen: Karten gehen von Hand zurück.**
+  `storno.karten_gutschreiben` steht nach dem gebuchten Storno über der Liste der Karten zum
+  Abhaken (eine oder mehrere, mit oder ohne Anbindung); `storno.ergebnis_unklar_karten` ersetzt
+  `storno.ergebnis_unklar`, wenn der gesendete Vorschlag Karten enthielt – erst die Belegliste
+  neu laden, erst dann gutschreiben (`STORNO_ZAHLUNG_FEHLER` zeigt weiter auf
+  `storno.ergebnis_unklar`, die Wahl trifft die Kasse am Vorschlag). Die Sätze und Knöpfe einer
+  Gutschrift am Terminal VOR dem Senden (`storno.gutschrift_laeuft`,
+  `storno.gutschrift_fehlgeschlagen`, `storno.gutschrift_unklar`,
+  `storno.gutgeschrieben_nicht_gebucht`, `storno.gutschrift_pruefen`,
+  `storno.extern_gutschreiben`, `storno.am_terminal_gutgeschrieben`,
+  `storno.nicht_gutgeschrieben`) sind wieder entfernt; sie waren nie veröffentlicht. Grund:
+  eine Gutschrift vor dem gebuchten Storno lässt Geld zurückgehen, ohne dass ein Storno-Beleg
+  sicher entsteht; die automatische Gutschrift kommt als eigener Schritt mit
+  Server-Unterstützung.
 
 ## 0.30.0
 

@@ -285,36 +285,11 @@
     "storno.summe_passt_nicht": {
       "text": "Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen."
     },
-    "storno.gutschrift_laeuft": {
-      "text": "Gutschrift über {betrag} am Terminal …",
-      "platzhalter": [
-        "betrag"
-      ]
+    "storno.karten_gutschreiben": {
+      "text": "Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken."
     },
-    "storno.gutschrift_fehlgeschlagen": {
-      "text": "Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet."
-    },
-    "storno.gutschrift_unklar": {
-      "text": "Unklar, ob die Gutschrift über {betrag} am Terminal durchgegangen ist – das Storno wurde nicht gesendet. Bitte am Terminal-Beleg nachsehen, bevor es erneut versucht wird.",
-      "platzhalter": [
-        "betrag"
-      ]
-    },
-    "storno.extern_gutschreiben": {
-      "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.",
-      "platzhalter": [
-        "betrag"
-      ]
-    },
-    "storno.gutgeschrieben_nicht_gebucht": {
-      "text": "Die Karte wurde am Terminal mit {betrag} gutgeschrieben (Kennung {kennung}), aber das Storno wurde nicht gebucht – nicht erneut gutschreiben, sondern das Storno wiederholen oder im Panel klären.",
-      "platzhalter": [
-        "betrag",
-        "kennung"
-      ]
-    },
-    "storno.gutschrift_pruefen": {
-      "text": "Am Gerät liegt eine gespeicherte Gutschrift zu diesem Beleg aus einem früheren Storno-Versuch – bitte Belegliste oder Terminal prüfen und die Gutschrift übernehmen oder verwerfen."
+    "storno.ergebnis_unklar_karten": {
+      "text": "Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg am Terminal gutschreiben."
     },
     "getrennt.einstellung_hinweis": {
       "text": "Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles."
@@ -757,6 +732,9 @@
     "getrennt.klaeren": {
       "text": "Klären"
     },
+    "getrennt.erneut_zurueckbuchen": {
+      "text": "Erneut zurückbuchen"
+    },
     "getrennt.wurde_belastet": {
       "text": "Wurde belastet – übernehmen"
     },
@@ -789,12 +767,6 @@
       "platzhalter": [
         "betrag"
       ]
-    },
-    "storno.am_terminal_gutgeschrieben": {
-      "text": "Am Terminal gutgeschrieben"
-    },
-    "storno.nicht_gutgeschrieben": {
-      "text": "Nicht gutgeschrieben"
     },
     "storno.differenz": {
       "text": "Differenz"

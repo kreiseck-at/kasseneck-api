@@ -128,22 +128,15 @@ const MELDUNGEN_ROH = {
   // signiert sein. Wer jetzt noch einmal storniert, storniert womoeglich doppelt.
   'storno.ergebnis_unklar': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren, sondern die Belegliste in ein paar Minuten neu laden.' },
   'storno.summe_passt_nicht': { text: 'Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen.' },
-  // Die Gutschrift am Terminal laeuft VOR dem Senden des Stornos. Scheitert
-  // sie, ist nichts gesendet – der Satz sagt beides, damit niemand eine halbe
-  // Rueckgabe vermutet.
-  'storno.gutschrift_laeuft': { text: 'Gutschrift über {betrag} am Terminal …', platzhalter: ['betrag'] },
-  'storno.gutschrift_fehlgeschlagen': { text: 'Die Gutschrift am Terminal ist nicht zustande gekommen – das Storno wurde nicht gesendet.' },
-  // Die Verbindung zum Terminal riss waehrend der Gutschrift ab: anders als bei
-  // storno.gutschrift_fehlgeschlagen ist hier offen, ob die Gutschrift durchging.
-  'storno.gutschrift_unklar': { text: 'Unklar, ob die Gutschrift über {betrag} am Terminal durchgegangen ist – das Storno wurde nicht gesendet. Bitte am Terminal-Beleg nachsehen, bevor es erneut versucht wird.', platzhalter: ['betrag'] },
-  'storno.extern_gutschreiben': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal gutschreiben und danach bestätigen.', platzhalter: ['betrag'] },
-  // Die Gutschrift ist am Terminal gebucht, das Storno selbst aber nicht — der
-  // teuerste Zustand: eine zweite Gutschrift waere die doppelte Rueckgabe.
-  'storno.gutgeschrieben_nicht_gebucht': { text: 'Die Karte wurde am Terminal mit {betrag} gutgeschrieben (Kennung {kennung}), aber das Storno wurde nicht gebucht – nicht erneut gutschreiben, sondern das Storno wiederholen oder im Panel klären.', platzhalter: ['betrag', 'kennung'] },
-  // Eine liegengebliebene, gespeicherte Gutschrift stammt aus einem
-  // abgebrochenen Storno-Versuch — sie muss geklaert werden, bevor neu
-  // storniert wird, sonst zaehlt sie doppelt.
-  'storno.gutschrift_pruefen': { text: 'Am Gerät liegt eine gespeicherte Gutschrift zu diesem Beleg aus einem früheren Storno-Versuch – bitte Belegliste oder Terminal prüfen und die Gutschrift übernehmen oder verwerfen.' },
+  // Storno eines Belegs mit mehreren Zahlungen: Karten gehen VON HAND am
+  // Terminal zurueck, und zwar erst NACH dem gebuchten Storno -- vorher
+  // fliesst kein Geld. Darunter steht die Liste der Karten zum Abhaken; der
+  // Satz passt fuer eine oder mehrere Karten, mit oder ohne Anbindung.
+  'storno.karten_gutschreiben': { text: 'Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken.' },
+  // Wie storno.ergebnis_unklar, nur enthielt die Rueckgabe Karten: bevor
+  // klar ist, ob das Storno steht, darf keine Gutschrift laufen -- sonst geht
+  // Geld zurueck ohne Storno-Beleg.
+  'storno.ergebnis_unklar_karten': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg am Terminal gutschreiben.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -389,6 +382,7 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.trotzdem_neu_koppeln': { text: 'Trotzdem neu koppeln' },
   'getrennt.zahlung_behalten': { text: 'Zahlung behalten' },
   'getrennt.klaeren': { text: 'Klären' },
+  'getrennt.erneut_zurueckbuchen': { text: 'Erneut zurückbuchen' },
   'getrennt.wurde_belastet': { text: 'Wurde belastet – übernehmen' },
   'getrennt.nicht_belastet': { text: 'Nicht belastet – verwerfen' },
 
@@ -405,8 +399,6 @@ const BESCHRIFTUNGEN_ROH = {
   'storno.bar': { text: 'bar' },
   'storno.alles_bar': { text: 'Alles bar' },
   'storno.rest_der_zahlung': { text: 'Rest {betrag}', platzhalter: ['betrag'] },
-  'storno.am_terminal_gutgeschrieben': { text: 'Am Terminal gutgeschrieben' },
-  'storno.nicht_gutgeschrieben': { text: 'Nicht gutgeschrieben' },
   'storno.differenz': { text: 'Differenz' },
 } as const satisfies Record<string, Meldung>;
 
