@@ -32,6 +32,16 @@ Rechenweg ändert sich.
   `storno.ergebnis_unklar`. Grund: der Storno-Beleg kann schon signiert sein, obwohl der Ausgang
   offen ist; wer dann noch einmal storniert, storniert womöglich doppelt. Der Satz rät darum,
   nicht zu wiederholen und die Belegliste später neu zu laden.
+- **Aufteilung als eigener Schritt**: neue Beschriftungen `getrennt.weiter` („Weiter · {betrag}
+  getrennt“), `getrennt.aufteilung`, `getrennt.zurueck_zahlart`, `getrennt.tab_positionen`,
+  `getrennt.tab_betrag`, `getrennt.stueck_bezahlt`, `getrennt.stueck_mehr`/`_weniger`,
+  `getrennt.gegeben`, `getrennt.gegeben_rueckgeld`, `getrennt.bar_kassieren`, `getrennt.karte_kassieren` und die Sätze
+  `getrennt.positionen_gesperrt` und `getrennt.positionen_waehlen`. `getrennt.zahlart` entfällt
+  (noch nie veröffentlicht): die Zahlart wählt der Kassier jetzt mit dem Knopf, der die Zahlung
+  kassiert. Grund: Nutzertest – erst „Weiter“, dann je Zahlung nach Positionen (stückweise) oder
+  als Betrag, die Knöpfe rechts neben der Liste statt in der großen linken Fläche. Nach einer
+  Zahlung als Betrag ist „Nach Positionen“ gesperrt, weil sich Beträge keinen Stücken zuordnen
+  lassen; der Satz sagt das.
 - **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
   („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
   zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.

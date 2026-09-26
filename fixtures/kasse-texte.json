@@ -387,6 +387,12 @@
     "getrennt.entkoppeln_offene_karten": {
       "text": "Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten)."
     },
+    "getrennt.positionen_gesperrt": {
+      "text": "Nach Positionen geht nicht mehr – eine Zahlung ist schon als Betrag kassiert."
+    },
+    "getrennt.positionen_waehlen": {
+      "text": "Bitte zuerst antippen, was dieser Gast zahlt."
+    },
     "beleg.link_kopiert": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
@@ -681,9 +687,6 @@
     "getrennt.betrag": {
       "text": "Betrag"
     },
-    "getrennt.zahlart": {
-      "text": "Zahlart"
-    },
     "getrennt.rest": {
       "text": "Rest"
     },
@@ -743,6 +746,58 @@
     },
     "getrennt.nicht_belastet": {
       "text": "Nicht belastet – verwerfen"
+    },
+    "getrennt.weiter": {
+      "text": "Weiter · {betrag} getrennt",
+      "platzhalter": [
+        "betrag"
+      ]
+    },
+    "getrennt.aufteilung": {
+      "text": "Aufteilung"
+    },
+    "getrennt.zurueck_zahlart": {
+      "text": "Zurück zur Zahlart"
+    },
+    "getrennt.tab_positionen": {
+      "text": "Nach Positionen"
+    },
+    "getrennt.tab_betrag": {
+      "text": "Betrag"
+    },
+    "getrennt.stueck_bezahlt": {
+      "text": "{n} bezahlt",
+      "platzhalter": [
+        "n"
+      ]
+    },
+    "getrennt.stueck_weniger": {
+      "text": "{name}: ein Stück weniger",
+      "platzhalter": [
+        "name"
+      ]
+    },
+    "getrennt.stueck_mehr": {
+      "text": "{name}: ein Stück mehr",
+      "platzhalter": [
+        "name"
+      ]
+    },
+    "getrennt.gegeben": {
+      "text": "Gegeben (bar)"
+    },
+    "getrennt.gegeben_rueckgeld": {
+      "text": "Gegeben {gegeben} · Rückgeld {rueckgeld}",
+      "platzhalter": [
+        "gegeben",
+        "rueckgeld"
+      ]
+    },
+    "getrennt.bar_kassieren": {
+      "text": "Bar"
+    },
+    "getrennt.karte_kassieren": {
+      "text": "Karte"
     },
     "zahlart.kartenzahlung": {
       "text": "Kartenzahlung"

@@ -168,6 +168,8 @@ const MELDUNGEN_ROH = {
   'getrennt.ablage_fehlgeschlagen': { text: 'Die getrennte Zahlung ließ sich auf diesem Gerät nicht speichern – bitte die Kasse bis zum Abschluss dieses Belegs nicht neu laden, sonst stehen belastete Karten womöglich nicht mehr in der Liste.' },
   'getrennt.zu_viele_zahlungen': { text: 'Ein Beleg lässt höchstens 20 Zahlungen zu.' },
   'getrennt.entkoppeln_offene_karten': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten).' },
+  'getrennt.positionen_gesperrt': { text: 'Nach Positionen geht nicht mehr – eine Zahlung ist schon als Betrag kassiert.' },
+  'getrennt.positionen_waehlen': { text: 'Bitte zuerst antippen, was dieser Gast zahlt.' },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
@@ -371,7 +373,6 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.offen': { text: 'Offen' },
   'getrennt.zahlung': { text: 'Zahlung {n}', platzhalter: ['n'] },
   'getrennt.betrag': { text: 'Betrag' },
-  'getrennt.zahlart': { text: 'Zahlart' },
   'getrennt.rest': { text: 'Rest' },
   'getrennt.teilen': { text: '÷ {n}', platzhalter: ['n'] },
   'getrennt.trinkgeld_bezug': { text: '% von diesem Betrag' },
@@ -389,6 +390,19 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.erneut_zurueckbuchen': { text: 'Erneut zurückbuchen' },
   'getrennt.wurde_belastet': { text: 'Wurde belastet – übernehmen' },
   'getrennt.nicht_belastet': { text: 'Nicht belastet – verwerfen' },
+  // Aufteilung: eigener Schritt nach „Weiter“, Tabs „Nach Positionen“ / „Betrag“.
+  'getrennt.weiter': { text: 'Weiter · {betrag} getrennt', platzhalter: ['betrag'] },
+  'getrennt.aufteilung': { text: 'Aufteilung' },
+  'getrennt.zurueck_zahlart': { text: 'Zurück zur Zahlart' },
+  'getrennt.tab_positionen': { text: 'Nach Positionen' },
+  'getrennt.tab_betrag': { text: 'Betrag' },
+  'getrennt.stueck_bezahlt': { text: '{n} bezahlt', platzhalter: ['n'] },
+  'getrennt.stueck_weniger': { text: '{name}: ein Stück weniger', platzhalter: ['name'] },
+  'getrennt.stueck_mehr': { text: '{name}: ein Stück mehr', platzhalter: ['name'] },
+  'getrennt.gegeben': { text: 'Gegeben (bar)' },
+  'getrennt.gegeben_rueckgeld': { text: 'Gegeben {gegeben} · Rückgeld {rueckgeld}', platzhalter: ['gegeben', 'rueckgeld'] },
+  'getrennt.bar_kassieren': { text: 'Bar' },
+  'getrennt.karte_kassieren': { text: 'Karte' },
 
   // --- Zahlarten in Listen (Kassieren, Storno, Belegliste) -----------------
   'zahlart.kartenzahlung': { text: 'Kartenzahlung' },

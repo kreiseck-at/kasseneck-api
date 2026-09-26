@@ -296,6 +296,22 @@ test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
   assert.throws(() => beschriftung('getrennt.zahlung'), /\{n\}/);
 });
 
+test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stueck-Zeilen ersetzen ihre Platzhalter', () => {
+  assert.equal(beschriftung('getrennt.weiter', { betrag: '67,00 €' }), 'Weiter · 67,00 € getrennt');
+  assert.equal(beschriftung('getrennt.tab_positionen'), 'Nach Positionen');
+  assert.equal(beschriftung('getrennt.tab_betrag'), 'Betrag');
+  assert.equal(beschriftung('getrennt.stueck_bezahlt', { n: 2 }), '2 bezahlt');
+  assert.equal(beschriftung('getrennt.stueck_mehr', { name: 'Bier' }), 'Bier: ein Stück mehr');
+  assert.equal(beschriftung('getrennt.stueck_weniger', { name: 'Bier' }), 'Bier: ein Stück weniger');
+  assert.equal(beschriftung('getrennt.gegeben_rueckgeld', { gegeben: '50,00 €', rueckgeld: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
+  assert.equal(beschriftung('getrennt.bar_kassieren'), 'Bar');
+  assert.equal(beschriftung('getrennt.karte_kassieren'), 'Karte');
+  // Die Sperre nennt den Grund: Betraege lassen sich keinen Stuecken zuordnen.
+  assert.match(MELDUNGEN['getrennt.positionen_gesperrt'].text, /Betrag/);
+  assert.equal(MELDUNGEN['getrennt.positionen_gesperrt'].platzhalter, undefined);
+  assert.equal(MELDUNGEN['getrennt.positionen_waehlen'].platzhalter, undefined);
+});
+
 test('stornoZahlungFehler faengt jeden unbekannten Code mit dem allgemeinen Storno-Satz auf', () => {
   for (const [code, schluessel] of Object.entries(STORNO_ZAHLUNG_FEHLER)) {
     assert.equal(stornoZahlungFehler(code), schluessel, code);
