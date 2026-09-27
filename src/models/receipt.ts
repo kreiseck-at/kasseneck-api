@@ -27,8 +27,15 @@ import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayl
  * echten Zeitpunkt um (uneinheitliches Server-Format, siehe dort).
  *
  * `paymentMethod`/`receiptType`/`creditCardProvider` sind beim Lesen entweder
- * der bekannte Enum-Eintrag oder — bei einem der Nutzlast unbekannten
- * Schluessel — der rohe String (siehe `enum-payload.ts`, `readEnumKey`).
+ * der bekannte Enum-Eintrag oder, bei einem der Nutzlast unbekannten
+ * Schluessel, der rohe String (siehe `enum-payload.ts`, `readEnumKey`).
+ *
+ * **Zahlungen stehen in `payments`.** `paymentMethod` vergibt der Server
+ * (`mixed` bei mehreren Zahlarten); gesendet wird es unter `/v3` nie. Die
+ * Anbieterdaten (`payments[].providerPaymentId`/`providerData`, bei
+ * Altbelegen `cardPaymentId`/`cardPaymentData`) liefert nur der Kassenweg
+ * (Kanal `app`, `kasse.kasseneck.at/api/v3`); am oeffentlichen Weg fehlen
+ * sie. Darum sind sie hier optional.
  */
 export interface Receipt {
   receiptId: string;
@@ -70,6 +77,18 @@ export interface Receipt {
    * Kartenfelder. Siehe [ReceiptPayment].
    */
   payments?: ReceiptPayment[];
+  /** Kennung der Kopf-Version (Firmenkopf, wie er fuer diesen Beleg galt). */
+  headerVersionId?: string;
+  /** Layout-Regelwerk, in dem der Beleg ausgestellt wurde. */
+  layoutRuleset?: number;
+  /** Nur an Nullbelegen: Registrierdaten fuer den Block „Prüfangaben“. */
+  registrationInfo?: RegistrationInfo;
+}
+
+/** Registrierdaten von Signaturkarte und Kasse (Zeitstempel oder `null`, wenn unbekannt). */
+export interface RegistrationInfo {
+  cardRegisteredAt: string | null;
+  cashregisterRegisteredAt: string | null;
 }
 
 export interface ReceiptPayload {
@@ -112,6 +131,9 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   cancellationReason?: string | null;
   zeroKind?: string | null;
   cancellations?: Cancellation[] | null;
+  headerVersionId?: string | null;
+  layoutRuleset?: number | null;
+  registrationInfo?: { cardRegisteredAt?: string | null; cashregisterRegisteredAt?: string | null } | null;
 }
 
 /**
@@ -193,7 +215,18 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
+    ...(typeof payload.headerVersionId === 'string' && payload.headerVersionId !== '' ? { headerVersionId: payload.headerVersionId } : {}),
+    ...(typeof payload.layoutRuleset === 'number' ? { layoutRuleset: payload.layoutRuleset } : {}),
+    ...(payload.registrationInfo != null && typeof payload.registrationInfo === 'object'
+      ? { registrationInfo: readRegistrationInfo(payload.registrationInfo) }
+      : {}),
   };
+}
+
+/** Registrierdaten lesen; ein fehlender oder leerer Zeitstempel wird `null`. */
+export function readRegistrationInfo(roh: { cardRegisteredAt?: unknown; cashregisterRegisteredAt?: unknown }): RegistrationInfo {
+  const zeit = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+  return { cardRegisteredAt: zeit(roh.cardRegisteredAt), cashregisterRegisteredAt: zeit(roh.cashregisterRegisteredAt) };
 }
 
 function leseStorno(eintrag: Cancellation): Cancellation {
@@ -206,6 +239,9 @@ function leseStorno(eintrag: Cancellation): Cancellation {
     items: (eintrag.items ?? []).map((p) => ({ index: Number(p.index), quantity: Number(p.quantity) })),
     ...(eintrag.promoAdjustmentCents && typeof eintrag.promoAdjustmentCents === 'object'
       ? { promoAdjustmentCents: Object.fromEntries(Object.entries(eintrag.promoAdjustmentCents).map(([k, v]) => [k, Number(v)])) }
+      : {}),
+    ...(eintrag.refundedByPayment && typeof eintrag.refundedByPayment === 'object'
+      ? { refundedByPayment: Object.fromEntries(Object.entries(eintrag.refundedByPayment).map(([k, v]) => [k, Number(v)])) }
       : {}),
   };
 }

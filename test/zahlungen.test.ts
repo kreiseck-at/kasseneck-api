@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sellReceipt, cancelReceipt, createReceipt, createCancelReceipt } from '../src/client/receipts.js';
+import { sellReceipt, cancelReceipt, createReceipt } from '../src/client/receipts.js';
 import { createTransport, DEFAULT_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike, type KasseneckTransport } from '../src/client/transport.js';
 import { apiKeyAuth } from '../src/client/auth.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
@@ -136,38 +136,37 @@ test('KeckPaymentMethod.mixed: keine Karte, Label wie paymentMethodToString im B
 
 // --- Fehlercodes ----------------------------------------------------------
 
-// Quelle: functions/gemeinsam/zahlungen-core.js ZAHLUNGS_FEHLERCODES.
-test('PAYMENT_ERROR_CODES: exakt ZAHLUNGS_FEHLERCODES des Backends, gleiche Reihenfolge', () => {
+// Quelle: errorCodes.payments im /v3-Vokabular (gleiche Reihenfolge wie
+// ZAHLUNGS_FEHLERCODES im Backend, klein geschrieben).
+test('PAYMENT_ERROR_CODES: exakt die /v3-Zahlungscodes, gleiche Reihenfolge', () => {
   assert.deepEqual([...PAYMENT_ERROR_CODES], [
-    'PAYMENTS_INVALID',
-    'PAYMENT_METHOD_INVALID',
-    'PAYMENT_AMOUNT_INVALID',
-    'PAYMENT_TENDERED_INVALID',
-    'PAYMENT_PROVIDER_INVALID',
-    'PAYMENT_PROVIDER_NOT_ALLOWED',
-    'PAYMENTS_SUM_MISMATCH',
-    'PAYMENTS_DUE_NEGATIVE',
-    'PAYMENTS_NOT_ALLOWED',
-    'PAYMENTS_CONFLICT',
-    'PAYMENTS_REQUIRED',
-    'PAYMENT_METHOD_NOT_SUPPORTED',
-    'TIP_PAYMENT_METHOD_INVALID',
-    'TIP_PAYMENT_METHOD_REQUIRED',
-    'TIP_EXCEEDS_PAYMENT',
-    'PAYMENT_REFUND_NOT_ALLOWED',
-    'PAYMENT_TIP_INVALID',
-    'TIP_CONFLICT',
+    'payments_invalid',
+    'payment_method_invalid',
+    'payment_amount_invalid',
+    'payment_tendered_invalid',
+    'payment_provider_invalid',
+    'payment_provider_not_allowed',
+    'payments_sum_mismatch',
+    'payments_due_negative',
+    'payments_not_allowed',
+    'payments_conflict',
+    'payments_required',
+    'payment_method_not_supported',
+    'tip_payment_method_invalid',
+    'tip_payment_method_required',
+    'tip_exceeds_payment',
+    'payment_refund_not_allowed',
+    'payment_tip_invalid',
+    'tip_conflict',
   ]);
   assert.equal(Object.isFrozen(PAYMENT_ERROR_CODES), true);
 });
 
-// /v3-Namen: functions/gemeinsam/api-vokabular-v3.js FEHLERCODES bildet jeden
-// Zahlungscode 1:1 auf seine Kleinschreibung ab.
-test('isPaymentErrorCode: gross (/v1, intern) und klein (/v3) erkannt, Fremdes nicht', () => {
-  assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), true);
+test('isPaymentErrorCode: nur die kleinen /v3-Codes, der alte grosse nicht', () => {
   assert.equal(isPaymentErrorCode('payments_sum_mismatch'), true);
   assert.equal(isPaymentErrorCode('payments_not_allowed'), true);
-  assert.equal(isPaymentErrorCode('bereits_storniert'), false);
+  assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), false);
+  assert.equal(isPaymentErrorCode('already_cancelled'), false);
   assert.equal(isPaymentErrorCode('Die Summe der Zahlungen entspricht nicht dem Zahlbetrag.'), false);
   assert.equal(isPaymentErrorCode(undefined), false);
   assert.equal(isPaymentErrorCode(7), false);
@@ -273,9 +272,9 @@ test('payments[].tipCents: geht je Zahlung hinaus und wird gelesen/geschrieben, 
   assert.deepEqual(toReceiptPayload(beleg).payments, [{ id: 'p1', method: 'cash', amountCents: 4545, tipCents: 300 }, { id: 'p2', method: 'cash', amountCents: 1 }]);
 });
 
-// PAYMENTS_CONFLICT im Backend (zahlungs-eingang.js): payments nie zusammen
-// mit paymentMethod oder einem der drei Kartenfelder.
-test('payments zusammen mit paymentMethod oder Kartenfeldern: Eingabefehler, nichts geht hinaus', async () => {
+// Unter /v3 weist der Server paymentMethod und die Kartenfelder am Beleg ab
+// (payment_method_not_supported); das Paket sendet sie gar nicht erst.
+test('paymentMethod oder Kartenfelder neben payments: Eingabefehler, nichts geht hinaus', async () => {
   const { rufen, aufrufe } = weg(VERKAUF);
   const zahlungen: ReceiptPaymentInput[] = [{ method: 'cash', amountCents: 4545 }];
   const faelle: Array<Record<string, unknown>> = [
@@ -332,10 +331,10 @@ test('payments: Form wird vor dem Senden geprueft', async () => {
   assert.equal(aufrufe.length, 0);
 });
 
-test('payments am alten Storno-Weg und am Nullbeleg werden abgewiesen (PAYMENTS_NOT_ALLOWED im Backend)', async () => {
+test('Storno ueber createReceipt und payments am Nullbeleg werden abgewiesen', async () => {
   const { rufen, aufrufe } = weg(VERKAUF);
   await assert.rejects(
-    () => createCancelReceipt(rufen, { items: [MENUE], payments: [{ method: 'cash', amountCents: -4545 }] } as never),
+    () => createReceipt(rufen, { receiptType: ReceiptType.cancellation, items: [MENUE], payments: [{ method: 'cash', amountCents: -4545 }] }),
     /cancelReceipt/,
   );
   await assert.rejects(
@@ -347,14 +346,14 @@ test('payments am alten Storno-Weg und am Nullbeleg werden abgewiesen (PAYMENTS_
 
 test('Senden mit paymentMethod mixed wird abgelehnt, auch am Trinkgeld', async () => {
   const { rufen, aufrufe } = weg(VERKAUF);
-  await assert.rejects(() => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.mixed, items: [MENUE] }), /mixed/);
-  await assert.rejects(() => sellReceipt(rufen, { paymentMethod: 'mixed', items: [MENUE] }), /mixed/);
+  await assert.rejects(() => sellReceipt(rufen, { payments: [{ method: KeckPaymentMethod.mixed, amountCents: 4545 }], items: [MENUE] }), /mixed/);
+  await assert.rejects(() => sellReceipt(rufen, { payments: [{ method: 'mixed', amountCents: 4545 }], items: [MENUE] }), /mixed/);
   await assert.rejects(
-    () => sellReceipt(rufen, { paymentMethod: 'cash', items: [MENUE], tip: { cents: 100, paymentMethod: 'mixed' as KeckPaymentMethodKey } }),
+    () => sellReceipt(rufen, { payments: [{ method: 'cash', amountCents: 4645 }], items: [MENUE], tip: { cents: 100, paymentMethod: 'mixed' as KeckPaymentMethodKey } }),
     /mixed/,
   );
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'fehleingabe', paymentMethod: 'mixed' }),
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'input_error', payments: [{ method: 'mixed', amountCents: -1 }] }),
     /mixed/,
   );
   assert.equal(aufrufe.length, 0);
@@ -365,7 +364,7 @@ test('cancelReceipt mit payments: negative Betraege und refundOf gehen hinaus', 
   await cancelReceipt(rufen, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-40',
-    reason: 'kunde_storniert',
+    reason: 'customer_cancelled',
     payments: [
       { method: 'creditCard', amountCents: -2000, refundOf: 'p1', provider: CreditCardProvider.sumup, providerPaymentId: 'RF-1' },
       { method: KeckPaymentMethod.cash, amountCents: -2545 },
@@ -376,7 +375,7 @@ test('cancelReceipt mit payments: negative Betraege und refundOf gehen hinaus', 
   assert.deepEqual(params, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-40',
-    reason: 'kunde_storniert',
+    reason: 'customer_cancelled',
     payments: [
       { method: 'creditCard', amountCents: -2000, provider: 'sumup', providerPaymentId: 'RF-1', refundOf: 'p1' },
       { method: 'cash', amountCents: -2545 },
@@ -386,7 +385,7 @@ test('cancelReceipt mit payments: negative Betraege und refundOf gehen hinaus', 
 
 test('cancelReceipt mit payments: Konflikte und Vorzeichen werden vor dem Senden abgewiesen', async () => {
   const { rufen, aufrufe } = weg(STORNO);
-  const basis = { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'fehleingabe' as const };
+  const basis = { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'input_error' as const };
   const faelle: Array<[Record<string, unknown>, RegExp]> = [
     [{ payments: [{ method: 'cash', amountCents: -100 }], paymentMethod: 'cash' }, /payments/],
     [{ payments: [{ method: 'cash', amountCents: -100 }], creditCardProvider: 'sumup' }, /payments/],
@@ -407,60 +406,60 @@ test('cancelReceipt mit payments: Konflikte und Vorzeichen werden vor dem Senden
   assert.equal(aufrufe.length, 0);
 });
 
-// Ohne payments bleibt jeder gesendete Parameter byte-gleich — die
-// bestehenden Vertragstests (client-receipts.test.ts) halten die Einzelwerte,
-// hier steht die Gesamtform der drei Wege noch einmal als Zeichenkette.
-test('Ohne payments: Parameter von sellReceipt, createReceipt und cancelReceipt unveraendert', async () => {
+// Die Gesamtform der gesendeten Parameter noch einmal als Zeichenkette: ein
+// Verkauf mit Karte und Trinkgeld, ein Storno ohne Rueckzahlungsliste.
+test('Gesendete Form von sellReceipt und cancelReceipt, Zeichen fuer Zeichen', async () => {
   const a = weg(VERKAUF);
   await sellReceipt(a.rufen, {
-    paymentMethod: KeckPaymentMethod.creditCard,
     items: [MENUE],
-    creditCardProvider: CreditCardProvider.sumup,
-    cardPaymentId: 'TX-81',
+    payments: [{ method: KeckPaymentMethod.creditCard, amountCents: 4695, provider: CreditCardProvider.sumup, providerPaymentId: 'TX-81' }],
     tip: 150,
   });
   assert.equal(
     JSON.stringify(gesendet(a.aufrufe).params),
-    '{"receiptType":"standard","items":[{"name":"Menue","quantity":1,"unitPriceCents":4545,"vatRate":10}],"paymentMethod":"creditCard","cardPaymentId":"TX-81","creditCardProvider":"sumup","cardPaymentData":null,"tip":150}',
+    '{"receiptType":"standard","items":[{"name":"Menue","quantity":1,"unitPriceCents":4545,"vatRate":10}],"payments":[{"method":"creditCard","amountCents":4695,"provider":"sumup","providerPaymentId":"TX-81"}],"tip":150}',
   );
   const b = weg(STORNO);
-  await cancelReceipt(b.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'fehleingabe', paymentMethod: 'cash' });
+  await cancelReceipt(b.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'input_error' });
   assert.equal(
     JSON.stringify(gesendet(b.aufrufe).params),
-    '{"cashregisterId":"kasse-1","originalReceiptId":"kasse-1-ID-40","reason":"fehleingabe","paymentMethod":"cash"}',
+    '{"cashregisterId":"kasse-1","originalReceiptId":"kasse-1-ID-40","reason":"input_error"}',
   );
 });
 
-// Wie im Backend (zahlungs-eingang.js: gesetzt()): `payments: null` gilt als
-// nicht angegeben — kein Konflikt, kein Feld in der Nutzlast.
-test('payments: null zaehlt als fehlend, bei createReceipt wie bei cancelReceipt', async () => {
+// `payments` ist am Verkauf Pflicht (payments_required), auch als null; am
+// Storno gilt null wie im Backend als nicht angegeben (der Server spiegelt die
+// Restbetraege jeder Originalzahlung).
+test('payments: null ist am Verkauf ein Eingabefehler, am Storno nicht angegeben', async () => {
   const a = weg(VERKAUF);
-  await createReceipt(a.rufen, { receiptType: ReceiptType.standard, items: [MENUE], paymentMethod: 'cash', payments: null } as never);
-  assert.deepEqual(gesendet(a.aufrufe).params, {
-    receiptType: 'standard',
-    items: [{ name: 'Menue', quantity: 1, unitPriceCents: 4545, vatRate: 10 }],
-    paymentMethod: 'cash',
-  });
+  await assert.rejects(
+    () => createReceipt(a.rufen, { receiptType: ReceiptType.standard, items: [MENUE], payments: null } as never),
+    (fehler: unknown) => isKasseneckValidationError(fehler) && /payments/.test((fehler as Error).message),
+  );
+  await assert.rejects(() => sellReceipt(a.rufen, { items: [MENUE] } as never), /payments/);
+  assert.equal(a.aufrufe.length, 0);
+  // Nichts zu zahlen (Rabatt deckt alles): die leere Liste ist erlaubt.
+  const leer = weg(VERKAUF);
+  await sellReceipt(leer.rufen, { items: [MENUE], payments: [] });
+  assert.deepEqual(gesendet(leer.aufrufe).params.payments, []);
   const b = weg(STORNO);
-  await cancelReceipt(b.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'fehleingabe', paymentMethod: 'cash', payments: null } as never);
+  await cancelReceipt(b.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-40', reason: 'input_error', payments: null } as never);
   assert.deepEqual(gesendet(b.aufrufe).params, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-40',
-    reason: 'fehleingabe',
-    paymentMethod: 'cash',
+    reason: 'input_error',
   });
 });
 
-// Beide Verkaufsformen sind eigene Schnittstellen (SellReceiptOptions bleibt
-// eine erweiterbare interface) und gehen an sellReceipt wie an die API.
-test('SellReceiptWithPaymentsOptions: ueber die Paketwurzel nutzbar, sellReceipt nimmt beide Formen', async () => {
-  const mitListe: wurzel.SellReceiptWithPaymentsOptions = { items: [MENUE], payments: [{ method: 'cash', amountCents: 4545 }] };
+// SellReceiptOptions bleibt eine erweiterbare interface und geht an
+// sellReceipt wie an die API.
+test('SellReceiptOptions: ueber die Paketwurzel nutzbar und erweiterbar', async () => {
   interface EigeneOptionen extends wurzel.SellReceiptOptions { notiz?: string }
-  const klassisch: EigeneOptionen = { paymentMethod: 'cash', items: [MENUE], notiz: 'x' };
+  const eigene: EigeneOptionen = { items: [MENUE], payments: [{ method: 'cash', amountCents: 4545 }], notiz: 'x' };
+  // @ts-expect-error paymentMethod gibt es unter /v3 nicht mehr
+  const alt: wurzel.SellReceiptOptions = { items: [MENUE], payments: [], paymentMethod: 'cash' };
+  void alt;
   const a = weg(VERKAUF);
-  await sellReceipt(a.rufen, mitListe);
+  await sellReceipt(a.rufen, eigene);
   assert.deepEqual(gesendet(a.aufrufe).params.payments, [{ method: 'cash', amountCents: 4545 }]);
-  const b = weg(VERKAUF);
-  await sellReceipt(b.rufen, klassisch);
-  assert.equal(gesendet(b.aufrufe).params.paymentMethod, 'cash');
 });

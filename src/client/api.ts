@@ -13,7 +13,6 @@ import {
   sellReceipt,
   sellReceiptWithCompany,
   cancelReceipt,
-  createCancelReceipt,
   zeroReceipt,
   getReceipt,
   getReceiptWithCompany,
@@ -27,10 +26,8 @@ import {
   type ReceiptList,
   type ReceiptWithCompany,
   type SellReceiptOptions,
-  type SellReceiptWithPaymentsOptions,
   type CancelReceiptOptions,
   type CancelReceiptResult,
-  type CreateCancelReceiptOptions,
 } from './receipts.js';
 import { listMyCashregisters } from './cashregisters.js';
 import { renewRegisterSession, endRegisterSession } from '../register/session.js';
@@ -61,13 +58,11 @@ import { renewRegisterSession, endRegisterSession } from '../register/session.js
  */
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
-  sellReceipt(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt>;
+  sellReceipt(options: SellReceiptOptions): Promise<Receipt>;
   /** Normalbeleg samt Firmen-/Druckdaten fuer den Belegdruck. */
-  sellReceiptWithCompany(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<ReceiptWithCompany>;
+  sellReceiptWithCompany(options: SellReceiptOptions): Promise<ReceiptWithCompany>;
   /** Storno eines bestehenden Belegs — voll oder in Teilen, ueber den Storno-Endpunkt. */
   cancelReceipt(options: CancelReceiptOptions): Promise<CancelReceiptResult>;
-  /** Storno aus frei uebergebenen Positionen. */
-  createCancelReceipt(options: CreateCancelReceiptOptions): Promise<Receipt>;
   /** Nullbeleg (RKSV-Pruefbeleg). */
   zeroReceipt(): Promise<Receipt>;
   /** Einzelnen Beleg holen. */
@@ -115,7 +110,6 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     sellReceipt: (o) => sellReceipt(rufen, o),
     sellReceiptWithCompany: (o) => sellReceiptWithCompany(rufen, o),
     cancelReceipt: (o) => cancelReceipt(rufen, o),
-    createCancelReceipt: (o) => createCancelReceipt(rufen, o),
     zeroReceipt: () => zeroReceipt(rufen),
     getReceipt: (receiptId) => getReceipt(rufen, receiptId),
     getReceiptWithCompany: (receiptId) => getReceiptWithCompany(rufen, receiptId),

@@ -8,6 +8,7 @@ import { CreditCardProvider } from '../src/enums/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
 import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRasterMass, logoRaster, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 import { ReceiptLayoutView } from '../src/react/index.js';
+import { belegFixtureAufV3 } from './belege-fixture.js';
 
 /**
  * Golden-Belege: `fixtures/belege/*.json` sind die Eingaben, `fixtures/erwartet/
@@ -21,7 +22,7 @@ const wurzel = new URL('../../fixtures/', import.meta.url);
 const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
 
 interface Fixture { company: Parameters<typeof buildReceiptLayout>[1]; receipt: Record<string, unknown> & { customerDetails: string[]; legalMessage: string[] }; options?: BuildReceiptLayoutOptions }
-const lade = (name: string): Fixture => JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
+const lade = (name: string): Fixture => belegFixtureAufV3(JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture);
 const erwartet = (name: string): ReceiptLayout => JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
 const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});

@@ -14,7 +14,7 @@ import { CANCELLATION_REASONS } from '../src/models/index.js';
  */
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck', street: 'Hauptstraße 5', zip: '1010', city: 'Wien', phone: '+43 1 1234567',
-  uid: 'ATU12345678', taxnr: '', isSmallBusiness: false,
+  vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf', footer2: 'www.kreiseck.com', thanksMessage: ['Bis bald!'], showKreiseckLogo: false,
 };
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
@@ -49,7 +49,7 @@ test('Verkaufsbeleg traegt keinen Belegart-Aufdruck (Rot-Probe fuer die anderen)
 // ohne die Zeile -- kein geratenes Datum.
 test('Stornobeleg: Datum des Originals als eigene Zeile zwischen Bezug und Grund', () => {
   const mit = { ...BELEG, receiptType: ReceiptType.cancellation,
-    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null, timeStamp: '2026-08-11T09:02:17' }, cancellationReason: 'fehleingabe' };
+    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null, timeStamp: '2026-08-11T09:02:17' }, cancellationReason: 'input_error' };
   const t = alsText(buildReceiptLayout(mit, FIRMA));
   const i = t.indexOf('Stornobuchung zu Beleg AT0-KASSE1-42');
   assert.ok(i >= 0, t.join('\n'));
@@ -63,7 +63,7 @@ test('Stornobeleg: Datum des Originals als eigene Zeile zwischen Bezug und Grund
 test('Stornobeleg: STORNOBELEG unter dem Kopf, Stornobuchung mit Bezug und Grund', () => {
   const storno: Receipt = { ...BELEG, receiptId: 'AT0-KASSE1-43', receiptType: ReceiptType.cancellation,
     items: [{ name: 'Espresso', quantity: -2, vat: VatRate.vat20, priceCents: 250 }],
-    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null }, cancellationReason: 'kunde_storniert' };
+    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null }, cancellationReason: 'customer_cancelled' };
   const l = buildReceiptLayout(storno, FIRMA);
   assert.deepEqual(banner(l), ['STORNOBELEG']);
   const t = alsText(l);

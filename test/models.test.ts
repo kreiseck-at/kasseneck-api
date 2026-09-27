@@ -155,10 +155,10 @@ test('Belegposition: Negation kehrt den Preis um und laesst die Menge positiv', 
 
 // --- Gutschein -----------------------------------------------------------
 
-test('Gutschein: Nutzlast hin und zurueck ergibt denselben Wert', () => {
+test('Gutschein: Nutzlast hin und zurueck ergibt denselben Wert, geschrieben nur in ganzen Cent', () => {
   const voucher: Voucher = { name: 'Weihnachten', code: 'XMAS', action: VoucherAction.sell, type: VoucherType.value, valueCents: 550 };
   const payload = toVoucherPayload(voucher);
-  assert.equal(payload.value, 5.5);
+  assert.equal('value' in payload, false, 'kein Euro-Gleitkommawert auf dem Draht');
   assert.equal(payload.valueCents, 550);
   assert.deepEqual(fromVoucherPayload(payload), voucher);
 });

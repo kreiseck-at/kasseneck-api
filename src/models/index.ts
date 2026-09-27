@@ -13,10 +13,12 @@ export {
 export { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid } from './voucher.js';
 export {
   type Receipt,
+  type RegistrationInfo,
   type ReceiptPayload,
   type ReceiptPayloadRead,
   toReceiptPayload,
   fromReceiptPayload,
+  readRegistrationInfo,
   receiptSubSumCents,
   receiptSumCents,
 } from './receipt.js';
@@ -26,7 +28,9 @@ export {
   type Cancellation,
   type CancellationReason,
   type CancellationErrorCode,
+  type CancellationStatus,
   CANCELLATION_REASONS,
+  CANCELLATION_STATUSES,
   CANCELLATION_ERROR_CODES,
   CANCELLATION_RESERVATION_MS,
   isCancellationReason,
@@ -43,9 +47,12 @@ export {
 export { type PaymentErrorCode, PAYMENT_ERROR_CODES, isPaymentErrorCode } from './payment-errors.js';
 export {
   type ReceiptEmailErrorCode,
+  type ReceiptEmailVia,
   RECEIPT_EMAIL_ERROR_CODES,
+  RECEIPT_EMAIL_VIAS,
   isReceiptEmailErrorCode,
 } from './receipt-email.js';
+export { type ReceiptErrorCode, RECEIPT_ERROR_CODES, isReceiptErrorCode } from './receipt-errors.js';
 export {
   type ReceiptCompany,
   type ReceiptCompanyPayload,

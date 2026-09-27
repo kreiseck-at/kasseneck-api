@@ -22,19 +22,21 @@ optional und nur für `@kreiseck/kasseneck-api/react` nötig.
 ## Ein Beleg in wenigen Zeilen
 
 ```ts
-import { createKasseneckApi, apiKeyAuth, KeckPaymentMethod, VatRate } from '@kreiseck/kasseneck-api';
+import { createKasseneckApi, apiKeyAuth, KeckPaymentMethod, VatRate, receiptDueCents } from '@kreiseck/kasseneck-api';
 import { buildReceiptLayout, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
 
 const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' }),
 });
 
-const { receipt, company, testKasse, testSignatur, pruefangaben } = await api.sellReceiptWithCompany({
-  paymentMethod: KeckPaymentMethod.cash,
-  items: [{ name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 }],
+const items = [{ name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 }];
+const { receipt, company, testCashregister, testSignature } = await api.sellReceiptWithCompany({
+  items,
+  // Die Zahlungen ergeben genau den Zahlbetrag (ganze Cent).
+  payments: [{ method: KeckPaymentMethod.cash, amountCents: receiptDueCents(items, [], 'standard') }],
 });
 
-const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse, testSignatur, pruefangaben });
+const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse: testCashregister, testSignatur: testSignature });
 const bytes = escPosLayoutBytes(layout);   // für den Bondrucker
 ```
 

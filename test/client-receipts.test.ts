@@ -12,7 +12,6 @@ import {
   sellReceipt,
   sellReceiptWithCompany,
   cancelReceipt,
-  createCancelReceipt,
   zeroReceipt,
   getReceipt,
   getReceiptWithCompany,
@@ -33,7 +32,7 @@ import {
 } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import { ReceiptType, VatRate, KeckPaymentMethod, type KeckPaymentMethodKey, CreditCardProvider, VoucherAction, VoucherType } from '../src/enums/index.js';
-import type { Receipt, ReceiptItem, ReceiptPayload, Voucher } from '../src/models/index.js';
+import type { Receipt, ReceiptItem, ReceiptPayload, ReceiptPaymentInput, Voucher } from '../src/models/index.js';
 import { fromReceiptPayload, receiptItemIsValid, receiptSumCents, toReceiptItemPayload } from '../src/models/index.js';
 import { buildReceiptLayout, formatCents } from '../src/receipt/layout.js';
 
@@ -106,9 +105,9 @@ const BELEG_NUTZLAST: ReceiptPayload = {
 /** Antworthuelle von `createReceipt`/`getReceipt`: Beleg plus Firmen-Metadaten. */
 const BELEG_ANTWORT = {
   receipt: BELEG_NUTZLAST,
-  uid: 'ATU12345678',
+  vatId: 'ATU12345678',
   is_small_business: false,
-  taxnr: '12/345/6789',
+  taxNumber: '12/345/6789',
   company: 'Musterfirma',
   phone: '+43 1 234',
   street: 'Musterstrasse 1',
@@ -123,6 +122,9 @@ const BELEG_ANTWORT = {
 };
 
 const KAFFEE: ReceiptItem = { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 320 };
+
+/** Barzahlung ueber den Betrag von KAFFEE; unter /v3 ist die Zahlungsliste Pflicht. */
+const BAR: ReceiptPaymentInput[] = [{ method: KeckPaymentMethod.cash, amountCents: 320 }];
 
 /** Baut Transport plus Aufruf-Mitschrift fuer den API-Schluessel-Weg. */
 function apiSchluesselWeg(daten: unknown = BELEG_ANTWORT): { rufen: KasseneckTransport; aufrufe: Aufruf[] } {
@@ -171,24 +173,24 @@ function gesendet(aufrufe: Aufruf[], basis: string = DEFAULT_BASE_URL): { endpun
 
 // --- sellReceipt -------------------------------------------------------
 
-test('sellReceipt ruft createReceipt mit receiptType standard, items und paymentMethod', async () => {
+test('sellReceipt ruft createReceipt mit receiptType standard, items und payments', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
 
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  await sellReceipt(rufen, { payments: BAR, items: [KAFFEE] });
 
   const { endpunkt, params } = gesendet(aufrufe);
   assert.equal(endpunkt, 'createReceipt');
   assert.deepEqual(params, {
     receiptType: 'standard',
     items: [{ name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 }],
-    paymentMethod: 'cash',
+    payments: [{ method: 'cash', amountCents: 320 }],
   });
 });
 
 test('sellReceipt liefert den Beleg aus data.receipt', async () => {
   const { rufen } = apiSchluesselWeg();
 
-  const beleg: Receipt = await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  const beleg: Receipt = await sellReceipt(rufen, { payments: BAR, items: [KAFFEE] });
 
   assert.equal(beleg.receiptId, 'r-1');
   assert.equal(beleg.fullReceiptId, 'ENC-FULL-ID');
@@ -201,7 +203,7 @@ test('sellReceipt: customerDetails und legalMessage gehen als \\n-verbundene Zei
   const { rufen, aufrufe } = apiSchluesselWeg();
 
   await sellReceipt(rufen, {
-    paymentMethod: KeckPaymentMethod.cash,
+    payments: BAR,
     items: [KAFFEE],
     customerDetails: ['Musterfirma GmbH', 'Musterstrasse 1'],
     legalMessage: ['Reverse Charge', '§ 19 UStG'],
@@ -214,57 +216,32 @@ test('sellReceipt: customerDetails und legalMessage gehen als \\n-verbundene Zei
   assert.equal(params['customProjectId'], 'projekt-7');
 });
 
-test('sellReceipt mit Kartenzahlung sendet cardPaymentId, creditCardProvider und cardPaymentData', async () => {
+test('sellReceipt mit Kartenzahlung: Anbieter, Kennung und Terminaldaten stehen in der Zahlung', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
 
   await sellReceipt(rufen, {
-    paymentMethod: KeckPaymentMethod.creditCard,
     items: [KAFFEE],
-    creditCardProvider: CreditCardProvider.hobexCloudApi,
-    cardPaymentId: 'tx-1',
-    cardPaymentData: { approvalCode: 'A1' },
+    payments: [{
+      method: KeckPaymentMethod.creditCard,
+      amountCents: 320,
+      provider: CreditCardProvider.hobexCloudApi,
+      providerPaymentId: 'tx-1',
+      providerData: { approvalCode: 'A1' },
+    }],
   });
 
   const { params } = gesendet(aufrufe);
   assert.deepEqual(params, {
     receiptType: 'standard',
     items: [{ name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 }],
-    paymentMethod: 'creditCard',
-    cardPaymentId: 'tx-1',
-    creditCardProvider: 'hobexCloudApi',
-    cardPaymentData: { approvalCode: 'A1' },
+    payments: [{ method: 'creditCard', amountCents: 320, provider: 'hobexCloudApi', providerPaymentId: 'tx-1', providerData: { approvalCode: 'A1' } }],
   });
+  for (const alt of ['paymentMethod', 'creditCardProvider', 'cardPaymentId', 'cardPaymentData']) {
+    assert.equal(alt in params, false, `${alt} gibt es unter /v3 nicht`);
+  }
 });
 
-test('sellReceipt mit Kartenzahlung ohne cardPaymentId: Vorgabe custom, keine Kartenfelder', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
-
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.creditCard, items: [KAFFEE] });
-
-  const { params } = gesendet(aufrufe);
-  assert.deepEqual(params, {
-    receiptType: 'standard',
-    items: [{ name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20 }],
-    paymentMethod: 'creditCard',
-  });
-});
-
-test('sellReceipt: fremder Kartenanbieter ohne cardPaymentId wird abgelehnt', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
-
-  await assert.rejects(
-    () =>
-      sellReceipt(rufen, {
-        paymentMethod: KeckPaymentMethod.creditCard,
-        items: [KAFFEE],
-        creditCardProvider: CreditCardProvider.stripe,
-      }),
-    /cardPaymentId/,
-  );
-  assert.equal(aufrufe.length, 0, 'ohne cardPaymentId darf nichts gesendet werden');
-});
-
-test('sellReceipt sendet Gutscheine mit value (Euro) und valueCents', async () => {
+test('sellReceipt sendet Gutscheine nur mit valueCents (ganze Cent, kein Euro-Wert)', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   const gutschein: Voucher = {
     name: 'Wertgutschein',
@@ -274,20 +251,20 @@ test('sellReceipt sendet Gutscheine mit value (Euro) und valueCents', async () =
     valueCents: 500,
   };
 
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, vouchers: [gutschein] });
+  await sellReceipt(rufen, { payments: [{ method: KeckPaymentMethod.cash, amountCents: 500 }], vouchers: [gutschein] });
 
   const { params } = gesendet(aufrufe);
   assert.deepEqual(params, {
     receiptType: 'standard',
-    vouchers: [{ name: 'Wertgutschein', code: 'G-1', action: 'sell', type: 'value', value: 5, valueCents: 500 }],
-    paymentMethod: 'cash',
+    vouchers: [{ action: 'sell', type: 'value', valueCents: 500, code: 'G-1', name: 'Wertgutschein' }],
+    payments: [{ method: 'cash', amountCents: 500 }],
   });
 });
 
 test('sellReceipt ohne Positionen und ohne Verkaufsgutschein wird abgelehnt', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
 
-  await assert.rejects(() => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [] }), /Positionen/i);
+  await assert.rejects(() => sellReceipt(rufen, { payments: BAR, items: [] }), /Positionen/i);
   assert.equal(aufrufe.length, 0);
 });
 
@@ -295,7 +272,7 @@ test('sellReceipt mit ungueltiger Position wird abgelehnt', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   const ohneName: ReceiptItem = { name: '', quantity: 1, vat: VatRate.vat20, priceCents: 320 };
 
-  await assert.rejects(() => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [ohneName] }), /Position/i);
+  await assert.rejects(() => sellReceipt(rufen, { payments: BAR, items: [ohneName] }), /Position/i);
   assert.equal(aufrufe.length, 0);
 });
 
@@ -304,13 +281,13 @@ test('sellReceipt mit ungueltigem Gutschein wird abgelehnt', async () => {
   const ohneWert: Voucher = { action: VoucherAction.sell, type: VoucherType.value };
 
   await assert.rejects(
-    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], vouchers: [ohneWert] }),
+    () => sellReceipt(rufen, { payments: BAR, items: [KAFFEE], vouchers: [ohneWert] }),
     /Gutschein/i,
   );
   assert.equal(aufrufe.length, 0);
 });
 
-// --- cancelReceipt / createCancelReceipt -------------------------------
+// --- cancelReceipt -----------------------------------------------------
 //
 // cancelReceipt geht seit der Storno-API an den eigenen Endpunkt cancelReceipt:
 // der Server negiert, prueft Restmengen und verkettet. Das Paket schickt nur
@@ -328,7 +305,7 @@ test('cancelReceipt ruft den Storno-Endpunkt mit Bezug und Grund und liest Restm
   const ergebnis = await cancelReceipt(rufen, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-12',
-    reason: 'fehleingabe',
+    reason: 'input_error',
     items: [{ index: 0, quantity: 1 }],
     note: 'Kunde wollte nur eine',
   });
@@ -337,7 +314,7 @@ test('cancelReceipt ruft den Storno-Endpunkt mit Bezug und Grund und liest Restm
   assert.deepEqual(params, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-12',
-    reason: 'fehleingabe',
+    reason: 'input_error',
     items: [{ index: 0, quantity: 1 }],
     note: 'Kunde wollte nur eine',
   });
@@ -346,31 +323,40 @@ test('cancelReceipt ruft den Storno-Endpunkt mit Bezug und Grund und liest Restm
   assert.deepEqual(ergebnis.remaining, [0, 1]);
 });
 
-test('cancelReceipt reicht die Kartendaten der Erstattung durch', async () => {
+test('cancelReceipt reicht die Kartendaten der Erstattung in der Rueckzahlung durch', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   await cancelReceipt(rufen, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-12',
-    reason: 'kunde_storniert',
-    paymentMethod: KeckPaymentMethod.creditCard,
-    creditCardProvider: CreditCardProvider.hobexHps,
-    cardPaymentId: '178834783507100000',
-    cardPaymentData: { cardNumber: '541333******0021' },
+    reason: 'customer_cancelled',
+    payments: [{
+      method: KeckPaymentMethod.creditCard,
+      amountCents: -320,
+      refundOf: 'p1',
+      provider: CreditCardProvider.hobexHps,
+      providerPaymentId: '178834783507100000',
+      providerData: { cardNumber: '541333******0021' },
+    }],
   });
   const { params } = gesendet(aufrufe);
-  assert.equal(params.creditCardProvider, 'hobexHps');
-  assert.equal(params.cardPaymentId, '178834783507100000');
-  assert.deepEqual(params.cardPaymentData, { cardNumber: '541333******0021' });
+  assert.deepEqual(params.payments, [{
+    method: 'creditCard',
+    amountCents: -320,
+    provider: 'hobexHps',
+    providerPaymentId: '178834783507100000',
+    providerData: { cardNumber: '541333******0021' },
+    refundOf: 'p1',
+  }]);
 });
 
-test('cancelReceipt: Kartendaten bei Barerstattung und unbekannter Anbieter gehen gar nicht erst raus', async () => {
+test('cancelReceipt: Kartenfelder am Storno und unbekannter Anbieter gehen gar nicht erst raus', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'kunde_storniert', paymentMethod: KeckPaymentMethod.cash, cardPaymentId: 'x' }),
-    /Kartendaten/,
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'customer_cancelled', cardPaymentId: 'x' } as never),
+    /cardPaymentId/,
   );
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'kunde_storniert', creditCardProvider: 'gibtsNicht' as CreditCardProvider }),
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'customer_cancelled', payments: [{ method: 'creditCard', amountCents: -1, provider: 'gibtsNicht' as CreditCardProvider }] }),
     /Kartenanbieter/,
   );
   assert.equal(aufrufe.length, 0);
@@ -378,7 +364,7 @@ test('cancelReceipt: Kartendaten bei Barerstattung und unbekannter Anbieter gehe
 
 test('cancelReceipt ohne Kartendaten schickt keine Kartenfelder', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
-  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'fehleingabe' });
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'input_error' });
   const { params } = gesendet(aufrufe);
   assert.equal('creditCardProvider' in params, false);
   assert.equal('cardPaymentId' in params, false);
@@ -388,13 +374,12 @@ test('cancelReceipt ohne Kartendaten schickt keine Kartenfelder', async () => {
 test('cancelReceipt nimmt auch den Beleg selbst als Bezug (Kasse und ID daraus)', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   const beleg = fromReceiptPayload({ ...BELEG_NUTZLAST, receiptId: 'kasse-1-ID-12' });
-  await cancelReceipt(rufen, { receipt: beleg, reason: 'kunde_storniert', paymentMethod: KeckPaymentMethod.cash });
+  await cancelReceipt(rufen, { receipt: beleg, reason: 'customer_cancelled' });
   const { params } = gesendet(aufrufe);
   assert.deepEqual(params, {
     cashregisterId: KASSEN_ID,
     originalReceiptId: 'kasse-1-ID-12',
-    reason: 'kunde_storniert',
-    paymentMethod: 'cash',
+    reason: 'customer_cancelled',
   });
 });
 
@@ -405,15 +390,15 @@ test('cancelReceipt prueft die Eingabe, bevor etwas hinausgeht', async () => {
     /Storno-Grund/,
   );
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges', items: [{ index: 0, quantity: 0 }] }),
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'other', items: [{ index: 0, quantity: 0 }] }),
     /Storno-Menge/,
   );
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges', note: 'x'.repeat(201) }),
+    () => cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'other', note: 'x'.repeat(201) }),
     /Anmerkung/,
   );
   await assert.rejects(
-    () => cancelReceipt(rufen, { cashregisterId: '', originalReceiptId: 'x', reason: 'sonstiges' }),
+    () => cancelReceipt(rufen, { cashregisterId: '', originalReceiptId: 'x', reason: 'other' }),
     /cashregisterId/,
   );
   assert.equal(aufrufe.length, 0);
@@ -422,56 +407,14 @@ test('cancelReceipt prueft die Eingabe, bevor etwas hinausgeht', async () => {
 test('cancelReceipt weist eine Antwort ohne Bezug oder ohne Restmengen zurueck', async () => {
   const ohneBezug = apiSchluesselWeg({ receipt: BELEG_NUTZLAST, remaining: [0] });
   await assert.rejects(
-    () => cancelReceipt(ohneBezug.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges' }),
+    () => cancelReceipt(ohneBezug.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'other' }),
     /cancellationOf/,
   );
   const ohneReste = apiSchluesselWeg({ receipt: BELEG_NUTZLAST, cancellationOf: { receiptId: 'x', fullReceiptId: null } });
   await assert.rejects(
-    () => cancelReceipt(ohneReste.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'sonstiges' }),
+    () => cancelReceipt(ohneReste.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'x', reason: 'other' }),
     /remaining/,
   );
-});
-
-test('cancelReceipt: uebergebene Zahlungsart sticht die des Belegs', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
-  const beleg: Receipt = {
-    receiptId: 'r-1',
-    cashregisterId: KASSEN_ID,
-    timeStamp: '2026-08-13T10:15:00',
-    items: [KAFFEE],
-    vouchers: [],
-    paymentMethod: KeckPaymentMethod.creditCard,
-    turnoverCounterAES256ICM: 'ZAEHLER',
-    signaturePreviousReceipt: 'VORGAENGER',
-    certificateSerialNumber: '6F0404F0',
-    receiptType: ReceiptType.standard,
-    sig: 'SIGNATUR',
-    qr: 'QR',
-    fullReceiptId: 'ENC-FULL-ID',
-    customerDetails: [],
-    legalMessage: [],
-  };
-
-  await cancelReceipt(rufen, { receipt: beleg, reason: 'falsche_zahlart', paymentMethod: KeckPaymentMethod.cash });
-
-  const { endpunkt, params } = gesendet(aufrufe);
-  assert.equal(endpunkt, 'cancelReceipt');
-  assert.equal(params['paymentMethod'], 'cash');
-});
-
-test('createCancelReceipt storniert die uebergebenen Positionen unveraendert', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
-  const minus: ReceiptItem = { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: -320 };
-
-  await createCancelReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [minus] });
-
-  const { endpunkt, params } = gesendet(aufrufe);
-  assert.equal(endpunkt, 'createReceipt');
-  assert.deepEqual(params, {
-    receiptType: 'cancellation',
-    items: [{ name: 'Kaffee', quantity: 1, unitPriceCents: -320, vatRate: 20 }],
-    paymentMethod: 'cash',
-  });
 });
 
 // --- zeroReceipt -------------------------------------------------------
@@ -534,10 +477,10 @@ test('getFirstReceiptDate deutet den Zeitstempel als Wiener Wanduhrzeit', async 
 
 test('Kassen-Benutzer-Weg: cashregisterId geht bei jedem erlaubten Aufruf mit, ueber den Kassenweg', async () => {
   for (const [name, aufruf] of [
-    ['createReceipt', (r: KasseneckTransport) => sellReceipt(r, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] })],
+    ['createReceipt', (r: KasseneckTransport) => sellReceipt(r, { payments: BAR, items: [KAFFEE] })],
     ['getReceipt', (r: KasseneckTransport) => getReceipt(r, 'r-1')],
     ['generateFullReceiptId', (r: KasseneckTransport) => generateFullReceiptId(r, 'r-1')],
-    ['cancelReceipt', (r: KasseneckTransport) => cancelReceipt(r, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'fehleingabe' })],
+    ['cancelReceipt', (r: KasseneckTransport) => cancelReceipt(r, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'input_error' })],
   ] as const) {
     const antwort = name === 'generateFullReceiptId' ? { fullReceiptId: 'X' } : name === 'cancelReceipt' ? STORNO_ANTWORT : BELEG_ANTWORT;
     const { rufen, aufrufe } = kassenBenutzerWeg(antwort);
@@ -552,7 +495,7 @@ test('Kassen-Benutzer-Weg: cashregisterId geht bei jedem erlaubten Aufruf mit, u
 test('API-Schluessel-Weg: keine cashregisterId in der Nutzlast — die Kasse steckt im Token', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
 
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  await sellReceipt(rufen, { payments: BAR, items: [KAFFEE] });
 
   const { params } = gesendet(aufrufe);
   assert.ok(!('cashregisterId' in params), 'cashregisterId gehoert nicht in die Nutzlast des API-Schluessel-Wegs');
@@ -593,7 +536,7 @@ test('createKasseneckApi bindet die Beleg-Aufrufe an einen Transport', async () 
     fetch: holen,
   });
 
-  const beleg = await api.sellReceipt({ paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  const beleg = await api.sellReceipt({ payments: BAR, items: [KAFFEE] });
 
   const { endpunkt } = gesendet(aufrufe);
   assert.equal(endpunkt, 'createReceipt');
@@ -610,19 +553,15 @@ test('Aufrufer-Pruefungen werfen KasseneckValidationError, nicht nacktes Error',
   const { rufen } = apiSchluesselWeg();
 
   const faelle: Array<() => Promise<unknown>> = [
-    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [] }),
-    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [{ name: '', quantity: 1, vat: VatRate.vat20, priceCents: 1 }] }),
-    () =>
-      sellReceipt(rufen, {
-        paymentMethod: KeckPaymentMethod.creditCard,
-        items: [KAFFEE],
-        creditCardProvider: CreditCardProvider.stripe,
-      }),
-    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], vouchers: [{ action: VoucherAction.sell, type: VoucherType.value }] }),
+    () => sellReceipt(rufen, { payments: BAR, items: [] }),
+    () => sellReceipt(rufen, { payments: BAR, items: [{ name: '', quantity: 1, vat: VatRate.vat20, priceCents: 1 }] }),
+    // Alter Einzel-Zahlungsweg (ohne Typen): unter /v3 abgewiesen.
+    () => sellReceipt(rufen, { items: [KAFFEE], paymentMethod: 'creditCard', creditCardProvider: CreditCardProvider.stripe } as never),
+    () => sellReceipt(rufen, { payments: BAR, items: [KAFFEE], vouchers: [{ action: VoucherAction.sell, type: VoucherType.value }] }),
     () => createReceipt(rufen, { receiptType: ReceiptType.zero, vouchers: [{ action: VoucherAction.sell, type: VoucherType.value, valueCents: 500 }] }),
     // Steuersatz, den dieses Paket nicht kennt: kommt aus dem Modell-Schreibpfad
     // und darf ebenfalls nicht als nacktes Error durchschlagen.
-    () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [{ name: 'X', quantity: 1, vat: 999, priceCents: 100 }] }),
+    () => sellReceipt(rufen, { payments: BAR, items: [{ name: 'X', quantity: 1, vat: 999, priceCents: 100 }] }),
   ];
 
   for (const [i, fall] of faelle.entries()) {
@@ -640,7 +579,7 @@ test('Aufrufer-Pruefungen werfen KasseneckValidationError, nicht nacktes Error',
 test('unbrauchbare Antwortformen werfen KasseneckValidationError mit scope response', async () => {
   const faelle: Array<{ daten: unknown; aufruf: (r: KasseneckTransport) => Promise<unknown>; name: string }> = [
     { daten: { uid: 'ATU1' }, aufruf: (r) => getReceipt(r, 'r-1'), name: 'getReceipt' },
-    { daten: { uid: 'ATU1' }, aufruf: (r) => sellReceipt(r, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] }), name: 'createReceipt' },
+    { daten: { uid: 'ATU1' }, aufruf: (r) => sellReceipt(r, { payments: BAR, items: [KAFFEE] }), name: 'createReceipt' },
     { daten: {}, aufruf: (r) => generateFullReceiptId(r, 'r-1'), name: 'generateFullReceiptId' },
     { daten: { nichts: true }, aufruf: (r) => getFirstReceiptDate(r), name: 'getFirstReceiptDate' },
   ];
@@ -702,8 +641,8 @@ test('benannte Aufrufe pruefen die Zahlungsart auch ohne Typpruefung des Aufrufe
   // Ein JS-Verbraucher ohne Typen faellt durch das Typnetz. Ohne
   // Laufzeitpruefung ginge 'klarna' hinaus und faellt erst am Server auf.
   const faelle: Array<{ name: string; aufruf: (r: KasseneckTransport) => Promise<unknown> }> = [
-    { name: 'sellReceipt', aufruf: (r) => sellReceipt(r, { paymentMethod: 'klarna' as KeckPaymentMethodKey, items: [KAFFEE] }) },
-    { name: 'createCancelReceipt', aufruf: (r) => createCancelReceipt(r, { paymentMethod: 'klarna' as KeckPaymentMethodKey, items: [KAFFEE] }) },
+    { name: 'sellReceipt', aufruf: (r) => sellReceipt(r, { payments: [{ method: 'klarna' as KeckPaymentMethodKey, amountCents: 320 }], items: [KAFFEE] }) },
+    { name: 'cancelReceipt', aufruf: (r) => cancelReceipt(r, { cashregisterId: KASSEN_ID, originalReceiptId: 'r-1', reason: 'other', payments: [{ method: 'klarna' as KeckPaymentMethodKey, amountCents: -320 }] }) },
   ];
 
   for (const fall of faelle) {
@@ -717,33 +656,6 @@ test('benannte Aufrufe pruefen die Zahlungsart auch ohne Typpruefung des Aufrufe
     assert.match(fehler.reason, /Zahlungsart/);
     assert.equal(aufrufe.length, 0, `${fall.name}: es darf nichts gesendet werden`);
   }
-});
-
-test('cancelReceipt prueft eine ausdruecklich uebergebene Zahlungsart ebenfalls', async () => {
-  const { rufen, aufrufe } = apiSchluesselWeg();
-  const beleg: Receipt = {
-    receiptId: 'r-1',
-    cashregisterId: KASSEN_ID,
-    timeStamp: '2026-08-13T10:15:00',
-    items: [KAFFEE],
-    vouchers: [],
-    paymentMethod: KeckPaymentMethod.cash,
-    turnoverCounterAES256ICM: 'ZAEHLER',
-    signaturePreviousReceipt: 'VORGAENGER',
-    certificateSerialNumber: '6F0404F0',
-    receiptType: ReceiptType.standard,
-    sig: 'SIGNATUR',
-    qr: 'QR',
-    fullReceiptId: 'ENC-FULL-ID',
-    customerDetails: [],
-    legalMessage: [],
-  };
-
-  await assert.rejects(
-    () => cancelReceipt(rufen, { receipt: beleg, reason: 'sonstiges', paymentMethod: 'klarna' as KeckPaymentMethodKey }),
-    /Zahlungsart/,
-  );
-  assert.equal(aufrufe.length, 0);
 });
 
 /**
@@ -791,7 +703,7 @@ test('gedruckter Beleg widerspricht nie dem signierten — auch nicht bei gebroc
   for (const menge of [1, 2, 0.35, 3.7, 12]) {
     const { rufen, gesendet } = backendMitV1Speicherung();
     const ergebnis = await sellReceiptWithCompany(rufen, {
-      paymentMethod: KeckPaymentMethod.cash,
+      payments: BAR,
       items: [{ name: 'Käse', quantity: menge, vat: VatRate.vat20, priceCents: 1990 }],
     }).then(
       (wert) => ({ wert }),
@@ -854,7 +766,7 @@ test('cancelReceipt: ohne eigene Zahlungsart geht keine mit -- der Server nimmt 
   // ist deshalb kein Sonderfall mehr.
   const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
   const beleg = { ...fromReceiptPayload(BELEG_NUTZLAST), paymentMethod: 'klarna' } as unknown as Receipt;
-  await cancelReceipt(rufen, { receipt: beleg, reason: 'sonstiges' });
+  await cancelReceipt(rufen, { receipt: beleg, reason: 'other' });
   const gesendet = JSON.parse(aufrufe[0]!.init.body) as { params: Record<string, unknown> };
   assert.equal('paymentMethod' in gesendet.params, false);
   assert.equal(gesendet.params['originalReceiptId'], BELEG_NUTZLAST.receiptId);
@@ -945,41 +857,44 @@ test('ein fremd erzeugter Beleg wird gedruckt, wie er signiert wurde', async () 
   );
 });
 
-test('getReceiptWithCompany: Testkasse/Testsignatur, kopfId und mitgeliefertes Zeilenmodell kommen durch (fehlen: false/null)', async () => {
-  const layout = { lines: [{ kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', ton: 'warnung' }], paperSize: 'mm80', regelwerk: 1 };
-  const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, testKasse: false, testSignatur: true, kopfId: 'v1', layout, pruefangaben: { karteRegistriertAm: '2024-03-12', kasseRegistriertAm: null } }));
+test('getReceiptWithCompany: testCashregister/testSignature, headerVersionId und mitgeliefertes Zeilenmodell kommen durch (fehlen: false/null)', async () => {
+  const layout = { lines: [{ kind: 'banner', text: 'TESTSIGNATUR – kein gültiger Beleg', tone: 'warning' }], paperSize: 'mm80', ruleset: 1 };
+  const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, testCashregister: false, testSignature: true, headerVersionId: 'v1', layout, registrationInfo: { cardRegisteredAt: '2024-03-12', cashregisterRegisteredAt: null } }));
   const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
   const antwort = await getReceiptWithCompany(rufen, 'r-1');
-  assert.equal(antwort.testKasse, false);
-  assert.equal(antwort.testSignatur, true);
-  assert.equal(antwort.kopfId, 'v1');
+  assert.equal(antwort.testCashregister, false);
+  assert.equal(antwort.testSignature, true);
+  assert.equal(antwort.headerVersionId, 'v1');
   assert.deepEqual(antwort.layout, layout);
-  assert.deepEqual(antwort.pruefangaben, { karteRegistriertAm: '2024-03-12', kasseRegistriertAm: null });
-  // Rot-Probe: altes Backend ohne die Felder
-  const { holen: alt } = fetchFake(erfolg({ ...BELEG_ANTWORT }));
+  assert.deepEqual(antwort.registrationInfo, { cardRegisteredAt: '2024-03-12', cashregisterRegisteredAt: null });
+  // Ohne die Felder: false bzw. null. Die alten deutschen Namen zaehlen nicht.
+  const { holen: alt } = fetchFake(erfolg({ ...BELEG_ANTWORT, testKasse: true, testSignatur: true, kopfId: 'alt', pruefangaben: { karteRegistriertAm: 'x' } }));
   const a2 = await getReceiptWithCompany(createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: alt }), 'r-1');
-  assert.equal(a2.testKasse, false);
-  assert.equal(a2.testSignatur, false);
-  assert.equal(a2.kopfId, null);
-  assert.equal(a2.pruefangaben, null);
+  assert.equal(a2.testCashregister, false);
+  assert.equal(a2.testSignature, false);
+  assert.equal(a2.headerVersionId, null);
+  assert.equal(a2.registrationInfo, null);
   assert.equal(a2.layout, null);
 });
 
-test('getReceiptWithCompany: logo_skala wird zur Logo-Stufe (fehlt oder unbekannt: M)', async () => {
+test('getReceiptWithCompany: logo_scale wird zur Logo-Stufe (fehlt, unbekannt oder altes logo_skala: M)', async () => {
   const faelle: ReadonlyArray<readonly [unknown, string]> = [['XL', 'XL'], ['S', 'S'], [undefined, 'M'], ['riesig', 'M'], [3, 'M'], [null, 'M']];
   for (const [roh, soll] of faelle) {
-    const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, ...(roh === undefined ? {} : { logo_skala: roh }) }));
+    const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, ...(roh === undefined ? {} : { logo_scale: roh }) }));
     const rufen = createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen });
     const antwort = await getReceiptWithCompany(rufen, 'r-1');
-    assert.equal(antwort.logoStufe, soll, `logo_skala=${String(roh)}`);
+    assert.equal(antwort.logoScale, soll, `logo_scale=${String(roh)}`);
   }
+  const { holen } = fetchFake(erfolg({ ...BELEG_ANTWORT, logo_skala: 'XL' }));
+  const alt = await getReceiptWithCompany(createTransport({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: holen }), 'r-1');
+  assert.equal(alt.logoScale, 'M');
 });
 
 // --- Trinkgeld (Backend keck#201: Positionen kind:'tip', Parameter tip) -----
 
 test('sellReceipt: tip als Zahl geht unveraendert als Cent hinaus', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 200 });
+  await sellReceipt(rufen, { payments: BAR, items: [KAFFEE], tip: 200 });
   const { params } = gesendet(aufrufe);
   assert.equal(params['tip'], 200);
 });
@@ -987,7 +902,7 @@ test('sellReceipt: tip als Zahl geht unveraendert als Cent hinaus', async () => 
 test('sellReceipt: tip als Objekt mit Zahlart (geprueft) und Empfaengern', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   await sellReceipt(rufen, {
-    paymentMethod: KeckPaymentMethod.cash,
+    payments: BAR,
     items: [KAFFEE],
     tip: {
       cents: 300,
@@ -1008,47 +923,47 @@ test('sellReceipt: tip als Objekt mit Zahlart (geprueft) und Empfaengern', async
 // Lade bleiben, Kartentrinkgeld kann sofort bar ausgezahlt werden -- § 2j Abs 2
 // AVRAG kennt beide Faelle.
 
-test('sellReceipt: sofortErhalten geht in beide Richtungen hinaus', async () => {
+test('sellReceipt: receivedImmediately geht in beide Richtungen hinaus', async () => {
   for (const wert of [true, false]) {
     const { rufen, aufrufe } = apiSchluesselWeg();
     await sellReceipt(rufen, {
-      paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE],
-      tip: { cents: 200, sofortErhalten: wert },
+      payments: BAR, items: [KAFFEE],
+      tip: { cents: 200, receivedImmediately: wert },
     });
     const { params } = gesendet(aufrufe);
-    assert.deepEqual(params['tip'], { cents: 200, sofortErhalten: wert });
+    assert.deepEqual(params['tip'], { cents: 200, receivedImmediately: wert });
   }
 });
 
-test('sellReceipt: ohne sofortErhalten steht das Feld NICHT in der Nutzlast', async () => {
+test('sellReceipt: ohne receivedImmediately steht das Feld NICHT in der Nutzlast', async () => {
   // Sonst waere „nichts gesagt" ploetzlich eine Aussage, und die
   // Voreinstellung des Betriebs kaeme nie zum Zug. Vor dieser Ergaenzung
   // verschluckte das Paket das Feld sogar dann, wenn es jemand SETZTE --
   // gepruefterTip baut die Nutzlast aus bekannten Feldern neu auf.
   const { rufen, aufrufe } = apiSchluesselWeg();
   await sellReceipt(rufen, {
-    paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: { cents: 200 },
+    payments: BAR, items: [KAFFEE], tip: { cents: 200 },
   });
   const { params } = gesendet(aufrufe);
-  assert.equal(Object.prototype.hasOwnProperty.call(params['tip'], 'sofortErhalten'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(params['tip'], 'receivedImmediately'), false);
 });
 
-test('sellReceipt: ein sofortErhalten, das kein Boolean ist, geht nicht hinaus', async () => {
+test('sellReceipt: ein receivedImmediately, das kein Boolean ist, geht nicht hinaus', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
   await assert.rejects(
     () => sellReceipt(rufen, {
-      paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE],
+      payments: BAR, items: [KAFFEE],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tip: { cents: 200, sofortErhalten: 'ja' as any },
+      tip: { cents: 200, receivedImmediately: 'ja' as any },
     }),
-    /sofortErhalten muss true oder false sein/,
+    /receivedImmediately muss true oder false sein/,
   );
   assert.equal(aufrufe.length, 0);
 });
 
 test('sellReceipt: ohne tip steht kein tip-Feld in der Nutzlast', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
-  await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] });
+  await sellReceipt(rufen, { payments: BAR, items: [KAFFEE] });
   const { params } = gesendet(aufrufe);
   assert.equal('tip' in params, false);
 });
@@ -1067,7 +982,7 @@ test('sellReceipt: ungueltiges Trinkgeld wird VOR dem Senden abgewiesen', async 
   for (const tip of faelle) {
     const { rufen, aufrufe } = apiSchluesselWeg();
     await assert.rejects(
-      () => sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: tip as never }),
+      () => sellReceipt(rufen, { payments: BAR, items: [KAFFEE], tip: tip as never }),
       (e: unknown) => isKasseneckValidationError(e),
       `erwartet Ablehnung fuer ${inspect(tip)}`,
     );
@@ -1082,11 +997,11 @@ test('createReceipt: Trinkgeld nur auf standard und training', async () => {
     (e: unknown) => isKasseneckValidationError(e),
   );
   await assert.rejects(
-    () => createReceipt(rufen, { receiptType: ReceiptType.cancellation, paymentMethod: KeckPaymentMethod.cash, items: [{ ...KAFFEE, priceCents: -320 }], tip: 100 }),
+    () => createReceipt(rufen, { receiptType: ReceiptType.cancellation, payments: BAR, items: [{ ...KAFFEE, priceCents: -320 }], tip: 100 }),
     (e: unknown) => isKasseneckValidationError(e),
   );
   assert.equal(aufrufe.length, 0);
-  await createReceipt(rufen, { receiptType: ReceiptType.training, paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 50 });
+  await createReceipt(rufen, { receiptType: ReceiptType.training, payments: BAR, items: [KAFFEE], tip: 50 });
   assert.equal(gesendet(aufrufe).params['tip'], 50);
 });
 
@@ -1101,7 +1016,7 @@ test('sellReceipt: der zurueckgelesene Beleg traegt tipCents und die Tip-Positio
     tipCents: 200,
   };
   const { rufen } = apiSchluesselWeg({ ...BELEG_ANTWORT, receipt: nutzlast });
-  const beleg = await sellReceipt(rufen, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE], tip: 200 });
+  const beleg = await sellReceipt(rufen, { payments: BAR, items: [KAFFEE], tip: 200 });
   assert.equal(beleg.tipCents, 200);
   assert.equal(beleg.items[1]?.kind, 'tip');
   assert.deepEqual(beleg.items[1]?.recipient, { registerUserId: 'ru_7', name: 'Anna' });

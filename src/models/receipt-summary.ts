@@ -1,6 +1,7 @@
 import { KeckPaymentMethod, ReceiptType } from '../enums/index.js';
 import { euroToCents } from '../money.js';
 import { readEnumKey } from './enum-payload.js';
+import type { CancellationStatus } from './cancellation.js';
 import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload } from './receipt-payment.js';
 
 /**
@@ -57,8 +58,8 @@ export interface ReceiptSummary {
   /** Nur am Storno-Beleg: das Original. */
   cancellationOf?: { receiptId: string | null; timeStamp?: string };
   cancellationReason?: string;
-  /** offen | teil | voll -- Storno-Stand des Originals. */
-  stornoStand: 'offen' | 'teil' | 'voll';
+  /** Storno-Stand des Originals: `none`, `partial` oder `full`. */
+  cancellationStatus: CancellationStatus;
   /** Nur am Nullbeleg, nur fuer Kassen-Benutzer: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
   zeroKind?: ZeroKind;
   /**
@@ -85,7 +86,7 @@ export interface ReceiptSummaryPayload {
   operator?: { uid?: string | null; name?: string | null } | null;
   cancellationOf?: { receiptId?: string | null; timeStamp?: string | null } | null;
   cancellationReason?: string | null;
-  stornoStand?: string | null;
+  cancellationStatus?: string | null;
   zeroKind?: string | null;
   payments?: ReceiptPaymentPayload[] | null;
 }
@@ -110,7 +111,7 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
       ...(typeof payload.cancellationOf.timeStamp === 'string' && payload.cancellationOf.timeStamp ? { timeStamp: payload.cancellationOf.timeStamp } : {}),
     } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
-    stornoStand: payload.stornoStand === 'teil' || payload.stornoStand === 'voll' ? payload.stornoStand : 'offen',
+    cancellationStatus: payload.cancellationStatus === 'partial' || payload.cancellationStatus === 'full' ? payload.cancellationStatus : 'none',
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
   };

@@ -280,8 +280,7 @@ test('v3: sellReceipt ohne Kennzeichen bricht ab: ein Aufruf, keine Wiederholung
   const { holen, aufrufe } = aufzeichnen(() => erfolg({ receiptId: 'r1', sig: 'x' }, { kennzeichen: null }));
   const api = createKasseneckApi({ auth: kassenBenutzer(), fetch: holen });
   const e = await fehler(
-    // Form der 0.x-Linie; der Draht der Belege wird in einer spaeteren Aufgabe englisch.
-    api.sellReceipt({ paymentMethod: 'cash', items: [{ name: 'Kaffee', quantity: 1, vat: 20, priceCents: 320 }] } as never),
+    api.sellReceipt({ payments: [{ method: 'cash', amountCents: 320 }], items: [{ name: 'Kaffee', quantity: 1, vat: 20, priceCents: 320 }] }),
   );
   assert.ok(e instanceof KasseneckApiError, String(e));
   assert.equal(e.code, 'dialect_mismatch');

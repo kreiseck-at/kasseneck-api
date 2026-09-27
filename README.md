@@ -65,6 +65,7 @@ import {
   apiKeyAuth,
   KeckPaymentMethod,
   VatRate,
+  receiptDueCents,
 } from '@kreiseck/kasseneck-api';
 import { buildReceiptLayout, renderReceiptGrid, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
 
@@ -72,21 +73,27 @@ const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' }),
 });
 
+const items = [
+  { name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 },
+  { name: 'Marmeladeweckerl', quantity: 1, vat: VatRate.vat10, priceCents: 250 },
+];
+// Optional tip in cents; the backend books it as a signed tip line.
+// With its own payment method or recipients: { cents, paymentMethod, recipients }.
+const tip = 100;
+
+// The payments must add up to exactly this amount (whole cents).
+const dueCents = receiptDueCents(items, [], 'standard', { tip }); // 1130
+
 // Sell, and get the company data for the receipt header in the same call.
-const { receipt, company, testKasse, testSignatur, pruefangaben } = await api.sellReceiptWithCompany({
-  paymentMethod: KeckPaymentMethod.cash,
-  items: [
-    { name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 },
-    { name: 'Marmeladeweckerl', quantity: 1, vat: VatRate.vat10, priceCents: 250 },
-  ],
-  // Optional tip in cents; the backend books it as a signed tip line.
-  // With its own payment method or recipients: { cents, paymentMethod, recipients }.
-  tip: 100,
+const { receipt, company, testCashregister, testSignature } = await api.sellReceiptWithCompany({
+  items,
+  tip,
+  payments: [{ method: KeckPaymentMethod.cash, amountCents: dueCents, tenderedCents: 2000 }],
 });
 
 // Layout: a plain data model (lines, alignment, columns, QR code).
-// testKasse / testSignatur add the "not a valid receipt" banner where needed.
-const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse, testSignatur, pruefangaben });
+// The test flags add the "not a valid receipt" banner where needed.
+const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse: testCashregister, testSignatur: testSignature });
 
 // Character grid: exactly 32 (58 mm) or 48 (80 mm) characters per line.
 // Screen, printed receipt and PDF all use this one grid.
@@ -98,6 +105,15 @@ const bytes = escPosLayoutBytes(layout);
 
 The receipt returned by `sellReceiptWithCompany` (or `sellReceipt`) has already
 been signed, chained and stored in the data capture log (*DEP*) by the backend.
+
+**Payments are mandatory.** Every sale carries `payments[]` (several per receipt:
+card plus cash and so on); card details (`provider`, `providerPaymentId`,
+`providerData`) belong to the single payment. `receiptDueCents` computes the
+amount the payments must match, exactly as the backend does (tax buckets,
+discount vouchers, tips, value vouchers). If they do not match, the backend
+rejects the receipt with `payments_sum_mismatch` without using up a receipt
+number; `paymentsExpectedCents(error)` gives its amount. The package never
+retries on its own: a card payment has already been charged.
 
 ## What a fiscal cash register in Austria must do
 
@@ -297,7 +313,7 @@ payments.
 numbered rule set. Without the `regelwerk` option the current one applies
 (`AKTUELLES_REGELWERK`, currently 2: zero receipts carry a block
 "Prüfangaben" with the registration data, which `getReceiptWithCompany`
-returns as `pruefangaben`). The backend stores the rule set with each receipt,
+returns as `registrationInfo`). The backend stores the rule set with each receipt,
 and `getReceiptWithCompany` also returns the backend-built `layout` in that
 rule set, so an old receipt looks the way it did when it was issued.
 
@@ -311,9 +327,12 @@ A cancellation (*Storno*) refers to the original receipt, in full or in part:
 ```ts
 const result = await api.cancelReceipt({
   receipt: original,                    // or: cashregisterId + originalReceiptId
-  reason: 'fehleingabe',                // catalogue: CANCELLATION_REASONS
+  reason: 'input_error',                // catalogue: CANCELLATION_REASONS
   items: [{ index: 0, quantity: 1 }],   // omit = cancel all remaining quantities
   note: 'Customer only wanted one',     // internal, stored, never printed
+  // Refund per original payment (negative, refundOf = id of that payment).
+  // Omit it and the server refunds the remainder of every original payment.
+  payments: [{ method: KeckPaymentMethod.cash, amountCents: -390, refundOf: 'p1' }],
 });
 result.receipt;         // the signed cancellation receipt (receiptType cancellation)
 result.cancellationOf;  // reference to the original
@@ -328,20 +347,20 @@ fully cancelled receipt cannot be cancelled again. On a receipt you have read,
 cancellation dialog); the server has the final word.
 
 Every business error of `cancelReceipt` carries `KasseneckApiError.code` from
-`CANCELLATION_ERROR_CODES` (for example `bereits_storniert`,
-`menge_ueber_rest`, `nur_eigene_belege`):
+`CANCELLATION_ERROR_CODES` (for example `already_cancelled`,
+`quantity_exceeds_remaining`, `own_receipts_only`):
 
 ```ts
 import { isKasseneckApiError, isCancellationErrorCode } from '@kreiseck/kasseneck-api';
 
 try {
-  await api.cancelReceipt({ receipt: original, reason: 'fehleingabe' });
+  await api.cancelReceipt({ receipt: original, reason: 'input_error' });
 } catch (error) {
   if (!isKasseneckApiError(error) || !isCancellationErrorCode(error.code)) throw error;
   switch (error.code) {
-    case 'bereits_storniert':  // show the receipt as cancelled, disable the button
-    case 'menge_ueber_rest':   // reload the remaining quantities (someone was faster)
-    case 'nur_eigene_belege':  // ask a manager
+    case 'already_cancelled':          // show the receipt as cancelled, disable the button
+    case 'quantity_exceeds_remaining': // reload the remaining quantities (someone was faster)
+    case 'own_receipts_only':          // ask a manager
       showHint(error.code);
       break;
     default:
@@ -350,11 +369,14 @@ try {
 }
 ```
 
-**Deprecated:** `createCancelReceipt` (cancellation through `createReceipt`
-with freely passed, negated lines) remains available for compatibility but is
-`@deprecated`: no reference to the original, no remaining quantities, no
-protection against double cancellation, no voucher handling. The backend adds
-`deprecation` to its response on this path.
+**Card refunds.** The terminal refund needs the transaction id of the original
+card payment: `payments[].providerPaymentId` of the original receipt. Only the
+register channel (`registerUserAuth`, `kasse.kasseneck.at/api/v3`) returns it;
+the public channel leaves provider data out. The refund payment then carries
+the id of the refund itself. `cancellation_outcome_unknown` means the
+cancellation may have been booked: read the original again, never retry.
+
+`createCancelReceipt` and cancelling through `createReceipt` are gone in 1.0.
 
 **Vouchers.** A value voucher is only mirrored on a full cancellation (without
 `items`); it cannot be split. A discount voucher is already part of the
@@ -378,11 +400,11 @@ it omit that line.
 const confirmation = await api.sendReceiptEmail({
   fullReceiptId: original.fullReceiptId, // or: await api.generateFullReceiptId(receiptId)
   to: 'guest@example.at',
-  sprache: 'de',                         // optional; the backend currently only uses 'de'
+  language: 'de',                        // optional; the backend currently only uses 'de'
 });
 confirmation.to;   // address as the backend logged it (trimmed, lower case)
 confirmation.at;   // time, ISO with Vienna offset
-confirmation.via;  // 'eigen' | 'plattform' | 'plattform-fallback' | null
+confirmation.via;  // 'own' | 'platform' | 'platform_fallback' | null
 ```
 
 The email contains a **link to the public receipt page**, not a PDF
@@ -394,8 +416,8 @@ The cash register comes from the authentication (`cashregister-token` header or
 the parameter set by `registerUserAuth`), not from the options. A receipt of
 another register therefore gets the same answer as a receipt that does not
 exist. The codes are in `RECEIPT_EMAIL_ERROR_CODES` (`isReceiptEmailErrorCode`):
-`adresse_ungueltig`, `beleg_nicht_gefunden`, `zu_oft` (5 emails per receipt in
-24 hours, 30 per register per hour) and `versand_fehlgeschlagen`.
+`invalid_address`, `receipt_not_found`, `too_many_requests` (5 emails per
+receipt in 24 hours, 30 per register per hour) and `send_failed`.
 
 ## Receipt printing: QR code, logo, printers
 

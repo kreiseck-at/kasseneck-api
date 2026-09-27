@@ -18,10 +18,12 @@ const NUTZLAST: ReceiptPayloadRead = {
   ],
 };
 
-test('Grund-Katalog: dieselben fuenf Codes wie das Backend', () => {
-  assert.deepEqual(Object.keys(CANCELLATION_REASONS), ['fehleingabe', 'kunde_storniert', 'falsche_zahlart', 'doppelt_erfasst', 'sonstiges']);
-  assert.equal(CANCELLATION_REASONS.kunde_storniert, 'Kunde hat storniert');
-  assert.equal(isCancellationReason('fehleingabe'), true);
+test('Grund-Katalog: dieselben fuenf /v3-Codes wie das Backend, Anzeigetext deutsch', () => {
+  assert.deepEqual(Object.keys(CANCELLATION_REASONS), ['input_error', 'customer_cancelled', 'wrong_payment_method', 'duplicate', 'other']);
+  assert.equal(CANCELLATION_REASONS.customer_cancelled, 'Kunde hat storniert');
+  assert.equal(isCancellationReason('input_error'), true);
+  // Der alte deutsche Code gilt unter /v3 nicht mehr (validation am Rand).
+  assert.equal(isCancellationReason('fehleingabe'), false);
   assert.equal(isCancellationReason('weil'), false);
 });
 
@@ -31,10 +33,10 @@ test('fromReceiptPayload liest Bezug, Grund und cancellations; ohne sie bleiben 
   assert.equal(ohne.cancellations, undefined);
   const storno = fromReceiptPayload({
     ...NUTZLAST, receiptType: 'cancellation',
-    cancellationOf: { receiptId: 'kasse-1-ID-12', fullReceiptId: 'F' }, cancellationReason: 'fehleingabe',
+    cancellationOf: { receiptId: 'kasse-1-ID-12', fullReceiptId: 'F' }, cancellationReason: 'input_error',
   } as ReceiptPayloadRead);
   assert.deepEqual(storno.cancellationOf, { receiptId: 'kasse-1-ID-12', fullReceiptId: 'F' });
-  assert.equal(storno.cancellationReason, 'fehleingabe');
+  assert.equal(storno.cancellationReason, 'input_error');
   const original = fromReceiptPayload({
     ...NUTZLAST,
     cancellations: [{ receiptId: 'kasse-1-ID-13', at: 1, by: 'anna', note: null, items: [{ index: 0, quantity: 3 }] }],
@@ -56,26 +58,33 @@ test('remainingQuantities: Belegmengen minus Stornos und frische Reservierungen,
   assert.deepEqual(remainingQuantities(fromReceiptPayload(NUTZLAST), jetzt), [4, 1]);
 });
 
-// Fehlercodes: dieselbe Liste wie functions/gemeinsam/storno-core.js STORNO_FEHLERCODES.
-// Die Kasse entscheidet am Code (KasseneckApiError.code), nie am Text.
-test('Fehlercode-Katalog: dieselben achtzehn Codes wie das Backend, als Liste und Waechter', () => {
-  assert.deepEqual([...CANCELLATION_ERROR_CODES], [
-    'beleg_nicht_gefunden', 'belegart_nicht_stornierbar', 'trainingsbeleg', 'bereits_storniert',
-    'position_ungueltig', 'menge_ueber_rest', 'grund_unbekannt', 'anmerkung_zu_lang', 'items_ungueltig',
-    'kasse_nicht_zugewiesen', 'keine_berechtigung', 'nur_eigene_belege', 'kasse_unvollstaendig',
-    'storno_fehlgeschlagen',
-    'STORNO_PAYMENTS_REQUIRED', 'STORNO_REFUND_EXCEEDS_PAYMENT', 'STORNO_REFUND_REFERENCE_REQUIRED',
-    'STORNO_REFUND_REFERENCE_UNKNOWN',
-  ]);
-  assert.equal(isCancellationErrorCode('bereits_storniert'), true);
-  assert.equal(isCancellationErrorCode('STORNO_REFUND_EXCEEDS_PAYMENT'), true);
+// Fehlercodes: dieselbe Liste wie das /v3-Vokabular (errorCodes.cancellation;
+// den Abgleich mit der Datei haelt receipts-v3.test.ts). Die Kasse entscheidet
+// am Code (KasseneckApiError.code), nie am Text.
+test('Fehlercode-Katalog: neunzehn /v3-Codes, als Liste und Waechter', () => {
+  assert.equal(CANCELLATION_ERROR_CODES.length, 19);
+  assert.equal(isCancellationErrorCode('already_cancelled'), true);
+  assert.equal(isCancellationErrorCode('cancellation_refund_exceeds_payment'), true);
+  assert.equal(isCancellationErrorCode('cancellation_outcome_unknown'), true);
   assert.equal(isCancellationErrorCode('Beleg ist bereits vollständig storniert.'), false);
   assert.equal(isCancellationErrorCode(undefined), false);
   assert.equal(isCancellationErrorCode(42), false);
-  // Exakter Vergleich: die /v3-Namen (functions/gemeinsam/api-vokabular-v3.js)
-  // sind umbenannt, nicht nur klein geschrieben, und kommen erst mit /v3.
-  assert.equal(isCancellationErrorCode('storno_payments_required'), false);
-  assert.equal(isCancellationErrorCode('BEREITS_STORNIERT'), false);
+  // Exakter Vergleich: die alten Codes (deutsch, gross) gibt es unter /v3 nicht.
+  assert.equal(isCancellationErrorCode('bereits_storniert'), false);
+  assert.equal(isCancellationErrorCode('STORNO_PAYMENTS_REQUIRED'), false);
+  assert.equal(isCancellationErrorCode('ALREADY_CANCELLED'), false);
+});
+
+test('fromReceiptPayload behaelt refundedByPayment am Storno-Eintrag, laesst es sonst weg', () => {
+  const beleg = fromReceiptPayload({
+    ...NUTZLAST,
+    cancellations: [
+      { receiptId: 'S1', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: { p1: 79 } },
+      { receiptId: 'S2', at: 2, by: null, note: null, items: [{ index: 0, quantity: 1 }] },
+    ],
+  });
+  assert.deepEqual(beleg.cancellations?.[0]?.refundedByPayment, { p1: 79 });
+  assert.equal('refundedByPayment' in (beleg.cancellations?.[1] ?? {}), false);
 });
 
 // Der gewaehrte Rabattgutschein-Ausgleich je Eintrag (Cent je Steuertopf) muss

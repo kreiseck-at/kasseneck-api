@@ -172,7 +172,7 @@ test('setMyKasseSettings / setMyRegisterDeviceSettings senden nur den Block und 
 test('listMyReceipts schickt from/to und liest Positionen, Bediener und Storno-Stand', async () => {
   const { rufen, aufrufe } = transportMit({
     receipts: [{ receiptId: 'K-ID-9', receiptType: 'standard', timeStamp: '2026-08-16T09:00:00', total: 4.56, paymentMethod: 'cash',
-      items: [{ name: 'Semmel', quantity: 2 }], operator: { uid: 'anna', name: 'Anna' }, cancellationOf: null, cancellationReason: null, stornoStand: 'teil' }],
+      items: [{ name: 'Semmel', quantity: 2 }], operator: { uid: 'anna', name: 'Anna' }, cancellationOf: null, cancellationReason: null, cancellationStatus: 'partial' }],
     stats: { today: { revenue_cents: 0, count: 0 }, trend_percent: null, days: [] },
   });
   const l = await listMyReceipts(rufen, { cashregisterId: 'K', from: '2026-08-16', to: '2026-08-16' });
@@ -182,7 +182,7 @@ test('listMyReceipts schickt from/to und liest Positionen, Bediener und Storno-S
   const b = l.receipts[0]!;
   assert.deepEqual(b.items, [{ name: 'Semmel', quantity: 2 }]);
   assert.deepEqual(b.operator, { uid: 'anna', name: 'Anna' });
-  assert.equal(b.stornoStand, 'teil');
+  assert.equal(b.cancellationStatus, 'partial');
   assert.equal(b.cancellationOf, undefined);
 });
 
@@ -197,7 +197,7 @@ test('fromReceiptSummaryPayload ohne die neuen Felder bleibt wie bisher', () => 
   const s = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash' });
   assert.deepEqual(s.items, []);
   assert.equal(s.operator, undefined);
-  assert.equal(s.stornoStand, 'offen');
+  assert.equal(s.cancellationStatus, 'none');
 });
 
 test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit Fragen; g/ml ganz mit Fragen), gespeicherte Angabe schlaegt', () => {

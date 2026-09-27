@@ -10,13 +10,17 @@ import type { Receipt } from './receipt.js';
  * der sich die Restmengen ergeben.
  */
 
-/** Grund-Katalog: Codes wie im Backend, Anzeigetext fuer Bon und Bedienung. */
+/**
+ * Grund-Katalog: Codes wie unter `/v3` (Katalog `STORNO_GRUND` des
+ * Backends), Anzeigetext fuer Bon und Bedienung. Der Anzeigetext bleibt
+ * deutsch, er steht so am Beleg.
+ */
 export const CANCELLATION_REASONS = Object.freeze({
-  fehleingabe: 'Fehleingabe',
-  kunde_storniert: 'Kunde hat storniert',
-  falsche_zahlart: 'Falsche Zahlart',
-  doppelt_erfasst: 'Doppelt erfasst',
-  sonstiges: 'Sonstiges',
+  input_error: 'Fehleingabe',
+  customer_cancelled: 'Kunde hat storniert',
+  wrong_payment_method: 'Falsche Zahlart',
+  duplicate: 'Doppelt erfasst',
+  other: 'Sonstiges',
 } as const);
 
 export type CancellationReason = keyof typeof CANCELLATION_REASONS;
@@ -26,52 +30,49 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
 }
 
 /**
- * Stabile Fehlercodes von `cancelReceipt` — Zwilling von
- * `functions/storno-core.js` STORNO_FEHLERCODES. Das Backend legt sie bei
+ * Stabile Fehlercodes von `cancelReceipt` unter `/v3` (Vokabular
+ * `errorCodes.cancellation`, gleiche Reihenfolge). Das Backend legt sie bei
  * jedem fachlichen Fehler als `code` neben die Meldung; das Paket reicht sie
- * als [KasseneckApiError.code] durch. **Entscheide am Code, nie am Text** —
+ * als [KasseneckApiError.code] durch. **Entscheide am Code, nie am Text:**
  * die deutsche Meldung darf sich aendern, der Code nicht.
  *
- * Nur Auth-/Parameterfehler (Sitzung abgelaufen, Pflichtfeld fehlt) kommen
- * ohne Code; dort bleibt `code` undefined.
- *
- * Die vier `STORNO_…`-Codes am Ende gehoeren zur Rueckzahlung je Zahlung
- * (mehrere Zahlungen je Beleg); Formfehler an `payments` selbst melden die
- * Codes aus [PAYMENT_ERROR_CODES].
- *
- * Die Werte hier sind die von `/v1` und intern. Unter `/v3` heissen die
- * Storno-Codes nach dem /v3-Vokabular anders (`already_cancelled`,
- * `cancellation_payments_required`, functions/gemeinsam/api-vokabular-v3.js);
- * diese Namen kommen mit der Umstellung des Pakets auf `/v3`.
- * [isCancellationErrorCode] prueft darum exakt.
+ * Formfehler an `payments` selbst melden die Codes aus
+ * [PAYMENT_ERROR_CODES]. `cancellation_outcome_unknown` heisst: der Storno
+ * ist moeglicherweise gebucht (`outcome: 'unknown'`). Nie wiederholen,
+ * sondern das Original nachlesen (`getReceipt`, `cancellations[]`).
  */
-export const CANCELLATION_ERROR_CODES = [
-  'beleg_nicht_gefunden',        // Original fehlt oder gehoert nicht zu dieser Kasse
-  'belegart_nicht_stornierbar',  // Original ist selbst Storno-, Null- oder Startbeleg
-  'trainingsbeleg',              // Trainingsbelege werden nicht storniert
-  'bereits_storniert',           // keine Restmenge mehr (auch beim positionslosen Beleg)
-  'position_ungueltig',          // Index unbekannt oder doppelt
-  'menge_ueber_rest',            // Menge nicht ganzzahlig >= 1 oder groesser als der Rest
-  'grund_unbekannt',             // reason fehlt oder nicht im Katalog
-  'anmerkung_zu_lang',           // note laenger als 200 Zeichen
-  'items_ungueltig',             // items ist keine Liste
-  'kasse_nicht_zugewiesen',      // Register-Benutzer darf diese Kasse nicht
-  'keine_berechtigung',          // Register-Benutzer ohne Storno-Recht
-  'nur_eigene_belege',           // Recht "eigene", fremder Beleg
-  'kasse_unvollstaendig',        // api_key/token fehlen am Konto bzw. an der Kasse
-  'storno_fehlgeschlagen',       // der Storno-Beleg selbst wurde abgelehnt (z. B. Signatur)
-  // Mehrere Zahlungen je Beleg (Rueckzahlung je Zahlung):
-  'STORNO_PAYMENTS_REQUIRED',         // Teilstorno eines Belegs mit mehreren Zahlungen ohne payments
-  'STORNO_REFUND_EXCEEDS_PAYMENT',    // Rueckzahlungen auf eine Zahlung uebersteigen deren Rest
-  'STORNO_REFUND_REFERENCE_REQUIRED', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
-  'STORNO_REFUND_REFERENCE_UNKNOWN',  // refundOf nennt keine Zahlung des Originals
-] as const;
+export const CANCELLATION_ERROR_CODES = Object.freeze([
+  'receipt_not_found',                      // Original fehlt oder gehoert nicht zu dieser Kasse
+  'receipt_type_not_cancellable',           // Original ist selbst Storno-, Null- oder Startbeleg
+  'training_receipt',                       // Trainingsbelege werden nicht storniert
+  'already_cancelled',                      // keine Restmenge mehr
+  'invalid_line',                           // Index unbekannt oder doppelt
+  'quantity_exceeds_remaining',             // Menge nicht ganzzahlig >= 1 oder groesser als der Rest
+  'unknown_reason',                         // reason fehlt oder nicht im Katalog
+  'note_too_long',                          // note laenger als 200 Zeichen
+  'invalid_items',                          // items ist keine Liste
+  'cashregister_not_assigned',              // Kassen-Benutzer darf diese Kasse nicht
+  'not_permitted',                          // Kassen-Benutzer ohne Storno-Recht
+  'own_receipts_only',                      // Recht "eigene", fremder Beleg
+  'cashregister_incomplete',                // api_key/token fehlen am Konto bzw. an der Kasse
+  'cancellation_failed',                    // der Storno-Beleg selbst wurde abgelehnt (z. B. Signatur)
+  'cancellation_payments_required',         // Teilstorno eines Belegs mit mehreren Zahlungen ohne payments
+  'cancellation_refund_exceeds_payment',    // Rueckzahlungen auf eine Zahlung uebersteigen deren Rest
+  'cancellation_refund_reference_required', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
+  'cancellation_refund_reference_unknown',  // refundOf nennt keine Zahlung des Originals
+  'cancellation_outcome_unknown',           // Ausgang unklar: nachlesen, nie wiederholen
+] as const);
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];
 
 export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode {
   return typeof value === 'string' && (CANCELLATION_ERROR_CODES as readonly string[]).includes(value);
 }
+
+/** Stornostand eines Belegs in der Belegliste (Katalog `STORNO_STAND`). */
+export const CANCELLATION_STATUSES = Object.freeze(['none', 'partial', 'full'] as const);
+
+export type CancellationStatus = (typeof CANCELLATION_STATUSES)[number];
 
 /** Bezug eines Storno-Belegs auf sein Original. */
 export interface CancellationOf {
@@ -112,6 +113,12 @@ export interface Cancellation {
    * nichts gewaehrt (Altbestand vor dieser Regel) — der naechste Storno holt nach.
    */
   promoAdjustmentCents?: Record<string, number>;
+  /**
+   * Rueckzahlung dieses Stornos je Originalzahlung in Cent, Schluessel ist
+   * die `id` der Zahlung (`p1`, …). Quelle des Rests je Zahlung; fehlt bei
+   * Belegen ohne Zahlungsliste.
+   */
+  refundedByPayment?: Record<string, number>;
 }
 
 /** Ab wann eine liegengebliebene Reservierung nicht mehr zaehlt (wie im Backend). */

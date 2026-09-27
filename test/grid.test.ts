@@ -16,7 +16,7 @@ import { escPosLayoutBytes } from '../src/receipt/layout-escpos.js';
  */
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck', street: 'Hauptstraße 5', zip: '1010', city: 'Wien', phone: '+43 1 1234567',
-  uid: 'ATU12345678', taxnr: '', isSmallBusiness: false,
+  vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf', footer2: 'www.kreiseck.com', thanksMessage: ['Bis bald!'], showKreiseckLogo: false,
 };
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';

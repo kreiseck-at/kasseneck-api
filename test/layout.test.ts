@@ -35,8 +35,8 @@ const FIRMA: ReceiptCompany = {
   zip: '1010',
   city: 'Wien',
   phone: '+43 1 1234567',
-  uid: 'ATU12345678',
-  taxnr: '12-345/6789',
+  vatId: 'ATU12345678',
+  taxNumber: '12-345/6789',
   isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf',
   footer2: 'www.kreiseck.com',
@@ -139,7 +139,7 @@ test('Layout: der Belegkopf traegt Unternehmen, Anschrift, Steuernummer und Tele
 });
 
 test('Layout: ohne UID steht die Steuernummer im Kopf', () => {
-  const ohneUid: ReceiptCompany = { ...FIRMA, uid: '' };
+  const ohneUid: ReceiptCompany = { ...FIRMA, vatId: '' };
   assert.equal(textZeilen(buildReceiptLayout(BELEG, ohneUid))[3], '12-345/6789');
 });
 
@@ -319,7 +319,7 @@ test('Layout: ein Kleinunternehmer-Beleg traegt den Hinweis auf die Steuerbefrei
   // Wortlaut aus dem Backend (functions/index.js, INVOICE_TAX_NOTE.smallBusiness).
   // Ohne den Hinweis stuende in der USt-Tabelle "D 0%" ohne jede Begruendung.
   const hinweis = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
-  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true, uid: '' };
+  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true, vatId: '' };
   const layout = buildReceiptLayout(BELEG, firma);
 
   assert.ok(textZeilen(layout).includes(hinweis), 'Kleinunternehmer-Hinweis fehlt');

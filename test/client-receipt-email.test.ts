@@ -26,18 +26,18 @@ import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
  *
  * Die Erwartungen sind aus dem Backend **abgeschrieben**, nicht aus der
  * Umsetzung dieses Pakets abgeleitet: Feldnamen (`fullReceiptId`, `to`,
- * `sprache`), Antwortfelder (`to`, `at`, `via`) und der Fehlercode-Katalog.
+ * `language`), Antwortfelder (`to`, `at`, `via`) und der Fehlercode-Katalog.
  * Ein Tippfehler in einer dieser Zeichenketten faellt der Typpruefung nicht
  * auf und wuerde sonst erst am Tresen auffallen.
  *
  * Rot-Probe, jeder Fall am laufenden Code belegt:
  * - anderer Endpunktname in `rufen(...)` -> 1 und 4b rot.
  * - `to`/`fullReceiptId` ungetrimmt gesendet -> 2 rot.
- * - `sprache` immer gesendet (`?? 'de'`) -> 1, 2 und 3 rot.
+ * - `language` immer gesendet (`?? 'de'`) -> 1, 2 und 3 rot.
  * - ohne Vorpruefung -> 5 rot (es ging eine Anfrage hinaus).
  * - Fehler des Transports umgehuellt statt durchgereicht -> 6, 6b und 8 rot.
  * - Antwort ungeprueft durchgereicht -> 7 und 7b rot.
- * - `versand_fehlgeschlagen` aus dem Katalog entfernt -> 9 rot.
+ * - `send_failed` aus dem Katalog entfernt -> 9 rot.
  * - fehlt der Aufruf in AUFRUFE, ist er schon ein Compilerfehler
  *   (InternerTransport kennt nur bekannte Namen); 9b haelt ihn zusaetzlich im
  *   Zwillingsvertrag fest.
@@ -69,7 +69,7 @@ const fehlschlag = (message: string, code?: string): HttpResponseLike =>
   antwort(JSON.stringify({ status: 'error', message, code, data: code === undefined ? null : { code } }));
 
 /** Antwort des Backends bei Erfolg (beleg-mail-endpoints.js, successResponse). */
-const MAIL_ANTWORT = { to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: 'eigen' };
+const MAIL_ANTWORT = { to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: 'own' };
 
 function fetchFake(antwortWert: HttpResponseLike): { holen: FetchLike; aufrufe: Aufruf[] } {
   const aufrufe: Aufruf[] = [];
@@ -132,7 +132,7 @@ test('1) sendReceiptEmail ruft den Endpunkt mit fullReceiptId und to und liest t
   // Der Geraeteweg bindet die Kasse ueber die Kopfzeile, nicht ueber die Nutzlast.
   assert.equal(kopf['cashregister-token'], KASSEN_TOKEN);
   assert.equal('cashregisterId' in params, false);
-  assert.deepEqual(ergebnis, { to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: 'eigen' });
+  assert.deepEqual(ergebnis, { to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: 'own' });
 });
 
 test('2) Adresse und Beleg-Kennung gehen getrimmt hinaus', async () => {
@@ -142,14 +142,15 @@ test('2) Adresse und Beleg-Kennung gehen getrimmt hinaus', async () => {
   assert.deepEqual(params, { fullReceiptId: VOLL_ID, to: 'gast@example.at' });
 });
 
-test('3) sprache geht nur mit, wenn sie gesetzt ist', async () => {
+test('3) language geht nur mit, wenn sie gesetzt ist (nie das alte sprache)', async () => {
   const ohne = apiSchluesselWeg();
   await sendReceiptEmail(ohne.rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' });
-  assert.equal('sprache' in gesendet(ohne.aufrufe).params, false);
+  assert.equal('language' in gesendet(ohne.aufrufe).params, false);
 
   const mit = apiSchluesselWeg();
-  await sendReceiptEmail(mit.rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at', sprache: 'de' });
-  assert.equal(gesendet(mit.aufrufe).params['sprache'], 'de');
+  await sendReceiptEmail(mit.rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at', language: 'de' });
+  assert.equal(gesendet(mit.aufrufe).params['language'], 'de');
+  assert.equal('sprache' in gesendet(mit.aufrufe).params, false);
 });
 
 test('4) Kassen-Benutzer-Weg: die Kasse kommt aus der Anmeldung, nicht aus den Optionen', async () => {
@@ -237,10 +238,12 @@ test('7) eine Antwort ohne die zugesagten Felder ist ein Antwortfehler, kein hal
   }
 });
 
-test('7b) fehlendes via ist kein Fehler, sondern null', async () => {
+test('7b) fehlendes oder unbekanntes via ist kein Fehler, sondern null', async () => {
   const { rufen } = apiSchluesselWeg(erfolg({ to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00' }));
   const ergebnis = await sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' });
   assert.equal(ergebnis.via, null);
+  const alt = apiSchluesselWeg(erfolg({ to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: 'eigen' }));
+  assert.equal((await sendReceiptEmail(alt.rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' })).via, null);
 });
 
 test('8) eine Antwort, die kein JSON ist, ist ein HTTP-Fehler', async () => {
@@ -258,12 +261,13 @@ test('8) eine Antwort, die kein JSON ist, ist ein HTTP-Fehler', async () => {
 
 // --- 9 der Katalog ------------------------------------------------------
 
-test('9) der Fehlercode-Katalog ist der des Backends (beleg-mail-core.js FEHLERCODES)', () => {
+test('9) der Fehlercode-Katalog ist der des /v3-Vokabulars (errorCodes.receiptEmail)', () => {
   assert.deepEqual(
     [...RECEIPT_EMAIL_ERROR_CODES],
-    ['adresse_ungueltig', 'beleg_nicht_gefunden', 'zu_oft', 'versand_fehlgeschlagen'],
+    ['invalid_address', 'receipt_not_found', 'too_many_requests', 'send_failed'],
   );
-  assert.equal(isReceiptEmailErrorCode('zu_oft'), true);
+  assert.equal(isReceiptEmailErrorCode('too_many_requests'), true);
+  assert.equal(isReceiptEmailErrorCode('zu_oft'), false);
   assert.equal(isReceiptEmailErrorCode('storno_fehlgeschlagen'), false);
   assert.equal(isReceiptEmailErrorCode(undefined), false);
 });
@@ -273,7 +277,7 @@ test('9b) der Aufruf steht in AUFRUFE (und damit im Zwillingsvertrag)', () => {
 });
 
 test('9c) geheime Werte stehen in keiner Fehlermeldung', async () => {
-  const { rufen } = apiSchluesselWeg(fehlschlag('Beleg nicht gefunden.', 'beleg_nicht_gefunden'));
+  const { rufen } = apiSchluesselWeg(fehlschlag('Beleg nicht gefunden.', 'receipt_not_found'));
   await assert.rejects(
     () => sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' }),
     (fehler: unknown) => {

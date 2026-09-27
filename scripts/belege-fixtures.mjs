@@ -9,7 +9,19 @@ import { AKTUELLES_REGELWERK, buildReceiptLayout, renderReceiptGrid, gridAlsText
 export function ladeFixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/belege/${name}.json`, import.meta.url), 'utf8'));
 }
-export function zeilenFuer(fixture) {
+// Bis Aufgabe 10 die Eingaben auf /v3 umstellt: Firma mit uid/taxnr und
+// deutscher Storno-Grund auf das englische Modell (wie test/belege-fixture.ts).
+const GRUND = { fehleingabe: 'input_error', kunde_storniert: 'customer_cancelled', falsche_zahlart: 'wrong_payment_method', doppelt_erfasst: 'duplicate', sonstiges: 'other' };
+function aufV3(fixture) {
+  const { uid, taxnr, ...firma } = fixture.company;
+  const company = { ...firma, ...(uid !== undefined ? { vatId: uid } : {}), ...(taxnr !== undefined ? { taxNumber: taxnr } : {}) };
+  const grund = fixture.receipt.cancellationReason;
+  const receipt = typeof grund === 'string' && grund in GRUND ? { ...fixture.receipt, cancellationReason: GRUND[grund] } : fixture.receipt;
+  return { ...fixture, company, receipt };
+}
+
+export function zeilenFuer(roh) {
+  const fixture = aufV3(roh);
   // Modell-Payloads: das Fixture traegt Firmenfelder im Modellformat (companyName ...),
   // der Beleg im Payload-Format (Strings fuer customerDetails/legalMessage werden akzeptiert).
   const receipt = fromReceiptPayload({ ...fixture.receipt, customerDetails: fixture.receipt.customerDetails.join('\n'), legalMessage: fixture.receipt.legalMessage.join('\n') });
