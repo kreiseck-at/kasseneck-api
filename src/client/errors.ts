@@ -34,12 +34,12 @@
  *   gilt `outcome`: war die Anfrage schon unterwegs und ist der Aufruf einer
  *   der signierenden (`createReceipt`, `cancelReceipt`, `financeWebService`),
  *   ist er `'unknown'`.
- *
- * [isOutcomeUnknown] fasst das fuer jede Fehlerart zusammen.
  * - `KasseneckAuthError` — es kam nicht einmal zur Anfrage, weil die Anmeldung
  *   scheiterte (fehlende Zugangsdaten, oder der Token-/Sitzungsgeber warf).
  *   In der Browser-Kasse mit ihrer 90-Sekunden-Sitzung ist das Alltag, kein
  *   Sonderfall.
+ *
+ * [isOutcomeUnknown] fasst das fuer jede Fehlerart zusammen.
  *
  * **Geheimnisse gehoeren in keinen dieser Fehler.** Fehlermeldungen landen in
  * Protokollen und Fehlerdiensten; weder `api_key`, Kassen-Token, ID-
