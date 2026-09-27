@@ -27,7 +27,8 @@
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
  *   HTTP 500/404 ohne Huelle, leerer Rumpf oder Text statt JSON. Beim
  *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.
- *   `reason` trennt die Faelle maschinenlesbar.
+ *   `reason` trennt die Faelle maschinenlesbar. HTTP 5xx auf einem
+ *   signierenden Aufruf hat `outcome: 'unknown'`.
  * - `KasseneckNetworkError` — die Antwort kam gar nicht: Netz weg, DNS,
  *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`). Auch hier
  *   gilt `outcome`: war die Anfrage schon unterwegs und ist der Aufruf einer
@@ -286,14 +287,27 @@ export class KasseneckHttpError extends Error {
   readonly contentType: string | undefined;
   /** Maschinenlesbarer Grund — trennt den Rewrite-Fall vom 500er ohne Textparsen. */
   readonly reason: HttpFailureReason;
+  /**
+   * `'unknown'` bei HTTP 5xx auf einem signierenden Aufruf (`createReceipt`,
+   * `cancelReceipt`, `financeWebService`): der Handler kann gelaufen sein,
+   * nie wiederholen, sondern nachlesen. Sonst `'rejected'` (auch 4xx).
+   */
+  readonly outcome: ErrorOutcome;
 
-  constructor(functionName: string, statusCode: number, contentType: string | undefined, reason: HttpFailureReason) {
+  constructor(
+    functionName: string,
+    statusCode: number,
+    contentType: string | undefined,
+    reason: HttpFailureReason,
+    outcome: ErrorOutcome = 'rejected',
+  ) {
     const typHinweis = contentType ? `, Inhaltstyp ${contentType}` : '';
     super(`${functionName} fehlgeschlagen: ${GRUND_TEXT[reason]} (HTTP ${statusCode}${typHinweis})`);
     this.functionName = functionName;
     this.statusCode = statusCode;
     this.contentType = contentType;
     this.reason = reason;
+    this.outcome = outcome;
   }
 }
 
@@ -402,11 +416,14 @@ export type KasseneckError =
 /**
  * Ist der Ausgang dieses Fehlers unklar (`outcome === 'unknown'`)? Dann den
  * Aufruf **nicht wiederholen**, sondern das Ergebnis nachlesen. Gilt fuer
- * jede Fehlerart; nur [KasseneckApiError] und [KasseneckNetworkError] koennen
- * `'unknown'` sein.
+ * jede Fehlerart; nur [KasseneckApiError], [KasseneckHttpError] und
+ * [KasseneckNetworkError] koennen `'unknown'` sein.
  */
 export function isOutcomeUnknown(fehler: unknown): boolean {
-  return (fehler instanceof KasseneckApiError || fehler instanceof KasseneckNetworkError) && fehler.outcome === 'unknown';
+  return (
+    (fehler instanceof KasseneckApiError || fehler instanceof KasseneckHttpError || fehler instanceof KasseneckNetworkError)
+    && fehler.outcome === 'unknown'
+  );
 }
 
 export function isKasseneckApiError(fehler: unknown): fehler is KasseneckApiError {

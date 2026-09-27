@@ -428,6 +428,7 @@ test('v3: outcome unknown fuer dialect_mismatch und die Ausgang-unklar-Codes, so
   }
   assert.equal(isOutcomeUnknown(new Error('x')), false);
   assert.equal(isOutcomeUnknown(new KasseneckHttpError('createReceipt', 500, undefined, 'server-error')), false);
+  assert.equal(isOutcomeUnknown(new KasseneckHttpError('createReceipt', 500, undefined, 'server-error', 'unknown')), true);
 });
 
 test('v3: dialect_mismatch vom Transport traegt outcome unknown, route_missing rejected', async () => {
@@ -517,4 +518,37 @@ test('v3: HTTP 404 ohne Kennzeichen, ohne Code oder ohne Huelle bleibt HTTP-Fehl
   const e5 = await fehler(createTransport({ auth: schluessel(), fetch: async () => f500 })('getReceipt', {}));
   assert.ok(e5 instanceof KasseneckHttpError && e5.statusCode === 500);
   assert.equal(f500.gelesen, 0);
+});
+
+test('v3: HTTP 5xx auf signierenden Aufrufen ist outcome unknown, 4xx und andere Aufrufe rejected', async () => {
+  const faelle: [string, number, 'unknown' | 'rejected'][] = [
+    ['createReceipt', 500, 'unknown'],
+    ['createReceipt', 502, 'unknown'],
+    ['cancelReceipt', 503, 'unknown'],
+    ['financeWebService', 504, 'unknown'],
+    ['createReceipt', 404, 'rejected'],
+    ['createReceipt', 429, 'rejected'],
+    ['cancelReceipt', 400, 'rejected'],
+    ['getReceipt', 500, 'rejected'],
+    ['sendReceiptEmail', 503, 'rejected'],
+  ];
+  for (const [name, status, erwartet] of faelle) {
+    for (const kennzeichen of ['v3', null]) {
+      const a = antwort('<html>fehler</html>', { status, kennzeichen, contentType: 'text/html' });
+      const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })(name, {}));
+      assert.ok(e instanceof KasseneckHttpError, `${name} ${status}`);
+      assert.equal(e.statusCode, status);
+      assert.equal(e.outcome, erwartet, `${name} ${status} ${kennzeichen}`);
+      assert.equal(isOutcomeUnknown(e), erwartet === 'unknown', `${name} ${status}`);
+    }
+  }
+  // Mit Vorgang im Fehlernamen bleibt financeWebService signierend.
+  const a = antwort('', { status: 502, kennzeichen: null });
+  const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })('financeWebService', {}, { method: 'status_cashbox' }));
+  assert.equal((e as KasseneckHttpError).outcome, 'unknown');
+  // Andere HTTP-Fehler (leer, kein JSON) bleiben rejected.
+  const leer = antwort('');
+  const e2 = await fehler(createTransport({ auth: schluessel(), fetch: async () => leer })('createReceipt', {}));
+  assert.ok(e2 instanceof KasseneckHttpError && e2.reason === 'empty-body');
+  assert.equal(e2.outcome, 'rejected');
 });

@@ -402,7 +402,9 @@ function createCore(options: TransportOptions) {
           const fehler = await randFehler404(antwort, fehlerName, geheimnisse, abbruch.signal);
           if (fehler) throw fehler;
         }
-        throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error');
+        // 5xx auf einem signierenden Aufruf: der Handler kann gelaufen sein.
+        const ausgang = antwort.status >= 500 && SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+        throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error', ausgang);
       }
       // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
       // bedient, keine Function hat ihn gesehen (Nachtrag §5.4, R15).
