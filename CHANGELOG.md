@@ -78,6 +78,27 @@ Rechenweg ändert sich.
   aber nur geänderte Felder, darum wechselt jedes Konto, das den Schalter nie angefasst hat, mit
   dem Backend-Standard auf das Korb-Panel. Das Backend (`BETRIEB_STANDARD` in
   `kasse-settings-core.js`) und der Dart-Zwilling ziehen denselben Wert nach.
+- **Texte, die bisher nur in der Browser-Kasse standen, jetzt im Katalog**: Sätze
+  `kassieren.nichts_erfasst`, `kassieren.gegeben_fehlt`, `kassieren.gegeben_zu_wenig`,
+  `kassieren.gesperrt` („Kassieren gesperrt: {grund}“), `trinkgeld.ueber_haelfte`,
+  `sitzung.meldet_ab` („Kasse meldet in {sekunden} s ab …“), `abmelden.noch_einmal`,
+  `kartenzahlung.terminal_bricht_ab` und `connect.entkoppeln_frage` (nur Web); Beschriftungen
+  `kassieren.trinkgeld`, `kassieren.kein`, `kassieren.eigener_betrag`, `kassieren.passend`,
+  `kassieren.gegeben_loeschen`, `kassieren.es_fehlen_noch`, `kassieren.rueckgeld`,
+  `kartenzahlung.betrag_am_terminal`, `kartenzahlung.karte_vorhalten` („… · noch {zeit}“),
+  `kopplung.neu_koppeln`, `abmelden.frage`, `abmelden.weiter_arbeiten`, `geraet.entkoppeln`,
+  `connect.entkoppeln_bestaetigen` (nur Web), `storno.titel` („Storno zu {beleg}“),
+  `meldung.ausblenden` („Meldung ausblenden: {meldung}“) und `meldung.warnung_ausblenden`
+  („Verstanden – Warnung ausblenden: {meldung}“). Wortlaut wie bisher in der Browser-Kasse.
+  Grund: Oberflächen-Vertrag – beide Kassen zeigen dieselben Wörter; das X an einer Meldung nennt
+  jetzt, welche Meldung es ausblendet (in der Ecke stehen oft mehrere).
+- **Halbgeviertstrich statt Geviertstrich** in allen sichtbaren Texten von `MELDUNGEN` (u. a.
+  `abschluss.unklar`, `kartenzahlung.unklar`, `kartenzahlung.karte_gebucht_beleg_offen`,
+  `connect.*`, `druck.*`) und in den Sätzen der Hobex-Antwortcodes (`transaction-response.ts`,
+  auch `fixtures/hobex-hps-codes.json`): „ – “ statt „ — “. Nur das Zeichen ändert sich, kein
+  Wortlaut und kein Schlüssel. Wer einen dieser Sätze wörtlich vergleicht, muss nachziehen.
+  Grund: einheitliche Typografie am Bildschirm; der Geviertstrich wirkt dort wie ein
+  Maschinenzeichen. Die Rechnungstexte (`rechnung/texte.ts`, PDF) bleiben unverändert.
 - **`Cancellation` trägt `refundedByPayment`** (Zahlungs-ID auf positive Cent), Zwilling der
   gleichnamigen Backend-Ablage (`functions/gemeinsam/storno-core.js`). Die Lesung
   (`fromReceiptPayload`) behält nur ganzzahlige, nicht negative Werte, verwirft ungültige

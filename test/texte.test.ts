@@ -133,7 +133,7 @@ test('die Saetze zur schon gebuchten Karte nennen Betrag und Kennung', () => {
   }
   assert.equal(
     meldung('kartenzahlung.karte_gebucht_beleg_offen', { betrag: '12,90 €', kennung: 'A-4711' }),
-    'Die Karte ist bereits mit 12,90 € belastet (Kennung A-4711) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.',
+    'Die Karte ist bereits mit 12,90 € belastet (Kennung A-4711) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.',
   );
   assert.match(MELDUNGEN['kartenzahlung.karte_gebucht_korb_geaendert'].text, /verwerfen/);
 });
@@ -228,21 +228,27 @@ test('der Wizard fragt, bevor er speichert, und sagt beim Abbruch, dass nichts b
   assert.match(MELDUNGEN['druck.wizard_qr_keiner_hinweis'].text, /Bildschirm/);
 });
 
-// --- Getrennt zahlen -------------------------------------------------------
-// Neue Texte tragen nur den Halbgeviertstrich; der Geviertstrich gilt als
-// Maschinenzeichen. Die aelteren Saetze bleiben, wie sie sind – ein Schluessel
-// wird nie umgedeutet, und ein Wortlaut aendert sich nicht nebenbei.
-const getrenntNeu = [
-  ...Object.keys(MELDUNGEN).filter((s) => s.startsWith('getrennt.') || Object.values(STORNO_ZAHLUNG_FEHLER).includes(s as never)
-    || s === 'storno.karten_gutschreiben' || s === 'storno.ergebnis_unklar_karten' || s === 'storno.karten_nicht_abgehakt').map((s) => MELDUNGEN[s as MeldungsSchluessel].text),
-  ...Object.values(BESCHRIFTUNGEN).map((b) => b.text),
-];
-
-test('Getrennt zahlen: kein Geviertstrich in den neuen Texten', () => {
-  assert.ok(getrenntNeu.length >= 30);
-  for (const text of getrenntNeu) assert.ok(!text.includes('\u2014'), text);
+// --- Halbgeviertstrich ----------------------------------------------------
+// Sichtbare Texte tragen nur den Halbgeviertstrich; der Geviertstrich gilt
+// als Maschinenzeichen. Seit 0.31.0 fuer den ganzen Katalog, auch die
+// aelteren Saetze (nur das Zeichen, nicht der Wortlaut).
+test('kein Geviertstrich in einer Meldung oder Beschriftung', () => {
+  const alle = [...Object.values(MELDUNGEN), ...Object.values(BESCHRIFTUNGEN)].map((m) => m.text);
+  assert.ok(alle.length >= 200);
+  for (const text of alle) assert.ok(!text.includes('\u2014'), text);
 });
 
+test('ein Gedankenstrich steht mit Leerraum auf beiden Seiten', () => {
+  for (const { text } of [...Object.values(MELDUNGEN), ...Object.values(BESCHRIFTUNGEN)]) {
+    for (const m of text.matchAll(/\u2013/g)) {
+      const i = m.index!;
+      assert.equal(text[i - 1], ' ', text);
+      assert.equal(text[i + 1], ' ', text);
+    }
+  }
+});
+
+// --- Getrennt zahlen -------------------------------------------------------
 test('Getrennt zahlen: jeder Satz zur belasteten Karte nennt den Betrag und raet nicht zum Kassieren', () => {
   for (const s of ['getrennt.karte_zurueckbuchen_fehlgeschlagen', 'getrennt.karte_zurueckbuchen_unklar'] as const) {
     assert.deepEqual([...(MELDUNGEN[s].platzhalter ?? [])].sort(), ['betrag', 'kennung'], s);
@@ -391,4 +397,51 @@ test('Storno: nicht abgehakte Karten fragen vor dem Schliessen einmal nach', () 
   assert.match(eintrag.text, /am Terminal gutschreiben/);
   assert.match(eintrag.text, /noch einmal drücken/);
   assert.ok(!eintrag.text.includes('\u2014'));
+});
+
+// --- Oberflaechen-Vertrag: Texte, die bisher nur in der Browser-Kasse standen --
+// Beide Kassen zeigen dieselben Woerter; wortgleich mit dem bisherigen Stand
+// der Browser-Kasse, nur der Geviertstrich ist ein Halbgeviertstrich.
+test('Kassieren, Sitzung und Abmelden: die Saetze beider Kassen', () => {
+  assert.equal(meldung('kassieren.nichts_erfasst'), 'Noch nichts erfasst – bitte zuerst eine Position aufnehmen.');
+  assert.equal(meldung('kassieren.gegeben_fehlt'), 'Erst eintippen, was der Gast gibt – der Rückgeld-Rechner ist an.');
+  assert.equal(meldung('kassieren.gegeben_zu_wenig'), 'Gegeben ist weniger als der Betrag.');
+  assert.equal(meldung('kassieren.gesperrt', { grund: 'Die Kasse ist außer Betrieb.' }), 'Kassieren gesperrt: Die Kasse ist außer Betrieb.');
+  assert.throws(() => meldung('kassieren.gesperrt'), /\{grund\}/);
+  assert.equal(meldung('trinkgeld.ueber_haelfte'), 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.');
+  assert.equal(meldung('sitzung.meldet_ab', { sekunden: 30 }), 'Kasse meldet in 30 s ab – Bildschirm berühren, um weiterzuarbeiten.');
+  assert.equal(meldung('abmelden.noch_einmal'), 'Noch einmal drücken beendet die Schicht an dieser Kasse.');
+  assert.equal(meldung('kartenzahlung.terminal_bricht_ab'), 'Das Terminal bricht gleich von selbst ab …');
+  assert.equal(meldung('connect.entkoppeln_frage'), 'Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.');
+  assert.deepEqual(MELDUNGEN['connect.entkoppeln_frage'].nur, ['web']);
+  for (const s of ['kassieren.nichts_erfasst', 'kassieren.gegeben_fehlt', 'kassieren.gegeben_zu_wenig', 'kassieren.gesperrt', 'trinkgeld.ueber_haelfte', 'sitzung.meldet_ab', 'abmelden.noch_einmal', 'kartenzahlung.terminal_bricht_ab'] as const) {
+    assert.equal(MELDUNGEN[s].nur, undefined, `${s}: gilt auf beiden Seiten`);
+  }
+});
+
+test('Beschriftungen beider Kassen: Kassieren, Warte-Karte, Kopplung, Abmelden, Storno', () => {
+  assert.equal(beschriftung('kassieren.trinkgeld'), 'Trinkgeld');
+  assert.equal(beschriftung('kassieren.kein'), 'kein');
+  assert.equal(beschriftung('kassieren.eigener_betrag'), 'Eigener Betrag');
+  assert.equal(beschriftung('kassieren.passend'), 'passend');
+  assert.equal(beschriftung('kassieren.gegeben_loeschen'), 'Gegeben löschen');
+  assert.equal(beschriftung('kassieren.es_fehlen_noch'), 'Es fehlen noch');
+  assert.equal(beschriftung('kassieren.rueckgeld'), 'Rückgeld');
+  assert.equal(beschriftung('kartenzahlung.betrag_am_terminal'), 'Betrag steht am Terminal');
+  assert.equal(beschriftung('kartenzahlung.karte_vorhalten', { zeit: '1:05' }), 'Karte vorhalten oder stecken · noch 1:05');
+  assert.equal(beschriftung('kopplung.neu_koppeln'), 'Neu koppeln');
+  assert.equal(beschriftung('abmelden.frage'), 'Wirklich abmelden?');
+  assert.equal(beschriftung('abmelden.weiter_arbeiten'), 'Weiter arbeiten');
+  assert.equal(beschriftung('geraet.entkoppeln'), 'Gerät entkoppeln');
+  assert.equal(beschriftung('connect.entkoppeln_bestaetigen'), 'Entkoppeln bestätigen');
+  assert.deepEqual(BESCHRIFTUNGEN['connect.entkoppeln_bestaetigen'].nur, ['web']);
+  assert.equal(beschriftung('storno.titel', { beleg: 'K1-42' }), 'Storno zu K1-42');
+  assert.throws(() => beschriftung('storno.titel'), /\{beleg\}/);
+});
+
+test('das X an einer Meldung nennt die Meldung, die es ausblendet', () => {
+  assert.equal(beschriftung('meldung.ausblenden', { meldung: 'Der Warenkorb ist gesperrt …' }), 'Meldung ausblenden: Der Warenkorb ist gesperrt …');
+  assert.equal(beschriftung('meldung.warnung_ausblenden', { meldung: 'Unklar, ob …' }), 'Verstanden – Warnung ausblenden: Unklar, ob …');
+  assert.throws(() => beschriftung('meldung.ausblenden'), /\{meldung\}/);
+  assert.throws(() => beschriftung('meldung.warnung_ausblenden'), /\{meldung\}/);
 });
