@@ -762,12 +762,6 @@
     "getrennt.tab_betrag": {
       "text": "Betrag"
     },
-    "getrennt.stueck_bezahlt": {
-      "text": "{n} bezahlt",
-      "platzhalter": [
-        "n"
-      ]
-    },
     "getrennt.stueck_weniger": {
       "text": "{name}: ein Stück weniger",
       "platzhalter": [
@@ -804,6 +798,28 @@
       "platzhalter": [
         "betrag"
       ]
+    },
+    "getrennt.offene_positionen": {
+      "text": "Offene Positionen"
+    },
+    "getrennt.stueck_offen": {
+      "text": "{n} offen",
+      "platzhalter": [
+        "n"
+      ]
+    },
+    "getrennt.stueck_gewaehlt": {
+      "text": "{n} von {offen}",
+      "platzhalter": [
+        "n",
+        "offen"
+      ]
+    },
+    "getrennt.nichts_gewaehlt": {
+      "text": "Noch nichts angetippt"
+    },
+    "getrennt.alles_bezahlt": {
+      "text": "Alles bezahlt"
     },
     "zahlart.kartenzahlung": {
       "text": "Kartenzahlung"

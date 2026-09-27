@@ -34,7 +34,7 @@ Rechenweg ändert sich.
   nicht zu wiederholen und die Belegliste später neu zu laden.
 - **Aufteilung als eigener Schritt**: neue Beschriftungen `getrennt.weiter` („Weiter · {betrag}
   getrennt“), `getrennt.aufteilung`, `getrennt.zurueck_zahlart`, `getrennt.tab_positionen`,
-  `getrennt.tab_betrag`, `getrennt.stueck_bezahlt`, `getrennt.stueck_mehr`/`_weniger`,
+  `getrennt.tab_betrag`, `getrennt.stueck_mehr`/`_weniger`,
   `getrennt.gegeben`, `getrennt.gegeben_rueckgeld` und die Sätze
   `getrennt.positionen_gesperrt` und `getrennt.positionen_waehlen`. Grund: Nutzertest – erst
   „Weiter“, dann je Zahlung nach Positionen (stückweise) oder als Betrag. Nach einer Zahlung als
@@ -48,6 +48,11 @@ Rechenweg ändert sich.
   und `getrennt.kassieren` („Zahlung {n} kassieren“) entfallen (noch nie veröffentlicht). Grund: Nutzertest – zwei Knöpfe, die sofort kassieren,
   lagen zu nah beieinander; jetzt wählt der Kassier die Zahlart wie jede andere Eingabe, und nur
   ein Knopf löst die Zahlung aus. Offen 0 macht aus demselben Knopf „Abschließen“.
+- **Nach Positionen als Kacheln**: `getrennt.offene_positionen`, `getrennt.stueck_offen`
+  („{n} offen“), `getrennt.stueck_gewaehlt` („{n} von {offen}“), `getrennt.nichts_gewaehlt` und
+  `getrennt.alles_bezahlt`. `getrennt.stueck_bezahlt` entfällt (noch nie veröffentlicht): bezahlte
+  Stück verschwinden aus der Auswahl. Grund: Nutzertest – in der großen Fläche stehen nur noch die
+  offenen Produkte als Kacheln, der Kassier tippt dort an, was dieser Gast zahlt.
 - **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
   („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
   zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.

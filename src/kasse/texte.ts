@@ -399,7 +399,6 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.zurueck_zahlart': { text: 'Zurück zur Zahlart' },
   'getrennt.tab_positionen': { text: 'Nach Positionen' },
   'getrennt.tab_betrag': { text: 'Betrag' },
-  'getrennt.stueck_bezahlt': { text: '{n} bezahlt', platzhalter: ['n'] },
   'getrennt.stueck_weniger': { text: '{name}: ein Stück weniger', platzhalter: ['name'] },
   'getrennt.stueck_mehr': { text: '{name}: ein Stück mehr', platzhalter: ['name'] },
   'getrennt.gegeben': { text: 'Gegeben (bar)' },
@@ -410,6 +409,13 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.art_bar': { text: 'Bar' },
   'getrennt.art_karte': { text: 'Karte' },
   'getrennt.zahlung_hinzufuegen': { text: 'Zahlung hinzufügen · {betrag}', platzhalter: ['betrag'] },
+  // Nach Positionen: die offenen Stueck als Kacheln in der grossen Flaeche;
+  // Antippen nimmt ein Stueck in diese Zahlung, „−“ an der Kachel eines heraus.
+  'getrennt.offene_positionen': { text: 'Offene Positionen' },
+  'getrennt.stueck_offen': { text: '{n} offen', platzhalter: ['n'] },
+  'getrennt.stueck_gewaehlt': { text: '{n} von {offen}', platzhalter: ['n', 'offen'] },
+  'getrennt.nichts_gewaehlt': { text: 'Noch nichts angetippt' },
+  'getrennt.alles_bezahlt': { text: 'Alles bezahlt' },
 
   // --- Zahlarten in Listen (Kassieren, Storno, Belegliste) -----------------
   'zahlart.kartenzahlung': { text: 'Kartenzahlung' },

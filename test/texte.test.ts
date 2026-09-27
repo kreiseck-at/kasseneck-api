@@ -299,7 +299,14 @@ test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stuec
   assert.equal(beschriftung('getrennt.weiter', { betrag: '67,00 €' }), 'Weiter · 67,00 € getrennt');
   assert.equal(beschriftung('getrennt.tab_positionen'), 'Nach Positionen');
   assert.equal(beschriftung('getrennt.tab_betrag'), 'Betrag');
-  assert.equal(beschriftung('getrennt.stueck_bezahlt', { n: 2 }), '2 bezahlt');
+  assert.equal(beschriftung('getrennt.stueck_offen', { n: 2 }), '2 offen');
+  assert.equal(beschriftung('getrennt.stueck_gewaehlt', { n: 2, offen: 4 }), '2 von 4');
+  assert.throws(() => beschriftung('getrennt.stueck_gewaehlt', { n: 2 }), /\{offen\}/);
+  assert.equal(beschriftung('getrennt.offene_positionen'), 'Offene Positionen');
+  assert.equal(beschriftung('getrennt.nichts_gewaehlt'), 'Noch nichts angetippt');
+  assert.equal(beschriftung('getrennt.alles_bezahlt'), 'Alles bezahlt');
+  // Bezahlte Stueck stehen nicht mehr da (die Kachel verschwindet) -- der Satz entfaellt.
+  assert.equal('getrennt.stueck_bezahlt' in BESCHRIFTUNGEN, false);
   assert.equal(beschriftung('getrennt.stueck_mehr', { name: 'Bier' }), 'Bier: ein Stück mehr');
   assert.equal(beschriftung('getrennt.stueck_weniger', { name: 'Bier' }), 'Bier: ein Stück weniger');
   assert.equal(beschriftung('getrennt.gegeben_rueckgeld', { gegeben: '50,00 €', rueckgeld: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
