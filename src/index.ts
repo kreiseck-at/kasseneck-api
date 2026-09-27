@@ -171,6 +171,15 @@ export {
   createKasseneckApi,
 } from './client/index.js';
 
+export {
+  type ReceiptDueTip,
+  type ReceiptDueOptions,
+  type ReceiptDueBuckets,
+  type ReceiptDueBreakdown,
+  receiptDueCents,
+  receiptDueBreakdown,
+} from './receipt/due.js';
+
 export { parseServerTimeStamp, toViennaWallClock, type ViennaWallClock } from './vienna-time.js';
 
 export {

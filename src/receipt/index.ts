@@ -68,3 +68,11 @@ export { logoRaster } from './bild.js';
 
 export { type MarkeRasterDaten, MARKE_RASTER, MARKE_PFADE } from './marke-daten.js';
 export { markeBild } from './marke.js';
+export {
+  type ReceiptDueTip,
+  type ReceiptDueOptions,
+  type ReceiptDueBuckets,
+  type ReceiptDueBreakdown,
+  receiptDueCents,
+  receiptDueBreakdown,
+} from './due.js';
