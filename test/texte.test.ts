@@ -285,7 +285,6 @@ test('Beschriftungen: Schluessel bereich.name, kein Rand-Leerraum, Platzhalter e
 
 test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
   assert.equal(beschriftung('getrennt.zahlung', { n: 3 }), 'Zahlung 3');
-  assert.equal(beschriftung('getrennt.kassieren', { n: 2 }), 'Zahlung 2 kassieren');
   assert.equal(beschriftung('getrennt.teilen', { n: 3 }), '÷ 3');
   assert.equal(beschriftung('getrennt.davon_trinkgeld', { betrag: '2,00 €' }), 'davon Trinkgeld 2,00 €');
   assert.equal(beschriftung('zahlart.kartenzahlung'), 'Kartenzahlung');
@@ -304,8 +303,17 @@ test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stuec
   assert.equal(beschriftung('getrennt.stueck_mehr', { name: 'Bier' }), 'Bier: ein Stück mehr');
   assert.equal(beschriftung('getrennt.stueck_weniger', { name: 'Bier' }), 'Bier: ein Stück weniger');
   assert.equal(beschriftung('getrennt.gegeben_rueckgeld', { gegeben: '50,00 €', rueckgeld: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
-  assert.equal(beschriftung('getrennt.bar_kassieren'), 'Bar');
-  assert.equal(beschriftung('getrennt.karte_kassieren'), 'Karte');
+  assert.equal(beschriftung('getrennt.zahlart'), 'Zahlart');
+  assert.equal(beschriftung('getrennt.art_bar'), 'Bar');
+  assert.equal(beschriftung('getrennt.art_karte'), 'Karte');
+  assert.equal(beschriftung('getrennt.zahlung_hinzufuegen', { betrag: '12,40 €' }), 'Zahlung hinzufügen · 12,40 €');
+  assert.throws(() => beschriftung('getrennt.zahlung_hinzufuegen'), /\{betrag\}/);
+  // Ohne „Gegeben" bei Rueckgeld-Rechner: derselbe Grund wie beim Abschluss, ohne Platzhalter.
+  assert.match(MELDUNGEN['getrennt.gegeben_fehlt'].text, /Rückgeld-Rechner/);
+  assert.equal(MELDUNGEN['getrennt.gegeben_fehlt'].platzhalter, undefined);
+  for (const weg of ['getrennt.bar_kassieren', 'getrennt.karte_kassieren', 'getrennt.kassieren']) {
+    assert.equal(weg in BESCHRIFTUNGEN, false, weg);
+  }
   // Die Sperre nennt den Grund: Betraege lassen sich keinen Stuecken zuordnen.
   assert.match(MELDUNGEN['getrennt.positionen_gesperrt'].text, /Betrag/);
   assert.equal(MELDUNGEN['getrennt.positionen_gesperrt'].platzhalter, undefined);

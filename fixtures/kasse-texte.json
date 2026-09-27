@@ -393,6 +393,9 @@
     "getrennt.positionen_waehlen": {
       "text": "Bitte zuerst antippen, was dieser Gast zahlt."
     },
+    "getrennt.gegeben_fehlt": {
+      "text": "Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an."
+    },
     "beleg.link_kopiert": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
@@ -699,12 +702,6 @@
     "getrennt.trinkgeld_bezug": {
       "text": "% von diesem Betrag"
     },
-    "getrennt.kassieren": {
-      "text": "Zahlung {n} kassieren",
-      "platzhalter": [
-        "n"
-      ]
-    },
     "getrennt.davon_trinkgeld": {
       "text": "davon Trinkgeld {betrag}",
       "platzhalter": [
@@ -793,11 +790,20 @@
         "rueckgeld"
       ]
     },
-    "getrennt.bar_kassieren": {
+    "getrennt.zahlart": {
+      "text": "Zahlart"
+    },
+    "getrennt.art_bar": {
       "text": "Bar"
     },
-    "getrennt.karte_kassieren": {
+    "getrennt.art_karte": {
       "text": "Karte"
+    },
+    "getrennt.zahlung_hinzufuegen": {
+      "text": "Zahlung hinzufügen · {betrag}",
+      "platzhalter": [
+        "betrag"
+      ]
     },
     "zahlart.kartenzahlung": {
       "text": "Kartenzahlung"

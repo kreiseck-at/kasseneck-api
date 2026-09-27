@@ -170,6 +170,10 @@ const MELDUNGEN_ROH = {
   'getrennt.entkoppeln_offene_karten': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten).' },
   'getrennt.positionen_gesperrt': { text: 'Nach Positionen geht nicht mehr – eine Zahlung ist schon als Betrag kassiert.' },
   'getrennt.positionen_waehlen': { text: 'Bitte zuerst antippen, was dieser Gast zahlt.' },
+  // Barzahlung mit Rueckgeld-Rechner: ohne „Gegeben" wird die Zahlung nicht
+  // hinzugefuegt – derselbe Grund wie beim Abschluss einer Barzahlung, auf
+  // DIESE Zahlung bezogen.
+  'getrennt.gegeben_fehlt': { text: 'Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an.' },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
@@ -376,7 +380,6 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.rest': { text: 'Rest' },
   'getrennt.teilen': { text: '÷ {n}', platzhalter: ['n'] },
   'getrennt.trinkgeld_bezug': { text: '% von diesem Betrag' },
-  'getrennt.kassieren': { text: 'Zahlung {n} kassieren', platzhalter: ['n'] },
   'getrennt.davon_trinkgeld': { text: 'davon Trinkgeld {betrag}', platzhalter: ['betrag'] },
   'getrennt.entfernen': { text: 'Entfernen' },
   'getrennt.alles_abbrechen': { text: 'Alles abbrechen' },
@@ -401,8 +404,12 @@ const BESCHRIFTUNGEN_ROH = {
   'getrennt.stueck_mehr': { text: '{name}: ein Stück mehr', platzhalter: ['name'] },
   'getrennt.gegeben': { text: 'Gegeben (bar)' },
   'getrennt.gegeben_rueckgeld': { text: 'Gegeben {gegeben} · Rückgeld {rueckgeld}', platzhalter: ['gegeben', 'rueckgeld'] },
-  'getrennt.bar_kassieren': { text: 'Bar' },
-  'getrennt.karte_kassieren': { text: 'Karte' },
+  // Je Zahlung oben die Zahlart (Umschalter, kein Ausloeser), unten EIN Knopf,
+  // der diese Zahlung mit der gewaehlten Zahlart kassiert.
+  'getrennt.zahlart': { text: 'Zahlart' },
+  'getrennt.art_bar': { text: 'Bar' },
+  'getrennt.art_karte': { text: 'Karte' },
+  'getrennt.zahlung_hinzufuegen': { text: 'Zahlung hinzufügen · {betrag}', platzhalter: ['betrag'] },
 
   // --- Zahlarten in Listen (Kassieren, Storno, Belegliste) -----------------
   'zahlart.kartenzahlung': { text: 'Kartenzahlung' },

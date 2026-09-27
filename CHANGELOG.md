@@ -35,13 +35,19 @@ Rechenweg ändert sich.
 - **Aufteilung als eigener Schritt**: neue Beschriftungen `getrennt.weiter` („Weiter · {betrag}
   getrennt“), `getrennt.aufteilung`, `getrennt.zurueck_zahlart`, `getrennt.tab_positionen`,
   `getrennt.tab_betrag`, `getrennt.stueck_bezahlt`, `getrennt.stueck_mehr`/`_weniger`,
-  `getrennt.gegeben`, `getrennt.gegeben_rueckgeld`, `getrennt.bar_kassieren`, `getrennt.karte_kassieren` und die Sätze
-  `getrennt.positionen_gesperrt` und `getrennt.positionen_waehlen`. `getrennt.zahlart` entfällt
-  (noch nie veröffentlicht): die Zahlart wählt der Kassier jetzt mit dem Knopf, der die Zahlung
-  kassiert. Grund: Nutzertest – erst „Weiter“, dann je Zahlung nach Positionen (stückweise) oder
-  als Betrag, die Knöpfe rechts neben der Liste statt in der großen linken Fläche. Nach einer
-  Zahlung als Betrag ist „Nach Positionen“ gesperrt, weil sich Beträge keinen Stücken zuordnen
-  lassen; der Satz sagt das.
+  `getrennt.gegeben`, `getrennt.gegeben_rueckgeld` und die Sätze
+  `getrennt.positionen_gesperrt` und `getrennt.positionen_waehlen`. Grund: Nutzertest – erst
+  „Weiter“, dann je Zahlung nach Positionen (stückweise) oder als Betrag. Nach einer Zahlung als
+  Betrag ist „Nach Positionen“ gesperrt, weil sich Beträge keinen Stücken zuordnen lassen; der
+  Satz sagt das.
+- **Zahlart je Zahlung, ein Knopf zum Hinzufügen**: `getrennt.zahlart` („Zahlart“),
+  `getrennt.art_bar`/`getrennt.art_karte` („Bar“/„Karte“) als Umschalter oben in der Zahlung,
+  `getrennt.zahlung_hinzufuegen` („Zahlung hinzufügen · {betrag}“) für den einen Knopf unten
+  rechts und der Satz `getrennt.gegeben_fehlt` (Barzahlung ohne „Gegeben“ bei eingeschaltetem
+  Rückgeld-Rechner, Wortlaut wie beim Abschluss). `getrennt.bar_kassieren`/`getrennt.karte_kassieren`
+  und `getrennt.kassieren` („Zahlung {n} kassieren“) entfallen (noch nie veröffentlicht). Grund: Nutzertest – zwei Knöpfe, die sofort kassieren,
+  lagen zu nah beieinander; jetzt wählt der Kassier die Zahlart wie jede andere Eingabe, und nur
+  ein Knopf löst die Zahlung aus. Offen 0 macht aus demselben Knopf „Abschließen“.
 - **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
   („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
   zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.
