@@ -214,6 +214,12 @@ test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit 
   assert.equal(fromKasseArtikelPayload({ id: 'x', name: 'x', mengenregel: 'halb' }).mengenregel, null);
 });
 
+test('Kassieren: Vorgabe im Korb-Panel -- die Kacheln bleiben stehen (seit 0.31.0)', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.kassierenModus, 'panel');
+  // Ein gespeichertes 'seite' bleibt beim Mischen erhalten.
+  assert.equal(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { kassierenModus: 'seite' }).kassierenModus, 'seite');
+});
+
 test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
   assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
   assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);

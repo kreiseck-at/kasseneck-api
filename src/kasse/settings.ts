@@ -236,7 +236,7 @@ export const KASSE_BETRIEB_STANDARD: Readonly<KasseSettingsBetrieb> = Object.fre
   menge: 'x', notiz: false, suche: false, rabatt: 'aus',
   zahlBar: true, zahlKarte: false, kartenanbieter: 'keiner', trinkgeld: false, tgModus: 'beides',
   tgStufen: { 5: true, 10: true, 15: false, 20: false }, tgChips: [5, 10], tgSplit: true, rueckgeld: true,
-  schnellbar: false, kassierenModus: 'seite', zahlGetrennt: false,
+  schnellbar: false, kassierenModus: 'panel', zahlGetrennt: false,
   // 'fragen' = Fertig-Seite bietet QR und Bon an — sicherster Standard.
   logoBild: '', wzSeite: 'mitte', wzPos: 50, wzPosV: 50, wzStaerke: 6, logoSkala: 'M', wzSkala: 'M',
   glas: true, hinweise: true,

@@ -50,7 +50,7 @@
     "tgSplit": true,
     "rueckgeld": true,
     "schnellbar": false,
-    "kassierenModus": "seite",
+    "kassierenModus": "panel",
     "zahlGetrennt": false,
     "logoBild": "",
     "wzSeite": "mitte",

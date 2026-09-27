@@ -61,6 +61,12 @@ Rechenweg ändert sich.
   (ohne Vorgabe-Taste). Grund: für Betriebe ohne Bedarf bleibt die Kasse, wie sie ist; eine
   unerprobte Vorgabe-Taste finge womöglich der Browser ab. Das Backend (`kasse-settings-core.js`)
   muss beide nachziehen, sonst verwirft sein Validator den Wert beim Speichern.
+- **Vorgabe `kassierenModus` jetzt `'panel'`** (vorher `'seite'`): kassiert wird im Korb-Panel,
+  die Kacheln bleiben stehen. Grund: Nutzertest – so bleibt der Kachelbereich beim Kassieren
+  sichtbar, auch beim getrennten Zahlen. Ein gespeichertes `'seite'` bleibt; gespeichert werden
+  aber nur geänderte Felder, darum wechselt jedes Konto, das den Schalter nie angefasst hat, mit
+  dem Backend-Standard auf das Korb-Panel. Das Backend (`BETRIEB_STANDARD` in
+  `kasse-settings-core.js`) und der Dart-Zwilling ziehen denselben Wert nach.
 - **`Cancellation` trägt `refundedByPayment`** (Zahlungs-ID auf positive Cent), Zwilling der
   gleichnamigen Backend-Ablage (`functions/gemeinsam/storno-core.js`). Die Lesung
   (`fromReceiptPayload`) behält nur ganzzahlige, nicht negative Werte, verwirft ungültige
