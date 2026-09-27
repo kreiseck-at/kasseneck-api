@@ -11,19 +11,30 @@
  *   `'response'`: das Backend meldete Erfolg, die Nutzlast enthielt aber
  *   nicht, was der Aufruf zusagt.
  *
- * - `KasseneckApiError` — **fachlicher** Fehler. Das Backend antwortet immer
- *   mit HTTP 200 und legt Erfolg/Misserfolg in den Rumpf
- *   (`{status:'success'|'error', message, data}`, siehe `successResponse`/
- *   `errorResponse` im Backend). Ein `status:'error'` heisst: die Anfrage kam
- *   an und wurde abgelehnt (gesperrte Kasse, fehlendes Modul, ungueltiger
- *   Parameter). Wiederholen hilft nicht.
+ * - `KasseneckApiError`: **fachlicher** Fehler mit `code`. Das Backend legt
+ *   Erfolg/Misserfolg in den Rumpf (`{status:'success'|'error', message,
+ *   code, data}`, siehe `successResponse`/`errorResponse` im Backend), meist
+ *   unter HTTP 200, unter `/v3` bei unbekanntem Endpunkt auch unter HTTP 404
+ *   (`not_found`). Dazu kommen zwei Codes des Pakets selbst:
+ *   `route_missing` (HTTP 200 mit HTML: die Auffangregel der
+ *   Single-Page-App hat geantwortet, der Aufruf kam nie an) und
+ *   `dialect_mismatch` (Antwort ohne Kennzeichen `Kasseneck-Api-Version: v3`:
+ *   ein Rand ohne `/v3` hat geantwortet, **Ausgang unklar**).
+ *   **Entscheidend ist `outcome`:** `'rejected'` heisst abgelehnt, nichts
+ *   geschehen, Wiederholen hilft nicht. `'unknown'` heisst: der Vorgang kann
+ *   ausgefuehrt sein (bei `createReceipt` ein signierter Beleg). Dann **nie
+ *   wiederholen**, sondern das Ergebnis nachlesen (Belegliste, `getReceipt`).
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
- *   HTTP 500/404, leerer Rumpf, oder HTTP 200 mit HTML statt JSON (typisch,
- *   wenn ein Aufruf mangels Rewrite auf der Single-Page-App landet). Beim
+ *   HTTP 500/404 ohne Huelle, leerer Rumpf oder Text statt JSON. Beim
  *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.
  *   `reason` trennt die Faelle maschinenlesbar.
  * - `KasseneckNetworkError` — die Antwort kam gar nicht: Netz weg, DNS,
- *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`).
+ *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`). Auch hier
+ *   gilt `outcome`: war die Anfrage schon unterwegs und ist der Aufruf einer
+ *   der signierenden (`createReceipt`, `cancelReceipt`, `financeWebService`),
+ *   ist er `'unknown'`.
+ *
+ * [isOutcomeUnknown] fasst das fuer jede Fehlerart zusammen.
  * - `KasseneckAuthError` — es kam nicht einmal zur Anfrage, weil die Anmeldung
  *   scheiterte (fehlende Zugangsdaten, oder der Token-/Sitzungsgeber warf).
  *   In der Browser-Kasse mit ihrer 90-Sekunden-Sitzung ist das Alltag, kein
@@ -187,6 +198,31 @@ function feldHinweis(details: Record<string, unknown>): string {
   return ` [${teile.slice(0, 5).join('; ')}${mehr}]`;
 }
 
+/**
+ * Ausgang eines gescheiterten Aufrufs. `'rejected'`: nichts geschehen.
+ * `'unknown'`: der Vorgang kann ausgefuehrt sein; nie wiederholen, sondern
+ * das Ergebnis nachlesen.
+ */
+export type ErrorOutcome = 'unknown' | 'rejected';
+
+/**
+ * Codes, deren Ausgang unklar ist. `response_translation_failed` nur, wenn
+ * der Rand nicht ausdruecklich `handled: false` meldet (Handler lief und
+ * lehnte ab); `handled: true` oder `null` heisst ausgefuehrt bzw. unbekannt.
+ */
+const AUSGANG_UNKLAR_CODES: ReadonlySet<string> = new Set([
+  'dialect_mismatch',
+  'receipt_outcome_unknown',
+  'cancellation_outcome_unknown',
+]);
+
+function ausgangAusCode(code: string | undefined, details: Record<string, unknown>): ErrorOutcome {
+  if (code === undefined) return 'rejected';
+  if (AUSGANG_UNKLAR_CODES.has(code)) return 'unknown';
+  if (code === 'response_translation_failed' && details['handled'] !== false) return 'unknown';
+  return 'rejected';
+}
+
 export class KasseneckApiError extends Error {
   readonly name = 'KasseneckApiError';
   /** Aufgerufene Backend-Funktion, z. B. `createReceipt`. */
@@ -209,6 +245,13 @@ export class KasseneckApiError extends Error {
    * beilegt. Immer ein Objekt, notfalls ein leeres.
    */
   readonly details: Record<string, unknown>;
+  /**
+   * `'unknown'` bei `dialect_mismatch`, `receipt_outcome_unknown`,
+   * `cancellation_outcome_unknown` und `response_translation_failed` (ausser
+   * mit `details.handled === false`); sonst `'rejected'`. Bei `'unknown'` nie
+   * wiederholen, sondern nachlesen.
+   */
+  readonly outcome: ErrorOutcome;
 
   constructor(functionName: string, serverMessage: string, details: Record<string, unknown> = {}, code?: string) {
     super(`${functionName} fehlgeschlagen: ${serverMessage}${feldHinweis(details)}`);
@@ -219,6 +262,7 @@ export class KasseneckApiError extends Error {
     // den Details. So bleibt die Klasse fuer beide Ablageorte dieselbe.
     const kandidat = code !== undefined ? code : details['code'];
     this.code = typeof kandidat === 'string' && BEZEICHNER.test(kandidat) ? kandidat : undefined;
+    this.outcome = ausgangAusCode(this.code, details);
   }
 }
 
@@ -232,11 +276,11 @@ const GRUND_TEXT: Record<HttpFailureReason, string> = {
   'missing-status': 'Antwort ohne Statusfeld',
 };
 
-/** Antwort ohne verwertbare Huelle (HTTP-Fehler, leerer Rumpf, HTML statt JSON). */
+/** Antwort ohne verwertbare Huelle (HTTP-Fehler ohne Huelle, leerer Rumpf, Text statt JSON). */
 export class KasseneckHttpError extends Error {
   readonly name = 'KasseneckHttpError';
   readonly functionName: string;
-  /** HTTP-Statuscode der Antwort (bei HTML-statt-JSON durchaus 200). */
+  /** HTTP-Statuscode der Antwort (bei Text statt JSON durchaus 200). */
   readonly statusCode: number;
   /** Inhaltstyp der Antwort, falls die Gegenstelle einen gesetzt hat. */
   readonly contentType: string | undefined;
@@ -265,8 +309,20 @@ export class KasseneckNetworkError extends Error {
   readonly causeName: string | undefined;
   /** Code der zugrunde liegenden Ursache, sofern unbedenklich (z. B. `ECONNREFUSED`). */
   readonly causeCode: string | undefined;
+  /**
+   * `'unknown'`, wenn die Anfrage schon unterwegs war und der Aufruf signiert
+   * (`createReceipt`, `cancelReceipt`, `financeWebService`): dann nie
+   * wiederholen, sondern nachlesen. Sonst `'rejected'`.
+   */
+  readonly outcome: ErrorOutcome;
 
-  constructor(functionName: string, timedOut: boolean, timeoutMs: number, ursache: CauseDigest = {}) {
+  constructor(
+    functionName: string,
+    timedOut: boolean,
+    timeoutMs: number,
+    ursache: CauseDigest = {},
+    outcome: ErrorOutcome = 'rejected',
+  ) {
     const grund = timedOut ? `Zeitueberschreitung nach ${timeoutMs} ms` : 'Netzwerkfehler';
     const codeHinweis = ursache.causeCode ? ` (${ursache.causeCode})` : '';
     super(`${functionName} fehlgeschlagen: ${grund}${codeHinweis}`);
@@ -275,6 +331,7 @@ export class KasseneckNetworkError extends Error {
     this.timeoutMs = timeoutMs;
     this.causeName = ursache.causeName;
     this.causeCode = ursache.causeCode;
+    this.outcome = outcome;
   }
 }
 
@@ -341,6 +398,16 @@ export type KasseneckError =
   | KasseneckNetworkError
   | KasseneckAuthError
   | KasseneckValidationError;
+
+/**
+ * Ist der Ausgang dieses Fehlers unklar (`outcome === 'unknown'`)? Dann den
+ * Aufruf **nicht wiederholen**, sondern das Ergebnis nachlesen. Gilt fuer
+ * jede Fehlerart; nur [KasseneckApiError] und [KasseneckNetworkError] koennen
+ * `'unknown'` sein.
+ */
+export function isOutcomeUnknown(fehler: unknown): boolean {
+  return (fehler instanceof KasseneckApiError || fehler instanceof KasseneckNetworkError) && fehler.outcome === 'unknown';
+}
 
 export function isKasseneckApiError(fehler: unknown): fehler is KasseneckApiError {
   return fehler instanceof KasseneckApiError;

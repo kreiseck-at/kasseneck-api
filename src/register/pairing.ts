@@ -50,7 +50,7 @@ const ohneAnmeldung: KasseneckAuth = () => ({ headers: {}, params: {} });
  * Verbindungsangaben ohne Anmeldung — alles, was [TransportOptions] ausser der
  * Anmeldung fuehrt. Alle Felder sind wahlfrei: ohne Angabe gelten der Kassenweg
  * der Produktion ([KASSE_BASE_URL]), das Zeitlimit der Produktion und das
- * globale `fetch`. Die Web-Kasse gibt `baseUrl: '/api/v3'` (gleicher Ursprung).
+ * globale `fetch`. Die Web-Kasse gibt `kasseBaseUrl: '/api/v3'` (gleicher Ursprung).
  */
 export type RegisterDeviceConnection = Omit<TransportOptions, 'auth'>;
 

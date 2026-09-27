@@ -41,11 +41,13 @@ export {
   type KasseneckError,
   type HttpFailureReason,
   type CauseDigest,
+  type ErrorOutcome,
   isKasseneckApiError,
   isKasseneckAuthError,
   isKasseneckHttpError,
   isKasseneckNetworkError,
   isKasseneckValidationError,
+  isOutcomeUnknown,
 } from './errors.js';
 
 export {

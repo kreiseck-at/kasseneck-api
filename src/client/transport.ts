@@ -68,8 +68,14 @@ const VERSION_WERT = 'v3';
  */
 const KASSENECK_HOSTS: ReadonlySet<string> = new Set(['api.kasseneck.at', 'kasse.kasseneck.at']);
 
-/** Gleicher Ursprung: nur die beiden `/v3`-Pfade (`/api/v3` der Kasse, `/v3`). */
-const GLEICHER_URSPRUNG = /^\/(?:api\/)?v3(?:\/|$)/;
+/** Die 1.x-Linie spricht nur `/v3`: jede Basis endet so (`/v3` oder `/api/v3`). */
+const V3_ENDE = /\/v3$/;
+
+/**
+ * Aufrufe, die signieren bzw. bei FinanzOnline etwas ausloesen. Ein Netzfehler,
+ * nachdem die Anfrage unterwegs war, laesst ihren Ausgang offen.
+ */
+const SIGNIERENDE_AUFRUFE: ReadonlySet<string> = new Set(['createReceipt', 'cancelReceipt', 'financeWebService']);
 
 /**
  * Produkte, die das Backend in `Kasseneck-Client` zaehlt (Positivliste,
@@ -124,8 +130,22 @@ export type FetchLike = (url: string, init: HttpRequestInit) => Promise<HttpResp
 export interface TransportOptions {
   /** Anmeldung; wird pro Aufruf befragt. */
   auth: KasseneckAuth;
-  /** Abweichende Basis-URL (z. B. eigene Rewrites der Browser-Kasse). */
+  /**
+   * Abweichende Basis der **oeffentlichen** Aufrufe (Vorgabe
+   * [DEFAULT_BASE_URL]): alles ausser den 25 Aufrufen des Kassenwegs, und die
+   * sechs oeffentlichen davon nur, wenn nicht mit `registerUserAuth`
+   * angemeldet. Muss auf `/v3` enden (eigene Proxys erlaubt), sonst wirft das
+   * Anlegen; `/v1` oder `/api` gibt es in der 1.x-Linie nicht.
+   */
   baseUrl?: string;
+  /**
+   * Abweichende Basis des **Kassenwegs** (Vorgabe [KASSE_BASE_URL]): die 19
+   * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
+   * Drucker, ...) und mit `registerUserAuth` alle 25 Aufrufe des Kassenwegs.
+   * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
+   * (in der Regel `/api/v3`), sonst wirft das Anlegen.
+   */
+  kasseBaseUrl?: string;
   /** Zeitlimit je Aufruf in Millisekunden. */
   timeoutMs?: number;
   /** Eigene `fetch`-Umsetzung (Tests, Proxys). */
@@ -251,7 +271,8 @@ export function createBinaryTransport(options: TransportOptions): KasseneckBinar
  * `auswerten`.
  */
 function createCore(options: TransportOptions) {
-  const eigeneBasis = options.baseUrl === undefined ? undefined : ohneSchraegstrich(options.baseUrl);
+  const oeffentlicheBasis = v3Basis('baseUrl', options.baseUrl) ?? DEFAULT_BASE_URL;
+  const kassenBasis = v3Basis('kasseBaseUrl', options.kasseBaseUrl) ?? KASSE_BASE_URL;
   const kassenweg = isRegisterUserAuth(options.auth);
   const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
@@ -260,18 +281,14 @@ function createCore(options: TransportOptions) {
   const kopfzeilenSenden = options.omitKasseneckHeaders !== true;
 
   /**
-   * Basis je Aufruf. Eine eigene Basis gilt fuer alles. Sonst gehen die 19
-   * reinen Kassenaufrufe immer an den Kassenweg (unter der oeffentlichen
-   * Basis gibt es sie nicht), und die Kassen-Anmeldung ruft alle 25 Aufrufe
-   * des Kassenwegs dort, auch die sechs oeffentlichen. Was der Kassenweg gar
-   * nicht fuehrt (Berichte, Zahlungen, FinanzOnline), geht an die
-   * oeffentliche Basis.
+   * Basis je Aufruf. Die 19 reinen Kassenaufrufe gehen immer an den
+   * Kassenweg (unter der oeffentlichen Basis gibt es sie nicht), und die
+   * Kassen-Anmeldung ruft alle 25 Aufrufe des Kassenwegs dort, auch die sechs
+   * oeffentlichen (Kanal `app`). Was der Kassenweg gar nicht fuehrt
+   * (Berichte, Zahlungen, FinanzOnline), geht an die oeffentliche Basis.
    */
-  const basisFuer = (functionName: string): string => {
-    if (eigeneBasis !== undefined) return eigeneBasis;
-    if (isPosOnlyCall(functionName) || (kassenweg && isPosCall(functionName))) return KASSE_BASE_URL;
-    return DEFAULT_BASE_URL;
-  };
+  const basisFuer = (functionName: string): string =>
+    isPosOnlyCall(functionName) || (kassenweg && isPosCall(functionName)) ? kassenBasis : oeffentlicheBasis;
 
   return async function aufrufen<R, T>(
     functionName: string,
@@ -324,11 +341,14 @@ function createCore(options: TransportOptions) {
           return ursache;
         }
         // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
+        // Die Anfrage war schon unterwegs: bei einem signierenden Aufruf kann
+        // der Beleg entstanden sein (Ausgang unklar, nachlesen).
         return new KasseneckNetworkError(
           fehlerName,
           abbruch.signal.aborted,
           zeitlimitMs,
           causeDigest(ursache, geheimnisse),
+          SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected',
         );
       };
       const basis = basisFuer(functionName);
@@ -375,6 +395,13 @@ function createCore(options: TransportOptions) {
       // steht VOR der HTML-Pruefung: eine 500er-Fehlerseite ist auch HTML, aber
       // dort kann eine Function gelaufen sein; `route_missing` sagt das Gegenteil.
       if (antwort.status !== 200) {
+        // Ausnahme: der `/v3`-Rand antwortet auf einen unbekannten Endpunkt mit
+        // HTTP 404, Kennzeichen und Huelle samt Code (`not_found`). Nur mit
+        // Kennzeichen wird dieser Rumpf gelesen.
+        if (antwort.status === 404 && traegtKennzeichen(antwort)) {
+          const fehler = await randFehler404(antwort, fehlerName, geheimnisse, abbruch.signal);
+          if (fehler) throw fehler;
+        }
         throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error');
       }
       // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
@@ -387,7 +414,7 @@ function createCore(options: TransportOptions) {
           'route_missing',
         );
       }
-      if ((antwort.headers.get(VERSION_KOPF) ?? '').trim().toLowerCase() !== VERSION_WERT) {
+      if (!traegtKennzeichen(antwort)) {
         throw new KasseneckApiError(
           fehlerName,
           'Server spricht nicht /v3 (Kennzeichen Kasseneck-Api-Version fehlt); Antwort verworfen',
@@ -411,24 +438,66 @@ function createCore(options: TransportOptions) {
   };
 }
 
-function ohneSchraegstrich(basis: string): string {
-  return basis.replace(/\/+$/, '');
+/** Traegt die Antwort das Kennzeichen `Kasseneck-Api-Version: v3`? */
+function traegtKennzeichen(antwort: HttpResponseLike): boolean {
+  return (antwort.headers.get(VERSION_KOPF) ?? '').trim().toLowerCase() === VERSION_WERT;
 }
 
 /**
- * Ist `basis` eine Kasseneck-Basis? Relativ nur die beiden `/v3`-Pfade im
- * gleichen Ursprung, absolut nur `https://api.kasseneck.at` bzw.
- * `https://kasse.kasseneck.at` ohne Port und ohne Zugangsdaten.
+ * Liest die 404-Huelle des `/v3`-Rands. Liefert den fachlichen Fehler, wenn
+ * es eine Fehlerhuelle mit Code ist, sonst `null` (dann bleibt es beim
+ * HTTP-Fehler). Ein Lesefehler zaehlt ebenfalls als `null`.
+ */
+async function randFehler404(
+  antwort: HttpResponseLike,
+  functionName: string,
+  geheimnisse: readonly string[],
+  signal: AbortSignal,
+): Promise<KasseneckApiError | null> {
+  try {
+    const text = await Promise.race([antwort.text(), abbruchAlsAblehnung(signal)]);
+    const huelle = alsHuelle(JSON.parse(text));
+    if (huelle === null || huelle.status === 'success') return null;
+    const fehler = fachfehler(functionName, huelle.message, huelle.data, geheimnisse, huelle.code);
+    return fehler.code === undefined ? null : fehler;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Prueft eine abweichende Basis beim Anlegen: die 1.x-Linie spricht nur
+ * `/v3`. Liefert sie ohne abschliessende Schraegstriche, oder `undefined`
+ * ohne Angabe.
+ */
+function v3Basis(option: 'baseUrl' | 'kasseBaseUrl', basis: string | undefined): string | undefined {
+  if (basis === undefined) return undefined;
+  const ohne = typeof basis === 'string' ? basis.replace(/\/+$/, '') : '';
+  if (!V3_ENDE.test(ohne)) {
+    const beispiel = option === 'kasseBaseUrl' ? "'/api/v3' bzw. KASSE_BASE_URL" : 'DEFAULT_BASE_URL';
+    throw new KasseneckValidationError(
+      'createTransport',
+      `${option} muss auf /v3 oder /api/v3 enden (1.x spricht nur /v3; z. B. ${beispiel} statt /api oder /v1)`,
+      'request',
+    );
+  }
+  return ohne;
+}
+
+/**
+ * Ist `basis` eine Kasseneck-Basis? Relativ (gleicher Ursprung) immer,
+ * ausser `//host` (fremder Host ohne Schema); absolut nur
+ * `https://api.kasseneck.at` bzw. `https://kasse.kasseneck.at` ohne Port und
+ * ohne Zugangsdaten.
  */
 function istKasseneckBasis(basis: string): boolean {
-  if (basis.startsWith('/')) {
-    return !basis.startsWith('//') && GLEICHER_URSPRUNG.test(basis);
-  }
+  if (basis.startsWith('//')) return false;
   let adresse: URL;
   try {
     adresse = new URL(basis);
   } catch {
-    return false;
+    // Keine absolute Adresse: relativ zum eigenen Ursprung.
+    return true;
   }
   return adresse.protocol === 'https:'
     && adresse.port === ''

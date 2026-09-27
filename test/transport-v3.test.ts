@@ -10,7 +10,14 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
-import { KasseneckApiError, KasseneckValidationError } from '../src/client/errors.js';
+import {
+  KasseneckApiError,
+  KasseneckHttpError,
+  KasseneckNetworkError,
+  KasseneckValidationError,
+  isOutcomeUnknown,
+} from '../src/client/errors.js';
+import { PUBLIC_CALLS, POS_CALLS } from '../src/client/aufrufe.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import { pairRegisterDevice, listRegisterUsersForDevice } from '../src/register/index.js';
@@ -138,12 +145,63 @@ test('v3: was der Kassenweg nicht fuehrt, geht auch fuer den Kassen-Benutzer an 
   ]);
 });
 
-test('v3: eine eigene Basis gilt fuer jeden Aufruf (Web-Kasse: gleicher Ursprung /api/v3)', async () => {
+test('v3: kasseBaseUrl gilt fuer den Kassenweg, baseUrl fuer die oeffentlichen Aufrufe (Kassen-Benutzer)', async () => {
   const { holen, aufrufe } = aufzeichnen(() => erfolg({}));
-  const rufen = createTransport({ auth: kassenBenutzer(), fetch: holen, baseUrl: '/api/v3/' });
+  const rufen = createTransport({ auth: kassenBenutzer(), fetch: holen, kasseBaseUrl: '/api/v3/', baseUrl: 'https://proxy.example/v3/' });
   await rufen('createReceipt', {});
   await rufen('getKasseSettings', {});
-  assert.deepEqual(aufrufe.map((a) => a.url), ['/api/v3/createReceipt', '/api/v3/getKasseSettings']);
+  await rufen('downloadDailyReport', {});
+  assert.deepEqual(aufrufe.map((a) => a.url), [
+    '/api/v3/createReceipt',
+    '/api/v3/getKasseSettings',
+    'https://proxy.example/v3/downloadDailyReport',
+  ]);
+});
+
+test('v3: mit api_key gehen die oeffentlichen Aufrufe an baseUrl, nur die reinen Kassenaufrufe an kasseBaseUrl', async () => {
+  const { holen, aufrufe } = aufzeichnen(() => erfolg({}));
+  const rufen = createTransport({ auth: schluessel(), fetch: holen, kasseBaseUrl: '/api/v3', baseUrl: 'https://proxy.example/v3' });
+  await rufen('createReceipt', {});
+  await rufen('getKasseSettings', {});
+  assert.deepEqual(aufrufe.map((a) => a.url), ['https://proxy.example/v3/createReceipt', '/api/v3/getKasseSettings']);
+});
+
+test('v3: jede Basis muss auf /v3 enden, sonst wirft das Anlegen mit Hinweis auf die Behebung', () => {
+  for (const [option, basis] of [
+    ['baseUrl', '/api'],
+    ['baseUrl', '/api/v1'],
+    ['baseUrl', 'https://api.kasseneck.at/v1'],
+    ['baseUrl', 'http://127.0.0.1:27182'],
+    ['baseUrl', 'https://api.kasseneck.at/v3x'],
+    ['kasseBaseUrl', '/api'],
+    ['kasseBaseUrl', 'https://kasse.kasseneck.at/api'],
+    ['kasseBaseUrl', ''],
+  ] as const) {
+    assert.throws(
+      () => createTransport({ auth: schluessel(), [option]: basis }),
+      (e: unknown) =>
+        e instanceof KasseneckValidationError && e.scope === 'request' && e.reason.includes(option) && /\/v3/.test(e.reason),
+      `${option}=${basis}`,
+    );
+  }
+  for (const basis of ['/api/v3', '/api/v3/', '/v3', 'https://proxy.example/pfad/v3//', 'api/v3']) {
+    assert.doesNotThrow(() => createTransport({ auth: schluessel(), baseUrl: basis, kasseBaseUrl: basis }), basis);
+  }
+});
+
+test('v3: alle sechs oeffentlichen Aufrufe des Kassenwegs gehen mit registerUserAuth an den Kassenweg, mit api_key an die oeffentliche Basis', async () => {
+  const beide = PUBLIC_CALLS.filter((name) => (POS_CALLS as readonly string[]).includes(name));
+  assert.deepEqual([...beide].sort(), [
+    'cancelReceipt', 'createReceipt', 'generateFullReceiptId', 'getReceipt', 'listMyTipRecipients', 'sendReceiptEmail',
+  ]);
+  const kasse = aufzeichnen(() => erfolg({}));
+  const oeffentlich = aufzeichnen(() => erfolg({}));
+  for (const name of beide) {
+    await createTransport({ auth: kassenBenutzer(), fetch: kasse.holen })(name, {});
+    await createTransport({ auth: schluessel(), fetch: oeffentlich.holen })(name, {});
+  }
+  assert.deepEqual(kasse.aufrufe.map((a) => a.url), beide.map((n) => `https://kasse.kasseneck.at/api/v3/${n}`));
+  assert.deepEqual(oeffentlich.aufrufe.map((a) => a.url), beide.map((n) => `https://api.kasseneck.at/v3/${n}`));
 });
 
 test('v3: Kopplung und Benutzerliste gehen ohne Angabe an kasse.kasseneck.at/api/v3', async () => {
@@ -242,7 +300,7 @@ async function kopfzeilenAn(baseUrl: string | undefined, extra: Record<string, u
 }
 
 test('v3: an Kasseneck-Basen gehen Kasseneck-Api-Version und Kasseneck-Client mit', async () => {
-  for (const basis of [undefined, 'https://api.kasseneck.at/v3', 'https://kasse.kasseneck.at/api/v3', '/api/v3', '/v3/']) {
+  for (const basis of [undefined, 'https://api.kasseneck.at/v3', 'https://kasse.kasseneck.at/api/v3', '/api/v3', '/v3/', 'api/v3', '/kasse/api/v3']) {
     const kopf = await kopfzeilenAn(basis);
     assert.equal(kopf['Kasseneck-Api-Version'], 'v3', String(basis));
     assert.equal(kopf['Kasseneck-Client'], KENNUNG, String(basis));
@@ -253,16 +311,14 @@ test('v3: an Kasseneck-Basen gehen Kasseneck-Api-Version und Kasseneck-Client mi
 test('v3: an jede fremde Basis gehen weder Kasseneck-Api-Version noch Kasseneck-Client', async () => {
   for (const basis of [
     'https://kasse.example.at/api/v3',
-    'http://127.0.0.1:27182',
-    'http://127.0.0.1:5001/kasseneck/europe-west1',
+    'http://127.0.0.1:27182/v3',
+    'http://127.0.0.1:5001/kasseneck/europe-west1/v3',
     'http://api.kasseneck.at/v3',
     'https://api.kasseneck.at.boese.example/v3',
     'https://api.kasseneck.at:8443/v3',
+    'https://nutzer@api.kasseneck.at/v3',
     'https://boese.example/https://api.kasseneck.at/v3',
     '//boese.example/api/v3',
-    '/api',
-    '/api/v1',
-    'api/v3',
   ]) {
     const kopf = await kopfzeilenAn(basis);
     const namen = Object.keys(kopf).map((n) => n.toLowerCase());
@@ -311,7 +367,7 @@ test('v3: die Anmeldung kann die Kasseneck-Kopfzeilen weder ueberschreiben noch 
     params: {},
   });
   await createTransport({ auth, fetch: holen })('getReceipt', {});
-  await createTransport({ auth, fetch: holen, baseUrl: 'http://127.0.0.1:27182' })('getReceipt', {});
+  await createTransport({ auth, fetch: holen, baseUrl: 'http://127.0.0.1:27182/v3' })('getReceipt', {});
   const [kasseneck, fremd] = aufrufe.map((a) => a.init.headers);
   const kasseneckNamen = Object.keys(kasseneck!).filter((n) => n.toLowerCase().startsWith('kasseneck-'));
   assert.deepEqual(kasseneckNamen.sort(), ['Kasseneck-Api-Version', 'Kasseneck-Client']);
@@ -341,4 +397,124 @@ test('v3 (R3): Connect-, ePOS- und Terminalaufrufe mit derselben fetch-Umsetzung
     const namen = Object.keys(aufruf.init.headers).map((n) => n.toLowerCase());
     assert.ok(!namen.some((n) => n.startsWith('kasseneck-')), `${aufruf.url}: ${namen.join(',')}`);
   }
+});
+
+// --- Ausgang (outcome) -------------------------------------------------------
+
+test('v3: outcome unknown fuer dialect_mismatch und die Ausgang-unklar-Codes, sonst rejected', () => {
+  const unklar = [
+    new KasseneckApiError('createReceipt', 'x', {}, 'dialect_mismatch'),
+    new KasseneckApiError('createReceipt', 'x', {}, 'receipt_outcome_unknown'),
+    new KasseneckApiError('cancelReceipt', 'x', {}, 'cancellation_outcome_unknown'),
+    new KasseneckApiError('createReceipt', 'x', { handled: true }, 'response_translation_failed'),
+    new KasseneckApiError('createReceipt', 'x', { handled: null }, 'response_translation_failed'),
+    new KasseneckApiError('createReceipt', 'x', {}, 'response_translation_failed'),
+    new KasseneckApiError('createReceipt', 'x', { code: 'receipt_outcome_unknown' }),
+  ];
+  for (const e of unklar) {
+    assert.equal(e.outcome, 'unknown', `${e.code} ${JSON.stringify(e.details)}`);
+    assert.equal(isOutcomeUnknown(e), true);
+  }
+  const abgelehnt = [
+    new KasseneckApiError('createReceipt', 'x', { handled: false }, 'response_translation_failed'),
+    new KasseneckApiError('createReceipt', 'x', {}, 'route_missing'),
+    new KasseneckApiError('createReceipt', 'x', {}, 'payments_sum_mismatch'),
+    new KasseneckApiError('createReceipt', 'x', {}, 'not_found'),
+    new KasseneckApiError('createReceipt', 'x'),
+  ];
+  for (const e of abgelehnt) {
+    assert.equal(e.outcome, 'rejected', `${e.code} ${JSON.stringify(e.details)}`);
+    assert.equal(isOutcomeUnknown(e), false);
+  }
+  assert.equal(isOutcomeUnknown(new Error('x')), false);
+  assert.equal(isOutcomeUnknown(new KasseneckHttpError('createReceipt', 500, undefined, 'server-error')), false);
+});
+
+test('v3: dialect_mismatch vom Transport traegt outcome unknown, route_missing rejected', async () => {
+  const ohne = erfolg({}, { kennzeichen: null });
+  const e1 = await fehler(createTransport({ auth: schluessel(), fetch: async () => ohne })('createReceipt', {}));
+  assert.equal((e1 as KasseneckApiError).outcome, 'unknown');
+  const html = antwort('<html>', { kennzeichen: null, contentType: 'text/html' });
+  const e2 = await fehler(createTransport({ auth: schluessel(), fetch: async () => html })('createReceipt', {}));
+  assert.equal((e2 as KasseneckApiError).outcome, 'rejected');
+});
+
+test('v3: Fehlerhuelle mit Code aus der Antwort bekommt ihren outcome (receipt_outcome_unknown, handled:false)', async () => {
+  const unklar = antwort(JSON.stringify({ status: 'error', message: 'Ausgang unklar', code: 'receipt_outcome_unknown' }));
+  const e1 = await fehler(createTransport({ auth: schluessel(), fetch: async () => unklar })('createReceipt', {}));
+  assert.equal((e1 as KasseneckApiError).outcome, 'unknown');
+  const abgelehnt = antwort(JSON.stringify({ status: 'error', message: 'x', code: 'response_translation_failed', data: { handled: false } }));
+  const e2 = await fehler(createTransport({ auth: schluessel(), fetch: async () => abgelehnt })('createReceipt', {}));
+  assert.equal((e2 as KasseneckApiError).code, 'response_translation_failed');
+  assert.equal((e2 as KasseneckApiError).outcome, 'rejected');
+});
+
+test('v3: Netzfehler oder Zeitlimit nach dem Senden: signierende Aufrufe unknown, uebrige rejected', async () => {
+  const netzWeg: FetchLike = async () => {
+    throw Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
+  };
+  for (const [name, erwartet] of [
+    ['createReceipt', 'unknown'],
+    ['cancelReceipt', 'unknown'],
+    ['financeWebService', 'unknown'],
+    ['getReceipt', 'rejected'],
+    ['sendReceiptEmail', 'rejected'],
+  ] as const) {
+    const e = await fehler(createTransport({ auth: schluessel(), fetch: netzWeg })(name, {}));
+    assert.ok(e instanceof KasseneckNetworkError, name);
+    assert.equal(e.outcome, erwartet, name);
+    assert.equal(isOutcomeUnknown(e), erwartet === 'unknown', name);
+  }
+  // financeWebService mit Vorgang: der Fehlername traegt ihn, der Ausgang bleibt unklar.
+  const fws = await fehler(createTransport({ auth: schluessel(), fetch: netzWeg })('financeWebService', {}, { method: 'status_cashbox' }));
+  assert.equal((fws as KasseneckNetworkError).functionName, 'financeWebService/status_cashbox');
+  assert.equal((fws as KasseneckNetworkError).outcome, 'unknown');
+
+  // Zeitlimit beim Lesen des Rumpfs (Anfrage war laengst unterwegs).
+  const haengt: FetchLike = async () => ({
+    status: 200,
+    headers: { get: (n: string) => (n.toLowerCase() === 'kasseneck-api-version' ? 'v3' : 'application/json') },
+    text: () => new Promise<string>(() => {}),
+    arrayBuffer: () => new Promise<ArrayBuffer>(() => {}),
+  });
+  const zeit = await fehler(createTransport({ auth: schluessel(), fetch: haengt, timeoutMs: 30 })('createReceipt', {}));
+  assert.ok(zeit instanceof KasseneckNetworkError && zeit.timedOut);
+  assert.equal(zeit.outcome, 'unknown');
+
+  // Zeitlimit schon in der Anmeldung: nichts gesendet, rejected.
+  const langsam = () => new Promise<never>(() => {});
+  const vorher = await fehler(createTransport({ auth: langsam, fetch: haengt, timeoutMs: 30 })('createReceipt', {}));
+  assert.ok(vorher instanceof KasseneckNetworkError && vorher.timedOut);
+  assert.equal(vorher.outcome, 'rejected');
+});
+
+// --- 404 des /v3-Rands -------------------------------------------------------
+
+test('v3: HTTP 404 mit Kennzeichen und Code wird KasseneckApiError mit diesem Code (not_found)', async () => {
+  const a = antwort(JSON.stringify({ status: 'error', message: 'Endpunkt unbekannt', code: 'not_found' }), { status: 404 });
+  const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })('getReceipt', {}));
+  assert.ok(e instanceof KasseneckApiError, String(e));
+  assert.equal(e.code, 'not_found');
+  assert.equal(e.outcome, 'rejected');
+  // Auch auf dem Binaerweg.
+  const b = antwort(JSON.stringify({ status: 'error', message: 'Endpunkt unbekannt', code: 'not_found' }), { status: 404 });
+  const eb = await fehler(createBinaryTransport({ auth: schluessel(), fetch: async () => b })('downloadReport', {}));
+  assert.equal((eb as KasseneckApiError).code, 'not_found');
+});
+
+test('v3: HTTP 404 ohne Kennzeichen, ohne Code oder ohne Huelle bleibt HTTP-Fehler, ohne Kennzeichen ungelesen', async () => {
+  const ohne = antwort(JSON.stringify({ status: 'error', message: 'x', code: 'not_found' }), { status: 404, kennzeichen: null });
+  const e1 = await fehler(createTransport({ auth: schluessel(), fetch: async () => ohne })('getReceipt', {}));
+  assert.ok(e1 instanceof KasseneckHttpError && e1.statusCode === 404 && e1.reason === 'server-error');
+  assert.equal(ohne.gelesen, 0);
+  for (const rumpf of [JSON.stringify({ status: 'error', message: 'x' }), '<html>404</html>', '']) {
+    const a = antwort(rumpf, { status: 404 });
+    const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })('getReceipt', {}));
+    assert.ok(e instanceof KasseneckHttpError && e.statusCode === 404, rumpf);
+  }
+  // Andere Status mit Kennzeichen bleiben HTTP-Fehler (kein Lesen).
+  const f500 = antwort(JSON.stringify({ status: 'error', message: 'x', code: 'internal' }), { status: 500 });
+  const e5 = await fehler(createTransport({ auth: schluessel(), fetch: async () => f500 })('getReceipt', {}));
+  assert.ok(e5 instanceof KasseneckHttpError && e5.statusCode === 500);
+  assert.equal(f500.gelesen, 0);
 });

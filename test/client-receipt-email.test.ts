@@ -101,14 +101,21 @@ function kassenBenutzerWeg(antwortWert: HttpResponseLike = erfolg(MAIL_ANTWORT))
   };
 }
 
-function gesendet(aufrufe: Aufruf[]): { endpunkt: string; params: Record<string, unknown>; kopf: Record<string, string> } {
+/**
+ * Endpunkt, Parameter und Kopfzeilen des einzigen Aufrufs. `basis` ist die
+ * erwartete Basis: oeffentlich (api_key) oder Kassenweg (Kassen-Benutzer,
+ * Kanal app).
+ */
+function gesendet(
+  aufrufe: Aufruf[],
+  basis: string = DEFAULT_BASE_URL,
+): { endpunkt: string; params: Record<string, unknown>; kopf: Record<string, string> } {
   assert.equal(aufrufe.length, 1, 'genau ein Aufruf erwartet');
   const aufruf = aufrufe[0]!;
-  // Oeffentliche Basis (api_key) oder Kassenweg (Kassen-Benutzer, Kanal app).
-  assert.ok([DEFAULT_BASE_URL, KASSE_BASE_URL].some((b) => aufruf.url.startsWith(`${b}/`)), `unerwartete URL: ${aufruf.url}`);
+  assert.ok(aufruf.url.startsWith(`${basis}/`), `unerwartete URL: ${aufruf.url}`);
   const rumpf = JSON.parse(aufruf.init.body) as { params: Record<string, unknown> };
   return {
-    endpunkt: aufruf.url.slice(DEFAULT_BASE_URL.length + 1),
+    endpunkt: aufruf.url.slice(basis.length + 1),
     params: rumpf.params,
     kopf: aufruf.init.headers as Record<string, string>,
   };
@@ -148,7 +155,9 @@ test('3) sprache geht nur mit, wenn sie gesetzt ist', async () => {
 test('4) Kassen-Benutzer-Weg: die Kasse kommt aus der Anmeldung, nicht aus den Optionen', async () => {
   const { rufen, aufrufe } = kassenBenutzerWeg();
   await sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' });
-  const { params, kopf } = gesendet(aufrufe);
+  // Kassen-Benutzer: ueber den Kassenweg (Kanal app), nicht api.kasseneck.at.
+  const { endpunkt, params, kopf } = gesendet(aufrufe, KASSE_BASE_URL);
+  assert.equal(endpunkt, 'sendReceiptEmail');
   assert.equal(params['cashregisterId'], KASSEN_ID);
   assert.equal(kopf['register-session'], SITZUNG);
 });

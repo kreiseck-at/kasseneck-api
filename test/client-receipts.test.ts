@@ -155,13 +155,15 @@ function istKasseneckFehler(fehler: unknown): boolean {
   );
 }
 
-/** Liest Endpunktname und gesendete Parameter aus dem einzigen Aufruf. */
-function gesendet(aufrufe: Aufruf[]): { endpunkt: string; params: Record<string, unknown> } {
+/**
+ * Liest Endpunktname und gesendete Parameter aus dem einzigen Aufruf. `basis`
+ * ist die erwartete Basis: oeffentlich (api_key) oder Kassenweg
+ * (Kassen-Benutzer, Kanal app).
+ */
+function gesendet(aufrufe: Aufruf[], basis: string = DEFAULT_BASE_URL): { endpunkt: string; params: Record<string, unknown> } {
   assert.equal(aufrufe.length, 1, 'genau ein Aufruf erwartet');
   const aufruf = aufrufe[0]!;
-  // Oeffentliche Basis (api_key) oder Kassenweg (Kassen-Benutzer, Kanal app).
-  const basis = [DEFAULT_BASE_URL, KASSE_BASE_URL].find((b) => aufruf.url.startsWith(`${b}/`));
-  assert.ok(basis, `unerwartete URL: ${aufruf.url}`);
+  assert.ok(aufruf.url.startsWith(`${basis}/`), `unerwartete URL: ${aufruf.url}`);
   const endpunkt = aufruf.url.slice(basis.length + 1);
   const rumpf = JSON.parse(aufruf.init.body) as { params: Record<string, unknown> };
   return { endpunkt, params: rumpf.params };
@@ -530,15 +532,18 @@ test('getFirstReceiptDate deutet den Zeitstempel als Wiener Wanduhrzeit', async 
 
 // --- Anmeldewege -------------------------------------------------------
 
-test('Kassen-Benutzer-Weg: cashregisterId geht bei jedem erlaubten Aufruf mit', async () => {
+test('Kassen-Benutzer-Weg: cashregisterId geht bei jedem erlaubten Aufruf mit, ueber den Kassenweg', async () => {
   for (const [name, aufruf] of [
     ['createReceipt', (r: KasseneckTransport) => sellReceipt(r, { paymentMethod: KeckPaymentMethod.cash, items: [KAFFEE] })],
     ['getReceipt', (r: KasseneckTransport) => getReceipt(r, 'r-1')],
     ['generateFullReceiptId', (r: KasseneckTransport) => generateFullReceiptId(r, 'r-1')],
+    ['cancelReceipt', (r: KasseneckTransport) => cancelReceipt(r, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'fehleingabe' })],
   ] as const) {
-    const { rufen, aufrufe } = kassenBenutzerWeg(name === 'generateFullReceiptId' ? { fullReceiptId: 'X' } : BELEG_ANTWORT);
+    const antwort = name === 'generateFullReceiptId' ? { fullReceiptId: 'X' } : name === 'cancelReceipt' ? STORNO_ANTWORT : BELEG_ANTWORT;
+    const { rufen, aufrufe } = kassenBenutzerWeg(antwort);
     await aufruf(rufen);
-    const { endpunkt, params } = gesendet(aufrufe);
+    // Kassen-Benutzer: Kanal app ueber kasse.kasseneck.at/api/v3, nicht api.kasseneck.at.
+    const { endpunkt, params } = gesendet(aufrufe, KASSE_BASE_URL);
     assert.equal(endpunkt, name);
     assert.equal(params['cashregisterId'], KASSEN_ID, `${name}: cashregisterId fehlt`);
   }
