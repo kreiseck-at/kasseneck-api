@@ -38,7 +38,7 @@ function antwort(rumpf: unknown): HttpResponseLike {
   const text = typeof rumpf === 'string' ? rumpf : JSON.stringify(rumpf);
   return {
     status: 200,
-    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => text,
     arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer,
   };

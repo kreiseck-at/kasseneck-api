@@ -75,13 +75,28 @@ export function apiKeyAuth(options: ApiKeyAuthOptions): KasseneckAuth {
   });
 }
 
+/**
+ * Anmeldungen der Kassen-Benutzer. Ein Transport mit einer davon ruft ohne
+ * eigene Basis **jeden** Aufruf ueber den Kassenweg (`kasse.kasseneck.at/api/v3`,
+ * Kanal `app`), auch die sechs oeffentlichen: die Kasse spricht einen Dialekt
+ * und braucht am Beleg die Anbieterdaten der Kartenzahlung (Nachtrag §5.2, §8).
+ * Eine Menge statt eines Felds am Funktionsobjekt: niemand kann eine fremde
+ * Anmeldung von aussen zur Kassen-Anmeldung erklaeren.
+ */
+const KASSENWEG = new WeakSet<KasseneckAuth>();
+
+/** Nur fuer den Transport; nicht Teil der oeffentlichen Oberflaeche. */
+export function isRegisterUserAuth(auth: KasseneckAuth): boolean {
+  return KASSENWEG.has(auth);
+}
+
 /** Anmeldung eines Kassen-Benutzers der Browser-Kasse (ID-Token + Sitzung). */
 export function registerUserAuth(options: RegisterUserAuthOptions): KasseneckAuth {
   if (!options.cashregisterId) {
     throw new KasseneckAuthError('registerUserAuth: cashregisterId fehlt');
   }
   const { getIdToken, getSessionId, cashregisterId } = options;
-  return async () => {
+  const anmeldung: KasseneckAuth = async () => {
     // Beides bei JEDEM Aufruf frisch — siehe Modulkommentar (Ablaufzeiten).
     const [idToken, sessionId] = await Promise.all([getIdToken(), getSessionId()]);
     if (!idToken) {
@@ -98,4 +113,6 @@ export function registerUserAuth(options: RegisterUserAuthOptions): KasseneckAut
       params: { cashregisterId },
     };
   };
+  KASSENWEG.add(anmeldung);
+  return anmeldung;
 }

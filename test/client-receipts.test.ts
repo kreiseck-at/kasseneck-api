@@ -25,6 +25,7 @@ import { createKasseneckApi } from '../src/client/api.js';
 import {
   createTransport,
   DEFAULT_BASE_URL,
+  KASSE_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -61,7 +62,7 @@ interface Aufruf {
 function antwort(rumpf: string): HttpResponseLike {
   return {
     status: 200,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -158,8 +159,10 @@ function istKasseneckFehler(fehler: unknown): boolean {
 function gesendet(aufrufe: Aufruf[]): { endpunkt: string; params: Record<string, unknown> } {
   assert.equal(aufrufe.length, 1, 'genau ein Aufruf erwartet');
   const aufruf = aufrufe[0]!;
-  assert.ok(aufruf.url.startsWith(`${DEFAULT_BASE_URL}/`), `unerwartete URL: ${aufruf.url}`);
-  const endpunkt = aufruf.url.slice(DEFAULT_BASE_URL.length + 1);
+  // Oeffentliche Basis (api_key) oder Kassenweg (Kassen-Benutzer, Kanal app).
+  const basis = [DEFAULT_BASE_URL, KASSE_BASE_URL].find((b) => aufruf.url.startsWith(`${b}/`));
+  assert.ok(basis, `unerwartete URL: ${aufruf.url}`);
+  const endpunkt = aufruf.url.slice(basis.length + 1);
   const rumpf = JSON.parse(aufruf.init.body) as { params: Record<string, unknown> };
   return { endpunkt, params: rumpf.params };
 }

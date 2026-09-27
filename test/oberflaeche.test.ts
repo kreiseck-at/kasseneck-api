@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { AUFRUFE, POS_CALLS, PUBLIC_CALLS, isPosOnlyCall } from '../src/client/aufrufe.js';
 import * as kasse from '../src/kasse/index.js';
 import { TASTEN_AKTIONEN } from '../src/kasse/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
@@ -39,6 +39,8 @@ for (const name of Object.keys(namensraum).sort()) {
 
 test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
   assert.deepEqual(vertrag.aufrufe, [...AUFRUFE], veraltet);
+  assert.deepEqual(vertrag.publicCalls, [...PUBLIC_CALLS], veraltet);
+  assert.deepEqual(vertrag.posCalls, [...POS_CALLS], veraltet);
   assert.deepEqual(vertrag.rechte, [...REGISTER_PERMS], veraltet);
   assert.deepEqual(vertrag.tastenAktionen, [...TASTEN_AKTIONEN], veraltet);
 });
@@ -104,4 +106,38 @@ test('Golden: der Vertrag fuehrt JEDE Rechnungs-Liste des Pakets, keine mehr und
 test('Die Vertragsdatei nennt die Paketversion', () => {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(vertrag.version, pkg.version, veraltet);
+});
+
+/*
+ * Die Aufruflisten der 1.x-Linie gegen den Backend-Vertrag `/v3`
+ * (`fixtures/v3/v3-vokabular.json`, geholt mit `scripts/v3-vertrag-holen.mjs`).
+ */
+const vokabular = JSON.parse(
+  readFileSync(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url), 'utf8'),
+) as { endpoints: Record<string, string[]>; names: Record<string, string> };
+const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
+
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 51)', () => {
+  const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
+  assert.deepEqual([...PUBLIC_CALLS], erwartet);
+  assert.equal(PUBLIC_CALLS.length, 51);
+  // Unter /v3 geroutet ist genau die oeffentliche Liste.
+  assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
+});
+
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (25)', () => {
+  assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
+  assert.equal(POS_CALLS.length, 25);
+});
+
+test('v3: nur ueber den Kassenweg gehen genau die 19 Namen aus endpoints.registerInternal', () => {
+  const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
+  const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
+  assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
+  assert.equal(nurKasse.length, 19);
+});
+
+test('v3: jeder Aufruf des Pakets steht in PUBLIC_CALLS oder POS_CALLS', () => {
+  const bekannt = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS]);
+  assert.deepEqual(AUFRUFE.filter((name) => !bekannt.has(name)), []);
 });

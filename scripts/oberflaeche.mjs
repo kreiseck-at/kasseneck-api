@@ -13,7 +13,7 @@
 //
 // Aufruf: `npm run fixtures:oberflaeche` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { AUFRUFE } from '../dist/esm/client/aufrufe.js';
+import { AUFRUFE, POS_CALLS, PUBLIC_CALLS } from '../dist/esm/client/aufrufe.js';
 import * as kasse from '../dist/esm/kasse/index.js';
 import * as partner from '../dist/esm/partner/index.js';
 import * as rechnung from '../dist/esm/rechnung/index.js';
@@ -78,6 +78,10 @@ const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url
 const vertrag = {
   version: paket.version,
   aufrufe: [...AUFRUFE],
+  // Die Endpunkte je Weg unter /v3 (oeffentlich bzw. Kassenweg), wie im
+  // Backend-Vertrag fixtures/v3/v3-vokabular.json.
+  publicCalls: [...PUBLIC_CALLS],
+  posCalls: [...POS_CALLS],
   enums,
   rechte: [...REGISTER_PERMS],
   tastenAktionen: [...kasse.TASTEN_AKTIONEN],

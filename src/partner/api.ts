@@ -60,13 +60,10 @@ import type {
 } from './typen.js';
 
 /**
- * Die Basis-URL der Partner-API: `/v3`, die englische Fassung.
- *
- * Nur der Partner-Teil spricht `/v3`. Belege, Rechnungen, Kasse und Zahlungen
- * laufen weiter ueber [DEFAULT_BASE_URL] (`/v1`), bis es fuer sie eine `/v3`
- * gibt. Die Partner-Endpunkte unter `/v1` antworten weiter, deutsch und
- * abgekuendigt (Kopfzeilen `Deprecation`/`Sunset`); dieser Client spricht sie
- * nicht mehr.
+ * Die Basis-URL der Partner-API: `/v3`, die englische Fassung, dieselbe wie
+ * [DEFAULT_BASE_URL]. Die 1.x-Linie spricht nur noch `/v3`; die
+ * Partner-Endpunkte unter `/v1` antworten weiter, deutsch und abgekuendigt
+ * (Kopfzeilen `Deprecation`/`Sunset`), dieser Client spricht sie nicht.
  */
 export const PARTNER_BASE_URL = 'https://api.kasseneck.at/v3';
 

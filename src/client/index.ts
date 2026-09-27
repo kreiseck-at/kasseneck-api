@@ -9,6 +9,7 @@ export {
 
 export {
   DEFAULT_BASE_URL,
+  KASSE_BASE_URL,
   DEFAULT_TIMEOUT_MS,
   type HttpResponseLike,
   type HttpRequestInit,
@@ -24,6 +25,10 @@ export {
 export {
   AUFRUFE,
   type Aufruf,
+  PUBLIC_CALLS,
+  POS_CALLS,
+  type PublicCall,
+  type PosCall,
 } from './aufrufe.js';
 
 export {

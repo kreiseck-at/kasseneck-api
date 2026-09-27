@@ -34,7 +34,7 @@ function transportMit(daten: unknown): { rufen: KasseneckTransport; aufrufe: Auf
     const rumpf = JSON.stringify({ status: 'success', message: '', data: daten });
     const antwort: HttpResponseLike = {
       status: 200,
-      headers: { get: (n: string) => (n.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      headers: { get: (n: string) => (n.toLowerCase() === 'content-type' ? 'application/json' : n.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
       text: async () => rumpf,
       arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
     };

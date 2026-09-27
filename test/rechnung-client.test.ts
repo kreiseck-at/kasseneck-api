@@ -20,7 +20,7 @@ function antwort(rumpf: unknown, inhaltstyp = 'application/json'): HttpResponseL
   const bytes = rumpf instanceof Uint8Array ? rumpf : new TextEncoder().encode(JSON.stringify(rumpf));
   return {
     status: 200,
-    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? inhaltstyp : null) },
+    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? inhaltstyp : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => new TextDecoder().decode(bytes),
     arrayBuffer: async () => bytes.slice().buffer as ArrayBuffer,
   };
@@ -82,7 +82,7 @@ test('rechnungKeyAuth: Altformate eines Kontoschluessels bleiben gueltig', () =>
 
 // ---- Aufrufe ----------------------------------------------------------------
 
-test('issueInvoice: POST an /v1/issueInvoice, Parameter unveraendert, Ergebnis mit replayed', async () => {
+test('issueInvoice: POST an /v3/issueInvoice, Parameter unveraendert, Ergebnis mit replayed', async () => {
   const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false })));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   const anfrage: IssueInvoiceRequest = {
@@ -91,7 +91,7 @@ test('issueInvoice: POST an /v1/issueInvoice, Parameter unveraendert, Ergebnis m
   };
   const ergebnis = await api.issueInvoice(anfrage);
   assert.equal(anfragen.length, 1);
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/issueInvoice');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/issueInvoice');
   assert.equal(kopf(anfragen[0]!, 'Authorization'), `Bearer ${API_KEY}`);
   assert.deepEqual(params(anfragen[0]!), anfrage);
   assert.equal(ergebnis.invoice.number, '2026-0042');
@@ -123,7 +123,7 @@ test('getInvoicePdf: liefert die Bytes des PDF', async () => {
   const { fetch, anfragen } = attrappe(antwort(pdf, 'application/pdf'));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   const bytes = await api.getInvoicePdf('inv1');
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/getInvoicePdf');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/getInvoicePdf');
   assert.deepEqual(params(anfragen[0]!), { invoiceId: 'inv1' });
   assert.equal(new TextDecoder().decode(bytes.slice(0, 4)), '%PDF');
 });
@@ -179,7 +179,7 @@ test('getInvoiceSetupStatus: ohne Parameter, liefert ready, Umgebung und was feh
   const { fetch, anfragen } = attrappe(antwort(erfolg({ ready: false, environment: 'test', missing })));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   const status = await api.getInvoiceSetupStatus();
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/getInvoiceSetupStatus');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/getInvoiceSetupStatus');
   assert.deepEqual(params(anfragen[0]!), {});
   assert.deepEqual(status, { ready: false, environment: 'test', missing });
 });
@@ -220,7 +220,7 @@ test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async
     const aufruf = api[b.aufruf];
     assert.ok(aufruf, `Client kennt ${b.aufruf} nicht`);
     await aufruf(b.aufruf === 'createCustomer' ? b.anfrage.customer : b.anfrage);
-    assert.equal(anfragen[0]!.url, `https://api.kasseneck.at/v1/${b.aufruf}`);
+    assert.equal(anfragen[0]!.url, `https://api.kasseneck.at/v3/${b.aufruf}`);
     assert.deepEqual(params(anfragen[0]!), b.anfrage, `${b.aufruf}: Parameter veraendert`);
   }
 });
@@ -232,7 +232,7 @@ test('listBrands: ohne Parameter, liefert die Marken', async () => {
   const { fetch, anfragen } = attrappe(antwort(erfolg({ brands })));
   const api = createRechnungApi({ apiKey: API_KEY, fetch });
   assert.deepEqual(await api.listBrands(), brands);
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/listBrands');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/listBrands');
   assert.deepEqual(params(anfragen[0]!), {});
 });
 
@@ -250,7 +250,7 @@ test('recordInvoicePayment: Parameter gehen unveraendert, Antwort traegt Rechnun
   const ergebnis = await api.recordInvoicePayment({
     idempotencyKey: 'zahlung-1', invoiceId: 'inv1', method: 'transfer', amountCents: 12000, paidAt: '2026-09-20',
   });
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/recordInvoicePayment');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/recordInvoicePayment');
   assert.deepEqual(params(anfragen[0]!), { idempotencyKey: 'zahlung-1', invoiceId: 'inv1', method: 'transfer', amountCents: 12000, paidAt: '2026-09-20' });
   assert.deepEqual(ergebnis.payment, zahlung);
   assert.equal(ergebnis.replayed, false);
@@ -323,7 +323,7 @@ test('previewInvoice: dieselbe Anfrage mit dryRun an issueInvoice, Antwort mit p
   const anfrage: IssueInvoiceRequest = { idempotencyKey: 'bestellung-9', customerId: 'k1', priceMode: 'gross', serviceStart: '2026-09-16',
     items: [{ description: 'A', quantity: 1, unitPriceCents: 1479, vatRate: 20 }, { description: 'B', quantity: 1, unitPriceCents: 1500, vatRate: 20 }] };
   const ergebnis = await api.previewInvoice(anfrage);
-  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v1/issueInvoice');
+  assert.equal(anfragen[0]!.url, 'https://api.kasseneck.at/v3/issueInvoice');
   assert.deepEqual(params(anfragen[0]!), { ...anfrage, dryRun: true });
   assert.equal('dryRun' in anfrage, false, 'die Anfrage des Aufrufers bleibt unveraendert');
   assert.deepEqual(ergebnis, { preview, notice });

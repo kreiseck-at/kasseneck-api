@@ -48,8 +48,9 @@ const ohneAnmeldung: KasseneckAuth = () => ({ headers: {}, params: {} });
 
 /**
  * Verbindungsangaben ohne Anmeldung — alles, was [TransportOptions] ausser der
- * Anmeldung fuehrt. Alle Felder sind wahlfrei: ohne Angabe gelten Basis-URL und
- * Zeitlimit der Produktion und das globale `fetch`.
+ * Anmeldung fuehrt. Alle Felder sind wahlfrei: ohne Angabe gelten der Kassenweg
+ * der Produktion ([KASSE_BASE_URL]), das Zeitlimit der Produktion und das
+ * globale `fetch`. Die Web-Kasse gibt `baseUrl: '/api/v3'` (gleicher Ursprung).
  */
 export type RegisterDeviceConnection = Omit<TransportOptions, 'auth'>;
 
@@ -664,7 +665,11 @@ function sitzungAusAntwort(name: string, daten: Record<string, unknown> | null |
   };
 }
 
-/** Transport ohne Anmeldung; `auth` steht zuletzt und ist damit nicht zu ueberschreiben. */
+/**
+ * Transport ohne Anmeldung; `auth` steht zuletzt und ist damit nicht zu
+ * ueberschreiben. Ohne eigene Basis gehen diese Aufrufe an den Kassenweg: sie
+ * sind reine Kassenaufrufe, der Transport leitet sie dorthin.
+ */
 function transportFuer(verbindung: RegisterDeviceConnection): InternerTransport {
   return createTransport({ ...verbindung, auth: ohneAnmeldung });
 }

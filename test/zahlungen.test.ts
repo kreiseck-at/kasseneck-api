@@ -192,7 +192,7 @@ function weg(daten: unknown): { rufen: KasseneckTransport; aufrufe: Aufruf[] } {
     aufrufe.push({ url, init });
     const antwort: HttpResponseLike = {
       status: 200,
-      headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
       text: async () => rumpf,
       arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
     };

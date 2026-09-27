@@ -26,7 +26,7 @@ function antwort(rumpf: unknown): HttpResponseLike {
   const text = JSON.stringify(rumpf);
   return {
     status: 200,
-    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => text,
     arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer,
   };
@@ -74,13 +74,12 @@ test('v3: baseUrl bleibt einstellbar', async () => {
 });
 
 /**
- * Rot-Probe: `DEFAULT_BASE_URL` in client/transport.ts auf `/v3` stellen (statt
- * die Vorgabe nur in partner/api.ts zu setzen) — dann faellt dieser Test. Belege
- * und Rechnungen haben noch keine `/v3`; dorthin geschickt, antwortete der
- * Server mit `not_found`.
+ * Die 1.x-Linie spricht nur `/v3`: auch Belege und Rechnungen gehen dorthin,
+ * die Partner-Basis ist dieselbe wie die allgemeine.
  */
-test('v3: Belege und Rechnungen bleiben auf /v1', async () => {
-  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v1');
+test('v3: Belege und Rechnungen gehen wie der Partner-Teil an /v3', async () => {
+  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v3');
+  assert.equal(PARTNER_BASE_URL, DEFAULT_BASE_URL);
   const urls: string[] = [];
   const holen: FetchLike = async (url) => {
     urls.push(url);
@@ -91,7 +90,7 @@ test('v3: Belege und Rechnungen bleiben auf /v1', async () => {
   const rechnung = createRechnungApi({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', fetch: holen });
   await rechnung.listInvoices().catch(() => undefined);
   assert.equal(urls.length, 2);
-  for (const url of urls) assert.ok(url.startsWith('https://api.kasseneck.at/v1/'), url);
+  for (const url of urls) assert.ok(url.startsWith('https://api.kasseneck.at/v3/'), url);
 });
 
 // ---------------------------------------------------------------------------

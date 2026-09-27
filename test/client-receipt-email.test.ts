@@ -12,6 +12,7 @@ import {
 import {
   createTransport,
   DEFAULT_BASE_URL,
+  KASSE_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -57,7 +58,7 @@ interface Aufruf {
 function antwort(rumpf: string, contentType = 'application/json'): HttpResponseLike {
   return {
     status: 200,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -103,7 +104,8 @@ function kassenBenutzerWeg(antwortWert: HttpResponseLike = erfolg(MAIL_ANTWORT))
 function gesendet(aufrufe: Aufruf[]): { endpunkt: string; params: Record<string, unknown>; kopf: Record<string, string> } {
   assert.equal(aufrufe.length, 1, 'genau ein Aufruf erwartet');
   const aufruf = aufrufe[0]!;
-  assert.ok(aufruf.url.startsWith(`${DEFAULT_BASE_URL}/`), `unerwartete URL: ${aufruf.url}`);
+  // Oeffentliche Basis (api_key) oder Kassenweg (Kassen-Benutzer, Kanal app).
+  assert.ok([DEFAULT_BASE_URL, KASSE_BASE_URL].some((b) => aufruf.url.startsWith(`${b}/`)), `unerwartete URL: ${aufruf.url}`);
   const rumpf = JSON.parse(aufruf.init.body) as { params: Record<string, unknown> };
   return {
     endpunkt: aufruf.url.slice(DEFAULT_BASE_URL.length + 1),
@@ -233,7 +235,8 @@ test('7b) fehlendes via ist kein Fehler, sondern null', async () => {
 });
 
 test('8) eine Antwort, die kein JSON ist, ist ein HTTP-Fehler', async () => {
-  const { rufen } = apiSchluesselWeg(antwort('<!doctype html><html>Auffangseite</html>', 'text/html'));
+  // text/plain: eine HTML-Auffangseite waere route_missing (transport-v3.test.ts).
+  const { rufen } = apiSchluesselWeg(antwort('<!doctype html><html>Auffangseite</html>', 'text/plain'));
   await assert.rejects(
     () => sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' }),
     (fehler: unknown) => {

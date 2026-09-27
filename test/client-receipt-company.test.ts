@@ -182,7 +182,7 @@ test('Die Fabrik reicht beide Varianten durch', async () => {
       aufrufe.push(url);
       return {
         status: 200,
-        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
         text: async () => JSON.stringify({ status: 'success', message: '', data: HUELLE_GET }),
         arrayBuffer: async () => new ArrayBuffer(0),
       };

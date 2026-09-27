@@ -6,6 +6,7 @@ import { createKasseneckApi } from '../src/client/api.js';
 import {
   createTransport,
   DEFAULT_BASE_URL,
+  KASSE_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -39,7 +40,7 @@ interface Aufruf {
 function antwort(rumpf: string): HttpResponseLike {
   return {
     status: 200,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -168,7 +169,7 @@ test('listMyCashregisters: Endpunktname und leere Nutzlast', async () => {
   await listMyCashregisters(rufen);
 
   assert.equal(aufrufe.length, 1);
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyCashregisters`);
   // Nur die Kassenbindung der Anmeldung, kein eigener Parameter.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { cashregisterId: KASSEN_ID });
 });
@@ -220,7 +221,7 @@ test('listMyReceipts: Kassen-ID geht als "cashregisterid" klein geschrieben raus
   const { rufen, aufrufe } = kassenBenutzerWeg(erfolg(BELEGLISTE_ANTWORT));
   await listMyReceipts(rufen, { cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyReceipts`);
   const params = rumpfVon(aufrufe[0]!).params;
   // Der Pflichtparameter des Backends heisst klein geschrieben; die Anmeldung
   // legt daneben ihr cashregisterId. Beide muessen da sein.
@@ -310,6 +311,6 @@ test('die Fassade bindet beide Listen-Aufrufe an denselben Transport', async () 
   });
   await api2.listMyReceipts({ cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyCashregisters`);
-  assert.equal(aufrufe2[0]?.url, `${DEFAULT_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe2[0]?.url, `${KASSE_BASE_URL}/listMyReceipts`);
 });

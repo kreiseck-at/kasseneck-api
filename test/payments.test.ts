@@ -55,7 +55,7 @@ function jsonAntwort(
 ): HttpResponseLike {
   return {
     status,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -607,7 +607,8 @@ const stoerungen: Array<[string, FetchLike, string]> = [
     'Network',
   ],
   ['HTTP 500', async () => jsonAntwort('<html>500</html>', { status: 500, contentType: 'text/html' }), 'Http:server-error'],
-  ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { contentType: 'text/html' }), 'Http:not-json'],
+  ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { contentType: 'text/html' }), 'Api'],
+  ['Text statt JSON', async () => jsonAntwort('oops', { contentType: 'text/plain' }), 'Http:not-json'],
   ['leere Antwort', async () => jsonAntwort(''), 'Http:empty-body'],
   ['JSON ohne Statusfeld', async () => jsonAntwort('{"irgendwas":true}'), 'Http:missing-status'],
   ['fachlicher Fehler', async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null })), 'Api'],

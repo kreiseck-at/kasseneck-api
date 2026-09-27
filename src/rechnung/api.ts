@@ -50,7 +50,7 @@ import type {
 export interface RechnungApiOptions {
   /** `api_key` des Kontos (`kr_live_…` / `kr_test_…`). Gehoert auf einen Server. */
   apiKey: string;
-  /** Abweichende Basis-URL; Vorgabe `https://api.kasseneck.at/v1`. */
+  /** Abweichende Basis-URL; Vorgabe `https://api.kasseneck.at/v3`. */
   baseUrl?: string;
   /** Zeitlimit je Aufruf in Millisekunden. */
   timeoutMs?: number;
