@@ -73,18 +73,7 @@ test('Fehlercode-Katalog: neunzehn /v3-Codes, als Liste und Waechter', () => {
   assert.equal(isCancellationErrorCode('bereits_storniert'), false);
   assert.equal(isCancellationErrorCode('STORNO_PAYMENTS_REQUIRED'), false);
   assert.equal(isCancellationErrorCode('ALREADY_CANCELLED'), false);
-});
-
-test('fromReceiptPayload behaelt refundedByPayment am Storno-Eintrag, laesst es sonst weg', () => {
-  const beleg = fromReceiptPayload({
-    ...NUTZLAST,
-    cancellations: [
-      { receiptId: 'S1', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: { p1: 79 } },
-      { receiptId: 'S2', at: 2, by: null, note: null, items: [{ index: 0, quantity: 1 }] },
-    ],
-  });
-  assert.deepEqual(beleg.cancellations?.[0]?.refundedByPayment, { p1: 79 });
-  assert.equal('refundedByPayment' in (beleg.cancellations?.[1] ?? {}), false);
+  assert.equal(isCancellationErrorCode('STORNO_OUTCOME_UNKNOWN'), false);
 });
 
 // Der gewaehrte Rabattgutschein-Ausgleich je Eintrag (Cent je Steuertopf) muss
@@ -100,6 +89,31 @@ test('fromReceiptPayload behaelt promoAdjustmentCents am Storno-Eintrag, laesst 
   });
   assert.deepEqual(beleg.cancellations?.[0]?.promoAdjustmentCents, { amountRateReduced1: 200 });
   assert.equal('promoAdjustmentCents' in (beleg.cancellations?.[1] ?? {}), false);
+});
+
+// Die Rueckzahlung je Zahlung (mehrere Zahlungen je Beleg) muss die Lesung
+// ueberleben: nur ganzzahlige, nicht-negative Cent-Betraege bleiben, ungueltige
+// Eintraege fallen einzeln weg, ein Eintrag ohne das Feld bleibt ohne, und
+// `pending`-Eintraege tragen es genauso.
+test('fromReceiptPayload behaelt refundedByPayment am Storno-Eintrag, filtert Ungueltiges, laesst es sonst weg', () => {
+  const beleg = fromReceiptPayload({
+    ...NUTZLAST,
+    cancellations: [
+      { receiptId: 'S1', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: { p1: 500, p2: 200 } },
+      { receiptId: 'S2', at: 2, by: null, note: null, items: [{ index: 0, quantity: 1 }] },
+      {
+        receiptId: 'S3', at: 3, by: null, note: null, items: [{ index: 0, quantity: 1 }],
+        refundedByPayment: { gueltig: 100, negativ: -50, kommazahl: 12.5, keine_zahl: 'abc' },
+      },
+      { pending: true, at: 4, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: { p1: 300 } },
+      { receiptId: 'S5', at: 5, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: 'nicht-objekt' as unknown as Record<string, number> },
+    ],
+  } as ReceiptPayloadRead);
+  assert.deepEqual(beleg.cancellations?.[0]?.refundedByPayment, { p1: 500, p2: 200 });
+  assert.equal('refundedByPayment' in (beleg.cancellations?.[1] ?? {}), false);
+  assert.deepEqual(beleg.cancellations?.[2]?.refundedByPayment, { gueltig: 100 });
+  assert.deepEqual(beleg.cancellations?.[3], { pending: true, at: 4, by: null, note: null, items: [{ index: 0, quantity: 1 }], refundedByPayment: { p1: 300 } });
+  assert.equal('refundedByPayment' in (beleg.cancellations?.[4] ?? {}), false);
 });
 
 // Das Datum des Originals reist am Bezug mit (Kopfblock des Storno-Bons);

@@ -58,6 +58,27 @@ test('Rueckgeld ohne changeCents: gegeben minus Betrag', () => {
   assert.equal(zeilen[i + 2], '  Rückgeld:               4,55 €');
 });
 
+test('Getrennt bar: jede Barzahlung mit eigenem Gegeben/Rueckgeld', () => {
+  const payments: ReceiptPaymentPayload[] = [
+    { id: 'p1', method: 'cash', amountCents: 234, tenderedCents: 500, changeCents: 266 },
+    { id: 'p2', method: 'cash', amountCents: 233, tenderedCents: 1000, changeCents: 767 },
+    { id: 'p3', method: 'cash', amountCents: 233, tenderedCents: 233, changeCents: 0 },
+  ];
+  const zeilen = raster(layoutMit('split-karte-karte-bar', { paymentMethod: 'cash', payments }), 32);
+  const text = zeilen.join('\n');
+  const erwartet: [string, string, string][] = [
+    ['1. Barzahlung             2,34 €', '  Gegeben:                5,00 €', '  Rückgeld:               2,66 €'],
+    ['2. Barzahlung             2,33 €', '  Gegeben:               10,00 €', '  Rückgeld:               7,67 €'],
+    ['3. Barzahlung             2,33 €', '  Gegeben:                2,33 €', '  Rückgeld:               0,00 €'],
+  ];
+  for (const [kopf, gegeben, rueck] of erwartet) {
+    const i = zeilen.indexOf(kopf);
+    assert.ok(i >= 0, text);
+    assert.equal(zeilen[i + 1], gegeben, text);
+    assert.equal(zeilen[i + 2], rueck, text);
+  }
+});
+
 test('Ohne gegebenen Betrag keine Gegeben-/Rueckgeld-Zeilen; Karten bekommen sie nie', () => {
   const payments: ReceiptPaymentPayload[] = [
     { id: 'p1', method: 'creditCard', amountCents: 2000, provider: 'custom', tenderedCents: 5000 },

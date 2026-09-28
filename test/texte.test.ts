@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BELEG_MAIL_FEHLER, FEHLERREGELN, MELDUNGEN, belegMailFehler, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
+import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler, stornoZahlungFehler, beschriftung, meldung, meldungGiltFuer } from '../src/kasse/texte.js';
 import type { MeldungsSchluessel } from '../src/kasse/texte.js';
+import { CANCELLATION_ERROR_CODES } from '../src/models/cancellation.js';
+import { PAYMENT_ERROR_CODES } from '../src/models/payment-errors.js';
 
 const SCHLUESSEL_MUSTER = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
@@ -131,7 +133,7 @@ test('die Saetze zur schon gebuchten Karte nennen Betrag und Kennung', () => {
   }
   assert.equal(
     meldung('kartenzahlung.karte_gebucht_beleg_offen', { betrag: '12,90 €', kennung: 'A-4711' }),
-    'Die Karte ist bereits mit 12,90 € belastet (Kennung A-4711) — der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.',
+    'Die Karte ist bereits mit 12,90 € belastet (Kennung A-4711) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.',
   );
   assert.match(MELDUNGEN['kartenzahlung.karte_gebucht_korb_geaendert'].text, /verwerfen/);
 });
@@ -224,4 +226,223 @@ test('der Wizard fragt, bevor er speichert, und sagt beim Abbruch, dass nichts b
   // Kein Modus druckt einen lesbaren QR-Code: der Hinweis muss sagen, wo der
   // QR-Code dann herkommt — sonst fehlt er dem Kunden am Beleg (RKSV).
   assert.match(MELDUNGEN['druck.wizard_qr_keiner_hinweis'].text, /Bildschirm/);
+});
+
+// --- Halbgeviertstrich ----------------------------------------------------
+// Sichtbare Texte tragen nur den Halbgeviertstrich; der Geviertstrich gilt
+// als Maschinenzeichen. Seit 0.31.0 fuer den ganzen Katalog, auch die
+// aelteren Saetze (nur das Zeichen, nicht der Wortlaut).
+test('kein Geviertstrich in einer Meldung oder Beschriftung', () => {
+  const alle = [...Object.values(MELDUNGEN), ...Object.values(BESCHRIFTUNGEN)].map((m) => m.text);
+  assert.ok(alle.length >= 200);
+  for (const text of alle) assert.ok(!text.includes('\u2014'), text);
+});
+
+test('ein Gedankenstrich steht mit Leerraum auf beiden Seiten', () => {
+  for (const { text } of [...Object.values(MELDUNGEN), ...Object.values(BESCHRIFTUNGEN)]) {
+    for (const m of text.matchAll(/\u2013/g)) {
+      const i = m.index!;
+      assert.equal(text[i - 1], ' ', text);
+      assert.equal(text[i + 1], ' ', text);
+    }
+  }
+});
+
+// --- Getrennt zahlen -------------------------------------------------------
+test('Getrennt zahlen: jeder Satz zur belasteten Karte nennt den Betrag und raet nicht zum Kassieren', () => {
+  for (const s of ['getrennt.karte_zurueckbuchen_fehlgeschlagen', 'getrennt.karte_zurueckbuchen_unklar'] as const) {
+    assert.deepEqual([...(MELDUNGEN[s].platzhalter ?? [])].sort(), ['betrag', 'kennung'], s);
+    assert.match(MELDUNGEN[s].text, /Terminal-Beleg/, s);
+    assert.doesNotMatch(MELDUNGEN[s].text, /kassieren/, s);
+  }
+  for (const s of ['getrennt.extern_zurueckbuchen', 'getrennt.bar_zurueckgeben', 'getrennt.sitzung_offen'] as const) {
+    assert.deepEqual(MELDUNGEN[s].platzhalter, ['betrag'], s);
+  }
+  for (const s of Object.keys(MELDUNGEN).filter((k) => k.startsWith('getrennt.'))) {
+    assert.equal(MELDUNGEN[s as MeldungsSchluessel].nur, undefined, `${s}: gilt auf beiden Seiten`);
+  }
+});
+
+test('Storno mit mehreren Zahlungen: jeder Code ist ein echter Backend-Code und hat einen eigenen Satz', () => {
+  const bekannt = new Set<string>([...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES]);
+  for (const [code, schluessel] of Object.entries(STORNO_ZAHLUNG_FEHLER)) {
+    assert.ok(bekannt.has(code), code);
+    assert.ok(schluessel in MELDUNGEN, schluessel);
+  }
+  const saetze = Object.values(STORNO_ZAHLUNG_FEHLER);
+  assert.equal(new Set(saetze).size, saetze.length, 'zwei Codes zeigen auf denselben Satz');
+  for (const code of ['cancellation_payments_required', 'cancellation_refund_exceeds_payment', 'cancellation_refund_reference_required', 'cancellation_refund_reference_unknown', 'payments_sum_mismatch', 'cancellation_outcome_unknown']) {
+    assert.ok(code in STORNO_ZAHLUNG_FEHLER, code);
+  }
+});
+
+test('Beschriftungen: Schluessel bereich.name, kein Rand-Leerraum, Platzhalter exakt, keine Saetze aus dem Meldungskatalog', () => {
+  const saetze = new Set(Object.values(MELDUNGEN).map((m) => m.text));
+  for (const [schluessel, eintrag] of Object.entries(BESCHRIFTUNGEN)) {
+    assert.match(schluessel, SCHLUESSEL_MUSTER, schluessel);
+    assert.ok(eintrag.text.length > 0, schluessel);
+    assert.equal(eintrag.text, eintrag.text.trim(), schluessel);
+    const imText = [...new Set([...eintrag.text.matchAll(/\{([a-z]+)\}/g)].map((m) => m[1]))].sort();
+    assert.deepEqual(imText, [...(eintrag.platzhalter ?? [])].sort(), schluessel);
+    assert.ok(!saetze.has(eintrag.text), `${schluessel} steht schon als Meldung`);
+    for (const seite of eintrag.nur ?? []) assert.ok(seite === 'web' || seite === 'app', schluessel);
+  }
+});
+
+test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
+  assert.equal(beschriftung('getrennt.zahlung', { n: 3 }), 'Zahlung 3');
+  assert.equal(beschriftung('getrennt.teilen', { n: 3 }), '÷ 3');
+  assert.equal(beschriftung('getrennt.davon_trinkgeld', { betrag: '2,00 €' }), 'davon Trinkgeld 2,00 €');
+  assert.equal(beschriftung('zahlart.kartenzahlung'), 'Kartenzahlung');
+  assert.equal(beschriftung('zahlart.barzahlung'), 'Barzahlung');
+  assert.equal(beschriftung('zahlart.mehrere'), 'Mehrere');
+  assert.equal(beschriftung('getrennt.knopf'), 'Getrennt');
+  assert.equal(beschriftung('getrennt.einstellung'), 'Getrennt zahlen');
+  assert.throws(() => beschriftung('getrennt.zahlung'), /\{n\}/);
+});
+
+test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stueck-Zeilen ersetzen ihre Platzhalter', () => {
+  assert.equal(beschriftung('getrennt.weiter', { betrag: '67,00 €' }), 'Weiter · 67,00 € getrennt');
+  assert.equal(beschriftung('getrennt.tab_positionen'), 'Nach Positionen');
+  assert.equal(beschriftung('getrennt.tab_betrag'), 'Betrag');
+  assert.equal(beschriftung('getrennt.stueck_offen', { n: 2 }), '2 offen');
+  assert.equal(beschriftung('getrennt.stueck_gewaehlt', { n: 2, offen: 4 }), '2 von 4');
+  assert.throws(() => beschriftung('getrennt.stueck_gewaehlt', { n: 2 }), /\{offen\}/);
+  assert.equal(beschriftung('getrennt.offene_positionen'), 'Offene Positionen');
+  assert.equal(beschriftung('getrennt.nichts_gewaehlt'), 'Noch nichts angetippt');
+  assert.equal(beschriftung('getrennt.alles_bezahlt'), 'Alles bezahlt');
+  // Bezahlte Stueck stehen nicht mehr da (die Kachel verschwindet) -- der Satz entfaellt.
+  assert.equal('getrennt.stueck_bezahlt' in BESCHRIFTUNGEN, false);
+  assert.equal(beschriftung('getrennt.stueck_mehr', { name: 'Bier' }), 'Bier: ein Stück mehr');
+  assert.equal(beschriftung('getrennt.stueck_weniger', { name: 'Bier' }), 'Bier: ein Stück weniger');
+  assert.equal(beschriftung('getrennt.gegeben_rueckgeld', { gegeben: '50,00 €', rueckgeld: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
+  assert.equal(beschriftung('getrennt.zahlart'), 'Zahlart');
+  assert.equal(beschriftung('getrennt.art_bar'), 'Bar');
+  assert.equal(beschriftung('getrennt.art_karte'), 'Karte');
+  assert.equal(beschriftung('getrennt.zahlung_hinzufuegen', { betrag: '12,40 €' }), 'Zahlung hinzufügen · 12,40 €');
+  assert.throws(() => beschriftung('getrennt.zahlung_hinzufuegen'), /\{betrag\}/);
+  // Ohne „Gegeben" bei Rueckgeld-Rechner: derselbe Grund wie beim Abschluss, ohne Platzhalter.
+  assert.match(MELDUNGEN['getrennt.gegeben_fehlt'].text, /Rückgeld-Rechner/);
+  assert.equal(MELDUNGEN['getrennt.gegeben_fehlt'].platzhalter, undefined);
+  for (const weg of ['getrennt.bar_kassieren', 'getrennt.karte_kassieren', 'getrennt.kassieren']) {
+    assert.equal(weg in BESCHRIFTUNGEN, false, weg);
+  }
+  // Die Sperre nennt den Grund: Betraege lassen sich keinen Stuecken zuordnen.
+  assert.match(MELDUNGEN['getrennt.positionen_gesperrt'].text, /Betrag/);
+  assert.equal(MELDUNGEN['getrennt.positionen_gesperrt'].platzhalter, undefined);
+  assert.equal(MELDUNGEN['getrennt.positionen_waehlen'].platzhalter, undefined);
+});
+
+test('stornoZahlungFehler faengt jeden unbekannten Code mit dem allgemeinen Storno-Satz auf', () => {
+  for (const [code, schluessel] of Object.entries(STORNO_ZAHLUNG_FEHLER)) {
+    assert.equal(stornoZahlungFehler(code), schluessel, code);
+  }
+  for (const unbekannt of ['GIBT_ES_NICHT', 'STORNO_OUTCOME_UNKNOWN', '', undefined, null]) {
+    assert.equal(stornoZahlungFehler(unbekannt), 'storno.fehlgeschlagen', String(unbekannt));
+  }
+});
+
+test('ein offener Storno-Ausgang warnt vor dem zweiten Stornieren', () => {
+  assert.equal(stornoZahlungFehler('cancellation_outcome_unknown'), 'storno.ergebnis_unklar');
+  const text = MELDUNGEN['storno.ergebnis_unklar'].text;
+  assert.match(text, /nicht erneut stornieren/);
+  assert.match(text, /Belegliste/);
+  // Die Zuordnung prueft exakt wie isCancellationErrorCode: der alte Name
+  // von /v1 kommt unter /v3 nicht mehr an.
+  assert.equal(stornoZahlungFehler('STORNO_OUTCOME_UNKNOWN'), 'storno.fehlgeschlagen');
+});
+
+test('Storno getrennt bezahlter Belege: Karten gehen erst nach dem gebuchten Storno von Hand zurueck', () => {
+  const liste = MELDUNGEN['storno.karten_gutschreiben'];
+  // Der Satz steht ueber einer Liste mit Betrag je Karte -- er selbst bleibt
+  // ohne Platzhalter und passt fuer eine wie fuer mehrere Karten.
+  assert.equal(liste.platzhalter, undefined);
+  assert.equal(liste.nur, undefined);
+  assert.match(liste.text, /gebucht/);
+  assert.match(liste.text, /Terminal gutschreiben/);
+  assert.match(liste.text, /abhaken/);
+  // Die automatische Gutschrift kommt erst mit Server-Unterstuetzung; bis
+  // dahin fuehrt der Katalog keinen Satz dafuer.
+  for (const alt of ['storno.gutschrift_laeuft', 'storno.gutschrift_fehlgeschlagen', 'storno.gutschrift_unklar',
+    'storno.gutgeschrieben_nicht_gebucht', 'storno.gutschrift_pruefen', 'storno.extern_gutschreiben']) {
+    assert.ok(!(alt in MELDUNGEN), alt);
+  }
+  for (const alt of ['storno.am_terminal_gutgeschrieben', 'storno.nicht_gutgeschrieben']) {
+    assert.ok(!(alt in BESCHRIFTUNGEN), alt);
+  }
+});
+
+test('ein offener Storno-Ausgang mit Karten haelt die Gutschrift zurueck, bis das Storno in der Belegliste steht', () => {
+  const eintrag = MELDUNGEN['storno.ergebnis_unklar_karten'];
+  assert.equal(eintrag.platzhalter, undefined);
+  assert.equal(eintrag.nur, undefined);
+  assert.match(eintrag.text, /nicht erneut stornieren/);
+  assert.match(eintrag.text, /noch keine Karte gutschreiben/);
+  assert.match(eintrag.text, /Belegliste/);
+  assert.match(eintrag.text, /am Terminal gutschreiben/);
+  // Der Code selbst zeigt weiter auf den allgemeinen Satz; welchen die Kasse
+  // zeigt, entscheidet sie am gesendeten Vorschlag.
+  assert.equal(stornoZahlungFehler('cancellation_outcome_unknown'), 'storno.ergebnis_unklar');
+  assert.ok(eintrag.text.startsWith('Unklar, ob das Storno entstanden ist – es kann bereits signiert sein.'));
+  assert.ok(MELDUNGEN['storno.ergebnis_unklar'].text.startsWith('Unklar, ob das Storno entstanden ist – es kann bereits signiert sein.'));
+});
+
+test('Getrennt zahlen: erneutes Zurueckbuchen heisst in beiden Kassen gleich', () => {
+  assert.equal(beschriftung('getrennt.erneut_zurueckbuchen'), 'Erneut zurückbuchen');
+});
+
+test('Storno: nicht abgehakte Karten fragen vor dem Schliessen einmal nach', () => {
+  const eintrag = MELDUNGEN['storno.karten_nicht_abgehakt'];
+  assert.equal(eintrag.platzhalter, undefined);
+  assert.equal(eintrag.nur, undefined);
+  assert.match(eintrag.text, /am Terminal gutschreiben/);
+  assert.match(eintrag.text, /noch einmal drücken/);
+  assert.ok(!eintrag.text.includes('\u2014'));
+});
+
+// --- Oberflaechen-Vertrag: Texte, die bisher nur in der Browser-Kasse standen --
+// Beide Kassen zeigen dieselben Woerter; wortgleich mit dem bisherigen Stand
+// der Browser-Kasse, nur der Geviertstrich ist ein Halbgeviertstrich.
+test('Kassieren, Sitzung und Abmelden: die Saetze beider Kassen', () => {
+  assert.equal(meldung('kassieren.nichts_erfasst'), 'Noch nichts erfasst – bitte zuerst eine Position aufnehmen.');
+  assert.equal(meldung('kassieren.gegeben_fehlt'), 'Erst eintippen, was der Gast gibt – der Rückgeld-Rechner ist an.');
+  assert.equal(meldung('kassieren.gegeben_zu_wenig'), 'Gegeben ist weniger als der Betrag.');
+  assert.equal(meldung('kassieren.gesperrt', { grund: 'Die Kasse ist außer Betrieb.' }), 'Kassieren gesperrt: Die Kasse ist außer Betrieb.');
+  assert.throws(() => meldung('kassieren.gesperrt'), /\{grund\}/);
+  assert.equal(meldung('trinkgeld.ueber_haelfte'), 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.');
+  assert.equal(meldung('sitzung.meldet_ab', { sekunden: 30 }), 'Kasse meldet in 30 s ab – Bildschirm berühren, um weiterzuarbeiten.');
+  assert.equal(meldung('abmelden.noch_einmal'), 'Noch einmal drücken beendet die Schicht an dieser Kasse.');
+  assert.equal(meldung('kartenzahlung.terminal_bricht_ab'), 'Das Terminal bricht gleich von selbst ab …');
+  assert.equal(meldung('connect.entkoppeln_frage'), 'Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.');
+  assert.deepEqual(MELDUNGEN['connect.entkoppeln_frage'].nur, ['web']);
+  for (const s of ['kassieren.nichts_erfasst', 'kassieren.gegeben_fehlt', 'kassieren.gegeben_zu_wenig', 'kassieren.gesperrt', 'trinkgeld.ueber_haelfte', 'sitzung.meldet_ab', 'abmelden.noch_einmal', 'kartenzahlung.terminal_bricht_ab'] as const) {
+    assert.equal(MELDUNGEN[s].nur, undefined, `${s}: gilt auf beiden Seiten`);
+  }
+});
+
+test('Beschriftungen beider Kassen: Kassieren, Warte-Karte, Kopplung, Abmelden, Storno', () => {
+  assert.equal(beschriftung('kassieren.trinkgeld'), 'Trinkgeld');
+  assert.equal(beschriftung('kassieren.kein'), 'kein');
+  assert.equal(beschriftung('kassieren.eigener_betrag'), 'Eigener Betrag');
+  assert.equal(beschriftung('kassieren.passend'), 'passend');
+  assert.equal(beschriftung('kassieren.gegeben_loeschen'), 'Gegeben löschen');
+  assert.equal(beschriftung('kassieren.es_fehlen_noch'), 'Es fehlen noch');
+  assert.equal(beschriftung('kassieren.rueckgeld'), 'Rückgeld');
+  assert.equal(beschriftung('kartenzahlung.betrag_am_terminal'), 'Betrag steht am Terminal');
+  assert.equal(beschriftung('kartenzahlung.karte_vorhalten', { zeit: '1:05' }), 'Karte vorhalten oder stecken · noch 1:05');
+  assert.equal(beschriftung('kopplung.neu_koppeln'), 'Neu koppeln');
+  assert.equal(beschriftung('abmelden.frage'), 'Wirklich abmelden?');
+  assert.equal(beschriftung('abmelden.weiter_arbeiten'), 'Weiter arbeiten');
+  assert.equal(beschriftung('geraet.entkoppeln'), 'Gerät entkoppeln');
+  assert.equal(beschriftung('connect.entkoppeln_bestaetigen'), 'Entkoppeln bestätigen');
+  assert.deepEqual(BESCHRIFTUNGEN['connect.entkoppeln_bestaetigen'].nur, ['web']);
+  assert.equal(beschriftung('storno.titel', { beleg: 'K1-42' }), 'Storno zu K1-42');
+  assert.throws(() => beschriftung('storno.titel'), /\{beleg\}/);
+});
+
+test('das X an einer Meldung nennt die Meldung, die es ausblendet', () => {
+  assert.equal(beschriftung('meldung.ausblenden', { meldung: 'Der Warenkorb ist gesperrt …' }), 'Meldung ausblenden: Der Warenkorb ist gesperrt …');
+  assert.equal(beschriftung('meldung.warnung_ausblenden', { meldung: 'Unklar, ob …' }), 'Verstanden – Warnung ausblenden: Unklar, ob …');
+  assert.throws(() => beschriftung('meldung.ausblenden'), /\{meldung\}/);
+  assert.throws(() => beschriftung('meldung.warnung_ausblenden'), /\{meldung\}/);
 });

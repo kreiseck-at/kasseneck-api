@@ -4,6 +4,137 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.31.0
+
+Texte und Einstellung für „Getrennt zahlen" an der Kasse (ein Tisch zahlt in Teilen, ein Beleg mit
+mehreren Zahlungen). Nur Texte, eine Einstellung und eine Tasten-Aktion; kein Aufruf und kein
+Rechenweg ändert sich.
+
+- **`tenderedCents` an jeder Barzahlung**: die Doku an `ReceiptPaymentInput` und
+  `PAYMENT_TENDERED_INVALID` sagte „höchstens an einer Zahlung“. Das Backend erlaubt jetzt jeder
+  Barzahlung ihren eigenen gegebenen Betrag. Grund: beim getrennten Zahlen gibt jeder Gast selbst,
+  der Bon zeigte Gegeben/Rückgeld aber nur beim letzten. Der Bon druckte schon je Zahlung; ein Test
+  hält drei Barzahlungen mit je eigenem Rückgeld fest.
+- **Neue Sätze in `MELDUNGEN`** unter `getrennt.*` (Hinweis zur Einstellung, Prüfungen der
+  Teilzahlung, gesperrter Warenkorb, Rückbuchung bar/Terminal/Karte ohne Anbindung, angefangene
+  Sitzung nach dem Neuladen) und unter `storno.*` (Rückgabe je Zahlung, Karten nach dem Storno von Hand gutschreiben).
+  Grund: Browser-Kasse und Kassen-App sollen am Tresen dieselben Worte sagen; eine schon belastete
+  Karte nennt in jedem Satz den Betrag, und keiner rät zum zweiten Kassieren.
+- **`STORNO_ZAHLUNG_FEHLER`**: Zuordnung der Backend-Codes `STORNO_PAYMENTS_REQUIRED`,
+  `STORNO_REFUND_EXCEEDS_PAYMENT`, `STORNO_REFUND_REFERENCE_REQUIRED`,
+  `STORNO_REFUND_REFERENCE_UNKNOWN` und `PAYMENTS_SUM_MISMATCH` zu ihrem Satz, auch in
+  `fixtures/kasse-texte.json` (`stornoZahlungFehler`). Grund: beide Kassen entscheiden am Code,
+  nie am Wortlaut des Backends. `stornoZahlungFehler(code)` liefert den Schlüssel dazu, ein
+  unbekannter Code fällt auf `storno.fehlgeschlagen` (wie `belegMailFehler`).
+- **Neuer Storno-Code `STORNO_OUTCOME_UNKNOWN`** am Ende von `CANCELLATION_ERROR_CODES` (Zwilling
+  von `STORNO_FEHLERCODES` in `functions/gemeinsam/storno-core.js`; unter `/v3`
+  `cancellation_outcome_unknown`, `isCancellationErrorCode` prüft weiter exakt) mit dem Satz
+  `storno.ergebnis_unklar`. Grund: der Storno-Beleg kann schon signiert sein, obwohl der Ausgang
+  offen ist; wer dann noch einmal storniert, storniert womöglich doppelt. Der Satz rät darum,
+  nicht zu wiederholen und die Belegliste später neu zu laden.
+- **Aufteilung als eigener Schritt**: neue Beschriftungen `getrennt.weiter` („Weiter · {betrag}
+  getrennt“), `getrennt.aufteilung`, `getrennt.zurueck_zahlart`, `getrennt.tab_positionen`,
+  `getrennt.tab_betrag`, `getrennt.stueck_mehr`/`_weniger`,
+  `getrennt.gegeben`, `getrennt.gegeben_rueckgeld` und die Sätze
+  `getrennt.positionen_gesperrt` und `getrennt.positionen_waehlen`. Grund: Nutzertest – erst
+  „Weiter“, dann je Zahlung nach Positionen (stückweise) oder als Betrag. Nach einer Zahlung als
+  Betrag ist „Nach Positionen“ gesperrt, weil sich Beträge keinen Stücken zuordnen lassen; der
+  Satz sagt das.
+- **Zahlart je Zahlung, ein Knopf zum Hinzufügen**: `getrennt.zahlart` („Zahlart“),
+  `getrennt.art_bar`/`getrennt.art_karte` („Bar“/„Karte“) als Umschalter oben in der Zahlung,
+  `getrennt.zahlung_hinzufuegen` („Zahlung hinzufügen · {betrag}“) für den einen Knopf unten
+  rechts und der Satz `getrennt.gegeben_fehlt` (Barzahlung ohne „Gegeben“ bei eingeschaltetem
+  Rückgeld-Rechner, Wortlaut wie beim Abschluss). `getrennt.bar_kassieren`/`getrennt.karte_kassieren`
+  und `getrennt.kassieren` („Zahlung {n} kassieren“) entfallen (noch nie veröffentlicht). Grund: Nutzertest – zwei Knöpfe, die sofort kassieren,
+  lagen zu nah beieinander; jetzt wählt der Kassier die Zahlart wie jede andere Eingabe, und nur
+  ein Knopf löst die Zahlung aus. Offen 0 macht aus demselben Knopf „Abschließen“.
+- **Nach Positionen als Kacheln**: `getrennt.offene_positionen`, `getrennt.stueck_offen`
+  („{n} offen“), `getrennt.stueck_gewaehlt` („{n} von {offen}“), `getrennt.nichts_gewaehlt` und
+  `getrennt.alles_bezahlt`. `getrennt.stueck_bezahlt` entfällt (noch nie veröffentlicht): bezahlte
+  Stück verschwinden aus der Auswahl. Grund: Nutzertest – in der großen Fläche stehen nur noch die
+  offenen Produkte als Kacheln, der Kassier tippt dort an, was dieser Gast zahlt.
+- **`BESCHRIFTUNGEN` und `beschriftung()`**: ein zweiter Katalog für Knöpfe und Zeilennamen
+  („Getrennt", „Zahlung {n}", „Offen", „Rest", „÷ {n}", „davon Trinkgeld {betrag}", „Wie
+  zurückgeben?", „Alles bar", „Mehrere" …), in `fixtures/kasse-texte.json` unter `beschriftungen`.
+  Grund: `MELDUNGEN` führt nur Sätze (die Wächter beider Kassen erkennen Sätze daran), „Rest" ist
+  keiner – muss aber in beiden Kassen gleich heißen. Die Zahlarten folgen dem Bon
+  („Kartenzahlung", „Barzahlung").
+- **Vier weitere Sätze unter `getrennt.*`**: `sitzung_unlesbar` (eine auf dem Gerät abgelegte
+  Sitzung lässt sich nicht mehr lesen – auf schon belastete Karten hinweisen, im Panel oder am
+  Terminal nachsehen lassen), `ablage_fehlgeschlagen` (die Ablage schlägt fehl – vor dem
+  Neuladen warnen, sonst verschwinden belastete Karten aus der Liste), `zu_viele_zahlungen`
+  (höchstens 20 Zahlungen je Beleg) und `entkoppeln_offene_karten` (ein entkoppeltes Gerät hatte
+  noch offene Kartenzahlungen – die Beträge stehen daneben, der Satz selbst bleibt ohne
+  Platzhalter). Grund: die Ablage der Teilzahlung läuft rein lokal auf dem Gerät; geht sie
+  verloren oder lässt sie sich nicht lesen, ist eine schon belastete Karte das teure Risiko, und
+  der Satz muss zum Nachschauen anleiten statt zum Weiterkassieren zu verleiten.
+- **Einstellung `zahlGetrennt`** (Betrieb, Standard `false`) und **Tasten-Aktion `getrennt`**
+  (ohne Vorgabe-Taste). Grund: für Betriebe ohne Bedarf bleibt die Kasse, wie sie ist; eine
+  unerprobte Vorgabe-Taste finge womöglich der Browser ab. Das Backend (`kasse-settings-core.js`)
+  muss beide nachziehen, sonst verwirft sein Validator den Wert beim Speichern.
+- **Vorgabe `kassierenModus` jetzt `'panel'`** (vorher `'seite'`): kassiert wird im Korb-Panel,
+  die Kacheln bleiben stehen. Grund: Nutzertest – so bleibt der Kachelbereich beim Kassieren
+  sichtbar, auch beim getrennten Zahlen. Ein gespeichertes `'seite'` bleibt; gespeichert werden
+  aber nur geänderte Felder, darum wechselt jedes Konto, das den Schalter nie angefasst hat, mit
+  dem Backend-Standard auf das Korb-Panel. Das Backend (`BETRIEB_STANDARD` in
+  `kasse-settings-core.js`) und der Dart-Zwilling ziehen denselben Wert nach.
+- **Texte, die bisher nur in der Browser-Kasse standen, jetzt im Katalog**: Sätze
+  `kassieren.nichts_erfasst`, `kassieren.gegeben_fehlt`, `kassieren.gegeben_zu_wenig`,
+  `kassieren.gesperrt` („Kassieren gesperrt: {grund}“), `trinkgeld.ueber_haelfte`,
+  `sitzung.meldet_ab` („Kasse meldet in {sekunden} s ab …“), `abmelden.noch_einmal`,
+  `kartenzahlung.terminal_bricht_ab` und `connect.entkoppeln_frage` (nur Web); Beschriftungen
+  `kassieren.trinkgeld`, `kassieren.kein`, `kassieren.eigener_betrag`, `kassieren.passend`,
+  `kassieren.gegeben_loeschen`, `kassieren.es_fehlen_noch`, `kassieren.rueckgeld`,
+  `kartenzahlung.betrag_am_terminal`, `kartenzahlung.karte_vorhalten` („… · noch {zeit}“),
+  `kopplung.neu_koppeln`, `abmelden.frage`, `abmelden.weiter_arbeiten`, `geraet.entkoppeln`,
+  `connect.entkoppeln_bestaetigen` (nur Web), `storno.titel` („Storno zu {beleg}“),
+  `meldung.ausblenden` („Meldung ausblenden: {meldung}“) und `meldung.warnung_ausblenden`
+  („Verstanden – Warnung ausblenden: {meldung}“). Wortlaut wie bisher in der Browser-Kasse.
+  Grund: Oberflächen-Vertrag – beide Kassen zeigen dieselben Wörter; das X an einer Meldung nennt
+  jetzt, welche Meldung es ausblendet (in der Ecke stehen oft mehrere).
+- **Halbgeviertstrich statt Geviertstrich** in allen sichtbaren Texten von `MELDUNGEN` (u. a.
+  `abschluss.unklar`, `kartenzahlung.unklar`, `kartenzahlung.karte_gebucht_beleg_offen`,
+  `connect.*`, `druck.*`) und in den Sätzen der Hobex-Antwortcodes (`transaction-response.ts`,
+  auch `fixtures/hobex-hps-codes.json`): „ – “ statt „ — “. Nur das Zeichen ändert sich, kein
+  Wortlaut und kein Schlüssel. Wer einen dieser Sätze wörtlich vergleicht, muss nachziehen.
+  Grund: einheitliche Typografie am Bildschirm; der Geviertstrich wirkt dort wie ein
+  Maschinenzeichen. Die Rechnungstexte (`rechnung/texte.ts`, PDF) bleiben unverändert.
+- **`Cancellation` trägt `refundedByPayment`** (Zahlungs-ID auf positive Cent), Zwilling der
+  gleichnamigen Backend-Ablage (`functions/gemeinsam/storno-core.js`). Die Lesung
+  (`fromReceiptPayload`) behält nur ganzzahlige, nicht negative Werte, verwirft ungültige
+  Einträge einzeln statt den ganzen Eintrag zu verwerfen, und lässt das Feld weg, wenn die
+  Nutzlast es nicht trägt – bestehende Belege lesen sich unverändert. Auch am `pending`-Eintrag
+  vorhanden. Grund: über alle Storno-Einträge darf je Zahlung nie mehr zurückgehen, als bezahlt
+  wurde; ohne das Feld ließe sich das am Client nicht nachvollziehen.
+- **Weitere Sätze in `MELDUNGEN`**: `getrennt.karte_bereits_zurueckgebucht` (das Terminal meldet
+  eine Gutschrift, die hier noch als offene Rückbuchung steht), `abschluss.erledigen_frage` (nur erledigen, was wirklich in der Belegliste steht),
+  `kartenzahlung.korb_gesperrt_karte_belastet` und `kartenzahlung.entkoppeln_karte_belastet`.
+  Grund: jeder dieser Zustände ist eine schon belastete oder gutgeschriebene Karte ohne
+  passenden Beleg – der teuerste Fehler am Tresen ist die doppelte Buchung, und kein Satz davon
+  darf zum Wiederholen raten, ohne vorher den Terminal-Beleg zu nennen.
+- **Weitere `BESCHRIFTUNGEN`**: `allgemein.abbrechen`, `abschluss.beleg_vorhanden`,
+  `abschluss.erledigen`, `getrennt.karte_zurueckbuchen`, `getrennt.trotzdem_neu_koppeln`,
+  `getrennt.zahlung_behalten`, `getrennt.klaeren`, `getrennt.wurde_belastet`,
+  `getrennt.nicht_belastet`, `getrennt.erneut_zurueckbuchen`, `storno.differenz`. Grund: Knöpfe
+  zu den neuen Sätzen oben, in beiden Kassen gleich beschriftet.
+- **Storno eines Belegs mit mehreren Zahlungen: Karten gehen von Hand zurück.**
+  `storno.karten_gutschreiben` steht nach dem gebuchten Storno über der Liste der Karten zum
+  Abhaken (eine oder mehrere, mit oder ohne Anbindung); `storno.ergebnis_unklar_karten` ersetzt
+  `storno.ergebnis_unklar`, wenn der gesendete Vorschlag Karten enthielt – erst die Belegliste
+  neu laden, erst dann gutschreiben (`STORNO_ZAHLUNG_FEHLER` zeigt weiter auf
+  `storno.ergebnis_unklar`, die Wahl trifft die Kasse am Vorschlag). Die Sätze und Knöpfe einer
+  Gutschrift am Terminal VOR dem Senden (`storno.gutschrift_laeuft`,
+  `storno.gutschrift_fehlgeschlagen`, `storno.gutschrift_unklar`,
+  `storno.gutgeschrieben_nicht_gebucht`, `storno.gutschrift_pruefen`,
+  `storno.extern_gutschreiben`, `storno.am_terminal_gutgeschrieben`,
+  `storno.nicht_gutgeschrieben`) sind wieder entfernt; sie waren nie veröffentlicht. Grund:
+  eine Gutschrift vor dem gebuchten Storno lässt Geld zurückgehen, ohne dass ein Storno-Beleg
+  sicher entsteht; die automatische Gutschrift kommt als eigener Schritt mit
+  Server-Unterstützung.
+- **`storno.karten_nicht_abgehakt`**: wird die Liste der Karten nach dem gebuchten Storno
+  geschlossen, obwohl nicht jede Karte abgehakt ist, fragt die Kasse einmal nach. Grund: eine
+  vergessene Gutschrift fällt sonst erst dem Gast auf, und am Storno-Beleg sieht sie niemand mehr.
+
 ## 0.30.0
 
 Mehrere Zahlungen je Beleg. Setzt ein Backend mit `payments` voraus (keck, live seit

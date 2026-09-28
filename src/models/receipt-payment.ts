@@ -61,7 +61,8 @@ export interface ReceiptPaymentPayload {
  *
  * - `method`: jede Zahlungsart ausser `mixed`.
  * - `amountCents`: ganze Cent, am Verkauf > 0, am Storno < 0.
- * - `tenderedCents`: nur bei Barzahlung am Verkauf, hoechstens an einer Zahlung.
+ * - `tenderedCents`: nur bei Barzahlung am Verkauf; jede Barzahlung darf ihren
+ *   eigenen gegebenen Betrag tragen (getrennt zahlen: Rueckgeld je Gast).
  * - `provider`/`providerPaymentId`/`providerData`: bei Karten Pflicht
  *   (`providerPaymentId` ausser bei `custom`), bei `online` optional, sonst
  *   nicht erlaubt; am Storno beschreiben sie die Erstattung und sind optional.

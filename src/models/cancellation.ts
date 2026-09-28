@@ -114,9 +114,13 @@ export interface Cancellation {
    */
   promoAdjustmentCents?: Record<string, number>;
   /**
-   * Rueckzahlung dieses Stornos je Originalzahlung in Cent, Schluessel ist
-   * die `id` der Zahlung (`p1`, …). Quelle des Rests je Zahlung; fehlt bei
-   * Belegen ohne Zahlungsliste.
+   * Rueckzahlung je Zahlung, die DIESER Storno-Eintrag auf eine Zahlung des
+   * Originals verbucht hat (`refundOf`) -- Zahlungs-ID auf positive Cent,
+   * Zwilling von `functions/gemeinsam/storno-core.js` `refundedByPayment`.
+   * Ueber alle Eintraege darf je Zahlung nie mehr zurueck, als bezahlt wurde
+   * (siehe dort `restJeZahlung`). Ein Eintrag ohne das Feld (vor dieser Regel
+   * oder ohne Zahlungsmodell gebucht) zaehlt dabei 0 je Zahlung. Auch am
+   * `pending`-Eintrag vorhanden, sobald reserviert wird.
    */
   refundedByPayment?: Record<string, number>;
 }

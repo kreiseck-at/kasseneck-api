@@ -240,10 +240,23 @@ function leseStorno(eintrag: Cancellation): Cancellation {
     ...(eintrag.promoAdjustmentCents && typeof eintrag.promoAdjustmentCents === 'object'
       ? { promoAdjustmentCents: Object.fromEntries(Object.entries(eintrag.promoAdjustmentCents).map(([k, v]) => [k, Number(v)])) }
       : {}),
-    ...(eintrag.refundedByPayment && typeof eintrag.refundedByPayment === 'object'
-      ? { refundedByPayment: Object.fromEntries(Object.entries(eintrag.refundedByPayment).map(([k, v]) => [k, Number(v)])) }
+    ...(eintrag.refundedByPayment && typeof eintrag.refundedByPayment === 'object' && !Array.isArray(eintrag.refundedByPayment)
+      ? { refundedByPayment: gueltigeRueckzahlungen(eintrag.refundedByPayment) }
       : {}),
   };
+}
+
+// Nur ganzzahlige, nicht-negative Cent-Betraege je Zahlungs-ID; ein Eintrag,
+// der das nicht erfuellt (negativ, Kommazahl, kein Zahlenwert), faellt weg --
+// die uebrigen bleiben. Zwilling der Backend-Erzeugung (storno-core.js
+// pruefeRueckzahlungen), die selbst nur so etwas ablegt.
+function gueltigeRueckzahlungen(rueckzahlungen: Record<string, unknown>): Record<string, number> {
+  const raus: Record<string, number> = {};
+  for (const [id, wert] of Object.entries(rueckzahlungen)) {
+    const cents = Number(wert);
+    if (Number.isInteger(cents) && cents >= 0) raus[id] = cents;
+  }
+  return raus;
 }
 
 /**
