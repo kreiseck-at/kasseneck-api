@@ -203,7 +203,8 @@ function modulPruefen(pfad) {
     seiteneffekte.push(`${wo(st)} Anweisung auf oberster Ebene`);
   }
 }
-lesen(resolve(wurzel, BAU.import));
+// Fehlt der Bau ganz, meldet das schon die Pfadpruefung oben.
+if (existsSync(resolve(wurzel, BAU.import))) lesen(resolve(wurzel, BAU.import));
 for (const s of seiteneffekte) fehler.push(`sideEffects: ${s}`);
 
 if (fehler.length > 0) {
