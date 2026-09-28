@@ -219,3 +219,132 @@ test('Exportnamen: jede Ausnahme hat einen Grund und wird noch gebraucht', () =>
     assert.ok(gebraucht.has(k), `${k}: Ausnahme wird nicht mehr gebraucht, bitte streichen`);
   }
 });
+
+// ------------------------------------------------------ Parameternamen (d.ts)
+
+/**
+ * Deutsche Teilwoerter, die nur als Parametername vorkamen. Sie stehen hier
+ * und nicht in `test/deutsch.ts`, weil diese Liste auch die Draht-Fixtures
+ * prueft, wo manche davon (`standard`) englische Werte sind.
+ */
+const PARAMETER_WOERTER: ReadonlySet<string> = new Set([
+  'abfrage', 'anfrage', 'aussen', 'bekannt', 'daten', 'eintrag', 'eintraege', 'geheimnisse', 'gespeichert',
+  'huelle', 'intervall', 'kennung', 'kopf', 'monate', 'nachricht', 'recht', 'roh', 'rufen', 'sprache', 'suche',
+  'ursache', 'vorgabe', 'weiteres', 'wert', 'werte', 'zeitpunkt', 'zwoelftel', 'binaer', 'anzahl', 'positionen', 'zertifikat',
+]);
+
+/** Parameternamen, die trotz deutschem Teilwort bleiben. `<d.ts>:<Deklaration>(<Parameter>)` -> Grund. */
+const AUSNAHMEN_PARAMETER: Record<string, string> = {};
+
+/**
+ * Die Deklarationen, wie ein Verbraucher sie sieht: die `.d.ts`, die `tsc`
+ * aus `src` erzeugt, im Speicher erzeugt und von dort gelesen. So zaehlt
+ * genau der Name, den der Tooltip der IDE zeigt.
+ */
+function dtsProgramm(): { programm: ts.Program; ordner: string; einstiege: string[] } {
+  const ordner = join(wurzel, '.dts-waechter');
+  const optionen: ts.CompilerOptions = {
+    strict: true, jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022, skipLibCheck: true, declaration: true, emitDeclarationOnly: true,
+    rootDir: SRC, outDir: ordner,
+  };
+  const dateien = new Map<string, string>();
+  const erzeugt = ts.createProgram(EINSTIEGE.map((e) => e.quelle), optionen).emit(undefined, (name, text) => dateien.set(name, text));
+  assert.equal(erzeugt.emitSkipped, false, 'd.ts nicht erzeugt');
+  const wirt = ts.createCompilerHost({ ...optionen, noEmit: true });
+  const lesen = wirt.readFile.bind(wirt);
+  const gibt = wirt.fileExists.bind(wirt);
+  const quelle = wirt.getSourceFile.bind(wirt);
+  wirt.readFile = (p) => dateien.get(p) ?? lesen(p);
+  wirt.fileExists = (p) => dateien.has(p) || gibt(p);
+  // Den Ordner gibt es nur im Speicher; ohne das sucht die Modulaufloesung dort gar nicht erst.
+  wirt.directoryExists = (d) => d === ordner || d.startsWith(`${ordner}/`) || ts.sys.directoryExists(d);
+  wirt.getSourceFile = (p, sprachversion, ...rest) => {
+    const text = dateien.get(p);
+    return text !== undefined ? ts.createSourceFile(p, text, sprachversion, true) : quelle(p, sprachversion, ...rest);
+  };
+  const einstiege = EINSTIEGE.map((e) => e.quelle.replace(SRC, ordner).replace(/\.tsx?$/, '.d.ts'));
+  for (const e of einstiege) assert.ok(dateien.has(e), `${e} nicht erzeugt`);
+  return { programm: ts.createProgram(einstiege, { ...optionen, noEmit: true }, wirt), ordner, einstiege };
+}
+
+interface Parameter { name: string; wo: string }
+
+/** Alle Parameternamen, die von den Exporten der Einstiege aus erreichbar sind (Funktionen, Methoden, Konstruktoren). */
+function alleParameter(): Parameter[] {
+  const { programm: dts, ordner, einstiege } = dtsProgramm();
+  const p = dts.getTypeChecker();
+  const aus: Parameter[] = [];
+  const gesehen = new Set<ts.Type>();
+  const eigen = (d: ts.Node | undefined) => d !== undefined && d.getSourceFile().fileName.startsWith(ordner);
+  const ort = (d: ts.Declaration) => {
+    const datei = d.getSourceFile().fileName.slice(ordner.length + 1);
+    let k: ts.Node | undefined = d;
+    const kette: string[] = [];
+    while (k && !ts.isSourceFile(k)) {
+      const n = (k as ts.NamedDeclaration).name;
+      if (n && ts.isIdentifier(n)) kette.unshift(n.text);
+      else if (ts.isConstructorDeclaration(k)) kette.unshift('constructor');
+      k = k.parent;
+    }
+    return `${datei}:${kette.join('.')}`;
+  };
+  const signatur = (s: ts.Signature) => {
+    const d = s.getDeclaration() as ts.SignatureDeclaration | undefined;
+    if (!eigen(d)) return;
+    for (const par of s.parameters) {
+      const pd = par.declarations?.[0];
+      if (pd && eigen(pd) && ts.isParameter(pd) && ts.isIdentifier(pd.name)) aus.push({ name: pd.name.text, wo: `${ort(d!)}(${pd.name.text})` });
+    }
+  };
+  const typ = (t: ts.Type, tiefe: number): void => {
+    if (tiefe > 12 || gesehen.has(t)) return;
+    gesehen.add(t);
+    if (t.isUnion() || t.isIntersection()) { for (const u of t.types) typ(u, tiefe + 1); return; }
+    for (const s of [...t.getCallSignatures(), ...t.getConstructSignatures()]) {
+      signatur(s);
+      for (const par of s.parameters) typ(p.getTypeOfSymbol(par), tiefe + 1);
+      typ(s.getReturnType(), tiefe + 1);
+    }
+    if (!(t.flags & ts.TypeFlags.Object)) return;
+    if ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) {
+      for (const a of p.getTypeArguments(t as ts.TypeReference)) typ(a, tiefe + 1);
+    }
+    for (const eig of p.getPropertiesOfType(t)) {
+      if (!eigen(eig.declarations?.[0])) continue;
+      typ(p.getTypeOfSymbol(eig), tiefe + 1);
+    }
+  };
+  for (const e of einstiege) {
+    const modul = p.getSymbolAtLocation(dts.getSourceFile(e)!);
+    assert.ok(modul, `${e}: kein Modul`);
+    for (const x of p.getExportsOfModule(modul)) {
+      const s = x.flags & ts.SymbolFlags.Alias ? p.getAliasedSymbol(x) : x;
+      if (s.flags & (ts.SymbolFlags.Interface | ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Class)) typ(p.getDeclaredTypeOfSymbol(s), 0);
+      if (s.flags & ts.SymbolFlags.Value) typ(p.getTypeOfSymbol(s), 0);
+    }
+  }
+  return aus;
+}
+
+test('Parameternamen: kein Parameter einer exportierten Funktion, Methode oder Klasse ist deutsch (gelesen aus der d.ts)', () => {
+  const gefunden = alleParameter();
+  assert.ok(gefunden.length > 400, `nur ${gefunden.length} Parameter gelesen`);
+  // Stichproben: Funktion, Methode einer Fassade, Konstruktor.
+  for (const probe of ['receipt/bild.d.ts:rasterizeLogo(rgba)', 'client/errors.d.ts:KasseneckApiError.constructor(functionName)']) {
+    assert.ok(gefunden.some((g) => g.wo === probe), `${probe} nicht erreicht`);
+  }
+  assert.ok(gefunden.some((g) => g.wo.startsWith('invoice/api.d.ts:InvoiceApi.')), 'Methoden der Rechnungs-Fassade nicht erreicht');
+  const deutsch = new Set<string>();
+  for (const { name, wo } of gefunden) {
+    const grund = deutschIn(name, PARAMETER_WOERTER);
+    if (!grund) continue;
+    if (wo in AUSNAHMEN_PARAMETER) continue;
+    deutsch.add(`${wo} (${grund})`);
+  }
+  assert.deepEqual([...deutsch].sort(), []);
+});
+
+test('Parameternamen: die Ausnahmen tragen einen Grund', () => {
+  for (const [k, grund] of Object.entries(AUSNAHMEN_PARAMETER)) assert.ok(grund.length > 20, `${k}: Grund fehlt`);
+});

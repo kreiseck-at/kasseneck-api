@@ -441,12 +441,12 @@ export const INVOICE_TEXTS: Readonly<Record<InvoiceLanguage, Readonly<Record<Inv
 
 /** Ein Text der gewaehlten Sprache mit eingesetzten Werten; ein fehlender Wert ist ein Programmierfehler. */
 export function invoiceText(
-  sprache: InvoiceLanguage,
-  schluessel: InvoiceTextKey,
-  werte: Readonly<Record<string, string | number>> = {},
+  language: InvoiceLanguage,
+  key: InvoiceTextKey,
+  values: Readonly<Record<string, string | number>> = {},
 ): string {
-  return INVOICE_TEXTS[sprache][schluessel].replace(/\{([a-zA-Z]+)\}/g, (_voll, name: string) => {
-    if (!(name in werte)) throw new Error(`invoiceText ${schluessel}: Wert {${name}} fehlt`);
-    return String(werte[name]);
+  return INVOICE_TEXTS[language][key].replace(/\{([a-zA-Z]+)\}/g, (_voll, name: string) => {
+    if (!(name in values)) throw new Error(`invoiceText ${key}: Wert {${name}} fehlt`);
+    return String(values[name]);
   });
 }

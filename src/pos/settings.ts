@@ -373,7 +373,7 @@ export function _istAltwert0x(feld: string, wert: unknown): boolean {
 export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALTAKTIONEN_0X] });
 
 /**
- * Standard + gespeichert. Landkarten (`vatRates`, `tipSteps`, `shortcuts`)
+ * Standard + stored. Landkarten (`vatRates`, `tipSteps`, `shortcuts`)
  * werden je Schluessel gemischt, damit neue Saetze beim Altbestand ankommen;
  * Schluessel, die der Standard nicht fuehrt, bleiben draussen.
  *
@@ -384,12 +384,12 @@ export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALT
  * Tastenkarte. Ein unbekannter **englischer** Wert (`theme: 'sepia'`) bleibt
  * dagegen stehen: er kann ein neuer Wert des Servers sein.
  */
-export function mergePosSettings<T extends object>(standard: Readonly<T>, gespeichert: Partial<T> | null | undefined): T {
+export function mergePosSettings<T extends object>(standard: Readonly<T>, stored: Partial<T> | null | undefined): T {
   const out = JSON.parse(JSON.stringify(standard)) as Record<string, unknown>;
-  if (gespeichert && typeof gespeichert === 'object') {
-    for (const key of Object.keys(gespeichert)) {
+  if (stored && typeof stored === 'object') {
+    for (const key of Object.keys(stored)) {
       if (!eigen(out, key)) continue;
-      const wert = (gespeichert as Record<string, unknown>)[key];
+      const wert = (stored as Record<string, unknown>)[key];
       const alt = out[key];
       if (alt && typeof alt === 'object' && !Array.isArray(alt) && wert && typeof wert === 'object' && !Array.isArray(wert)) {
         const neu: Record<string, unknown> = {};

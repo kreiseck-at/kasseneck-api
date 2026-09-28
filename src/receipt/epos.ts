@@ -69,8 +69,8 @@ export function eposXmlEscape(text: string): string {
 }
 
 /** Ein Rasterbild als ePOS-`<image>` (einfarbig, Punktmass, Rasterzeilen Base64). */
-export function eposImageXml(bild: RasterImage): string {
-  return `<image width="${bild.width}" height="${bild.height}" color="color_1" mode="mono">${rasterRowsBase64(bild)}</image>`;
+export function eposImageXml(image: RasterImage): string {
+  return `<image width="${image.width}" height="${image.height}" color="color_1" mode="mono">${rasterRowsBase64(image)}</image>`;
 }
 
 const NS = 'http://www.epson-pos.com/schemas/2011/03/epos-print';

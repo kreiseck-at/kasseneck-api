@@ -505,8 +505,8 @@ export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
 export const LABELS: Record<LabelKey, TextEntry> = BESCHRIFTUNGEN_ROH;
 
 /** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `messageText`. */
-export function labelText(schluessel: LabelKey, werte: Record<string, string | number> = {}): string {
-  return ersetze(`labelText(${schluessel})`, LABELS[schluessel].text, werte);
+export function labelText(key: LabelKey, values: Record<string, string | number> = {}): string {
+  return ersetze(`labelText(${key})`, LABELS[key].text, values);
 }
 
 function ersetze(wo: string, text: string, werte: Record<string, string | number>): string {
@@ -518,17 +518,17 @@ function ersetze(wo: string, text: string, werte: Record<string, string | number
 }
 
 /** Der Satz zum Schluessel, Platzhalter ersetzt. Fehlt ein Wert, wirft es — ein `{status}` am Tresen waere schlimmer. */
-export function messageText(schluessel: MessageKey, werte: Record<string, string | number> = {}): string {
-  const eintrag: TextEntry = MESSAGES[schluessel];
+export function messageText(key: MessageKey, values: Record<string, string | number> = {}): string {
+  const eintrag: TextEntry = MESSAGES[key];
   return eintrag.text.replace(/\{([a-z]+)\}/g, (_, name: string) => {
-    const wert = werte[name];
-    if (wert === undefined) throw new Error(`messageText(${schluessel}): Platzhalter {${name}} ohne Wert`);
+    const wert = values[name];
+    if (wert === undefined) throw new Error(`messageText(${key}): Platzhalter {${name}} ohne Wert`);
     return String(wert);
   });
 }
 
 /** Gilt der Satz auf dieser Seite? */
-export function messageAppliesTo(schluessel: MessageKey, seite: Surface): boolean {
-  const eintrag: TextEntry = MESSAGES[schluessel];
-  return eintrag.only === undefined || eintrag.only.includes(seite);
+export function messageAppliesTo(key: MessageKey, surface: Surface): boolean {
+  const eintrag: TextEntry = MESSAGES[key];
+  return eintrag.only === undefined || eintrag.only.includes(surface);
 }

@@ -55,25 +55,25 @@ export interface HobexReceiptPayload {
   cvm: string | number;
 }
 
-export function toHobexReceiptPayload(beleg: HobexReceipt): HobexReceiptPayload {
+export function toHobexReceiptPayload(receipt: HobexReceipt): HobexReceiptPayload {
   return {
-    transactionId: beleg.transactionId,
-    tid: beleg.tid,
-    receipt: beleg.receipt,
-    approvalCode: beleg.approvalCode,
-    reference: beleg.reference ?? null,
-    transactionDate: beleg.transactionDate,
-    cardNumber: beleg.cardNumber,
-    cardExpiry: beleg.cardExpiry,
-    brand: beleg.brand,
-    cardIssuer: beleg.cardIssuer,
-    responseCode: beleg.responseCode,
-    transactionType: beleg.transactionType,
-    currency: beleg.currency,
+    transactionId: receipt.transactionId,
+    tid: receipt.tid,
+    receipt: receipt.receipt,
+    approvalCode: receipt.approvalCode,
+    reference: receipt.reference ?? null,
+    transactionDate: receipt.transactionDate,
+    cardNumber: receipt.cardNumber,
+    cardExpiry: receipt.cardExpiry,
+    brand: receipt.brand,
+    cardIssuer: receipt.cardIssuer,
+    responseCode: receipt.responseCode,
+    transactionType: receipt.transactionType,
+    currency: receipt.currency,
     // Euro-Umwandlung nur hier, an der Terminal-API-Grenze — siehe Kommentar oben.
-    amount: centsToEuro(beleg.amountCents),
-    tip: centsToEuro(beleg.tipCents),
-    cvm: beleg.cvm,
+    amount: centsToEuro(receipt.amountCents),
+    tip: centsToEuro(receipt.tipCents),
+    cvm: receipt.cvm,
   };
 }
 
@@ -117,29 +117,29 @@ export function fromHobexReceiptPayload(payload: HobexReceiptPayload): HobexRece
  * landet (siehe [Receipt.cardPaymentData]). Bei HPS-Zahlungen kommen weitere
  * Felder dazu, die nur das lokale Terminal liefert.
  */
-export function hobexReceiptToCardPaymentData(beleg: HobexReceipt): Record<string, string> {
+export function hobexReceiptToCardPaymentData(receipt: HobexReceipt): Record<string, string> {
   const data: Record<string, string> = {
-    transactionId: beleg.transactionId,
-    date: beleg.transactionDate,
-    tid: beleg.tid,
-    no: beleg.receipt,
-    type: beleg.transactionType,
-    cardBrand: beleg.brand,
-    cardNumber: beleg.cardNumber,
-    responseCode: beleg.responseCode,
-    cvm: beleg.cvm,
+    transactionId: receipt.transactionId,
+    date: receipt.transactionDate,
+    tid: receipt.tid,
+    no: receipt.receipt,
+    type: receipt.transactionType,
+    cardBrand: receipt.brand,
+    cardNumber: receipt.cardNumber,
+    responseCode: receipt.responseCode,
+    cvm: receipt.cvm,
   };
-  if (beleg.creditCardProvider === CreditCardProvider.hobexHps) {
-    data.approvalCode = beleg.approvalCode;
-    data.cardExpiry = beleg.cardExpiry;
-    data.cardIssuer = beleg.cardIssuer;
-    data.amount = centsToEuro(beleg.amountCents).toFixed(2);
-    data.currency = beleg.currency;
+  if (receipt.creditCardProvider === CreditCardProvider.hobexHps) {
+    data.approvalCode = receipt.approvalCode;
+    data.cardExpiry = receipt.cardExpiry;
+    data.cardIssuer = receipt.cardIssuer;
+    data.amount = centsToEuro(receipt.amountCents).toFixed(2);
+    data.currency = receipt.currency;
   }
   return data;
 }
 
 /** Kartenzahlung erfordert eine Unterschrift (CVM-Code `"1"`). */
-export function hobexReceiptNeedsSignature(beleg: HobexReceipt): boolean {
-  return beleg.cvm === '1';
+export function hobexReceiptNeedsSignature(receipt: HobexReceipt): boolean {
+  return receipt.cvm === '1';
 }

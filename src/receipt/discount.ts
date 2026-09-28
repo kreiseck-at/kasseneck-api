@@ -11,14 +11,14 @@ import { receiptItemTotalCents } from '../models/receipt-item.js';
  * Abrunden uebrig bleiben, gehen der Reihe nach an die Gruppen mit dem
  * groessten Bruchteil; keine Zeile ist je groesser als der Umsatz ihres Satzes.
  */
-export function distributeDiscount(positionen: ReceiptItem[], rabattCents: number, name = 'Rabatt'): ReceiptItem[] {
-  if (!Number.isInteger(rabattCents) || rabattCents < 0) {
+export function distributeDiscount(items: ReceiptItem[], discountCents: number, name = 'Rabatt'): ReceiptItem[] {
+  if (!Number.isInteger(discountCents) || discountCents < 0) {
     throw new Error('Rabatt muss eine ganze Zahl in Cent >= 0 sein');
   }
-  if (rabattCents === 0) return [];
+  if (discountCents === 0) return [];
   // Umsatz je Steuersatz (nur positive Positionen -- Rabatte/Stornos zaehlen nicht mit)
   const gruppen = new Map<string, { vat: ReceiptItem['vat']; umsatz: number }>();
-  for (const p of positionen) {
+  for (const p of items) {
     const betrag = receiptItemTotalCents(p);
     if (betrag <= 0) continue;
     const key = typeof p.vat === 'object' ? p.vat.value : String(p.vat);
@@ -27,11 +27,11 @@ export function distributeDiscount(positionen: ReceiptItem[], rabattCents: numbe
     gruppen.set(key, g);
   }
   const gesamt = [...gruppen.values()].reduce((s, g) => s + g.umsatz, 0);
-  if (rabattCents > gesamt) throw new Error('Rabatt uebersteigt den Umsatz');
+  if (discountCents > gesamt) throw new Error('Rabatt uebersteigt den Umsatz');
   const liste = [...gruppen.values()];
-  const exakt = liste.map((g) => (rabattCents * g.umsatz) / gesamt);
+  const exakt = liste.map((g) => (discountCents * g.umsatz) / gesamt);
   const anteile = exakt.map((x) => Math.floor(x));
-  let rest = rabattCents - anteile.reduce((s, a) => s + a, 0);
+  let rest = discountCents - anteile.reduce((s, a) => s + a, 0);
   // Reihenfolge fuer die Restcent: groesster Bruchteil zuerst, bei Gleichstand groesserer Umsatz
   const reihenfolge = liste.map((_, i) => i).sort((a, b) => (exakt[b]! - anteile[b]!) - (exakt[a]! - anteile[a]!) || liste[b]!.umsatz - liste[a]!.umsatz);
   for (let runde = 0; rest > 0 && runde < liste.length + 1; runde++) {

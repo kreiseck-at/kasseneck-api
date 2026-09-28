@@ -54,8 +54,8 @@ export const PARTNER_WEBHOOK_EVENTS = [
 
 export type PartnerWebhookEventType = typeof PARTNER_WEBHOOK_EVENTS[number];
 
-export function isPartnerWebhookEvent(wert: unknown): wert is PartnerWebhookEventType {
-  return typeof wert === 'string' && (PARTNER_WEBHOOK_EVENTS as readonly string[]).includes(wert);
+export function isPartnerWebhookEvent(value: unknown): value is PartnerWebhookEventType {
+  return typeof value === 'string' && (PARTNER_WEBHOOK_EVENTS as readonly string[]).includes(value);
 }
 
 /**
@@ -184,11 +184,11 @@ export type WebhookEventResult =
  * Eine ausbleibende Antwort wird bis zu fuenfmal wiederholt (1 min, 5 min,
  * 30 min, 2 h, 12 h) und gilt dann als fehlgeschlagen.
  */
-export async function parseWebhookEvent(optionen: VerifyWebhookOptions): Promise<WebhookEventResult> {
-  const geprueft = await verifyWebhookSignature(optionen);
+export async function parseWebhookEvent(options: VerifyWebhookOptions): Promise<WebhookEventResult> {
+  const geprueft = await verifyWebhookSignature(options);
   if (!geprueft.ok) return { ok: false, reason: geprueft.reason };
 
-  const text = typeof optionen.body === 'string' ? optionen.body : new TextDecoder('utf-8').decode(optionen.body);
+  const text = typeof options.body === 'string' ? options.body : new TextDecoder('utf-8').decode(options.body);
   let roh: unknown;
   try {
     roh = JSON.parse(text);
@@ -351,20 +351,20 @@ function webhook(eintrag: unknown): PartnerWebhook {
  * schreiben, wo der Empfaenger es liest — nicht in ein Protokoll.
  */
 export async function createPartnerWebhook(
-  rufen: InternerTransport,
-  optionen: CreateWebhookOptions,
+  transport: InternerTransport,
+  options: CreateWebhookOptions,
 ): Promise<CreateWebhookResult> {
-  const url = typeof optionen?.url === 'string' ? optionen.url.trim() : '';
+  const url = typeof options?.url === 'string' ? options.url.trim() : '';
   if (!url) throw new KasseneckValidationError('createPartnerWebhook', 'url fehlt', 'request');
-  if (!Array.isArray(optionen.events) || optionen.events.length === 0) {
+  if (!Array.isArray(options.events) || options.events.length === 0) {
     throw new KasseneckValidationError('createPartnerWebhook', 'events ist leer — ein Endpunkt ohne Ereignis bekaeme nie etwas', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('createPartnerWebhook', {
+    await transport<unknown>('createPartnerWebhook', {
       url,
-      events: optionen.events,
-      description: optionen.description,
-      active: optionen.active,
+      events: options.events,
+      description: options.description,
+      active: options.active,
     }),
   );
   const secret = daten['secret'];
@@ -389,12 +389,12 @@ export async function createPartnerWebhook(
  * schon mit dem neuen signiert. Erst speichern, dann weiterarbeiten.
  */
 export async function rotatePartnerWebhookSecret(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
 ): Promise<CreateWebhookResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('rotatePartnerWebhookSecret', 'webhookId fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('rotatePartnerWebhookSecret', { webhookId: id }));
+  const daten = objekt(await transport<unknown>('rotatePartnerWebhookSecret', { webhookId: id }));
   const secret = daten['secret'];
   if (typeof secret !== 'string' || !secret) {
     throw new KasseneckValidationError(
@@ -407,8 +407,8 @@ export async function rotatePartnerWebhookSecret(
 }
 
 /** Die Webhook-Endpunkte dieses Partners samt Ereignis-Katalog. */
-export async function listPartnerWebhooks(rufen: InternerTransport): Promise<WebhookList> {
-  const daten = objekt(await rufen<unknown>('listPartnerWebhooks'));
+export async function listPartnerWebhooks(transport: InternerTransport): Promise<WebhookList> {
+  const daten = objekt(await transport<unknown>('listPartnerWebhooks'));
   return {
     webhooks: (Array.isArray(daten['webhooks']) ? daten['webhooks'] : []).map(webhook),
     events: (Array.isArray(daten['events']) ? daten['events'] : []).map((e) => ({
@@ -424,7 +424,7 @@ export async function listPartnerWebhooks(rufen: InternerTransport): Promise<Web
  * tun.
  */
 export async function updatePartnerWebhook(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
   patch: WebhookPatch,
 ): Promise<PartnerWebhook> {
@@ -433,7 +433,7 @@ export async function updatePartnerWebhook(
   if (patch === null || typeof patch !== 'object' || Object.keys(patch).length === 0) {
     throw new KasseneckValidationError('updatePartnerWebhook', 'patch nennt keine Aenderung', 'request');
   }
-  const daten = objekt(await rufen<unknown>('updatePartnerWebhook', { webhookId: id, patch }));
+  const daten = objekt(await transport<unknown>('updatePartnerWebhook', { webhookId: id, patch }));
   return webhook(daten['webhook']);
 }
 
@@ -442,12 +442,12 @@ export async function updatePartnerWebhook(
  * Zustellungen werden verworfen (`dropped`).
  */
 export async function deletePartnerWebhook(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
 ): Promise<DeleteWebhookResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('deletePartnerWebhook', 'webhookId fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('deletePartnerWebhook', { webhookId: id }));
+  const daten = objekt(await transport<unknown>('deletePartnerWebhook', { webhookId: id }));
   return {
     webhookId: typeof daten['webhookId'] === 'string' ? daten['webhookId'] : id,
     deleted: daten['deleted'] === true,
@@ -490,7 +490,7 @@ export interface WebhookTestResult {
  * suchen.
  */
 export async function sendPartnerWebhookTest(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
   event?: PartnerWebhookEventType | (string & {}),
 ): Promise<WebhookTestResult> {
@@ -498,7 +498,7 @@ export async function sendPartnerWebhookTest(
   if (!id) throw new KasseneckValidationError('sendPartnerWebhookTest', 'webhookId fehlt', 'request');
   const ereignis = typeof event === 'string' ? event.trim() : '';
   const daten = objekt(
-    await rufen<unknown>('sendPartnerWebhookTest', { webhookId: id, event: ereignis || undefined }),
+    await transport<unknown>('sendPartnerWebhookTest', { webhookId: id, event: ereignis || undefined }),
   );
   return {
     eventId: typeof daten['eventId'] === 'string' ? daten['eventId'] : '',
@@ -521,14 +521,14 @@ export async function sendPartnerWebhookTest(
  * laesst, ohne bei Kasseneck nachzufragen.
  */
 export async function listPartnerWebhookDeliveries(
-  rufen: InternerTransport,
-  optionen: { webhookId?: string; limit?: number } = {},
+  transport: InternerTransport,
+  options: { webhookId?: string; limit?: number } = {},
 ): Promise<WebhookDelivery[]> {
-  if (optionen.limit !== undefined && (!Number.isInteger(optionen.limit) || optionen.limit < 1 || optionen.limit > 200)) {
+  if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 200)) {
     throw new KasseneckValidationError('listPartnerWebhookDeliveries', 'limit muss zwischen 1 und 200 liegen', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('listPartnerWebhookDeliveries', { webhookId: optionen.webhookId, limit: optionen.limit }),
+    await transport<unknown>('listPartnerWebhookDeliveries', { webhookId: options.webhookId, limit: options.limit }),
   );
   return (Array.isArray(daten['deliveries']) ? daten['deliveries'] : []).map((eintrag) => {
     const z = objekt(eintrag);

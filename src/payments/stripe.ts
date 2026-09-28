@@ -81,7 +81,7 @@ export interface StripeCaptureResult {
  * auseinander (siehe client/reports.ts).
  */
 export async function createStripeLink(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   options: CreateStripeLinkOptions,
 ): Promise<StripeUrlSession> {
   const { items } = options;
@@ -122,7 +122,7 @@ export async function createStripeLink(
     params['customer_email'] = options.customerEmail;
   }
 
-  return sitzungAusNutzlast(await rufen(ENDPUNKT_LINK, params));
+  return sitzungAusNutzlast(await transport(ENDPUNKT_LINK, params));
 }
 
 /**
@@ -133,13 +133,13 @@ export async function createStripeLink(
  * Pflichtparameter.
  */
 export async function stripeCaptureIntent(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   stripeSessionId: string,
 ): Promise<StripeCaptureResult> {
   if (typeof stripeSessionId !== 'string' || !stripeSessionId.trim()) {
     throw eingabefehler(ENDPUNKT_CAPTURE, 'stripeSessionId fehlt');
   }
-  const daten = await rufen(ENDPUNKT_CAPTURE, { stripe_sessions_id: stripeSessionId });
+  const daten = await transport(ENDPUNKT_CAPTURE, { stripe_sessions_id: stripeSessionId });
   return einzugAusNutzlast(daten);
 }
 

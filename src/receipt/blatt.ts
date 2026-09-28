@@ -80,10 +80,10 @@ export interface ReceiptSheetOptions {
  * Layouts. Der QR-Anteil (`qrSheetWidthFraction`) wird dann fuer die Kopfbreite
  * DIESES Papiers gerechnet, nicht fuer die gewaehlte Zeichenzahl.
  */
-export function paperSizeForChars(zeichen: number, vorgabe: PosPaperSize): PosPaperSize {
-  if (zeichen === CHARS_PER_PAPER_SIZE.mm58) return 'mm58';
-  if (zeichen === CHARS_PER_PAPER_SIZE.mm80) return 'mm80';
-  return vorgabe;
+export function paperSizeForChars(chars: number, fallback: PosPaperSize): PosPaperSize {
+  if (chars === CHARS_PER_PAPER_SIZE.mm58) return 'mm58';
+  if (chars === CHARS_PER_PAPER_SIZE.mm80) return 'mm80';
+  return fallback;
 }
 
 /**
@@ -97,8 +97,8 @@ export function paperSizeForChars(zeichen: number, vorgabe: PosPaperSize): PosPa
 export const LOGO_MAX_PIXELS = 4096;
 
 /** Reine Pruefung, ob ein Logo dieser Pixelmasse noch angezeigt/gedruckt werden darf. */
-export function isLogoPixelSizeAllowed(breite: number, hoehe: number): boolean {
-  return breite > 0 && hoehe > 0 && breite <= LOGO_MAX_PIXELS && hoehe <= LOGO_MAX_PIXELS;
+export function isLogoPixelSizeAllowed(width: number, height: number): boolean {
+  return width > 0 && height > 0 && width <= LOGO_MAX_PIXELS && height <= LOGO_MAX_PIXELS;
 }
 
 /**
@@ -106,11 +106,11 @@ export function isLogoPixelSizeAllowed(breite: number, hoehe: number): boolean {
  * Bildpixel wird hoechstens ein Druckpunkt. Ein kleines Logo bleibt klein,
  * statt am Bon verwaschen zu werden (so hielten es PDF und Web-Kasse schon).
  */
-export function logoDimensions(logo: SheetLogo, zeichen: number): LogoDimensions {
+export function logoDimensions(logo: SheetLogo, chars: number): LogoDimensions {
   if (!(logo.pixelWidth > 0) || !(logo.pixelHeight > 0)) throw new Error('Logo ohne Pixelmass');
   const stufe = SHEET_LOGO_SIZES[logo.size];
   if (stufe === undefined) throw new Error(`Unbekannte Logo-Stufe: ${String(logo.size)}`);
-  const blattPunkte = zeichen * DOTS_PER_CHAR;
+  const blattPunkte = chars * DOTS_PER_CHAR;
   const faktor = Math.min((stufe.widthFraction * blattPunkte) / logo.pixelWidth, (stufe.heightLines * DOTS_PER_LINE) / logo.pixelHeight, 1);
   return {
     widthFraction: (logo.pixelWidth * faktor) / blattPunkte,
@@ -119,10 +119,10 @@ export function logoDimensions(logo: SheetLogo, zeichen: number): LogoDimensions
 }
 
 /** Das Mass in ganzen Druckpunkten -- so gross muss das Rasterbild fuer den Bon sein. */
-export function logoRasterSize(mass: LogoDimensions, zeichen: number): { width: number; height: number } {
+export function logoRasterSize(dimensions: LogoDimensions, chars: number): { width: number; height: number } {
   return {
-    width: Math.max(1, Math.round(mass.widthFraction * zeichen * DOTS_PER_CHAR)),
-    height: Math.max(1, Math.round(mass.heightLines * DOTS_PER_LINE)),
+    width: Math.max(1, Math.round(dimensions.widthFraction * chars * DOTS_PER_CHAR)),
+    height: Math.max(1, Math.round(dimensions.heightLines * DOTS_PER_LINE)),
   };
 }
 
@@ -136,26 +136,26 @@ export function logoRasterSize(mass: LogoDimensions, zeichen: number): { width: 
  * darum mit Fehlerkorrektur M und einer Ruhezone von 4 Modulen zeichnen, die
  * den Kasten ganz ausfuellt -- sonst stimmt die Modulgroesse nicht mit dem Bon.
  */
-export function qrSheetWidthFraction(nutzlast: string, papier: PosPaperSize, groesse: QrModuleSize = 'auto'): number {
-  if (nutzlast === '') return 0;
+export function qrSheetWidthFraction(payload: string, paperSize: PosPaperSize, size: QrModuleSize = 'auto'): number {
+  if (payload === '') return 0;
   // Ein Inhalt, der in keine QR-Version passt (Fehlerkorrektur M, hoechstens
   // 2331 Byte), wuerde hier `qrSizingFor` -> `qrModuleCount` zum Werfen
   // bringen -- und riss damit jeden Zeichner mit, der das Blatt baut
   // (Bildschirm, Bon, PDF). 0, wie bei leerer Nutzlast: der Beleg steht ohne
   // QR, statt gar nicht zu stehen. `qrModuleCount` selbst wirft weiter -- wer
   // es ausserhalb des Blatts aufruft, soll den Fehler sehen.
-  if (!qrFitsInVersion(nutzlast)) return 0;
-  const papierPunkte = QR_PRINT_WIDTH_DOTS[papier];
-  const mass = qrSizingFor({ payload: nutzlast, paperWidthDots: papierPunkte, moduleSize: groesse });
+  if (!qrFitsInVersion(payload)) return 0;
+  const papierPunkte = QR_PRINT_WIDTH_DOTS[paperSize];
+  const mass = qrSizingFor({ payload: payload, paperWidthDots: papierPunkte, moduleSize: size });
   if (mass.fits) return mass.widthDots / papierPunkte;
-  return ((mass.modules + 2 * QR_QUIET_ZONE_MODULES) * qrRasterDots(papier, mass.modules, { moduleSize: groesse })) / papierPunkte;
+  return ((mass.modules + 2 * QR_QUIET_ZONE_MODULES) * qrRasterDots(paperSize, mass.modules, { moduleSize: size })) / papierPunkte;
 }
 
-export function receiptSheet(layout: ReceiptLayout, optionen: ReceiptSheetOptions = {}): ReceiptSheet {
-  const grid = renderReceiptGrid(layout, optionen.charsPerLine === undefined ? {} : { charsPerLine: optionen.charsPerLine });
+export function receiptSheet(layout: ReceiptLayout, options: ReceiptSheetOptions = {}): ReceiptSheet {
+  const grid = renderReceiptGrid(layout, options.charsPerLine === undefined ? {} : { charsPerLine: options.charsPerLine });
   const zeichen = grid.charsPerLine;
   const papier = paperSizeForChars(zeichen, layout.paperSize);
-  const qrGroesse = optionen.qrModuleSize ?? 'auto';
+  const qrGroesse = options.qrModuleSize ?? 'auto';
   const leerzeile: SheetBlock = { kind: 'line', text: ' '.repeat(zeichen), bold: false, blank: true };
   const block = (z: GridLine): SheetBlock =>
     z.kind === 'qr'
@@ -164,7 +164,7 @@ export function receiptSheet(layout: ReceiptLayout, optionen: ReceiptSheetOption
 
   const bloecke: SheetBlock[] = [];
   let i = 0;
-  if (optionen.logo) {
+  if (options.logo) {
     // Fuehrende Aufdrucke (Testkasse, Testsignatur) bleiben ganz oben: wer den
     // Beleg sieht, sieht zuerst, dass er nicht gilt.
     while (i < grid.lines.length && grid.lines[i]!.kind === 'banner') {
@@ -174,11 +174,11 @@ export function receiptSheet(layout: ReceiptLayout, optionen: ReceiptSheetOption
     // Die Leerzeilen gehoeren zum Vertrag: kein Zeichner kann das Logo an einen
     // Rahmen oder an den Firmennamen kleben.
     if (i > 0) bloecke.push(leerzeile);
-    bloecke.push({ kind: 'logo', ...logoDimensions(optionen.logo, zeichen) });
+    bloecke.push({ kind: 'logo', ...logoDimensions(options.logo, zeichen) });
     bloecke.push(leerzeile);
   }
   for (; i < grid.lines.length; i += 1) bloecke.push(block(grid.lines[i]!));
-  if (optionen.brandMark === true) {
+  if (options.brandMark === true) {
     // Das Raster deckt nur die beiden bekannten Papierbreiten ab (`BRAND_MARK_RASTERS`).
     // Faende sich hier eine dritte, faellt die Marke weg statt ein Raster in
     // falscher Groesse zu drucken -- derselbe Grundsatz wie beim Firmenlogo:

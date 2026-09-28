@@ -348,8 +348,8 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 const ALTE_ZAHLFELDER = ['paymentMethod', 'paymentMethodFromServer', 'creditCardProvider', 'cardPaymentId', 'cardPaymentData'] as const;
 
 /** Normalbeleg (Verkauf) nach RKSV. */
-export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
-  return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
+export function sellReceipt(transport: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
+  return createReceipt(transport, { ...options, receiptType: ReceiptType.standard });
 }
 
 /**
@@ -357,10 +357,10 @@ export function sellReceipt(rufen: InternerTransport, options: SellReceiptOption
  * aus derselben Antwort — alles, was ein Belegdruck braucht, in einem Aufruf.
  */
 export function sellReceiptWithCompany(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   options: SellReceiptOptions,
 ): Promise<ReceiptWithCompany> {
-  return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
+  return createReceiptWithCompany(transport, { ...options, receiptType: ReceiptType.standard });
 }
 
 const NOTE_MAX = 200;
@@ -371,7 +371,7 @@ const NOTE_MAX = 200;
  * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
  * signierten Storno-Beleg. Gutscheine des Originals wandern nicht mit.
  */
-export async function cancelReceipt(rufen: InternerTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
+export async function cancelReceipt(transport: InternerTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
   const cashregisterId = options.receipt?.cashregisterId ?? options.cashregisterId;
   const originalReceiptId = options.receipt?.receiptId ?? options.originalReceiptId;
   if (typeof cashregisterId !== 'string' || cashregisterId.trim() === '') {
@@ -408,7 +408,7 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
 
-  const daten = await rufen('cancelReceipt', params);
+  const daten = await transport('cancelReceipt', params);
   return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));
 }
 
@@ -435,8 +435,8 @@ function stornoAusHuelle(daten: unknown): CancelReceiptResult {
 }
 
 /** Nullbeleg (RKSV-Pruefbeleg) — ohne Positionen und ohne Zahlungsart. */
-export function zeroReceipt(rufen: InternerTransport): Promise<Receipt> {
-  return createReceipt(rufen, { receiptType: ReceiptType.zero });
+export function zeroReceipt(transport: InternerTransport): Promise<Receipt> {
+  return createReceipt(transport, { receiptType: ReceiptType.zero });
 }
 
 /** Belegliste einer Kasse samt der Kennzahlen, die dieselbe Antwort mitliefert. */
@@ -489,7 +489,7 @@ export interface ListMyReceiptsOptions {
  * (der Endpunkt laeuft mit `checkCashRegister: false`), ein Kassen-Benutzer
  * bekommt also nur die ihm zugewiesenen Kassen.
  */
-export async function listMyReceipts(rufen: InternerTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
+export async function listMyReceipts(transport: InternerTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
   if (typeof options.cashregisterId !== 'string' || options.cashregisterId.trim() === '') {
     throw new KasseneckValidationError('listMyReceipts', 'cashregisterId fehlt', 'request');
   }
@@ -506,7 +506,7 @@ export async function listMyReceipts(rufen: InternerTransport, options: ListMyRe
       throw new KasseneckValidationError('listMyReceipts', `${feld} muss mit YYYY-MM-DD beginnen, war "${wert}"`, 'request');
     }
   }
-  const daten = await rufen<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
+  const daten = await transport<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
     cashregisterId: options.cashregisterId,
     limit: options.limit,
     ...(options.from !== undefined ? { from: options.from } : {}),
@@ -553,8 +553,8 @@ function kennzahlen(roh: unknown): ReceiptListStats {
 }
 
 /** Einzelnen Beleg der angemeldeten Kasse holen. */
-export async function getReceipt(rufen: InternerTransport, receiptId: string): Promise<Receipt> {
-  return belegAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
+export async function getReceipt(transport: InternerTransport, receiptId: string): Promise<Receipt> {
+  return belegAusHuelle(await transport('getReceipt', { receiptId }), 'getReceipt');
 }
 
 /**
@@ -564,18 +564,18 @@ export async function getReceipt(rufen: InternerTransport, receiptId: string): P
  * traegt (siehe models/receipt-company.ts).
  */
 export async function getReceiptWithCompany(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   receiptId: string,
 ): Promise<ReceiptWithCompany> {
-  return belegMitFirmaAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
+  return belegMitFirmaAusHuelle(await transport('getReceipt', { receiptId }), 'getReceipt');
 }
 
 /**
  * Verschluesselte Volltext-Belegnummer erzeugen — der Bezeichner, unter dem der
  * Beleg oeffentlich abrufbar ist (Beleg-Download, Pruefportal).
  */
-export async function generateFullReceiptId(rufen: InternerTransport, receiptId: string): Promise<string> {
-  const daten = await rufen<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
+export async function generateFullReceiptId(transport: InternerTransport, receiptId: string): Promise<string> {
+  const daten = await transport<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
   const id = daten?.fullReceiptId;
   if (typeof id !== 'string') {
     throw antwortfehler('generateFullReceiptId', 'Antwort enthaelt keine fullReceiptId');
@@ -591,8 +591,8 @@ export async function generateFullReceiptId(rufen: InternerTransport, receiptId:
  * fuehrt kein `allowRegisterUser`, das Backend weist die Browser-Kasse hier ab
  * (siehe Modulkommentar oben). Mit `apiKeyAuth` ist er offen.
  */
-export async function getFirstReceiptDate(rufen: InternerTransport): Promise<ReportMonth> {
-  const roh = await rufen<unknown>('getFirstReceiptDate');
+export async function getFirstReceiptDate(transport: InternerTransport): Promise<ReportMonth> {
+  const roh = await transport<unknown>('getFirstReceiptDate');
   if (typeof roh !== 'string') {
     throw antwortfehler('getFirstReceiptDate', 'Antwort enthaelt keinen Zeitstempel');
   }
@@ -677,7 +677,7 @@ const MAIL_FELDER: readonly string[] = ['fullReceiptId', 'to', 'language'];
  * eine zweite Mail und zaehlt auf die Schleuse.
  */
 export async function sendReceiptEmail(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   options: SendReceiptEmailOptions,
 ): Promise<SendReceiptEmailResult> {
   // Ein unbekanntes Feld (etwa das alte `sprache`) ginge sonst still verloren,
@@ -704,7 +704,7 @@ export async function sendReceiptEmail(
   const params: Record<string, unknown> = { fullReceiptId, to };
   if (options.language !== undefined && options.language !== '') params.language = options.language;
 
-  const daten = await rufen<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
+  const daten = await transport<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
   if (typeof daten?.to !== 'string' || daten.to === '') {
     throw antwortfehler('sendReceiptEmail', 'Antwort nennt keine Empfaengeradresse (data.to fehlt)');
   }

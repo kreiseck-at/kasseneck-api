@@ -43,7 +43,7 @@ import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
  */
 // `async`, damit auch die Eingabepruefung als abgelehntes Versprechen ankommt
 // und nicht als synchroner Wurf am `await` des Aufrufers vorbei.
-export async function downloadDailyReport(rufen: InternerBinaerTransport, date: Date): Promise<Uint8Array> {
+export async function downloadDailyReport(transport: InternerBinaerTransport, date: Date): Promise<Uint8Array> {
   let wanduhr;
   try {
     wanduhr = toViennaWallClock(date);
@@ -52,7 +52,7 @@ export async function downloadDailyReport(rufen: InternerBinaerTransport, date: 
     // Rumpf (JSON.stringify macht aus NaN null) und einen ratlosen Serverfehler.
     throw eingabefehler('downloadDailyReport', 'Uebergebener Zeitpunkt ist unbrauchbar (Invalid Date)');
   }
-  return rufen('downloadDailyReport', { year: wanduhr.year, month: wanduhr.month, day: wanduhr.day });
+  return transport('downloadDailyReport', { year: wanduhr.year, month: wanduhr.month, day: wanduhr.day });
 }
 
 /**
@@ -66,7 +66,7 @@ export async function downloadDailyReport(rufen: InternerBinaerTransport, date: 
  * wo `KeckMonth.january.id === 1` ist) — kein Name, kein nullbasierter Index.
  */
 export async function downloadMonthlyReport(
-  rufen: InternerBinaerTransport,
+  transport: InternerBinaerTransport,
   reportMonth: ReportMonth,
 ): Promise<Uint8Array> {
   const { month, year } = reportMonth;
@@ -76,7 +76,7 @@ export async function downloadMonthlyReport(
   if (!Number.isInteger(year)) {
     throw eingabefehler('downloadReport', `Berichtsmonat: year muss eine ganze Zahl sein, war "${year}"`);
   }
-  return rufen('downloadReport', { month, year });
+  return transport('downloadReport', { month, year });
 }
 
 /** Zeitfenster von [getReportV2]: Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel, `end` ausschliesslich. */
@@ -103,7 +103,7 @@ export interface ReportV2 {
  * Text (`start <= timeStamp < end`), darum Wiener Wanduhr im Serverformat.
  * Nur ueber den API-Schluessel-Weg (Kasse aus dem `cashregister-token`).
  */
-export async function getReportV2(rufen: InternerTransport, options: ReportV2Options): Promise<ReportV2> {
+export async function getReportV2(transport: InternerTransport, options: ReportV2Options): Promise<ReportV2> {
   for (const feld of ['start', 'end'] as const) {
     const wert = options?.[feld];
     if (typeof wert !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(wert)) {
@@ -113,7 +113,7 @@ export async function getReportV2(rufen: InternerTransport, options: ReportV2Opt
   if (options.start >= options.end) {
     throw eingabefehler('getReportV2', 'end muss nach start liegen (end ist ausschliesslich)');
   }
-  const daten = await rufen<{ receipts?: unknown; metadata?: unknown }>('getReportV2', { start: options.start, end: options.end });
+  const daten = await transport<{ receipts?: unknown; metadata?: unknown }>('getReportV2', { start: options.start, end: options.end });
   const liste = daten?.receipts;
   if (!Array.isArray(liste) || liste.some((b) => b == null || typeof b !== 'object' || Array.isArray(b))) {
     throw new KasseneckValidationError('getReportV2', 'Antwort enthaelt keine Belegliste (data.receipts fehlt)', 'response');

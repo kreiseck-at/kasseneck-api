@@ -141,12 +141,12 @@ function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown
   return roh.map((e) => lesen(typeof e === 'object' && e !== null ? e : {}));
 }
 
-export async function listMyArticleGroups(rufen: InternerTransport): Promise<ArticleGroup[]> {
-  const daten = await rufen<{ groups?: unknown }>('listMyArticleGroups');
+export async function listMyArticleGroups(transport: InternerTransport): Promise<ArticleGroup[]> {
+  const daten = await transport<{ groups?: unknown }>('listMyArticleGroups');
   return liste(daten, 'groups', 'listMyArticleGroups', (e) => fromArticleGroupPayload(e as ArticleGroupPayload));
 }
 
-export async function listMyArticles(rufen: InternerTransport): Promise<PosArticle[]> {
-  const daten = await rufen<{ articles?: unknown }>('listMyArticles');
+export async function listMyArticles(transport: InternerTransport): Promise<PosArticle[]> {
+  const daten = await transport<{ articles?: unknown }>('listMyArticles');
   return liste(daten, 'articles', 'listMyArticles', (e) => fromPosArticlePayload(e as PosArticlePayload));
 }

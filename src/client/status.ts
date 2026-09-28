@@ -52,13 +52,13 @@ interface RkdbAntwort {
 }
 
 /** Betriebsstatus der Kasse bei FinanzOnline. */
-export async function getCashboxStatus(rufen: InternerTransport): Promise<CashboxStatus> {
-  const daten = await rufen<RkdbAntwort>('financeWebService', {}, { method: 'status_cashbox' });
+export async function getCashboxStatus(transport: InternerTransport): Promise<CashboxStatus> {
+  const daten = await transport<RkdbAntwort>('financeWebService', {}, { method: 'status_cashbox' });
   return statusAusMeldung(daten, VORGANG_KASSE);
 }
 
 /**
- * Status der Signatureinheit mit der Zertifikatsseriennummer [zertifikatNrHex]
+ * Status der Signatureinheit mit der Zertifikatsseriennummer [certificateSerialHex]
  * (hexadezimal, z. B. `6F0404F0`).
  *
  * **Der Returncode wird vor dem Status gelesen** (wie im Dart-Vorbild): `B33`
@@ -66,15 +66,15 @@ export async function getCashboxStatus(rufen: InternerTransport): Promise<Cashbo
  * mag. Andersherum meldete eine nie registrierte Karte am Ende "in Betrieb".
  */
 export async function getSignatureStatus(
-  rufen: InternerTransport,
-  zertifikatNrHex: string,
+  transport: InternerTransport,
+  certificateSerialHex: string,
 ): Promise<SignatureStatus> {
-  if (typeof zertifikatNrHex !== 'string' || !zertifikatNrHex.trim()) {
-    throw new KasseneckValidationError(VORGANG_SIGNATUR, 'zertifikatNrHex fehlt', 'request');
+  if (typeof certificateSerialHex !== 'string' || !certificateSerialHex.trim()) {
+    throw new KasseneckValidationError(VORGANG_SIGNATUR, 'certificateSerialHex fehlt', 'request');
   }
-  const daten = await rufen<RkdbAntwort>(
+  const daten = await transport<RkdbAntwort>(
     'financeWebService',
-    { zertifikatnr_hex: zertifikatNrHex },
+    { zertifikatnr_hex: certificateSerialHex },
     { method: 'status_signature' },
   );
   if (daten?.rkdbMessage?.rc === 'B33') {

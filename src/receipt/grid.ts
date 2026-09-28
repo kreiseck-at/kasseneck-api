@@ -49,12 +49,12 @@ export interface RenderReceiptGridOptions {
 }
 
 /** Zwoelftel -> Zeichen je Spalte (ganze Zeichen, Rest an die letzte, mindestens 1). */
-export function gridColumnWidths(zwoelftel: readonly number[], zeichen: number): number[] {
+export function gridColumnWidths(twelfths: readonly number[], chars: number): number[] {
   const out: number[] = [];
   let vergeben = 0;
-  zwoelftel.forEach((w, i) => {
-    const letzte = i === zwoelftel.length - 1;
-    const b = letzte ? Math.max(1, zeichen - vergeben) : Math.max(1, Math.floor((zeichen * w) / 12));
+  twelfths.forEach((w, i) => {
+    const letzte = i === twelfths.length - 1;
+    const b = letzte ? Math.max(1, chars - vergeben) : Math.max(1, Math.floor((chars * w) / 12));
     out.push(b);
     vergeben += b;
   });

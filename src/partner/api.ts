@@ -91,17 +91,17 @@ export interface PartnerApi {
   getPartnerInfo(): Promise<PartnerInfo>;
 
   // Betriebe
-  createPartnerCustomer(optionen: CreateCustomerOptions): Promise<CreateCustomerResult>;
-  listPartnerCustomers(optionen?: ListCustomersOptions): Promise<PartnerCustomerList>;
+  createPartnerCustomer(options: CreateCustomerOptions): Promise<CreateCustomerResult>;
+  listPartnerCustomers(options?: ListCustomersOptions): Promise<PartnerCustomerList>;
   getPartnerCustomer(customerId: string): Promise<PartnerCustomer>;
   sendPartnerCustomerFonLink(customerId: string): Promise<FonLinkResult>;
 
   // Signatur
-  requestCustomerSignature(customerId: string, optionen?: RequestSignatureOptions): Promise<RequestSignatureResult>;
+  requestCustomerSignature(customerId: string, options?: RequestSignatureOptions): Promise<RequestSignatureResult>;
   getCustomerSignatureStatus(customerId: string): Promise<CustomerSignatureStatus>;
 
   // Kassen
-  createCustomerCashregister(optionen: CreateCashregisterOptions): Promise<CreateCashregisterResult>;
+  createCustomerCashregister(options: CreateCashregisterOptions): Promise<CreateCashregisterResult>;
   activateCashregister(customerId: string, cashregisterId: string): Promise<ActivateCashregisterResult>;
   listCustomerCashregisters(customerId: string): Promise<CustomerCashregisterList>;
   /** Geheimnisse des Betriebs — siehe `getCustomerCredentials` in endpunkte.ts. */
@@ -118,10 +118,10 @@ export interface PartnerApi {
    * Meldet eine in Vollmacht eingeholte Zustimmung des Betriebs (nur AVV);
    * siehe `reportCustomerContract` in endpunkte.ts.
    */
-  reportCustomerContract(optionen: ReportCustomerContractOptions): Promise<ReportCustomerContractResult>;
+  reportCustomerContract(options: ReportCustomerContractOptions): Promise<ReportCustomerContractResult>;
 
   // Webhooks
-  createPartnerWebhook(optionen: CreateWebhookOptions): Promise<CreateWebhookResult>;
+  createPartnerWebhook(options: CreateWebhookOptions): Promise<CreateWebhookResult>;
   listPartnerWebhooks(): Promise<WebhookList>;
   updatePartnerWebhook(webhookId: string, patch: WebhookPatch): Promise<PartnerWebhook>;
   deletePartnerWebhook(webhookId: string): Promise<DeleteWebhookResult>;
@@ -139,7 +139,7 @@ export interface PartnerApi {
     webhookId: string,
     event?: PartnerWebhookEventType | (string & {}),
   ): Promise<WebhookTestResult>;
-  listPartnerWebhookDeliveries(optionen?: { webhookId?: string; limit?: number }): Promise<WebhookDelivery[]>;
+  listPartnerWebhookDeliveries(options?: { webhookId?: string; limit?: number }): Promise<WebhookDelivery[]>;
 
   /**
    * Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. Gehoert
@@ -150,12 +150,12 @@ export interface PartnerApi {
   errorAdvice(code: string): string;
 }
 
-export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
+export function createPartnerApi(options: PartnerApiOptions): PartnerApi {
   const rufen = createTransport({
-    auth: partnerKeyAuth({ partnerKey: optionen.partnerKey }),
-    baseUrl: optionen.baseUrl ?? PARTNER_BASE_URL,
-    timeoutMs: optionen.timeoutMs,
-    fetch: optionen.fetch,
+    auth: partnerKeyAuth({ partnerKey: options.partnerKey }),
+    baseUrl: options.baseUrl ?? PARTNER_BASE_URL,
+    timeoutMs: options.timeoutMs,
+    fetch: options.fetch,
   }) as InternerTransport;
 
   return {

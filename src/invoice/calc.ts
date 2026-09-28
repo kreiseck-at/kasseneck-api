@@ -87,11 +87,11 @@ export class CalcError extends Error {
   readonly field?: string;
   readonly index?: number;
 
-  constructor(code: CalcErrorCode, nachricht: string, feld?: string, index?: number) {
-    super(nachricht);
+  constructor(code: CalcErrorCode, message: string, field?: string, index?: number) {
+    super(message);
     this.name = 'CalcError';
     this.code = code;
-    this.field = feld;
+    this.field = field;
     this.index = index;
   }
 }
@@ -178,14 +178,14 @@ function verteile(
 }
 
 export function calculateInvoice(
-  positionen: readonly CalcItem[],
-  optionen: CalcOptions,
+  items: readonly CalcItem[],
+  options: CalcOptions,
 ): CalcResult {
-  const steuerfrei = ZERO_RATED_TAX_SCHEMES.includes(optionen.taxScheme ?? 'normal');
-  const bruttoPreise = optionen.priceMode === 'gross' && !steuerfrei;
+  const steuerfrei = ZERO_RATED_TAX_SCHEMES.includes(options.taxScheme ?? 'normal');
+  const bruttoPreise = options.priceMode === 'gross' && !steuerfrei;
 
   const grenze = BigInt(MAX_AMOUNT_CENTS) * E;
-  const zeilen: Zeile[] = positionen.map((p, index) => {
+  const zeilen: Zeile[] = items.map((p, index) => {
     const preis = BigInt(ganzzahl(p.unitPriceMicros, 'unitPriceMicros', index));
     const menge = BigInt(ganzzahl(p.quantityMilli, 'quantityMilli', index));
     const rabatt = BigInt(ganzzahl(p.discountBp ?? 0, 'discountBp', index));
@@ -364,9 +364,9 @@ export function itemFromEuro(item: Record<string, unknown>): ItemConversion {
  * stuende auf der ersten Rechnung ein Preis mit sechs Stellen, wo bisher zwei
  * standen.
  */
-export function proratedPriceMicros(unitPriceMicros: number, monate: number, intervall: number): number {
+export function proratedPriceMicros(unitPriceMicros: number, months: number, interval: number): number {
   const micros = BigInt(unitPriceMicros);
-  const anteil = roundDiv(micros * BigInt(monate), BigInt(intervall));
+  const anteil = roundDiv(micros * BigInt(months), BigInt(interval));
   if (unitPriceMicros % 10_000 !== 0) return Number(anteil);
   return Number(roundDiv(anteil, 10_000n) * 10_000n);
 }

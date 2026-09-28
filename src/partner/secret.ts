@@ -46,9 +46,9 @@ export class KasseneckSecret {
    */
   readonly label: string;
 
-  constructor(label: string, wert: string) {
+  constructor(label: string, value: string) {
     this.label = label;
-    werte.set(this, wert);
+    werte.set(this, value);
   }
 
   /**

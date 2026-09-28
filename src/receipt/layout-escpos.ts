@@ -67,8 +67,8 @@ export interface PrintLogo {
 }
 
 /** Das Rasterbild muss genau so gross sein, wie das Blatt das Logo setzt -- sonst stuende am Bon ein anderes Logo als am Schirm. */
-export function assertLogoRaster(logo: PrintLogo, mass: LogoDimensions, zeichen: number): void {
-  const soll = logoRasterSize(mass, zeichen);
+export function assertLogoRaster(logo: PrintLogo, dimensions: LogoDimensions, chars: number): void {
+  const soll = logoRasterSize(dimensions, chars);
   if (logo.raster.width !== soll.width || logo.raster.height !== soll.height) {
     throw new Error(`Logo-Raster ${logo.raster.width}x${logo.raster.height} passt nicht zum Blatt (${soll.width}x${soll.height})`);
   }
@@ -123,7 +123,7 @@ export interface EscPosLayoutOptions {
    * Kopf von `layout.ts`); der Aufrufer bringt das fertige Raster mit, etwa
    * aus der QR-Bibliothek, die er ohnehin fuer den Bildschirm benutzt.
    */
-  qrMatrix?: (nutzlast: string) => QrMatrix;
+  qrMatrix?: (payload: string) => QrMatrix;
   /** Firmenlogo; ohne Angabe kein Logo (Bestand). */
   logo?: PrintLogo | null;
   /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */

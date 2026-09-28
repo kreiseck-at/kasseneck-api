@@ -109,44 +109,44 @@ const nutzlast = (anfrage: object): Record<string, unknown> => ({ ...(anfrage as
 // ---- Kunden -----------------------------------------------------------------
 
 export async function createCustomer(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customer: CustomerInput,
-  optionen: { idempotencyKey?: string } = {},
+  options: { idempotencyKey?: string } = {},
 ): Promise<Customer> {
   const params: Record<string, unknown> = { customer };
-  if (optionen.idempotencyKey) params['idempotencyKey'] = optionen.idempotencyKey;
-  const daten = await rufen('createCustomer', params);
+  if (options.idempotencyKey) params['idempotencyKey'] = options.idempotencyKey;
+  const daten = await transport('createCustomer', params);
   return pflichtObjekt<Customer>('createCustomer', daten, 'customer');
 }
 
 export async function getCustomer(
-  rufen: InternerTransport,
-  kennung: { customerId: string } | { externalId: string },
+  transport: InternerTransport,
+  ref: { customerId: string } | { externalId: string },
 ): Promise<Customer> {
-  kennungVerlangen('getCustomer', kennung, '{ customerId } oder { externalId }');
-  const daten = await rufen('getCustomer', nutzlast(kennung));
+  kennungVerlangen('getCustomer', ref, '{ customerId } oder { externalId }');
+  const daten = await transport('getCustomer', nutzlast(ref));
   return pflichtObjekt<Customer>('getCustomer', daten, 'customer');
 }
 
 export async function updateCustomer(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
   patch: Partial<CustomerInput>,
 ): Promise<Customer> {
-  const daten = await rufen('updateCustomer', { customerId, customer: patch });
+  const daten = await transport('updateCustomer', { customerId, customer: patch });
   return pflichtObjekt<Customer>('updateCustomer', daten, 'customer');
 }
 
-export async function searchCustomers(rufen: InternerTransport, suche: CustomerSearch): Promise<CustomerPage> {
-  const daten = await rufen('searchCustomers', nutzlast(suche));
+export async function searchCustomers(transport: InternerTransport, search: CustomerSearch): Promise<CustomerPage> {
+  const daten = await transport('searchCustomers', nutzlast(search));
   const { eintraege, nextCursor } = seite<Customer>('searchCustomers', daten, 'customers');
   return { customers: eintraege, nextCursor };
 }
 
 // ---- Rechnungen -------------------------------------------------------------
 
-export async function issueInvoice(rufen: InternerTransport, anfrage: IssueInvoiceRequest): Promise<IssueResult> {
-  const daten = await rufen('issueInvoice', nutzlast(anfrage));
+export async function issueInvoice(transport: InternerTransport, request: IssueInvoiceRequest): Promise<IssueResult> {
+  const daten = await transport('issueInvoice', nutzlast(request));
   const ergebnis: IssueResult = {
     invoice: pflichtObjekt<Invoice>('issueInvoice', daten, 'invoice'),
     replayed: objekt(daten)['replayed'] === true,
@@ -166,16 +166,16 @@ export async function issueInvoice(rufen: InternerTransport, anfrage: IssueInvoi
  * danach unveraendert ausstellen. Verbindlich ist das Ausstellen — zwischen
  * Probelauf und Ausstellen kann sich der Kunde oder das Konto aendern.
  */
-export async function previewInvoice(rufen: InternerTransport, anfrage: IssueInvoiceRequest): Promise<PreviewResult> {
-  const daten = await rufen('issueInvoice', { ...nutzlast(anfrage), dryRun: true });
+export async function previewInvoice(transport: InternerTransport, request: IssueInvoiceRequest): Promise<PreviewResult> {
+  const daten = await transport('issueInvoice', { ...nutzlast(request), dryRun: true });
   const ergebnis: PreviewResult = { preview: pflichtObjekt<InvoicePreview>('issueInvoice', daten, 'preview') };
   const notice = hinweise(daten);
   if (notice) ergebnis.notice = notice;
   return ergebnis;
 }
 
-export async function cancelInvoice(rufen: InternerTransport, anfrage: CancelInvoiceRequest): Promise<CancelResult> {
-  const daten = await rufen('cancelInvoice', nutzlast(anfrage));
+export async function cancelInvoice(transport: InternerTransport, request: CancelInvoiceRequest): Promise<CancelResult> {
+  const daten = await transport('cancelInvoice', nutzlast(request));
   return {
     creditNote: pflichtObjekt<Invoice>('cancelInvoice', daten, 'creditNote'),
     original: pflichtObjekt<{ id: string; status: string }>('cancelInvoice', daten, 'original'),
@@ -184,8 +184,8 @@ export async function cancelInvoice(rufen: InternerTransport, anfrage: CancelInv
   };
 }
 
-export async function createCreditNote(rufen: InternerTransport, anfrage: CreditNoteRequest): Promise<CreditNoteResult> {
-  const daten = await rufen('createCreditNote', nutzlast(anfrage));
+export async function createCreditNote(transport: InternerTransport, request: CreditNoteRequest): Promise<CreditNoteResult> {
+  const daten = await transport('createCreditNote', nutzlast(request));
   return {
     creditNote: pflichtObjekt<Invoice>('createCreditNote', daten, 'creditNote'),
     remainingCents: zahl(objekt(daten)['remainingCents']),
@@ -194,16 +194,16 @@ export async function createCreditNote(rufen: InternerTransport, anfrage: Credit
 }
 
 export async function getInvoice(
-  rufen: InternerTransport,
-  kennung: { invoiceId: string } | { number: string },
+  transport: InternerTransport,
+  ref: { invoiceId: string } | { number: string },
 ): Promise<InvoiceDetail> {
-  kennungVerlangen('getInvoice', kennung, '{ invoiceId } oder { number }');
-  const daten = await rufen('getInvoice', nutzlast(kennung));
+  kennungVerlangen('getInvoice', ref, '{ invoiceId } oder { number }');
+  const daten = await transport('getInvoice', nutzlast(ref));
   return pflichtObjekt<InvoiceDetail>('getInvoice', daten, 'invoice');
 }
 
-export async function listInvoices(rufen: InternerTransport, abfrage: InvoiceListQuery = {}): Promise<InvoicePage> {
-  const daten = await rufen('listInvoices', nutzlast(abfrage));
+export async function listInvoices(transport: InternerTransport, query: InvoiceListQuery = {}): Promise<InvoicePage> {
+  const daten = await transport('listInvoices', nutzlast(query));
   const { eintraege, nextCursor } = seite<Invoice>('listInvoices', daten, 'invoices');
   return { invoices: eintraege, nextCursor };
 }
@@ -215,8 +215,8 @@ export async function listInvoices(rufen: InternerTransport, abfrage: InvoiceLis
  * ohne Freigabe und vor der Live-Freischaltung — genau dann braucht man die
  * Antwort. Vor dem ersten `issueInvoice` aufrufen und `missing` anzeigen.
  */
-export async function getInvoiceSetupStatus(rufen: InternerTransport): Promise<InvoiceSetupStatus> {
-  const daten = objekt(await rufen('getInvoiceSetupStatus', {}));
+export async function getInvoiceSetupStatus(transport: InternerTransport): Promise<InvoiceSetupStatus> {
+  const daten = objekt(await transport('getInvoiceSetupStatus', {}));
   if (typeof daten['ready'] !== 'boolean' || !Array.isArray(daten['missing'])) {
     throw new KasseneckValidationError('getInvoiceSetupStatus', 'Antwort ohne ready/missing', 'response');
   }
@@ -236,13 +236,13 @@ export async function getInvoiceSetupStatus(rufen: InternerTransport): Promise<I
  * gekennzeichnet, ohne eingebettete E-Rechnung — keine eigene Rechnung.
  */
 export function getInvoicePdf(
-  rufenBinaer: InternerBinaerTransport,
+  binaryTransport: InternerBinaerTransport,
   invoiceId: string,
-  optionen: { language?: InvoiceLanguage } = {},
+  options: { language?: InvoiceLanguage } = {},
 ): Promise<Uint8Array> {
   const params: Record<string, unknown> = { invoiceId };
-  if (optionen.language) params['language'] = optionen.language;
-  return rufenBinaer('getInvoicePdf', params);
+  if (options.language) params['language'] = options.language;
+  return binaryTransport('getInvoicePdf', params);
 }
 
 /**
@@ -255,10 +255,10 @@ export function getInvoicePdf(
  * Beleg (§ 132a BAO), den dieser Vermerk nicht ersetzt.
  */
 export async function recordInvoicePayment(
-  rufen: InternerTransport,
-  anfrage: RecordPaymentRequest,
+  transport: InternerTransport,
+  request: RecordPaymentRequest,
 ): Promise<RecordPaymentResult> {
-  const daten = await rufen('recordInvoicePayment', nutzlast(anfrage));
+  const daten = await transport('recordInvoicePayment', nutzlast(request));
   const roh = objekt(daten);
   const ergebnis: RecordPaymentResult = {
     invoice: pflichtObjekt<Invoice>('recordInvoicePayment', daten, 'invoice'),
@@ -271,8 +271,8 @@ export async function recordInvoicePayment(
 }
 
 /** Die Marken des Kontos — die Kennung geht als `brandId` in `issueInvoice`. */
-export async function listBrands(rufen: InternerTransport): Promise<Brand[]> {
-  const brands = objekt(await rufen('listBrands', {}))['brands'];
+export async function listBrands(transport: InternerTransport): Promise<Brand[]> {
+  const brands = objekt(await transport('listBrands', {}))['brands'];
   if (!Array.isArray(brands)) throw new KasseneckValidationError('listBrands', 'Antwort ohne brands', 'response');
   return brands as Brand[];
 }
@@ -285,11 +285,11 @@ export async function listBrands(rufen: InternerTransport): Promise<Brand[]> {
  * `filename` nehmen (`invoice-<Nummer>.xml`).
  */
 export async function getInvoiceXml(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   invoiceId: string,
   format: EInvoiceFormat = 'ubl',
 ): Promise<InvoiceXml> {
-  const daten = objekt(await rufen('getInvoiceXml', { invoiceId, format }));
+  const daten = objekt(await transport('getInvoiceXml', { invoiceId, format }));
   const { xml, filename } = daten;
   const gesendet = daten['format'];
   if (typeof xml !== 'string' || !xml) {

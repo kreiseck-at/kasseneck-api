@@ -9,8 +9,8 @@ import type { TipRecipient } from '../models/index.js';
  * wird beim Verkauf nicht zurueckgewiesen. Ist ein Kassen-Benutzer ohne das
  * Recht `tipAssign` angemeldet, steht nur er selbst darin.
  */
-export async function listMyTipRecipients(rufen: InternerTransport): Promise<TipRecipient[]> {
-  const daten = await rufen<{ recipients?: unknown }>('listMyTipRecipients');
+export async function listMyTipRecipients(transport: InternerTransport): Promise<TipRecipient[]> {
+  const daten = await transport<{ recipients?: unknown }>('listMyTipRecipients');
   const roh = daten?.recipients;
   if (!Array.isArray(roh)) {
     // Keine Liste ist etwas anderes als eine leere Liste: „noch niemand

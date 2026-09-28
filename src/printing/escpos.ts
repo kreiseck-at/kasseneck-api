@@ -524,11 +524,11 @@ export function escPosSetGlobalFont(
 export function escPosSetStyles(
   doc: EscPosDocument,
   styles: PosStyles = {},
-  optionen: { atLineStart?: boolean } = {},
+  options: { atLineStart?: boolean } = {},
 ): void {
   const neu = vollstaendigeStile(styles);
   const alt = doc.styles;
-  const zeilenanfang = optionen.atLineStart ?? true;
+  const zeilenanfang = options.atLineStart ?? true;
 
   if (neu.align !== alt.align) {
     anhaengen(
@@ -1046,14 +1046,14 @@ export function escPosQrRaster(
  */
 export function qrRasterDots(
   paperSize: PosPaperSize,
-  moduleAnzahl: number,
+  moduleCount: number,
   options: { moduleSize?: QrModuleSize; quietZoneModules?: number } = {},
 ): number {
   const ruhezone = options.quietZoneModules ?? QR_QUIET_ZONE_MODULES;
   const deckel = QR_MODULE_SIZE_CAP[options.moduleSize ?? 'auto'] as number;
   return Math.max(
     1,
-    Math.min(deckel, Math.floor(QR_PRINT_WIDTH_DOTS[paperSize] / (moduleAnzahl + 2 * ruhezone))),
+    Math.min(deckel, Math.floor(QR_PRINT_WIDTH_DOTS[paperSize] / (moduleCount + 2 * ruhezone))),
   );
 }
 
@@ -1068,16 +1068,16 @@ export interface RasterImage {
 }
 
 /** Die Rasterzeilen als Bytes: MSB zuerst, jede Zeile auf volle Bytes aufgefuellt. */
-export function rasterRowsBytes(bild: RasterImage): Uint8Array {
-  if (!istGanzzahl(bild.width) || bild.width < 1 || !istGanzzahl(bild.height) || bild.height < 1) {
+export function rasterRowsBytes(image: RasterImage): Uint8Array {
+  if (!istGanzzahl(image.width) || image.width < 1 || !istGanzzahl(image.height) || image.height < 1) {
     throw new Error('Rasterbild ohne gueltiges Mass');
   }
-  if (bild.dots.length !== bild.width * bild.height) throw new Error('Rasterbild: Punkte passen nicht zum Mass');
-  const byteJeZeile = Math.ceil(bild.width / 8);
-  const daten = new Uint8Array(byteJeZeile * bild.height);
-  for (let y = 0; y < bild.height; y++) {
-    for (let x = 0; x < bild.width; x++) {
-      if (bild.dots[y * bild.width + x] !== 1) continue;
+  if (image.dots.length !== image.width * image.height) throw new Error('Rasterbild: Punkte passen nicht zum Mass');
+  const byteJeZeile = Math.ceil(image.width / 8);
+  const daten = new Uint8Array(byteJeZeile * image.height);
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      if (image.dots[y * image.width + x] !== 1) continue;
       const i = y * byteJeZeile + (x >> 3);
       daten[i] = (daten[i] as number) | (0x80 >> (x & 7));
     }
@@ -1089,8 +1089,8 @@ export function rasterRowsBytes(bild: RasterImage): Uint8Array {
  * Die Rasterzeilen als Base64 -- ohne Buffer, laeuft im Browser und in Node.
  * Eine Stelle fuer ePOS-`<image>` und den Druckjob an den Server.
  */
-export function rasterRowsBase64(bild: RasterImage): string {
-  const bytes = rasterRowsBytes(bild);
+export function rasterRowsBase64(image: RasterImage): string {
+  const bytes = rasterRowsBytes(image);
   let binaer = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binaer += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -1116,15 +1116,15 @@ function rasterBildKopf(breite: number, hoehe: number): number[] {
  * Papier um die Bildhoehe, ein LF danach waere eine zusaetzliche Leerzeile,
  * die Bildschirm und PDF nicht haben. Die Luft um das Logo kommt aus dem Blatt.
  */
-export function escPosRasterImage(doc: EscPosDocument, bild: RasterImage, options: { align?: PosAlign } = {}): void {
+export function escPosRasterImage(doc: EscPosDocument, image: RasterImage, options: { align?: PosAlign } = {}): void {
   // Masse pruefen, BEVOR gepackt wird: ein zu breites Bild soll nicht erst
   // Speicher fuer seine Rasterzeilen belegen. `GS v 0` traegt die Hoehe in zwei
   // Bytes (yL yH) -- ueber 65535 Punkte liefe sie still ueber und der Drucker
   // laese den Rest des Bilds als Befehle.
-  if (bild.width > QR_PRINT_WIDTH_DOTS[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
-  if (bild.height > 0xffff) throw new Error('Rasterbild hoeher als 65535 Punkte');
-  const daten = rasterRowsBytes(bild);
+  if (image.width > QR_PRINT_WIDTH_DOTS[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
+  if (image.height > 0xffff) throw new Error('Rasterbild hoeher als 65535 Punkte');
+  const daten = rasterRowsBytes(image);
   escPosSetStyles(doc, { align: options.align ?? 'center' });
-  anhaengen(doc, rasterBildKopf(bild.width, bild.height));
+  anhaengen(doc, rasterBildKopf(image.width, image.height));
   anhaengen(doc, daten);
 }

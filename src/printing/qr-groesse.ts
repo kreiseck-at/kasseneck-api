@@ -126,8 +126,8 @@ const BYTE_KAPAZITAET_M: readonly number[] = [
  * langem Inhalt. Ein still zurueckgegebenes "passt nicht" haette den
  * Datenfehler als Papierfehler getarnt.
  */
-export function qrModuleCount(nutzlast: string): number {
-  const laenge = new TextEncoder().encode(nutzlast).length;
+export function qrModuleCount(payload: string): number {
+  const laenge = new TextEncoder().encode(payload).length;
   for (let i = 0; i < BYTE_KAPAZITAET_M.length; i++) {
     if (laenge <= (BYTE_KAPAZITAET_M[i] as number)) return 17 + 4 * (i + 1);
   }
@@ -142,8 +142,8 @@ export function qrModuleCount(nutzlast: string): number {
  * sondern ein Datenfehler, den sie selbst behandeln (das Beleg-Blatt: ohne
  * QR weiterbauen statt den ganzen Zeichner mitzureissen).
  */
-export function qrFitsInVersion(nutzlast: string): boolean {
-  const laenge = new TextEncoder().encode(nutzlast).length;
+export function qrFitsInVersion(payload: string): boolean {
+  const laenge = new TextEncoder().encode(payload).length;
   return laenge <= (BYTE_KAPAZITAET_M[BYTE_KAPAZITAET_M.length - 1] as number);
 }
 

@@ -26,8 +26,8 @@ import type { InternerTransport } from '../client/aufrufe.js';
  * `session_expired` bzw. `session_ended` (siehe [isRegisterError]); dann hilft
  * nur eine neue Anmeldung ueber `registerUserLogin` oder `registerPinLogin`.
  */
-export async function renewRegisterSession(rufen: InternerTransport): Promise<number> {
-  const daten = await rufen<{ expiresAt?: unknown }>('renewRegisterSession');
+export async function renewRegisterSession(transport: InternerTransport): Promise<number> {
+  const daten = await transport<{ expiresAt?: unknown }>('renewRegisterSession');
   const expiresAt = daten?.expiresAt;
   if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
     // Ohne brauchbaren Ablaufzeitpunkt weiss die Kasse nicht, wann sie das
@@ -51,6 +51,6 @@ export async function renewRegisterSession(rufen: InternerTransport): Promise<nu
  * einer harmlosen Vertragsaenderung — ausgerechnet beim Abmelden, dem Aufruf,
  * der auch dann durchgehen soll, wenn sonst nichts mehr geht.
  */
-export async function endRegisterSession(rufen: InternerTransport): Promise<void> {
-  await rufen('endRegisterSession');
+export async function endRegisterSession(transport: InternerTransport): Promise<void> {
+  await transport('endRegisterSession');
 }

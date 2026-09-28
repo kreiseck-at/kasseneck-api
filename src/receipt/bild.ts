@@ -12,25 +12,25 @@ import { logoRasterSize, type LogoDimensions } from './blatt.js';
  * Schwelle 128. Die Reihenfolge der Rechenschritte nicht aendern -- beide
  * Sprachen rechnen mit IEEE-Doubles und kommen nur so auf dieselben Punkte.
  */
-export function rasterizeLogo(rgba: ArrayLike<number>, pxBreite: number, pxHoehe: number, mass: LogoDimensions, zeichen: number): RasterImage {
-  if (!Number.isInteger(pxBreite) || !Number.isInteger(pxHoehe) || pxBreite < 1 || pxHoehe < 1 || rgba.length !== pxBreite * pxHoehe * 4) {
+export function rasterizeLogo(rgba: ArrayLike<number>, pxWidth: number, pxHeight: number, dimensions: LogoDimensions, chars: number): RasterImage {
+  if (!Number.isInteger(pxWidth) || !Number.isInteger(pxHeight) || pxWidth < 1 || pxHeight < 1 || rgba.length !== pxWidth * pxHeight * 4) {
     throw new Error('RGBA-Laenge passt nicht zum Pixelmass');
   }
-  const { width: breite, height: hoehe } = logoRasterSize(mass, zeichen);
+  const { width: breite, height: hoehe } = logoRasterSize(dimensions, chars);
   const grau = new Float64Array(breite * hoehe);
-  const sx = pxBreite / breite;
-  const sy = pxHoehe / hoehe;
+  const sx = pxWidth / breite;
+  const sy = pxHeight / hoehe;
   for (let y = 0; y < hoehe; y++) {
     const y0 = Math.floor(y * sy);
-    const y1 = Math.min(pxHoehe, Math.max(y0 + 1, Math.floor((y + 1) * sy)));
+    const y1 = Math.min(pxHeight, Math.max(y0 + 1, Math.floor((y + 1) * sy)));
     for (let x = 0; x < breite; x++) {
       const x0 = Math.floor(x * sx);
-      const x1 = Math.min(pxBreite, Math.max(x0 + 1, Math.floor((x + 1) * sx)));
+      const x1 = Math.min(pxWidth, Math.max(x0 + 1, Math.floor((x + 1) * sx)));
       let summe = 0;
       let anzahl = 0;
       for (let py = y0; py < y1; py++) {
         for (let px = x0; px < x1; px++) {
-          const i = (py * pxBreite + px) * 4;
+          const i = (py * pxWidth + px) * 4;
           const deckung = (rgba[i + 3] as number) / 255;
           const hell = 0.299 * (rgba[i] as number) + 0.587 * (rgba[i + 1] as number) + 0.114 * (rgba[i + 2] as number);
           summe += hell * deckung + 255 * (1 - deckung);

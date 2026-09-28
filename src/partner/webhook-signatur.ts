@@ -93,32 +93,32 @@ export interface VerifyWebhookOptions {
  * Ausnahme im Inneren wird zur Ablehnung. Ein Aufrufer, der nur `ok` abfragt,
  * kann damit nichts falsch machen.
  */
-export async function verifyWebhookSignature(optionen: VerifyWebhookOptions): Promise<WebhookVerifyResult> {
+export async function verifyWebhookSignature(options: VerifyWebhookOptions): Promise<WebhookVerifyResult> {
   try {
-    const secrets = (Array.isArray(optionen.secret) ? optionen.secret : [optionen.secret]).filter(
+    const secrets = (Array.isArray(options.secret) ? options.secret : [options.secret]).filter(
       (s): s is string => typeof s === 'string' && s.length > 0,
     );
     if (!secrets.length) return { ok: false, reason: 'secret-missing' };
 
-    if (typeof optionen.signatureHeader !== 'string' || !optionen.signatureHeader.trim()) {
+    if (typeof options.signatureHeader !== 'string' || !options.signatureHeader.trim()) {
       return { ok: false, reason: 'header-missing' };
     }
-    const kopf = parseSignatureHeader(optionen.signatureHeader);
+    const kopf = parseSignatureHeader(options.signatureHeader);
     if (kopf === null) return { ok: false, reason: 'header-malformed' };
 
-    if (optionen.body === undefined || optionen.body === null) return { ok: false, reason: 'body-missing' };
+    if (options.body === undefined || options.body === null) return { ok: false, reason: 'body-missing' };
 
-    const jetzt = typeof optionen.nowSec === 'number' && Number.isFinite(optionen.nowSec)
-      ? optionen.nowSec
+    const jetzt = typeof options.nowSec === 'number' && Number.isFinite(options.nowSec)
+      ? options.nowSec
       : Math.floor(Date.now() / 1000);
-    const toleranz = typeof optionen.toleranceSec === 'number' && Number.isFinite(optionen.toleranceSec)
-      ? optionen.toleranceSec
+    const toleranz = typeof options.toleranceSec === 'number' && Number.isFinite(options.toleranceSec)
+      ? options.toleranceSec
       : WEBHOOK_TOLERANCE_SEC;
     // In BEIDE Richtungen: eine vorgehende Uhr auf der Gegenseite darf ein
     // altes Ereignis nicht wieder gueltig machen.
     if (Math.abs(jetzt - kopf.t) > toleranz) return { ok: false, reason: 'timestamp-outside-window' };
 
-    const nachricht = signierteBytes(kopf.t, optionen.body);
+    const nachricht = signierteBytes(kopf.t, options.body);
     for (const secret of secrets) {
       const soll = await hmacSha256(secret, nachricht);
       for (const v1 of kopf.v1) {
@@ -137,8 +137,8 @@ export async function verifyWebhookSignature(optionen: VerifyWebhookOptions): Pr
  * Zerlegt den Signaturkopf. `null`, wenn kein brauchbarer Zeitstempel oder gar
  * kein `v1=`-Anteil darin steht.
  */
-export function parseSignatureHeader(kopf: string): { t: number; v1: string[] } | null {
-  const teile = String(kopf).split(',').map((x) => x.trim());
+export function parseSignatureHeader(header: string): { t: number; v1: string[] } | null {
+  const teile = String(header).split(',').map((x) => x.trim());
   const tTeil = teile.find((x) => x.startsWith('t='));
   const v1 = teile.filter((x) => x.startsWith('v1=')).map((x) => x.slice(3));
   if (!tTeil || !v1.length) return null;

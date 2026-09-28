@@ -124,8 +124,8 @@ function pflicht(wert: unknown, vorgang: string, feld: string): string {
  * Der guenstigste Selbsttest beim Hochfahren: er beweist Schluessel, Umgebung
  * und Rechte in einem Aufruf.
  */
-export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerInfo> {
-  const daten = objekt(await rufen<unknown>('getPartnerInfo'));
+export async function getPartnerInfo(transport: InternerTransport): Promise<PartnerInfo> {
+  const daten = objekt(await transport<unknown>('getPartnerInfo'));
   const partner = verlangt(daten['partner'], 'getPartnerInfo', 'partner');
   const key = objekt(daten['key']);
   return {
@@ -186,21 +186,21 @@ export async function getPartnerInfo(rufen: InternerTransport): Promise<PartnerI
  * der natuerliche Wert dafuer.
  */
 export async function createPartnerCustomer(
-  rufen: InternerTransport,
-  optionen: CreateCustomerOptions,
+  transport: InternerTransport,
+  options: CreateCustomerOptions,
 ): Promise<CreateCustomerResult> {
-  const appId = pflicht(optionen?.appId, 'createPartnerCustomer', 'appId');
-  const betrieb = optionen?.business;
+  const appId = pflicht(options?.appId, 'createPartnerCustomer', 'appId');
+  const betrieb = options?.business;
   if (betrieb === null || typeof betrieb !== 'object') {
     throw new KasseneckValidationError('createPartnerCustomer', 'business fehlt', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('createPartnerCustomer', {
+    await transport<unknown>('createPartnerCustomer', {
       appId,
       business: betrieb,
-      idempotencyKey: optionen.idempotencyKey,
-      access: optionen.access,
-      env: optionen.env,
+      idempotencyKey: options.idempotencyKey,
+      access: options.access,
+      env: options.env,
     }),
   );
   const customerId = textOderNull(daten['customerId']);
@@ -223,17 +223,17 @@ export async function createPartnerCustomer(
 
 /** Betriebe dieses Partners, seitenweise. `cursor` aus der Antwort setzt fort. */
 export async function listPartnerCustomers(
-  rufen: InternerTransport,
-  optionen: ListCustomersOptions = {},
+  transport: InternerTransport,
+  options: ListCustomersOptions = {},
 ): Promise<PartnerCustomerList> {
-  if (optionen.limit !== undefined && (!Number.isInteger(optionen.limit) || optionen.limit < 1 || optionen.limit > 200)) {
+  if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 200)) {
     throw new KasseneckValidationError('listPartnerCustomers', 'limit muss zwischen 1 und 200 liegen', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('listPartnerCustomers', {
-      status: optionen.status,
-      limit: optionen.limit,
-      cursor: optionen.cursor,
+    await transport<unknown>('listPartnerCustomers', {
+      status: options.status,
+      limit: options.limit,
+      cursor: options.cursor,
     }),
   );
   return {
@@ -286,9 +286,9 @@ function avvStand(wert: unknown): AvvStatus | null {
 }
 
 /** Ein Betrieb mit allem, was der Partner ueber ihn sehen darf — nie Geheimnisse. */
-export async function getPartnerCustomer(rufen: InternerTransport, customerId: string): Promise<PartnerCustomer> {
+export async function getPartnerCustomer(transport: InternerTransport, customerId: string): Promise<PartnerCustomer> {
   const id = pflicht(customerId, 'getPartnerCustomer', 'customerId');
-  const daten = objekt(await rufen<unknown>('getPartnerCustomer', { customerId: id }));
+  const daten = objekt(await transport<unknown>('getPartnerCustomer', { customerId: id }));
   const k = verlangt(daten['customer'], 'getPartnerCustomer', 'customer');
   const fon = objekt(k['fon']);
   const zugang = k['access'];
@@ -336,21 +336,21 @@ export async function getPartnerCustomer(rufen: InternerTransport, customerId: s
  * nie, wem die Adresse gehoert.
  */
 export async function checkPartnerCustomerEmail(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   email: string,
 ): Promise<boolean> {
   const adresse = typeof email === 'string' ? email.trim() : '';
   if (!adresse) throw new KasseneckValidationError('checkPartnerCustomerEmail', 'email fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('checkPartnerCustomerEmail', { email: adresse }));
+  const daten = objekt(await transport<unknown>('checkPartnerCustomerEmail', { email: adresse }));
   return daten['available'] === true;
 }
 
 export async function sendPartnerCustomerFonLink(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
 ): Promise<FonLinkResult> {
   const id = pflicht(customerId, 'sendPartnerCustomerFonLink', 'customerId');
-  const daten = objekt(await rufen<unknown>('sendPartnerCustomerFonLink', { customerId: id }));
+  const daten = objekt(await transport<unknown>('sendPartnerCustomerFonLink', { customerId: id }));
   return {
     customerId: text(daten['customerId'], id),
     sentTo: text(daten['sentTo']),
@@ -412,16 +412,16 @@ function antrag(eintrag: unknown): SignatureRequest {
  * Aufruf.
  */
 export async function requestCustomerSignature(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
-  optionen: RequestSignatureOptions = {},
+  options: RequestSignatureOptions = {},
 ): Promise<RequestSignatureResult> {
   const id = pflicht(customerId, 'requestCustomerSignature', 'customerId');
   const daten = objekt(
-    await rufen<unknown>('requestCustomerSignature', {
+    await transport<unknown>('requestCustomerSignature', {
       customerId: id,
-      kind: optionen.kind,
-      additional: optionen.additional,
+      kind: options.kind,
+      additional: options.additional,
     }),
   );
   return {
@@ -460,11 +460,11 @@ function signaturEinzeln(eintrag: unknown): CustomerSignature {
 
 /** Stand der Signatur eines Betriebs samt aller Signaturen, Antraege und des FON-Zugangs. */
 export async function getCustomerSignatureStatus(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
 ): Promise<CustomerSignatureStatus> {
   const id = pflicht(customerId, 'getCustomerSignatureStatus', 'customerId');
-  const daten = objekt(await rufen<unknown>('getCustomerSignatureStatus', { customerId: id }));
+  const daten = objekt(await transport<unknown>('getCustomerSignatureStatus', { customerId: id }));
   const signatur = objekt(daten['signature']);
   const fon = objekt(daten['fon']);
   return {
@@ -529,15 +529,15 @@ function kasse(eintrag: unknown): CustomerCashregister {
  * `module_inactive`.
  */
 export async function createCustomerCashregister(
-  rufen: InternerTransport,
-  optionen: CreateCashregisterOptions,
+  transport: InternerTransport,
+  options: CreateCashregisterOptions,
 ): Promise<CreateCashregisterResult> {
-  const id = pflicht(optionen?.customerId, 'createCustomerCashregister', 'customerId');
+  const id = pflicht(options?.customerId, 'createCustomerCashregister', 'customerId');
   const daten = objekt(
-    await rufen<unknown>('createCustomerCashregister', {
+    await transport<unknown>('createCustomerCashregister', {
       customerId: id,
-      automatic: optionen.automatic,
-      signatureRequestId: optionen.signatureRequestId,
+      automatic: options.automatic,
+      signatureRequestId: options.signatureRequestId,
     }),
   );
   const ib = objekt(daten['activation']);
@@ -564,13 +564,13 @@ export async function createCustomerCashregister(
  * wiederholbar ist — weil der Server ihn so gebaut hat.
  */
 export async function activateCashregister(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
   cashregisterId: string,
 ): Promise<ActivateCashregisterResult> {
   const kunde = pflicht(customerId, 'activateCashregister', 'customerId');
   const kassenId = pflicht(cashregisterId, 'activateCashregister', 'cashregisterId');
-  const daten = objekt(await rufen<unknown>('activateCashregister', { customerId: kunde, cashregisterId: kassenId }));
+  const daten = objekt(await transport<unknown>('activateCashregister', { customerId: kunde, cashregisterId: kassenId }));
   return {
     cashregister: kasse(verlangt(daten['cashregister'], 'activateCashregister', 'cashregister')),
     unchanged: jaNein(daten['unchanged']),
@@ -579,11 +579,11 @@ export async function activateCashregister(
 
 /** Die Kassen eines Betriebs samt Stand der Inbetriebnahme — **nie** Token. */
 export async function listCustomerCashregisters(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
 ): Promise<CustomerCashregisterList> {
   const id = pflicht(customerId, 'listCustomerCashregisters', 'customerId');
-  const daten = objekt(await rufen<unknown>('listCustomerCashregisters', { customerId: id }));
+  const daten = objekt(await transport<unknown>('listCustomerCashregisters', { customerId: id }));
   return {
     customerId: text(daten['customerId'], id),
     cashregisters: liste(daten['cashregisters']).map(kasse),
@@ -608,11 +608,11 @@ export async function listCustomerCashregisters(
  * `.reveal()`.
  */
 export async function getCustomerCredentials(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   customerId: string,
 ): Promise<CustomerCredentials> {
   const id = pflicht(customerId, 'getCustomerCredentials', 'customerId');
-  const daten = objekt(await rufen<unknown>('getCustomerCredentials', { customerId: id }));
+  const daten = objekt(await transport<unknown>('getCustomerCredentials', { customerId: id }));
   return {
     customerId: text(daten['customerId'], id),
     companyName: text(daten['companyName']),
@@ -648,11 +648,11 @@ export async function getCustomerCredentials(
  * sondern die Bestaetigung, dass es sie gibt.
  */
 export async function reportCustomerContract(
-  rufen: InternerTransport,
-  optionen: ReportCustomerContractOptions,
+  transport: InternerTransport,
+  options: ReportCustomerContractOptions,
 ): Promise<ReportCustomerContractResult> {
   const vorgang = 'reportCustomerContract';
-  const o = objekt(optionen);
+  const o = objekt(options);
   const customerId = pflicht(o['customerId'], vorgang, 'customerId');
   const kind = pflicht(o['kind'], vorgang, 'kind');
   const version = pflicht(o['version'], vorgang, 'version');
@@ -664,7 +664,7 @@ export async function reportCustomerContract(
     throw new KasseneckValidationError(vorgang, 'acceptedAt muss eine Zahl sein (Unix-Millisekunden)', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>(vorgang, { customerId, kind, version, textHash, name, signerRole, acceptedAt }),
+    await transport<unknown>(vorgang, { customerId, kind, version, textHash, name, signerRole, acceptedAt }),
   );
   const contractId = daten['contractId'];
   if (typeof contractId !== 'string' || !contractId) {

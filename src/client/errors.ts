@@ -351,17 +351,17 @@ export class KasseneckNetworkError extends Error {
     functionName: string,
     timedOut: boolean,
     timeoutMs: number,
-    ursache: CauseDigest = {},
+    cause: CauseDigest = {},
     outcome: ErrorOutcome = 'rejected',
   ) {
     const grund = timedOut ? `Zeitueberschreitung nach ${timeoutMs} ms` : 'Netzwerkfehler';
-    const codeHinweis = ursache.causeCode ? ` (${ursache.causeCode})` : '';
+    const codeHinweis = cause.causeCode ? ` (${cause.causeCode})` : '';
     super(`${functionName} fehlgeschlagen: ${grund}${codeHinweis}`);
     this.functionName = functionName;
     this.timedOut = timedOut;
     this.timeoutMs = timeoutMs;
-    this.causeName = ursache.causeName;
-    this.causeCode = ursache.causeCode;
+    this.causeName = cause.causeName;
+    this.causeCode = cause.causeCode;
     this.outcome = outcome;
   }
 }
@@ -436,29 +436,29 @@ export type KasseneckError =
  * jede Fehlerart; nur [KasseneckApiError], [KasseneckHttpError] und
  * [KasseneckNetworkError] koennen `'unknown'` sein.
  */
-export function isOutcomeUnknown(fehler: unknown): boolean {
+export function isOutcomeUnknown(error: unknown): boolean {
   return (
-    (fehler instanceof KasseneckApiError || fehler instanceof KasseneckHttpError || fehler instanceof KasseneckNetworkError)
-    && fehler.outcome === 'unknown'
+    (error instanceof KasseneckApiError || error instanceof KasseneckHttpError || error instanceof KasseneckNetworkError)
+    && error.outcome === 'unknown'
   );
 }
 
-export function isKasseneckApiError(fehler: unknown): fehler is KasseneckApiError {
-  return fehler instanceof KasseneckApiError;
+export function isKasseneckApiError(error: unknown): error is KasseneckApiError {
+  return error instanceof KasseneckApiError;
 }
 
-export function isKasseneckHttpError(fehler: unknown): fehler is KasseneckHttpError {
-  return fehler instanceof KasseneckHttpError;
+export function isKasseneckHttpError(error: unknown): error is KasseneckHttpError {
+  return error instanceof KasseneckHttpError;
 }
 
-export function isKasseneckNetworkError(fehler: unknown): fehler is KasseneckNetworkError {
-  return fehler instanceof KasseneckNetworkError;
+export function isKasseneckNetworkError(error: unknown): error is KasseneckNetworkError {
+  return error instanceof KasseneckNetworkError;
 }
 
-export function isKasseneckAuthError(fehler: unknown): fehler is KasseneckAuthError {
-  return fehler instanceof KasseneckAuthError;
+export function isKasseneckAuthError(error: unknown): error is KasseneckAuthError {
+  return error instanceof KasseneckAuthError;
 }
 
-export function isKasseneckValidationError(fehler: unknown): fehler is KasseneckValidationError {
-  return fehler instanceof KasseneckValidationError;
+export function isKasseneckValidationError(error: unknown): error is KasseneckValidationError {
+  return error instanceof KasseneckValidationError;
 }

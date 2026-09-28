@@ -88,7 +88,7 @@ export interface KasseneckApi {
   /** Betriebsstatus der Kasse bei FinanzOnline. */
   getCashboxStatus(): Promise<CashboxStatus>;
   /** Status der Signatureinheit bei FinanzOnline. */
-  getSignatureStatus(zertifikatNrHex: string): Promise<SignatureStatus>;
+  getSignatureStatus(certificateSerialHex: string): Promise<SignatureStatus>;
   /** Stripe-Zahlungslink erzeugen (Endpunkt `createPaymentLinkStripe`). */
   createStripeLink(options: CreateStripeLinkOptions): Promise<StripeUrlSession>;
   /** Reservierte Stripe-Zahlung einziehen. */
@@ -124,7 +124,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
     getCashboxStatus: () => getCashboxStatus(rufen),
-    getSignatureStatus: (zertifikatNrHex) => getSignatureStatus(rufen, zertifikatNrHex),
+    getSignatureStatus: (certificateSerialHex) => getSignatureStatus(rufen, certificateSerialHex),
     createStripeLink: (o) => createStripeLink(rufen, o),
     stripeCaptureIntent: (stripeSessionId) => stripeCaptureIntent(rufen, stripeSessionId),
     hobexPay: (o) => hobexPay(rufen, o),

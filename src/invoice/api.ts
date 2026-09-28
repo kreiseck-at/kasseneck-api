@@ -61,25 +61,25 @@ export interface InvoiceApiOptions {
 
 export interface InvoiceApi {
   // Kunden
-  createCustomer(customer: CustomerInput, optionen?: { idempotencyKey?: string }): Promise<Customer>;
-  getCustomer(kennung: { customerId: string } | { externalId: string }): Promise<Customer>;
+  createCustomer(customer: CustomerInput, options?: { idempotencyKey?: string }): Promise<Customer>;
+  getCustomer(ref: { customerId: string } | { externalId: string }): Promise<Customer>;
   updateCustomer(customerId: string, patch: Partial<CustomerInput>): Promise<Customer>;
-  searchCustomers(suche: CustomerSearch): Promise<CustomerPage>;
+  searchCustomers(search: CustomerSearch): Promise<CustomerPage>;
 
   // Rechnungen
-  issueInvoice(anfrage: IssueInvoiceRequest): Promise<IssueResult>;
+  issueInvoice(request: IssueInvoiceRequest): Promise<IssueResult>;
   /** Probelauf: pruefen und rechnen wie `issueInvoice`, ohne auszustellen. */
-  previewInvoice(anfrage: IssueInvoiceRequest): Promise<PreviewResult>;
-  cancelInvoice(anfrage: CancelInvoiceRequest): Promise<CancelResult>;
-  createCreditNote(anfrage: CreditNoteRequest): Promise<CreditNoteResult>;
-  getInvoice(kennung: { invoiceId: string } | { number: string }): Promise<InvoiceDetail>;
-  listInvoices(abfrage?: InvoiceListQuery): Promise<InvoicePage>;
+  previewInvoice(request: IssueInvoiceRequest): Promise<PreviewResult>;
+  cancelInvoice(request: CancelInvoiceRequest): Promise<CancelResult>;
+  createCreditNote(request: CreditNoteRequest): Promise<CreditNoteResult>;
+  getInvoice(ref: { invoiceId: string } | { number: string }): Promise<InvoiceDetail>;
+  listInvoices(query?: InvoiceListQuery): Promise<InvoicePage>;
   /** Eine spaeter eingetroffene Zahlung nachtragen; `idempotencyKey` ist Pflicht. */
-  recordInvoicePayment(anfrage: RecordPaymentRequest): Promise<RecordPaymentResult>;
+  recordInvoicePayment(request: RecordPaymentRequest): Promise<RecordPaymentResult>;
 
   // Dateien
   /** Mit `language` ungleich der Rechnungssprache: gekennzeichnete Uebersetzungskopie. */
-  getInvoicePdf(invoiceId: string, optionen?: { language?: InvoiceLanguage }): Promise<Uint8Array>;
+  getInvoicePdf(invoiceId: string, options?: { language?: InvoiceLanguage }): Promise<Uint8Array>;
   /** `{ xml, format, filename }` wie gesendet; `filename` ist `invoice-<Nummer>.xml`. */
   getInvoiceXml(invoiceId: string, format?: EInvoiceFormat): Promise<InvoiceXml>;
 
@@ -92,12 +92,12 @@ export interface InvoiceApi {
   listBrands(): Promise<Brand[]>;
 }
 
-export function createInvoiceApi(optionen: InvoiceApiOptions): InvoiceApi {
+export function createInvoiceApi(options: InvoiceApiOptions): InvoiceApi {
   const transportOptionen = {
-    auth: invoiceKeyAuth({ apiKey: optionen.apiKey }),
-    baseUrl: optionen.baseUrl,
-    timeoutMs: optionen.timeoutMs,
-    fetch: optionen.fetch,
+    auth: invoiceKeyAuth({ apiKey: options.apiKey }),
+    baseUrl: options.baseUrl,
+    timeoutMs: options.timeoutMs,
+    fetch: options.fetch,
   };
   const rufen = createTransport(transportOptionen) as InternerTransport;
   const rufenBinaer = createBinaryTransport(transportOptionen) as InternerBinaerTransport;

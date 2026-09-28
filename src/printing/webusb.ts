@@ -87,9 +87,9 @@ export class UsbTimeoutError extends Error {
   readonly step: string;
   readonly timeoutMs: number;
 
-  constructor(schritt: string, timeoutMs: number) {
-    super(`USB-Drucker antwortet nicht (${schritt}, Zeitlimit ${timeoutMs} ms überschritten) — Kabel/Gerät prüfen.`);
-    this.step = schritt;
+  constructor(step: string, timeoutMs: number) {
+    super(`USB-Drucker antwortet nicht (${step}, Zeitlimit ${timeoutMs} ms überschritten) — Kabel/Gerät prüfen.`);
+    this.step = step;
     this.timeoutMs = timeoutMs;
   }
 }

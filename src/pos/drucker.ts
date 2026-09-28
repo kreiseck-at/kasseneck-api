@@ -71,8 +71,8 @@ function status(v: unknown): PrintJobStatus {
   return typeof v === 'string' && STATUS.has(v) ? (v as PrintJobStatus) : 'unknown';
 }
 
-export async function listMyPrinters(rufen: InternerTransport): Promise<NetworkPrinter[]> {
-  const daten = await rufen<{ printers?: unknown[] }>('listMyPrinters', {});
+export async function listMyPrinters(transport: InternerTransport): Promise<NetworkPrinter[]> {
+  const daten = await transport<{ printers?: unknown[] }>('listMyPrinters', {});
   return (Array.isArray(daten?.printers) ? daten.printers : []).map((r) => {
     const d = (r ?? {}) as Record<string, unknown>;
     const e = d.lastResult && typeof d.lastResult === 'object' ? (d.lastResult as Record<string, unknown>) : null;
@@ -102,7 +102,7 @@ export interface CreatePrintJobOptions {
   brandMark?: boolean;
 }
 
-export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<PrintJob> {
+export async function createPrintJob(transport: InternerTransport, o: CreatePrintJobOptions): Promise<PrintJob> {
   const params: Record<string, unknown> = { printerId: o.printerId, layout: o.layout };
   if (o.receiptId) params.receiptId = o.receiptId;
   if (o.title) params.title = o.title;
@@ -114,7 +114,7 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
     };
   }
   if (o.brandMark === true) params.brand = true;
-  const daten = await rufen<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
+  const daten = await transport<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
   return { jobId: String(daten?.jobId ?? ''), status: status(daten?.status), result: null };
 }
 
@@ -123,8 +123,8 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
  * wahr ist, und begrenzt die Abfrage trotzdem selbst (Anzahl oder Zeit): ein
  * Drucker, der nie abholt, bleibt `pending`.
  */
-export async function getPrintJob(rufen: InternerTransport, o: { printerId: string; jobId: string }): Promise<PrintJob> {
-  const d = await rufen<Record<string, unknown>>('getPrintJob', { printerId: o.printerId, jobId: o.jobId });
+export async function getPrintJob(transport: InternerTransport, o: { printerId: string; jobId: string }): Promise<PrintJob> {
+  const d = await transport<Record<string, unknown>>('getPrintJob', { printerId: o.printerId, jobId: o.jobId });
   const e = d?.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>) : null;
   return {
     jobId: String(d?.jobId ?? o.jobId), status: status(d?.status),
