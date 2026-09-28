@@ -168,7 +168,7 @@ test('Bildweg: kaputte Raster werden abgelehnt', () => {
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const basis: ReceiptLayout = {
-  ...(JSON.parse(readFileSync(new URL('erwartet/verkauf-bar.lines.json', wurzel), 'utf8')) as ReceiptLayout),
+  ...(JSON.parse(readFileSync(new URL('expected/sale-cash.lines.json', wurzel), 'utf8')) as ReceiptLayout),
   paperSize: 'mm58',
 };
 

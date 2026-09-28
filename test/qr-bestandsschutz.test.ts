@@ -58,12 +58,12 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const erwartet = (name: string): ReceiptLayout =>
-  JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+  JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
 
 const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', () => {
-  const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm58' as const };
+  const layout = { ...erwartet('sale-cash'), paperSize: 'mm58' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 08c1d6f7…): Ausrichtung-Trias nach dem QR
@@ -81,7 +81,7 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
 });
 
 test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', () => {
-  const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm80' as const };
+  const layout = { ...erwartet('sale-cash'), paperSize: 'mm80' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 49c45fd8…), gleiche Gegenprobe wie oben.

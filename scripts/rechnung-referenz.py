@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Unabhaengige Referenz fuer den Ganzzahl-Rechenkern der Rechnung.
 
-Erzeugt die Pruefdatei fixtures/rechnung-rechnen-zufall.json und prueft sie
+Erzeugt die Pruefdatei fixtures/invoice-calc-random.json und prueft sie
 wieder. Absichtlich anders gebaut als src/invoice/calc.ts: exakte Brueche
 statt eines gemeinsamen Nenners, Rundung ueber Fraction-Vergleich statt ueber
 (2a+b)/(2b). Ein gemeinsamer Denkfehler faellt dadurch auf.
 
   python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400
-  python3 scripts/rechnung-referenz.py --pruefe fixtures/rechnung-rechnen-zufall.json
+  python3 scripts/rechnung-referenz.py --pruefe fixtures/invoice-calc-random.json
 """
 from __future__ import annotations
 
@@ -199,8 +199,8 @@ def zufalls_fall(rng: random.Random, index: int) -> dict | None:
     fall: dict = {"name": name, "priceMode": price_mode}
     if tax_scheme != "normal":
         fall["taxScheme"] = tax_scheme
-    fall["positionen"] = positionen
-    fall["erwartet"] = ergebnis
+    fall["items"] = positionen
+    fall["expected"] = ergebnis
     return fall
 
 
@@ -211,8 +211,8 @@ def erzeuge_faelle(seed: int, anzahl: int) -> tuple[list[dict], int]:
         fall: dict = {"name": name, "priceMode": price_mode}
         if tax_scheme != "normal":
             fall["taxScheme"] = tax_scheme
-        fall["positionen"] = positionen
-        fall["erwartet"] = ergebnis
+        fall["items"] = positionen
+        fall["expected"] = ergebnis
         faelle.append(fall)
 
     rng = random.Random(seed)
@@ -239,12 +239,12 @@ def formatiere_fall(fall: dict, einzug: str) -> str:
     zeilen.append(f'{inner}"priceMode": {json.dumps(fall["priceMode"])},')
     if "taxScheme" in fall:
         zeilen.append(f'{inner}"taxScheme": {json.dumps(fall["taxScheme"])},')
-    positionen = ",\n".join(f"{inner}  {komprimiert(p)}" for p in fall["positionen"])
-    zeilen.append(f'{inner}"positionen": [\n{positionen}\n{inner}],')
-    e = fall["erwartet"]
+    positionen = ",\n".join(f"{inner}  {komprimiert(p)}" for p in fall["items"])
+    zeilen.append(f'{inner}"items": [\n{positionen}\n{inner}],')
+    e = fall["expected"]
     by_rate = ",\n".join(f"{inner}    {komprimiert(b)}" for b in e["byRate"])
     lines = ",\n".join(f"{inner}    {komprimiert(l)}" for l in e["lines"])
-    zeilen.append(f'{inner}"erwartet": {{')
+    zeilen.append(f'{inner}"expected": {{')
     zeilen.append(f'{inner}  "netCents": {e["netCents"]},')
     zeilen.append(f'{inner}  "vatCents": {e["vatCents"]},')
     zeilen.append(f'{inner}  "grossCents": {e["grossCents"]},')
@@ -258,7 +258,7 @@ def formatiere_fall(fall: dict, einzug: str) -> str:
 BESCHREIBUNG = (
     "Zufällig erzeugte Prüffälle des Ganzzahl-Rechenkerns (calculateInvoice). "
     "Erzeugt von scripts/rechnung-referenz.py (npm run fixtures:rechnungzufall), "
-    "nicht von Hand — für Handfälle siehe rechnung-rechnen.json. Preise in "
+    "nicht von Hand — für Handfälle siehe invoice-calc.json. Preise in "
     "Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in "
     "Hundertstel-Prozent, Beträge in Cent. Die Pflichtklassen (2^53/2^63, "
     "Abzugszeile, Rabatt 100 %, Menge 0, Gleichstand, halber Cent, steuerfrei) "
@@ -266,23 +266,23 @@ BESCHREIBUNG = (
 )
 
 REGEL = {
-    "zeile": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
+    "line": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
     "net": "Netto = rund(Σ Zeilen); USt = rund(Σ Zeilen × Satz ÷ 10000); Brutto = Netto + USt",
     "gross": "Brutto B = rund(Σ Zeilen); Netto = rund(B × 10000 ÷ (10000 + Satz)); USt = B − Netto",
-    "steuerfrei": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
-    "rundung": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
-    "zeilen": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent",
+    "taxExempt": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
+    "rounding": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
+    "lines": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent",
 }
 
 
 def schreibe_datei(pfad: Path, seed: int, faelle: list[dict]) -> None:
     teile = ["{\n"]
-    teile.append(f'  "beschreibung": {json.dumps(BESCHREIBUNG, ensure_ascii=False)},\n')
+    teile.append(f'  "description": {json.dumps(BESCHREIBUNG, ensure_ascii=False)},\n')
     teile.append(f'  "seed": {seed},\n')
-    teile.append(f'  "anzahl": {len(faelle)},\n')
+    teile.append(f'  "count": {len(faelle)},\n')
     regel_text = json.dumps(REGEL, ensure_ascii=False, indent=2).replace("\n", "\n  ")
-    teile.append(f'  "regel": {regel_text},\n')
-    teile.append('  "faelle": [\n')
+    teile.append(f'  "rule": {regel_text},\n')
+    teile.append('  "cases": [\n')
     teile.append(",\n".join(formatiere_fall(f, "    ") for f in faelle))
     teile.append("\n  ]\n")
     teile.append("}\n")
@@ -290,19 +290,19 @@ def schreibe_datei(pfad: Path, seed: int, faelle: list[dict]) -> None:
     # Selbstpruefung: die Datei muss gueltiges JSON sein und beim Rueckparsen
     # exakt dieselben Faelle ergeben wie die erzeugten.
     geparst = json.loads(text)
-    assert geparst["faelle"] == faelle, "Formatierung hat den Inhalt veraendert"
+    assert geparst["cases"] == faelle, "Formatierung hat den Inhalt veraendert"
     pfad.write_text(text, encoding="utf-8")
 
 
 def pruefe_datei(pfad: Path) -> int:
     daten = json.loads(pfad.read_text(encoding="utf-8"))
-    faelle = daten["faelle"]
+    faelle = daten["cases"]
     abweichungen = 0
     for f in faelle:
-        erhalten = rechne(f["positionen"], f["priceMode"], f.get("taxScheme", "normal"))
-        if erhalten != f["erwartet"]:
+        erhalten = rechne(f["items"], f["priceMode"], f.get("taxScheme", "normal"))
+        if erhalten != f["expected"]:
             abweichungen += 1
-            print(f"ABWEICHUNG bei \"{f['name']}\": erwartet {f['erwartet']}, erhalten {erhalten}")
+            print(f"ABWEICHUNG bei \"{f['name']}\": erwartet {f['expected']}, erhalten {erhalten}")
     print(f"{len(faelle)} Faelle geprueft, {abweichungen} Abweichungen")
     return abweichungen
 
@@ -313,7 +313,7 @@ def main() -> None:
     parser.add_argument("--pruefe", metavar="DATEI", help="bestehende Datei gegen die Referenz pruefen")
     parser.add_argument("--seed", type=int, default=20260918)
     parser.add_argument("--anzahl", type=int, default=400)
-    parser.add_argument("--ziel", default="fixtures/rechnung-rechnen-zufall.json")
+    parser.add_argument("--ziel", default="fixtures/invoice-calc-random.json")
     args = parser.parse_args()
 
     if args.erzeuge:

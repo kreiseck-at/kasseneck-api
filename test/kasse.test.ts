@@ -339,13 +339,13 @@ test('QR-Modus des Bondruckers: unbestimmt als Vorgabe, beide Modi annehmbar, Li
   assert.deepEqual([...QR_MODE], ['auto', 'raster', 'escpos']);
 });
 
-test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
+test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/pos-settings-defaults.json', () => {
   // Die Datei ist die Zusage an die Zwillinge (Backend, Flutter-Kasse). Weicht
   // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu
   // veroeffentlichen — oder umgekehrt.
-  const datei = JSON.parse(readFileSync(new URL('../../fixtures/kasse-settings-standard.json', import.meta.url), 'utf8'));
+  const datei = JSON.parse(readFileSync(new URL('../../fixtures/pos-settings-defaults.json', import.meta.url), 'utf8'));
   assert.deepEqual(datei, JSON.parse(JSON.stringify({ business: POS_BUSINESS_DEFAULTS, device: POS_DEVICE_DEFAULTS })),
-    'fixtures/kasse-settings-standard.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
+    'fixtures/pos-settings-defaults.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
 });
 
 // --- Laufzeitlisten ----------------------------------------------------------

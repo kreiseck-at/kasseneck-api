@@ -1,31 +1,31 @@
 {
   "version": "1.0.0-dev",
-  "gemessenAn": {
+  "measuredOn": {
     "tid": "3600335",
     "hpsVersion": "1.10.0",
     "firmware": "7.3.6",
-    "zeitraum": "26.-28.08.2026"
+    "period": "26.-28.08.2026"
   },
-  "ergaenztAn": [
+  "supplementedOn": [
     {
       "tid": "3556988",
       "hpsVersion": "1.11.4",
       "firmware": "2.3.9",
-      "zeitraum": "02.09.2026",
+      "period": "02.09.2026",
       "codes": [
         "55"
       ]
     }
   ],
-  "dokumentiert": [
+  "documented": [
     {
-      "quelle": "Antwortcodeliste von hobex (HPS)",
-      "erhalten": "11.09.2026"
+      "source": "Antwortcodeliste von hobex (HPS)",
+      "received": "11.09.2026"
     },
     {
-      "quelle": "Antwortcodeliste von TECS, ueber hobex",
-      "erhalten": "16.09.2026",
-      "kennzeichen": "tecsTitle"
+      "source": "Antwortcodeliste von TECS, ueber hobex",
+      "received": "16.09.2026",
+      "field": "tecsTitle"
     }
   ],
   "codes": [
@@ -4410,7 +4410,7 @@
       "tecsTitle": "TerminalService: INVALID_CREDENTIALS"
     }
   ],
-  "gruende": {
+  "reasons": {
     "approved": "Vom Terminal genehmigt.",
     "approvedWithCondition": "Das Terminal meldet eine Genehmigung mit Vorbehalt (etwa nur über einen Teilbetrag). Ob und in welcher Höhe belastet wurde, bitte am Terminalbeleg prüfen – nicht erneut kassieren, bevor es geklärt ist.",
     "aborted": "Der Vorgang wurde abgebrochen. Es wurde kein Geld bewegt.",

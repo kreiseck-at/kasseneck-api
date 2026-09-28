@@ -1,6 +1,6 @@
 {
-  "_hinweis": "Erzeugt von scripts/v3-zahlbetrag-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.",
-  "_quelle": {
+  "_note": "Erzeugt von scripts/v3-zahlbetrag-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.",
+  "_source": {
     "beleg-toepfe.js": "60630493a589469d1cdfeea6fef667d20feb8f3a156819ba4d90b21501fdc4ea",
     "tip-core.js": "b9bd6e6d8f10c3568fe586bd85dfa392effa37a76ad7e0179890f5f05b433910",
     "zahlungen-core.js": "0fd8f012275d4871fa0d168c5c6f8957a9a5299aba04a7632dbba87894526422",

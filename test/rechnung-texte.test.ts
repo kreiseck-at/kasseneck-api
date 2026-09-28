@@ -60,7 +60,7 @@ test('Katalog: die UID-Zeile gilt fuer Reverse Charge UND ig. Lieferung', () => 
   // Art. 11 Abs. 2 UStG. Ein gemeinsamer Text, damit es nur eine Form gibt.
   for (const sprache of INVOICE_LANGUAGES) {
     const zeile = INVOICE_TEXTS[sprache]['tax.vat_id_line'];
-    assert.ok(zeile.includes('{verkaeufer}') && zeile.includes('{kaeufer}'), sprache);
+    assert.ok(zeile.includes('{seller}') && zeile.includes('{buyer}'), sprache);
     assert.ok(INVOICE_TEXTS[sprache]['tax.intra_community_supply.title'].length > 0, sprache);
   }
 });
@@ -71,16 +71,16 @@ test('Katalog: jeder Gutschrift-Grund des Vertrags hat einen Text', async () => 
 });
 
 test('invoiceText: setzt Werte ein und wirft bei fehlendem Wert', () => {
-  assert.equal(invoiceText('en', 'pdf.totals.vat', { satz: 20 }), 'VAT 20%');
-  assert.equal(invoiceText('de', 'copy.invoice', { nummer: '2026-0042', datum: '15.09.2026' }),
+  assert.equal(invoiceText('en', 'pdf.totals.vat', { rate: 20 }), 'VAT 20%');
+  assert.equal(invoiceText('de', 'copy.invoice', { number: '2026-0042', date: '15.09.2026' }),
     'Übersetzung – keine eigene Rechnung · Original: Rechnung Nr. 2026-0042 vom 15.09.2026');
-  assert.throws(() => invoiceText('de', 'pdf.totals.vat'), /satz/);
+  assert.throws(() => invoiceText('de', 'pdf.totals.vat'), /rate/);
 });
 
-test('Golden: der Katalog steht in fixtures/rechnung-texte.json', () => {
-  const datei = JSON.parse(readFileSync(new URL('../../fixtures/rechnung-texte.json', import.meta.url), 'utf8'));
+test('Golden: der Katalog steht in fixtures/invoice-texts.json', () => {
+  const datei = JSON.parse(readFileSync(new URL('../../fixtures/invoice-texts.json', import.meta.url), 'utf8'));
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
-  const veraltet = 'fixtures/rechnung-texte.json ist veraltet — `npm run fixtures:rechnungstexte` ausfuehren';
+  const veraltet = 'fixtures/invoice-texts.json ist veraltet — `npm run fixtures:rechnungstexte` ausfuehren';
   assert.deepEqual(Object.keys(datei), ['version', 'languages', 'texts', 'units'], veraltet);
   assert.deepEqual(datei.texts, INVOICE_TEXTS, veraltet);
   assert.equal(datei.version, pkg.version, veraltet);

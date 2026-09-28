@@ -46,7 +46,7 @@ const vertrag = JSON.parse(
     sendReversal: boolean;
     tecsTitle: string | null;
   }[];
-  gruende: Record<string, string>;
+  reasons: Record<string, string>;
   terminalBusyHttpStatus: number;
 };
 
@@ -69,7 +69,7 @@ test('Golden: die Codetabelle steht in fixtures/hobex-hps-codes.json', () => {
     })),
     veraltet,
   );
-  assert.deepEqual(vertrag.gruende, HPS_REASON_HINTS, veraltet);
+  assert.deepEqual(vertrag.reasons, HPS_REASON_HINTS, veraltet);
   assert.equal(vertrag.terminalBusyHttpStatus, TERMINAL_BUSY_HTTP_STATUS, veraltet);
 });
 

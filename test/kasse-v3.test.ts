@@ -46,8 +46,8 @@ const lies = (datei: string): Json =>
   JSON.parse(readFileSync(fileURLToPath(new URL(`../../fixtures/${datei}`, import.meta.url)), 'utf8')) as Json;
 const KASSE = lies('v3/antworten/kasse.json').endpoints as Record<string, { cases: Fall[] }>;
 const VOKABULAR = lies('v3/v3-vokabular.json');
-const STANDARD = lies('kasse-settings-standard.json');
-const STANDARD_INNEN = lies('stored/kasse-settings-standard.json');
+const STANDARD = lies('pos-settings-defaults.json');
+const STANDARD_INNEN = lies('stored/pos-settings-defaults.json');
 
 const faelle = (endpunkt: string): Fall[] => KASSE[endpunkt]!.cases;
 const fall = (endpunkt: string, name: string): Fall => {

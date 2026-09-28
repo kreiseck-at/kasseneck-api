@@ -129,9 +129,9 @@ test('Vertrag: jeder Rechnungs-Aufruf steht in der Aufrufliste des Pakets', () =
 
 // ---- Schema-Datei (erzeugt von scripts/rechnung-vertrag.mjs) ----------------
 
-const veraltet = 'fixtures/rechnung-api.schema.json ist veraltet — `npm run fixtures:rechnung` ausfuehren';
-const schemaDatei = new URL('../../fixtures/rechnung-api.schema.json', import.meta.url);
-const beispielOrdner = new URL('../../fixtures/rechnung-api-beispiele/', import.meta.url);
+const veraltet = 'fixtures/invoice-api.schema.json ist veraltet — `npm run fixtures:rechnung` ausfuehren';
+const schemaDatei = new URL('../../fixtures/invoice-api.schema.json', import.meta.url);
+const beispielOrdner = new URL('../../fixtures/invoice-api-examples/', import.meta.url);
 
 interface SchemaKnoten {
   type?: string;

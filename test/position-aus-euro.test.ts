@@ -102,14 +102,14 @@ test('Umwandler: dichte Abtastung — alles Erlaubte geht verlustfrei', () => {
 interface UmwandlungsFall {
   name: string;
   item: Record<string, unknown>;
-  erwartet: ItemConversion;
+  expected: ItemConversion;
 }
 
 const datei = JSON.parse(
-  readFileSync(new URL('../../fixtures/position-aus-euro.json', import.meta.url), 'utf8'),
-) as { faelle: UmwandlungsFall[] };
+  readFileSync(new URL('../../fixtures/item-from-euro.json', import.meta.url), 'utf8'),
+) as { cases: UmwandlungsFall[] };
 
 test('Umwandler: jeder Fall der Prueffall-Datei trifft', () => {
-  assert.ok(datei.faelle.length >= 12);
-  for (const f of datei.faelle) assert.deepEqual(itemFromEuro(f.item), f.erwartet, f.name);
+  assert.ok(datei.cases.length >= 12);
+  for (const f of datei.cases) assert.deepEqual(itemFromEuro(f.item), f.expected, f.name);
 });

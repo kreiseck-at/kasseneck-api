@@ -4,10 +4,10 @@
  * Aus dieser Datei entstehen drei Dinge, damit sie nicht auseinanderlaufen
  * koennen:
  *
- * 1. `fixtures/rechnung-api.schema.json` (`npm run fixtures:rechnung`) — das
+ * 1. `fixtures/invoice-api.schema.json` (`npm run fixtures:rechnung`) — das
  *    Backend liest es aus dem vendorierten Paket und vergleicht es in beide
  *    Richtungen mit seiner eigenen Pruefung; der Dart-Zwilling zieht es byteweise.
- * 2. Die Listen unter `rechnung` in `fixtures/oberflaeche.json` (Codes, Gruende,
+ * 2. Die Listen unter `rechnung` in `fixtures/surface.json` (Codes, Gruende,
  *    Enums) — ueber denselben Namensraum-Scan wie der Partner-Teil.
  * 3. Die TypeScript-Typen in `typen.ts`.
  *

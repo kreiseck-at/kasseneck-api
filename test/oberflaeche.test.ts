@@ -10,10 +10,10 @@ import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/invoice/index.js';
 
 const vertrag = JSON.parse(
-  readFileSync(new URL('../../fixtures/oberflaeche.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../fixtures/surface.json', import.meta.url), 'utf8'),
 );
 
-const veraltet = 'fixtures/oberflaeche.json ist veraltet — `npm run fixtures:oberflaeche` ausfuehren';
+const veraltet = 'fixtures/surface.json ist veraltet — `npm run fixtures:oberflaeche` ausfuehren';
 
 /*
  * Dieselbe Ableitung wie im Erzeuger: jede exportierte Konstante in
@@ -38,7 +38,7 @@ for (const name of Object.keys(namensraum).sort()) {
   (felder.has(schluessel(name)) ? enumListen : kasseListen).set(schluessel(name), wert as readonly (string | number)[]);
 }
 
-test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
+test('Golden: die Oberflaeche steht in fixtures/surface.json', () => {
   assert.deepEqual(Object.keys(vertrag), [
     'version', 'baseUrls', 'calls', 'routes', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice',
   ], veraltet);

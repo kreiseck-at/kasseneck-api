@@ -1,6 +1,6 @@
 {
- "belege": {
-  "karte-eigener": {
+ "receipts": {
+  "card-custom": {
    "escpos.mm58": "d67e536f352810f597104756a577e24cb2698727ec6bf7e9e6ad70212aa03259",
    "escpos.mm58.marke": "46de2225d01823485b48d29546da0b7f0bd4b902519f5603c3f6a0e4f955363d",
    "escpos.mm58.logo": "cdc346294f20dcce1c0cfa18a3106c9b3efaf6dd8f72c02b2b782cfda8ff4278",
@@ -26,7 +26,7 @@
    "html.layout": "1409c5bc9720c69ad284df13af45ef1e6674cd8c6a46c0755ad3e8257967d22f",
    "html.layout.verdeckt": "ef37780d62aa5cd9513914cb8a06828596017e8863807bd0bf0f58b6a68613db"
   },
-  "karte-gptom-ios": {
+  "card-gptom-ios": {
    "escpos.mm58": "91c74f9c0b5749a7f192849fd600107165199a502547af96f215eae5f62346cb",
    "escpos.mm58.marke": "77a601d1b09e44f96c1bd48199f4b74d271da737acfc8bcd3cc9358bf93bc767",
    "escpos.mm58.logo": "05de2acef751bbc90ddb0a76e468b6604a1a80bf2855eead44945dfc4197db1b",
@@ -52,7 +52,7 @@
    "html.layout": "a73b378d0f8613d331b05313131db864c341fbf8190c6eff0736cce3aaa57373",
    "html.layout.verdeckt": "8fc933e8af79b3bd7b1275d567f0e0f7aa213a1802d71047b5272d61063de8bc"
   },
-  "karte-gptom": {
+  "card-gptom": {
    "escpos.mm58": "964436d112ef0ed59dcaf29ca4c75bc3b6d86b320b1dabaf8849693374f6cafe",
    "escpos.mm58.marke": "b9082afd6159090516863053756286e82e2469d1cda43e94f53630f1d8f50c70",
    "escpos.mm58.logo": "8fddd48f0bba0277f48faf998800d2f2b304d2ab17c364b66a137e30e61b29aa",
@@ -78,7 +78,7 @@
    "html.layout": "3e03ea8cc7e5bbbc6058465223b4cdf348dd56128d261db258e249c41cd8a85a",
    "html.layout.verdeckt": "448673db120f42b4809318527a8c8df69bc85529f9c18a52b8b5ac44954b31bd"
   },
-  "karte-hobex-cloud": {
+  "card-hobex-cloud": {
    "escpos.mm58": "acae6a6b6b703dd31e439dd158886baec22921a042a221fdcf501f45d24d74f6",
    "escpos.mm58.marke": "5da9efaf77db83350941a21983968a9278eee3735a2ff4435d6cf786f4d45d4b",
    "escpos.mm58.logo": "484f53ecb49d65a4ae906a958880fdd3dbc74d25190aa2e5711c526626221593",
@@ -104,7 +104,7 @@
    "html.layout": "8f4cf0508450fba241b470018145be4f995084e7e7a2ad2179869e3a33dc2e24",
    "html.layout.verdeckt": "145bda46d38d4514f7e1313f840aa8f71d48961c65b057969c36dab427061f32"
   },
-  "karte-hobex-hps": {
+  "card-hobex-hps": {
    "escpos.mm58": "a1f3abb08b605542e4157261c2095ce7e5bc9fe53963ee4eb8e6a23f74f65247",
    "escpos.mm58.marke": "63b2d29f1a00c265ee82fa1698ed9ba23c457d44e342b39596ce06d92489b8b9",
    "escpos.mm58.logo": "0eb59358f8310ceb7fceb7df8b9a1d5407d611efc7b6c03281b4e9de86ead33f",
@@ -130,7 +130,7 @@
    "html.layout": "1564b55fc5f74366a8f99a3b36cab6ccd57ac9c263319daf46fc2c79178e045a",
    "html.layout.verdeckt": "6861ab4f6c2bcfc90f6750617a6ce74a48420556c54cf5e3bdf8acdc98464dc0"
   },
-  "karte-mypos": {
+  "card-mypos": {
    "escpos.mm58": "244b2d708501900485b7dd0cfaa60dee17a711c5e1bee9a165ab1f39eb7a7ce6",
    "escpos.mm58.marke": "6a865b221bd0093848ffc23d4a1ae5b42438643238c7f3626246f49fc56d7b3e",
    "escpos.mm58.logo": "a72139141ea9bb7176b9239bcc35b8870d7a2c8e27eb6f9c2cda34eb2d772279",
@@ -156,7 +156,7 @@
    "html.layout": "e193a9761744d822b1b777fc5208488a04053fc9b634359cbe7422569705f36b",
    "html.layout.verdeckt": "6b414178d130568cd24fb1ac5aecd454d01b688edd7b8a930235dddc49eea472"
   },
-  "karte-stripe-eps": {
+  "card-stripe-eps": {
    "escpos.mm58": "7128a02c30a1d290c2d0f4e30686fd087e988bd4be1583359e172f17b0316187",
    "escpos.mm58.marke": "d3aa30204ecfdc834c24daa43f85e7c461a08bba16fc5509295264105139702c",
    "escpos.mm58.logo": "adfe3f9a45578c366f26be7f3101bf1537b473dfae4879ef4a28b070202918bf",
@@ -182,7 +182,7 @@
    "html.layout": "ea35b1acc4f027b6c6a6f9d9e853bf29dc511e83c86a27eeba152ad1927744b6",
    "html.layout.verdeckt": "1d7583db11e92b1897367c96fdd13df01d418b7265069756af8ab1c820fbc175"
   },
-  "karte-stripe": {
+  "card-stripe": {
    "escpos.mm58": "f0f9a88a730cea1881ac0fd4e35a0d49b56cd481650f1e3d551f034125df0512",
    "escpos.mm58.marke": "4b50ae4ce5d72f3f8deeaa586d62d15740442d3a0bc6824d02a9f13104a4eb03",
    "escpos.mm58.logo": "4f71dc796b60c93ecb0b4fc2b502367b4dbe672e958eafb438c63edef4acdba9",
@@ -208,7 +208,7 @@
    "html.layout": "89997410edacd0f75e5a11965483b1240ae19171831eec9f487efaf1f0aa2ba8",
    "html.layout.verdeckt": "e9288a1a67cfd44bebd3da777951a42ff6b3e0ed1829dc286e75046954a2e7b8"
   },
-  "karte-sumup": {
+  "card-sumup": {
    "escpos.mm58": "bea7febd4f68768f7b6adacddeafc9ac41b03d2ba57dce8a5584b61b0656b8a6",
    "escpos.mm58.marke": "2985d763f905b5151fd28f0160c59c7ad3108cc0a730c3226931f541c02f0f21",
    "escpos.mm58.logo": "7700d895d753ef42b52700b756d6508cf1f7857f28ae67100ce2efa267a2fb57",
@@ -234,7 +234,7 @@
    "html.layout": "21b77fa2bc740fce36d74603ca07159701db82ce9d41f9a66c48b36087699f2b",
    "html.layout.verdeckt": "3e4f9feecb66fff57de4cb4fd9d870be823ca5d981865d9131447b3f8b564aa9"
   },
-  "langer-artikelname": {
+  "long-item-name": {
    "escpos.mm58": "eaea88da900cc1e4f72e2d63d8a50e15d329ef12ec8302643be20a776d4f3106",
    "escpos.mm58.marke": "ee08fdc9db5c81828fc1100dab19d76247aa8a6e5a7d42a1e18fcf61908535e5",
    "escpos.mm58.logo": "9c5a137cf59b52b47de5e00672ddf020477b964a4e82b467e98e2b9f708e59a0",
@@ -260,7 +260,7 @@
    "html.layout": "4a0cda31790349850f40ce5129ef9bebd8cc4d93d6a57e0ad8d17712e4368fb8",
    "html.layout.verdeckt": "c77411db9b36c4978b09dc28c5e4e694609c9c64ace4fb3341bf3a7b80b62c11"
   },
-  "null-ausfall": {
+  "zero-outage-end": {
    "escpos.mm58": "0ca96689753a3e6ee8cd492dd24a5e04906b7b673fb550cf1baeb740e41df89c",
    "escpos.mm58.marke": "de3c127f33ca62203f8b160dc565281038aa8707f9e287d7fe83517340b62009",
    "escpos.mm58.logo": "bce4f57cd02b6a46fa369e9d233db1d6b256df43e4d3d521568de59d754010a3",
@@ -286,7 +286,7 @@
    "html.layout": "47c1d7bdc832d03dd749084939005f6ee62ac000aa4d455a5e14aad19125397f",
    "html.layout.verdeckt": "939c72cd6fcefb3f459f68ea85007f050ce4c629694e0c4a47be4bbc315dc860"
   },
-  "null-jahr": {
+  "zero-annual": {
    "escpos.mm58": "44a24ba848f4563e27df6a51a4c25b256da5136c87d1ae267500f533f79ee24e",
    "escpos.mm58.marke": "daa49e45d185928bb7bc9168d63873eef277920a6f539636222b7d2abb534cb1",
    "escpos.mm58.logo": "350c92e0935300a4a091f59337110bcf641348517de46b3fd241e3c47ca059f0",
@@ -312,7 +312,7 @@
    "html.layout": "b8616b90b2c3d9f467eb7f6aa120bb141878b8b4f3c2af9f9eec9381714295df",
    "html.layout.verdeckt": "47c03f0f5387fe9baef1289affad156b7145aefbdb6fc6d51b4331dfb41b04f8"
   },
-  "null-monat": {
+  "zero-monthly": {
    "escpos.mm58": "d4d2b4994d33a883839c7063aa3ad8bd71e491a140bb4f6d9afdd1828dd307d9",
    "escpos.mm58.marke": "e1e7d42d95a43cb0168e5dcf1eacfe67eef44b6096aad04de8c0b75b0db008e6",
    "escpos.mm58.logo": "bde705c047a051df7fbe57536804b4581222634020041d624caacdaaf5b43fad",
@@ -338,7 +338,7 @@
    "html.layout": "aca4c0c34a42aacf274c4dd4b6ad9e3b373ac600dee39b34ad716ce6969cb9a0",
    "html.layout.verdeckt": "4a532d8cba79486c0fd4fc6f07e774633a6d597a7ca1cd26d9255747a3cac81e"
   },
-  "null-pruef": {
+  "zero-manual": {
    "escpos.mm58": "144adc81a5242e644b8a9c646b56884744aa77a12b1796951fa3d14220e9cbb3",
    "escpos.mm58.marke": "2b320c4e39f076e00e062d6ab417457701ff16c5da2b3d27c16b0fb7071effe1",
    "escpos.mm58.logo": "d920ea1a24722ed7834f40cbaab15eea876ebe5f8bcfb398082f3f52bb9a0283",
@@ -364,7 +364,7 @@
    "html.layout": "16f179d5fa1650794772bfea080fa3177bda7c58f7abf411c4922c33beb51bd8",
    "html.layout.verdeckt": "7373db11fe63913e6223a39ea8aae585688c101249bb9716cd5dbec450ae0e84"
   },
-  "null-schluss": {
+  "zero-final": {
    "escpos.mm58": "e0c5efc84cd3d500cf2a99102d609487c04c946d9cca3f4a5e0aa6d012f2a9c7",
    "escpos.mm58.marke": "6ad2e994828298e7f5c84c9165c6ee3b25c087d2906468c2cfa37325028185c3",
    "escpos.mm58.logo": "eb68cfd911f9b601324eb9e00fae2c3996067a02e651fb5d26dcc4441281928c",
@@ -390,7 +390,7 @@
    "html.layout": "2805aaffc823f373a5411886e20f8f9cdf9f356e97e20ce74167c52c9edbc0bf",
    "html.layout.verdeckt": "ed22f0e37e25b3445b36ca47d14716f04b595824c5ae2ed5221da9f3104b46cc"
   },
-  "null-start": {
+  "zero-start": {
    "escpos.mm58": "a2b5b65ef2aa1bce9f7a9e4820336e5068a4b404bc61d16ffa93b199d2410854",
    "escpos.mm58.marke": "83f30a65cc26e5b2add3db049ae2e7247b1bd00fb59bcfbb7ef4caad45f4430f",
    "escpos.mm58.logo": "11b636847e454b2236eed479f09d89caa7e8701a930473e4c614f8263d77fe97",
@@ -416,7 +416,7 @@
    "html.layout": "a2485b5cdfc42f909935d2a502b7fc104f171a15538e29f73a38522ff6d74291",
    "html.layout.verdeckt": "6eb58ef71d0a1d2192e54d10bee0a3c3c0e2fbd45a00aadc7434afef4b826bf1"
   },
-  "rabatt-chef-trinkgeld": {
+  "discount-owner-tip": {
    "escpos.mm58": "e626fcfb5d1e4958f4f4950feac6d656c58a4dea89aced9ed818112f84d5ba8f",
    "escpos.mm58.marke": "99c67fd2dd543031eda293d26fb65f758bfac5f78e897b018c11315b07cb0879",
    "escpos.mm58.logo": "39a84f8d91017bb6fb2e5af30c5aaddb4a068691d8338e05ed01cd8c9d563a95",
@@ -442,7 +442,7 @@
    "html.layout": "edb30f18ec334b35e60daa06a6b222f417dec815985dcb3e55298d56ae759a5c",
    "html.layout.verdeckt": "fb75d618d71586c27df634cd7b7e4a6d5caa5b48b1b9222be45f7f88250fff51"
   },
-  "rabatt-einfach": {
+  "discount-simple": {
    "escpos.mm58": "cfc94246a8330cd16e23f2f14d5447cd1fce5cbee8613d1eefd13a1075b7dc47",
    "escpos.mm58.marke": "4ba0df25da888fa359882e6cb23ee94364934fa5805024b21a2de8752fdfb525",
    "escpos.mm58.logo": "1f16a934ef7d63a0766571d763950e6fc24a3159a767fc8cfdc3d99dac91eb1d",
@@ -468,7 +468,7 @@
    "html.layout": "2871e1f3428b1ee52a7df1fb7d82b651b96df9ad3821c700e43e9b4daefcf891",
    "html.layout.verdeckt": "4ca99a5fdcc2fda02793f23ee473fe8c4d0479a8ffe80cf9a1ffadf48257ab21"
   },
-  "rabatt-trinkgeld": {
+  "discount-tip": {
    "escpos.mm58": "3b2bdc911d35ea672cb22206582b4f1057f2a7d221a2ac8ed05076c75a9437a2",
    "escpos.mm58.marke": "89b611da26f01bbe001710077c353be1670868d16817d1a839ef616e42560d83",
    "escpos.mm58.logo": "900506b46ac4875a90bc4692a1cc51d5b000176cf0494d97e0dfeae9ba294584",
@@ -494,7 +494,7 @@
    "html.layout": "893a2cc0f4d65526336ac208ffe08dd0d61c82bdce7f78d380bf046794762778",
    "html.layout.verdeckt": "016a3ac4b001f44d756c972ea6dfd6b23ebd3d0c7abfd69fa0c6ed91c0ce87c4"
   },
-  "rabatt-wertgutschein": {
+  "discount-value-voucher": {
    "escpos.mm58": "93768af00bcc30a4a9535c8c3bfdab86253bfb69b348a3929bfcdc541593bafd",
    "escpos.mm58.marke": "b88c6d8a5cc2527544123967abb2ec6f8599094769b2f0cdd25315f618656f3f",
    "escpos.mm58.logo": "0337f3061fe2fe4db8e29de62b337f5ac20a8488437b5605c8193620744ed99b",
@@ -520,7 +520,7 @@
    "html.layout": "a4ade6e44c661013d662645ca8ec9454f32c125b5b069f40153e1c646dac824d",
    "html.layout.verdeckt": "db2f5e12dc93af613320cf1b29f50929b8382b404a1380d967402ba3069487bb"
   },
-  "rabattzeilen": {
+  "discount-lines": {
    "escpos.mm58": "a4240fa09f02a345e5af8e6607559cf818be993f4c8bef72c3e6105d55f8950c",
    "escpos.mm58.marke": "b5a9d47e1c742e8243dec94b43544cef359f8e2b1659cac8f073f4b6812884f4",
    "escpos.mm58.logo": "537af62c31d51efcf7f0e124f2338ca0ad2408ea381d4b5086c1e1ba1dc85840",
@@ -546,7 +546,7 @@
    "html.layout": "f9e207bc8094fcc47fab35b67acdc82c5aa0973d5a00de891e37c2185348982a",
    "html.layout.verdeckt": "c8763cdd56f1cf50d4e636225ce20b504353ada96fdc81f61ce4e061cc418d72"
   },
-  "signaturausfall-verkauf": {
+  "signature-outage-sale": {
    "escpos.mm58": "11984ee4d30ed516b0561a26f12ce54829492bd95c78f3c16f7b7ac68081319b",
    "escpos.mm58.marke": "b3e83c844fce2a9071cc95b393e0d7fe376c1f672780992ed62392c02f7cbc1f",
    "escpos.mm58.logo": "444e917ae2e2576068a431a4eaac754d7e506df3071b1ce7c0cd0f056baf5d99",
@@ -572,7 +572,7 @@
    "html.layout": "2bac35b5b3dacdea475a7c8d0c5e2a3f18c857f9a35fa949de40eb85e5866f84",
    "html.layout.verdeckt": "9725505d3fa399231ca5ec035421ac7e55ef31e4534e3d2961ce2ff38c4f36e6"
   },
-  "split-bar-rueckgeld": {
+  "split-cash-change": {
    "escpos.mm58": "66ac86776b2b7f5c99c19968045f25dc1ed44735f4f3ed9a556fdf8830475c3e",
    "escpos.mm58.marke": "4b86165a5f8d66d0a9ab905a645638d76593801abf94f54a532bd99909313354",
    "escpos.mm58.logo": "b8bd666c611e31d1d66365a483cca0dc501b766993700ed121e3f3a1ce1d7b83",
@@ -598,7 +598,7 @@
    "html.layout": "aa895a1854049845be46248fe2a8b8942da44234f2daade8ec20dfb5519b803d",
    "html.layout.verdeckt": "b8635b0734f129067ddfe482e3609d35c0cfc4e5add3b712a8b747b15404431b"
   },
-  "split-eine-karte-trinkgeld": {
+  "split-one-card-tip": {
    "escpos.mm58": "7e5bb3a2539e9f1f706e37080e29c8ff0fd44fabe8b7a4ae1ac8f9ad143f0371",
    "escpos.mm58.marke": "ab7291ab0f73c27c259763213720f9717f376196fdf1818cebbd5a7129f3a845",
    "escpos.mm58.logo": "11cd2658404562e6ce3be6070f51090f2bd0405ef262c7415197a04a4a86de63",
@@ -624,7 +624,7 @@
    "html.layout": "28947fd152ff85946817b1419ccf583952c31e9b5ed37dd2852bbbfa25e7aeaf",
    "html.layout.verdeckt": "80d2c9df2ea7cc22574f0b7d9d9900a4148f79a93fbd7bae68e81bc250c8c38e"
   },
-  "split-karte-karte-bar": {
+  "split-card-card-cash": {
    "escpos.mm58": "1503d9e886f1a5fc90d6c38951b27238441f2a64219df84dc520961eac0ad51a",
    "escpos.mm58.marke": "b0b5d5c258a86f1da1d72e9b43c63e8325766f83c824e05b3d12813dfe4f39f0",
    "escpos.mm58.logo": "45f3b6447bc94ce3a579e3c00cbfe332e791738a4585cd6161766080616420a5",
@@ -650,7 +650,7 @@
    "html.layout": "be147ab3a30a81ca150cf593eddfd60ca4de5a6a3eb75f2b9ad5caabf863e3e3",
    "html.layout.verdeckt": "0b7fbba502a00b889369b4e54e2e76aafe3cdbd78caa3f9ac86153b86620dc64"
   },
-  "split-langer-betrag": {
+  "split-long-amount": {
    "escpos.mm58": "80de4a58f114d662ef612097570467d29d9cb883cd0b6e87cb125a1158c8baa8",
    "escpos.mm58.marke": "8218af91a331f50ce332fd7231cba779c4ebfe5ec78518dc3fa2b44a1b1b2d47",
    "escpos.mm58.logo": "22c3957892a5da815f6c860f0df9a9d4276b78d55baed2cde580989d65fe6383",
@@ -676,7 +676,7 @@
    "html.layout": "b967b3d8f779bb193428742e00384ee78667b45cec34794cea7e4263d42e4d99",
    "html.layout.verdeckt": "9b1bea726445bf36af328376c8c5194fd2dc7aa7179df2e2789c85f63dfca8ee"
   },
-  "split-tischrunde-trinkgeld": {
+  "split-table-round-tip": {
    "escpos.mm58": "3483541648ac998e98930361ab7b25ef71b64078860385a5f1f95b2f3bed6641",
    "escpos.mm58.marke": "18bc9d380fe448ae5061653dfb06cd26f28096dbd11b17eeffeae0e13db3b29f",
    "escpos.mm58.logo": "b8d05316d0abe224fd125ab0d1c1031bd82486e21f07e35e8f72f9227e42a558",
@@ -702,7 +702,7 @@
    "html.layout": "3581d16b804da627ed407e9cda949e374651367358c56fb8c681e688096a6ab1",
    "html.layout.verdeckt": "b1b6dfcc4d809ccb8840949d6acfc783939964ca7af52b2dfc1ba302e2c8b876"
   },
-  "split-trinkgeld-karte": {
+  "split-tip-card": {
    "escpos.mm58": "c03aa52f273dab626e906e1a880d4c9aebccb6bb101af06bd9489ccb5aa80f7b",
    "escpos.mm58.marke": "df065ede44bf781fb39398fec37e0e735aee0fd33bba03f881e8ae99c5872f6a",
    "escpos.mm58.logo": "6dc521691a8e02af01a503efea64f43d1646a6c871639e333aa4088fe08c5c5f",
@@ -728,7 +728,7 @@
    "html.layout": "a23c6b6b048c97a1ab358533b8113e8b1312eaad91742c03cda2e98308a14839",
    "html.layout.verdeckt": "f291a8c185fc8577bdc8b369553d9fc794dfe451c1440b6737ac6e0ce4d7c870"
   },
-  "split-zwei-karten-gleicher-anbieter": {
+  "split-two-cards-same-provider": {
    "escpos.mm58": "88192217662e8deaa0690368be5a7d8b4ccfd2204434caf9eb4bc177fc8cc233",
    "escpos.mm58.marke": "ac6e633270f79acaa5ac0eaf3d0cc39c3bc2772ecb443eb12c87a2bc0767ff5d",
    "escpos.mm58.logo": "239a8d9283a1ef322216d2b1c2a83b25964eb3fe502db6dc03c76e3f78088ec9",
@@ -754,7 +754,7 @@
    "html.layout": "9c527db83739f19f16ae1c4bc4afb1223aee3b59b33cf570d1a71ed037c22931",
    "html.layout.verdeckt": "9ba9a149793994c2f627aec5fb938779dac0869bd5df83d0a64cef9c92732185"
   },
-  "storno-rabatt": {
+  "cancellation-discount": {
    "escpos.mm58": "1aa43f1cd989f45106259f5edd8a7e1de3cfd1e2d795d5091b9ea486acc4d2cf",
    "escpos.mm58.marke": "e43f87ec9ab4e5c142367c62cf3ed6c8110068d983cf561d884813ff94789bc2",
    "escpos.mm58.logo": "7a5c77b0e778a47bbd8efb5429b56edaaa0342a56fe820d6f0c956090825a74c",
@@ -780,7 +780,7 @@
    "html.layout": "8a175a473f0ae03a60241fb46169a1289f6822ab365812e3ffbc4c4206ee8621",
    "html.layout.verdeckt": "a1414fff4205cef25775cb40efcaba0717d87f77742f1840917531bc877bc89a"
   },
-  "storno-split-teil": {
+  "cancellation-split-partial": {
    "escpos.mm58": "f4a3c4fe021592194667084f090804635939525d456a59d4b9e464f13fbc1f22",
    "escpos.mm58.marke": "d683be80983d3e8ec07afdc9c6f500ef2a0caf9a157861707ba5322edeeed89b",
    "escpos.mm58.logo": "7dfbaa625c4ca2b8c1289dd97e2abd265c3c85d5b73d9463cb22aff556eb0b91",
@@ -806,7 +806,7 @@
    "html.layout": "b377e8328eadbfd70c2cfcfbd25c2a781dfa932890f026f152da81e13b5d6452",
    "html.layout.verdeckt": "11b2d745bb3a43e01d1de06aa3a7b825a99339ef2f306555ec5313bf6ef493e4"
   },
-  "storno-split-voll": {
+  "cancellation-split-full": {
    "escpos.mm58": "178d53c6f3e4ce49e584f4e77ea6fe342edf18dc38ed5be0cd7c41c53fdb8cb9",
    "escpos.mm58.marke": "16b1fb718621f97adcb9c8d1257226b565f8bb30bd44d18776797e9293c8d65c",
    "escpos.mm58.logo": "dd929bdd20098944ef2fdb54b75ef8370221afdb80b672445aed2f3b127fb6ae",
@@ -832,7 +832,7 @@
    "html.layout": "6e4ed80d3f4cb75c068de44a07416265e27cc0ed74ea460b1849aebe0fd2b72e",
    "html.layout.verdeckt": "95ac5a7ac37fa24eef867ecad27daed25c72f5bc280e806a9e5ea361e8688be4"
   },
-  "storno-teil": {
+  "cancellation-partial": {
    "escpos.mm58": "88ee594549d335969c4954f1159c34440e84979e03216063f6c9b4967dd26589",
    "escpos.mm58.marke": "9f6f37ce8d9e7d5f0fd6ca47e88bbf1e4c5bc85718eb6acc68b827e990ad942d",
    "escpos.mm58.logo": "a3443a8e69915d7b71d21ec3be4bbd8e4b12ec3e408704f11c3ed0b4575cdd81",
@@ -858,7 +858,7 @@
    "html.layout": "2fc78dc33909db38fc3571e147f66bb0a3e5b72795f9cd7292c798354cc14f8d",
    "html.layout.verdeckt": "5e9508e7d2974be8d36d0f2202f244689cc249b69613c486f95cc8f9d3dd6013"
   },
-  "storno-voll": {
+  "cancellation-full": {
    "escpos.mm58": "13079b420593942d7040deb7704b8fe4d92b27ead9931331bf64fedf8f9a2296",
    "escpos.mm58.marke": "a7f88d01134605bafa380a0f3c2727bce8b928713eb54c1f90bcc93c9264a41a",
    "escpos.mm58.logo": "4ad53cb25877fca735021d382d9c6e9e058a1df6a28809b9c4d0675445f4825f",
@@ -884,7 +884,7 @@
    "html.layout": "d866e1d27102d951556cd2c92a4a94494ed7da7b7c6c755ec345cd75b0779e55",
    "html.layout.verdeckt": "28c298822f83024b44b13912b1407a5cd15766d910b7b58b8ae878c1d6d1a94f"
   },
-  "testkasse-verkauf": {
+  "test-cashregister-sale": {
    "escpos.mm58": "8ca0a6faeeed6fb1c01647e54e222fe1c377692f1c97a9725acd378249a87218",
    "escpos.mm58.marke": "154744e27709d45cc7df421a8b77077f95407080311d98c4748ea0b04c2d50d3",
    "escpos.mm58.logo": "4b56773ef160c9ff8bba4402072ff883347215497abcf3fa8b38b35a8dd080ac",
@@ -910,7 +910,7 @@
    "html.layout": "3ac168b94f7d2a73920e19a8cb0c3439bcf4deb8930f10cb42e72773d8abc703",
    "html.layout.verdeckt": "a0e66c58c5e046b7754cdf38441c80ea2c6434ef6a1daa53584ef9c163d8a179"
   },
-  "testsignatur-verkauf": {
+  "test-signature-sale": {
    "escpos.mm58": "b471f93d9af7b8d73f5b29b9e43904776050b7e7fd6dbf664443ea7756428928",
    "escpos.mm58.marke": "538a0f7477c7e39db5e5ff4d83952cff8ce6b6adc5821776004a8f118ddf25bd",
    "escpos.mm58.logo": "865c87b7ff23a4229e39ebc8713f0a7972a789367a53be9199f47241adee3774",
@@ -962,7 +962,7 @@
    "html.layout": "30423283c3bcec469ec090fc6a1ad88e67133633de53ff4625b8b911163d4932",
    "html.layout.verdeckt": "66e0f8399cc63340e5b38301cdbfb0fe60649f773968abc492ac7112d4ec7ed3"
   },
-  "verkauf-bar": {
+  "sale-cash": {
    "escpos.mm58": "3eee87447b799e571660f24cde884bcea73708d2b5ab1171bc429dc7064c0a72",
    "escpos.mm58.marke": "d7f990d0b527e1a3ffbb47180dc1b0bc18a41bb9b6ac56b2736a2e29f09ee51f",
    "escpos.mm58.logo": "e7c9b5af4c7017642cd07e924bed49a4cab2db59d984e2818df18fa1b435054b",
@@ -988,7 +988,7 @@
    "html.layout": "24a8de96757c82502f20a7e4d4e75537e5c537ce2b919ff42b94e46b305c77dd",
    "html.layout.verdeckt": "61ab66f93ed9f99c4ff6bf673166eb831cfe04fcb155d5690108afc8c61c41e4"
   },
-  "verkauf-karte": {
+  "sale-card": {
    "escpos.mm58": "63924a570f67f928b6fbd0f036401827c4be78aa29ed12927ca7a405da09764d",
    "escpos.mm58.marke": "2fe8c2b7a544763859c7a71d343399e8156358f18b1dca8c7bb69762e3a0ebfe",
    "escpos.mm58.logo": "7e99f0cef7af3122002156362ebd1665bdb0e0a982d5cf8c3323614369bbe966",
@@ -1014,7 +1014,7 @@
    "html.layout": "795ed1d2fce8938fd85f373e8d1dadf36acf22e96875b332ceebc022f31ab0f0",
    "html.layout.verdeckt": "9bdd4da32cf1390867f8df5797f7b5de75ec4a48d97b2640e19992f9f41b8fb6"
   },
-  "verkauf-kleinunternehmer": {
+  "sale-small-business": {
    "escpos.mm58": "521cc49791e6d07397b286b1fed89601f38eb66c90cb45bb4cd2fb60504dbf70",
    "escpos.mm58.marke": "396ef72ed387814fb841fcf064943f98ed793bb951612d654e5773930cf83ec5",
    "escpos.mm58.logo": "4638a095853f9c88e20dcbc1f068c9eb4a2710eab6d7405a54fbbe01dde522b5",
@@ -1564,7 +1564,7 @@
   }
  },
  "ruleset1": {
-  "null-ausfall": {
+  "zero-outage-end": {
    "escpos.mm58": "7d3fce820f167a545683c6b1734a7bb4095a2c0c541f5ac6f49669eb3262f136",
    "escpos.mm58.marke": "79ed363748f7da8e4f8e22fffface8a03812d1fece147a0795c7c121b3b2b6ea",
    "escpos.mm58.logo": "171e793b297ae4ca4392c003d04d75f2abe0decc520940ea8272bad5d71cf6bf",
@@ -1590,7 +1590,7 @@
    "html.layout": "605a2851ea3d103965246969cc54b5405f5ab9a5e4a3682c4646497d3748a084",
    "html.layout.verdeckt": "b55dc48233903fd0c7e1a1b3ce52d59195c69954cddbd134be62a38a9543efac"
   },
-  "null-monat": {
+  "zero-monthly": {
    "escpos.mm58": "623cef124d9bf51e466f423a8e14034a80fb62f588c8bf2b1e836ee24b6019dd",
    "escpos.mm58.marke": "806312cb5f86675f9b36da67ca17a3cf7eca3732d340d8c28bf04a49634c23b2",
    "escpos.mm58.logo": "d300dcf4475d99a49fee3bedd389e3cda176d976267a5bab19b40fc1b034d152",
@@ -1616,7 +1616,7 @@
    "html.layout": "136416fe6afa2ccc222ebc44108dfe09035440c5a419c82ce34dd34b790a9d5c",
    "html.layout.verdeckt": "b4d770dba1c96872fd1427931f18ef65189fb9bded13a65d940af8df97838bf1"
   },
-  "null-start": {
+  "zero-start": {
    "escpos.mm58": "d6740f736747d478e50ced90f909bbec9744efc78bd41829526977e5660a6111",
    "escpos.mm58.marke": "721d9543f9e1877a1173f0afa66634ab0d0b43d81081592b6a28827d4fa14533",
    "escpos.mm58.logo": "7361c53122f7c846c2c014e217b66f35ba7e0b8b227db1f79e1cacbd501b111f",
@@ -1642,7 +1642,7 @@
    "html.layout": "e5afc240913031486f5dfc66134324d908570701e7cb5ea2094fdc2a8af1400e",
    "html.layout.verdeckt": "24e2d4c3234514dfa16eadec1fb353ae8420b29f6589139e834c37ea0da25cdb"
   },
-  "signaturausfall-verkauf": {
+  "signature-outage-sale": {
    "escpos.mm58": "11984ee4d30ed516b0561a26f12ce54829492bd95c78f3c16f7b7ac68081319b",
    "escpos.mm58.marke": "b3e83c844fce2a9071cc95b393e0d7fe376c1f672780992ed62392c02f7cbc1f",
    "escpos.mm58.logo": "444e917ae2e2576068a431a4eaac754d7e506df3071b1ce7c0cd0f056baf5d99",
@@ -1668,7 +1668,7 @@
    "html.layout": "2bac35b5b3dacdea475a7c8d0c5e2a3f18c857f9a35fa949de40eb85e5866f84",
    "html.layout.verdeckt": "9725505d3fa399231ca5ec035421ac7e55ef31e4534e3d2961ce2ff38c4f36e6"
   },
-  "testkasse-verkauf": {
+  "test-cashregister-sale": {
    "escpos.mm58": "8ca0a6faeeed6fb1c01647e54e222fe1c377692f1c97a9725acd378249a87218",
    "escpos.mm58.marke": "154744e27709d45cc7df421a8b77077f95407080311d98c4748ea0b04c2d50d3",
    "escpos.mm58.logo": "4b56773ef160c9ff8bba4402072ff883347215497abcf3fa8b38b35a8dd080ac",
@@ -1694,7 +1694,7 @@
    "html.layout": "3ac168b94f7d2a73920e19a8cb0c3439bcf4deb8930f10cb42e72773d8abc703",
    "html.layout.verdeckt": "a0e66c58c5e046b7754cdf38441c80ea2c6434ef6a1daa53584ef9c163d8a179"
   },
-  "verkauf-bar": {
+  "sale-cash": {
    "escpos.mm58": "3eee87447b799e571660f24cde884bcea73708d2b5ab1171bc429dc7064c0a72",
    "escpos.mm58.marke": "d7f990d0b527e1a3ffbb47180dc1b0bc18a41bb9b6ac56b2736a2e29f09ee51f",
    "escpos.mm58.logo": "e7c9b5af4c7017642cd07e924bed49a4cab2db59d984e2818df18fa1b435054b",

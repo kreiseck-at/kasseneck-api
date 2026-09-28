@@ -11,7 +11,7 @@ const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url
 // Quelle direkt importiert.
 // Strukturschluessel englisch seit 1.0 (unter 0.x: meldungen, fehlerregeln,
 // belegMailFehler, stornoZahlungFehler, beschriftungen; Tabelle in
-// fixtures/texte-umbenennung.json, Abschnitt `struktur`).
+// fixtures/renames-1.0.json, Abschnitt `structure`).
 const vertrag = {
   version: paket.version,
   messages: MESSAGES,
@@ -21,7 +21,7 @@ const vertrag = {
   // Knoepfe und Zeilennamen, keine Saetze, darum nicht unter `messages`.
   labels: LABELS,
 };
-writeFileSync(new URL('../fixtures/kasse-texte.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
+writeFileSync(new URL('../fixtures/pos-texts.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
 console.log('Kassen-Texte geschrieben:', Object.keys(MESSAGES).length, 'Meldungen,', ERROR_RULES.length, 'Regeln,',
   Object.keys(RECEIPT_EMAIL_ERROR_MESSAGES).length, 'Mail-Fehlercodes,', Object.keys(CANCELLATION_PAYMENT_ERROR_MESSAGES).length, 'Storno-Zahlungscodes,',
   Object.keys(LABELS).length, 'Beschriftungen');

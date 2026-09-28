@@ -9,7 +9,7 @@
  * Rechnung 23,49 EUR). Die Formel bleibt trotzdem, wie sie ist: der Server
  * schaltet den Kern je Konto ueber einen Schalter und rechnet Entwuerfe
  * ausserhalb des Ausstellens teils weiter nach Weg 2, und Backend und
- * Dart-Zwilling pruefen gegen `fixtures/rechnung-summen.json`. Neuer Code
+ * Dart-Zwilling pruefen gegen `fixtures/invoice-totals.json`. Neuer Code
  * nimmt `calculateInvoice` oder `previewInvoice`.
  *
  * Die Regel (je USt-Satz, Betraege in Cent, kaufmaennisch gerundet):
@@ -23,7 +23,7 @@
  * ist das Brutto der vereinbarte Preis und bleibt, wie die Zeilen es ergeben.
  * Bei einem steuerfreien Steuerfall zaehlt jede Zeile zu 0 %.
  *
- * `fixtures/rechnung-summen.json` haelt die Prueffaelle; Backend und
+ * `fixtures/invoice-totals.json` haelt die Prueffaelle; Backend und
  * Dart-Zwilling pruefen gegen dieselbe Datei. Verbindlich bleibt, was der
  * Server rechnet — mit `previewInvoice` laesst sich das vorab abfragen.
  */

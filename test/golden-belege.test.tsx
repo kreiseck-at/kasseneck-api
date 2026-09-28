@@ -10,7 +10,7 @@ import { buildReceiptLayout, escPosLayoutBytes, receiptSheet, logoDimensions, lo
 import { ReceiptLayoutView } from '../src/react/index.js';
 
 /**
- * Golden-Belege: `fixtures/belege/*.json` sind die Eingaben, `fixtures/erwartet/
+ * Golden-Belege: `fixtures/receipts/*.json` sind die Eingaben, `fixtures/expected/
  * *.lines.json` die zugesagte Zeilenausgabe -- fuer keck (PDF/Beleg-Link), die
  * Browser-Kasse und das Flutter-Paket dieselben Dateien. Aendert sich das
  * Layout absichtlich, werden sie mit `npm run fixtures:erneuern` neu erzeugt
@@ -18,16 +18,16 @@ import { ReceiptLayoutView } from '../src/react/index.js';
  */
 // test-dist liegt eine Ebene tiefer (test-dist/test/...): die Fixtures liegen im Repo-Wurzelverzeichnis.
 const wurzel = new URL('../../fixtures/', import.meta.url);
-const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+const namen = readdirSync(new URL('receipts/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
 
 interface Fixture { company: Parameters<typeof buildReceiptLayout>[1]; receipt: Record<string, unknown> & { customerDetails: string[]; legalMessage: string[] }; options?: BuildReceiptLayoutOptions }
-const lade = (name: string): Fixture => JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
-const erwartet = (name: string): ReceiptLayout => JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+const lade = (name: string): Fixture => JSON.parse(readFileSync(new URL(`receipts/${name}.json`, wurzel), 'utf8')) as Fixture;
+const erwartet = (name: string): ReceiptLayout => JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
 const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'null-ausfall', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer']);
+  assert.deepEqual(namen, ['cancellation-discount', 'cancellation-full', 'cancellation-partial', 'cancellation-split-full', 'cancellation-split-partial', 'card-custom', 'card-gptom', 'card-gptom-ios', 'card-hobex-cloud', 'card-hobex-hps', 'card-mypos', 'card-stripe', 'card-stripe-eps', 'card-sumup', 'discount-lines', 'discount-owner-tip', 'discount-simple', 'discount-tip', 'discount-value-voucher', 'long-item-name', 'sale-card', 'sale-cash', 'sale-small-business', 'signature-outage-sale', 'split-card-card-cash', 'split-cash-change', 'split-long-amount', 'split-one-card-tip', 'split-table-round-tip', 'split-tip-card', 'split-two-cards-same-provider', 'test-cashregister-sale', 'test-signature-sale', 'training', 'zero-annual', 'zero-final', 'zero-manual', 'zero-monthly', 'zero-outage-end', 'zero-start']);
 });
 
 /**
@@ -42,7 +42,7 @@ test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
  * Die Liste kommt aus dem Enum, nicht aus einer Handliste: wer einen Anbieter
  * aufnimmt, wird hier rot, bis er einen Golden-Beleg dazulegt. Und ein
  * Anbieter, der bewusst keinen Block bekommt, braucht trotzdem einen Golden --
- * dann eben einen, der die Abwesenheit festhaelt (`karte-eigener`).
+ * dann eben einen, der die Abwesenheit festhaelt (`card-custom`).
  */
 test('Kartenanbieter: jeder Wert des Enums hat einen Golden-Beleg', () => {
   const belegt = new Set<string>();
@@ -100,21 +100,21 @@ for (const name of namen) {
 }
 
 test('Golden-Belege: Manifest traegt die Pruefsummen von Eingabe, Erwartung, Raster und Blatt (Drift in fremden Repos erkennbar)', () => {
-  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { ruleset: number; belege: Record<string, Record<string, string>>; logoProbe: { raster32: string; hoch32: string } };
+  const manifest = JSON.parse(readFileSync(new URL('manifest.json', wurzel), 'utf8')) as { ruleset: number; receipts: Record<string, Record<string, string>>; logoSample: { raster32: string; tall32: string } };
   assert.equal(manifest.ruleset, 2);
   const hash = (pfad: string): string => createHash('sha256').update(readFileSync(new URL(pfad, wurzel))).digest('hex');
   for (const name of namen) {
-    assert.deepEqual(manifest.belege[name], {
-      eingabe: hash(`belege/${name}.json`),
-      erwartet: hash(`erwartet/${name}.lines.json`),
-      grid32: hash(`erwartet/${name}.grid32.txt`),
-      grid48: hash(`erwartet/${name}.grid48.txt`),
-      blatt32: hash(`erwartet/${name}.blatt32.json`),
-      blatt48: hash(`erwartet/${name}.blatt48.json`),
+    assert.deepEqual(manifest.receipts[name], {
+      input: hash(`receipts/${name}.json`),
+      expected: hash(`expected/${name}.lines.json`),
+      grid32: hash(`expected/${name}.grid32.txt`),
+      grid48: hash(`expected/${name}.grid48.txt`),
+      sheet32: hash(`expected/${name}.sheet32.json`),
+      sheet48: hash(`expected/${name}.sheet48.json`),
     }, `Manifest fuer ${name} veraltet -- npm run fixtures:erneuern`);
   }
-  assert.equal(manifest.logoProbe.raster32, hash('erwartet/logo-probe.raster32.txt'));
-  assert.equal(manifest.logoProbe.hoch32, hash('erwartet/logo-probe-hoch.raster32.txt'));
+  assert.equal(manifest.logoSample.raster32, hash('expected/logo-sample.raster32.txt'));
+  assert.equal(manifest.logoSample.tall32, hash('expected/logo-sample-tall.raster32.txt'));
 });
 
 const PROBE_LOGO = { size: 'M', pixelWidth: 300, pixelHeight: 120 } as const;
@@ -122,7 +122,7 @@ const PROBE_LOGO = { size: 'M', pixelWidth: 300, pixelHeight: 120 } as const;
 for (const name of namen) {
   test(`Golden-Blatt ${name}: Blatt mit Probe-Logo und Marke ist die zugesagte Folge (32 und 48 Zeichen)`, () => {
     for (const zeichen of [32, 48] as const) {
-      const soll = JSON.parse(readFileSync(new URL(`erwartet/${name}.blatt${zeichen}.json`, wurzel), 'utf8')) as unknown;
+      const soll = JSON.parse(readFileSync(new URL(`expected/${name}.sheet${zeichen}.json`, wurzel), 'utf8')) as unknown;
       assert.deepEqual(JSON.parse(JSON.stringify(receiptSheet(erwartet(name), { charsPerLine: zeichen, logo: PROBE_LOGO, brandMark: true }))), soll);
     }
   });
@@ -134,10 +134,10 @@ for (const name of namen) {
  * Farbe je Pixel: `g = floor(x * 255 / (b - 1))`, R = `g`, G = `(g * 3) % 256`,
  * B = `255 - g` -- ein waagrechter Verlauf, dessen Kanaele verschieden laufen.
  *
- * - Probe `logo-probe.raster32.txt`: 300x100, Stufe S, 32 Zeichen (breitenbegrenzt).
+ * - Probe `logo-sample.raster32.txt`: 300x100, Stufe S, 32 Zeichen (breitenbegrenzt).
  *   Deckung je Zeile: `y < 10` -> 0; `10 <= y < 30` -> `floor((y - 10) * 255 / 19)`;
  *   `y >= 30` -> 255. Belegt Durchsichtiges UND Teiltransparenz.
- * - Probe `logo-probe-hoch.raster32.txt`: 100x400, Stufe S, 32 Zeichen, ueberall
+ * - Probe `logo-sample-tall.raster32.txt`: 100x400, Stufe S, 32 Zeichen, ueberall
  *   deckend (255) -- der hoehenbegrenzte Zweig von `logoDimensions`.
  */
 function verlauf(b: number, h: number, deckung: (y: number) => number): Uint8Array {
@@ -158,7 +158,7 @@ function rasterText(b: number, h: number, deckung: (y: number) => number): strin
 
 test('Golden: Logo-Probe (300x100, Stufe S, 32 Zeichen, Teiltransparenz) rastert Punkt fuer Punkt wie zugesagt', () => {
   const text = rasterText(300, 100, (y) => (y < 10 ? 0 : y < 30 ? Math.floor(((y - 10) * 255) / 19) : 255));
-  assert.equal(text, readFileSync(new URL('erwartet/logo-probe.raster32.txt', wurzel), 'utf8'));
+  assert.equal(text, readFileSync(new URL('expected/logo-sample.raster32.txt', wurzel), 'utf8'));
 });
 
 test('Golden: Logo-Probe hoch (100x400, Stufe S, 32 Zeichen, hoehenbegrenzt) rastert Punkt fuer Punkt wie zugesagt', () => {
@@ -166,11 +166,11 @@ test('Golden: Logo-Probe hoch (100x400, Stufe S, 32 Zeichen, hoehenbegrenzt) ras
   // Hoehenbegrenzt: 5 Zeilen = 120 Punkte fuer 400 Pixel, also Faktor 0,3 -> 30x120.
   assert.deepEqual(logoRasterSize(mass, 32), { width: 30, height: 120 });
   const text = rasterText(100, 400, () => 255);
-  assert.equal(text, readFileSync(new URL('erwartet/logo-probe-hoch.raster32.txt', wurzel), 'utf8'));
+  assert.equal(text, readFileSync(new URL('expected/logo-sample-tall.raster32.txt', wurzel), 'utf8'));
 });
 
 test('Golden-Belege: ESC/POS und React sind deterministisch und tragen den Belegart-Aufdruck', () => {
-  for (const name of ['storno-voll', 'training', 'null-monat', 'testkasse-verkauf']) {
+  for (const name of ['cancellation-full', 'training', 'zero-monthly', 'test-cashregister-sale']) {
     const layout = erwartet(name);
     const a = escPosLayoutBytes(layout), b = escPosLayoutBytes(layout);
     assert.deepEqual(a, b);
@@ -186,7 +186,7 @@ test('Golden-Belege: ESC/POS und React sind deterministisch und tragen den Beleg
 });
 
 test('Rot-Probe: ein Stornobeleg OHNE Aufdruck ist kein gueltiges Golden -- der Vergleich schlaegt an', () => {
-  const l = layoutVon(lade('storno-voll'));
+  const l = layoutVon(lade('cancellation-full'));
   const ohne: ReceiptLayout = { ...l, lines: l.lines.filter((z) => z.kind !== 'banner') };
-  assert.notDeepEqual(ohne, erwartet('storno-voll'));
+  assert.notDeepEqual(ohne, erwartet('cancellation-full'));
 });

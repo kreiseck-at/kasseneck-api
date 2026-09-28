@@ -10,7 +10,7 @@ import { ReceiptSheetLines } from '../src/react/index.js';
 /**
  * Jeder Zeichner gegen JEDES Blatt-Golden: der ePOS-Druckweg und die
  * React-Ansicht muessen Zeile fuer Zeile die Folge aus
- * `fixtures/erwartet/<name>.blatt<zeichen>.json` setzen.
+ * `fixtures/expected/<name>.blatt<zeichen>.json` setzen.
  *
  * Die Erwartung ist die Golden-Datei selbst -- `receiptSheet` wird hier bewusst
  * NICHT noch einmal gerechnet. Sonst pruefte der Test nur, dass zwei Aufrufe
@@ -20,11 +20,11 @@ import { ReceiptSheetLines } from '../src/react/index.js';
 
 // test-dist liegt eine Ebene tiefer (test-dist/test/...): die Fixtures liegen im Repo-Wurzelverzeichnis.
 const wurzel = new URL('../../fixtures/', import.meta.url);
-const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+const namen = readdirSync(new URL('receipts/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
 
-const layoutVon = (name: string): ReceiptLayout => JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+const layoutVon = (name: string): ReceiptLayout => JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
 const goldenBlatt = (name: string, zeichen: number): ReceiptSheet =>
-  JSON.parse(readFileSync(new URL(`erwartet/${name}.blatt${zeichen}.json`, wurzel), 'utf8')) as ReceiptSheet;
+  JSON.parse(readFileSync(new URL(`expected/${name}.sheet${zeichen}.json`, wurzel), 'utf8')) as ReceiptSheet;
 
 /** Dasselbe Probe-Logo, mit dem die Goldens erzeugt wurden (`scripts/belege-fixtures.mjs`). */
 const PROBE = { size: 'M', pixelWidth: 300, pixelHeight: 120 } as const;

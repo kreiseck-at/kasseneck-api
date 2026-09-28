@@ -96,7 +96,7 @@ test('Aufrufe: jeder Rechnungs-Endpunkt ist oeffentlich und unter /v3 geroutet',
 });
 
 test('Schema-Fixture: keine deutschen Werte mehr in der Anfrageform', () => {
-  const schema = readFileSync(fileURLToPath(new URL('../../fixtures/rechnung-api.schema.json', import.meta.url)), 'utf8');
+  const schema = readFileSync(fileURLToPath(new URL('../../fixtures/invoice-api.schema.json', import.meta.url)), 'utf8');
   assert.ok(schema.includes('"intraCommunitySupply"'));
   assert.ok(schema.includes('"credit_note"'));
   for (const deutsch of ['"igLieferung"', '"RE"', '"GU"']) assert.ok(!schema.includes(deutsch), deutsch);

@@ -250,7 +250,7 @@ type BenanntesRecht = BenannteSchluessel<RegisterUserPerms>;
 
 /**
  * Alle Rechte-Schluessel, die dieses Paket kennt — die Zwillinge pruefen
- * dagegen, und ueber `fixtures/oberflaeche.json` steht die Liste im Vertrag.
+ * dagegen, und ueber `fixtures/surface.json` steht die Liste im Vertrag.
  *
  * `satisfies` schliesst die eine Richtung: ein Name, den [RegisterUserPerms]
  * nicht fuehrt (Tippfehler, umbenanntes Recht), kommt hier nicht durch.

@@ -11,22 +11,22 @@ interface Fall {
   priceMode: PriceMode;
   taxScheme?: TaxScheme;
   items: TotalsItem[];
-  erwartet: ReturnType<typeof computeInvoiceTotals>;
+  expected: ReturnType<typeof computeInvoiceTotals>;
 }
 
-const datei = JSON.parse(readFileSync(new URL('../../fixtures/rechnung-summen.json', import.meta.url), 'utf8')) as {
-  faelle: Fall[];
+const datei = JSON.parse(readFileSync(new URL('../../fixtures/invoice-totals.json', import.meta.url), 'utf8')) as {
+  cases: Fall[];
 };
 
-test('Prueffaelle: jeder Fall aus fixtures/rechnung-summen.json trifft genau', () => {
-  assert.ok(datei.faelle.length >= 15);
-  for (const f of datei.faelle) {
-    assert.deepEqual(computeInvoiceTotals(f.items, f.priceMode, f.taxScheme), f.erwartet, f.name);
+test('Prueffaelle: jeder Fall aus fixtures/invoice-totals.json trifft genau', () => {
+  assert.ok(datei.cases.length >= 15);
+  for (const f of datei.cases) {
+    assert.deepEqual(computeInvoiceTotals(f.items, f.priceMode, f.taxScheme), f.expected, f.name);
   }
 });
 
 test('Prueffaelle: die Rueckmeldung des Shops steht drin', () => {
-  const namen = datei.faelle.map((f) => f.name).join('\n');
+  const namen = datei.cases.map((f) => f.name).join('\n');
   assert.match(namen, /0,03 €/);
   assert.match(namen, /29,79 €/);
 });

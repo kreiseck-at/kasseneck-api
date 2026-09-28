@@ -104,7 +104,7 @@ const vertrag = {
   invoice: rechnungListen,
 };
 
-writeFileSync(new URL('../fixtures/oberflaeche.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
+writeFileSync(new URL('../fixtures/surface.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
 console.log('Oberflaeche geschrieben:', vertrag.calls.public.length, 'oeffentliche und', vertrag.calls.pos.length, 'Kassen-Aufrufe,',
   Object.keys(vertrag.enums).length, 'Enums,', vertrag.registerPerms.length, 'Rechte,',
   Object.keys(vertrag.partner).length, 'Partner-Listen');

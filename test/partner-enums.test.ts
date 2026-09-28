@@ -17,7 +17,7 @@ import {
  * `enums.test.ts` fuer die Kassen-Enums: verglichen wird gegen den
  * eingecheckten Abzug der Dart-Seite (test/fixtures/dart-partner.json).
  *
- * **Warum es diese Datei zusaetzlich zu fixtures/oberflaeche.json gibt.** Der
+ * **Warum es diese Datei zusaetzlich zu fixtures/surface.json gibt.** Der
  * Vertrag in `fixtures/` geht in die andere Richtung: den prueft das
  * Dart-Repo gegen dieses Paket. Hier faellt auf, was NUR in Dart landet —
  * ein Fehlercode, ein Ereignis, ein Betriebsfeld oder die Marke `test`, die

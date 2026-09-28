@@ -1,5 +1,5 @@
 // Schreibt den Vertrag der Rechnungs-API als JSON Schema nach
-// fixtures/rechnung-api.schema.json.
+// fixtures/invoice-api.schema.json.
 //
 // Quelle ist src/invoice/vertrag.ts – die Datei hier liest nur ab und
 // uebersetzt. Das Backend vergleicht das Schema in beide Richtungen mit seiner
@@ -96,7 +96,7 @@ const vertrag = {
 };
 
 writeFileSync(
-  new URL('../fixtures/rechnung-api.schema.json', import.meta.url),
+  new URL('../fixtures/invoice-api.schema.json', import.meta.url),
   JSON.stringify(vertrag, null, 2) + '\n',
 );
 console.log('Rechnungs-Vertrag geschrieben:', Object.keys(aufrufe).length, 'Aufrufe,',

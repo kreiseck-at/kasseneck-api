@@ -41,7 +41,7 @@ import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
 
 const layout = (paperSize: 'mm58' | 'mm80'): ReceiptLayout => ({
   ...(JSON.parse(
-    readFileSync(new URL('../../fixtures/erwartet/verkauf-bar.lines.json', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../fixtures/expected/sale-cash.lines.json', import.meta.url), 'utf8'),
   ) as ReceiptLayout),
   paperSize,
 });

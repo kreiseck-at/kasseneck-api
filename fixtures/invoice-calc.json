@@ -1,22 +1,22 @@
 {
-  "beschreibung": "Prüffälle des Ganzzahl-Rechenkerns (rechnungRechnen). Von Hand gerechnet, nicht erzeugt: npm, Server, Dart-Zwilling und Panel müssen jeden Fall genau treffen. Preise in Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in Hundertstel-Prozent, Beträge in Cent.",
-  "regel": {
-    "zeile": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
+  "description": "Prüffälle des Ganzzahl-Rechenkerns (rechnungRechnen). Von Hand gerechnet, nicht erzeugt: npm, Server, Dart-Zwilling und Panel müssen jeden Fall genau treffen. Preise in Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in Hundertstel-Prozent, Beträge in Cent.",
+  "rule": {
+    "line": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
     "net": "Netto = rund(Σ Zeilen); USt = rund(Σ Zeilen × Satz ÷ 10000); Brutto = Netto + USt",
     "gross": "Brutto B = rund(Σ Zeilen); Netto = rund(B × 10000 ÷ (10000 + Satz)); USt = B − Netto",
-    "steuerfrei": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
-    "rundung": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
-    "zeilen": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent"
+    "taxExempt": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
+    "rounding": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
+    "lines": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent"
   },
-  "faelle": [
+  "cases": [
     {
       "name": "Shop: 14,79 € + 15,00 € brutto zu 20 % bleiben 29,79 €",
       "priceMode": "gross",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 14790000, "quantityMilli": 1000, "vatRateBp": 2000 },
         { "unitPriceMicros": 15000000, "quantityMilli": 1000, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 2483,
         "vatCents": 496,
         "grossCents": 2979,
@@ -30,8 +30,8 @@
     {
       "name": "Halber Cent: 21,35 € netto zu 10 % ergibt 2,14 € USt",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 21350000, "quantityMilli": 1000, "vatRateBp": 1000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 21350000, "quantityMilli": 1000, "vatRateBp": 1000 }],
+      "expected": {
         "netCents": 2135,
         "vatCents": 214,
         "grossCents": 2349,
@@ -42,8 +42,8 @@
     {
       "name": "Mikropreis: 0,000004 € × 3.500.000 sind 14,00 €",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 4, "quantityMilli": 3500000000, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 4, "quantityMilli": 3500000000, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 1400,
         "vatCents": 280,
         "grossCents": 1680,
@@ -54,8 +54,8 @@
     {
       "name": "Halber Cent: 550,17 € × 1,5 netto zu 13 % ergibt 825,26 € netto (825,255 € rundet auf)",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 550170000, "quantityMilli": 1500, "vatRateBp": 1300 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 550170000, "quantityMilli": 1500, "vatRateBp": 1300 }],
+      "expected": {
         "netCents": 82526,
         "vatCents": 10728,
         "grossCents": 93254,
@@ -66,8 +66,8 @@
     {
       "name": "Gebrochene Menge: 66,30 € × 35,05 netto zu 20 % ergibt 2.323,82 € netto (2.323,815 € rundet auf)",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 66300000, "quantityMilli": 35050, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 66300000, "quantityMilli": 35050, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 232382,
         "vatCents": 46476,
         "grossCents": 278858,
@@ -78,8 +78,8 @@
     {
       "name": "Großer Betrag: 42.735,95 € × 73 netto zu 10 % ergibt 31.197.244 Cent USt (311.972,435 € rundet auf)",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 42735950000, "quantityMilli": 73000, "vatRateBp": 1000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 42735950000, "quantityMilli": 73000, "vatRateBp": 1000 }],
+      "expected": {
         "netCents": 311972435,
         "vatCents": 31197244,
         "grossCents": 343169679,
@@ -90,8 +90,8 @@
     {
       "name": "Sehr großer Betrag: 3.206,08 € × 188.289,923 − 41,96 % netto zu 0 % bleiben 35.037.155.169 Cent (Rest 0,499994 Cent, knapp unter der halben Einheit, rundet ab)",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 3206080000, "quantityMilli": 188289923, "discountBp": 4196, "vatRateBp": 0 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 3206080000, "quantityMilli": 188289923, "discountBp": 4196, "vatRateBp": 0 }],
+      "expected": {
         "netCents": 35037155169,
         "vatCents": 0,
         "grossCents": 35037155169,
@@ -102,8 +102,8 @@
     {
       "name": "Rabatt: 15,45 € × 5 − 6 % netto zu 0 % ergibt 72,62 €",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 15450000, "quantityMilli": 5000, "discountBp": 600, "vatRateBp": 0 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 15450000, "quantityMilli": 5000, "discountBp": 600, "vatRateBp": 0 }],
+      "expected": {
         "netCents": 7262,
         "vatCents": 0,
         "grossCents": 7262,
@@ -114,11 +114,11 @@
     {
       "name": "Gleichstand in der Verteilung: 2,81 € × 2,977 + 0,81 € × 2,377 netto zu 20 % — beide Zeilen verlieren beim Runden gleich viel (0,537 Cent), die frühere verliert den Cent",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 2810000, "quantityMilli": 2977, "vatRateBp": 2000 },
         { "unitPriceMicros": 810000, "quantityMilli": 2377, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 1029,
         "vatCents": 206,
         "grossCents": 1235,
@@ -132,11 +132,11 @@
     {
       "name": "Verteilung unter einem Cent: 0,006 € + 0,006 € netto zu 0 % ergeben zusammen 0,01 €, verteilt auf 0 und 1",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 6000, "quantityMilli": 1000, "vatRateBp": 0 },
         { "unitPriceMicros": 6000, "quantityMilli": 1000, "vatRateBp": 0 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 1,
         "vatCents": 0,
         "grossCents": 1,
@@ -150,11 +150,11 @@
     {
       "name": "Abzugszeile: 100,00 € minus 10,00 € netto zu 20 % ergeben 90,00 € netto und 18,00 € USt",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 100000000, "quantityMilli": 1000, "vatRateBp": 2000 },
         { "unitPriceMicros": 10000000, "quantityMilli": -1000, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 9000,
         "vatCents": 1800,
         "grossCents": 10800,
@@ -168,11 +168,11 @@
     {
       "name": "Textzeile ohne Menge neben 5,00 € netto zu 20 % ändert nichts: netto bleibt 5,00 €, die Textzeile bleibt 0",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 0, "quantityMilli": 0, "vatRateBp": 2000 },
         { "unitPriceMicros": 5000000, "quantityMilli": 1000, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 500,
         "vatCents": 100,
         "grossCents": 600,
@@ -186,8 +186,8 @@
     {
       "name": "Nullzeile bekommt nie einen Cent: 99,99 € × 3 mit 100 % Rabatt netto zu 20 % bleibt bei 0,00 €",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 99990000, "quantityMilli": 3000, "discountBp": 10000, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 99990000, "quantityMilli": 3000, "discountBp": 10000, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 0,
         "vatCents": 0,
         "grossCents": 0,
@@ -198,12 +198,12 @@
     {
       "name": "Reihenfolge von byRate: 10,00 € je zu 20 %, 10 % und 4,9 % netto stehen absteigend, USt 2,00 € + 1,00 € + 0,49 €",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 10000000, "quantityMilli": 1000, "vatRateBp": 2000 },
         { "unitPriceMicros": 10000000, "quantityMilli": 1000, "vatRateBp": 1000 },
         { "unitPriceMicros": 10000000, "quantityMilli": 1000, "vatRateBp": 490 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 3000,
         "vatCents": 349,
         "grossCents": 3349,
@@ -223,8 +223,8 @@
       "name": "Steuerfrei: 12,00 € brutto mit taxScheme smallBusiness bleiben 12,00 € netto ohne USt, der Preismodus zählt nicht",
       "priceMode": "gross",
       "taxScheme": "smallBusiness",
-      "positionen": [{ "unitPriceMicros": 12000000, "quantityMilli": 1000, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 12000000, "quantityMilli": 1000, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 1200,
         "vatCents": 0,
         "grossCents": 1200,
@@ -235,8 +235,8 @@
     {
       "name": "Shop-Rückmeldung: 0,03 € brutto zu 20 % bleiben 0,03 € brutto und netto (2,5 Cent rundet auf)",
       "priceMode": "gross",
-      "positionen": [{ "unitPriceMicros": 30000, "quantityMilli": 1000, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 30000, "quantityMilli": 1000, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 3,
         "vatCents": 0,
         "grossCents": 3,
@@ -247,8 +247,8 @@
     {
       "name": "Höchstwert: 999.999.999,99 € netto zu 0 % gehen gerade noch bis an die Obergrenze",
       "priceMode": "net",
-      "positionen": [{ "unitPriceMicros": 999999999990, "quantityMilli": 1000000, "vatRateBp": 0 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 999999999990, "quantityMilli": 1000000, "vatRateBp": 0 }],
+      "expected": {
         "netCents": 99999999999,
         "vatCents": 0,
         "grossCents": 99999999999,
@@ -259,8 +259,8 @@
     {
       "name": "Brutto mit gebrochener Menge: 1,01 € × 1,5 brutto zu 20 % ergeben 1,52 € brutto (151,5 Cent rundet auf)",
       "priceMode": "gross",
-      "positionen": [{ "unitPriceMicros": 1010000, "quantityMilli": 1500, "vatRateBp": 2000 }],
-      "erwartet": {
+      "items": [{ "unitPriceMicros": 1010000, "quantityMilli": 1500, "vatRateBp": 2000 }],
+      "expected": {
         "netCents": 127,
         "vatCents": 25,
         "grossCents": 152,
@@ -271,11 +271,11 @@
     {
       "name": "Nullzeile bekommt keinen Rundungscent: 0,00 € und 2,5 Cent netto zu 20 %",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 0, "quantityMilli": 1000, "vatRateBp": 2000 },
         { "unitPriceMicros": 25000, "quantityMilli": 1000, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 3,
         "vatCents": 1,
         "grossCents": 4,
@@ -289,10 +289,10 @@
     {
       "name": "Rabatt auf Schüttgut: 0,149999 € × 50.000 − 10 % netto zu 20 % ergibt 6.749,96 € netto (der rabattierte Einzelpreis ist kein ganzer Cent mehr — wer vor der Multiplikation ganzzahlig teilt, landet bei 674.995 statt 674.996)",
       "priceMode": "net",
-      "positionen": [
+      "items": [
         { "unitPriceMicros": 149999, "quantityMilli": 50000000, "discountBp": 1000, "vatRateBp": 2000 }
       ],
-      "erwartet": {
+      "expected": {
         "netCents": 674996,
         "vatCents": 134999,
         "grossCents": 809995,

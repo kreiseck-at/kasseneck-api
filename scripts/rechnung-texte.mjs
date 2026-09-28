@@ -1,4 +1,4 @@
-// Schreibt den Textkatalog der Rechnungen nach fixtures/rechnung-texte.json.
+// Schreibt den Textkatalog der Rechnungen nach fixtures/invoice-texts.json.
 //
 // Quelle ist src/invoice/texte.ts – die Datei hier liest nur ab. Das Backend
 // liest den Katalog aus dem vendorierten Paket (PDF, E-Rechnung, Mail), die
@@ -18,5 +18,5 @@ const datei = {
   units: rechnung.INVOICE_UNIT_CODES,
 };
 
-writeFileSync(new URL('../fixtures/rechnung-texte.json', import.meta.url), JSON.stringify(datei, null, 2) + '\n');
+writeFileSync(new URL('../fixtures/invoice-texts.json', import.meta.url), JSON.stringify(datei, null, 2) + '\n');
 console.log('Rechnungstexte geschrieben:', Object.keys(rechnung.INVOICE_TEXTS.de).length, 'Schluessel,', datei.languages.join('/'));

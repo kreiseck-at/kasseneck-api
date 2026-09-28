@@ -25,7 +25,7 @@ import type { Voucher } from '../models/voucher.js';
  * Eingaben und Ergebnis sind ganze Cent; die Gleitkommazahlen leben nur
  * innerhalb dieser Rechnung. Geprueft gegen die 20 Vertragsfaelle aus
  * `fixtures/v3/zahlbetrag-faelle.json` und gegen mehr als 1000 mit dem echten
- * Backend-Code erzeugte Faelle (`fixtures/v3-zahlbetrag-generiert.json`).
+ * Backend-Code erzeugte Faelle (`fixtures/receipt-due-generated.json`).
  *
  * **Trinkgeld-Empfaenger:** Ohne `recipients` bucht der Server das Trinkgeld
  * auf den angemeldeten Kassen-Benutzer, und dessen Inhaber-Kennzeichen

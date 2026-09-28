@@ -1,12 +1,12 @@
 // Standardwerte der Kassen-Einstellungen als Golden-Dateien, abgeleitet aus
 // dem Vertrags-Export des Backends (fixtures/v3), nie von Hand:
 //
-// - fixtures/kasse-settings-standard.json: die Drahtform `/api/v3`
+// - fixtures/pos-settings-defaults.json: die Drahtform `/api/v3`
 //   ({business, device}, englisch). `business` ist die Antwort fuer ein Konto
 //   ohne gespeicherte Einstellungen (listRegisterUsersForDevice,
 //   account_without_settings), `device` die fuer ein Geraet ohne gespeicherte
 //   Einstellungen (getKasseSettings, cashier_unknown_device).
-// - fixtures/stored/kasse-settings-standard.json: dieselben Werte in der
+// - fixtures/stored/pos-settings-defaults.json: dieselben Werte in der
 //   inneren Form ({betrieb, geraet}, deutsch), uebersetzt mit dem Schema
 //   `getKasseSettings` und den Katalogen aus v3-vokabular.json. Diese Form
 //   steht in Firestore und im Backend-Validator (kasse-settings-core.js).
@@ -68,8 +68,8 @@ function nachInnen(teil) {
 const innen = { [schema.data.business.__]: nachInnen('business'), [schema.data.device.__]: nachInnen('device') };
 
 const schreibe = (ziel, inhalt) => writeFileSync(new URL(ziel, import.meta.url), JSON.stringify(inhalt, null, 2) + '\n');
-schreibe('../fixtures/kasse-settings-standard.json', draht);
+schreibe('../fixtures/pos-settings-defaults.json', draht);
 mkdirSync(new URL('../fixtures/stored/', import.meta.url), { recursive: true });
-schreibe('../fixtures/stored/kasse-settings-standard.json', innen);
+schreibe('../fixtures/stored/pos-settings-defaults.json', innen);
 console.log('Kassen-Standardwerte geschrieben:', Object.keys(draht.business).length, 'Betriebs- und',
   Object.keys(draht.device).length, 'Geraetefelder (Draht und innere Form)');

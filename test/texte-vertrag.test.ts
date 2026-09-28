@@ -5,10 +5,10 @@ import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, MESSAGES, CANCELLATI
 import type { MessageKey } from '../src/pos/texte.js';
 
 const lies = (name: string) => JSON.parse(readFileSync(new URL(`../../fixtures/${name}`, import.meta.url), 'utf8'));
-const veraltet = 'fixtures/kasse-texte.json ist veraltet — `npm run fixtures:texte` ausfuehren';
+const veraltet = 'fixtures/pos-texts.json ist veraltet — `npm run fixtures:texte` ausfuehren';
 
-test('Golden: der Katalog steht in fixtures/kasse-texte.json', () => {
-  const vertrag = lies('kasse-texte.json');
+test('Golden: der Katalog steht in fixtures/pos-texts.json', () => {
+  const vertrag = lies('pos-texts.json');
   assert.deepEqual(Object.keys(vertrag), ['version', 'messages', 'errorRules', 'receiptEmailErrors', 'cancellationPaymentErrors', 'labels'], veraltet);
   assert.deepEqual(vertrag.messages, MESSAGES, veraltet);
   assert.deepEqual(vertrag.errorRules, ERROR_RULES, veraltet);
@@ -22,7 +22,7 @@ test('Golden: der Katalog steht in fixtures/kasse-texte.json', () => {
 });
 
 test('die Faelle decken jede Fehlerart ab und erwarten nur, was der Katalog hergibt', () => {
-  const datei = lies('kasse-meldungen-faelle.json') as { version: number; cases: Array<{ name: string; error: { kind: string }; fallback: string; expected: string | { key: keyof typeof MESSAGES; values?: Record<string, string | number> } }> };
+  const datei = lies('pos-message-cases.json') as { version: number; cases: Array<{ name: string; error: { kind: string }; fallback: string; expected: string | { key: keyof typeof MESSAGES; values?: Record<string, string | number> } }> };
   assert.deepEqual(Object.keys(datei), ['version', 'cases']);
   const arten = new Set(datei.cases.map((f) => f.error.kind));
   assert.deepEqual([...arten].sort(), ERROR_RULES.map((r) => r.kind).sort());

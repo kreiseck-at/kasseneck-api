@@ -22,7 +22,7 @@ import { qrModuleCount } from '../src/printing/index.js';
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const roh = JSON.parse(
-  readFileSync(new URL('erwartet/verkauf-bar.lines.json', wurzel), 'utf8'),
+  readFileSync(new URL('expected/sale-cash.lines.json', wurzel), 'utf8'),
 ) as ReceiptLayout;
 const basis: ReceiptLayout = { ...roh, paperSize: 'mm58' };
 

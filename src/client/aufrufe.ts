@@ -2,7 +2,7 @@
  * Die Namen der Backend-Functions, die dieses Paket aufruft — als Daten, nicht
  * als Zeichenketten im Code verstreut. Zwei Gruende:
  *
- * 1. Der Vertrag (`fixtures/oberflaeche.json`) gibt die Liste aus, damit die
+ * 1. Der Vertrag (`fixtures/surface.json`) gibt die Liste aus, damit die
  *    Zwillinge pruefen koennen, ob sie denselben Aufruf kennen.
  * 2. Die paketinternen Module nehmen [InternerTransport] statt
  *    [KasseneckTransport] entgegen; ein Tippfehler im Aufrufnamen ist damit ein

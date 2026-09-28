@@ -156,7 +156,7 @@ interface GenFall {
   };
   expected: Fall['expected'] | { error: string };
 }
-const generiert = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3-zahlbetrag-generiert.json', import.meta.url)), 'utf8')) as { cases: GenFall[] };
+const generiert = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/receipt-due-generated.json', import.meta.url)), 'utf8')) as { cases: GenFall[] };
 
 function genRechnen(f: GenFall) {
   const items: ReceiptItem[] = f.input.items.map((p) => ({

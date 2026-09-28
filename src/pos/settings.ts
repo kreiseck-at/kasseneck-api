@@ -5,7 +5,7 @@
  * dort mit Validator und in der inneren, deutschen Form).
  *
  * Betriebsweit (`business`, am Konto) und je Geraet (`device`). Die
- * Standardwerte stehen hier UND im Backend; `fixtures/kasse-settings-standard.json`
+ * Standardwerte stehen hier UND im Backend; `fixtures/pos-settings-defaults.json`
  * ist aus dem Vertrags-Export abgeleitet (Antwort fuer ein Konto ohne
  * gespeicherte Einstellungen) und haelt beide deckungsgleich. Die innere Form
  * derselben Werte liegt unter `fixtures/stored/`. Trinkgeld ist bewusst AUS,
@@ -17,7 +17,7 @@
  * (`typeof LISTE[number]`). So gibt es die Werte nur einmal, und die Zwillinge
  * (Backend-Validator, Flutter-Paket) koennen gegen dieselben Listen pruefen,
  * statt sie abzuschreiben. Der Name der Liste ist der Feldname in
- * GROSSSCHRIFT (`tileStyle` -> `TILE_STYLE`): so fuehrt `fixtures/oberflaeche.json`
+ * GROSSSCHRIFT (`tileStyle` -> `TILE_STYLE`): so fuehrt `fixtures/surface.json`
  * jede Liste unter dem Namen des Feldes, zu dem sie gehoert.
  */
 

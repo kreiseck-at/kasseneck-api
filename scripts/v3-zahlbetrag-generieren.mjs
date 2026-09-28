@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Erzeugt `fixtures/v3-zahlbetrag-generiert.json`: Rechenfaelle fuer den
+ * Erzeugt `fixtures/receipt-due-generated.json`: Rechenfaelle fuer den
  * Zwilling `receiptDueCents`, gerechnet mit dem **echten Backend-Code**
  * (`functions/gemeinsam/beleg-toepfe.js`, `tip-core.js`, `zahlungen-core.js`),
  * in derselben Reihenfolge wie `createReceipt` in `functions/index.js`:
@@ -171,13 +171,13 @@ const cases = [...BENANNT, ...Array.from({ length: ANZAHL }, (_, i) => fall(i))]
 const inhalt = JSON.parse(JSON.stringify({ seed: SEED, cases }, (_k, v) => (Object.is(v, -0) ? 0 : v)));
 const quellen = Object.fromEntries(['beleg-toepfe.js', 'tip-core.js', 'zahlungen-core.js', 'vat-buckets.js'].map((d) => [d, createHash('sha256').update(readFileSync(kern(d))).digest('hex')]));
 const datei = {
-  _hinweis: 'Erzeugt von scripts/v3-zahlbetrag-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.',
-  _quelle: quellen,
+  _note: 'Erzeugt von scripts/v3-zahlbetrag-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.',
+  _source: quellen,
   ...inhalt,
 };
 // Ein Fall je Zeile: lesbar im Diff, ohne die Datei aufzublaehen.
-const kopf = JSON.stringify({ _hinweis: datei._hinweis, _quelle: datei._quelle, seed: datei.seed }, null, 2).replace(/\n}$/, '');
+const kopf = JSON.stringify({ _note: datei._note, _source: datei._source, seed: datei.seed }, null, 2).replace(/\n}$/, '');
 const zeilen = datei.cases.map((c) => `    ${JSON.stringify(c)}`).join(',\n');
-writeFileSync(new URL('../fixtures/v3-zahlbetrag-generiert.json', import.meta.url), `${kopf},\n  "cases": [\n${zeilen}\n  ]\n}\n`);
+writeFileSync(new URL('../fixtures/receipt-due-generated.json', import.meta.url), `${kopf},\n  "cases": [\n${zeilen}\n  ]\n}\n`);
 const fehler = cases.filter((c) => c.expected.error).length;
 console.log(`${cases.length} Faelle geschrieben (${fehler} mit Fehler), Backend ${backend}`);

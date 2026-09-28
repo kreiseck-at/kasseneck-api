@@ -21,7 +21,7 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * eigenem Commit, nie ein Beifang.
  */
 const goldens = JSON.parse(readFileSync(new URL('../../test/fixtures/druck-goldens.json', import.meta.url), 'utf8')) as {
-  belege: Record<string, Record<string, string>>;
+  receipts: Record<string, Record<string, string>>;
   server: Record<string, Record<string, string>>;
   ruleset1: Record<string, Record<string, string>>;
 };
@@ -37,17 +37,17 @@ function vergleiche(name: string, layout: ReceiptLayout, soll: Record<string, st
   assert.deepEqual(anders, [], `${name}: Ausgabe weicht ab`);
 }
 
-const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+const namen = readdirSync(new URL('receipts/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
 
 test('Druck-Goldens: jeder Golden-Beleg ist aufgenommen, keiner zu viel', () => {
-  assert.deepEqual(Object.keys(goldens.belege).sort(), namen);
+  assert.deepEqual(Object.keys(goldens.receipts).sort(), namen);
 });
 
 for (const name of namen) {
   test(`Druck-Golden ${name}: ESC/POS, ePOS, Blatt und HTML byte-gleich`, () => {
-    const f = JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
+    const f = JSON.parse(readFileSync(new URL(`receipts/${name}.json`, wurzel), 'utf8')) as Fixture;
     const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
-    vergleiche(name, buildReceiptLayout(receipt, f.company, f.options ?? {}), goldens.belege[name]);
+    vergleiche(name, buildReceiptLayout(receipt, f.company, f.options ?? {}), goldens.receipts[name]);
   });
 }
 
@@ -78,7 +78,7 @@ test('Druck-Goldens: alle Server-Layouts aus dem Vertrag sind aufgenommen', () =
 // `regelwerk: 1`; heute heisst sie `ruleset: 1`.
 for (const name of Object.keys(goldens.ruleset1)) {
   test(`Druck-Golden Regelwerk 1 ${name}: byte-gleich`, () => {
-    const roh = JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
+    const roh = JSON.parse(readFileSync(new URL(`receipts/${name}.json`, wurzel), 'utf8')) as Fixture;
     const f: Fixture = { ...roh, options: { ...(roh.options ?? {}), ruleset: 1 } };
     const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
     const layout = buildReceiptLayout(receipt, f.company, f.options ?? {});
@@ -89,8 +89,8 @@ for (const name of Object.keys(goldens.ruleset1)) {
 
 test('Druck-Goldens Regelwerk 1: Nullbelege und Vollbelege dabei', () => {
   const namen1 = Object.keys(goldens.ruleset1);
-  assert.ok(namen1.filter((n) => n.startsWith('null-')).length >= 3);
-  assert.ok(namen1.includes('verkauf-bar') && namen1.includes('signaturausfall-verkauf'));
+  assert.ok(namen1.filter((n) => n.startsWith('zero-')).length >= 3);
+  assert.ok(namen1.includes('sale-cash') && namen1.includes('signature-outage-sale'));
 });
 
 test('Druck-Goldens: die Blatt-Abbildung wirft bei unbekanntem Feld oder unbekannter Art', () => {

@@ -95,7 +95,7 @@ test('die vier Ausgaenge einer GP-Tom-Zahlung haben ihren Satz', () => {
   assert.deepEqual(MESSAGES['gptom.declined_with_code'].placeholders, ['code']);
   assert.match(MESSAGES['gptom.not_opened'].text, /^GP Tom ließ sich nicht öffnen/);
   assert.equal(MESSAGES['gptom.timeout'].placeholders, undefined);
-  assert.deepEqual(MESSAGES['gptom.timeout_with_id'].placeholders, ['kennung']);
+  assert.deepEqual(MESSAGES['gptom.timeout_with_id'].placeholders, ['reference']);
 });
 
 test('ein unklarer Ausgang warnt vor dem zweiten Kassieren, statt nur zu melden', () => {
@@ -118,7 +118,7 @@ test('jede _with_id-Fassung ist ihre Grundfassung plus die Kennung', () => {
     const grund = schluessel.slice(0, -'_with_id'.length);
     assert.ok(grund in MESSAGES, `${schluessel} ohne Grundfassung ${grund}`);
     const eintrag = MESSAGES[schluessel as MessageKey];
-    assert.deepEqual(eintrag.placeholders, ['kennung'], schluessel);
+    assert.deepEqual(eintrag.placeholders, ['reference'], schluessel);
     assert.ok(eintrag.text.startsWith(MESSAGES[grund as MessageKey].text), schluessel);
     assert.deepEqual(eintrag.only, MESSAGES[grund as MessageKey].only, schluessel);
   }
@@ -129,11 +129,11 @@ test('jede _with_id-Fassung ist ihre Grundfassung plus die Kennung', () => {
 // den Betrag UND die Kennung nennen und duerfen nicht zum Wiederholen raten.
 test('die Saetze zur schon gebuchten Karte nennen Betrag und Kennung', () => {
   for (const schluessel of ['card_payment.card_charged_receipt_open', 'card_payment.card_charged_cart_changed'] as const) {
-    assert.deepEqual([...(MESSAGES[schluessel].placeholders ?? [])].sort(), ['betrag', 'kennung'], schluessel);
+    assert.deepEqual([...(MESSAGES[schluessel].placeholders ?? [])].sort(), ['amount', 'reference'], schluessel);
     assert.equal(MESSAGES[schluessel].only, undefined, schluessel);
   }
   assert.equal(
-    messageText('card_payment.card_charged_receipt_open', { betrag: '12,90 €', kennung: 'A-4711' }),
+    messageText('card_payment.card_charged_receipt_open', { amount: '12,90 €', reference: 'A-4711' }),
     'Die Karte ist bereits mit 12,90 € belastet (Kennung A-4711) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.',
   );
   assert.match(MESSAGES['card_payment.card_charged_cart_changed'].text, /verwerfen/);
@@ -161,12 +161,12 @@ test('kein Satz zum Weitergeben eines Belegs ist an eine Seite gebunden', () => 
 
 test('der Teilen-Text traegt den Link und nennt Betrieb, Nummer und Betrag', () => {
   const eintrag = MESSAGES['receipt.share_text'];
-  assert.deepEqual([...(eintrag.placeholders ?? [])].sort(), ['betrag', 'betrieb', 'link', 'nummer']);
+  assert.deepEqual([...(eintrag.placeholders ?? [])].sort(), ['amount', 'business', 'link', 'number']);
   // Ohne Link ist der geteilte Text wertlos, und ein Link mitten im Satz wird
   // von manchen Huellen mitsamt dem Folgetext verlinkt oder abgeschnitten.
   assert.ok(eintrag.text.endsWith('{link}'), 'der Link steht nicht am Schluss');
   assert.equal(
-    messageText('receipt.share_text', { nummer: 'AT-1-2026-17', betrieb: 'Bäckerei Jobst', betrag: '4,20 €', link: 'https://beleg.kasseneck.at/abc' }),
+    messageText('receipt.share_text', { number: 'AT-1-2026-17', business: 'Bäckerei Jobst', amount: '4,20 €', link: 'https://beleg.kasseneck.at/abc' }),
     'Beleg AT-1-2026-17 von Bäckerei Jobst über 4,20 €: https://beleg.kasseneck.at/abc',
   );
 });
@@ -188,7 +188,7 @@ test('der einzige receipt.mail-Satz mit Platzhalter ist der ueber das Gelingen',
   const mitPlatzhalter = Object.keys(MESSAGES)
     .filter((s) => s.startsWith('receipt.mail_') && MESSAGES[s as MessageKey].placeholders !== undefined);
   assert.deepEqual(mitPlatzhalter, ['receipt.mail_sent']);
-  assert.deepEqual(MESSAGES['receipt.mail_sent'].placeholders, ['an']);
+  assert.deepEqual(MESSAGES['receipt.mail_sent'].placeholders, ['recipient']);
 });
 
 test('die Codes sind Kleinschrift mit Unterstrich, wie sie das Backend schickt', () => {
@@ -252,12 +252,12 @@ test('ein Gedankenstrich steht mit Leerraum auf beiden Seiten', () => {
 // --- Getrennt zahlen -------------------------------------------------------
 test('Getrennt zahlen: jeder Satz zur belasteten Karte nennt den Betrag und raet nicht zum Kassieren', () => {
   for (const s of ['split.card_reverse_failed', 'split.card_reverse_unknown'] as const) {
-    assert.deepEqual([...(MESSAGES[s].placeholders ?? [])].sort(), ['betrag', 'kennung'], s);
+    assert.deepEqual([...(MESSAGES[s].placeholders ?? [])].sort(), ['amount', 'reference'], s);
     assert.match(MESSAGES[s].text, /Terminal-Beleg/, s);
     assert.doesNotMatch(MESSAGES[s].text, /kassieren/, s);
   }
   for (const s of ['split.external_reverse', 'split.return_cash', 'split.session_open'] as const) {
-    assert.deepEqual(MESSAGES[s].placeholders, ['betrag'], s);
+    assert.deepEqual(MESSAGES[s].placeholders, ['amount'], s);
   }
   for (const s of Object.keys(MESSAGES).filter((k) => k.startsWith('split.'))) {
     assert.equal(MESSAGES[s as MessageKey].only, undefined, `${s}: gilt auf beiden Seiten`);
@@ -293,7 +293,7 @@ test('Beschriftungen: Schluessel bereich.name, kein Rand-Leerraum, Platzhalter e
 test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
   assert.equal(labelText('split.payment', { n: 3 }), 'Zahlung 3');
   assert.equal(labelText('split.divide', { n: 3 }), '÷ 3');
-  assert.equal(labelText('split.of_which_tip', { betrag: '2,00 €' }), 'davon Trinkgeld 2,00 €');
+  assert.equal(labelText('split.of_which_tip', { amount: '2,00 €' }), 'davon Trinkgeld 2,00 €');
   assert.equal(labelText('payment_method.card'), 'Kartenzahlung');
   assert.equal(labelText('payment_method.cash'), 'Barzahlung');
   assert.equal(labelText('payment_method.multiple'), 'Mehrere');
@@ -303,12 +303,12 @@ test('Beschriftungen folgen dem Bon und ersetzen Platzhalter', () => {
 });
 
 test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stueck-Zeilen ersetzen ihre Platzhalter', () => {
-  assert.equal(labelText('split.continue', { betrag: '67,00 €' }), 'Weiter · 67,00 € getrennt');
+  assert.equal(labelText('split.continue', { amount: '67,00 €' }), 'Weiter · 67,00 € getrennt');
   assert.equal(labelText('split.tab_items'), 'Nach Positionen');
   assert.equal(labelText('split.tab_amount'), 'Betrag');
   assert.equal(labelText('split.pieces_open', { n: 2 }), '2 offen');
-  assert.equal(labelText('split.pieces_selected', { n: 2, offen: 4 }), '2 von 4');
-  assert.throws(() => labelText('split.pieces_selected', { n: 2 }), /\{offen\}/);
+  assert.equal(labelText('split.pieces_selected', { n: 2, open: 4 }), '2 von 4');
+  assert.throws(() => labelText('split.pieces_selected', { n: 2 }), /\{open\}/);
   assert.equal(labelText('split.open_items'), 'Offene Positionen');
   assert.equal(labelText('split.nothing_selected'), 'Noch nichts angetippt');
   assert.equal(labelText('split.all_paid'), 'Alles bezahlt');
@@ -316,12 +316,12 @@ test('Getrennt zahlen, Aufteilung: Weiter-Knopf nennt den Betrag, Tabs und Stuec
   assert.equal('getrennt.stueck_bezahlt' in LABELS, false);
   assert.equal(labelText('split.one_more', { name: 'Bier' }), 'Bier: ein Stück mehr');
   assert.equal(labelText('split.one_less', { name: 'Bier' }), 'Bier: ein Stück weniger');
-  assert.equal(labelText('split.tendered_change', { gegeben: '50,00 €', rueckgeld: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
+  assert.equal(labelText('split.tendered_change', { tendered: '50,00 €', change: '23,23 €' }), 'Gegeben 50,00 € · Rückgeld 23,23 €');
   assert.equal(labelText('split.payment_method'), 'Zahlart');
   assert.equal(labelText('split.method_cash'), 'Bar');
   assert.equal(labelText('split.method_card'), 'Karte');
-  assert.equal(labelText('split.add_payment', { betrag: '12,40 €' }), 'Zahlung hinzufügen · 12,40 €');
-  assert.throws(() => labelText('split.add_payment'), /\{betrag\}/);
+  assert.equal(labelText('split.add_payment', { amount: '12,40 €' }), 'Zahlung hinzufügen · 12,40 €');
+  assert.throws(() => labelText('split.add_payment'), /\{amount\}/);
   // Ohne „Gegeben" bei Rueckgeld-Rechner: derselbe Grund wie beim Abschluss, ohne Platzhalter.
   assert.match(MESSAGES['split.tendered_missing'].text, /Rückgeld-Rechner/);
   assert.equal(MESSAGES['split.tendered_missing'].placeholders, undefined);
@@ -408,10 +408,10 @@ test('Kassieren, Sitzung und Abmelden: die Saetze beider Kassen', () => {
   assert.equal(messageText('checkout.nothing_entered'), 'Noch nichts erfasst – bitte zuerst eine Position aufnehmen.');
   assert.equal(messageText('checkout.tendered_missing'), 'Erst eintippen, was der Gast gibt – der Rückgeld-Rechner ist an.');
   assert.equal(messageText('checkout.tendered_too_little'), 'Gegeben ist weniger als der Betrag.');
-  assert.equal(messageText('checkout.locked', { grund: 'Die Kasse ist außer Betrieb.' }), 'Kassieren gesperrt: Die Kasse ist außer Betrieb.');
-  assert.throws(() => messageText('checkout.locked'), /\{grund\}/);
+  assert.equal(messageText('checkout.locked', { reason: 'Die Kasse ist außer Betrieb.' }), 'Kassieren gesperrt: Die Kasse ist außer Betrieb.');
+  assert.throws(() => messageText('checkout.locked'), /\{reason\}/);
   assert.equal(messageText('tip.over_half'), 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.');
-  assert.equal(messageText('session.logging_out', { sekunden: 30 }), 'Kasse meldet in 30 s ab – Bildschirm berühren, um weiterzuarbeiten.');
+  assert.equal(messageText('session.logging_out', { seconds: 30 }), 'Kasse meldet in 30 s ab – Bildschirm berühren, um weiterzuarbeiten.');
   assert.equal(messageText('logout.press_again'), 'Noch einmal drücken beendet die Schicht an dieser Kasse.');
   assert.equal(messageText('card_payment.terminal_cancelling'), 'Das Terminal bricht gleich von selbst ab …');
   assert.equal(messageText('connect.unpair_question'), 'Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.');
@@ -430,20 +430,20 @@ test('Beschriftungen beider Kassen: Kassieren, Warte-Karte, Kopplung, Abmelden, 
   assert.equal(labelText('checkout.still_missing'), 'Es fehlen noch');
   assert.equal(labelText('checkout.change'), 'Rückgeld');
   assert.equal(labelText('card_payment.amount_on_terminal'), 'Betrag steht am Terminal');
-  assert.equal(labelText('card_payment.present_card', { zeit: '1:05' }), 'Karte vorhalten oder stecken · noch 1:05');
+  assert.equal(labelText('card_payment.present_card', { time: '1:05' }), 'Karte vorhalten oder stecken · noch 1:05');
   assert.equal(labelText('pairing.pair_again'), 'Neu koppeln');
   assert.equal(labelText('logout.question'), 'Wirklich abmelden?');
   assert.equal(labelText('logout.keep_working'), 'Weiter arbeiten');
   assert.equal(labelText('device.unpair'), 'Gerät entkoppeln');
   assert.equal(labelText('connect.unpair_confirm'), 'Entkoppeln bestätigen');
   assert.deepEqual(LABELS['connect.unpair_confirm'].only, ['web']);
-  assert.equal(labelText('cancellation.title', { beleg: 'K1-42' }), 'Storno zu K1-42');
-  assert.throws(() => labelText('cancellation.title'), /\{beleg\}/);
+  assert.equal(labelText('cancellation.title', { receipt: 'K1-42' }), 'Storno zu K1-42');
+  assert.throws(() => labelText('cancellation.title'), /\{receipt\}/);
 });
 
 test('das X an einer Meldung nennt die Meldung, die es ausblendet', () => {
-  assert.equal(labelText('message.dismiss', { meldung: 'Der Warenkorb ist gesperrt …' }), 'Meldung ausblenden: Der Warenkorb ist gesperrt …');
-  assert.equal(labelText('message.dismiss_warning', { meldung: 'Unklar, ob …' }), 'Verstanden – Warnung ausblenden: Unklar, ob …');
-  assert.throws(() => labelText('message.dismiss'), /\{meldung\}/);
-  assert.throws(() => labelText('message.dismiss_warning'), /\{meldung\}/);
+  assert.equal(labelText('message.dismiss', { message: 'Der Warenkorb ist gesperrt …' }), 'Meldung ausblenden: Der Warenkorb ist gesperrt …');
+  assert.equal(labelText('message.dismiss_warning', { message: 'Unklar, ob …' }), 'Verstanden – Warnung ausblenden: Unklar, ob …');
+  assert.throws(() => labelText('message.dismiss'), /\{message\}/);
+  assert.throws(() => labelText('message.dismiss_warning'), /\{message\}/);
 });

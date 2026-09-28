@@ -274,7 +274,7 @@ function originalDatum(timeStamp: string): string | null {
  * anderswo noch einmal baut, oeffnet die Drift wieder.
  *
  * Vorbild ist `print_paper.dart` im Dart-Paket (`_gpTom`, `_hobexHps`,
- * `_sumup`, `_mypos`, `_stripe`); die Fixtures unter `fixtures/belege/karte-*`
+ * `_sumup`, `_mypos`, `_stripe`); die Fixtures unter `fixtures/receipts/karte-*`
  * halten je Anbieter eine Zeile-fuer-Zeile-Probe fest.
  */
 

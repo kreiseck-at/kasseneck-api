@@ -15,49 +15,49 @@ interface KernFall {
   name: string;
   priceMode: 'net' | 'gross';
   taxScheme?: string;
-  positionen: CalcItem[];
-  erwartet: ReturnType<typeof calculateInvoice>;
+  items: CalcItem[];
+  expected: ReturnType<typeof calculateInvoice>;
 }
 
 const handDatei = JSON.parse(
-  readFileSync(new URL('../../fixtures/rechnung-rechnen.json', import.meta.url), 'utf8'),
-) as { faelle: KernFall[] };
+  readFileSync(new URL('../../fixtures/invoice-calc.json', import.meta.url), 'utf8'),
+) as { cases: KernFall[] };
 
 test('Pruefaelle von Hand: jeder Fall trifft genau', () => {
-  assert.ok(handDatei.faelle.length >= 15, 'zu wenige Faelle');
-  for (const f of handDatei.faelle) {
+  assert.ok(handDatei.cases.length >= 15, 'zu wenige Faelle');
+  for (const f of handDatei.cases) {
     assert.deepEqual(
-      calculateInvoice(f.positionen, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
-      f.erwartet,
+      calculateInvoice(f.items, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
+      f.expected,
       f.name,
     );
   }
 });
 
 test('Pruefaelle von Hand: die Faelle aus der Spec stehen drin', () => {
-  const namen = handDatei.faelle.map((f) => f.name).join('\n');
+  const namen = handDatei.cases.map((f) => f.name).join('\n');
   for (const stichwort of ['29,79', '21,35', '550,17', '0,000004', 'Gleichstand', 'Abzugszeile']) {
     assert.match(namen, new RegExp(stichwort.replace('.', '\\.')));
   }
 });
 
 const zufallDatei = JSON.parse(
-  readFileSync(new URL('../../fixtures/rechnung-rechnen-zufall.json', import.meta.url), 'utf8'),
-) as { seed: number; faelle: KernFall[] };
+  readFileSync(new URL('../../fixtures/invoice-calc-random.json', import.meta.url), 'utf8'),
+) as { seed: number; cases: KernFall[] };
 
 test('Pruefaelle aus der Referenz: jeder Fall trifft genau', () => {
-  assert.ok(zufallDatei.faelle.length >= 300);
-  for (const f of zufallDatei.faelle) {
+  assert.ok(zufallDatei.cases.length >= 300);
+  for (const f of zufallDatei.cases) {
     assert.deepEqual(
-      calculateInvoice(f.positionen, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
-      f.erwartet,
+      calculateInvoice(f.items, { priceMode: f.priceMode, taxScheme: f.taxScheme as never }),
+      f.expected,
       f.name,
     );
   }
 });
 
 test('Pruefaelle aus der Referenz: die Pflichtklassen sind dabei', () => {
-  const namen = zufallDatei.faelle.map((f) => f.name).join('\n');
+  const namen = zufallDatei.cases.map((f) => f.name).join('\n');
   for (const klasse of ['2^53', '2^63', 'Abzugszeile', 'Rabatt 100 %', 'Menge 0', 'Gleichstand', 'halber Cent', 'steuerfrei']) {
     assert.match(namen, new RegExp(klasse.replace('^', '\\^')));
   }

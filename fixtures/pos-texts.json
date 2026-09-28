@@ -50,9 +50,9 @@
       "text": "Keine Sitzung."
     },
     "session.logging_out": {
-      "text": "Kasse meldet in {sekunden} s ab – Bildschirm berühren, um weiterzuarbeiten.",
+      "text": "Kasse meldet in {seconds} s ab – Bildschirm berühren, um weiterzuarbeiten.",
       "placeholders": [
-        "sekunden"
+        "seconds"
       ]
     },
     "logout.press_again": {
@@ -98,9 +98,9 @@
       "text": "Gegeben ist weniger als der Betrag."
     },
     "checkout.locked": {
-      "text": "Kassieren gesperrt: {grund}",
+      "text": "Kassieren gesperrt: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ]
     },
     "tip.over_half": {
@@ -119,9 +119,9 @@
       "text": "Die Signatureinheit hat nicht geantwortet. Der Beleg ist gültig und trägt den Vermerk „Sicherheitseinrichtung ausgefallen“."
     },
     "completion.resolve_question": {
-      "text": "Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {betrag} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.",
+      "text": "Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {amount} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "card_payment.not_possible": {
@@ -131,18 +131,18 @@
       "text": "Die Kartenzahlung ist nicht zustande gekommen."
     },
     "card_payment.not_started": {
-      "text": "Kartenzahlung nicht gestartet: {grund}",
+      "text": "Kartenzahlung nicht gestartet: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ]
     },
     "card_payment.unknown": {
       "text": "Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein."
     },
     "card_payment.unknown_with_id": {
-      "text": "Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {kennung}.",
+      "text": "Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {reference}.",
       "placeholders": [
-        "kennung"
+        "reference"
       ]
     },
     "card_payment.waiting_for_terminal": {
@@ -152,17 +152,17 @@
       "text": "Das Terminal bricht gleich von selbst ab …"
     },
     "card_payment.card_charged_receipt_open": {
-      "text": "Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.",
+      "text": "Die Karte ist bereits mit {amount} belastet (Kennung {reference}) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.",
       "placeholders": [
-        "betrag",
-        "kennung"
+        "amount",
+        "reference"
       ]
     },
     "card_payment.card_charged_cart_changed": {
-      "text": "Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.",
+      "text": "Es gibt eine gebuchte Kartenzahlung über {amount} (Kennung {reference}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.",
       "placeholders": [
-        "betrag",
-        "kennung"
+        "amount",
+        "reference"
       ]
     },
     "card_payment.connect_not_connected": {
@@ -184,9 +184,9 @@
       ]
     },
     "terminal.not_ready": {
-      "text": "Terminal antwortet, ist aber nicht betriebsbereit: {antwort} – TID prüfen.",
+      "text": "Terminal antwortet, ist aber nicht betriebsbereit: {response} – TID prüfen.",
       "placeholders": [
-        "antwort"
+        "response"
       ],
       "only": [
         "web"
@@ -199,27 +199,27 @@
       ]
     },
     "gptom.search_failed": {
-      "text": "GP Tom: Suche nach der App fehlgeschlagen: {grund}",
+      "text": "GP Tom: Suche nach der App fehlgeschlagen: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ],
       "only": [
         "app"
       ]
     },
     "gptom.payment_failed": {
-      "text": "GP Tom: Zahlung fehlgeschlagen: {grund}",
+      "text": "GP Tom: Zahlung fehlgeschlagen: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ],
       "only": [
         "app"
       ]
     },
     "gptom.terminal_not_responding": {
-      "text": "Das Terminal hat nicht geantwortet: {grund}",
+      "text": "Das Terminal hat nicht geantwortet: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ],
       "only": [
         "app"
@@ -262,9 +262,9 @@
       ]
     },
     "gptom.timeout_with_id": {
-      "text": "Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {kennung}.",
+      "text": "Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {reference}.",
       "placeholders": [
-        "kennung"
+        "reference"
       ],
       "only": [
         "app"
@@ -328,9 +328,9 @@
       "text": "Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles."
     },
     "split.amount_over_open": {
-      "text": "Der Betrag ist höher als offen – höchstens {betrag}.",
+      "text": "Der Betrag ist höher als offen – höchstens {amount}.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.tip_over_amount": {
@@ -340,9 +340,9 @@
       "text": "Gegeben ist weniger als der Betrag dieser Zahlung."
     },
     "split.still_open": {
-      "text": "Es sind noch {betrag} offen – abschließen geht erst, wenn alles kassiert ist.",
+      "text": "Es sind noch {amount} offen – abschließen geht erst, wenn alles kassiert ist.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.sum_mismatch": {
@@ -355,54 +355,54 @@
       "text": "Zurück zu Bar oder Karte geht erst, wenn keine Zahlung mehr kassiert ist."
     },
     "split.return_cash": {
-      "text": "Bitte {betrag} Bargeld an den Gast zurückgeben.",
+      "text": "Bitte {amount} Bargeld an den Gast zurückgeben.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.card_reverse_running": {
-      "text": "Die Kartenzahlung über {betrag} wird am Terminal zurückgebucht …",
+      "text": "Die Kartenzahlung über {amount} wird am Terminal zurückgebucht …",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.card_reversed": {
-      "text": "Die Kartenzahlung über {betrag} ist am Terminal zurückgebucht.",
+      "text": "Die Kartenzahlung über {amount} ist am Terminal zurückgebucht.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.card_reverse_failed": {
-      "text": "Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.",
+      "text": "Die Kartenzahlung über {amount} (Kennung {reference}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.",
       "placeholders": [
-        "betrag",
-        "kennung"
+        "amount",
+        "reference"
       ]
     },
     "split.card_reverse_unknown": {
-      "text": "Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.",
+      "text": "Unklar, ob die Rückbuchung über {amount} (Kennung {reference}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.",
       "placeholders": [
-        "betrag",
-        "kennung"
+        "amount",
+        "reference"
       ]
     },
     "split.card_already_reversed": {
-      "text": "Das Terminal meldet, dass die Kartenzahlung über {betrag} bereits gutgeschrieben wurde (Kennung {kennung}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.",
+      "text": "Das Terminal meldet, dass die Kartenzahlung über {amount} bereits gutgeschrieben wurde (Kennung {reference}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.",
       "placeholders": [
-        "betrag",
-        "kennung"
+        "amount",
+        "reference"
       ]
     },
     "split.external_reverse": {
-      "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.",
+      "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {amount} jetzt am Terminal zurückbuchen und danach bestätigen.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.session_open": {
-      "text": "Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.",
+      "text": "Eine getrennte Zahlung ist nicht abgeschlossen, {amount} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.session_unreadable": {
@@ -430,11 +430,11 @@
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
     "receipt.share_text": {
-      "text": "Beleg {nummer} von {betrieb} über {betrag}: {link}",
+      "text": "Beleg {number} von {business} über {amount}: {link}",
       "placeholders": [
-        "betrieb",
-        "nummer",
-        "betrag",
+        "business",
+        "number",
+        "amount",
         "link"
       ]
     },
@@ -445,9 +445,9 @@
       "text": "Test-Umgebung – der Beleg ist steuerlich nicht gültig."
     },
     "receipt.mail_sent": {
-      "text": "Der Beleg wurde an {an} gesendet.",
+      "text": "Der Beleg wurde an {recipient} gesendet.",
       "placeholders": [
-        "an"
+        "recipient"
       ]
     },
     "receipt.mail_address_invalid": {
@@ -466,18 +466,18 @@
       "text": "Der Ausdruck ist fehlgeschlagen."
     },
     "print.not_possible": {
-      "text": "Druck nicht möglich: {grund}",
+      "text": "Druck nicht möglich: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ]
     },
     "print.test_print_failed": {
       "text": "Der Testdruck ist fehlgeschlagen."
     },
     "print.test_print_not_possible": {
-      "text": "Der Testdruck ist fehlgeschlagen: {grund}",
+      "text": "Der Testdruck ist fehlgeschlagen: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ]
     },
     "print.no_printer": {
@@ -499,18 +499,18 @@
       ]
     },
     "print.chrome_only": {
-      "text": "{weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) – nicht in Safari und nicht am iPad.",
+      "text": "{channel}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) – nicht in Safari und nicht am iPad.",
       "placeholders": [
-        "weg"
+        "channel"
       ],
       "only": [
         "web"
       ]
     },
     "print.no_printer_for_channel": {
-      "text": "Kein {weg}-Drucker verbunden – „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.",
+      "text": "Kein {channel}-Drucker verbunden – „{channel}-Drucker verbinden“ und den Drucker im Dialog wählen.",
       "placeholders": [
-        "weg"
+        "channel"
       ],
       "only": [
         "web"
@@ -556,9 +556,9 @@
       ]
     },
     "bluetooth.search_failed": {
-      "text": "Die Suche ist fehlgeschlagen: {grund}",
+      "text": "Die Suche ist fehlgeschlagen: {reason}",
       "placeholders": [
-        "grund"
+        "reason"
       ],
       "only": [
         "app"
@@ -646,9 +646,9 @@
       ]
     },
     "app.open_in_browser": {
-      "text": "Bitte im Browser öffnen: {ziel}",
+      "text": "Bitte im Browser öffnen: {target}",
       "placeholders": [
-        "ziel"
+        "target"
       ],
       "only": [
         "app"
@@ -700,15 +700,15 @@
       "text": "Abbrechen"
     },
     "message.dismiss": {
-      "text": "Meldung ausblenden: {meldung}",
+      "text": "Meldung ausblenden: {message}",
       "placeholders": [
-        "meldung"
+        "message"
       ]
     },
     "message.dismiss_warning": {
-      "text": "Verstanden – Warnung ausblenden: {meldung}",
+      "text": "Verstanden – Warnung ausblenden: {message}",
       "placeholders": [
-        "meldung"
+        "message"
       ]
     },
     "pairing.pair_again": {
@@ -754,9 +754,9 @@
       "text": "Betrag steht am Terminal"
     },
     "card_payment.present_card": {
-      "text": "Karte vorhalten oder stecken · noch {zeit}",
+      "text": "Karte vorhalten oder stecken · noch {time}",
       "placeholders": [
-        "zeit"
+        "time"
       ]
     },
     "completion.receipt_exists": {
@@ -799,9 +799,9 @@
       "text": "% von diesem Betrag"
     },
     "split.of_which_tip": {
-      "text": "davon Trinkgeld {betrag}",
+      "text": "davon Trinkgeld {amount}",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.remove": {
@@ -841,9 +841,9 @@
       "text": "Nicht belastet – verwerfen"
     },
     "split.continue": {
-      "text": "Weiter · {betrag} getrennt",
+      "text": "Weiter · {amount} getrennt",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.allocation": {
@@ -874,10 +874,10 @@
       "text": "Gegeben (bar)"
     },
     "split.tendered_change": {
-      "text": "Gegeben {gegeben} · Rückgeld {rueckgeld}",
+      "text": "Gegeben {tendered} · Rückgeld {change}",
       "placeholders": [
-        "gegeben",
-        "rueckgeld"
+        "tendered",
+        "change"
       ]
     },
     "split.payment_method": {
@@ -890,9 +890,9 @@
       "text": "Karte"
     },
     "split.add_payment": {
-      "text": "Zahlung hinzufügen · {betrag}",
+      "text": "Zahlung hinzufügen · {amount}",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "split.open_items": {
@@ -905,10 +905,10 @@
       ]
     },
     "split.pieces_selected": {
-      "text": "{n} von {offen}",
+      "text": "{n} von {open}",
       "placeholders": [
         "n",
-        "offen"
+        "open"
       ]
     },
     "split.nothing_selected": {
@@ -927,9 +927,9 @@
       "text": "Mehrere"
     },
     "cancellation.title": {
-      "text": "Storno zu {beleg}",
+      "text": "Storno zu {receipt}",
       "placeholders": [
-        "beleg"
+        "receipt"
       ]
     },
     "cancellation.how_to_refund": {
@@ -945,9 +945,9 @@
       "text": "Alles bar"
     },
     "cancellation.payment_remainder": {
-      "text": "Rest {betrag}",
+      "text": "Rest {amount}",
       "placeholders": [
-        "betrag"
+        "amount"
       ]
     },
     "cancellation.difference": {

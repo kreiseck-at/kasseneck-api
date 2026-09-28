@@ -157,12 +157,12 @@ test('ESC/POS druckt genau die Rasterzeilen (keine eigene Spaltenrechnung mehr):
 
 test('Golden: grid32/grid48 der Fixtures stimmen zeichengenau', () => {
   const wurzel = new URL('../../fixtures/', import.meta.url);
-  const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
+  const namen = readdirSync(new URL('receipts/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
   assert.ok(namen.length >= 17);
   for (const name of namen) {
     for (const zeichen of [32, 48] as const) {
-      const soll = readFileSync(new URL(`erwartet/${name}.grid${zeichen}.txt`, wurzel), 'utf8');
-      const layout = JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+      const soll = readFileSync(new URL(`expected/${name}.grid${zeichen}.txt`, wurzel), 'utf8');
+      const layout = JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
       assert.equal(gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen })), soll, `${name} @${zeichen}`);
     }
   }

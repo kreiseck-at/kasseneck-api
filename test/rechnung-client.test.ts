@@ -235,7 +235,7 @@ test('Freigabe und Einrichtung: eigene Codes, was fehlt steht in den Details', a
 // ---- Beispiele des Vertrags -------------------------------------------------
 
 test('Beispiele: jede gueltige Anfrage geht unveraendert an ihren Aufruf', async () => {
-  const ordner = new URL('../../fixtures/rechnung-api-beispiele/', import.meta.url);
+  const ordner = new URL('../../fixtures/invoice-api-examples/', import.meta.url);
   const gute = readdirSync(ordner).filter((d) => d.endsWith('.json'))
     .map((d) => JSON.parse(readFileSync(new URL(d, ordner), 'utf8')))
     .filter((b) => b.expected.ok === true);

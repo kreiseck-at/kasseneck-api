@@ -18,27 +18,29 @@ import {
 
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
+// Schluessel englisch seit 1.0 (0.x: gemessenAn, ergaenztAn, dokumentiert,
+// gruende; Tabelle in fixtures/renames-1.0.json).
 const vertrag = {
   version: paket.version,
   // Messumgebung, siehe Dart-Zwilling `doc/kartenzahlung.md` -- damit ein
   // spaeterer Widerspruch nicht erst am Terminal auffaellt, sondern schon
   // beim Lesen dieser Datei: welches Geraet, welcher Zeitraum.
-  gemessenAn: {
+  measuredOn: {
     tid: '3600335',
     hpsVersion: '1.10.0',
     firmware: '7.3.6',
-    zeitraum: '26.-28.08.2026',
+    period: '26.-28.08.2026',
   },
   // Nachgemessen im BETRIEB, nicht am Testgeraet: welcher Code von welchem
   // Geraet stammt, steht in der Bedeutung des Codes selbst.
-  ergaenztAn: [
-    { tid: '3556988', hpsVersion: '1.11.4', firmware: '2.3.9', zeitraum: '02.09.2026', codes: ['55'] },
+  supplementedOn: [
+    { tid: '3556988', hpsVersion: '1.11.4', firmware: '2.3.9', period: '02.09.2026', codes: ['55'] },
   ],
   // Keine Messung, sondern die Beschreibung des Herstellers: welche Codes
   // daher stammen, steht je Code in `source`.
-  dokumentiert: [
-    { quelle: 'Antwortcodeliste von hobex (HPS)', erhalten: '11.09.2026' },
-    { quelle: 'Antwortcodeliste von TECS, ueber hobex', erhalten: '16.09.2026', kennzeichen: 'tecsTitle' },
+  documented: [
+    { source: 'Antwortcodeliste von hobex (HPS)', received: '11.09.2026' },
+    { source: 'Antwortcodeliste von TECS, ueber hobex', received: '16.09.2026', field: 'tecsTitle' },
   ],
   codes: HPS_CODES.map(({ code, title, meaning, conclusive, effect, reason, source, rejectsRequest, sendReversal, tecsTitle }) => ({
     code,
@@ -52,7 +54,7 @@ const vertrag = {
     sendReversal,
     tecsTitle,
   })),
-  gruende: HPS_REASON_HINTS,
+  reasons: HPS_REASON_HINTS,
   terminalBusyHttpStatus: TERMINAL_BUSY_HTTP_STATUS,
 };
 
