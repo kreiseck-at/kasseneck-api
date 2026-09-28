@@ -163,6 +163,14 @@ Nothing forces an upgrade as long as `/v1` is served.
 - **Partner.** `partnerErrorAdvice` (was `partnerFehlerRat`) always returns a
   sentence, with a fallback for unknown codes; `isPartnerError` accepts
   unknown codes. `reportCustomerContract` is offered now.
+- **Tree shaking.** `package.json` declares `"sideEffects": false`, so a
+  bundler drops every module whose exports are unused (esbuild, one import of
+  `isOutcomeUnknown` from the root: 13 kB before, 2 kB after). No module
+  changes anything outside itself when imported, and the package ships no
+  CSS; the build checks both (`scripts/check-build-exports.mjs`). Parameter
+  names of exported functions and methods are English now as well (for
+  example `rasterizeLogo(rgba, pxWidth, pxHeight, dimensions, chars)`); that
+  changes nothing at runtime.
 
 #### Exported names
 

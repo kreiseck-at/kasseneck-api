@@ -26,8 +26,9 @@
  * Laeuft im aktuellen Arbeitsverzeichnis; Fehler gehen nach stderr, der
  * Rueckgabewert ist dann 1.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import ts from 'typescript';
 
 const wurzel = process.cwd();
 const paket = JSON.parse(readFileSync(resolve(wurzel, 'package.json'), 'utf8'));
@@ -143,11 +144,73 @@ for (const [alt, neu] of Object.entries(ENTFERNT_IN_1_0)) {
   if (alt in (paket.exports ?? {})) fehler.push(`${alt}: seit 1.0 entfernt, heisst ${neu}`);
 }
 
+/**
+ * `"sideEffects": false` erlaubt einem Bundler (Vite/Rollup, esbuild,
+ * webpack), jedes Modul wegzulassen, dessen Exporte niemand nutzt. Das ist
+ * nur richtig, solange kein Modul beim Import etwas ausserhalb seiner selbst
+ * veraendert. Geprueft wird der ESM-Bau Anweisung fuer Anweisung auf oberster
+ * Ebene: erlaubt sind Importe mit Namen, Exporte, Funktionen, Klassen ohne
+ * statische Initialisierung und Konstanten. In deren Initialisierern (ohne
+ * Funktionsruempfe) darf nichts zugewiesen, geloescht oder hochgezaehlt
+ * werden. Verboten sind nackte Importe (`import './x.js'`), CSS-Importe und
+ * jede andere Anweisung. Aufrufe in Initialisierern bleiben erlaubt: es sind
+ * modul-lokale Bausteine (`Object.freeze`, `new Set`, Katalog-Helfer); was sie
+ * tun, sieht ein Review, nicht diese Pruefung.
+ */
+if (paket.sideEffects !== false) fehler.push('package.json: "sideEffects": false fehlt');
+const seiteneffekte = [];
+function lesen(verzeichnis) {
+  for (const name of readdirSync(verzeichnis)) {
+    const pfad = join(verzeichnis, name);
+    if (statSync(pfad).isDirectory()) lesen(pfad);
+    else if (pfad.endsWith('.js')) modulPruefen(pfad);
+  }
+}
+function veraendert(knoten, aus) {
+  if (ts.isFunctionLike(knoten) || ts.isClassLike(knoten)) return;
+  const op = ts.isBinaryExpression(knoten) ? knoten.operatorToken.kind : undefined;
+  if (op !== undefined && op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment) aus.push('Zuweisung');
+  if (ts.isDeleteExpression(knoten)) aus.push('delete');
+  if (ts.isPostfixUnaryExpression(knoten)) aus.push('Zaehler');
+  if (ts.isPrefixUnaryExpression(knoten) && (knoten.operator === ts.SyntaxKind.PlusPlusToken || knoten.operator === ts.SyntaxKind.MinusMinusToken)) aus.push('Zaehler');
+  ts.forEachChild(knoten, (k) => veraendert(k, aus));
+}
+function modulPruefen(pfad) {
+  const datei = ts.createSourceFile(pfad, readFileSync(pfad, 'utf8'), ts.ScriptTarget.ES2022, true);
+  const wo = (st) => `${pfad.slice(wurzel.length + 1)}:${datei.getLineAndCharacterOfPosition(st.getStart()).line + 1}`;
+  for (const st of datei.statements) {
+    if (ts.isImportDeclaration(st)) {
+      const ziel = ts.isStringLiteral(st.moduleSpecifier) ? st.moduleSpecifier.text : '';
+      if (!st.importClause) seiteneffekte.push(`${wo(st)} nackter Import ${ziel}`);
+      if (/\.(css|scss|less)$/i.test(ziel)) seiteneffekte.push(`${wo(st)} CSS-Import ${ziel}`);
+      continue;
+    }
+    if (ts.isExportDeclaration(st) || ts.isFunctionDeclaration(st)) continue;
+    if (ts.isClassDeclaration(st)) {
+      const statisch = st.members.some((m) => ts.isClassStaticBlockDeclaration(m)
+        || (ts.isPropertyDeclaration(m) && m.initializer && m.modifiers?.some((x) => x.kind === ts.SyntaxKind.StaticKeyword)));
+      if (statisch) seiteneffekte.push(`${wo(st)} Klasse mit statischer Initialisierung`);
+      continue;
+    }
+    if (ts.isVariableStatement(st)) {
+      const aus = [];
+      for (const d of st.declarationList.declarations) if (d.initializer) veraendert(d.initializer, aus);
+      for (const a of new Set(aus)) seiteneffekte.push(`${wo(st)} ${a} beim Import`);
+      continue;
+    }
+    // Direktiven wie 'use client' stehen als Ausdruck da und tun nichts.
+    if (ts.isExpressionStatement(st) && ts.isStringLiteral(st.expression)) continue;
+    seiteneffekte.push(`${wo(st)} Anweisung auf oberster Ebene`);
+  }
+}
+lesen(resolve(wurzel, BAU.import));
+for (const s of seiteneffekte) fehler.push(`sideEffects: ${s}`);
+
 if (fehler.length > 0) {
   process.stderr.write(`exports sind nicht in Ordnung:\n  ${fehler.join('\n  ')}\n`);
   process.exit(1);
 }
 
 process.stdout.write(
-  `exports: ${geprueft} Bau-Pfade vorhanden, Typen je Bedingung im richtigen Bau, Modultyp je Bau gesetzt\n`,
+  `exports: ${geprueft} Bau-Pfade vorhanden, Typen je Bedingung im richtigen Bau, Modultyp je Bau gesetzt, ESM-Bau ohne Seiteneffekte beim Import\n`,
 );
