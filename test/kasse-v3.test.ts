@@ -298,7 +298,7 @@ test('Drucker: listMyPrinters, getPrintJob englisch; createPrintJob sendet wie d
       ...(f.params.receiptId ? { receiptId: f.params.receiptId } : {}),
       ...(f.params.title ? { title: f.params.title } : {}),
       ...(f.params.source ? { source: f.params.source } : {}),
-      ...(f.params.brand ? { brand: true } : {}),
+      ...(f.params.brand ? { brandMark: true } : {}),
     });
     assert.deepEqual(gesendet(aufrufe, 'createPrintJob', f), f.params, f.case);
     assert.deepEqual(job, { jobId: 'auto1', status: 'pending', result: null });
@@ -318,7 +318,7 @@ test('createPrintJob: das Logo geht als {scale, pxWidth, pxHeight, width, height
   const { rufen, aufrufe } = kassenweg(f);
   await createPrintJob(rufen, {
     printerId: f.params.printerId, layout: f.params.layout as ReceiptLayout, receiptId: f.params.receiptId,
-    title: f.params.title, source: f.params.source, brand: true,
+    title: f.params.title, source: f.params.source, brandMark: true,
     logo: { size: soll.scale, pixelWidth: soll.pxWidth, pixelHeight: soll.pxHeight, raster: { width: soll.width, height: soll.height, dots: punkte } },
   });
   assert.deepEqual(gesendet(aufrufe, 'createPrintJob', f), f.params);

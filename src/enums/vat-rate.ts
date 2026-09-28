@@ -9,7 +9,7 @@ import { defineEnum } from './define-enum.js';
 export const VatRate = defineEnum({
   vat0: { value: 'vat0', rate: 0, category: 'D' },
   // Grundnahrungsmittel ab 01.07.2026 -> Betrag-Satz-Besonders (BMF/RKSV)
-  vat4komma9: { value: 'vat4komma9', rate: 4.9, category: 'G' },
+  vat4_9: { value: 'vat4_9', rate: 4.9, category: 'G' },
   vat10: { value: 'vat10', rate: 10, category: 'B' },
   vat13: { value: 'vat13', rate: 13, category: 'C' },
   vat19: { value: 'vat19', rate: 19, category: 'E' },

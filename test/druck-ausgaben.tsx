@@ -60,20 +60,33 @@ function qrMatrix(nutzlast: string): boolean[][] {
  * Das Blatt in der Form, in der die Goldens aufgenommen wurden (vor 1.0 hiessen
  * die Felder deutsch: `zeichen`, `bloecke`, `art`, `fett`, `leer`, `nutzlast`,
  * `breiteAnteil`, `hoeheZeilen`, `breite`, `hoehe`; die Arten `zeile` und
- * `marke`). Die Zuordnung ist eins zu eins und behaelt die Reihenfolge der
- * Felder: der Hash vergleicht damit Werte und Aufbau, nicht die Namen. Aendert
- * sich am Blatt mehr als ein Name, schlaegt der Golden weiterhin an.
+ * `marke`). Umbenannt wird generisch Schluessel fuer Schluessel in der
+ * vorhandenen Reihenfolge, nichts wird neu gebaut: ein Feld oder eine Art, die
+ * die Tabellen nicht kennen, wirft. So vergleicht der Hash Werte und Aufbau,
+ * und ein neues Feld am Blatt faellt nie still heraus.
  */
-function blattWieAufgenommen(blatt: ReceiptSheet): unknown {
-  const block = (b: SheetBlock): unknown => {
-    switch (b.kind) {
-      case 'line': return { art: 'zeile', text: b.text, fett: b.bold, leer: b.blank };
-      case 'logo': return { art: 'logo', breiteAnteil: b.widthFraction, hoeheZeilen: b.heightLines };
-      case 'qr': return { art: 'qr', nutzlast: b.payload, breiteAnteil: b.widthFraction };
-      case 'brandMark': return { art: 'marke', breite: b.width, hoehe: b.height };
-    }
-  };
-  return { zeichen: blatt.charsPerLine, bloecke: blatt.blocks.map(block) };
+const ALTE_SCHLUESSEL_BLATT: Readonly<Record<string, string>> = { charsPerLine: 'zeichen', blocks: 'bloecke' };
+const ALTE_SCHLUESSEL_BLOCK: Readonly<Record<string, string>> = {
+  kind: 'art', text: 'text', bold: 'fett', blank: 'leer', payload: 'nutzlast',
+  widthFraction: 'breiteAnteil', heightLines: 'hoeheZeilen', width: 'breite', height: 'hoehe',
+};
+const ALTE_ARTEN: Readonly<Record<string, string>> = { line: 'zeile', logo: 'logo', qr: 'qr', brandMark: 'marke' };
+
+function alterName(tabelle: Readonly<Record<string, string>>, schluessel: string, wo: string): string {
+  const alt = Object.prototype.hasOwnProperty.call(tabelle, schluessel) ? tabelle[schluessel] : undefined;
+  if (alt === undefined) throw new Error(`Blatt-Golden: unbekanntes Feld ${wo}.${schluessel}, Abbildung und Golden pruefen`);
+  return alt;
+}
+
+export function blattWieAufgenommen(blatt: ReceiptSheet): unknown {
+  const block = (b: SheetBlock): unknown => Object.fromEntries(Object.entries(b).map(([k, v]) => {
+    if (k !== 'kind') return [alterName(ALTE_SCHLUESSEL_BLOCK, k, 'block'), v];
+    return [alterName(ALTE_SCHLUESSEL_BLOCK, k, 'block'), alterName(ALTE_ARTEN, String(v), 'kind')];
+  }));
+  return Object.fromEntries(Object.entries(blatt).map(([k, v]) => [
+    alterName(ALTE_SCHLUESSEL_BLATT, k, 'blatt'),
+    k === 'blocks' ? (v as SheetBlock[]).map(block) : v,
+  ]));
 }
 
 const hex = (b: Uint8Array): string => Buffer.from(b).toString('hex');

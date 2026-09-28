@@ -34,7 +34,7 @@ const WOERTER = new Set([
   'als', 'alt', 'anteil', 'art', 'aufruf', 'aus', 'aufrufe', 'ausweich', 'betrieb', 'bild', 'blatt', 'bloecke',
   'breite', 'breiten', 'deckel', 'druck', 'fall', 'faelle', 'fehler', 'fehlerart', 'fehlercode',
   'fehlerregeln', 'feld', 'fett', 'fuer', 'geraet', 'gilt', 'grund', 'hoehe', 'ist', 'je', 'kasse',
-  'kein', 'klein', 'leer', 'marke', 'mass', 'meldung', 'meldungen', 'mit', 'mittel', 'modell', 'modul',
+  'kein', 'klein', 'komma', 'leer', 'marke', 'mass', 'meldung', 'meldungen', 'mit', 'mittel', 'modell', 'modul',
   'neu', 'nur', 'oder', 'ohne', 'papier', 'passt', 'platzhalter', 'preis', 'punkte', 'rabatt',
   'rechnen', 'rechnung', 'rund', 'satz', 'schluessel', 'schritt', 'seite', 'spalten', 'stufe', 'stufen',
   'summe', 'summen', 'und', 'verhalten', 'vorhanden', 'zeichen', 'zeile', 'zeilen',
@@ -89,17 +89,21 @@ const AUSNAHMEN_NAMEN: Record<string, string> = {};
 
 /**
  * Feldnamen, die trotz deutschem Teilwort bleiben. Schluessel
- * `<Export>.<Feld>` (der Export, ueber den der Waechter das Feld zuerst
- * erreicht) -> Grund.
+ * `<Datei>:<Typ>.<Feld>`: gebunden an die Deklaration des Feldes (Interface,
+ * Typalias, Klasse, Konstante oder Funktion, in der es steht), nicht an den
+ * Export, ueber den der Waechter es findet. Ein gleichnamiges Feld an anderer
+ * Stelle bleibt damit ein Fund.
  */
 const AUSNAHMEN_FELDER: Record<string, string> = {
-  'fromStoredPosSettings.betrieb': 'gespeicherte Firestore-Form (users/{uid}.register_settings), die ./stored liest; kein Draht, nicht Teil des 1.0-Modells',
-  'fromStoredPosSettings.geraet': 'wie betrieb: gespeicherte Firestore-Form, die ./stored als Eingabe annimmt',
-  'TextEntry.nur': 'Struktur der Textkataloge, als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling; Strukturschluessel der Vertragsdateien folgen in Aufgabe 10',
-  'TextEntry.platzhalter': 'Struktur der Textkataloge wie nur (fixtures/kasse-texte.json, Aufgabe 10)',
-  'ERROR_RULES.art': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
-  'ERROR_RULES.verhalten': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
-  'ERROR_RULES.schluessel': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
+  'src/stored/index.ts:fromStoredPosSettings.betrieb': 'gespeicherte Firestore-Form (users/{uid}.register_settings), die ./stored liest; kein Draht, nicht Teil des 1.0-Modells',
+  'src/stored/index.ts:fromStoredPosSettings.geraet': 'wie betrieb: gespeicherte Firestore-Form, die ./stored als Eingabe annimmt',
+  'src/stored/index.ts:invalidStoredPosSettings.betrieb': 'dieselbe gespeicherte Firestore-Form als Eingabe der Pruefung',
+  'src/stored/index.ts:invalidStoredPosSettings.geraet': 'dieselbe gespeicherte Firestore-Form als Eingabe der Pruefung',
+  'src/pos/texte.ts:TextEntry.nur': 'Struktur der Textkataloge, als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling; Strukturschluessel der Vertragsdateien folgen in Aufgabe 10',
+  'src/pos/texte.ts:TextEntry.platzhalter': 'Struktur der Textkataloge wie nur (fixtures/kasse-texte.json, Aufgabe 10)',
+  'src/pos/texte.ts:ERROR_RULES.art': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
+  'src/pos/texte.ts:ERROR_RULES.verhalten': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
+  'src/pos/texte.ts:ERROR_RULES.schluessel': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
 };
 
 /** Welche Ausnahmen die Laeufe unten wirklich gebraucht haben. */
@@ -142,9 +146,33 @@ function exporteVon(quelle: string): ts.Symbol[] {
   return pruefer.getExportsOfModule(modul);
 }
 
-/** Alle Feldnamen, die von einem Typ aus erreichbar sind (Unterobjekte, Parameter, Rueckgaben). */
-function felder(wurzelName: string, typ: ts.Type, gesehen: Set<ts.Type>, aus: Map<string, string>, tiefe = 0): void {
-  if (tiefe > 8 || gesehen.has(typ)) return;
+const SRC = join(wurzel, 'src');
+
+/** Wo ein Feld deklariert ist: `<Datei>:<Typ>.<Feld>`, unabhaengig von der Besuchsreihenfolge. */
+function herkunft(deklaration: ts.Declaration, feld: string): string {
+  let knoten: ts.Node | undefined = deklaration.parent;
+  while (knoten && !ts.isSourceFile(knoten)) {
+    if ((ts.isInterfaceDeclaration(knoten) || ts.isTypeAliasDeclaration(knoten) || ts.isClassDeclaration(knoten)
+      || ts.isFunctionDeclaration(knoten) || ts.isVariableDeclaration(knoten)) && knoten.name && ts.isIdentifier(knoten.name)) {
+      break;
+    }
+    knoten = knoten.parent;
+  }
+  const datei = deklaration.getSourceFile().fileName.slice(wurzel.length);
+  const typ = knoten && !ts.isSourceFile(knoten) ? ((knoten as ts.NamedDeclaration).name as ts.Identifier).text : '<anonym>';
+  return `${datei}:${typ}.${feld}`;
+}
+
+interface Feld { feld: string; herkunft: string }
+
+/**
+ * Alle Feldnamen, die von einem Typ aus erreichbar sind (Unterobjekte,
+ * Parameter, Rueckgaben), auch die Schluessel von `Record<K, V>` und anderen
+ * Mapped Types: deren Eigenschaften haben keine eigene Deklaration in `src`,
+ * ihre Schluessel kommen aber aus unseren Literaltypen.
+ */
+function felder(wurzelName: string, typ: ts.Type, gesehen: Set<ts.Type>, aus: Feld[], tiefe = 0): void {
+  if (tiefe > 10 || gesehen.has(typ)) return;
   gesehen.add(typ);
   if (typ.isUnion() || typ.isIntersection()) {
     for (const t of typ.types) felder(wurzelName, t, gesehen, aus, tiefe + 1);
@@ -155,14 +183,22 @@ function felder(wurzelName: string, typ: ts.Type, gesehen: Set<ts.Type>, aus: Ma
     felder(wurzelName, s.getReturnType(), gesehen, aus, tiefe + 1);
   }
   if (!(typ.flags & ts.TypeFlags.Object)) return;
-  if ((typ as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) {
+  const flags = (typ as ts.ObjectType).objectFlags;
+  if (flags & ts.ObjectFlags.Reference) {
     for (const a of pruefer.getTypeArguments(typ as ts.TypeReference)) felder(wurzelName, a, gesehen, aus, tiefe + 1);
   }
-  for (const eig of typ.getProperties()) {
+  const abgebildet = (flags & ts.ObjectFlags.Mapped) !== 0;
+  const alias = typ.aliasSymbol;
+  const aliasEigen = alias?.declarations?.[0]?.getSourceFile().fileName.startsWith(SRC) === true;
+  // `Record`/`Readonly` nennen nichts; dann der Export, ueber den das Feld erreicht wurde.
+  const name = alias && aliasEigen ? alias.name : wurzelName;
+  for (const eig of pruefer.getPropertiesOfType(typ)) {
     const deklaration = eig.declarations?.[0];
-    // Nur eigene Typen: Felder aus lib.d.ts, React oder Node sind nicht unsere.
-    if (!deklaration || !deklaration.getSourceFile().fileName.startsWith(join(wurzel, 'src'))) continue;
-    if (!aus.has(eig.name)) aus.set(eig.name, wurzelName);
+    const eigen = deklaration !== undefined && deklaration.getSourceFile().fileName.startsWith(SRC);
+    // Felder aus lib.d.ts, React oder Node sind nicht unsere; Schluessel eines
+    // Mapped Type dagegen schon, auch wenn ihre Deklaration in lib.d.ts steht.
+    if (!eigen && !abgebildet) continue;
+    aus.push({ feld: eig.name, herkunft: eigen ? herkunft(deklaration, eig.name) : `<abgebildet>:${name}.${eig.name}` });
     felder(wurzelName, pruefer.getTypeOfSymbol(eig), gesehen, aus, tiefe + 1);
   }
 }
@@ -201,8 +237,9 @@ test('Exportnamen: kein exportierter Name eines Einstiegs ist deutsch', () => {
   assert.deepEqual(deutsch, []);
 });
 
-test('Exportnamen: kein Feldname, der von einem Export erreichbar ist, ist deutsch', () => {
-  const gefunden = new Map<string, string>();
+/** Alle erreichbaren Felder aus allen Einstiegen. */
+function alleFelder(): Feld[] {
+  const gefunden: Feld[] = [];
   const gesehen = new Set<ts.Type>();
   for (const { quelle } of EINSTIEGE) {
     for (const e of exporteVon(quelle)) {
@@ -213,15 +250,24 @@ test('Exportnamen: kein Feldname, der von einem Export erreichbar ist, ist deuts
       if (s.flags & ts.SymbolFlags.Value) felder(e.name, pruefer.getTypeOfSymbol(s), gesehen, gefunden);
     }
   }
-  assert.ok(gefunden.size > 500, `nur ${gefunden.size} Felder gelesen`);
-  const deutsch: string[] = [];
-  for (const [feld, ueber] of gefunden) {
-    // Textkatalog-Schluessel (`checkout.tip`) sind englisch; ihre Werte bleiben deutsch und sind keine Felder.
-    const grund = deutschIn(feld);
-    if (grund && `${ueber}.${feld}` in AUSNAHMEN_FELDER) gebraucht.add(`${ueber}.${feld}`);
-    else if (grund) deutsch.push(`${ueber}.${feld} (${grund})`);
+  return gefunden;
+}
+
+test('Exportnamen: kein Feldname, der von einem Export erreichbar ist, ist deutsch', () => {
+  const gefunden = alleFelder();
+  assert.ok(new Set(gefunden.map((f) => f.feld)).size > 500, `nur ${gefunden.length} Felder gelesen`);
+  // Die Schluessel der Mapped Types werden wirklich gelesen (Textkatalog, Standardwerte).
+  for (const probe of ['checkout.tip', 'paperSize']) {
+    assert.ok(gefunden.some((f) => f.feld === probe), `${probe} nicht erreicht`);
   }
-  assert.deepEqual(deutsch.sort(), []);
+  const deutsch = new Set<string>();
+  for (const { feld, herkunft: wo } of gefunden) {
+    const grund = deutschIn(feld);
+    if (!grund) continue;
+    if (wo in AUSNAHMEN_FELDER) gebraucht.add(wo);
+    else deutsch.add(`${wo} (${grund})`);
+  }
+  assert.deepEqual([...deutsch].sort(), []);
 });
 
 test('Exportnamen: jede Ausnahme hat einen Grund und wird noch gebraucht', () => {

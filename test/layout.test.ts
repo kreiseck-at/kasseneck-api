@@ -359,7 +359,7 @@ test('Betraege: mehrere Steuersaetze behalten ihre Summen', () => {
     items: [
       { name: 'Wein', quantity: 1, vat: VatRate.vat20, priceCents: 1999 },
       { name: 'Milch', quantity: 2, vat: VatRate.vat10, priceCents: 149 },
-      { name: 'Brot', quantity: 3, vat: VatRate.vat4komma9, priceCents: 333 },
+      { name: 'Brot', quantity: 3, vat: VatRate.vat4_9, priceCents: 333 },
       { name: 'Buch', quantity: 1, vat: VatRate.vat0, priceCents: 1000 },
     ],
   };

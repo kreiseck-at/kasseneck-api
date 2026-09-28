@@ -200,9 +200,9 @@ export interface EposDirectOptions {
   devid?: string;
   /** Papier des Druckers -- bestimmt das Raster; Vorgabe: das des Layouts. */
   paperSize?: PosPaperSize;
-  /** Feste QR-Modulgroesse; siehe [EposPrintXmlOptions.qrBreite]. */
+  /** Feste QR-Modulgroesse; siehe [EposPrintXmlOptions.qrWidth]. */
   qrWidth?: number;
-  /** Deckel fuer die gerechnete QR-Modulgroesse; siehe [EposPrintXmlOptions.qrGroesse]. */
+  /** Deckel fuer die gerechnete QR-Modulgroesse; siehe [EposPrintXmlOptions.qrModuleSize]. */
   qrModuleSize?: QrModuleSize;
   /** Firmenlogo; ohne Angabe kein Logo. */
   logo?: PrintLogo | null;

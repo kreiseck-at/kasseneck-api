@@ -13,7 +13,7 @@
  *
  * Zwei Dinge halten diese Seite dagegen:
  *
- * - der Typ [Betrieb] (typen.ts) hat genau diese Felder, und TypeScript meldet
+ * - der Typ [Business] (typen.ts) hat genau diese Felder, und TypeScript meldet
  *   ein ueberzaehliges schon beim Tippen;
  * - [unknownBusinessFields] beantwortet dieselbe Frage zur Laufzeit, fuer
  *   Daten, die aus einer Datenbank oder einem Formular kommen und deshalb nie

@@ -291,14 +291,14 @@ test('createPrintJob: Logo als Mass + Base64-Zeilen, Marke nur wenn gesetzt; ohn
   const raster = { width: 10, height: 2, dots: new Uint8Array(20).fill(1) };
 
   const mit = transportMit({ jobId: 'j2', status: 'pending' });
-  await createPrintJob(mit.rufen, { printerId: 'd1', layout, logo: { size: 'S', pixelWidth: 40, pixelHeight: 20, raster }, brand: true });
+  await createPrintJob(mit.rufen, { printerId: 'd1', layout, logo: { size: 'S', pixelWidth: 40, pixelHeight: 20, raster }, brandMark: true });
   const g = gesendet(mit.aufrufe);
   assert.equal(g.fn, 'createPrintJob');
   assert.deepEqual(g.params.logo, { scale: 'S', pxWidth: 40, pxHeight: 20, width: 10, height: 2, rows: '/8D/wA==' });
   assert.equal(g.params.brand, true);
 
   const ohne = transportMit({ jobId: 'j3', status: 'pending' });
-  await createPrintJob(ohne.rufen, { printerId: 'd1', layout, logo: null, brand: false });
+  await createPrintJob(ohne.rufen, { printerId: 'd1', layout, logo: null, brandMark: false });
   assert.deepEqual(Object.keys(gesendet(ohne.aufrufe).params).sort(), ['layout', 'printerId']);
 });
 

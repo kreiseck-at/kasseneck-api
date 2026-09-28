@@ -94,8 +94,12 @@ export interface CreatePrintJobOptions {
   source?: PrintJobSource;
   /** Firmenlogo als fertiges Rasterbild (`rasterizeLogo`); der Server dekodiert keine Bilder. */
   logo?: PrintLogo | null;
-  /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
-  brand?: boolean;
+  /**
+   * Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). Heisst wie bei
+   * den Druckwegen (`escPosLayoutBytes`, `eposPrintXml`, `receiptSheet`), damit
+   * dieselben Optionen ueberall wirken; am Draht heisst der Wert `brand`.
+   */
+  brandMark?: boolean;
 }
 
 export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<PrintJob> {
@@ -109,7 +113,7 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
       width: o.logo.raster.width, height: o.logo.raster.height, rows: rasterRowsBase64(o.logo.raster),
     };
   }
-  if (o.brand === true) params.brand = true;
+  if (o.brandMark === true) params.brand = true;
   const daten = await rufen<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
   return { jobId: String(daten?.jobId ?? ''), status: status(daten?.status), result: null };
 }

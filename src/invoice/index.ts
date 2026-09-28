@@ -1,5 +1,5 @@
 /**
- * `@kreiseck/kasseneck-api/invoice` — Rechnungen (§ 11 UStG, keine Belege)
+ * `@kreiseck/kasseneck-api/invoice` – Rechnungen (§ 11 UStG, keine Belege)
  * und Kunden ueber die Rechnungs-API.
  *
  * Ein eigener Unterpfad wie `partner`: der `api_key` eines Kontos, mit dem

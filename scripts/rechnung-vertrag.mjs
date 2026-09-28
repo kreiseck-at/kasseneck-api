@@ -1,7 +1,7 @@
 // Schreibt den Vertrag der Rechnungs-API als JSON Schema nach
 // fixtures/rechnung-api.schema.json.
 //
-// Quelle ist src/invoice/vertrag.ts — die Datei hier liest nur ab und
+// Quelle ist src/invoice/vertrag.ts – die Datei hier liest nur ab und
 // uebersetzt. Das Backend vergleicht das Schema in beide Richtungen mit seiner
 // eigenen Pruefung, der Dart-Zwilling haelt eine byteweise Kopie. Wer ein Feld
 // aendert, aendert es in vertrag.ts und laesst diesen Erzeuger laufen; eine

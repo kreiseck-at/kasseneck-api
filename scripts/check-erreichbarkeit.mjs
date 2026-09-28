@@ -28,17 +28,24 @@
  * Testlauf im Zug oder in einem abgeschotteten Bauknecht darf daran nicht
  * scheitern. Ist das Netz nicht erreichbar, sagt das Skript es und endet mit 0.
  *
- * **Zwei Adressen.** Die Partner-Aufrufe spricht das Paket seit 0.28.0 unter
- * `/v3` (PARTNER_BASE_URL), alles andere weiter unter `/v1`
- * (DEFAULT_BASE_URL). Geprueft wird jeder Aufruf unter der Adresse, die das
- * Paket fuer ihn wirklich benutzt; welche das sind, liest das Skript aus der
- * Partner-Fassade des Baus ab, nicht aus einer Zweitliste.
+ * **Die Adressen von 1.0.** Das Paket spricht nur noch `/v3`: die
+ * oeffentlichen Aufrufe unter DEFAULT_BASE_URL, die Partner-Aufrufe unter
+ * PARTNER_BASE_URL und die reinen Kassenaufrufe (`isPosOnlyCall`) unter
+ * POS_BASE_URL (kasse.kasseneck.at/api/v3). Geprueft wird jeder Aufruf unter
+ * der Adresse, die der Transport fuer ihn wirklich waehlt; Adressen und
+ * Zuordnung liest das Skript aus dem Bau, nicht aus einer Zweitliste.
  *
  * Aufruf: `npm run check:erreichbar`
  */
 import { readFileSync } from 'node:fs';
 
-const BASIS = 'https://api.kasseneck.at/v1';
+const transport = await import('../dist/esm/client/transport.js').catch((fehler) => {
+  process.stderr.write(`Bau nicht ladbar (${fehler.message}).\nBitte zuerst \`npm run build\`.\n`);
+  process.exit(1);
+});
+const aufrufeModul = await import('../dist/esm/client/aufrufe.js');
+const BASIS = transport.DEFAULT_BASE_URL;
+const BASIS_KASSE = transport.POS_BASE_URL;
 const BASIS_PARTNER = 'https://api.kasseneck.at/v3';
 
 /**
@@ -53,16 +60,14 @@ const FRIST_MS = 15_000;
 const ausnahmenDatei = new URL('./erreichbarkeit-ausnahmen.json', import.meta.url);
 
 /** ALL_CALLS kommt aus dem Bau, nicht aus einer Zweitliste -- sonst prueft das Skript sich selbst. */
-async function aufrufeLaden() {
-  try {
-    const modul = await import('../dist/esm/client/aufrufe.js');
-    return [...modul.ALL_CALLS];
-  } catch (fehler) {
-    process.stderr.write(
-      `ALL_CALLS nicht ladbar (${fehler.message}).\nBitte zuerst \`npm run build\`.\n`,
-    );
-    process.exit(1);
-  }
+function aufrufeLaden() {
+  return [...aufrufeModul.ALL_CALLS];
+}
+
+/** Die Adresse, die der Transport fuer einen Aufruf waehlt. */
+function basisFuer(aufruf, partnerAufrufe) {
+  if (partnerAufrufe.has(aufruf)) return BASIS_PARTNER;
+  return aufrufeModul.isPosOnlyCall(aufruf) ? BASIS_KASSE : BASIS;
 }
 
 /**
@@ -70,14 +75,16 @@ async function aufrufeLaden() {
  * Partner-Fassade. Abgelesen aus dem Bau, nie aufgerufen; der Schluessel ist
  * nur formgerecht, damit die Fassade entsteht.
  */
-async function partnerAufrufeLaden() {
+async function partnerAufrufeLaden(aufrufe) {
   const partner = await import('../dist/esm/partner/index.js');
   if (partner.PARTNER_BASE_URL !== BASIS_PARTNER) {
     process.stderr.write(`PARTNER_BASE_URL ist ${partner.PARTNER_BASE_URL}, dieses Skript prueft ${BASIS_PARTNER}.\n`);
     process.exit(1);
   }
   const fassade = partner.createPartnerApi({ partnerKey: 'pk_test_NURFUERDIEFORMNURFUERDIEFORM', fetch: async () => { throw new Error('nie'); } });
-  return new Set(Object.keys(fassade).filter((name) => typeof fassade[name] === 'function' && name !== 'fehlerRat'));
+  // Die Fassade traegt auch Helfer (etwa errorAdvice), die keinen Aufruf absetzen.
+  // Aufrufe sind genau die Methoden, die ALL_CALLS fuehrt; der Rest ist kein Endpunkt.
+  return new Set(Object.keys(fassade).filter((name) => typeof fassade[name] === 'function' && aufrufe.includes(name)));
 }
 
 /**
@@ -96,7 +103,7 @@ async function abfragen(aufruf, basis) {
     });
     // Innerhalb derselben Frist: Ein Kopf ohne Rumpf ist kein Ergebnis.
     const rumpf = await antwort.text();
-    return bewerten(antwort.status, rumpf);
+    return bewerten(antwort.status, rumpf, antwort.headers.get('kasseneck-api-version'));
   } catch (fehler) {
     const grund = abbruch.signal.aborted
       ? `keine vollstaendige Antwort binnen ${FRIST_MS / 1000} s`
@@ -107,8 +114,8 @@ async function abfragen(aufruf, basis) {
   }
 }
 
-/** Erreichbar heisst: JSON-Objekt mit einem `status`-Feld. Sonst nichts. */
-function bewerten(status, rumpf) {
+/** Erreichbar heisst: JSON-Objekt mit einem `status`-Feld und dem Kennzeichen des /v3-Rands. Sonst nichts. */
+function bewerten(status, rumpf, version) {
   const anfang = rumpf.trimStart().slice(0, 40).replace(/\s+/g, ' ');
   let geparst;
   try {
@@ -130,6 +137,11 @@ function bewerten(status, rumpf) {
   // mit JSON (code not_found). Das ist eine Function, aber nicht die gesuchte.
   if (geparst.code === 'not_found' || (geparst.data && geparst.data.code === 'not_found')) {
     return { erreichbar: false, netzfehler: false, befund: `HTTP ${status}, not_found -- der Endpunkt ist unter dieser Version nicht geroutet` };
+  }
+  // 1.0 bricht jede Antwort ohne dieses Kennzeichen ab (fail closed): eine
+  // Function, die ohne den /v3-Rand antwortet, ist fuer das Paket nicht da.
+  if (version !== 'v3') {
+    return { erreichbar: false, netzfehler: false, befund: `HTTP ${status}, ohne Kopfzeile Kasseneck-Api-Version: v3 -- nicht ueber den /v3-Rand geroutet` };
   }
   return { erreichbar: true, netzfehler: false, befund: `HTTP ${status}, status="${geparst.status}"` };
 }
@@ -190,11 +202,10 @@ function ausnahmenLaden(aufrufe) {
   return { nachName, maengel };
 }
 
-const aufrufe = await aufrufeLaden();
-const partnerAufrufe = await partnerAufrufeLaden();
-const fremdePartner = [...partnerAufrufe].filter((name) => !aufrufe.includes(name));
-if (fremdePartner.length > 0) {
-  process.stderr.write(`Partner-Aufrufe, die ALL_CALLS nicht fuehrt: ${fremdePartner.join(', ')}\n`);
+const aufrufe = aufrufeLaden();
+const partnerAufrufe = await partnerAufrufeLaden(aufrufe);
+if (partnerAufrufe.size === 0) {
+  process.stderr.write('Die Partner-Fassade fuehrt keinen Aufruf aus ALL_CALLS -- Abgleich kaputt.\n');
   process.exit(1);
 }
 const { nachName: ausnahmen, maengel } = ausnahmenLaden(aufrufe);
@@ -202,6 +213,14 @@ const { nachName: ausnahmen, maengel } = ausnahmenLaden(aufrufe);
 if (maengel.length > 0) {
   process.stderr.write(`Ausnahmeliste ist nicht in Ordnung:\n${maengel.map((m) => `  - ${m}`).join('\n')}\n`);
   process.exit(1);
+}
+
+// In der CI je Push nur der lokale Teil (Bau, Fassade, Ausnahmeliste): der
+// Netzteil prueft, was live steht, nicht den Beitrag, und laeuft taeglich
+// ueber .github/workflows/erreichbarkeit.yml.
+if (process.env.ERREICHBARKEIT_NUR_LOKAL === '1') {
+  process.stdout.write(`Lokaler Teil in Ordnung: ${aufrufe.length} Aufrufe, ${partnerAufrufe.size} Partner-Aufrufe, ${ausnahmen.size} Ausnahmen. Netzteil uebersprungen.\n`);
+  process.exit(0);
 }
 
 const netz = await netzDa();
@@ -215,7 +234,7 @@ if (!netz.ok) {
 }
 
 process.stdout.write(
-  `Erreichbarkeit unter ${BASIS} und ${BASIS_PARTNER} (Partner, ${partnerAufrufe.size} Aufrufe); ` +
+  `Erreichbarkeit unter ${BASIS}, ${BASIS_KASSE} (reine Kassenaufrufe) und ${BASIS_PARTNER} (Partner, ${partnerAufrufe.size} Aufrufe); ` +
     `Aufruf ohne Anmeldung, ${aufrufe.length} Aufrufe\n\n`,
 );
 
@@ -224,7 +243,7 @@ let bestaetigt = 0;
 
 for (const aufruf of aufrufe) {
   const ausnahme = ausnahmen.get(aufruf);
-  const basis = partnerAufrufe.has(aufruf) ? BASIS_PARTNER : BASIS;
+  const basis = basisFuer(aufruf, partnerAufrufe);
   const ergebnis = await abfragen(aufruf, basis);
 
   if (ausnahme) {
@@ -244,7 +263,7 @@ for (const aufruf of aufrufe) {
 
   if (ergebnis.erreichbar) {
     bestaetigt += 1;
-    process.stdout.write(`  ok ${aufruf.padEnd(29)} ${basis === BASIS_PARTNER ? '/v3 ' : '/v1 '}${ergebnis.befund}\n`);
+    process.stdout.write(`  ok ${aufruf.padEnd(29)} ${basis === BASIS_KASSE ? 'kasse ' : '/v3   '}${ergebnis.befund}\n`);
   } else {
     fehler.push(`${aufruf} (${basis}): dort antwortet KEINE Function -- ${ergebnis.befund}`);
     process.stdout.write(`  X  ${aufruf.padEnd(29)} ${ergebnis.befund}\n`);

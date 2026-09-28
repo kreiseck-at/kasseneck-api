@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fromReceiptPayload } from '../src/models/index.js';
 import { buildReceiptLayout, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 import { belegFixtureAufV3 } from './belege-fixture.js';
-import { druckAusgaben, sha } from './druck-ausgaben.js';
+import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
 
 /**
  * Druck-Goldens: was am Papier und am Schirm landet, Byte fuer Byte.
@@ -92,4 +92,12 @@ test('Druck-Goldens Regelwerk 1: Nullbelege und Vollbelege dabei', () => {
   const namen1 = Object.keys(goldens.ruleset1);
   assert.ok(namen1.filter((n) => n.startsWith('null-')).length >= 3);
   assert.ok(namen1.includes('verkauf-bar') && namen1.includes('signaturausfall-verkauf'));
+});
+
+test('Druck-Goldens: die Blatt-Abbildung wirft bei unbekanntem Feld oder unbekannter Art', () => {
+  const blatt = { charsPerLine: 32, blocks: [{ kind: 'logo', widthFraction: 0.5, heightLines: 3 }] };
+  assert.deepEqual(blattWieAufgenommen(blatt as never), { zeichen: 32, bloecke: [{ art: 'logo', breiteAnteil: 0.5, hoeheZeilen: 3 }] });
+  assert.throws(() => blattWieAufgenommen({ ...blatt, neu: 1 } as never), /unbekanntes Feld blatt\.neu/);
+  assert.throws(() => blattWieAufgenommen({ charsPerLine: 32, blocks: [{ kind: 'logo', widthFraction: 0.5, heightLines: 3, size: 'M' }] } as never), /block\.size/);
+  assert.throws(() => blattWieAufgenommen({ charsPerLine: 32, blocks: [{ kind: 'bild' }] } as never), /kind\.bild/);
 });

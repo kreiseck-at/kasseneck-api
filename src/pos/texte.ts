@@ -314,7 +314,7 @@ export type ErrorKind = (typeof ERROR_RULES)[number]['art'];
 /**
  * Beleg per E-Mail senden: welcher `code` des Backends welchen Satz bekommt.
  *
- * `ERROR_RULES` bleibt davon unberuehrt — das hier ist keine neue Art, einen
+ * `ERROR_RULES` bleibt davon unberuehrt – das hier ist keine neue Art, einen
  * Transportfehler einzuordnen, sondern die Verfeinerung EINES Aufrufs
  * (`sendReceiptEmail`). Die vier Ausgaenge sind fuer den Kassier vier
  * verschiedene Handlungen: Adresse verbessern, spaeter noch einmal, noch

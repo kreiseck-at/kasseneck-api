@@ -46,5 +46,12 @@ jobs:
           diff -u fixtures/rechnung-rechnen-zufall.json /tmp/rechnung-rechnen-zufall-neu.json \
             || { echo "fixtures/rechnung-rechnen-zufall.json weicht von der aus demselben Seed neu erzeugten Datei ab — von Hand geaendert?"; exit 1; }
 
+      # Nur der lokale Teil (Adressen und Aufrufe aus dem Bau, Ausnahmeliste);
+      # der Netzteil laeuft taeglich in erreichbarkeit.yml.
+      - name: Erreichbarkeit, lokaler Teil
+        run: npm run check:erreichbar
+        env:
+          ERREICHBARKEIT_NUR_LOKAL: '1'
+
       - name: Verbraucherprobe am echten Tarball
         run: npm run check:consumer

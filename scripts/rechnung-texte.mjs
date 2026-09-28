@@ -1,6 +1,6 @@
 // Schreibt den Textkatalog der Rechnungen nach fixtures/rechnung-texte.json.
 //
-// Quelle ist src/invoice/texte.ts — die Datei hier liest nur ab. Das Backend
+// Quelle ist src/invoice/texte.ts – die Datei hier liest nur ab. Das Backend
 // liest den Katalog aus dem vendorierten Paket (PDF, E-Rechnung, Mail), die
 // Statusseite im Web aus dem Unterpfad `@kreiseck/kasseneck-api/invoice`.
 //

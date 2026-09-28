@@ -75,7 +75,7 @@ export const QR_QUIET_ZONE_MODULES = 4;
 /** Untergrenze: 4 Punkte sind bei 203 dpi rund 0,5 mm je Modul. */
 export const QR_MIN_MODULE_DOTS = 4;
 
-/** Ausnahme, wenn `QR_MIN_MODULE_DOTS` nicht passt — gemeldet, nicht still. */
+/** Ausnahme, wenn `QR_MIN_MODULE_DOTS` nicht passt – gemeldet, nicht still. */
 export const QR_EXCEPTION_MODULE_DOTS = 3;
 
 /** Obergrenze des Druckbefehls in diesem Stack (`GS ( k` Funktion 167: 1..8). */

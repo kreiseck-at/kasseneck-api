@@ -18,7 +18,7 @@ test('proratedPriceMicros: ein centgenauer Preis bleibt centgenau', () => {
   assert.equal(proratedPriceMicros(250_000, 7, 12), 150_000);
 });
 
-test('vatRateMapKey: derselbe Text wie String(satz) — die Statistik haengt daran', () => {
+test('vatRateMapKey: derselbe Text wie String(satz) – die Statistik haengt daran', () => {
   assert.equal(vatRateMapKey(2000), '20');
   assert.equal(vatRateMapKey(490), '4.9');
   assert.equal(vatRateMapKey(0), '0');
