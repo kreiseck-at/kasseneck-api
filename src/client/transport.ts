@@ -73,10 +73,22 @@ const KASSENECK_HOSTS: ReadonlySet<string> = new Set(['api.kasseneck.at', 'kasse
 const V3_ENDE = /\/v3$/;
 
 /**
- * Aufrufe, die signieren bzw. bei FinanzOnline etwas ausloesen. Ein Netzfehler,
- * nachdem die Anfrage unterwegs war, laesst ihren Ausgang offen.
+ * Aufrufe mit Wirkung, die nie blind wiederholt werden duerfen: sie signieren
+ * (`createReceipt`, `cancelReceipt`), loesen bei FinanzOnline etwas aus
+ * (`financeWebService`) oder bewegen Geld (`hobexPayApi` belastet eine Karte,
+ * `hobexRefundApi` erstattet, `stripeCaptureIntent` zieht eine vorgemerkte
+ * Zahlung ein). Scheitert einer, nachdem die Anfrage unterwegs war (Netz,
+ * Zeitlimit, HTTP 5xx, unlesbare Erfolgsantwort, HTML mit Kennzeichen), ist
+ * sein Ausgang offen.
  */
-const SIGNIERENDE_AUFRUFE: ReadonlySet<string> = new Set(['createReceipt', 'cancelReceipt', 'financeWebService']);
+const UNKNOWN_OUTCOME_CALLS: ReadonlySet<string> = new Set([
+  'createReceipt',
+  'cancelReceipt',
+  'financeWebService',
+  'hobexPayApi',
+  'hobexRefundApi',
+  'stripeCaptureIntent',
+]);
 
 /**
  * Produkte, die das Backend in `Kasseneck-Client` zaehlt (Positivliste,
@@ -234,7 +246,7 @@ type Auswertung<R, T> = (
   geheimnisse: readonly string[],
   /**
    * Ausgang, wenn der Rumpf trotz HTTP 200 und Kennzeichen unlesbar ist
-   * (leer, kein JSON, ohne Statusfeld). Bei einem signierenden Aufruf kann
+   * (leer, kein JSON, ohne Statusfeld). Bei einem Aufruf mit Wirkung kann
    * der Handler gelaufen sein: dann `'unknown'`.
    */
   unlesbar: ErrorOutcome,
@@ -348,14 +360,14 @@ function createCore(options: TransportOptions) {
           return ursache;
         }
         // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
-        // Die Anfrage war schon unterwegs: bei einem signierenden Aufruf kann
-        // der Beleg entstanden sein (Ausgang unklar, nachlesen).
+        // Die Anfrage war schon unterwegs: bei einem Aufruf mit Wirkung kann
+        // der Beleg bzw. die Zahlung entstanden sein (Ausgang unklar, nachlesen).
         return new KasseneckNetworkError(
           fehlerName,
           abbruch.signal.aborted,
           zeitlimitMs,
           causeDigest(ursache, geheimnisse),
-          SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected',
+          UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected',
         );
       };
       const basis = basisFuer(functionName);
@@ -409,18 +421,18 @@ function createCore(options: TransportOptions) {
           const fehler = await randFehler404(antwort, fehlerName, geheimnisse, abbruch.signal);
           if (fehler) throw fehler;
         }
-        // 5xx auf einem signierenden Aufruf: der Handler kann gelaufen sein.
-        const ausgang = antwort.status >= 500 && SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+        // 5xx auf einem Aufruf mit Wirkung: der Handler kann gelaufen sein.
+        const ausgang = antwort.status >= 500 && UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected';
         throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error', ausgang);
       }
       // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
       // bedient, keine Function hat ihn gesehen (Nachtrag §5.4, R15).
       if (inhaltstyp !== undefined && /^\s*text\/html\b/i.test(inhaltstyp)) {
         // Mit Kennzeichen hat der `/v3`-Rand den Aufruf gesehen (etwa ein
-        // Proxy, der nur den Inhaltstyp umschreibt). Bei einem signierenden
-        // Aufruf kann der Beleg dann entstanden sein: unlesbarer Rumpf,
+        // Proxy, der nur den Inhaltstyp umschreibt). Bei einem Aufruf mit
+        // Wirkung kann der Beleg bzw. die Zahlung dann entstanden sein: unlesbarer Rumpf,
         // Ausgang unklar, statt `route_missing`.
-        if (SIGNIERENDE_AUFRUFE.has(functionName) && traegtKennzeichen(antwort)) {
+        if (UNKNOWN_OUTCOME_CALLS.has(functionName) && traegtKennzeichen(antwort)) {
           throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'not-json', 'unknown');
         }
         throw new KasseneckApiError(
@@ -448,8 +460,8 @@ function createCore(options: TransportOptions) {
 
       // Ab hier kam HTTP 200 mit Kennzeichen: der `/v3`-Rand hat den Aufruf
       // gesehen. Ist der Rumpf dann unlesbar (gekuerzt von einem Proxy,
-      // abgebrochene Verbindung), kann ein signierender Handler gelaufen sein.
-      const unlesbar: ErrorOutcome = SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+      // abgebrochene Verbindung), kann ein Handler mit Wirkung gelaufen sein.
+      const unlesbar: ErrorOutcome = UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected';
       return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse, unlesbar);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.

@@ -295,7 +295,7 @@ test('stripeCaptureIntent liefert das eingezogene Zahlungsversprechen, keine Zah
   assert.equal(ergebnis.currency, 'eur');
 });
 
-test('stripeCaptureIntent meldet eine unbrauchbare Antwort als Antwortfehler', async () => {
+test('stripeCaptureIntent meldet eine unbrauchbare Erfolgsantwort als response_unreadable (Ausgang unklar)', async () => {
   for (const [name, nutzlast] of [
     ['keine Nutzlast', null],
     ['ohne id', { status: 'succeeded', amount_received: 1234, currency: 'eur' }],
@@ -304,8 +304,11 @@ test('stripeCaptureIntent meldet eine unbrauchbare Antwort als Antwortfehler', a
   ] as Array<[string, unknown]>) {
     const { holen } = fetchFake(erfolg(nutzlast));
     await assert.rejects(stripeCaptureIntent(weg(holen), 'cs_test_a1b2c3'), (fehler: unknown) => {
-      assert.ok(fehler instanceof KasseneckValidationError, `Fall ${name}`);
-      assert.equal(fehler.scope, 'response');
+      // Erfolg gemeldet heisst eingezogen: ein gewoehnlicher Lesefehler luede
+      // zum zweiten Einzug ein.
+      assert.ok(fehler instanceof KasseneckApiError, `Fall ${name}`);
+      assert.equal(fehler.code, 'response_unreadable');
+      assert.equal(fehler.outcome, 'unknown');
       assert.equal(fehler.functionName, 'stripeCaptureIntent');
       return true;
     });
@@ -385,7 +388,7 @@ test('hobexPay liefert den Hobex-Beleg mit Betraegen in Cent', async () => {
   assert.equal(beleg.transactionDate, '2026-08-14 00:30:07');
 });
 
-test('hobexPay meldet eine Antwort ohne Beleg als Antwortfehler', async () => {
+test('hobexPay meldet eine Erfolgsantwort ohne Beleg als response_unreadable (Ausgang unklar)', async () => {
   for (const [name, nutzlast] of [
     ['keine Nutzlast', null],
     ['leeres Objekt', {}],
@@ -394,8 +397,11 @@ test('hobexPay meldet eine Antwort ohne Beleg als Antwortfehler', async () => {
   ] as Array<[string, unknown]>) {
     const { holen } = fetchFake(erfolg(nutzlast));
     await assert.rejects(hobexPay(weg(holen), { transactionId: 'tx-1', amountCents: 1234 }), (fehler: unknown) => {
-      assert.ok(fehler instanceof KasseneckValidationError, `Fall ${name}`);
-      assert.equal(fehler.scope, 'response');
+      // Erfolg gemeldet heisst belastet: ein gewoehnlicher Lesefehler luede
+      // zur zweiten Belastung ein.
+      assert.ok(fehler instanceof KasseneckApiError, `Fall ${name}`);
+      assert.equal(fehler.code, 'response_unreadable');
+      assert.equal(fehler.outcome, 'unknown');
       assert.equal(fehler.functionName, 'hobexPayApi');
       return true;
     });
@@ -624,9 +630,17 @@ function kennungVon(fehler: unknown): string {
   return `fremd:${inspect(fehler)}`;
 }
 
+/**
+ * Die drei Geldwege: HTML **mit** Kennzeichen hat der `/v3`-Rand gesehen, das
+ * Geld kann bewegt sein. Das ist ein unlesbarer Rumpf mit Ausgang unklar,
+ * nicht `route_missing` (siehe geldwege-ausgang.test.ts).
+ */
+const GELDWEGE = new Set(['stripeCaptureIntent', 'hobexPay', 'hobexRefund']);
+
 test('alle vier Zahlungs-Aufrufe melden dieselbe Stoerung als denselben Fehler der Union', async () => {
   for (const [name, aufruf] of alleAufrufe) {
-    for (const [stoerung, holen, erwartet] of stoerungen) {
+    for (const [stoerung, holen, standard] of stoerungen) {
+      const erwartet = stoerung === 'HTML statt Antwort' && GELDWEGE.has(name) ? 'Http:not-json' : standard;
       await assert.rejects(aufruf(holen), (fehler: unknown) => {
         assert.equal(kennungVon(fehler), erwartet, `${name} / ${stoerung}`);
         return true;

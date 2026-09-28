@@ -427,9 +427,10 @@ silently. For a layout option of 0.x the message names its English successor.
 ### `outcome: 'unknown'`: never retry, look it up
 
 `KasseneckApiError`, `KasseneckHttpError` and `KasseneckNetworkError` carry
-`outcome`. `'rejected'` means no signing operation is left open: no receipt was
-signed and nothing went to FinanzOnline, so retrying the same request does not
-create a second receipt (whether it helps depends on the code). `'unknown'` means the operation **may have been carried out**, for
+`outcome`. `'rejected'` means no operation with an effect is left open: no
+receipt was signed, nothing went to FinanzOnline and no money moved, so
+retrying the same request does not create a second receipt or charge (whether
+it helps depends on the code). `'unknown'` means the operation **may have been carried out**, for
 `createReceipt` a signed receipt in the chain. Then never send it again: read
 the result back (`getReceipt`, `listMyReceipts`, the original of a
 cancellation) and continue from there. `isOutcomeUnknown(error)` covers all
@@ -437,18 +438,35 @@ three classes. The outcome is unknown for:
 
 - `dialect_mismatch`, `receipt_outcome_unknown`, `cancellation_outcome_unknown`;
 - `response_translation_failed`, unless `details.handled === false`;
-- `response_unreadable`: a signing call reported success, but the response
-  lacks what the call promises (no receipt, no reference, no remaining
-  quantities);
-- on the signing calls `createReceipt`, `cancelReceipt` and
-  `financeWebService`: a network error or timeout after sending began, HTTP
+- `response_unreadable`: a signing or money-moving call reported success,
+  but the response lacks what the call promises (no receipt, no reference, no
+  remaining quantities, no Hobex receipt, no captured payment intent);
+- on the calls with an effect: the signing calls `createReceipt`,
+  `cancelReceipt` and `financeWebService`, and the money calls `hobexPay`
+  (`hobexPayApi`, charges a card), `hobexRefund` (`hobexRefundApi`) and
+  `stripeCaptureIntent`: a network error or timeout after sending began, HTTP
   5xx, and HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
   non-JSON (also `text/html`) or status-less body (`KasseneckHttpError`,
   `reason` `empty-body`, `not-json` or `missing-status`). HTML without the
   marker stays `route_missing` with `'rejected'`: no function saw the call.
 
-`outcome` only covers signing. After a network error on `issueInvoice` an
-invoice may still have been issued; retry it with the same `idempotencyKey`.
+On the money calls an unknown outcome means the card may have been charged,
+the refund may have gone through, the payment may have been captured. A
+rejection of `hobexRefund` throws a `KasseneckApiError` with its `code`; it
+never returns `false`, because a `false` on an unclear outcome invites a
+second refund.
+
+**Never retry these six calls, and never put a retrying layer under the
+package.** A `fetch` passed in `options.fetch` (or a proxy or service worker in
+front of it) must not resend a request by itself after a network error, a
+timeout or a 5xx: a silent second send is a second signed receipt, a second
+charge or a second refund, and the package cannot see it. Look the result up
+instead (`getReceipt`, `listMyReceipts`, the Hobex transaction by its
+`transactionId`, the Stripe session).
+
+`outcome` only covers signing and the money calls. After a network error on
+`issueInvoice` an invoice may still have been issued; retry it with the same
+`idempotencyKey`.
 
 ```ts
 import { isOutcomeUnknown, paymentsExpectedCents } from '@kreiseck/kasseneck-api';
@@ -792,6 +810,11 @@ process:
 - **Hobex cloud** (`hobexPay`, `hobexRefund`): a terminal registered with
   Hobex, controlled over the network through the backend. Amounts are passed in
   cents; the package converts to euros for Hobex.
+
+`hobexPay`, `hobexRefund` and `stripeCaptureIntent` move money. They are never
+retried, neither by the app nor by a retrying `fetch` under the package: on
+`isOutcomeUnknown(error)` look the payment up (see
+[`outcome: 'unknown'`](#outcome-unknown-never-retry-look-it-up)).
 - **Hobex HPS via Kasseneck Connect**, described below.
 
 ### Hobex HPS via Kasseneck Connect

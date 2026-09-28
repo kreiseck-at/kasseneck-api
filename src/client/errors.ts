@@ -20,7 +20,7 @@
  *   Single-Page-App hat geantwortet, der Aufruf kam nie an),
  *   `dialect_mismatch` (Antwort ohne Kennzeichen `Kasseneck-Api-Version: v3`:
  *   ein Rand ohne `/v3` hat geantwortet, **Ausgang unklar**) und
- *   `response_unreadable` (ein signierender Aufruf meldete Erfolg, die
+ *   `response_unreadable` (ein Aufruf mit Wirkung meldete Erfolg, die
  *   Antwort traegt aber nicht, was er zusagt: **Ausgang unklar**).
  *   **Entscheidend ist `outcome`:** `'rejected'` heisst abgelehnt, nichts
  *   geschehen, Wiederholen hilft nicht. `'unknown'` heisst: der Vorgang kann
@@ -29,14 +29,16 @@
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
  *   HTTP 500/404 ohne Huelle, leerer Rumpf oder Text statt JSON. Beim
  *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.
- *   `reason` trennt die Faelle maschinenlesbar. Auf einem signierenden
- *   Aufruf hat HTTP 5xx `outcome: 'unknown'`, ebenso HTTP 200 mit
- *   Kennzeichen, aber leerem oder unlesbarem Rumpf.
+ *   `reason` trennt die Faelle maschinenlesbar. Auf einem Aufruf mit
+ *   Wirkung (signierend oder geldbewegend) hat HTTP 5xx
+ *   `outcome: 'unknown'`, ebenso HTTP 200 mit Kennzeichen, aber leerem oder
+ *   unlesbarem Rumpf.
  * - `KasseneckNetworkError` — die Antwort kam gar nicht: Netz weg, DNS,
  *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`). Auch hier
  *   gilt `outcome`: war die Anfrage schon unterwegs und ist der Aufruf einer
- *   der signierenden (`createReceipt`, `cancelReceipt`, `financeWebService`),
- *   ist er `'unknown'`.
+ *   mit Wirkung (signierend: `createReceipt`, `cancelReceipt`,
+ *   `financeWebService`; geldbewegend: `hobexPayApi`, `hobexRefundApi`,
+ *   `stripeCaptureIntent`), ist er `'unknown'`.
  * - `KasseneckAuthError` — es kam nicht einmal zur Anfrage, weil die Anmeldung
  *   scheiterte (fehlende Zugangsdaten, oder der Token-/Sitzungsgeber warf).
  *   In der Browser-Kasse mit ihrer 90-Sekunden-Sitzung ist das Alltag, kein
@@ -231,7 +233,7 @@ function ausgangAusCode(code: string | undefined, details: Record<string, unknow
 /**
  * Codes, die das Paket selbst vergibt, nicht der Server: `route_missing`
  * (HTML statt Backend, der Aufruf kam nie an) und `response_unreadable`
- * (ein signierender Aufruf meldete Erfolg, die Antwort ist aber unlesbar;
+ * (ein Aufruf mit Wirkung meldete Erfolg, die Antwort ist aber unlesbar;
  * Ausgang unklar). `dialect_mismatch` vergibt das Paket ebenfalls, der Code
  * gehoert aber schon zum Rand des Servers (`errorCodes.edge`).
  */
@@ -263,7 +265,7 @@ export class KasseneckApiError extends Error {
   /**
    * `'unknown'` bei `dialect_mismatch`, `receipt_outcome_unknown`,
    * `cancellation_outcome_unknown`, `response_unreadable` (Erfolg gemeldet,
-   * Antwort eines signierenden Aufrufs aber unlesbar) und
+   * Antwort eines Aufrufs mit Wirkung aber unlesbar) und
    * `response_translation_failed` (ausser mit `details.handled === false`);
    * sonst `'rejected'`. Bei `'unknown'` nie wiederholen, sondern nachlesen.
    */
@@ -303,8 +305,9 @@ export class KasseneckHttpError extends Error {
   /** Maschinenlesbarer Grund — trennt den Rewrite-Fall vom 500er ohne Textparsen. */
   readonly reason: HttpFailureReason;
   /**
-   * `'unknown'` auf einem signierenden Aufruf (`createReceipt`,
-   * `cancelReceipt`, `financeWebService`) bei HTTP 5xx und bei HTTP 200 mit
+   * `'unknown'` auf einem Aufruf mit Wirkung (`createReceipt`,
+   * `cancelReceipt`, `financeWebService`, `hobexPayApi`, `hobexRefundApi`,
+   * `stripeCaptureIntent`) bei HTTP 5xx und bei HTTP 200 mit
    * Kennzeichen, aber unlesbarem Rumpf (`empty-body`, `not-json` auch bei
    * `text/html`, `missing-status`): der Handler kann gelaufen sein, nie wiederholen,
    * sondern nachlesen. Sonst `'rejected'` (auch 4xx).
@@ -461,4 +464,30 @@ export function isKasseneckAuthError(error: unknown): error is KasseneckAuthErro
 
 export function isKasseneckValidationError(error: unknown): error is KasseneckValidationError {
   return error instanceof KasseneckValidationError;
+}
+
+/**
+ * Liest die Erfolgsantwort eines Aufrufs **mit Wirkung** (signierend oder
+ * geldbewegend). Scheitert das Lesen (fehlender Beleg, fehlender Bezug,
+ * unbrauchbares Feld oder ein Laufzeitfehler beim Umwandeln), hat der Server
+ * trotzdem Erfolg gemeldet: der Beleg ist signiert und im DEP, die Karte
+ * belastet bzw. der Einzug gelaufen. Das darf nie als gewoehnlicher Fehler
+ * enden, sonst kassiert die Kasse ein zweites Mal. Darum wird daraus
+ * `KasseneckApiError` mit Code `response_unreadable` und `outcome: 'unknown'`.
+ * Der Grund stammt vom Paket; aus der Antwort selbst wird nichts uebernommen.
+ *
+ * Paketintern (receipts.ts, payments/); nicht Teil der Paketoberflaeche.
+ */
+export function signiertGelesen<T>(functionName: string, lesen: () => T): T {
+  try {
+    return lesen();
+  } catch (ursache) {
+    const grund = ursache instanceof KasseneckValidationError ? ursache.reason : 'Antwort nicht lesbar';
+    throw new KasseneckApiError(
+      functionName,
+      `Erfolg gemeldet, Antwort aber unlesbar (${grund}). Der Vorgang kann ausgefuehrt sein: nicht wiederholen, sondern nachlesen.`,
+      {},
+      'response_unreadable',
+    );
+  }
 }

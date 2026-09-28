@@ -8,7 +8,7 @@ import {
   toReceiptItemPayload,
   receiptItemIsValid,
 } from '../models/index.js';
-import { KasseneckValidationError } from '../client/errors.js';
+import { KasseneckValidationError, signiertGelesen } from '../client/errors.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 
 /**
@@ -131,6 +131,9 @@ export async function createStripeLink(
  * **Der Parameter heisst `stripe_sessions_id`** — mit "sessions" im Plural, so
  * das Vorbild und so das Backend. Der naheliegende Singular waere ein fehlender
  * Pflichtparameter.
+ *
+ * **Nie wiederholen.** Bei `isOutcomeUnknown(e)` (Netz, Zeitlimit, HTTP 5xx,
+ * unlesbare Antwort) kann der Einzug gelaufen sein: den Stand nachlesen.
  */
 export async function stripeCaptureIntent(
   transport: InternerTransport,
@@ -140,7 +143,9 @@ export async function stripeCaptureIntent(
     throw eingabefehler(ENDPUNKT_CAPTURE, 'stripeSessionId fehlt');
   }
   const daten = await transport(ENDPUNKT_CAPTURE, { stripe_sessions_id: stripeSessionId });
-  return einzugAusNutzlast(daten);
+  // Erfolg gemeldet heisst: eingezogen. Eine unlesbare Nutzlast bleibt
+  // Ausgang unklar (`response_unreadable`), nie ein gewoehnlicher Lesefehler.
+  return signiertGelesen(ENDPUNKT_CAPTURE, () => einzugAusNutzlast(daten));
 }
 
 /**
