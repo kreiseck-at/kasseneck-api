@@ -1,0 +1,101 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER } from '../src/kasse/texte.js';
+import { INVOICE_TEXTS } from '../src/rechnung/texte.js';
+
+/*
+ * Zwilling der Umbenennung der Textkatalog-Schluessel (1.0): die Tabelle
+ * `fixtures/texte-umbenennung.json` (erzeugt von scripts/texte-umbenennung.mjs)
+ * gegen den eingefrorenen 0.x-Stand in `test/fixtures/texte-vor-1.0/`.
+ *
+ * - jeder alte Schluessel steht genau einmal in der Tabelle, keiner dazu;
+ * - die neuen Schluessel sind eindeutig und englisch geschrieben;
+ * - Wert, Platzhalter und `nur` sind byte-gleich, in jeder Sprache;
+ * - was auf einen Schluessel zeigt (Fehlerregeln, Code-Zuordnungen), zeigt
+ *   auf den umbenannten.
+ *
+ * Die Texte selbst bleiben deutsch: sie sind fuer Kassiere und
+ * Rechnungsempfaenger in Oesterreich geschrieben.
+ */
+
+type Json = Record<string, any>;
+const lies = (pfad: string): Json => JSON.parse(readFileSync(new URL(`../../${pfad}`, import.meta.url), 'utf8')) as Json;
+
+const TABELLE = lies('fixtures/texte-umbenennung.json');
+const ALT_KASSE = lies('test/fixtures/texte-vor-1.0/kasse-texte.json');
+const ALT_RECHNUNG = lies('test/fixtures/texte-vor-1.0/rechnung-texte.json');
+const NEU_KASSE = lies('fixtures/kasse-texte.json');
+const NEU_RECHNUNG = lies('fixtures/rechnung-texte.json');
+const VOKABULAR = lies('fixtures/v3/v3-vokabular.json');
+
+const SCHREIBWEISE = /^[a-z][A-Za-z]*(?:_[a-z]+)*(?:\.[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)+$/;
+const UMLAUT = /[äöüÄÖÜß]/;
+
+/** Jeder alte Schluessel genau einmal, keiner dazu, neue eindeutig und englisch geschrieben. */
+function tabellePruefen(name: string, tabelle: Record<string, string>, alteSchluessel: string[]): void {
+  assert.deepEqual(Object.keys(tabelle), alteSchluessel, `${name}: Tabelle deckt nicht genau die alten Schluessel`);
+  const neu = Object.values(tabelle);
+  assert.equal(new Set(neu).size, neu.length, `${name}: ein neuer Schluessel ist doppelt vergeben`);
+  for (const schluessel of neu) {
+    assert.match(schluessel, SCHREIBWEISE, `${name}: ${schluessel}`);
+    assert.ok(!UMLAUT.test(schluessel), `${name}: ${schluessel}`);
+  }
+}
+
+/** Ein Katalog nach der Umbenennung: dieselben Eintraege in derselben Reihenfolge, Werte byte-gleich. */
+function katalogPruefen(name: string, tabelle: Record<string, string>, alt: Json, neu: Json): void {
+  assert.deepEqual(Object.keys(neu), Object.keys(alt).map((s) => tabelle[s]), `${name}: Schluessel nicht wie in der Tabelle`);
+  for (const [alterSchluessel, neuerSchluessel] of Object.entries(tabelle)) {
+    assert.equal(JSON.stringify(neu[neuerSchluessel]), JSON.stringify(alt[alterSchluessel]), `${name}: ${alterSchluessel} -> ${neuerSchluessel}`);
+  }
+}
+
+test('Umbenennung: Tabelle deckt jeden alten Schluessel genau einmal, die neuen sind eindeutig', () => {
+  tabellePruefen('Kasse/Meldungen', TABELLE.kasse.meldungen, Object.keys(ALT_KASSE.meldungen));
+  tabellePruefen('Kasse/Beschriftungen', TABELLE.kasse.beschriftungen, Object.keys(ALT_KASSE.beschriftungen));
+  tabellePruefen('Rechnung', TABELLE.rechnung, Object.keys(ALT_RECHNUNG.texte.de));
+  // Meldungen und Beschriftungen teilten sich keinen Schluessel; das bleibt so.
+  const meldungen = new Set(Object.values(TABELLE.kasse.meldungen) as string[]);
+  for (const s of Object.values(TABELLE.kasse.beschriftungen) as string[]) assert.ok(!meldungen.has(s), s);
+});
+
+test('Umbenennung: das Beispiel aus dem Nachtrag', () => {
+  assert.equal(TABELLE.kasse.meldungen['storno.ergebnis_unklar'], 'cancellation.outcome_unknown');
+  assert.equal(TABELLE.rechnung['steuer.igLieferung.titel'], 'tax.intraCommunitySupply.title');
+});
+
+test('Umbenennung: Kassentexte byte-gleich unter neuem Schluessel (Datei und Quelle)', () => {
+  katalogPruefen('Meldungen', TABELLE.kasse.meldungen, ALT_KASSE.meldungen, NEU_KASSE.meldungen);
+  katalogPruefen('Beschriftungen', TABELLE.kasse.beschriftungen, ALT_KASSE.beschriftungen, NEU_KASSE.beschriftungen);
+  katalogPruefen('Meldungen (Quelle)', TABELLE.kasse.meldungen, ALT_KASSE.meldungen, MELDUNGEN);
+  katalogPruefen('Beschriftungen (Quelle)', TABELLE.kasse.beschriftungen, ALT_KASSE.beschriftungen, BESCHRIFTUNGEN);
+});
+
+test('Umbenennung: Rechnungstexte byte-gleich in jeder Sprache, Einheiten unveraendert', () => {
+  assert.deepEqual(NEU_RECHNUNG.sprachen, ALT_RECHNUNG.sprachen);
+  assert.deepEqual(NEU_RECHNUNG.einheiten, ALT_RECHNUNG.einheiten);
+  for (const sprache of ALT_RECHNUNG.sprachen as string[]) {
+    katalogPruefen(`Rechnung/${sprache}`, TABELLE.rechnung, ALT_RECHNUNG.texte[sprache], NEU_RECHNUNG.texte[sprache]);
+    katalogPruefen(`Rechnung/${sprache} (Quelle)`, TABELLE.rechnung, ALT_RECHNUNG.texte[sprache], (INVOICE_TEXTS as Json)[sprache]);
+  }
+});
+
+test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schluessel', () => {
+  const meldungen = TABELLE.kasse.meldungen as Record<string, string>;
+  assert.deepEqual(
+    FEHLERREGELN,
+    (ALT_KASSE.fehlerregeln as Json[]).map((r) => ('schluessel' in r ? { ...r, schluessel: meldungen[r.schluessel] } : r)),
+  );
+  assert.deepEqual(STORNO_ZAHLUNG_FEHLER, Object.fromEntries(
+    Object.entries(ALT_KASSE.stornoZahlungFehler as Record<string, string>).map(([code, s]) => [code, meldungen[s]]),
+  ));
+  // Die Belegmail-Codes kommen unter /v3 englisch (Uebersetzung laut Vokabular).
+  const uebersetzt = VOKABULAR.errorCodes.translation as Record<string, string>;
+  assert.deepEqual(BELEG_MAIL_FEHLER, Object.fromEntries(
+    Object.entries(ALT_KASSE.belegMailFehler as Record<string, string>).map(([code, s]) => [uebersetzt[code], meldungen[s]]),
+  ));
+  assert.deepEqual(NEU_KASSE.fehlerregeln, FEHLERREGELN);
+  assert.deepEqual(NEU_KASSE.belegMailFehler, BELEG_MAIL_FEHLER);
+  assert.deepEqual(NEU_KASSE.stornoZahlungFehler, STORNO_ZAHLUNG_FEHLER);
+});

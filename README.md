@@ -1030,6 +1030,7 @@ in machine form what both sides agreed on, among them:
 | `kasse-texte.json` | the register's message catalogue | `npm run fixtures:texte` |
 | `rechnung-texte.json` | invoice texts in both languages | `npm run fixtures:rechnungstexte` |
 | `rechnung-api.schema.json` | JSON Schema of the invoice API | `npm run fixtures:rechnung` |
+| `texte-umbenennung.json` | old (0.x) and new (1.0) keys of both text catalogues; the texts themselves are unchanged | `npm run fixtures:texte-umbenennung` |
 
 They are generated and never edited by hand. CI regenerates the register
 settings and `oberflaeche.json` and fails if they differ from the committed

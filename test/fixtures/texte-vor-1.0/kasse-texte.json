@@ -1,189 +1,189 @@
 {
   "version": "1.0.0-dev",
   "meldungen": {
-    "network.no_connection": {
+    "netz.keine_verbindung": {
       "text": "Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen."
     },
-    "network.timeout": {
+    "netz.zeitablauf": {
       "text": "Der Server antwortet nicht. Bitte die Internetverbindung prüfen und erneut versuchen."
     },
-    "server.unexpected": {
+    "server.unerwartet": {
       "text": "Der Server hat unerwartet geantwortet (HTTP {status}). Bitte den Support verständigen.",
       "platzhalter": [
         "status"
       ]
     },
-    "pairing.code_missing": {
+    "kopplung.code_fehlt": {
       "text": "Bitte den Kopplungs-Code eingeben."
     },
-    "pairing.failed": {
+    "kopplung.fehlgeschlagen": {
       "text": "Die Kopplung ist fehlgeschlagen. Bitte erneut versuchen."
     },
-    "pairing.incomplete": {
+    "kopplung.unvollstaendig": {
       "text": "Die Kopplung ist unvollständig zurückgekommen. Bitte im Panel einen neuen Code erzeugen und noch einmal versuchen."
     },
-    "device.browser_storage": {
+    "geraet.browser_speicher": {
       "text": "Dieses Gerät konnte nicht gespeichert werden – der Browser-Speicher steht nicht zur Verfügung. Bitte den privaten Modus verlassen.",
       "nur": [
         "web"
       ]
     },
-    "login.pin_missing": {
+    "anmeldung.pin_fehlt": {
       "text": "Bitte die PIN eingeben."
     },
-    "login.failed": {
+    "anmeldung.fehlgeschlagen": {
       "text": "Die Anmeldung ist fehlgeschlagen. Bitte erneut versuchen."
     },
-    "login.not_completed": {
+    "anmeldung.nicht_abgeschlossen": {
       "text": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte erneut versuchen."
     },
-    "login.completing": {
+    "anmeldung.wird_abgeschlossen": {
       "text": "Anmeldung wird gerade abgeschlossen – bitte gleich noch einmal drücken."
     },
-    "session.expired": {
+    "sitzung.abgelaufen": {
       "text": "Die Sitzung ist abgelaufen. Bitte erneut anmelden."
     },
-    "session.expired_offline": {
+    "sitzung.abgelaufen_ohne_netz": {
       "text": "Keine Verbindung zum Server – die Sitzung ist abgelaufen. Bitte erneut anmelden."
     },
-    "session.none": {
+    "sitzung.keine": {
       "text": "Keine Sitzung."
     },
-    "session.logging_out": {
+    "sitzung.meldet_ab": {
       "text": "Kasse meldet in {sekunden} s ab – Bildschirm berühren, um weiterzuarbeiten.",
       "platzhalter": [
         "sekunden"
       ]
     },
-    "logout.press_again": {
+    "abmelden.noch_einmal": {
       "text": "Noch einmal drücken beendet die Schicht an dieser Kasse."
     },
-    "permissions.not_changeable": {
+    "rechte.nicht_aenderbar": {
       "text": "Das darfst du nicht ändern – das Recht dafür vergibt der Inhaber im Panel."
     },
-    "cashregister.load_failed": {
+    "kasse.laden_fehlgeschlagen": {
       "text": "Die Kasse konnte nicht geladen werden."
     },
-    "articles.load_failed": {
+    "artikel.laden_fehlgeschlagen": {
       "text": "Die Artikel konnten nicht geladen werden."
     },
-    "articles.none_enabled": {
+    "artikel.keine_freigegeben": {
       "text": "Keine Artikel an dieser Kasse. Im Panel unter „Kacheln & Gruppen“ freischalten."
     },
-    "articles.none_found": {
+    "artikel.keine_gefunden": {
       "text": "Keine Artikel gefunden."
     },
-    "articles.vat_rate_unknown": {
+    "artikel.steuersatz_unbekannt": {
       "text": "„{name}“ hat einen Steuersatz, den die Kasse nicht kennt.",
       "platzhalter": [
         "name"
       ]
     },
-    "item.amount_missing": {
+    "position.betrag_fehlt": {
       "text": "Bitte einen Betrag eingeben."
     },
-    "item.description_missing": {
+    "position.bezeichnung_fehlt": {
       "text": "Bitte eine Bezeichnung eingeben – sie steht am Beleg."
     },
-    "discount.percent_invalid": {
+    "rabatt.prozent_ungueltig": {
       "text": "Bitte einen Prozentwert zwischen 0,1 und 100 eingeben."
     },
-    "checkout.nothing_entered": {
+    "kassieren.nichts_erfasst": {
       "text": "Noch nichts erfasst – bitte zuerst eine Position aufnehmen."
     },
-    "checkout.tendered_missing": {
+    "kassieren.gegeben_fehlt": {
       "text": "Erst eintippen, was der Gast gibt – der Rückgeld-Rechner ist an."
     },
-    "checkout.tendered_too_little": {
+    "kassieren.gegeben_zu_wenig": {
       "text": "Gegeben ist weniger als der Betrag."
     },
-    "checkout.locked": {
+    "kassieren.gesperrt": {
       "text": "Kassieren gesperrt: {grund}",
       "platzhalter": [
         "grund"
       ]
     },
-    "tip.over_half": {
+    "trinkgeld.ueber_haelfte": {
       "text": "Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld."
     },
-    "completion.failed": {
+    "abschluss.fehlgeschlagen": {
       "text": "Der Abschluss ist fehlgeschlagen."
     },
-    "completion.unknown": {
+    "abschluss.unklar": {
       "text": "Unklar, ob der Beleg entstanden ist – die Antwort kam nicht an. Bitte nicht noch einmal abschließen: der Beleg kann bereits erstellt und signiert sein. Im Panel unter „Belege“ nachsehen; nur wenn er dort fehlt, den Verkauf erneut abschließen."
     },
-    "completion.zero_receipt_failed": {
+    "abschluss.nullbeleg_fehlgeschlagen": {
       "text": "Der Nullbeleg konnte nicht erstellt werden."
     },
-    "completion.signature_down": {
+    "abschluss.signatur_ausgefallen": {
       "text": "Die Signatureinheit hat nicht geantwortet. Der Beleg ist gültig und trägt den Vermerk „Sicherheitseinrichtung ausgefallen“."
     },
-    "completion.resolve_question": {
+    "abschluss.erledigen_frage": {
       "text": "Nur erledigen, wenn der Beleg in der Belegliste steht – sonst bleiben {betrag} ohne Beleg. Bitte zuerst unter „Belege“ nachsehen.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "card_payment.not_possible": {
+    "kartenzahlung.nicht_moeglich": {
       "text": "Kartenzahlung nicht möglich."
     },
-    "card_payment.not_completed": {
+    "kartenzahlung.nicht_zustande": {
       "text": "Die Kartenzahlung ist nicht zustande gekommen."
     },
-    "card_payment.not_started": {
+    "kartenzahlung.nicht_gestartet": {
       "text": "Kartenzahlung nicht gestartet: {grund}",
       "platzhalter": [
         "grund"
       ]
     },
-    "card_payment.unknown": {
+    "kartenzahlung.unklar": {
       "text": "Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein."
     },
-    "card_payment.unknown_with_id": {
+    "kartenzahlung.unklar_mit_kennung": {
       "text": "Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {kennung}.",
       "platzhalter": [
         "kennung"
       ]
     },
-    "card_payment.waiting_for_terminal": {
+    "kartenzahlung.wartet_auf_terminal": {
       "text": "Bitte am Terminal fortfahren …"
     },
-    "card_payment.terminal_cancelling": {
+    "kartenzahlung.terminal_bricht_ab": {
       "text": "Das Terminal bricht gleich von selbst ab …"
     },
-    "card_payment.card_charged_receipt_open": {
+    "kartenzahlung.karte_gebucht_beleg_offen": {
       "text": "Die Karte ist bereits mit {betrag} belastet (Kennung {kennung}) – der Beleg dazu fehlt noch. Bitte jetzt den Beleg erstellen und nicht erneut kassieren.",
       "platzhalter": [
         "betrag",
         "kennung"
       ]
     },
-    "card_payment.card_charged_cart_changed": {
+    "kartenzahlung.karte_gebucht_korb_geaendert": {
       "text": "Es gibt eine gebuchte Kartenzahlung über {betrag} (Kennung {kennung}), aber der Korb hat sich seither geändert. Bitte zuerst entscheiden: den Beleg zur gebuchten Zahlung erstellen oder die Zahlung am Terminal stornieren und hier verwerfen.",
       "platzhalter": [
         "betrag",
         "kennung"
       ]
     },
-    "card_payment.connect_not_connected": {
+    "kartenzahlung.connect_nicht_verbunden": {
       "text": "Kartenzahlung nicht möglich: Kasseneck Connect ist nicht verbunden – Einstellungen → Kasseneck Connect.",
       "nur": [
         "web"
       ]
     },
-    "card_payment.cart_locked_card_charged": {
+    "kartenzahlung.korb_gesperrt_karte_belastet": {
       "text": "Die Karte ist bereits belastet – Warenkorb, Rabatt und Trinkgeld bleiben gesperrt, bis der Beleg entsteht oder die Karte zurückerstattet ist."
     },
-    "card_payment.unpair_card_charged": {
+    "kartenzahlung.entkoppeln_karte_belastet": {
       "text": "Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Terminal zurückerstattet werden (Betrag siehe unten)."
     },
-    "terminal.none_found": {
+    "terminal.keines_gefunden": {
       "text": "Kein Hobex-Terminal gefunden – ist es eingeschaltet und im selben Netz wie dieser Rechner?",
       "nur": [
         "web"
       ]
     },
-    "terminal.not_ready": {
+    "terminal.nicht_bereit": {
       "text": "Terminal antwortet, ist aber nicht betriebsbereit: {antwort} – TID prüfen.",
       "platzhalter": [
         "antwort"
@@ -192,13 +192,13 @@
         "web"
       ]
     },
-    "gptom.app_missing": {
+    "gptom.app_fehlt": {
       "text": "Die GP-Tom-App ist auf diesem Gerät nicht da.",
       "nur": [
         "app"
       ]
     },
-    "gptom.search_failed": {
+    "gptom.suche_fehlgeschlagen": {
       "text": "GP Tom: Suche nach der App fehlgeschlagen: {grund}",
       "platzhalter": [
         "grund"
@@ -207,7 +207,7 @@
         "app"
       ]
     },
-    "gptom.payment_failed": {
+    "gptom.zahlung_fehlgeschlagen": {
       "text": "GP Tom: Zahlung fehlgeschlagen: {grund}",
       "platzhalter": [
         "grund"
@@ -216,7 +216,7 @@
         "app"
       ]
     },
-    "gptom.terminal_not_responding": {
+    "gptom.terminal_antwortet_nicht": {
       "text": "Das Terminal hat nicht geantwortet: {grund}",
       "platzhalter": [
         "grund"
@@ -225,7 +225,7 @@
         "app"
       ]
     },
-    "gptom.payment_not_completed": {
+    "gptom.zahlung_nicht_abgeschlossen": {
       "text": "Die Zahlung wurde nicht abgeschlossen ({code}).",
       "platzhalter": [
         "code"
@@ -234,13 +234,13 @@
         "app"
       ]
     },
-    "gptom.declined": {
+    "gptom.abgelehnt": {
       "text": "Das Terminal hat die Zahlung abgelehnt.",
       "nur": [
         "app"
       ]
     },
-    "gptom.declined_with_code": {
+    "gptom.abgelehnt_mit_code": {
       "text": "Das Terminal hat die Zahlung abgelehnt ({code}).",
       "platzhalter": [
         "code"
@@ -249,19 +249,19 @@
         "app"
       ]
     },
-    "gptom.not_opened": {
+    "gptom.nicht_geoeffnet": {
       "text": "GP Tom ließ sich nicht öffnen – bitte die GP-Tom-App prüfen und erneut versuchen.",
       "nur": [
         "app"
       ]
     },
-    "gptom.timeout": {
+    "gptom.zeit_abgelaufen": {
       "text": "Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird.",
       "nur": [
         "app"
       ]
     },
-    "gptom.timeout_with_id": {
+    "gptom.zeit_abgelaufen_mit_kennung": {
       "text": "Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {kennung}.",
       "platzhalter": [
         "kennung"
@@ -270,166 +270,166 @@
         "app"
       ]
     },
-    "log.empty": {
+    "protokoll.leer": {
       "text": "Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung."
     },
-    "log.copied": {
+    "protokoll.kopiert": {
       "text": "Das Protokoll liegt in der Zwischenablage."
     },
-    "receipts.load_failed": {
+    "belege.laden_fehlgeschlagen": {
       "text": "Die Belege konnten nicht geladen werden."
     },
-    "receipts.none_in_period": {
+    "belege.keine_im_zeitraum": {
       "text": "Keine Belege in diesem Zeitraum."
     },
-    "receipt.load_failed": {
+    "beleg.laden_fehlgeschlagen": {
       "text": "Der Beleg konnte nicht geladen werden."
     },
-    "receipt.not_found": {
+    "beleg.nicht_gefunden": {
       "text": "Der Beleg wurde nicht gefunden."
     },
-    "cancellation.failed": {
+    "storno.fehlgeschlagen": {
       "text": "Das Storno ist fehlgeschlagen."
     },
-    "cancellation.reason_missing": {
+    "storno.grund_fehlt": {
       "text": "Bitte einen Grund wählen."
     },
-    "cancellation.item_missing": {
+    "storno.position_fehlt": {
       "text": "Bitte mindestens eine Position wählen."
     },
-    "cancellation.payments_missing": {
+    "storno.zahlungen_fehlen": {
       "text": "Dieser Beleg wurde in mehreren Zahlungen bezahlt – bitte angeben, wie zurückgegeben wird."
     },
-    "cancellation.refund_too_high": {
+    "storno.rueckgabe_zu_hoch": {
       "text": "Eine Rückgabe ist höher als der Rest ihrer Zahlung – bitte die Beträge prüfen."
     },
-    "cancellation.refund_without_reference": {
+    "storno.rueckgabe_ohne_bezug": {
       "text": "Eine Rückgabe nennt keine Zahlung des Belegs – bitte das Storno neu beginnen."
     },
-    "cancellation.refund_reference_unknown": {
+    "storno.rueckgabe_bezug_unbekannt": {
       "text": "Eine Rückgabe nennt eine Zahlung, die es am Beleg nicht gibt – bitte das Storno neu beginnen."
     },
-    "cancellation.outcome_unknown": {
+    "storno.ergebnis_unklar": {
       "text": "Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren, sondern die Belegliste in ein paar Minuten neu laden."
     },
-    "cancellation.sum_mismatch": {
+    "storno.summe_passt_nicht": {
       "text": "Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen."
     },
-    "cancellation.credit_cards": {
+    "storno.karten_gutschreiben": {
       "text": "Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken."
     },
-    "cancellation.outcome_unknown_cards": {
+    "storno.ergebnis_unklar_karten": {
       "text": "Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg am Terminal gutschreiben."
     },
-    "cancellation.cards_not_checked": {
+    "storno.karten_nicht_abgehakt": {
       "text": "Noch ist nicht jede Karte abgehakt – bitte jede am Terminal gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken."
     },
-    "split.setting_hint": {
+    "getrennt.einstellung_hinweis": {
       "text": "Ein Tisch zahlt in Teilen: jede Zahlung bar oder mit Karte, mit eigenem Trinkgeld – am Ende ein Beleg für alles."
     },
-    "split.amount_over_open": {
+    "getrennt.betrag_ueber_offen": {
       "text": "Der Betrag ist höher als offen – höchstens {betrag}.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.tip_over_amount": {
+    "getrennt.trinkgeld_ueber_betrag": {
       "text": "Das Trinkgeld ist höher als der Betrag dieser Zahlung."
     },
-    "split.tendered_too_little": {
+    "getrennt.gegeben_zu_wenig": {
       "text": "Gegeben ist weniger als der Betrag dieser Zahlung."
     },
-    "split.still_open": {
+    "getrennt.noch_offen": {
       "text": "Es sind noch {betrag} offen – abschließen geht erst, wenn alles kassiert ist.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.sum_mismatch": {
+    "getrennt.summe_passt_nicht": {
       "text": "Die Zahlungen ergeben nicht den Betrag des Belegs – bitte die Liste prüfen."
     },
-    "split.cart_locked": {
+    "getrennt.korb_gesperrt": {
       "text": "Der Warenkorb ist gesperrt, solange Zahlungen kassiert sind – erst abschließen oder die Zahlungen entfernen."
     },
-    "split.switch_locked": {
+    "getrennt.wechsel_gesperrt": {
       "text": "Zurück zu Bar oder Karte geht erst, wenn keine Zahlung mehr kassiert ist."
     },
-    "split.return_cash": {
+    "getrennt.bar_zurueckgeben": {
       "text": "Bitte {betrag} Bargeld an den Gast zurückgeben.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.card_reverse_running": {
+    "getrennt.karte_zurueckbuchen_laeuft": {
       "text": "Die Kartenzahlung über {betrag} wird am Terminal zurückgebucht …",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.card_reversed": {
+    "getrennt.karte_zurueckgebucht": {
       "text": "Die Kartenzahlung über {betrag} ist am Terminal zurückgebucht.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.card_reverse_failed": {
+    "getrennt.karte_zurueckbuchen_fehlgeschlagen": {
       "text": "Die Kartenzahlung über {betrag} (Kennung {kennung}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte am Terminal-Beleg nachsehen und erneut versuchen.",
       "platzhalter": [
         "betrag",
         "kennung"
       ]
     },
-    "split.card_reverse_unknown": {
+    "getrennt.karte_zurueckbuchen_unklar": {
       "text": "Unklar, ob die Rückbuchung über {betrag} (Kennung {kennung}) durchgegangen ist – die Zahlung bleibt in der Liste. Bitte am Terminal-Beleg nachsehen, BEVOR erneut zurückgebucht wird.",
       "platzhalter": [
         "betrag",
         "kennung"
       ]
     },
-    "split.card_already_reversed": {
+    "getrennt.karte_bereits_zurueckgebucht": {
       "text": "Das Terminal meldet, dass die Kartenzahlung über {betrag} bereits gutgeschrieben wurde (Kennung {kennung}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.",
       "platzhalter": [
         "betrag",
         "kennung"
       ]
     },
-    "split.external_reverse": {
+    "getrennt.extern_zurueckbuchen": {
       "text": "Diese Karte ist nicht an die Kasse angebunden. Bitte {betrag} jetzt am Terminal zurückbuchen und danach bestätigen.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.session_open": {
+    "getrennt.sitzung_offen": {
       "text": "Eine getrennte Zahlung ist nicht abgeschlossen, {betrag} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.session_unreadable": {
+    "getrennt.sitzung_unlesbar": {
       "text": "Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen."
     },
-    "split.storage_failed": {
+    "getrennt.ablage_fehlgeschlagen": {
       "text": "Die getrennte Zahlung ließ sich auf diesem Gerät nicht speichern – bitte die Kasse bis zum Abschluss dieses Belegs nicht neu laden, sonst stehen belastete Karten womöglich nicht mehr in der Liste."
     },
-    "split.too_many_payments": {
+    "getrennt.zu_viele_zahlungen": {
       "text": "Ein Beleg lässt höchstens 20 Zahlungen zu."
     },
-    "split.unpair_open_cards": {
+    "getrennt.entkoppeln_offene_karten": {
       "text": "Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Terminal zurückgebucht werden (Beträge siehe unten)."
     },
-    "split.items_locked": {
+    "getrennt.positionen_gesperrt": {
       "text": "Nach Positionen geht nicht mehr – eine Zahlung ist schon als Betrag kassiert."
     },
-    "split.select_items": {
+    "getrennt.positionen_waehlen": {
       "text": "Bitte zuerst antippen, was dieser Gast zahlt."
     },
-    "split.tendered_missing": {
+    "getrennt.gegeben_fehlt": {
       "text": "Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an."
     },
-    "receipt.link_copied": {
+    "beleg.link_kopiert": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
     },
-    "receipt.share_text": {
+    "beleg.teilen_text": {
       "text": "Beleg {nummer} von {betrieb} über {betrag}: {link}",
       "platzhalter": [
         "betrieb",
@@ -438,67 +438,67 @@
         "link"
       ]
     },
-    "receipt.not_shareable": {
+    "beleg.nicht_teilbar": {
       "text": "Für diesen Beleg gibt es keinen Link – er stammt aus einer älteren Kasse."
     },
-    "receipt.test_hint_share": {
+    "beleg.test_hinweis_teilen": {
       "text": "Test-Umgebung – der Beleg ist steuerlich nicht gültig."
     },
-    "receipt.mail_sent": {
+    "beleg.mail_gesendet": {
       "text": "Der Beleg wurde an {an} gesendet.",
       "platzhalter": [
         "an"
       ]
     },
-    "receipt.mail_address_invalid": {
+    "beleg.mail_adresse_ungueltig": {
       "text": "Diese E-Mail-Adresse ist nicht gültig."
     },
-    "receipt.mail_too_often": {
+    "beleg.mail_zu_oft": {
       "text": "Dieser Beleg wurde schon oft gesendet – bitte später noch einmal."
     },
-    "receipt.mail_failed": {
+    "beleg.mail_fehlgeschlagen": {
       "text": "Der Beleg konnte nicht gesendet werden. Bitte noch einmal versuchen."
     },
-    "receipt.mail_not_found": {
+    "beleg.mail_nicht_gefunden": {
       "text": "Dieser Beleg wurde nicht gefunden – er konnte nicht gesendet werden."
     },
-    "print.failed": {
+    "druck.fehlgeschlagen": {
       "text": "Der Ausdruck ist fehlgeschlagen."
     },
-    "print.not_possible": {
+    "druck.nicht_moeglich": {
       "text": "Druck nicht möglich: {grund}",
       "platzhalter": [
         "grund"
       ]
     },
-    "print.test_print_failed": {
+    "druck.testdruck_fehlgeschlagen": {
       "text": "Der Testdruck ist fehlgeschlagen."
     },
-    "print.test_print_not_possible": {
+    "druck.testdruck_nicht_moeglich": {
       "text": "Der Testdruck ist fehlgeschlagen: {grund}",
       "platzhalter": [
         "grund"
       ]
     },
-    "print.no_printer": {
+    "druck.kein_drucker": {
       "text": "Kein Bondrucker eingerichtet – in den Einstellungen unter Drucker & Lade."
     },
-    "print.printer_unreachable": {
+    "druck.drucker_nicht_erreichbar": {
       "text": "Drucker nicht erreichbar."
     },
-    "print.job_expired": {
+    "druck.job_abgelaufen": {
       "text": "Drucker hat den Beleg nicht abgeholt (abgelaufen).",
       "nur": [
         "web"
       ]
     },
-    "print.no_printer_found": {
+    "druck.kein_drucker_gefunden": {
       "text": "Kein Drucker gefunden – ist er eingeschaltet und im selben Netz wie dieser Rechner?",
       "nur": [
         "web"
       ]
     },
-    "print.chrome_only": {
+    "druck.nur_chrome": {
       "text": "{weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) – nicht in Safari und nicht am iPad.",
       "platzhalter": [
         "weg"
@@ -507,7 +507,7 @@
         "web"
       ]
     },
-    "print.no_channel_printer": {
+    "druck.kein_weg_drucker": {
       "text": "Kein {weg}-Drucker verbunden – „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.",
       "platzhalter": [
         "weg"
@@ -516,46 +516,46 @@
         "web"
       ]
     },
-    "print.wizard_connect": {
+    "druck.wizard_verbinden": {
       "text": "Verbinde mit {name} …",
       "platzhalter": [
         "name"
       ]
     },
-    "print.wizard_test_print_question": {
+    "druck.wizard_testdruck_frage": {
       "text": "Ist der Testdruck gekommen?"
     },
-    "print.wizard_qr_question": {
+    "druck.wizard_qr_frage": {
       "text": "Welcher QR-Code ist sauber gedruckt?"
     },
-    "print.wizard_qr_none_hint": {
+    "druck.wizard_qr_keiner_hinweis": {
       "text": "Kein QR-Code kam sauber – der Beleg zeigt den QR-Code dann am Bildschirm."
     },
-    "print.wizard_nothing_arrived": {
+    "druck.wizard_nichts_gekommen": {
       "text": "Nichts gekommen? Drucker an, Papier drin, richtiges Gerät gewählt?"
     },
-    "print.wizard_saved": {
+    "druck.wizard_gespeichert": {
       "text": "{name} ist eingerichtet.",
       "platzhalter": [
         "name"
       ]
     },
-    "print.wizard_cancelled": {
+    "druck.wizard_abgebrochen": {
       "text": "Nichts gespeichert."
     },
-    "bluetooth.off": {
+    "bluetooth.aus": {
       "text": "Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.",
       "nur": [
         "app"
       ]
     },
-    "bluetooth.permission_missing": {
+    "bluetooth.freigabe_fehlt": {
       "text": "Bitte die Freigabe in den Geräte-Einstellungen erteilen.",
       "nur": [
         "app"
       ]
     },
-    "bluetooth.search_failed": {
+    "bluetooth.suche_fehlgeschlagen": {
       "text": "Die Suche ist fehlgeschlagen: {grund}",
       "platzhalter": [
         "grund"
@@ -564,88 +564,88 @@
         "app"
       ]
     },
-    "connect.not_responding": {
+    "connect.antwortet_nicht": {
       "text": "Kasseneck Connect antwortet nicht – läuft das Programm auf diesem Rechner?",
       "nur": [
         "web"
       ]
     },
-    "connect.code_expired": {
+    "connect.code_abgelaufen": {
       "text": "Der Kopplungs-Code ist abgelaufen – im Agent einen neuen erzeugen („kasseneck-connect pair“).",
       "nur": [
         "web"
       ]
     },
-    "connect.too_many_attempts": {
+    "connect.zu_viele_versuche": {
       "text": "Zu viele Fehlversuche – eine Minute warten und noch einmal versuchen.",
       "nur": [
         "web"
       ]
     },
-    "connect.printer_not_responding": {
+    "connect.drucker_antwortet_nicht": {
       "text": "Der Drucker antwortet nicht – Strom, Netzwerk und IP prüfen.",
       "nur": [
         "web"
       ]
     },
-    "connect.not_paired": {
+    "connect.nicht_gekoppelt": {
       "text": "Diese Kasse ist mit Kasseneck Connect nicht gekoppelt – in den Einstellungen „Koppeln“ drücken.",
       "nur": [
         "web"
       ]
     },
-    "connect.printer_unknown": {
+    "connect.drucker_unbekannt": {
       "text": "Diesen Drucker kennt Kasseneck Connect nicht (mehr) – bitte neu suchen.",
       "nur": [
         "web"
       ]
     },
-    "connect.origin_not_allowed": {
+    "connect.ursprung_nicht_freigegeben": {
       "text": "Kasseneck Connect nimmt von dieser Adresse nichts an (Ursprung nicht freigegeben).",
       "nur": [
         "web"
       ]
     },
-    "connect.not_installed": {
+    "connect.nicht_installiert": {
       "text": "Kasseneck Connect nicht gefunden – bitte installieren.",
       "nur": [
         "web"
       ]
     },
-    "connect.unpair_question": {
+    "connect.entkoppeln_frage": {
       "text": "Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.",
       "nur": [
         "web"
       ]
     },
-    "settings.load_failed": {
+    "einstellungen.laden_fehlgeschlagen": {
       "text": "Die Einstellungen konnten nicht geladen werden."
     },
-    "settings.save_failed": {
+    "einstellungen.speichern_fehlgeschlagen": {
       "text": "Die Einstellung konnte nicht gespeichert werden."
     },
-    "settings.not_loaded_yet": {
+    "einstellungen.noch_nicht_geladen": {
       "text": "Noch nicht geladen – bitte kurz warten oder neu anmelden."
     },
-    "settings.ip_invalid": {
+    "einstellungen.ip_ungueltig": {
       "text": "Keine gültige IP-Adresse (z. B. 192.168.1.50)."
     },
-    "unpairing.failed": {
+    "entkopplung.fehlgeschlagen": {
       "text": "Entkoppeln fehlgeschlagen."
     },
-    "logo.upload_failed": {
+    "logo.hochladen_fehlgeschlagen": {
       "text": "Hochladen fehlgeschlagen."
     },
-    "logo.remove_failed": {
+    "logo.entfernen_fehlgeschlagen": {
       "text": "Entfernen fehlgeschlagen."
     },
-    "app.not_in_browser": {
+    "app.nicht_im_browser": {
       "text": "Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.",
       "nur": [
         "app"
       ]
     },
-    "app.open_in_browser": {
+    "app.im_browser_oeffnen": {
       "text": "Bitte im Browser öffnen: {ziel}",
       "platzhalter": [
         "ziel"
@@ -666,15 +666,15 @@
     },
     {
       "art": "zeitablauf",
-      "schluessel": "network.timeout"
+      "schluessel": "netz.zeitablauf"
     },
     {
       "art": "netz",
-      "schluessel": "network.no_connection"
+      "schluessel": "netz.keine_verbindung"
     },
     {
       "art": "unerwartet",
-      "schluessel": "server.unexpected"
+      "schluessel": "server.unerwartet"
     },
     {
       "art": "sonst",
@@ -682,275 +682,275 @@
     }
   ],
   "belegMailFehler": {
-    "invalid_address": "receipt.mail_address_invalid",
-    "too_many_requests": "receipt.mail_too_often",
-    "send_failed": "receipt.mail_failed",
-    "receipt_not_found": "receipt.mail_not_found"
+    "adresse_ungueltig": "beleg.mail_adresse_ungueltig",
+    "zu_oft": "beleg.mail_zu_oft",
+    "versand_fehlgeschlagen": "beleg.mail_fehlgeschlagen",
+    "beleg_nicht_gefunden": "beleg.mail_nicht_gefunden"
   },
   "stornoZahlungFehler": {
-    "cancellation_payments_required": "cancellation.payments_missing",
-    "cancellation_refund_exceeds_payment": "cancellation.refund_too_high",
-    "cancellation_refund_reference_required": "cancellation.refund_without_reference",
-    "cancellation_refund_reference_unknown": "cancellation.refund_reference_unknown",
-    "payments_sum_mismatch": "cancellation.sum_mismatch",
-    "cancellation_outcome_unknown": "cancellation.outcome_unknown"
+    "cancellation_payments_required": "storno.zahlungen_fehlen",
+    "cancellation_refund_exceeds_payment": "storno.rueckgabe_zu_hoch",
+    "cancellation_refund_reference_required": "storno.rueckgabe_ohne_bezug",
+    "cancellation_refund_reference_unknown": "storno.rueckgabe_bezug_unbekannt",
+    "payments_sum_mismatch": "storno.summe_passt_nicht",
+    "cancellation_outcome_unknown": "storno.ergebnis_unklar"
   },
   "beschriftungen": {
-    "common.cancel": {
+    "allgemein.abbrechen": {
       "text": "Abbrechen"
     },
-    "message.dismiss": {
+    "meldung.ausblenden": {
       "text": "Meldung ausblenden: {meldung}",
       "platzhalter": [
         "meldung"
       ]
     },
-    "message.dismiss_warning": {
+    "meldung.warnung_ausblenden": {
       "text": "Verstanden – Warnung ausblenden: {meldung}",
       "platzhalter": [
         "meldung"
       ]
     },
-    "pairing.pair_again": {
+    "kopplung.neu_koppeln": {
       "text": "Neu koppeln"
     },
-    "logout.question": {
+    "abmelden.frage": {
       "text": "Wirklich abmelden?"
     },
-    "logout.keep_working": {
+    "abmelden.weiter_arbeiten": {
       "text": "Weiter arbeiten"
     },
-    "device.unpair": {
+    "geraet.entkoppeln": {
       "text": "Gerät entkoppeln"
     },
-    "connect.unpair_confirm": {
+    "connect.entkoppeln_bestaetigen": {
       "text": "Entkoppeln bestätigen",
       "nur": [
         "web"
       ]
     },
-    "checkout.tip": {
+    "kassieren.trinkgeld": {
       "text": "Trinkgeld"
     },
-    "checkout.no_tip": {
+    "kassieren.kein": {
       "text": "kein"
     },
-    "checkout.custom_amount": {
+    "kassieren.eigener_betrag": {
       "text": "Eigener Betrag"
     },
-    "checkout.exact": {
+    "kassieren.passend": {
       "text": "passend"
     },
-    "checkout.clear_tendered": {
+    "kassieren.gegeben_loeschen": {
       "text": "Gegeben löschen"
     },
-    "checkout.still_missing": {
+    "kassieren.es_fehlen_noch": {
       "text": "Es fehlen noch"
     },
-    "checkout.change": {
+    "kassieren.rueckgeld": {
       "text": "Rückgeld"
     },
-    "card_payment.amount_on_terminal": {
+    "kartenzahlung.betrag_am_terminal": {
       "text": "Betrag steht am Terminal"
     },
-    "card_payment.present_card": {
+    "kartenzahlung.karte_vorhalten": {
       "text": "Karte vorhalten oder stecken · noch {zeit}",
       "platzhalter": [
         "zeit"
       ]
     },
-    "completion.receipt_exists": {
+    "abschluss.beleg_vorhanden": {
       "text": "Beleg ist vorhanden – erledigen"
     },
-    "completion.resolve": {
+    "abschluss.erledigen": {
       "text": "Erledigen"
     },
-    "split.button": {
+    "getrennt.knopf": {
       "text": "Getrennt"
     },
-    "split.setting": {
+    "getrennt.einstellung": {
       "text": "Getrennt zahlen"
     },
-    "split.to_pay": {
+    "getrennt.zu_zahlen": {
       "text": "Zu zahlen"
     },
-    "split.open": {
+    "getrennt.offen": {
       "text": "Offen"
     },
-    "split.payment": {
+    "getrennt.zahlung": {
       "text": "Zahlung {n}",
       "platzhalter": [
         "n"
       ]
     },
-    "split.amount": {
+    "getrennt.betrag": {
       "text": "Betrag"
     },
-    "split.remaining": {
+    "getrennt.rest": {
       "text": "Rest"
     },
-    "split.divide": {
+    "getrennt.teilen": {
       "text": "÷ {n}",
       "platzhalter": [
         "n"
       ]
     },
-    "split.tip_basis": {
+    "getrennt.trinkgeld_bezug": {
       "text": "% von diesem Betrag"
     },
-    "split.of_which_tip": {
+    "getrennt.davon_trinkgeld": {
       "text": "davon Trinkgeld {betrag}",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.remove": {
+    "getrennt.entfernen": {
       "text": "Entfernen"
     },
-    "split.cancel_all": {
+    "getrennt.alles_abbrechen": {
       "text": "Alles abbrechen"
     },
-    "split.continue_checkout": {
+    "getrennt.weiter_kassieren": {
       "text": "Weiter kassieren"
     },
-    "split.reverse_all": {
+    "getrennt.alles_zurueckbuchen": {
       "text": "Alles zurückbuchen"
     },
-    "split.reversed_on_terminal": {
+    "getrennt.am_terminal_zurueckgebucht": {
       "text": "Am Terminal zurückgebucht"
     },
-    "split.reverse_card": {
+    "getrennt.karte_zurueckbuchen": {
       "text": "Karte zurückbuchen"
     },
-    "split.pair_again_anyway": {
+    "getrennt.trotzdem_neu_koppeln": {
       "text": "Trotzdem neu koppeln"
     },
-    "split.keep_payment": {
+    "getrennt.zahlung_behalten": {
       "text": "Zahlung behalten"
     },
-    "split.clarify": {
+    "getrennt.klaeren": {
       "text": "Klären"
     },
-    "split.reverse_again": {
+    "getrennt.erneut_zurueckbuchen": {
       "text": "Erneut zurückbuchen"
     },
-    "split.was_charged": {
+    "getrennt.wurde_belastet": {
       "text": "Wurde belastet – übernehmen"
     },
-    "split.not_charged": {
+    "getrennt.nicht_belastet": {
       "text": "Nicht belastet – verwerfen"
     },
-    "split.continue": {
+    "getrennt.weiter": {
       "text": "Weiter · {betrag} getrennt",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.allocation": {
+    "getrennt.aufteilung": {
       "text": "Aufteilung"
     },
-    "split.back_to_payment_method": {
+    "getrennt.zurueck_zahlart": {
       "text": "Zurück zur Zahlart"
     },
-    "split.tab_items": {
+    "getrennt.tab_positionen": {
       "text": "Nach Positionen"
     },
-    "split.tab_amount": {
+    "getrennt.tab_betrag": {
       "text": "Betrag"
     },
-    "split.one_less": {
+    "getrennt.stueck_weniger": {
       "text": "{name}: ein Stück weniger",
       "platzhalter": [
         "name"
       ]
     },
-    "split.one_more": {
+    "getrennt.stueck_mehr": {
       "text": "{name}: ein Stück mehr",
       "platzhalter": [
         "name"
       ]
     },
-    "split.tendered": {
+    "getrennt.gegeben": {
       "text": "Gegeben (bar)"
     },
-    "split.tendered_change": {
+    "getrennt.gegeben_rueckgeld": {
       "text": "Gegeben {gegeben} · Rückgeld {rueckgeld}",
       "platzhalter": [
         "gegeben",
         "rueckgeld"
       ]
     },
-    "split.payment_method": {
+    "getrennt.zahlart": {
       "text": "Zahlart"
     },
-    "split.method_cash": {
+    "getrennt.art_bar": {
       "text": "Bar"
     },
-    "split.method_card": {
+    "getrennt.art_karte": {
       "text": "Karte"
     },
-    "split.add_payment": {
+    "getrennt.zahlung_hinzufuegen": {
       "text": "Zahlung hinzufügen · {betrag}",
       "platzhalter": [
         "betrag"
       ]
     },
-    "split.open_items": {
+    "getrennt.offene_positionen": {
       "text": "Offene Positionen"
     },
-    "split.pieces_open": {
+    "getrennt.stueck_offen": {
       "text": "{n} offen",
       "platzhalter": [
         "n"
       ]
     },
-    "split.pieces_selected": {
+    "getrennt.stueck_gewaehlt": {
       "text": "{n} von {offen}",
       "platzhalter": [
         "n",
         "offen"
       ]
     },
-    "split.nothing_selected": {
+    "getrennt.nichts_gewaehlt": {
       "text": "Noch nichts angetippt"
     },
-    "split.all_paid": {
+    "getrennt.alles_bezahlt": {
       "text": "Alles bezahlt"
     },
-    "payment_method.card": {
+    "zahlart.kartenzahlung": {
       "text": "Kartenzahlung"
     },
-    "payment_method.cash": {
+    "zahlart.barzahlung": {
       "text": "Barzahlung"
     },
-    "payment_method.multiple": {
+    "zahlart.mehrere": {
       "text": "Mehrere"
     },
-    "cancellation.title": {
+    "storno.titel": {
       "text": "Storno zu {beleg}",
       "platzhalter": [
         "beleg"
       ]
     },
-    "cancellation.how_to_refund": {
+    "storno.wie_zurueckgeben": {
       "text": "Wie zurückgeben?"
     },
-    "cancellation.as_paid": {
+    "storno.wie_bezahlt": {
       "text": "wie bezahlt"
     },
-    "cancellation.cash": {
+    "storno.bar": {
       "text": "bar"
     },
-    "cancellation.all_cash": {
+    "storno.alles_bar": {
       "text": "Alles bar"
     },
-    "cancellation.payment_remainder": {
+    "storno.rest_der_zahlung": {
       "text": "Rest {betrag}",
       "platzhalter": [
         "betrag"
       ]
     },
-    "cancellation.difference": {
+    "storno.differenz": {
       "text": "Differenz"
     }
   }

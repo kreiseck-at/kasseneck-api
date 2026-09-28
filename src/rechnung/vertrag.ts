@@ -232,7 +232,7 @@ export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 /**
  * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
  * wird das Kuerzel in der Sprache der Rechnung (`INVOICE_TEXTS`,
- * `einheit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
+ * `unit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
  * (`INVOICE_UNIT_CODES`). Ohne Angabe gilt `piece`.
  */
 export const INVOICE_UNITS = [
