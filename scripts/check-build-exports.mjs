@@ -131,6 +131,18 @@ for (const bedingung of benutzteBedingungen) {
   }
 }
 
+/**
+ * 1.0 hat die deutschen Unterpfade ohne Alias umbenannt. Ein Eintrag unter
+ * altem Namen waere ein zweiter Weg zum selben Modul und liesse Verbraucher
+ * stillschweigend beim alten Namen bleiben. Der Wortschatz-Waechter
+ * (`test/export-namen.test.ts`) prueft die Namen allgemein; hier steht die
+ * Liste der konkret entfernten, damit schon der Bau sie meldet.
+ */
+const ENTFERNT_IN_1_0 = { './kasse': './pos', './rechnung': './invoice', './rechnung/rechnen': './invoice/calc' };
+for (const [alt, neu] of Object.entries(ENTFERNT_IN_1_0)) {
+  if (alt in (paket.exports ?? {})) fehler.push(`${alt}: seit 1.0 entfernt, heisst ${neu}`);
+}
+
 if (fehler.length > 0) {
   process.stderr.write(`exports sind nicht in Ordnung:\n  ${fehler.join('\n  ')}\n`);
   process.exit(1);

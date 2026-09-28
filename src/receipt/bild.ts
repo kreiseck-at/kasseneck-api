@@ -1,5 +1,5 @@
-import type { RasterBild } from '../printing/escpos.js';
-import { logoRasterMass, type LogoMass } from './blatt.js';
+import type { RasterImage } from '../printing/escpos.js';
+import { logoRasterSize, type LogoDimensions } from './blatt.js';
 
 /**
  * RGBA-Pixel (wie `ImageData.data` im Browser oder ein dekodiertes PNG in
@@ -12,11 +12,11 @@ import { logoRasterMass, type LogoMass } from './blatt.js';
  * Schwelle 128. Die Reihenfolge der Rechenschritte nicht aendern -- beide
  * Sprachen rechnen mit IEEE-Doubles und kommen nur so auf dieselben Punkte.
  */
-export function logoRaster(rgba: ArrayLike<number>, pxBreite: number, pxHoehe: number, mass: LogoMass, zeichen: number): RasterBild {
+export function rasterizeLogo(rgba: ArrayLike<number>, pxBreite: number, pxHoehe: number, mass: LogoDimensions, zeichen: number): RasterImage {
   if (!Number.isInteger(pxBreite) || !Number.isInteger(pxHoehe) || pxBreite < 1 || pxHoehe < 1 || rgba.length !== pxBreite * pxHoehe * 4) {
     throw new Error('RGBA-Laenge passt nicht zum Pixelmass');
   }
-  const { breite, hoehe } = logoRasterMass(mass, zeichen);
+  const { width: breite, height: hoehe } = logoRasterSize(mass, zeichen);
   const grau = new Float64Array(breite * hoehe);
   const sx = pxBreite / breite;
   const sy = pxHoehe / hoehe;
@@ -56,5 +56,5 @@ export function logoRaster(rgba: ArrayLike<number>, pxBreite: number, pxHoehe: n
       }
     }
   }
-  return { breite, hoehe, punkte };
+  return { width: breite, height: hoehe, dots: punkte };
 }

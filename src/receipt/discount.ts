@@ -11,7 +11,7 @@ import { receiptItemTotalCents } from '../models/receipt-item.js';
  * Abrunden uebrig bleiben, gehen der Reihe nach an die Gruppen mit dem
  * groessten Bruchteil; keine Zeile ist je groesser als der Umsatz ihres Satzes.
  */
-export function verteileRabatt(positionen: ReceiptItem[], rabattCents: number, name = 'Rabatt'): ReceiptItem[] {
+export function distributeDiscount(positionen: ReceiptItem[], rabattCents: number, name = 'Rabatt'): ReceiptItem[] {
   if (!Number.isInteger(rabattCents) || rabattCents < 0) {
     throw new Error('Rabatt muss eine ganze Zahl in Cent >= 0 sein');
   }

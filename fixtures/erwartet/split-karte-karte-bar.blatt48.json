@@ -1,338 +1,338 @@
 {
-  "zeichen": 48,
-  "bloecke": [
+  "charsPerLine": 48,
+  "blocks": [
     {
-      "art": "logo",
-      "breiteAnteil": 0.5208333333333334,
-      "hoeheZeilen": 5
+      "kind": "logo",
+      "widthFraction": 0.5208333333333334,
+      "heightLines": 5
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                Bäckerei Muster                 ",
-      "fett": true,
-      "leer": false
+      "bold": true,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                  Hauptplatz 1                  ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                 4830 Hallstatt                 ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                  ATU12345678                   ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                 +43 6134 12345                 ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Datum:                       25.09.2026 10:15:30",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Kassen-ID:                                KASSE1",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Beleg-ID:                          AT0-KASSE1-70",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "1  x Schnitzel                           18,90 B",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "1  x Salat                                6,55 B",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "4  x Wein 1/4 je 5,00                    20,00 A",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "MwSt%       MwSt        Netto             Brutto",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "B 10%       2,31        23,14              25,45",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "A 20%       3,33        16,67              20,00",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "------------------------------------------------",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Gesamt:                                  45,45 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Zahlungsarten:                                  ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "1. Kartenzahlung                         20,00 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "2. Kartenzahlung                         15,00 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "3. Barzahlung                            10,45 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "  Gegeben:                               20,00 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "  Rückgeld:                               9,55 €",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "qr",
-      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-70_2026-09-25T10:15:30_20,00_25,45_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
-      "breiteAnteil": 0.5520833333333334
+      "kind": "qr",
+      "payload": "_R1-AT1_KASSE1_AT0-KASSE1-70_2026-09-25T10:15:30_20,00_25,45_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR",
+      "widthFraction": 0.5520833333333334
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                1. Kartenzahlung                ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                  Sumup Beleg                   ",
-      "fett": true,
-      "leer": false
+      "bold": true,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Kartentyp:                            MASTERCARD",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Kartennummer:                **** **** **** 4720",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Zahlungstyp:                         CONTACTLESS",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Gesamtbetrag:                          20,00 EUR",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Transaktionscode:                     TEZBA9K7QK",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "Modus:                               CONTACTLESS",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                2. Kartenzahlung                ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                  GP Tom Beleg                  ",
-      "fett": true,
-      "leer": false
+      "bold": true,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                   Batch: 12                    ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                Receipt: TX-9901                ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                   TID: T-55                    ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                 A0000000031010                 ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "            VISA CREDIT CONTACTLESS             ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "              **** **** **** 4720               ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "             Sale Amount EUR 15,00              ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                     PIN OK                     ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "           Authorization Code 123401            ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "               Sequence Number: 1               ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "         Vielen Dank für Ihren Einkauf          ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "            www.baeckerei-muster.at             ",
-      "fett": false,
-      "leer": false
+      "bold": false,
+      "blank": false
     },
     {
-      "art": "zeile",
+      "kind": "line",
       "text": "                                                ",
-      "fett": false,
-      "leer": true
+      "bold": false,
+      "blank": true
     },
     {
-      "art": "marke",
-      "breite": 352,
-      "hoehe": 51
+      "kind": "brandMark",
+      "width": 352,
+      "height": 51
     }
   ]
 }

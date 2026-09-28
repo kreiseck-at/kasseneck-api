@@ -83,7 +83,7 @@ test('Layout: deutsche und unbekannte Optionen werden abgewiesen, nie still igno
 });
 
 test('Zeichenraster: Bannerzeilen tragen tone', () => {
-  const g = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA, { testCashregister: true }), { zeichen: 32 });
+  const g = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA, { testCashregister: true }), { charsPerLine: 32 });
   const b = g.lines.filter((z) => z.kind === 'banner');
   assert.ok(b.length >= 3);
   for (const z of b) {

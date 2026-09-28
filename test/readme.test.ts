@@ -8,10 +8,10 @@ import * as printing from '../src/printing/index.js';
 import * as payments from '../src/payments/index.js';
 import * as register from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
-import * as rechnung from '../src/rechnung/index.js';
-import * as rechnungRechnen from '../src/rechnung/rechnen.js';
+import * as rechnung from '../src/invoice/index.js';
+import * as calculateInvoice from '../src/invoice/calc.js';
 import * as react from '../src/react/index.js';
-import * as kasse from '../src/kasse/index.js';
+import * as kasse from '../src/pos/index.js';
 
 /**
  * Das README ist die einzige Erklaerung, die ein Verbraucher vor 69
@@ -44,10 +44,10 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/payments': payments,
   '@kreiseck/kasseneck-api/register': register,
   '@kreiseck/kasseneck-api/partner': partner,
-  '@kreiseck/kasseneck-api/rechnung': rechnung,
-  '@kreiseck/kasseneck-api/rechnung/rechnen': rechnungRechnen,
+  '@kreiseck/kasseneck-api/invoice': rechnung,
+  '@kreiseck/kasseneck-api/invoice/calc': calculateInvoice,
   '@kreiseck/kasseneck-api/react': react,
-  '@kreiseck/kasseneck-api/kasse': kasse,
+  '@kreiseck/kasseneck-api/pos': kasse,
 };
 
 function pruefeImporte(text: string, datei: string, mindestens: number): void {
@@ -139,7 +139,7 @@ test('README: die Unterpfad-Tabelle nennt genau die deklarierten Unterpfade', ()
     assert.ok(README.includes(`\`…${unterpfad}\``), `README beschreibt den Unterpfad ${unterpfad} nicht`);
   }
   // Und umgekehrt: kein erfundener Unterpfad in der Tabelle — ein- UND
-  // zweiteilig (z. B. `/rechnung/rechnen`).
+  // zweiteilig (z. B. `/invoice/calc`).
   for (const treffer of README.matchAll(/\| `…((?:\/[a-z]+)+)` \|/g)) {
     assert.ok(deklariert.includes(treffer[1] ?? ''), `README beschreibt einen Unterpfad, den es nicht gibt: ${treffer[1]}`);
   }

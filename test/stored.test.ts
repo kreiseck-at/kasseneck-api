@@ -9,9 +9,9 @@ import { _storedPosSettingsToWire } from '../src/stored/einstellungen.js';
 import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, VOKABULAR_QUELLE } from '../src/stored/vokabular.js';
 import type { InternerTransport } from '../src/client/aufrufe.js';
 import { getReceipt, getReceiptWithCompany } from '../src/client/receipts.js';
-import { posSettingsFromWire } from '../src/kasse/client.js';
-import { fromPosArticlePayload, type PosArticlePayload } from '../src/kasse/artikel.js';
-import { unknownPosSettingValues, POS_DEVICE_DEFAULTS } from '../src/kasse/settings.js';
+import { posSettingsFromWire } from '../src/pos/client.js';
+import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
+import { unknownPosSettingValues, POS_DEVICE_DEFAULTS } from '../src/pos/settings.js';
 import { buildReceiptLayout, CURRENT_LAYOUT_RULESET } from '../src/receipt/layout.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 

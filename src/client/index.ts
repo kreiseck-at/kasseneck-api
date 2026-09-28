@@ -9,7 +9,7 @@ export {
 
 export {
   DEFAULT_BASE_URL,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   DEFAULT_TIMEOUT_MS,
   type HttpResponseLike,
   type HttpRequestInit,
@@ -23,8 +23,8 @@ export {
 } from './transport.js';
 
 export {
-  AUFRUFE,
-  type Aufruf,
+  ALL_CALLS,
+  type ApiCall,
   PUBLIC_CALLS,
   POS_CALLS,
   type PublicCall,

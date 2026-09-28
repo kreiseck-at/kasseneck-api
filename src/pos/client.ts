@@ -27,7 +27,7 @@ import {
  */
 
 /** Einstellungen lesen: Standard + gespeichert (Backend: `getKasseSettings`). */
-export async function getKasseSettings(rufen: InternerTransport, options: { deviceId?: string } = {}): Promise<PosSettings> {
+export async function getPosSettings(rufen: InternerTransport, options: { deviceId?: string } = {}): Promise<PosSettings> {
   const params: Record<string, unknown> = {};
   if (options.deviceId) params.deviceId = options.deviceId;
   const daten = await rufen<{ business?: unknown; device?: unknown }>('getKasseSettings', params);
@@ -43,7 +43,7 @@ export function posSettingsFromWire(daten: { business?: unknown; device?: unknow
 }
 
 /** Betriebsweite Einstellungen schreiben (Recht `layout`); liefert den gemischten Stand. */
-export async function setMyKasseSettings(rufen: InternerTransport, business: Partial<PosBusinessSettings>): Promise<PosBusinessSettings> {
+export async function setMyPosSettings(rufen: InternerTransport, business: Partial<PosBusinessSettings>): Promise<PosBusinessSettings> {
   const name = 'setMyKasseSettings';
   pruefeTeil(name, 'business', business, POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES);
   const saetze = eigenerWert(business, 'vatRates');
@@ -88,15 +88,15 @@ export async function setMyRegisterDeviceSettings(rufen: InternerTransport, devi
   return mergePosSettings(POS_DEVICE_DEFAULTS, objekt(daten?.device) as Partial<PosDeviceSettings> | null);
 }
 
-/** Eingabe von [setMyKasseLogo]: ein Bild als Data-URL (PNG, JPEG, SVG) oder das Entfernen. */
-export type SetMyKasseLogoOptions = { image: string } | { remove: true };
+/** Eingabe von [setMyPosLogo]: ein Bild als Data-URL (PNG, JPEG, SVG) oder das Entfernen. */
+export type SetMyPosLogoOptions = { image: string } | { remove: true };
 
 /**
  * Bild-Logo der Kasse hochladen oder entfernen (Recht `layout`). Liefert die
  * neue `logoImage`-Adresse, nach dem Entfernen `''`. Formatfehler meldet der
  * Server als `logo_invalid_type`, `logo_too_large` oder `logo_invalid`.
  */
-export async function setMyKasseLogo(rufen: InternerTransport, options: SetMyKasseLogoOptions): Promise<string> {
+export async function setMyPosLogo(rufen: InternerTransport, options: SetMyPosLogoOptions): Promise<string> {
   const name = 'setMyKasseLogo';
   const params: Record<string, unknown> = {};
   if ('remove' in options && options.remove === true) {

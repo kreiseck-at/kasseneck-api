@@ -3,25 +3,25 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import * as kasse from '../src/kasse/index.js';
+import * as kasse from '../src/pos/index.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_SHORTCUT_ACTIONS, POS_SHORTCUT_DEFAULTS,
   POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_ERROR_CODES,
-  getKasseSettings, setMyKasseSettings, setMyRegisterDeviceSettings, setMyKasseLogo,
+  getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo,
   listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients,
   isPosError, posFieldErrors, mergePosSettings,
   type PosBusinessSettings, type PosDeviceSettings,
-} from '../src/kasse/index.js';
+} from '../src/pos/index.js';
 import {
   pairRegisterDevice, listRegisterUsersForDevice, listRegisterSessionsForDevice, registerUserLogin,
   registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice,
   REGISTER_ERROR_CODES, isRegisterError, registerErrorDetails, registerErrorCode,
 } from '../src/register/index.js';
-import { createTransport, KASSE_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
+import { createTransport, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { registerUserAuth } from '../src/client/auth.js';
 import { isKasseneckApiError, isKasseneckValidationError, KasseneckApiError } from '../src/client/errors.js';
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { _ALTFORM_0X } from '../src/kasse/settings.js';
+import { _ALTFORM_0X } from '../src/pos/settings.js';
 import { partnerZugangsCodes, randUndAnmeldung } from './kassenweg-codes.js';
 
 /*
@@ -90,7 +90,7 @@ function kassenweg(f: Fall) {
 }
 function gesendet(aufrufe: Mitschrift[], endpunkt: string, f: Fall): Json {
   assert.equal(aufrufe.length, 1, `${endpunkt}/${f.case}: genau ein Aufruf`);
-  assert.equal(aufrufe[0]!.url, `${KASSE_BASE_URL}/${endpunkt}`);
+  assert.equal(aufrufe[0]!.url, `${POS_BASE_URL}/${endpunkt}`);
   const params = { ...aufrufe[0]!.params };
   if (!('cashregisterId' in f.params)) delete params.cashregisterId;
   return params;
@@ -116,7 +116,7 @@ test('Standardwerte: die Drahtform ist die Antwort ohne gespeicherte Einstellung
   assert.deepEqual({ ...POS_SHORTCUT_DEFAULTS }, STANDARD.device.shortcuts);
 });
 
-/** Drahtform -> innere Form mit dem Schema `getKasseSettings` und den Katalogen, unabhaengig vom Erzeuger. */
+/** Drahtform -> innere Form mit dem Schema `getPosSettings` und den Katalogen, unabhaengig vom Erzeuger. */
 function nachInnen(teil: 'business' | 'device', block: Json): Json {
   const schema = VOKABULAR.schemas.getKasseSettings;
   const raus: Json = {};
@@ -176,19 +176,19 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
 
 // --- Einstellungen am Draht ----------------------------------------------------
 
-test('getKasseSettings: sendet deviceId wie der Fall, liest {business, device}', async () => {
+test('getPosSettings: sendet deviceId wie der Fall, liest {business, device}', async () => {
   for (const f of erfolge('getKasseSettings')) {
     const { rufen, aufrufe } = kassenweg(f);
-    const stand = await getKasseSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
+    const stand = await getPosSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
     assert.deepEqual(gesendet(aufrufe, 'getKasseSettings', f), f.params, f.case);
     assert.deepEqual(stand, { business: f.response.data.business, device: f.response.data.device }, f.case);
   }
 });
 
-test('setMyKasseSettings: sendet business wie der Fall, liest die Antwort', async () => {
+test('setMyPosSettings: sendet business wie der Fall, liest die Antwort', async () => {
   for (const f of erfolge('setMyKasseSettings')) {
     const { rufen, aufrufe } = kassenweg(f);
-    const stand = await setMyKasseSettings(rufen, f.params.business);
+    const stand = await setMyPosSettings(rufen, f.params.business);
     assert.deepEqual(gesendet(aufrufe, 'setMyKasseSettings', f), f.params, f.case);
     assert.deepEqual(stand, f.response.data.business, f.case);
   }
@@ -206,9 +206,9 @@ test('setMyRegisterDeviceSettings: sendet deviceId und device wie der Fall', asy
 test('Einstellungen: deutscher Schluessel, deutscher Wert, halbe Steuersatz-Karte und fremde Taste gehen nicht hinaus', async () => {
   const f = fall('setMyKasseSettings', 'success_manager');
   const faelleVorab: [string, () => Promise<unknown>, RegExp][] = [
-    ['business.stil', () => setMyKasseSettings(kassenweg(f).rufen, { stil: 'nacht' } as unknown as Partial<PosBusinessSettings>), /business\.stil/],
-    ['business.theme', () => setMyKasseSettings(kassenweg(f).rufen, { theme: 'nacht' } as unknown as Partial<PosBusinessSettings>), /business\.theme/],
-    ['business.vatRates', () => setMyKasseSettings(kassenweg(f).rufen, { vatRates: { 20: false } }), /business\.vatRates/],
+    ['business.stil', () => setMyPosSettings(kassenweg(f).rufen, { stil: 'nacht' } as unknown as Partial<PosBusinessSettings>), /business\.stil/],
+    ['business.theme', () => setMyPosSettings(kassenweg(f).rufen, { theme: 'nacht' } as unknown as Partial<PosBusinessSettings>), /business\.theme/],
+    ['business.vatRates', () => setMyPosSettings(kassenweg(f).rufen, { vatRates: { 20: false } }), /business\.vatRates/],
     ['device.shortcuts', () => setMyRegisterDeviceSettings(kassenweg(f).rufen, 'dev_pin', { shortcuts: { kassieren: ['Enter'] } } as unknown as Partial<PosDeviceSettings>), /device\.shortcuts\.kassieren/],
     ['device.tasten', () => setMyRegisterDeviceSettings(kassenweg(f).rufen, 'dev_pin', { tasten: {} } as unknown as Partial<PosDeviceSettings>), /device\.tasten/],
     ['device.layout', () => setMyRegisterDeviceSettings(kassenweg(f).rufen, 'dev_pin', { layout: 'rechts' } as unknown as Partial<PosDeviceSettings>), /device\.layout/],
@@ -220,7 +220,7 @@ test('Einstellungen: deutscher Schluessel, deutscher Wert, halbe Steuersatz-Kart
   }
   // Die ganze Karte geht durch, unveraendert.
   const { rufen, aufrufe } = kassenweg(f);
-  await setMyKasseSettings(rufen, { vatRates: { ...POS_BUSINESS_DEFAULTS.vatRates, 19: true } });
+  await setMyPosSettings(rufen, { vatRates: { ...POS_BUSINESS_DEFAULTS.vatRates, 19: true } });
   assert.deepEqual(aufrufe[0]!.params.business, { vatRates: { 0: true, 10: true, 13: true, 19: true, 20: true, 4.9: true } });
 });
 
@@ -236,10 +236,10 @@ test('Einstellungen: ein 0.x-Stand (deutsche Schluessel) ergibt beim Mischen die
   assert.equal(mergePosSettings(POS_BUSINESS_DEFAULTS, { theme: 'night' }).theme, 'night');
 });
 
-test('setMyKasseLogo: image bzw. remove wie der Fall, liefert logoImage', async () => {
+test('setMyPosLogo: image bzw. remove wie der Fall, liefert logoImage', async () => {
   for (const f of erfolge('setMyKasseLogo')) {
     const { rufen, aufrufe } = kassenweg(f);
-    const bild = await setMyKasseLogo(rufen, f.params.remove ? { remove: true } : { image: f.params.image });
+    const bild = await setMyPosLogo(rufen, f.params.remove ? { remove: true } : { image: f.params.image });
     assert.deepEqual(gesendet(aufrufe, 'setMyKasseLogo', f), f.params, f.case);
     assert.equal(bild, f.response.data.logoImage, f.case);
   }
@@ -319,7 +319,7 @@ test('createPrintJob: das Logo geht als {scale, pxWidth, pxHeight, width, height
   await createPrintJob(rufen, {
     printerId: f.params.printerId, layout: f.params.layout as ReceiptLayout, receiptId: f.params.receiptId,
     title: f.params.title, source: f.params.source, brand: true,
-    logo: { stufe: soll.scale, pxBreite: soll.pxWidth, pxHoehe: soll.pxHeight, raster: { breite: soll.width, hoehe: soll.height, punkte } },
+    logo: { size: soll.scale, pixelWidth: soll.pxWidth, pixelHeight: soll.pxHeight, raster: { width: soll.width, height: soll.height, dots: punkte } },
   });
   assert.deepEqual(gesendet(aufrufe, 'createPrintJob', f), f.params);
 });
@@ -337,7 +337,7 @@ test('pairRegisterDevice: sendet wie der Fall, liest companyName, cashregisterLa
     const { holen, aufrufe } = holenFuer(f);
     const geraet = await pairRegisterDevice({ ...(f.params as { code: string }), fetch: holen });
     assert.deepEqual(aufrufe[0]!.params, f.params, f.case);
-    assert.equal(aufrufe[0]!.url, `${KASSE_BASE_URL}/pairRegisterDevice`);
+    assert.equal(aufrufe[0]!.url, `${POS_BASE_URL}/pairRegisterDevice`);
     assert.deepEqual(geraet, f.response.data, f.case);
   }
 });
@@ -451,9 +451,9 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
   const aufrufe: Record<string, (rufen: ReturnType<typeof kassenweg>['rufen']) => Promise<unknown>> = {
     listMyArticleGroups: (r) => listMyArticleGroups(r),
     listMyArticles: (r) => listMyArticles(r),
-    getKasseSettings: (r) => getKasseSettings(r),
-    setMyKasseSettings: (r) => setMyKasseSettings(r, { theme: 'clear' }),
-    setMyKasseLogo: (r) => setMyKasseLogo(r, { remove: true }),
+    getKasseSettings: (r) => getPosSettings(r),
+    setMyKasseSettings: (r) => setMyPosSettings(r, { theme: 'clear' }),
+    setMyKasseLogo: (r) => setMyPosLogo(r, { remove: true }),
     setMyRegisterDeviceSettings: (r) => setMyRegisterDeviceSettings(r, 'dev_pin', { layout: 'right' }),
     listMyPrinters: (r) => listMyPrinters(r),
     createPrintJob: (r) => createPrintJob(r, { printerId: 'dr_theke', layout }),
@@ -466,7 +466,7 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
       assert.ok(isPosError(e, f.response.code), `${endpunkt}/${f.case}`);
     }
   }
-  const e = await wurf(setMyKasseSettings(kassenweg(fall('setMyKasseSettings', 'nothing_valid')).rufen, { theme: 'clear' }));
+  const e = await wurf(setMyPosSettings(kassenweg(fall('setMyKasseSettings', 'nothing_valid')).rufen, { theme: 'clear' }));
   assert.deepEqual(posFieldErrors(e).map((x) => x.field), ['business.gibtsnicht', 'business.theme']);
 });
 
@@ -533,7 +533,7 @@ test('F1: ein unbekannter Wert des Servers bleibt beim Lesen stehen und geht bei
   const neu: Fall = JSON.parse(JSON.stringify(basis));
   neu.response.data.business.theme = 'sepia';
   neu.response.data.device.printerType = 'star';
-  const stand = await getKasseSettings(kassenweg(neu).rufen);
+  const stand = await getPosSettings(kassenweg(neu).rufen);
   assert.equal(stand.business.theme, 'sepia');
   assert.equal(stand.device.printerType, 'star');
   assert.deepEqual(kasse.unknownPosSettingValues(stand), ['business.theme', 'device.printerType']);
@@ -544,12 +544,12 @@ test('F1: ein unbekannter Wert des Servers bleibt beim Lesen stehen und geht bei
   assert.deepEqual(aenderung, { fontSize: 'L' });
   const schreiben = fall('setMyKasseSettings', 'success_owner');
   const weg = kassenweg(schreiben);
-  await setMyKasseSettings(weg.rufen, aenderung);
+  await setMyPosSettings(weg.rufen, aenderung);
   assert.deepEqual(weg.aufrufe[0]!.params.business, { fontSize: 'L' });
   assert.equal('theme' in weg.aufrufe[0]!.params.business, false);
 
   // Den ganzen Block zu senden, weist die Vorab-Pruefung laut ab statt 'sepia' still zu ersetzen.
-  const e = await wurf(setMyKasseSettings(kassenweg(schreiben).rufen, geaendert));
+  const e = await wurf(setMyPosSettings(kassenweg(schreiben).rufen, geaendert));
   assert.ok(isKasseneckValidationError(e));
   assert.match((e as Error).message, /business\.theme/);
 
@@ -598,8 +598,8 @@ test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere 
 test('F2: doppelt geladenes Paket (CJS und ESM im selben Prozess) filtert ebenso', async (t) => {
   const { createRequire } = await import('node:module');
   const { existsSync } = await import('node:fs');
-  const cjsPfad = fileURLToPath(new URL('../../dist/cjs/kasse/index.js', import.meta.url));
-  const esmPfad = new URL('../../dist/esm/kasse/index.js', import.meta.url);
+  const cjsPfad = fileURLToPath(new URL('../../dist/cjs/pos/index.js', import.meta.url));
+  const esmPfad = new URL('../../dist/esm/pos/index.js', import.meta.url);
   if (!existsSync(cjsPfad) || !existsSync(fileURLToPath(esmPfad))) {
     t.skip('dist fehlt (npm run build)');
     return;
@@ -623,7 +623,7 @@ test('F3: geerbte Namen (toString, constructor, __proto__) bringen nichts zum Ab
   assert.equal(Object.getPrototypeOf(d.shortcuts), Object.prototype);
   const f = fall('setMyKasseSettings', 'success_manager');
   for (const k of ['constructor', 'toString', '__proto__']) {
-    const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, JSON.parse(`{"${k}":1}`)));
+    const e = await wurf(setMyPosSettings(kassenweg(f).rufen, JSON.parse(`{"${k}":1}`)));
     assert.ok(isKasseneckValidationError(e), k);
     assert.match((e as Error).message, new RegExp(`business\\.${k}`), k);
   }
@@ -636,9 +636,9 @@ test('F3: geerbte Namen (toString, constructor, __proto__) bringen nichts zum Ab
 test('F4: ein Feld mit undefined wird vorab weder geprueft noch gesendet', async () => {
   const f = fall('setMyKasseSettings', 'success_manager');
   const { rufen, aufrufe } = kassenweg(f);
-  await setMyKasseSettings(rufen, { stil: undefined, theme: 'night' } as unknown as Partial<PosBusinessSettings>);
+  await setMyPosSettings(rufen, { stil: undefined, theme: 'night' } as unknown as Partial<PosBusinessSettings>);
   assert.deepEqual(aufrufe[0]!.params.business, { theme: 'night' });
-  const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, { stil: undefined } as unknown as Partial<PosBusinessSettings>));
+  const e = await wurf(setMyPosSettings(kassenweg(f).rufen, { stil: undefined } as unknown as Partial<PosBusinessSettings>));
   assert.match((e as Error).message, /keine Einstellungen/);
 });
 
@@ -693,9 +693,9 @@ test('N1: eine Tastenaenderung sendet die ganze Karte bekannter Aktionen, eine D
 
 test('N2: die Abweisung eines unbekannten Serverwerts nennt posSettingsChanges, ein 0.x-Wert die innere Form', async () => {
   const f = fall('setMyKasseSettings', 'success_manager');
-  const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, { theme: 'sepia' }));
+  const e = await wurf(setMyPosSettings(kassenweg(f).rufen, { theme: 'sepia' }));
   assert.match((e as Error).message, /business\.theme: .*posSettingsChanges/);
-  const alt = await wurf(setMyKasseSettings(kassenweg(f).rufen, { theme: 'nacht' }));
+  const alt = await wurf(setMyPosSettings(kassenweg(f).rufen, { theme: 'nacht' }));
   assert.match((alt as Error).message, /business\.theme: .*0\.x/);
 });
 

@@ -17,7 +17,7 @@ import {
   escPosQrCode,
   escPosReset,
   escPosRow,
-  wortzeilenText,
+  wrapText,
   escPosSetGlobalCodeTable,
   escPosSetGlobalFont,
   escPosText,
@@ -672,12 +672,12 @@ test('row: ein Wort ohne Leerzeichen wird weiterhin hart geteilt (sonst kaeme di
   assert.equal(z[1], 'PQRSTUVWXYZ');
 });
 
-test('wortzeilenText: Zeichenketten-Zwilling von escPosWortzeilen', () => {
-  assert.deepEqual(wortzeilenText('TESTSIGNATUR - kein gültiger Beleg', 32), ['TESTSIGNATUR - kein gültiger', 'Beleg']);
-  assert.deepEqual(wortzeilenText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10), ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ']);
-  assert.deepEqual(wortzeilenText('Ein sehr langer Artikelname', 15), ['Ein sehr langer', 'Artikelname']);
-  assert.deepEqual(wortzeilenText('a  b', 3), ['a', 'b']);
-  assert.deepEqual(wortzeilenText('', 5), ['']);
+test('wrapText: Zeichenketten-Zwilling von escPosWrapLines', () => {
+  assert.deepEqual(wrapText('TESTSIGNATUR - kein gültiger Beleg', 32), ['TESTSIGNATUR - kein gültiger', 'Beleg']);
+  assert.deepEqual(wrapText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10), ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ']);
+  assert.deepEqual(wrapText('Ein sehr langer Artikelname', 15), ['Ein sehr langer', 'Artikelname']);
+  assert.deepEqual(wrapText('a  b', 3), ['a', 'b']);
+  assert.deepEqual(wrapText('', 5), ['']);
 });
 
 test('text: laengere Texte werden wortweise auf die Zeilenbreite umbrochen (32 Zeichen bei 58 mm)', () => {

@@ -54,7 +54,7 @@ export const DEFAULT_BASE_URL = 'https://api.kasseneck.at/v3';
  * Basis-URL des Kassenwegs (Kanal `app`, Nachtrag §5.2). Die Web-Kasse ruft
  * denselben Weg im gleichen Ursprung als `/api/v3`.
  */
-export const KASSE_BASE_URL = 'https://kasse.kasseneck.at/api/v3';
+export const POS_BASE_URL = 'https://kasse.kasseneck.at/api/v3';
 
 /** Kennzeichen der `/v3`-Antworten und -Anfragen. */
 const VERSION_KOPF = 'Kasseneck-Api-Version';
@@ -139,13 +139,13 @@ export interface TransportOptions {
    */
   baseUrl?: string;
   /**
-   * Abweichende Basis des **Kassenwegs** (Vorgabe [KASSE_BASE_URL]): die 19
+   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 19
    * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
    * Drucker, ...) und mit `registerUserAuth` alle 25 Aufrufe des Kassenwegs.
    * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
    * (in der Regel `/api/v3`), sonst wirft das Anlegen.
    */
-  kasseBaseUrl?: string;
+  posBaseUrl?: string;
   /** Zeitlimit je Aufruf in Millisekunden. */
   timeoutMs?: number;
   /** Eigene `fetch`-Umsetzung (Tests, Proxys). */
@@ -272,7 +272,7 @@ export function createBinaryTransport(options: TransportOptions): KasseneckBinar
  */
 function createCore(options: TransportOptions) {
   const oeffentlicheBasis = v3Basis('baseUrl', options.baseUrl) ?? DEFAULT_BASE_URL;
-  const kassenBasis = v3Basis('kasseBaseUrl', options.kasseBaseUrl) ?? KASSE_BASE_URL;
+  const kassenBasis = v3Basis('posBaseUrl', options.posBaseUrl) ?? POS_BASE_URL;
   const kassenweg = isRegisterUserAuth(options.auth);
   const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
@@ -472,11 +472,11 @@ async function randFehler404(
  * `/v3`. Liefert sie ohne abschliessende Schraegstriche, oder `undefined`
  * ohne Angabe.
  */
-function v3Basis(option: 'baseUrl' | 'kasseBaseUrl', basis: string | undefined): string | undefined {
+function v3Basis(option: 'baseUrl' | 'posBaseUrl', basis: string | undefined): string | undefined {
   if (basis === undefined) return undefined;
   const ohne = typeof basis === 'string' ? basis.replace(/\/+$/, '') : '';
   if (!V3_ENDE.test(ohne)) {
-    const beispiel = option === 'kasseBaseUrl' ? "'/api/v3' bzw. KASSE_BASE_URL" : 'DEFAULT_BASE_URL';
+    const beispiel = option === 'posBaseUrl' ? "'/api/v3' bzw. POS_BASE_URL" : 'DEFAULT_BASE_URL';
     throw new KasseneckValidationError(
       'createTransport',
       `${option} muss auf /v3 oder /api/v3 enden (1.x spricht nur /v3; z. B. ${beispiel} statt /api oder /v1)`,

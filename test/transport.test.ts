@@ -9,7 +9,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -794,9 +794,9 @@ test('Die Aufrufliste traegt jeden Namen, den das Paket benutzt', () => {
   // ueber InternerTransport, nicht dieser Test.
   for (const name of ['createReceipt', 'listMyPrinters', 'createPrintJob', 'getPrintJob',
                       'pairRegisterDevice', 'financeWebService', 'downloadReport']) {
-    assert.ok(AUFRUFE.includes(name as never), `${name} fehlt in AUFRUFE`);
+    assert.ok(ALL_CALLS.includes(name as never), `${name} fehlt in ALL_CALLS`);
   }
-  assert.equal(new Set(AUFRUFE).size, AUFRUFE.length, 'Doppelte Namen in AUFRUFE');
+  assert.equal(new Set(ALL_CALLS).size, ALL_CALLS.length, 'Doppelte Namen in ALL_CALLS');
 });
 
 // Stabile Fehlercodes: das Backend legt bei fachlichen Fehlern (heute: Storno)

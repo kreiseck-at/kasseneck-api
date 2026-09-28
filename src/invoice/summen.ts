@@ -3,14 +3,14 @@
  * Gleitkomma). Gedacht fuer Shops, die kassieren, bevor die Rechnung entsteht.
  *
  * **Veraltet.** Seit dem 23.09.2026, 17:05 Uhr stellt der Server jede neue
- * Rechnung ueber den exakten Ganzzahl-Kern aus (`rechnungRechnen` in
- * `…/rechnung/rechnen`). An Halbcent-Grenzen weicht diese Funktion davon um
+ * Rechnung ueber den exakten Ganzzahl-Kern aus (`calculateInvoice` in
+ * `…/invoice/calc`). An Halbcent-Grenzen weicht diese Funktion davon um
  * einen Cent je Satz ab (21,35 EUR netto zu 10 %: hier 23,48 EUR, auf der
  * Rechnung 23,49 EUR). Die Formel bleibt trotzdem, wie sie ist: der Server
  * schaltet den Kern je Konto ueber einen Schalter und rechnet Entwuerfe
  * ausserhalb des Ausstellens teils weiter nach Weg 2, und Backend und
  * Dart-Zwilling pruefen gegen `fixtures/rechnung-summen.json`. Neuer Code
- * nimmt `rechnungRechnen` oder `previewInvoice`.
+ * nimmt `calculateInvoice` oder `previewInvoice`.
  *
  * Die Regel (je USt-Satz, Betraege in Cent, kaufmaennisch gerundet):
  *
@@ -30,13 +30,13 @@
 
 import type { InvoiceRateTotals, InvoiceTotals } from './typen.js';
 import type { PriceMode, TaxScheme } from './vertrag.js';
-import { STEUERFREIE_FAELLE } from './rechnen.js';
+import { ZERO_RATED_TAX_SCHEMES } from './calc.js';
 
 /** Aus dem Kern uebernommen, damit Kern und Huelle nie auseinanderlaufen. */
-export { STEUERFREIE_FAELLE };
+export { ZERO_RATED_TAX_SCHEMES };
 
 /** Was fuer die Summe zaehlt — `InvoiceItemInput` passt unveraendert. */
-export interface SummenPosition {
+export interface TotalsItem {
   quantity: number;
   unitPriceCents: number;
   vatRate: number;
@@ -67,16 +67,16 @@ function centRund(x: number): number {
  *
  * @deprecated Seit 0.27.3: rechnet nach der frueheren Formel (Weg 2) und kann
  * an Halbcent-Grenzen um einen Cent je Satz von einer heute ausgestellten
- * Rechnung abweichen. Stattdessen `rechnungRechnen` aus
- * `@kreiseck/kasseneck-api/rechnung/rechnen` (Euro-Positionen ueber
- * `positionAusEuro`) oder `previewInvoice` verwenden.
+ * Rechnung abweichen. Stattdessen `calculateInvoice` aus
+ * `@kreiseck/kasseneck-api/invoice/calc` (Euro-Positionen ueber
+ * `itemFromEuro`) oder `previewInvoice` verwenden.
  */
-export function rechnungSummen(
-  items: readonly SummenPosition[],
+export function computeInvoiceTotals(
+  items: readonly TotalsItem[],
   priceMode: PriceMode,
   taxScheme: TaxScheme = 'normal',
 ): InvoiceTotals {
-  const steuerfrei = STEUERFREIE_FAELLE.includes(taxScheme);
+  const steuerfrei = ZERO_RATED_TAX_SCHEMES.includes(taxScheme);
   const bruttoPreise = priceMode === 'gross' && !steuerfrei;
 
   // Ungerundete Zeilen je Satz, in Euro wie am Server.

@@ -5,7 +5,7 @@ import {
   createTransport,
   createBinaryTransport,
   DEFAULT_BASE_URL,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -102,7 +102,7 @@ async function fehler(p: Promise<unknown>): Promise<unknown> {
 
 test('v3: Vorgabe-Basen sind api.kasseneck.at/v3 (oeffentlich) und kasse.kasseneck.at/api/v3 (Kasse)', () => {
   assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v3');
-  assert.equal(KASSE_BASE_URL, 'https://kasse.kasseneck.at/api/v3');
+  assert.equal(POS_BASE_URL, 'https://kasse.kasseneck.at/api/v3');
 });
 
 test('v3: PACKAGE_VERSION ist die Version aus package.json', () => {
@@ -145,9 +145,9 @@ test('v3: was der Kassenweg nicht fuehrt, geht auch fuer den Kassen-Benutzer an 
   ]);
 });
 
-test('v3: kasseBaseUrl gilt fuer den Kassenweg, baseUrl fuer die oeffentlichen Aufrufe (Kassen-Benutzer)', async () => {
+test('v3: posBaseUrl gilt fuer den Kassenweg, baseUrl fuer die oeffentlichen Aufrufe (Kassen-Benutzer)', async () => {
   const { holen, aufrufe } = aufzeichnen(() => erfolg({}));
-  const rufen = createTransport({ auth: kassenBenutzer(), fetch: holen, kasseBaseUrl: '/api/v3/', baseUrl: 'https://proxy.example/v3/' });
+  const rufen = createTransport({ auth: kassenBenutzer(), fetch: holen, posBaseUrl: '/api/v3/', baseUrl: 'https://proxy.example/v3/' });
   await rufen('createReceipt', {});
   await rufen('getKasseSettings', {});
   await rufen('downloadDailyReport', {});
@@ -158,9 +158,9 @@ test('v3: kasseBaseUrl gilt fuer den Kassenweg, baseUrl fuer die oeffentlichen A
   ]);
 });
 
-test('v3: mit api_key gehen die oeffentlichen Aufrufe an baseUrl, nur die reinen Kassenaufrufe an kasseBaseUrl', async () => {
+test('v3: mit api_key gehen die oeffentlichen Aufrufe an baseUrl, nur die reinen Kassenaufrufe an posBaseUrl', async () => {
   const { holen, aufrufe } = aufzeichnen(() => erfolg({}));
-  const rufen = createTransport({ auth: schluessel(), fetch: holen, kasseBaseUrl: '/api/v3', baseUrl: 'https://proxy.example/v3' });
+  const rufen = createTransport({ auth: schluessel(), fetch: holen, posBaseUrl: '/api/v3', baseUrl: 'https://proxy.example/v3' });
   await rufen('createReceipt', {});
   await rufen('getKasseSettings', {});
   assert.deepEqual(aufrufe.map((a) => a.url), ['https://proxy.example/v3/createReceipt', '/api/v3/getKasseSettings']);
@@ -173,9 +173,9 @@ test('v3: jede Basis muss auf /v3 enden, sonst wirft das Anlegen mit Hinweis auf
     ['baseUrl', 'https://api.kasseneck.at/v1'],
     ['baseUrl', 'http://127.0.0.1:27182'],
     ['baseUrl', 'https://api.kasseneck.at/v3x'],
-    ['kasseBaseUrl', '/api'],
-    ['kasseBaseUrl', 'https://kasse.kasseneck.at/api'],
-    ['kasseBaseUrl', ''],
+    ['posBaseUrl', '/api'],
+    ['posBaseUrl', 'https://kasse.kasseneck.at/api'],
+    ['posBaseUrl', ''],
   ] as const) {
     assert.throws(
       () => createTransport({ auth: schluessel(), [option]: basis }),
@@ -185,7 +185,7 @@ test('v3: jede Basis muss auf /v3 enden, sonst wirft das Anlegen mit Hinweis auf
     );
   }
   for (const basis of ['/api/v3', '/api/v3/', '/v3', 'https://proxy.example/pfad/v3//', 'api/v3']) {
-    assert.doesNotThrow(() => createTransport({ auth: schluessel(), baseUrl: basis, kasseBaseUrl: basis }), basis);
+    assert.doesNotThrow(() => createTransport({ auth: schluessel(), baseUrl: basis, posBaseUrl: basis }), basis);
   }
 });
 

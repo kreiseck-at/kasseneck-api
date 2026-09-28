@@ -20,14 +20,14 @@
 
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 
-export type Seite = 'web' | 'app';
+export type Surface = 'web' | 'app';
 
-export interface Meldung {
+export interface TextEntry {
   readonly text: string;
   /** Erlaubte Platzhalter `{name}`; muessen exakt die im Text sein. */
   readonly platzhalter?: readonly string[];
   /** Fehlt es, gilt der Satz fuer beide Seiten. */
-  readonly nur?: readonly Seite[];
+  readonly nur?: readonly Surface[];
 }
 
 const MELDUNGEN_ROH = {
@@ -145,7 +145,7 @@ const MELDUNGEN_ROH = {
   'cancellation.item_missing': { text: 'Bitte mindestens eine Position wählen.' },
   // Storno eines Belegs mit mehreren Zahlungen: je Zahlung wird zurückgegeben,
   // und der Server prueft jede Rueckgabe gegen den Rest ihrer Zahlung. Welcher
-  // Code welchen Satz bekommt, steht in STORNO_ZAHLUNG_FEHLER.
+  // Code welchen Satz bekommt, steht in CANCELLATION_PAYMENT_ERROR_MESSAGES.
   'cancellation.payments_missing': { text: 'Dieser Beleg wurde in mehreren Zahlungen bezahlt – bitte angeben, wie zurückgegeben wird.' },
   'cancellation.refund_too_high': { text: 'Eine Rückgabe ist höher als der Rest ihrer Zahlung – bitte die Beträge prüfen.' },
   'cancellation.refund_without_reference': { text: 'Eine Rückgabe nennt keine Zahlung des Belegs – bitte das Storno neu beginnen.' },
@@ -280,14 +280,14 @@ const MELDUNGEN_ROH = {
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', nur: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {ziel}', platzhalter: ['ziel'], nur: ['app'] },
-} as const satisfies Record<string, Meldung>;
+} as const satisfies Record<string, TextEntry>;
 
-export type MeldungsSchluessel = keyof typeof MELDUNGEN_ROH;
+export type MessageKey = keyof typeof MELDUNGEN_ROH;
 
-// Auf den gemeinsamen Typ gebracht: `Object.entries(MELDUNGEN)` liefert sonst
+// Auf den gemeinsamen Typ gebracht: `Object.entries(MESSAGES)` liefert sonst
 // pro Schluessel den engsten Literaltyp, und `platzhalter`/`nur` waeren nur
 // auf manchen Zweigen der Vereinigung vorhanden.
-export const MELDUNGEN: Record<MeldungsSchluessel, Meldung> = MELDUNGEN_ROH;
+export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
 
 /**
  * In welcher Reihenfolge ein Fehler eingeordnet wird — auf beiden Seiten
@@ -300,7 +300,7 @@ export const MELDUNGEN: Record<MeldungsSchluessel, Meldung> = MELDUNGEN_ROH;
  *                (HTML statt JSON, 500, fehlende Huelle); `status` = HTTP-Code
  *   sonst      — alles Uebrige ist technisch: der Ersatzsatz des Vorgangs
  */
-export const FEHLERREGELN = [
+export const ERROR_RULES = [
   { art: 'api', verhalten: 'server_text' },
   { art: 'klartext', verhalten: 'eigener_text' },
   { art: 'zeitablauf', schluessel: 'network.timeout' },
@@ -309,12 +309,12 @@ export const FEHLERREGELN = [
   { art: 'sonst', verhalten: 'ersatz' },
 ] as const;
 
-export type Fehlerart = (typeof FEHLERREGELN)[number]['art'];
+export type ErrorKind = (typeof ERROR_RULES)[number]['art'];
 
 /**
  * Beleg per E-Mail senden: welcher `code` des Backends welchen Satz bekommt.
  *
- * `FEHLERREGELN` bleibt davon unberuehrt — das hier ist keine neue Art, einen
+ * `ERROR_RULES` bleibt davon unberuehrt — das hier ist keine neue Art, einen
  * Transportfehler einzuordnen, sondern die Verfeinerung EINES Aufrufs
  * (`sendReceiptEmail`). Die vier Ausgaenge sind fuer den Kassier vier
  * verschiedene Handlungen: Adresse verbessern, spaeter noch einmal, noch
@@ -331,14 +331,14 @@ export type Fehlerart = (typeof FEHLERREGELN)[number]['art'];
  * Die Codes sind die von `/v3` (`RECEIPT_EMAIL_SEND_ERROR_CODES`; Anmelde- und Rand-Codes fallen auf den Ersatzsatz); unter `/v1` hiessen
  * sie `adresse_ungueltig`, `zu_oft`, `versand_fehlgeschlagen`, `beleg_nicht_gefunden`.
  */
-export const BELEG_MAIL_FEHLER = {
+export const RECEIPT_EMAIL_ERROR_MESSAGES = {
   invalid_address: 'receipt.mail_address_invalid',
   too_many_requests: 'receipt.mail_too_often',
   send_failed: 'receipt.mail_failed',
   receipt_not_found: 'receipt.mail_not_found',
-} as const satisfies Record<ReceiptEmailSendErrorCode, MeldungsSchluessel>;
+} as const satisfies Record<ReceiptEmailSendErrorCode, MessageKey>;
 
-export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
+export type ReceiptEmailMessageCode = keyof typeof RECEIPT_EMAIL_ERROR_MESSAGES;
 
 /**
  * Der Satz zu einem `code` des Backends. Einen Code, den dieses Paket noch
@@ -346,43 +346,43 @@ export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
  * darf wiederholt werden. Ein leerer Schirm waere schlimmer als ein zu
  * allgemeiner Satz.
  */
-export function belegMailFehler(code: string | undefined | null): MeldungsSchluessel {
-  const fehler: Record<string, MeldungsSchluessel> = BELEG_MAIL_FEHLER;
+export function receiptEmailErrorMessage(code: string | undefined | null): MessageKey {
+  const fehler: Record<string, MessageKey> = RECEIPT_EMAIL_ERROR_MESSAGES;
   return (code !== undefined && code !== null && fehler[code]) || 'receipt.mail_failed';
 }
 
 /**
  * Storno eines Belegs mit mehreren Zahlungen, dazu der offene Ausgang
  * (`cancellation_outcome_unknown`, gilt fuer jedes Storno): welcher `code` des
- * Backends unter `/v3` welchen Satz bekommt. Dieselbe Idee wie BELEG_MAIL_FEHLER – beide Kassen
+ * Backends unter `/v3` welchen Satz bekommt. Dieselbe Idee wie RECEIPT_EMAIL_ERROR_MESSAGES – beide Kassen
  * entscheiden am Code, nie am Satz des Backends. Ein Code, der hier fehlt,
  * geht den allgemeinen Weg der Storno-Fehler (`cancellation.failed`).
  */
-export const STORNO_ZAHLUNG_FEHLER = {
+export const CANCELLATION_PAYMENT_ERROR_MESSAGES = {
   cancellation_payments_required: 'cancellation.payments_missing',
   cancellation_refund_exceeds_payment: 'cancellation.refund_too_high',
   cancellation_refund_reference_required: 'cancellation.refund_without_reference',
   cancellation_refund_reference_unknown: 'cancellation.refund_reference_unknown',
   payments_sum_mismatch: 'cancellation.sum_mismatch',
   cancellation_outcome_unknown: 'cancellation.outcome_unknown',
-} as const satisfies Record<string, MeldungsSchluessel>;
+} as const satisfies Record<string, MessageKey>;
 
-export type StornoZahlungFehlercode = keyof typeof STORNO_ZAHLUNG_FEHLER;
+export type CancellationPaymentMessageCode = keyof typeof CANCELLATION_PAYMENT_ERROR_MESSAGES;
 
 /**
  * Der Satz zu einem `code` des Backends beim Storno mit mehreren Zahlungen.
  * Einen Code, den dieses Paket noch nicht kennt, faengt der allgemeine Satz
- * `cancellation.failed` auf – wie bei `belegMailFehler`.
+ * `cancellation.failed` auf – wie bei `receiptEmailErrorMessage`.
  */
-export function stornoZahlungFehler(code: string | undefined | null): MeldungsSchluessel {
-  const fehler: Record<string, MeldungsSchluessel> = STORNO_ZAHLUNG_FEHLER;
+export function cancellationPaymentErrorMessage(code: string | undefined | null): MessageKey {
+  const fehler: Record<string, MessageKey> = CANCELLATION_PAYMENT_ERROR_MESSAGES;
   return (code !== undefined && code !== null && fehler[code]) || 'cancellation.failed';
 }
 
 /**
  * Beschriftungen: Knoepfe, Ueberschriften, Zeilennamen – was kein Satz ist.
  *
- * Getrennt von MELDUNGEN, weil dort jeder Eintrag ein Satz ist (gross am
+ * Getrennt von MESSAGES, weil dort jeder Eintrag ein Satz ist (gross am
  * Anfang, Satzzeichen am Schluss) und die Waechter beider Kassen daran
  * Saetze erkennen. „Rest" oder „÷ {n}" sind keine Saetze, muessen aber in
  * beiden Kassen gleich heissen. Dieselben Regeln sonst: Schluessel
@@ -490,14 +490,14 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.all_cash': { text: 'Alles bar' },
   'cancellation.payment_remainder': { text: 'Rest {betrag}', platzhalter: ['betrag'] },
   'cancellation.difference': { text: 'Differenz' },
-} as const satisfies Record<string, Meldung>;
+} as const satisfies Record<string, TextEntry>;
 
-export type BeschriftungsSchluessel = keyof typeof BESCHRIFTUNGEN_ROH;
-export const BESCHRIFTUNGEN: Record<BeschriftungsSchluessel, Meldung> = BESCHRIFTUNGEN_ROH;
+export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
+export const LABELS: Record<LabelKey, TextEntry> = BESCHRIFTUNGEN_ROH;
 
-/** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `meldung`. */
-export function beschriftung(schluessel: BeschriftungsSchluessel, werte: Record<string, string | number> = {}): string {
-  return ersetze(`beschriftung(${schluessel})`, BESCHRIFTUNGEN[schluessel].text, werte);
+/** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `messageText`. */
+export function labelText(schluessel: LabelKey, werte: Record<string, string | number> = {}): string {
+  return ersetze(`labelText(${schluessel})`, LABELS[schluessel].text, werte);
 }
 
 function ersetze(wo: string, text: string, werte: Record<string, string | number>): string {
@@ -509,17 +509,17 @@ function ersetze(wo: string, text: string, werte: Record<string, string | number
 }
 
 /** Der Satz zum Schluessel, Platzhalter ersetzt. Fehlt ein Wert, wirft es — ein `{status}` am Tresen waere schlimmer. */
-export function meldung(schluessel: MeldungsSchluessel, werte: Record<string, string | number> = {}): string {
-  const eintrag: Meldung = MELDUNGEN[schluessel];
+export function messageText(schluessel: MessageKey, werte: Record<string, string | number> = {}): string {
+  const eintrag: TextEntry = MESSAGES[schluessel];
   return eintrag.text.replace(/\{([a-z]+)\}/g, (_, name: string) => {
     const wert = werte[name];
-    if (wert === undefined) throw new Error(`meldung(${schluessel}): Platzhalter {${name}} ohne Wert`);
+    if (wert === undefined) throw new Error(`messageText(${schluessel}): Platzhalter {${name}} ohne Wert`);
     return String(wert);
   });
 }
 
 /** Gilt der Satz auf dieser Seite? */
-export function meldungGiltFuer(schluessel: MeldungsSchluessel, seite: Seite): boolean {
-  const eintrag: Meldung = MELDUNGEN[schluessel];
+export function messageAppliesTo(schluessel: MessageKey, seite: Surface): boolean {
+  const eintrag: TextEntry = MESSAGES[schluessel];
   return eintrag.nur === undefined || eintrag.nur.includes(seite);
 }

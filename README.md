@@ -45,7 +45,7 @@ models, same enum values, checked against each other in tests.
 - [Receipt printing: QR code, logo, printers](#receipt-printing-qr-code-logo-printers)
 - [Card payments](#card-payments)
 - [Partner API (`./partner`)](#partner-api-partner)
-- [Invoice API (`./rechnung`)](#invoice-api-rechnung)
+- [Invoice API (`./invoice`)](#invoice-api-invoice)
 - [Development](#development)
 - [Contract files for the twin packages](#contract-files-for-the-twin-packages)
 - [Glossary](#glossary)
@@ -102,7 +102,7 @@ const layout = receiptLayoutFromResult(result);
 
 // Character grid: exactly 32 (58 mm) or 48 (80 mm) characters per line.
 // Screen, printed receipt and PDF all use this one grid.
-const grid = renderReceiptGrid(layout, { zeichen: 32 }); // grid.lines[i].text, .bold, .kind, .qr
+const grid = renderReceiptGrid(layout, { charsPerLine: 32 }); // grid.lines[i].text, .bold, .kind, .qr
 
 // ESC/POS bytes for a thermal printer; they print exactly the grid lines.
 const bytes = escPosLayoutBytes(layout, { paperSize: 'mm58' });
@@ -187,11 +187,11 @@ adapter:
 | `…/printing` | ESC/POS generation (byte sequences for thermal printers), QR sizing, printing over WebUSB. |
 | `…/payments` | Stripe payment links, Hobex cloud (both HTTP endpoints of the backend), and Hobex **HPS** via **Kasseneck Connect** (local device agent that talks to the terminal). |
 | `…/register` | Sign-in for the browser register: pair and unpair a device, list its users and sessions, sign in by PIN, renew and end the session. |
-| `…/kasse` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, tip recipients, the register's message catalogue. |
+| `…/pos` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, tip recipients, the register's message catalogue. |
 | `…/partner` | Partner API (`/v3`, English): create businesses, FinanzOnline link, signature, cash registers, credentials, webhooks with signature verification. **Belongs on a server.** |
 | `…/stored` | Stored Firestore documents (inner form, German) as the same English models the `/v3` wire returns: receipts with company and layout, register settings, articles. For clients that read Firestore directly, such as the admin panel. |
-| `…/rechnung` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
-| `…/rechnung/rechnen` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
+| `…/invoice` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
+| `…/invoice/calc` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
 | `…/react` | Thin React adapter that renders a receipt layout or a receipt sheet. Needs React. |
 | `…/fixtures/*` | Golden receipts (JSON): inputs `belege/<name>.json`, promised line output `erwartet/<name>.lines.json`, `manifest.json` with checksums. The backend, the browser register and the Flutter package check against the same files. |
 
@@ -326,11 +326,11 @@ rule set, so an old receipt looks the way it did when it was issued.
 **Print and show the server's layout.** `layout` in a `…WithCompany` result
 is a `ReceiptLayout` (`ruleset`, banner lines with `tone: 'receipt_type' |
 'warning'`) and goes unchanged to `escPosLayoutBytes`, `eposPrintXml`,
-`belegBlatt` and the React views; `receiptLayoutFromResult(result)` returns
+`receiptSheet` and the React views; `receiptLayoutFromResult(result)` returns
 it whenever it is there. Only without it does the helper build the layout,
 in `fallbackPaperSize` (default `mm58`, as in 0.x). The server layout is
 always 80 mm: on 58 mm paper choose the width at the print path
-(`escPosLayoutBytes(layout, { paperSize: 'mm58' })`, `zeichen: 32`); the VAT
+(`escPosLayoutBytes(layout, { paperSize: 'mm58' })`, `charsPerLine: 32`); the VAT
 table then keeps the columns of the 80 mm grid. On the public channel only this layout carries the card block, because
 the receipt itself comes without provider data. If you build the layout
 yourself, pass the options from the same response:
@@ -458,34 +458,34 @@ receipt the worst possible result. So this package calculates the size instead
 of setting it:
 
 ```ts
-import { qrGroesseFuer, QR_DRUCK_PUNKTE } from '@kreiseck/kasseneck-api/printing';
+import { qrSizingFor, QR_PRINT_WIDTH_DOTS } from '@kreiseck/kasseneck-api/printing';
 
-const qrSize = qrGroesseFuer({ nutzlast: receipt.qr, papierbreitePunkte: QR_DRUCK_PUNKTE.mm58 });
-// qrSize.punkte: dots per module; null = does not fit even with the exception size
-// qrSize.unterMindestmass: printed, but below 4 dots per module
+const qrSize = qrSizingFor({ payload: receipt.qr, paperWidthDots: QR_PRINT_WIDTH_DOTS.mm58 });
+// qrSize.moduleDots: dots per module; null = does not fit even with the exception size
+// qrSize.belowMinimum: printed, but below 4 dots per module
 ```
 
-On the receipt path this happens automatically. `qrGroesse` is a **cap**, not
+On the receipt path this happens automatically. `qrModuleSize` is a **cap**, not
 a target: the largest size that fits is printed, at most the cap. `auto` (the
 default) caps at 6 dots per module, as in the Dart twin and on the Epson path;
-`klein` caps at 4, `mittel` at 6, `gross` at 8. All print paths use error
+`small` caps at 4, `medium` at 6, `large` at 8. All print paths use error
 correction level M.
 
 ```ts
-import { escPosLayoutErgebnis } from '@kreiseck/kasseneck-api/receipt';
+import { escPosLayoutResult } from '@kreiseck/kasseneck-api/receipt';
 
-const { bytes, qrFehler, qrAusweich } = escPosLayoutErgebnis(layout, {
-  qrGroesse: 'gross',        // 'auto' | 'klein' | 'mittel' | 'gross'
-  qrModus: 'nativeModel1',   // older printers that only support model 1
+const { bytes, qrError, qrFallback } = escPosLayoutResult(layout, {
+  qrModuleSize: 'large',     // 'auto' | 'small' | 'medium' | 'large'
+  qrMode: 'nativeModel1',    // older printers that only support model 1
   qrMatrix: matrixFor,       // fallback: the QR code as an image instead of none
 });
 ```
 
 The Epson ePOS path (`eposPrintXml` / `eposDirectPrint`) calculates the same
-way; `eposPrintXmlErgebnis` returns `{ xml, qrFehler, qrAusweich }`. The default
+way; `eposPrintXmlResult` returns `{ xml, qrError, qrFallback }`. The default
 there is also `auto`.
 
-`qrFehler` means "receipt without QR code": tell the customer. `qrAusweich`
+`qrError` means "receipt without QR code": tell the customer. `qrFallback`
 means "printed, but the configured mode does not suit this device": tell the
 manager. The image fallback only runs with a `qrMatrix` function that turns
 the payload into a finished matrix; the package itself neither encodes QR
@@ -498,26 +498,26 @@ logo, QR code and the Kasseneck logo at the end, with sizes as a share of the
 sheet width and in lines (one line = two character widths).
 
 ```tsx
-import { BelegBlattView } from '@kreiseck/kasseneck-api/react';
+import { ReceiptSheetView } from '@kreiseck/kasseneck-api/react';
 
 const result = await api.getReceiptWithCompany(receiptId);
 const { company, logoScale } = result;
 const layout = receiptLayoutFromResult(result);
 
-<BelegBlattView
+<ReceiptSheetView
   layout={layout}
-  logo={company.logoUrl ? { url: company.logoUrl, stufe: logoScale } : null}
-  marke={company.showKreiseckLogo}
+  logo={company.logoUrl ? { url: company.logoUrl, size: logoScale } : null}
+  brandMark={company.showKreiseckLogo}
   renderQr={(data) => <QrSvg data={data} />}
 />
 ```
 
 ```ts
-import { escPosLayoutBytes, logoMass, logoRaster } from '@kreiseck/kasseneck-api/receipt';
+import { escPosLayoutBytes, logoDimensions, rasterizeLogo } from '@kreiseck/kasseneck-api/receipt';
 
-const logoSize = logoMass({ stufe: 'M', pxBreite: image.width, pxHoehe: image.height }, 48);
-const raster = logoRaster(imageData.data, image.width, image.height, logoSize, 48);
-escPosLayoutBytes(layout, { paperSize: 'mm80', logo: { stufe: 'M', pxBreite: image.width, pxHoehe: image.height, raster }, marke: true });
+const logoSize = logoDimensions({ size: 'M', pixelWidth: image.width, pixelHeight: image.height }, 48);
+const raster = rasterizeLogo(imageData.data, image.width, image.height, logoSize, 48);
+escPosLayoutBytes(layout, { paperSize: 'mm80', logo: { size: 'M', pixelWidth: image.width, pixelHeight: image.height, raster }, brandMark: true });
 ```
 
 Logo sizes: S 42 % × 5 lines, M 62 % × 8, L 80 % × 12, XL 94 % × 16, always
@@ -531,7 +531,7 @@ The package generates ESC/POS bytes and ePOS XML, and it ships three ways to
 deliver them: **WebUSB** (`usbConnectPrinter`, `usbPrint` in `…/printing`, for
 Chromium-based browsers), **Epson ePOS over HTTP** (`eposDirectPrint` in
 `…/receipt`) and **print jobs** for network printers managed by the backend
-(`listMyPrinters`, `createPrintJob` in `…/kasse`). Bluetooth, serial ports and
+(`listMyPrinters`, `createPrintJob` in `…/pos`). Bluetooth, serial ports and
 raw TCP sockets are up to your application. PDF generation is not part of the
 package.
 
@@ -773,7 +773,7 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 });
 ```
 
-## Invoice API (`./rechnung`)
+## Invoice API (`./invoice`)
 
 For shops, accounting and industry software: issue **invoices** (*Rechnung*,
 § 11 UStG), not receipts, with the `api_key` of an account. An invoice is
@@ -781,7 +781,7 @@ For shops, accounting and industry software: issue **invoices** (*Rechnung*,
 and can only be corrected by a credit note. The key belongs on a **server**.
 
 ```ts
-import { createInvoiceApi, isInvoiceError } from '@kreiseck/kasseneck-api/rechnung';
+import { createInvoiceApi, isInvoiceError } from '@kreiseck/kasseneck-api/invoice';
 
 const invoices = createInvoiceApi({ apiKey: process.env.KASSENECK_API_KEY! });
 
@@ -944,7 +944,7 @@ const { preview, notice } = await invoices.previewInvoice(request);
 await invoices.issueInvoice(request);
 ```
 
-**Without the server.** `@kreiseck/kasseneck-api/rechnung/rechnen` is the pure
+**Without the server.** `@kreiseck/kasseneck-api/invoice/calc` is the pure
 calculation core: no transport, no key, runs in the browser too. It calculates
 with integers (BigInt) instead of floating point and rounds exactly once per
 VAT rate. Prices are in micro-euros (`unitPriceMicros`), quantities in
@@ -952,19 +952,19 @@ thousandths (`quantityMilli`), discount and VAT rate in hundredths of a
 percent (`discountBp`, `vatRateBp`):
 
 ```ts
-import { rechnungRechnen, positionAusEuro } from '@kreiseck/kasseneck-api/rechnung/rechnen';
+import { calculateInvoice, itemFromEuro } from '@kreiseck/kasseneck-api/invoice/calc';
 
-rechnungRechnen(
+calculateInvoice(
   [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
   { priceMode: 'gross' },
 );
 // { netCents: 1233, vatCents: 246, grossCents: 1479, byRate: [{ rateBp: 2000, … }], lines: […] }
 
-positionAusEuro({ unitPrice: 14.79, quantity: 1, vatRate: 20 });
+itemFromEuro({ unitPrice: 14.79, quantity: 1, vatRate: 20 });
 // { ok: true, position: { unitPriceMicros: 14790000, quantityMilli: 1000, discountBp: 0, vatRateBp: 2000 } }
 ```
 
-`positionAusEuro(item)` converts a euro line (`unitPrice`, `quantity`,
+`itemFromEuro(item)` converts a euro line (`unitPrice`, `quantity`,
 `vatRate`, `discountPct`) into this form without loss, or names the field and
 the reason when that is not possible. Since 23 September 2026 the server
 calculates every new invoice with this core. In **gross mode** the gross amount
@@ -975,13 +975,13 @@ positive for credit notes too; the sign is in the document type
 (`docType: 'credit_note'`). Test cases: `fixtures/rechnung-rechnen.json`,
 `fixtures/rechnung-rechnen-zufall.json`, `fixtures/position-aus-euro.json`.
 
-**`rechnungSummen` is deprecated.** The older helper in `…/rechnung` works on
+**`computeInvoiceTotals` is deprecated.** The older helper in `…/invoice` works on
 `unitPriceCents` lines with the previous floating-point formula and does not
 run through the core. At half-cent boundaries it can differ from an invoice
 issued today by one cent per VAT rate, and by a few cents across several
-rates. Example: € 21.35 net at 10 % gives € 23.48 gross with `rechnungSummen`,
+rates. Example: € 21.35 net at 10 % gives € 23.48 gross with `computeInvoiceTotals`,
 but € 23.49 with the core and on the invoice. It stays unchanged for existing
-callers; use `rechnungRechnen` or `previewInvoice` in new code. Test cases for
+callers; use `calculateInvoice` or `previewInvoice` in new code. Test cases for
 the old formula: `fixtures/rechnung-summen.json`.
 
 ## Development

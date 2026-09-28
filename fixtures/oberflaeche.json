@@ -795,14 +795,6 @@
       "net",
       "gross"
     ],
-    "steuerfreieFaelle": [
-      "smallBusiness",
-      "reverseCharge",
-      "intraCommunitySupply",
-      "exportThirdCountry",
-      "domesticReverseCharge",
-      "outsideScope"
-    ],
     "taxSchemes": [
       "normal",
       "smallBusiness",
@@ -826,6 +818,14 @@
       "disputed",
       "settled_externally",
       "other"
+    ],
+    "zeroRatedTaxSchemes": [
+      "smallBusiness",
+      "reverseCharge",
+      "intraCommunitySupply",
+      "exportThirdCountry",
+      "domesticReverseCharge",
+      "outsideScope"
     ]
   }
 }

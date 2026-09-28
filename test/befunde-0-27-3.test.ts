@@ -54,12 +54,12 @@ test('Quellen: § 131/131b wird der BAO zugeordnet, nie dem UStG', () => {
 });
 
 /**
- * `rechnungSummen` rechnet nach der frueheren Formel (Weg 2) und ist
+ * `computeInvoiceTotals` rechnet nach der frueheren Formel (Weg 2) und ist
  * deshalb zugunsten des Kerns als veraltet markiert; der Kopf darf nicht
  * mehr behaupten, genau wie der Server zu rechnen.
  */
-test('rechnungSummen: als veraltet markiert, verweist auf rechnungRechnen', () => {
-  const quelle = lies('src/rechnung/summen.ts');
-  assert.match(quelle, /@deprecated[^]*?rechnungRechnen[^]*?export function rechnungSummen/);
+test('computeInvoiceTotals: als veraltet markiert, verweist auf calculateInvoice', () => {
+  const quelle = lies('src/invoice/summen.ts');
+  assert.match(quelle, /@deprecated[^]*?calculateInvoice[^]*?export function computeInvoiceTotals/);
   assert.doesNotMatch(quelle, /genau so, wie der Server sie beim\s+\*\s*Ausstellen rechnet/);
 });

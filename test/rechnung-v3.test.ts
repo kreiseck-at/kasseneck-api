@@ -32,7 +32,7 @@ import {
   type IssueResult,
   type PreviewResult,
   type RecordPaymentResult,
-} from '../src/rechnung/index.js';
+} from '../src/invoice/index.js';
 import { KasseneckApiError } from '../src/client/errors.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 

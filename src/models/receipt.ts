@@ -10,7 +10,7 @@ import {
 } from './receipt-item.js';
 import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
 import type { Cancellation, CancellationOf, CancellationReason } from './cancellation.js';
-import { istZeroKind, type ZeroKind } from './receipt-summary.js';
+import { isZeroKind, type ZeroKind } from './receipt-summary.js';
 import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload, toReceiptPaymentPayload } from './receipt-payment.js';
 
 /**
@@ -212,7 +212,7 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
       ...(typeof payload.cancellationOf.timeStamp === 'string' && payload.cancellationOf.timeStamp ? { timeStamp: payload.cancellationOf.timeStamp } : {}),
     } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
-    ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
+    ...(isZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
     ...(typeof payload.headerVersionId === 'string' && payload.headerVersionId !== '' ? { headerVersionId: payload.headerVersionId } : {}),

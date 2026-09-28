@@ -1,7 +1,7 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import type { ReceiptLayout } from '../receipt/layout.js';
-import { rasterZeilenBase64 } from '../printing/index.js';
-import type { DruckLogo } from '../receipt/layout-escpos.js';
+import { rasterRowsBase64 } from '../printing/index.js';
+import type { PrintLogo } from '../receipt/layout-escpos.js';
 
 /**
  * Netzwerk-Bondrucker ueber Epson "Server Direct Print": das Backend fuehrt
@@ -92,8 +92,8 @@ export interface CreatePrintJobOptions {
   receiptId?: string;
   title?: string;
   source?: PrintJobSource;
-  /** Firmenlogo als fertiges Rasterbild (`logoRaster`); der Server dekodiert keine Bilder. */
-  logo?: DruckLogo | null;
+  /** Firmenlogo als fertiges Rasterbild (`rasterizeLogo`); der Server dekodiert keine Bilder. */
+  logo?: PrintLogo | null;
   /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
   brand?: boolean;
 }
@@ -105,8 +105,8 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
   if (o.source) params.source = o.source;
   if (o.logo) {
     params.logo = {
-      scale: o.logo.stufe, pxWidth: o.logo.pxBreite, pxHeight: o.logo.pxHoehe,
-      width: o.logo.raster.breite, height: o.logo.raster.hoehe, rows: rasterZeilenBase64(o.logo.raster),
+      scale: o.logo.size, pxWidth: o.logo.pixelWidth, pxHeight: o.logo.pixelHeight,
+      width: o.logo.raster.width, height: o.logo.raster.height, rows: rasterRowsBase64(o.logo.raster),
     };
   }
   if (o.brand === true) params.brand = true;

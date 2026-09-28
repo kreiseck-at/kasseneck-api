@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { fromReceiptPayload, type ReceiptPaymentPayload } from '../src/models/index.js';
-import { buildReceiptLayout, renderReceiptGrid, gridAlsText, type ReceiptLayout } from '../src/receipt/index.js';
+import { buildReceiptLayout, renderReceiptGrid, gridToText, type ReceiptLayout } from '../src/receipt/index.js';
 import { belegFixtureAufV3 } from './belege-fixture.js';
 
 /**
@@ -29,7 +29,7 @@ function layoutMit(name: string, aenderung: Record<string, unknown>): ReceiptLay
   );
 }
 
-const raster = (layout: ReceiptLayout, zeichen: 32 | 48): string[] => gridAlsText(renderReceiptGrid(layout, { zeichen })).split('\n');
+const raster = (layout: ReceiptLayout, zeichen: 32 | 48): string[] => gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen })).split('\n');
 const ueberschriften = (layout: ReceiptLayout): string[] =>
   layout.lines.filter((z) => z.kind === 'text' && z.bold && z.align === 'center').map((z) => (z as { text: string }).text);
 

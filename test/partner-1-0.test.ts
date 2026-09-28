@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import antworten from './fixtures/partner-v3-antworten.json' with { type: 'json' };
 import * as partner from '../src/partner/index.js';
 import type * as P from '../src/partner/index.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import { KasseneckApiError, KasseneckValidationError } from '../src/client/errors.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
@@ -270,8 +270,8 @@ const MELDUNG: P.ReportCustomerContractOptions = {
 test('1.0: reportCustomerContract steht im Vertrag unter seinem aeusseren Namen', () => {
   assert.equal(vokabular.names['reportCustomerContract'], 'reportCustomerVertrag');
   assert.ok(vokabular.endpoints.public.includes('reportCustomerVertrag'));
-  assert.ok((AUFRUFE as readonly string[]).includes('reportCustomerContract'));
-  assert.equal((AUFRUFE as readonly string[]).includes('reportCustomerVertrag'), false);
+  assert.ok((ALL_CALLS as readonly string[]).includes('reportCustomerContract'));
+  assert.equal((ALL_CALLS as readonly string[]).includes('reportCustomerVertrag'), false);
 });
 
 /**

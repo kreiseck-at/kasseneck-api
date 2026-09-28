@@ -24,7 +24,7 @@ import { createKasseneckApi } from '../src/client/api.js';
 import {
   createTransport,
   DEFAULT_BASE_URL,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -486,7 +486,7 @@ test('Kassen-Benutzer-Weg: cashregisterId geht bei jedem erlaubten Aufruf mit, u
     const { rufen, aufrufe } = kassenBenutzerWeg(antwort);
     await aufruf(rufen);
     // Kassen-Benutzer: Kanal app ueber kasse.kasseneck.at/api/v3, nicht api.kasseneck.at.
-    const { endpunkt, params } = gesendet(aufrufe, KASSE_BASE_URL);
+    const { endpunkt, params } = gesendet(aufrufe, POS_BASE_URL);
     assert.equal(endpunkt, name);
     assert.equal(params['cashregisterId'], KASSEN_ID, `${name}: cashregisterId fehlt`);
   }

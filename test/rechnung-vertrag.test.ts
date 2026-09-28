@@ -2,8 +2,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AUFRUFE } from '../src/client/aufrufe.js';
-import { INVOICE_TEXTS, type InvoiceTextKey } from '../src/rechnung/texte.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
+import { INVOICE_TEXTS, type InvoiceTextKey } from '../src/invoice/texte.js';
 import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
@@ -22,7 +22,7 @@ import {
   INVOICE_ENDPOINTS,
   INVOICE_CONTRACT_VERSION,
   type Field,
-} from '../src/rechnung/vertrag.js';
+} from '../src/invoice/vertrag.js';
 
 // Woerter, die nach aussen nichts verloren haben: die Schnittstelle spricht
 // Englisch (siehe api-vokabular im Backend). Ein deutscher Feldname faellt hier
@@ -123,8 +123,8 @@ test('Vertrag: idempotencyKey ist Pflicht bei allem, was eine Rechnung erzeugt',
 });
 
 test('Vertrag: jeder Rechnungs-Aufruf steht in der Aufrufliste des Pakets', () => {
-  const bekannt = new Set<string>(AUFRUFE);
-  for (const aufruf of INVOICE_ENDPOINTS) assert.ok(bekannt.has(aufruf), `${aufruf} fehlt in AUFRUFE`);
+  const bekannt = new Set<string>(ALL_CALLS);
+  for (const aufruf of INVOICE_ENDPOINTS) assert.ok(bekannt.has(aufruf), `${aufruf} fehlt in ALL_CALLS`);
 });
 
 // ---- Schema-Datei (erzeugt von scripts/rechnung-vertrag.mjs) ----------------
@@ -240,12 +240,12 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
   assert.ok((INVOICE_ENDPOINTS as readonly string[]).includes('listBrands'));
-  assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
+  assert.ok((ALL_CALLS as readonly string[]).includes('listBrands'));
 });
 
 test('Vertrag: recordInvoicePayment ist Aufruf der Rechnungs-API und des Clients', () => {
   assert.ok((INVOICE_ENDPOINTS as readonly string[]).includes('recordInvoicePayment'));
-  assert.ok((AUFRUFE as readonly string[]).includes('recordInvoicePayment'));
+  assert.ok((ALL_CALLS as readonly string[]).includes('recordInvoicePayment'));
 });
 
 test('Vertrag: Zahlung nimmt nur bekannte Arten, der Betrag ist optional und ganzzahlig', () => {

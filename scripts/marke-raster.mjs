@@ -111,23 +111,23 @@ const ausgabe = `// Erzeugt von scripts/marke-raster.mjs -- nicht von Hand aende
 // Quelle: kreiseck/design/brand/kasseneck-logo.svg (sha256 ${svgHash})
 import type { PosPaperSize } from '../printing/escpos.js';
 
-export interface MarkeRasterDaten {
-  readonly breite: number;
-  readonly hoehe: number;
+export interface BrandMarkRaster {
+  readonly width: number;
+  readonly height: number;
   /** Rasterzeilen als Bits, MSB zuerst, je Zeile auf volle Bytes aufgefuellt; base64. */
   readonly bits: string;
 }
 
-export const MARKE_RASTER: Readonly<Record<PosPaperSize, MarkeRasterDaten>> = {
-  mm80: { breite: ${mm80.breite}, hoehe: ${mm80.hoehe}, bits: ${JSON.stringify(mm80.bits)} },
-  mm58: { breite: ${mm58.breite}, hoehe: ${mm58.hoehe}, bits: ${JSON.stringify(mm58.bits)} },
+export const BRAND_MARK_RASTERS: Readonly<Record<PosPaperSize, BrandMarkRaster>> = {
+  mm80: { width: ${mm80.breite}, height: ${mm80.hoehe}, bits: ${JSON.stringify(mm80.bits)} },
+  mm58: { width: ${mm58.breite}, height: ${mm58.hoehe}, bits: ${JSON.stringify(mm58.bits)} },
 };
 
 /** Die Marke als Pfade (fuer PDF und Bildschirm), im Kasten der Markendatei. */
-export const MARKE_PFADE: { readonly breite: number; readonly hoehe: number; readonly pfade: readonly string[] } = {
-  breite: ${pfadBreite},
-  hoehe: ${pfadHoehe},
-  pfade: [
+export const BRAND_MARK_PATHS: { readonly width: number; readonly height: number; readonly paths: readonly string[] } = {
+  width: ${pfadBreite},
+  height: ${pfadHoehe},
+  paths: [
 ${pfadeListe}
   ],
 };

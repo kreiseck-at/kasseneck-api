@@ -1,5 +1,5 @@
 /**
- * `@kreiseck/kasseneck-api/rechnung` — Rechnungen (§ 11 UStG, keine Belege)
+ * `@kreiseck/kasseneck-api/invoice` — Rechnungen (§ 11 UStG, keine Belege)
  * und Kunden ueber die Rechnungs-API.
  *
  * Ein eigener Unterpfad wie `partner`: der `api_key` eines Kontos, mit dem
@@ -77,27 +77,27 @@ export type {
 
 export { INVOICE_TEXTS, invoiceText, type InvoiceTextKey } from './texte.js';
 
-export { rechnungSummen, STEUERFREIE_FAELLE, type SummenPosition } from './summen.js';
+export { computeInvoiceTotals, ZERO_RATED_TAX_SCHEMES, type TotalsItem } from './summen.js';
 
 export {
-  anteiligerPreis,
-  BETRAG_GRENZE_CENTS,
-  positionAusEuro,
-  preisText,
-  RechenFehler,
-  rechnungRechnen,
-  rund,
-  satzSchluessel,
-  satzText,
-  type RechenErgebnis,
-  type RechenFehlerCode,
-  type RechenOptionen,
-  type RechenPosition,
-  type SatzSumme,
-  type Umwandlung,
-  type UmwandlungsGrund,
-  type ZeilenBetrag,
-} from './rechnen.js';
+  proratedPriceMicros,
+  MAX_AMOUNT_CENTS,
+  itemFromEuro,
+  formatUnitPrice,
+  CalcError,
+  calculateInvoice,
+  roundDiv,
+  vatRateMapKey,
+  formatVatRate,
+  type CalcResult,
+  type CalcErrorCode,
+  type CalcOptions,
+  type CalcItem,
+  type RateTotal,
+  type ItemConversion,
+  type ConversionReason,
+  type LineAmount,
+} from './calc.js';
 
 export {
   INVOICE_CONTRACT_VERSION,

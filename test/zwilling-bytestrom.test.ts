@@ -47,7 +47,7 @@ const layout = (paperSize: 'mm58' | 'mm80'): ReceiptLayout => ({
 });
 
 const digest = (paperSize: 'mm58' | 'mm80', marke: boolean): string =>
-  createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { marke })).digest('hex');
+  createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { brandMark: marke })).digest('hex');
 
 test('58 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
   assert.equal(digest('mm58', false), '42a673115d099035009a72aa171d0785f1ec697bd9042a669720e3b416d6d749');

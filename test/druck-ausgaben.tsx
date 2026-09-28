@@ -3,18 +3,20 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
-  belegBlatt,
+  receiptSheet,
   escPosLayoutBytes,
   eposPrintXml,
-  gridAlsText,
-  logoMass,
-  logoRaster,
-  logoRasterMass,
+  gridToText,
+  logoDimensions,
+  rasterizeLogo,
+  logoRasterSize,
   renderReceiptGrid,
-  type DruckLogo,
+  type PrintLogo,
+  type ReceiptSheet,
+  type SheetBlock,
   type ReceiptLayout,
 } from '../src/receipt/index.js';
-import { BelegBlattZeilen, ReceiptLayoutView } from '../src/react/index.js';
+import { ReceiptSheetLines, ReceiptLayoutView } from '../src/react/index.js';
 
 /**
  * Alle Ausgaben eines Layouts, die am Papier oder am Schirm landen: der
@@ -38,12 +40,12 @@ function verlauf(b: number, h: number): Uint8Array {
   return rgba;
 }
 
-function druckLogo(zeichen: number): DruckLogo {
-  const blattLogo = { stufe: 'M' as const, pxBreite: 300, pxHoehe: 120 };
-  const mass = logoMass(blattLogo, zeichen);
-  const raster = logoRaster(verlauf(300, 120), 300, 120, mass, zeichen);
-  const soll = logoRasterMass(mass, zeichen);
-  if (raster.breite !== soll.breite || raster.hoehe !== soll.hoehe) throw new Error('Probe-Logo passt nicht');
+function druckLogo(zeichen: number): PrintLogo {
+  const blattLogo = { size: 'M' as const, pixelWidth: 300, pixelHeight: 120 };
+  const mass = logoDimensions(blattLogo, zeichen);
+  const raster = rasterizeLogo(verlauf(300, 120), 300, 120, mass, zeichen);
+  const soll = logoRasterSize(mass, zeichen);
+  if (raster.width !== soll.width || raster.height !== soll.height) throw new Error('Probe-Logo passt nicht');
   return { ...blattLogo, raster };
 }
 
@@ -54,6 +56,26 @@ function qrMatrix(nutzlast: string): boolean[][] {
   return Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => ((h[(y * n + x) % 32]! >> ((x + y) % 8)) & 1) === 1));
 }
 
+/**
+ * Das Blatt in der Form, in der die Goldens aufgenommen wurden (vor 1.0 hiessen
+ * die Felder deutsch: `zeichen`, `bloecke`, `art`, `fett`, `leer`, `nutzlast`,
+ * `breiteAnteil`, `hoeheZeilen`, `breite`, `hoehe`; die Arten `zeile` und
+ * `marke`). Die Zuordnung ist eins zu eins und behaelt die Reihenfolge der
+ * Felder: der Hash vergleicht damit Werte und Aufbau, nicht die Namen. Aendert
+ * sich am Blatt mehr als ein Name, schlaegt der Golden weiterhin an.
+ */
+function blattWieAufgenommen(blatt: ReceiptSheet): unknown {
+  const block = (b: SheetBlock): unknown => {
+    switch (b.kind) {
+      case 'line': return { art: 'zeile', text: b.text, fett: b.bold, leer: b.blank };
+      case 'logo': return { art: 'logo', breiteAnteil: b.widthFraction, hoeheZeilen: b.heightLines };
+      case 'qr': return { art: 'qr', nutzlast: b.payload, breiteAnteil: b.widthFraction };
+      case 'brandMark': return { art: 'marke', breite: b.width, hoehe: b.height };
+    }
+  };
+  return { zeichen: blatt.charsPerLine, bloecke: blatt.blocks.map(block) };
+}
+
 const hex = (b: Uint8Array): string => Buffer.from(b).toString('hex');
 
 export function druckAusgaben(layout: ReceiptLayout): Record<string, string> {
@@ -62,20 +84,20 @@ export function druckAusgaben(layout: ReceiptLayout): Record<string, string> {
     const zeichen = paperSize === 'mm58' ? 32 : 48;
     const logo = druckLogo(zeichen);
     aus[`escpos.${paperSize}`] = hex(escPosLayoutBytes(layout, { paperSize }));
-    aus[`escpos.${paperSize}.marke`] = hex(escPosLayoutBytes(layout, { paperSize, marke: true }));
-    aus[`escpos.${paperSize}.logo`] = hex(escPosLayoutBytes(layout, { paperSize, logo, marke: true }));
-    aus[`escpos.${paperSize}.bild`] = hex(escPosLayoutBytes(layout, { paperSize, qrModus: 'imageRaster', qrMatrix, cut: 'partial' }));
-    aus[`escpos.${paperSize}.model1`] = hex(escPosLayoutBytes(layout, { paperSize, qrModus: 'nativeModel1', codeTable: null }));
-    aus[`epos.${zeichen}`] = eposPrintXml(layout, { zeichen });
-    aus[`epos.${zeichen}.logo`] = eposPrintXml(layout, { zeichen, logo, marke: true, cut: false });
-    aus[`grid.${zeichen}`] = gridAlsText(renderReceiptGrid(layout, { zeichen }));
-    const blatt = belegBlatt(layout, { zeichen, logo: { stufe: 'M', pxBreite: 300, pxHoehe: 120 }, marke: true });
-    aus[`blatt.${zeichen}`] = JSON.stringify(blatt);
-    aus[`html.blatt.${zeichen}`] = renderToStaticMarkup(createElement(BelegBlattZeilen, { blatt, logoUrl: 'https://example.invalid/logo.png' }));
-    aus[`html.blatt.${zeichen}.verdeckt`] = renderToStaticMarkup(createElement(BelegBlattZeilen, { blatt: belegBlatt(layout, { zeichen }), qrVerdeckt: true }));
+    aus[`escpos.${paperSize}.marke`] = hex(escPosLayoutBytes(layout, { paperSize, brandMark: true }));
+    aus[`escpos.${paperSize}.logo`] = hex(escPosLayoutBytes(layout, { paperSize, logo, brandMark: true }));
+    aus[`escpos.${paperSize}.bild`] = hex(escPosLayoutBytes(layout, { paperSize, qrMode: 'imageRaster', qrMatrix, cut: 'partial' }));
+    aus[`escpos.${paperSize}.model1`] = hex(escPosLayoutBytes(layout, { paperSize, qrMode: 'nativeModel1', codeTable: null }));
+    aus[`epos.${zeichen}`] = eposPrintXml(layout, { charsPerLine: zeichen });
+    aus[`epos.${zeichen}.logo`] = eposPrintXml(layout, { charsPerLine: zeichen, logo, brandMark: true, cut: false });
+    aus[`grid.${zeichen}`] = gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen }));
+    const blatt = receiptSheet(layout, { charsPerLine: zeichen, logo: { size: 'M', pixelWidth: 300, pixelHeight: 120 }, brandMark: true });
+    aus[`blatt.${zeichen}`] = JSON.stringify(blattWieAufgenommen(blatt));
+    aus[`html.blatt.${zeichen}`] = renderToStaticMarkup(createElement(ReceiptSheetLines, { sheet: blatt, logoUrl: 'https://example.invalid/logo.png' }));
+    aus[`html.blatt.${zeichen}.verdeckt`] = renderToStaticMarkup(createElement(ReceiptSheetLines, { sheet: receiptSheet(layout, { charsPerLine: zeichen }), qrHidden: true }));
   }
   aus['html.layout'] = renderToStaticMarkup(createElement(ReceiptLayoutView, { layout }));
-  aus['html.layout.verdeckt'] = renderToStaticMarkup(createElement(ReceiptLayoutView, { layout, qrVerdeckt: true, className: 'x' }));
+  aus['html.layout.verdeckt'] = renderToStaticMarkup(createElement(ReceiptLayoutView, { layout, qrHidden: true, className: 'x' }));
   return aus;
 }
 

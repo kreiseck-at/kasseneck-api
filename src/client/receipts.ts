@@ -40,7 +40,7 @@ import { KasseneckValidationError, isKasseneckApiError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../receipt/layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
-import type { LogoStufe } from '../receipt/blatt.js';
+import type { SheetLogoSize } from '../receipt/blatt.js';
 
 /**
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
@@ -199,7 +199,7 @@ export interface ReceiptWithCompany {
   /**
    * Vom Backend gebautes Zeilenmodell (`data.layout`, Regelwerk des Belegs,
    * 80 mm); null, wenn nicht mitgeliefert. Es geht unveraendert an
-   * `escPosLayoutBytes`, `eposPrintXml`, `belegBlatt` und die React-Ansichten.
+   * `escPosLayoutBytes`, `eposPrintXml`, `receiptSheet` und die React-Ansichten.
    * Drucken und anzeigen ueber [receiptLayoutFromResult].
    */
   layout: ReceiptLayout | null;
@@ -212,7 +212,7 @@ export interface ReceiptWithCompany {
    * Groesse des Firmenlogos am Beleg (`logo_scale`). Bildschirm, Bon und PDF
    * setzen das Logo in genau dieser Stufe; fehlt der Wert, gilt `M`.
    */
-  logoScale: LogoStufe;
+  logoScale: SheetLogoSize;
 }
 
 /**
@@ -225,7 +225,7 @@ export interface ReceiptWithCompany {
  * Layout hier gebaut, mit den Angaben derselben Antwort (`testCashregister`,
  * `testSignature`, `registrationInfo`) und in `fallbackPaperSize` (Vorgabe
  * `mm58` wie in 0.x). Die Druckbreite waehlt allein der Druckweg
- * (`paperSize` bei `escPosLayoutBytes`, `zeichen` bei ePOS und Blatt), nie
+ * (`paperSize` bei `escPosLayoutBytes`, `charsPerLine` bei ePOS und Blatt), nie
  * dieser Helfer.
  */
 export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { fallbackPaperSize?: PosPaperSize } = {}): ReceiptLayout {

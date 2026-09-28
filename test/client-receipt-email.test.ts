@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { sendReceiptEmail } from '../src/client/receipts.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import { RECEIPT_EMAIL_ERROR_CODES, RECEIPT_EMAIL_SEND_ERROR_CODES, isReceiptEmailErrorCode } from '../src/models/index.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import {
   isKasseneckApiError,
   isKasseneckHttpError,
@@ -12,7 +12,7 @@ import {
 import {
   createTransport,
   DEFAULT_BASE_URL,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -38,7 +38,7 @@ import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
  * - Fehler des Transports umgehuellt statt durchgereicht -> 6, 6b und 8 rot.
  * - Antwort ungeprueft durchgereicht -> 7 und 7b rot.
  * - `send_failed` aus dem Katalog entfernt -> 9 rot.
- * - fehlt der Aufruf in AUFRUFE, ist er schon ein Compilerfehler
+ * - fehlt der Aufruf in ALL_CALLS, ist er schon ein Compilerfehler
  *   (InternerTransport kennt nur bekannte Namen); 9b haelt ihn zusaetzlich im
  *   Zwillingsvertrag fest.
  */
@@ -157,7 +157,7 @@ test('4) Kassen-Benutzer-Weg: die Kasse kommt aus der Anmeldung, nicht aus den O
   const { rufen, aufrufe } = kassenBenutzerWeg();
   await sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' });
   // Kassen-Benutzer: ueber den Kassenweg (Kanal app), nicht api.kasseneck.at.
-  const { endpunkt, params, kopf } = gesendet(aufrufe, KASSE_BASE_URL);
+  const { endpunkt, params, kopf } = gesendet(aufrufe, POS_BASE_URL);
   assert.equal(endpunkt, 'sendReceiptEmail');
   assert.equal(params['cashregisterId'], KASSEN_ID);
   assert.equal(kopf['register-session'], SITZUNG);
@@ -275,8 +275,8 @@ test('9) der Fehlercode-Katalog ist der des /v3-Vokabulars (errorCodes.receiptEm
   assert.equal(isReceiptEmailErrorCode(undefined), false);
 });
 
-test('9b) der Aufruf steht in AUFRUFE (und damit im Zwillingsvertrag)', () => {
-  assert.ok((AUFRUFE as readonly string[]).includes('sendReceiptEmail'));
+test('9b) der Aufruf steht in ALL_CALLS (und damit im Zwillingsvertrag)', () => {
+  assert.ok((ALL_CALLS as readonly string[]).includes('sendReceiptEmail'));
 });
 
 test('9c) geheime Werte stehen in keiner Fehlermeldung', async () => {

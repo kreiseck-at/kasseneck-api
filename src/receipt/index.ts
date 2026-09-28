@@ -26,12 +26,12 @@ export {
 
 export {
   type EscPosLayoutOptions,
-  type EscPosLayoutErgebnis,
+  type EscPosLayoutResult,
   type QrPrintMode,
-  type DruckLogo,
-  pruefeLogoRaster,
+  type PrintLogo,
+  assertLogoRaster,
   escPosLayoutBytes,
-  escPosLayoutErgebnis,
+  escPosLayoutResult,
 } from './layout-escpos.js';
 export {
   type GridLine,
@@ -39,35 +39,35 @@ export {
   type ReceiptGrid,
   type RenderReceiptGridOptions,
   renderReceiptGrid,
-  gridSpaltenBreiten,
-  gridAlsText,
-  ZEICHEN_JE_PAPIER,
+  gridColumnWidths,
+  gridToText,
+  CHARS_PER_PAPER_SIZE,
 } from './grid.js';
-export { type EposPrintXmlOptions, type EposPrintErgebnis, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlErgebnis, eposXmlEscape, eposBildXml, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
+export { type EposPrintXmlOptions, type EposPrintResult, type EposDirectOptions, type EposResponse, EposConnectionError, eposPrintXml, eposPrintXmlResult, eposXmlEscape, eposImageXml, eposServiceUrl, eposSoapEnvelope, eposParseResponse, eposDirectPrint, eposDirectStatus } from './epos.js';
 
 export {
-  type LogoStufe,
-  type BlattLogo,
-  type LogoMass,
-  type BlattBlock,
-  type BelegBlatt,
-  type BelegBlattOptionen,
-  LOGO_STUFEN,
-  LOGO_PIXEL_MAX,
-  PUNKTE_JE_ZEICHEN,
-  PUNKTE_JE_ZEILE,
-  papierFuerZeichen,
-  logoMass,
-  logoPixelZulaessig,
-  logoRasterMass,
-  qrBlattAnteil,
-  belegBlatt,
+  type SheetLogoSize,
+  type SheetLogo,
+  type LogoDimensions,
+  type SheetBlock,
+  type ReceiptSheet,
+  type ReceiptSheetOptions,
+  SHEET_LOGO_SIZES,
+  LOGO_MAX_PIXELS,
+  DOTS_PER_CHAR,
+  DOTS_PER_LINE,
+  paperSizeForChars,
+  logoDimensions,
+  isLogoPixelSizeAllowed,
+  logoRasterSize,
+  qrSheetWidthFraction,
+  receiptSheet,
 } from './blatt.js';
 
-export { logoRaster } from './bild.js';
+export { rasterizeLogo } from './bild.js';
 
-export { type MarkeRasterDaten, MARKE_RASTER, MARKE_PFADE } from './marke-daten.js';
-export { markeBild } from './marke.js';
+export { type BrandMarkRaster, BRAND_MARK_RASTERS, BRAND_MARK_PATHS } from './marke-daten.js';
+export { brandMarkImage } from './marke.js';
 export {
   type ReceiptDueTip,
   type ReceiptDueTipRecipient,

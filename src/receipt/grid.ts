@@ -1,4 +1,4 @@
-import { wortzeilenText } from '../printing/escpos.js';
+import { wrapText } from '../printing/escpos.js';
 import type { LayoutAlign, LayoutBannerTone, LayoutLine, ReceiptLayout } from './layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 
@@ -13,7 +13,7 @@ import type { PosPaperSize } from '../printing/escpos.js';
  *   letzte Spalte, jede mindestens 1. Zwischen zwei Spalten steht immer
  *   mindestens ein Leerzeichen (letztes Zeichen jeder nicht-letzten Spalte).
  *   Die letzte Spalte endet buendig am rechten Rand.
- * - Text/Aufdruck/Spalteninhalt bricht **wortweise** um (`wortzeilenText`,
+ * - Text/Aufdruck/Spalteninhalt bricht **wortweise** um (`wrapText`,
  *   dieselbe Regel wie der ESC/POS-Kern); ueberlange Woerter nach einem
  *   Bindestrich, sonst hart; geschuetztes Leerzeichen bricht nie.
  * - Fliessregel: laeuft in einer Spaltenzeile nur eine Spalte ueber die erste
@@ -23,12 +23,12 @@ import type { PosPaperSize } from '../printing/escpos.js';
  *   Zeile mit Nutzlast (der Zeichner setzt das Bild).
  */
 
-export const ZEICHEN_JE_PAPIER: Readonly<Record<PosPaperSize, number>> = { mm58: 32, mm80: 48 };
+export const CHARS_PER_PAPER_SIZE: Readonly<Record<PosPaperSize, number>> = { mm58: 32, mm80: 48 };
 
 export type GridLineKind = 'text' | 'columns' | 'rule' | 'space' | 'qr' | 'banner';
 
 export interface GridLine {
-  /** Genau `zeichen` Zeichen (bei `qr`: zentrierter Platzhalter). */
+  /** Genau `charsPerLine` Zeichen (bei `qr`: zentrierter Platzhalter). */
   text: string;
   kind: GridLineKind;
   bold: boolean;
@@ -40,16 +40,16 @@ export interface GridLine {
 
 export interface ReceiptGrid {
   lines: GridLine[];
-  zeichen: number;
+  charsPerLine: number;
 }
 
 export interface RenderReceiptGridOptions {
   /** Zeichen je Zeile; Vorgabe nach `layout.paperSize` (32/48). */
-  zeichen?: number;
+  charsPerLine?: number;
 }
 
 /** Zwoelftel -> Zeichen je Spalte (ganze Zeichen, Rest an die letzte, mindestens 1). */
-export function gridSpaltenBreiten(zwoelftel: readonly number[], zeichen: number): number[] {
+export function gridColumnWidths(zwoelftel: readonly number[], zeichen: number): number[] {
   const out: number[] = [];
   let vergeben = 0;
   zwoelftel.forEach((w, i) => {
@@ -82,13 +82,13 @@ function restNach(text: string, erste: string): string {
 }
 
 export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptGridOptions = {}): ReceiptGrid {
-  const zeichen = Math.max(8, Math.floor(options.zeichen ?? ZEICHEN_JE_PAPIER[layout.paperSize] ?? 32));
+  const zeichen = Math.max(8, Math.floor(options.charsPerLine ?? CHARS_PER_PAPER_SIZE[layout.paperSize] ?? 32));
   const leer = ' '.repeat(zeichen);
   const lines: GridLine[] = [];
   for (const z of layout.lines as LayoutLine[]) {
     switch (z.kind) {
       case 'text':
-        for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.align), kind: 'text', bold: z.bold });
+        for (const t of wrapText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.align), kind: 'text', bold: z.bold });
         break;
       case 'banner': {
         // Der Rahmen ist Teil des Rasters: eine Zeile '=' ueber die volle Breite
@@ -97,7 +97,7 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         // eigenen Rahmen (Rechteck, doppelt hoch, invers, gefuellt).
         const rahmen = '='.repeat(zeichen);
         lines.push({ text: rahmen, kind: 'banner', bold: true, tone: z.tone });
-        for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, 'center'), kind: 'banner', bold: true, tone: z.tone });
+        for (const t of wrapText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, 'center'), kind: 'banner', bold: true, tone: z.tone });
         lines.push({ text: rahmen, kind: 'banner', bold: true, tone: z.tone });
         break;
       }
@@ -111,10 +111,10 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         lines.push({ text: ausrichten(QR_PLATZHALTER, zeichen, 'center'), kind: 'qr', bold: false, qr: z.data });
         break;
       case 'columns': {
-        const breiten = gridSpaltenBreiten(z.columns.map((c) => c.width), zeichen);
+        const breiten = gridColumnWidths(z.columns.map((c) => c.width), zeichen);
         // Inhalt jeder nicht-letzten Spalte um 1 Zeichen schmaler: garantierter Abstand.
         const inhalt = breiten.map((b, i) => (i < breiten.length - 1 ? Math.max(1, b - 1) : b));
-        const teile = z.columns.map((c, i) => wortzeilenText(c.text, inhalt[i]!));
+        const teile = z.columns.map((c, i) => wrapText(c.text, inhalt[i]!));
         // Fliessregel: laeuft nach der ersten Zeile nur noch EINE Spalte weiter (die anderen sind
         // fertig), bekommt ihr Rest die volle Breite -- auf 58 mm sonst 18-Zeichen-Schnipsel.
         // Laufen mehrere weiter, bleibt das Raster (sonst verschoeben sich die Nachbarn).
@@ -134,7 +134,7 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
           // Rest aus dem Originaltext (nicht aus den schmal umbrochenen Stuecken), damit
           // Bindestrich-/Hartbrueche der schmalen Spalte nicht als Leerzeichen zurueckbleiben.
           const rest = restNach(z.columns[i]!.text, teile[i]![0]!);
-          for (const t of wortzeilenText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
+          for (const t of wrapText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
         }
         break;
       }
@@ -142,10 +142,10 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         break;
     }
   }
-  return { lines, zeichen };
+  return { lines, charsPerLine: zeichen };
 }
 
 /** Klartext (eine Zeile je Rasterzeile) -- fuer Golden-Dateien und Logs. QR als Platzhalter. */
-export function gridAlsText(grid: ReceiptGrid): string {
+export function gridToText(grid: ReceiptGrid): string {
   return grid.lines.map((z) => z.text).join('\n');
 }

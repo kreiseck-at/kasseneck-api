@@ -210,7 +210,7 @@ test('Kern: ein Import des Pakets laedt React nicht', () => {
 
 test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die Nutzlast bleibt als data-qr', () => {
   const layout = buildReceiptLayout(BELEG, FIRMA, { paperSize: 'mm80' });
-  const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrVerdeckt renderQr={(d) => <i data-qr-bild={d} />} />);
+  const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrHidden renderQr={(d) => <i data-qr-bild={d} />} />);
   assert.match(html, /keck-receipt-qr-toggle/);
   assert.match(html, /aria-pressed="false"/);
   // blur(3px): unscannbar, aber als QR erkennbar; der Hinweis ist ein

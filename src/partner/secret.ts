@@ -63,7 +63,7 @@ export class KasseneckSecret {
   }
 
   /** Ob ueberhaupt ein Wert da ist — ohne ihn anzufassen. */
-  get vorhanden(): boolean {
+  get hasValue(): boolean {
     return (werte.get(this) ?? '').length > 0;
   }
 

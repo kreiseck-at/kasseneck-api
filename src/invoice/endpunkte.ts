@@ -17,7 +17,7 @@
  * der Aufruf `KasseneckValidationError` mit `scope:'response'`.
  */
 
-import type { InternerBinaerTransport, InternerTransport, Aufruf } from '../client/aufrufe.js';
+import type { InternerBinaerTransport, InternerTransport, ApiCall } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { EINVOICE_FORMATS, type EInvoiceFormat, type InvoiceLanguage } from './vertrag.js';
 import type {
@@ -54,7 +54,7 @@ function objekt(wert: unknown): Record<string, unknown> {
 }
 
 /** Ein zugesagtes Objektfeld der Antwort — oder ein Antwortfehler. */
-function pflichtObjekt<T>(aufruf: Aufruf, daten: unknown, feld: string): T {
+function pflichtObjekt<T>(aufruf: ApiCall, daten: unknown, feld: string): T {
   const wert = objekt(daten)[feld];
   if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) {
     throw new KasseneckValidationError(aufruf, `Antwort ohne ${feld}`, 'response');
@@ -63,7 +63,7 @@ function pflichtObjekt<T>(aufruf: Aufruf, daten: unknown, feld: string): T {
 }
 
 /** Eine zugesagte Liste samt Cursor — oder ein Antwortfehler. */
-function seite<T>(aufruf: Aufruf, daten: unknown, feld: string): { eintraege: T[]; nextCursor: string | null } {
+function seite<T>(aufruf: ApiCall, daten: unknown, feld: string): { eintraege: T[]; nextCursor: string | null } {
   const o = objekt(daten);
   if (!Array.isArray(o[feld])) {
     throw new KasseneckValidationError(aufruf, `Antwort ohne ${feld}`, 'response');
@@ -97,7 +97,7 @@ function hinweise(daten: unknown): InvoiceNotice[] | undefined {
  * blosser Text wuerde sonst Zeichen fuer Zeichen zu Feldern `0`, `1`, …
  * zerlegt, und der Server koennte nur „Bitte Eingaben pruefen" antworten.
  */
-function kennungVerlangen(aufruf: Aufruf, kennung: unknown, felder: string): void {
+function kennungVerlangen(aufruf: ApiCall, kennung: unknown, felder: string): void {
   if (kennung === null || typeof kennung !== 'object' || Array.isArray(kennung)) {
     throw new KasseneckValidationError(aufruf, `Kennung als Objekt erwartet: ${felder}`, 'request');
   }

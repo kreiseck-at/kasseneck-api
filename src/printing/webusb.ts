@@ -84,12 +84,12 @@ export function usbFindPrinterEndpoint(d: { configuration: UsbConfigurationLike 
  */
 export class UsbTimeoutError extends Error {
   override readonly name = 'UsbTimeoutError';
-  readonly schritt: string;
+  readonly step: string;
   readonly timeoutMs: number;
 
   constructor(schritt: string, timeoutMs: number) {
     super(`USB-Drucker antwortet nicht (${schritt}, Zeitlimit ${timeoutMs} ms überschritten) — Kabel/Gerät prüfen.`);
-    this.schritt = schritt;
+    this.step = schritt;
     this.timeoutMs = timeoutMs;
   }
 }

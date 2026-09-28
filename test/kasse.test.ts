@@ -7,19 +7,19 @@ import {
   CARD_PROVIDER,
   POS_DEVICE_DEFAULTS,
   mergePosSettings,
-  verteileRabatt,
+  distributeDiscount,
   fromArticleGroupPayload,
   fromPosArticlePayload,
   allowedQuantity,
-  getKasseSettings,
-  setMyKasseSettings,
+  getPosSettings,
+  setMyPosSettings,
   setMyRegisterDeviceSettings,
   listMyArticleGroups,
   listMyArticles,
   quantityRuleForUnit,
   quantityDefaults,
   listMyTipRecipients,
-} from '../src/kasse/index.js';
+} from '../src/pos/index.js';
 import { fromReceiptSummaryPayload } from '../src/models/index.js';
 import { listMyReceipts, createTransport, apiKeyAuth, type KasseneckTransport, type FetchLike, type HttpResponseLike } from '../src/client/index.js';
 import { VatRate } from '../src/enums/index.js';
@@ -76,8 +76,8 @@ test('mergePosSettings: gespeichertes ueberlagert, Landkarten je Schluessel, Unb
 const SEMMEL: ReceiptItem = { name: 'Semmel', quantity: 4, vat: VatRate.vat10, priceCents: 79 };  // 3,16 (10 %)
 const KAFFEE: ReceiptItem = { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 280 }; // 2,80 (20 %)
 
-test('verteileRabatt: eine negative Rabattzeile je Steuersatz, anteilig zum Brutto, Summe = Rabatt', () => {
-  const zeilen = verteileRabatt([SEMMEL, KAFFEE], 100);
+test('distributeDiscount: eine negative Rabattzeile je Steuersatz, anteilig zum Brutto, Summe = Rabatt', () => {
+  const zeilen = distributeDiscount([SEMMEL, KAFFEE], 100);
   assert.equal(zeilen.length, 2);
   const summe = zeilen.reduce((s, z) => s + z.priceCents * z.quantity, 0);
   assert.equal(summe, -100);
@@ -89,21 +89,21 @@ test('verteileRabatt: eine negative Rabattzeile je Steuersatz, anteilig zum Brut
   assert.equal(zehn.quantity, 1);
 });
 
-test('verteileRabatt: nur ein Satz -> eine Zeile; kein Rabatt -> keine Zeile; nie ueber den Umsatz eines Satzes', () => {
-  assert.equal(verteileRabatt([SEMMEL], 50).length, 1);
-  assert.deepEqual(verteileRabatt([SEMMEL, KAFFEE], 0), []);
-  const alles = verteileRabatt([SEMMEL, KAFFEE], 596);
+test('distributeDiscount: nur ein Satz -> eine Zeile; kein Rabatt -> keine Zeile; nie ueber den Umsatz eines Satzes', () => {
+  assert.equal(distributeDiscount([SEMMEL], 50).length, 1);
+  assert.deepEqual(distributeDiscount([SEMMEL, KAFFEE], 0), []);
+  const alles = distributeDiscount([SEMMEL, KAFFEE], 596);
   assert.equal(alles.reduce((s, z) => s + z.priceCents, 0), -596);
-  assert.throws(() => verteileRabatt([SEMMEL], 400), /Rabatt/);
-  assert.throws(() => verteileRabatt([SEMMEL], -1), /Rabatt/);
+  assert.throws(() => distributeDiscount([SEMMEL], 400), /Rabatt/);
+  assert.throws(() => distributeDiscount([SEMMEL], -1), /Rabatt/);
 });
 
-test('verteileRabatt: Cent-Rest landet bei der groessten Gruppe, jede Zeile <= Umsatz ihres Satzes (Rot-Probe: 1 Cent auf drei Saetze)', () => {
+test('distributeDiscount: Cent-Rest landet bei der groessten Gruppe, jede Zeile <= Umsatz ihres Satzes (Rot-Probe: 1 Cent auf drei Saetze)', () => {
   const drei: ReceiptItem[] = [SEMMEL, KAFFEE, { name: 'Zeitung', quantity: 1, vat: VatRate.vat0, priceCents: 250 }];
-  const z = verteileRabatt(drei, 1);
+  const z = distributeDiscount(drei, 1);
   assert.equal(z.length, 1);
   assert.equal(z[0]!.vat, VatRate.vat10); // groesste Gruppe 3,16
-  for (const zeile of verteileRabatt(drei, 845)) {
+  for (const zeile of distributeDiscount(drei, 845)) {
     const umsatz = drei.filter((p) => p.vat === zeile.vat).reduce((s, p) => s + p.priceCents * p.quantity, 0);
     assert.ok(-zeile.priceCents <= umsatz);
   }
@@ -146,9 +146,9 @@ test('listMyArticleGroups und listMyArticles rufen die Endpunkte und lesen die L
 });
 
 // --- Einstellungen: Client -----------------------------------------------------
-test('getKasseSettings mischt die Antwort mit den Standardwerten', async () => {
+test('getPosSettings mischt die Antwort mit den Standardwerten', async () => {
   const { rufen, aufrufe } = transportMit({ business: { theme: 'night' }, device: { layout: 'left' } });
-  const s = await getKasseSettings(rufen, { deviceId: 'dev1' });
+  const s = await getPosSettings(rufen, { deviceId: 'dev1' });
   assert.deepEqual(gesendet(aufrufe).params, { deviceId: 'dev1' });
   assert.equal(s.business.theme, 'night');
   assert.equal(s.business.customAmountAllowed, true);
@@ -156,16 +156,16 @@ test('getKasseSettings mischt die Antwort mit den Standardwerten', async () => {
   assert.equal(s.device.printerPort, 9100);
 });
 
-test('setMyKasseSettings / setMyRegisterDeviceSettings senden nur den Block und lesen den Stand zurueck', async () => {
+test('setMyPosSettings / setMyRegisterDeviceSettings senden nur den Block und lesen den Stand zurueck', async () => {
   const b = transportMit({ business: { theme: 'warm' } });
-  const rb = await setMyKasseSettings(b.rufen, { theme: 'warm' });
+  const rb = await setMyPosSettings(b.rufen, { theme: 'warm' });
   assert.deepEqual(gesendet(b.aufrufe).params, { business: { theme: 'warm' } });
   assert.equal(rb.theme, 'warm');
   const g = transportMit({ device: { layout: 'fullscreen' } });
   const rg = await setMyRegisterDeviceSettings(g.rufen, 'dev1', { layout: 'fullscreen' });
   assert.deepEqual(gesendet(g.aufrufe).params, { deviceId: 'dev1', device: { layout: 'fullscreen' } });
   assert.equal(rg.layout, 'fullscreen');
-  await assert.rejects(() => setMyKasseSettings(b.rufen, {} as never), /Einstellungen/);
+  await assert.rejects(() => setMyPosSettings(b.rufen, {} as never), /Einstellungen/);
 });
 
 // --- Belegliste: Zeitfenster + neue Felder ---------------------------------------
@@ -250,8 +250,8 @@ test('schnellLogin (Vorgabe an) und tgChips (Vorgabe 5/10) stehen im Betriebs-St
 });
 
 // --- Netzwerk-Bondrucker (Server Direct Print) --------------------------------
-import { listMyPrinters, createPrintJob, getPrintJob } from '../src/kasse/index.js';
-import { POS_DEVICE_DEFAULTS as GERAET_STD } from '../src/kasse/index.js';
+import { listMyPrinters, createPrintJob, getPrintJob } from '../src/pos/index.js';
+import { POS_DEVICE_DEFAULTS as GERAET_STD } from '../src/pos/index.js';
 
 test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-Einstellungen kennen sdp + druckerId', async () => {
   const l = transportMit({ printers: [{ id: 'd1', name: 'Theke', kind: 'epson-sdp', paperSize: 'mm58', active: true, createdAt: 1, lastSeenAt: 5, lastResult: null, printerSerial: 'TM-m30III' }] });
@@ -273,10 +273,10 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   assert.equal(GERAET_STD.printerId, '');
   // Epson direkt per IP (ePOS): Device-ID des Druckers, Vorgabe local_printer
   assert.equal(GERAET_STD.printerDeviceId, 'local_printer');
-  const rd = await getKasseSettings(transportMit({ device: { printerType: 'network', printerIp: '192.168.0.136', printerDeviceId: 'theke' } }).rufen);
+  const rd = await getPosSettings(transportMit({ device: { printerType: 'network', printerIp: '192.168.0.136', printerDeviceId: 'theke' } }).rufen);
   assert.equal(rd.device.printerDeviceId, 'theke');
   assert.equal(rd.device.printerIp, '192.168.0.136');
-  const rz = await getKasseSettings(transportMit({ device: { printerType: 'sdp', printerId: 'd1' } }).rufen);
+  const rz = await getPosSettings(transportMit({ device: { printerType: 'sdp', printerId: 'd1' } }).rufen);
   assert.equal(rz.device.printerType, 'sdp');
   assert.equal(rz.device.printerId, 'd1');
 });
@@ -288,10 +288,10 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
  */
 test('createPrintJob: Logo als Mass + Base64-Zeilen, Marke nur wenn gesetzt; ohne beides Nutzlast wie bisher', async () => {
   const layout = { paperSize: 'mm80' as const, ruleset: 2 as const, lines: [] };
-  const raster = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
+  const raster = { width: 10, height: 2, dots: new Uint8Array(20).fill(1) };
 
   const mit = transportMit({ jobId: 'j2', status: 'pending' });
-  await createPrintJob(mit.rufen, { printerId: 'd1', layout, logo: { stufe: 'S', pxBreite: 40, pxHoehe: 20, raster }, brand: true });
+  await createPrintJob(mit.rufen, { printerId: 'd1', layout, logo: { size: 'S', pixelWidth: 40, pixelHeight: 20, raster }, brand: true });
   const g = gesendet(mit.aufrufe);
   assert.equal(g.fn, 'createPrintJob');
   assert.deepEqual(g.params.logo, { scale: 'S', pxWidth: 40, pxHeight: 20, width: 10, height: 2, rows: '/8D/wA==' });
@@ -353,7 +353,7 @@ test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kass
 // Flutter-Paket) pruefen gegen genau diese Listen.
 import {
   PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, POS_SHORTCUT_ACTIONS, QR_MODE,
-} from '../src/kasse/index.js';
+} from '../src/pos/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
 
 test('Enums gibt es zur Laufzeit — Verbraucher koennen pruefen statt zu raten', () => {

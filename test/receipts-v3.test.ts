@@ -21,7 +21,7 @@ import {
 } from '../src/client/receipts.js';
 import { buildReceiptLayout, escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
 import { isKasseneckApiError, isKasseneckValidationError, isOutcomeUnknown } from '../src/client/errors.js';
-import { createTransport, DEFAULT_BASE_URL, KASSE_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
+import { createTransport, DEFAULT_BASE_URL, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
   fromReceiptItemPayload,
@@ -115,7 +115,7 @@ function wegFuer(fall: Fall, cashregisterId = 'KECK-1') {
 /** Der eine gesendete Aufruf: Adresse des Kanals und Parameter ohne die Kassenbindung der Anmeldung. */
 function gesendet(aufrufe: Mitschrift[], fall: Fall, kasse: boolean): Json {
   assert.equal(aufrufe.length, 1, `${fall.name}: genau ein Aufruf, nie ein zweiter`);
-  assert.equal(aufrufe[0]!.url, `${kasse ? KASSE_BASE_URL : DEFAULT_BASE_URL}/${fall.endpoint}`);
+  assert.equal(aufrufe[0]!.url, `${kasse ? POS_BASE_URL : DEFAULT_BASE_URL}/${fall.endpoint}`);
   const params = { ...aufrufe[0]!.params };
   if (kasse && !('cashregisterId' in fall.params)) delete params.cashregisterId;
   return params;

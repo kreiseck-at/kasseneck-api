@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AUFRUFE, POS_CALLS, PUBLIC_CALLS, isPosOnlyCall } from '../src/client/aufrufe.js';
-import * as kasse from '../src/kasse/index.js';
-import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from '../src/kasse/index.js';
+import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosOnlyCall } from '../src/client/aufrufe.js';
+import * as kasse from '../src/pos/index.js';
+import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from '../src/pos/index.js';
 import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
-import * as rechnung from '../src/rechnung/index.js';
+import * as rechnung from '../src/invoice/index.js';
 
 const vertrag = JSON.parse(
   readFileSync(new URL('../../fixtures/oberflaeche.json', import.meta.url), 'utf8'),
@@ -38,7 +38,7 @@ for (const name of Object.keys(namensraum).sort()) {
 }
 
 test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
-  assert.deepEqual(vertrag.aufrufe, [...AUFRUFE], veraltet);
+  assert.deepEqual(vertrag.aufrufe, [...ALL_CALLS], veraltet);
   assert.deepEqual(vertrag.publicCalls, [...PUBLIC_CALLS], veraltet);
   assert.deepEqual(vertrag.posCalls, [...POS_CALLS], veraltet);
   assert.deepEqual(vertrag.rechte, [...REGISTER_PERMS], veraltet);
@@ -146,5 +146,5 @@ test('v3: nur ueber den Kassenweg gehen genau die 19 Namen aus endpoints.registe
 
 test('v3: jeder Aufruf des Pakets steht in PUBLIC_CALLS oder POS_CALLS', () => {
   const bekannt = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS]);
-  assert.deepEqual(AUFRUFE.filter((name) => !bekannt.has(name)), []);
+  assert.deepEqual(ALL_CALLS.filter((name) => !bekannt.has(name)), []);
 });

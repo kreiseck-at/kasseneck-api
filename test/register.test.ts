@@ -15,7 +15,7 @@ import {
 } from '../src/register/index.js';
 import {
   createTransport,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -159,7 +159,7 @@ test('listRegisterSessionsForDevice: Endpunktname, Nutzlast und Abbildung', asyn
     ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen,
   });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listRegisterSessionsForDevice`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listRegisterSessionsForDevice`);
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
     ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
   });
@@ -207,7 +207,7 @@ test('pairRegisterDevice: Endpunktname und Nutzlast — nur der Code', async () 
   await pairRegisterDevice({ code: CODE, fetch: holen });
 
   assert.equal(aufrufe.length, 1);
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/pairRegisterDevice`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/pairRegisterDevice`);
   assert.equal(aufrufe[0]?.init.method, 'POST');
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { code: CODE });
 });
@@ -336,7 +336,7 @@ test('listRegisterUsersForDevice: Endpunktname und die drei Geraeteangaben', asy
     fetch: holen,
   });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listRegisterUsersForDevice`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listRegisterUsersForDevice`);
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
     ownerUid: OWNER_UID,
     deviceId: GERAET_ID,
@@ -364,7 +364,7 @@ test('listRegisterUsersForDevice: cashregister.ready kommt durch, samt Grund; Mu
 test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({ id: GERAET_ID }));
   await unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/unpairRegisterDevice`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/unpairRegisterDevice`);
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS });
   assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
   await assert.rejects(() => unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: '', fetch: holen }));
@@ -485,7 +485,7 @@ test('registerUserLogin: Endpunktname und die sechs Pflichtparameter', async () 
     fetch: holen,
   });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/registerUserLogin`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/registerUserLogin`);
   // Die Namen und ihre Reihenfolge stehen so in der Pflichtfeld-Schleife des
   // Backends: ownerUid, deviceId, deviceSecret, userId, pin, cashregisterId.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
@@ -669,7 +669,7 @@ test('registerPinLogin: Endpunktname und die fuenf Pflichtparameter — ohne use
     fetch: holen,
   });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/registerPinLogin`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/registerPinLogin`);
   // Namen und Reihenfolge aus der Pflichtfeld-Schleife des Backends:
   // ownerUid, deviceId, deviceSecret, pin, cashregisterId.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, {
@@ -777,7 +777,7 @@ test('renewRegisterSession: Endpunktname, keine eigenen Parameter, Kopfzeilen de
   const { rufen, aufrufe } = kassenBenutzerWeg(erfolg({ expiresAt: 1_776_000_090_000 }));
   const expiresAt = await renewRegisterSession(rufen);
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/renewRegisterSession`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/renewRegisterSession`);
   // Nur die Kassenbindung der Anmeldung — der Endpunkt nimmt keinen Parameter.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { cashregisterId: KASSEN_ID });
   assert.equal(aufrufe[0]?.init.headers['Authorization'], `Bearer ${ID_TOKEN}`);
@@ -810,7 +810,7 @@ test('endRegisterSession: Endpunktname und keine eigenen Parameter', async () =>
   const { rufen, aufrufe } = kassenBenutzerWeg(erfolg({ ok: true }));
   await endRegisterSession(rufen);
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/endRegisterSession`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/endRegisterSession`);
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { cashregisterId: KASSEN_ID });
   assert.equal(aufrufe[0]?.init.headers['register-session'], SITZUNG);
 });
@@ -824,7 +824,7 @@ test('die Fassade traegt die beiden Sitzungs-Aufrufe', async () => {
     fetch: holen,
   });
   assert.equal(await api.renewRegisterSession(), 1_776_000_090_000);
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/renewRegisterSession`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/renewRegisterSession`);
 
   const beenden = fetchFake(erfolg({ ok: true }));
   const api2 = createKasseneckApi({
@@ -832,7 +832,7 @@ test('die Fassade traegt die beiden Sitzungs-Aufrufe', async () => {
     fetch: beenden.holen,
   });
   await api2.endRegisterSession();
-  assert.equal(beenden.aufrufe[0]?.url, `${KASSE_BASE_URL}/endRegisterSession`);
+  assert.equal(beenden.aufrufe[0]?.url, `${POS_BASE_URL}/endRegisterSession`);
 });
 
 test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {

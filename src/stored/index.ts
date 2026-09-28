@@ -17,8 +17,8 @@ import { belegAusHuelle, belegMitFirmaAusHuelle, type ReceiptWithCompany } from 
 import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
 import type { Receipt, RegistrationInfo } from '../models/receipt.js';
 import { buildReceiptLayout, CURRENT_LAYOUT_RULESET, receiptSignatureIsTest, type LayoutRuleset, type ReceiptLayout } from '../receipt/layout.js';
-import { sanitizePosSettings, type PosSettings } from '../kasse/settings.js';
-import { fromPosArticlePayload, type PosArticle, type PosArticlePayload } from '../kasse/artikel.js';
+import { sanitizePosSettings, type PosSettings } from '../pos/settings.js';
+import { fromPosArticlePayload, type PosArticle, type PosArticlePayload } from '../pos/artikel.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import {
   _receiptEnvelopeToWire, _storedArticleToWire, _storedReceiptInner, _storedReceiptToWire, pruefangabenDerHuelle,

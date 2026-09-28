@@ -3,8 +3,8 @@ import { KasseneckValidationError } from '../client/errors.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { createTransport, type TransportOptions } from '../client/transport.js';
 import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
-import type { PosSettings } from '../kasse/settings.js';
-import { posSettingsFromWire } from '../kasse/client.js';
+import type { PosSettings } from '../pos/settings.js';
+import { posSettingsFromWire } from '../pos/client.js';
 
 /**
  * Die drei Aufrufe, die **ohne jede Identitaet** laufen: Kopplung eines
@@ -47,8 +47,8 @@ const ohneAnmeldung: KasseneckAuth = () => ({ headers: {}, params: {} });
 /**
  * Verbindungsangaben ohne Anmeldung — alles, was [TransportOptions] ausser der
  * Anmeldung fuehrt. Alle Felder sind wahlfrei: ohne Angabe gelten der Kassenweg
- * der Produktion ([KASSE_BASE_URL]), das Zeitlimit der Produktion und das
- * globale `fetch`. Die Web-Kasse gibt `kasseBaseUrl: '/api/v3'` (gleicher Ursprung).
+ * der Produktion ([POS_BASE_URL]), das Zeitlimit der Produktion und das
+ * globale `fetch`. Die Web-Kasse gibt `posBaseUrl: '/api/v3'` (gleicher Ursprung).
  */
 export type RegisterDeviceConnection = Omit<TransportOptions, 'auth'>;
 

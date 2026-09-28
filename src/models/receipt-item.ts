@@ -31,7 +31,7 @@ export interface ReceiptItem {
   priceCents: number;
   /**
    * Trinkgeld-Position (vom Backend aus dem Parameter `tip` erzeugt, siehe
-   * [ReceiptCommonOptions.tip]) oder Rabatt-Position (`verteileRabatt`).
+   * [ReceiptCommonOptions.tip]) oder Rabatt-Position (`distributeDiscount`).
    * Mitarbeiter-Trinkgeld ist Durchlaeufer (0 %, kein Umsatz),
    * Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Rabatt-Positionen sind
    * negative Entgeltminderungen je Steuersatz; die Kennzeichnung steuert nur

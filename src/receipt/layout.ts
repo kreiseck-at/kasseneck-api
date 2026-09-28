@@ -705,7 +705,7 @@ function steuersatz(vat: VatRate | number): Steuersatz {
 }
 
 /** `20` -> `"20"`, `4.9` -> `"4,9"` (wie im Vorbild). */
-function satzText(rate: number): string {
+function formatVatRate(rate: number): string {
   return String(rate).replace('.', ',');
 }
 
@@ -1201,7 +1201,7 @@ export function buildReceiptLayout(
     lines.push(
       tabellenZeile(
         [
-          `${gruppe.satz.category} ${satzText(gruppe.satz.rate)}%`,
+          `${gruppe.satz.category} ${formatVatRate(gruppe.satz.rate)}%`,
           formatCents(bruttoCents - nettoCents),
           formatCents(nettoCents),
           formatCents(bruttoCents),

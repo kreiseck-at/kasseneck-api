@@ -24,8 +24,8 @@ const TOKEN = 'cb_live_GEHEIMESKASSENTOKEN77';
 test('Geheimnis: reveal ist der einzige Weg an den Klartext', () => {
   const geheim = new KasseneckSecret('apiKey', KLARTEXT);
   assert.equal(geheim.reveal(), KLARTEXT);
-  assert.equal(geheim.vorhanden, true);
-  assert.equal(new KasseneckSecret('apiKey', '').vorhanden, false);
+  assert.equal(geheim.hasValue, true);
+  assert.equal(new KasseneckSecret('apiKey', '').hasValue, false);
 });
 
 test('Geheimnis: toString, Vorlagenzeichenkette und Verkettung zeigen die Maske', () => {
@@ -94,6 +94,6 @@ test('Geheimnis: eine fehlende Angabe wird ein leeres Geheimnis, kein undefined'
   // Ein `undefined` waere hier das schlimmste Ergebnis: der Aufrufer haette
   // einen Typ, der Geheimnis sagt, und einen Wert, den er ungeprueft ausgibt.
   assert.ok(zugang.apiKey instanceof KasseneckSecret);
-  assert.equal(zugang.apiKey.vorhanden, false);
+  assert.equal(zugang.apiKey.hasValue, false);
   assert.equal(zugang.apiKey.reveal(), '');
 });

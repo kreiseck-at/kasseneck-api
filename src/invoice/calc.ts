@@ -25,10 +25,10 @@ import type { PriceMode, TaxScheme } from './vertrag.js';
 const E = 10n ** 17n;
 
 /** Hoechster Betrag je Zeile und je Rechnung: 999.999.999,99 €. */
-export const BETRAG_GRENZE_CENTS = 99_999_999_999;
+export const MAX_AMOUNT_CENTS = 99_999_999_999;
 
 /** Steuerfaelle, in denen die Rechnung keine Steuer ausweist: jede Zeile zaehlt zu 0 %. */
-export const STEUERFREIE_FAELLE: readonly TaxScheme[] = Object.freeze([
+export const ZERO_RATED_TAX_SCHEMES: readonly TaxScheme[] = Object.freeze([
   'smallBusiness',
   'reverseCharge',
   'intraCommunitySupply',
@@ -38,7 +38,7 @@ export const STEUERFREIE_FAELLE: readonly TaxScheme[] = Object.freeze([
 ]);
 
 /** Eine Position in gespeicherter Form — alle Werte ganzzahlig. */
-export interface RechenPosition {
+export interface CalcItem {
   /** Einzelpreis in Millionstel Euro, 0 … 10¹². */
   unitPriceMicros: number;
   /** Menge in Tausendstel; negativ = Abzugszeile, 0 = Textzeile. */
@@ -49,49 +49,49 @@ export interface RechenPosition {
   vatRateBp?: number;
 }
 
-export interface RechenOptionen {
+export interface CalcOptions {
   priceMode: PriceMode;
   /** Ohne Angabe `normal`. */
   taxScheme?: TaxScheme;
 }
 
-export interface SatzSumme {
+export interface RateTotal {
   rateBp: number;
   netCents: number;
   vatCents: number;
   grossCents: number;
 }
 
-export interface ZeilenBetrag {
+export interface LineAmount {
   netCents: number;
   grossCents: number;
   /** Der Satz, mit dem die Zeile gerechnet wurde (bei steuerfreiem Fall 0). */
   rateBp: number;
 }
 
-export interface RechenErgebnis {
+export interface CalcResult {
   netCents: number;
   vatCents: number;
   grossCents: number;
   /** Absteigend nach `rateBp`. */
-  byRate: SatzSumme[];
+  byRate: RateTotal[];
   /** Je Position, in der Reihenfolge der Eingabe. */
-  lines: ZeilenBetrag[];
+  lines: LineAmount[];
 }
 
-export type RechenFehlerCode = 'amount_too_large' | 'kein_ganzzahlwert' | 'ausserhalb';
+export type CalcErrorCode = 'amount_too_large' | 'not_integer' | 'out_of_range';
 
 /** Fehler des Kerns — mit Code, Feld und Index, damit die API daraus einen Feldfehler machen kann. */
-export class RechenFehler extends Error {
-  readonly code: RechenFehlerCode;
-  readonly feld?: string;
+export class CalcError extends Error {
+  readonly code: CalcErrorCode;
+  readonly field?: string;
   readonly index?: number;
 
-  constructor(code: RechenFehlerCode, nachricht: string, feld?: string, index?: number) {
+  constructor(code: CalcErrorCode, nachricht: string, feld?: string, index?: number) {
     super(nachricht);
-    this.name = 'RechenFehler';
+    this.name = 'CalcError';
     this.code = code;
-    this.feld = feld;
+    this.field = feld;
     this.index = index;
   }
 }
@@ -102,7 +102,7 @@ export class RechenFehler extends Error {
  * Ohne Gleitkomma: `(2·|a| + b) / (2·b)` ist genau dann eins groesser, wenn der
  * Rest mindestens die halbe Einheit betraegt.
  */
-export function rund(a: bigint, b: bigint): bigint {
+export function roundDiv(a: bigint, b: bigint): bigint {
   const negativ = a < 0n;
   const betrag = negativ ? -a : a;
   const ganz = (2n * betrag + b) / (2n * b);
@@ -120,11 +120,11 @@ type GrenzFeld = keyof typeof GRENZEN;
 
 function ganzzahl(wert: unknown, feld: GrenzFeld, index: number): number {
   if (typeof wert !== 'number' || !Number.isInteger(wert)) {
-    throw new RechenFehler('kein_ganzzahlwert', `items[${index}].${feld} muss eine ganze Zahl sein`, feld, index);
+    throw new CalcError('not_integer', `items[${index}].${feld} muss eine ganze Zahl sein`, feld, index);
   }
   const [min, max] = GRENZEN[feld];
   if (wert < min || wert > max) {
-    throw new RechenFehler('ausserhalb', `items[${index}].${feld} liegt ausserhalb von ${min} … ${max}`, feld, index);
+    throw new CalcError('out_of_range', `items[${index}].${feld} liegt ausserhalb von ${min} … ${max}`, feld, index);
   }
   return wert;
 }
@@ -156,7 +156,7 @@ function verteile(
 ): void {
   const werte = gruppe.map((z) => {
     const zaehler = z.L * faktor;
-    return { z, zaehler, wert: rund(zaehler, nenner) };
+    return { z, zaehler, wert: roundDiv(zaehler, nenner) };
   });
   let rest = ziel - werte.reduce((s, w) => s + w.wert, 0n);
   if (rest !== 0n) {
@@ -177,14 +177,14 @@ function verteile(
   for (const w of werte) w.z[feld] = Number(w.wert);
 }
 
-export function rechnungRechnen(
-  positionen: readonly RechenPosition[],
-  optionen: RechenOptionen,
-): RechenErgebnis {
-  const steuerfrei = STEUERFREIE_FAELLE.includes(optionen.taxScheme ?? 'normal');
+export function calculateInvoice(
+  positionen: readonly CalcItem[],
+  optionen: CalcOptions,
+): CalcResult {
+  const steuerfrei = ZERO_RATED_TAX_SCHEMES.includes(optionen.taxScheme ?? 'normal');
   const bruttoPreise = optionen.priceMode === 'gross' && !steuerfrei;
 
-  const grenze = BigInt(BETRAG_GRENZE_CENTS) * E;
+  const grenze = BigInt(MAX_AMOUNT_CENTS) * E;
   const zeilen: Zeile[] = positionen.map((p, index) => {
     const preis = BigInt(ganzzahl(p.unitPriceMicros, 'unitPriceMicros', index));
     const menge = BigInt(ganzzahl(p.quantityMilli, 'quantityMilli', index));
@@ -192,9 +192,9 @@ export function rechnungRechnen(
     const satz = ganzzahl(p.vatRateBp ?? 0, 'vatRateBp', index);
     const L = preis * menge * (10_000n - rabatt) * 1_000_000n;
     if ((L < 0n ? -L : L) > grenze) {
-      throw new RechenFehler(
+      throw new CalcError(
         'amount_too_large',
-        `items[${index}] uebersteigt ${BETRAG_GRENZE_CENTS} Cent`,
+        `items[${index}] uebersteigt ${MAX_AMOUNT_CENTS} Cent`,
         'unitPriceMicros',
         index,
       );
@@ -209,7 +209,7 @@ export function rechnungRechnen(
     else jeSatz.set(z.rateBp, [z]);
   }
 
-  const byRate: SatzSumme[] = [];
+  const byRate: RateTotal[] = [];
   for (const [rateBp, gruppe] of jeSatz) {
     const r = BigInt(rateBp);
     const S = gruppe.reduce((s, z) => s + z.L, 0n);
@@ -217,12 +217,12 @@ export function rechnungRechnen(
     let vatCents: bigint;
     let grossCents: bigint;
     if (bruttoPreise) {
-      grossCents = rund(S, E);
-      netCents = rund(grossCents * 10_000n, 10_000n + r);
+      grossCents = roundDiv(S, E);
+      netCents = roundDiv(grossCents * 10_000n, 10_000n + r);
       vatCents = grossCents - netCents;
     } else {
-      netCents = rund(S, E);
-      vatCents = rund(S * r, E * 10_000n);
+      netCents = roundDiv(S, E);
+      vatCents = roundDiv(S * r, E * 10_000n);
       grossCents = netCents + vatCents;
     }
     if (bruttoPreise) {
@@ -244,7 +244,7 @@ export function rechnungRechnen(
   const summe = (feld: 'netCents' | 'vatCents' | 'grossCents'): number =>
     byRate.reduce((s, r) => s + r[feld], 0);
 
-  const ergebnis: RechenErgebnis = {
+  const ergebnis: CalcResult = {
     netCents: summe('netCents'),
     vatCents: summe('vatCents'),
     grossCents: summe('grossCents'),
@@ -252,18 +252,18 @@ export function rechnungRechnen(
     lines: zeilen.map((z) => ({ netCents: z.netCents, grossCents: z.grossCents, rateBp: z.rateBp })),
   };
   for (const feld of ['netCents', 'vatCents', 'grossCents'] as const) {
-    if (Math.abs(ergebnis[feld]) > BETRAG_GRENZE_CENTS) {
-      throw new RechenFehler('amount_too_large', `Die Rechnung uebersteigt ${BETRAG_GRENZE_CENTS} Cent (${feld})`);
+    if (Math.abs(ergebnis[feld]) > MAX_AMOUNT_CENTS) {
+      throw new CalcError('amount_too_large', `Die Rechnung uebersteigt ${MAX_AMOUNT_CENTS} Cent (${feld})`);
     }
   }
   return ergebnis;
 }
 
-export type UmwandlungsGrund = 'kein_zahlwert' | 'nachkommastellen' | 'ausserhalb';
+export type ConversionReason = 'not_a_number' | 'too_many_decimals' | 'out_of_range';
 
-export type Umwandlung =
-  | { ok: true; position: RechenPosition & Record<string, unknown> }
-  | { ok: false; feld: 'unitPrice' | 'quantity' | 'vatRate' | 'discountPct'; grund: UmwandlungsGrund };
+export type ItemConversion =
+  | { ok: true; item: CalcItem & Record<string, unknown> }
+  | { ok: false; field: 'unitPrice' | 'quantity' | 'vatRate' | 'discountPct'; reason: ConversionReason };
 
 /**
  * Wandelt eine Zahl ueber ihren kuerzesten Dezimaltext in eine Ganzzahl mit
@@ -311,44 +311,44 @@ const EURO_FELDER = ['unitPrice', 'quantity', 'vatRate', 'discountPct'] as const
  * abgerechnet hat. Ein fehlender Preis dagegen ist NIE 0: sonst wuerde eine
  * Position, der nur der Preis fehlt, still zur 0-€-Zeile.
  */
-export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
+export function itemFromEuro(item: Record<string, unknown>): ItemConversion {
   if (typeof item.unitPriceMicros === 'number') {
-    return { ok: true, position: item as unknown as RechenPosition & Record<string, unknown> };
+    return { ok: true, item: item as unknown as CalcItem & Record<string, unknown> };
   }
 
   const roh = item.unitPrice;
   if (typeof roh !== 'number' || !Number.isFinite(roh)) {
-    return { ok: false, feld: 'unitPrice', grund: 'kein_zahlwert' };
+    return { ok: false, field: 'unitPrice', reason: 'not_a_number' };
   }
   const micros = ganzAusDezimaltext(Math.abs(roh), 6);
-  if (micros === null) return { ok: false, feld: 'unitPrice', grund: 'nachkommastellen' };
-  if (micros > GRENZEN.unitPriceMicros[1]) return { ok: false, feld: 'unitPrice', grund: 'ausserhalb' };
+  if (micros === null) return { ok: false, field: 'unitPrice', reason: 'too_many_decimals' };
+  if (micros > GRENZEN.unitPriceMicros[1]) return { ok: false, field: 'unitPrice', reason: 'out_of_range' };
 
   const zahl = (feld: 'quantity' | 'vatRate' | 'discountPct', stellen: number, max: number):
     | { ok: true; wert: number }
-    | { ok: false; grund: UmwandlungsGrund } => {
+    | { ok: false; grund: ConversionReason } => {
     const w = item[feld];
     if (w === undefined || w === null) return { ok: true, wert: 0 };
-    if (typeof w !== 'number' || !Number.isFinite(w)) return { ok: false, grund: 'kein_zahlwert' };
+    if (typeof w !== 'number' || !Number.isFinite(w)) return { ok: false, grund: 'not_a_number' };
     const ganz = ganzAusDezimaltext(w, stellen);
-    if (ganz === null) return { ok: false, grund: 'nachkommastellen' };
-    if (ganz < (feld === 'quantity' ? -max : 0) || ganz > max) return { ok: false, grund: 'ausserhalb' };
+    if (ganz === null) return { ok: false, grund: 'too_many_decimals' };
+    if (ganz < (feld === 'quantity' ? -max : 0) || ganz > max) return { ok: false, grund: 'out_of_range' };
     return { ok: true, wert: ganz };
   };
 
   const menge = zahl('quantity', 3, GRENZEN.quantityMilli[1]);
-  if (!menge.ok) return { ok: false, feld: 'quantity', grund: menge.grund };
+  if (!menge.ok) return { ok: false, field: 'quantity', reason: menge.grund };
   const satz = zahl('vatRate', 2, 10_000);
-  if (!satz.ok) return { ok: false, feld: 'vatRate', grund: satz.grund };
+  if (!satz.ok) return { ok: false, field: 'vatRate', reason: satz.grund };
   const rabatt = zahl('discountPct', 2, 10_000);
-  if (!rabatt.ok) return { ok: false, feld: 'discountPct', grund: rabatt.grund };
+  if (!rabatt.ok) return { ok: false, field: 'discountPct', reason: rabatt.grund };
 
   const rest: Record<string, unknown> = { ...item };
   for (const feld of EURO_FELDER) delete rest[feld];
 
   return {
     ok: true,
-    position: {
+    item: {
       ...rest,
       unitPriceMicros: micros,
       quantityMilli: roh < 0 ? -menge.wert : menge.wert,
@@ -364,26 +364,26 @@ export function positionAusEuro(item: Record<string, unknown>): Umwandlung {
  * stuende auf der ersten Rechnung ein Preis mit sechs Stellen, wo bisher zwei
  * standen.
  */
-export function anteiligerPreis(unitPriceMicros: number, monate: number, intervall: number): number {
+export function proratedPriceMicros(unitPriceMicros: number, monate: number, intervall: number): number {
   const micros = BigInt(unitPriceMicros);
-  const anteil = rund(micros * BigInt(monate), BigInt(intervall));
+  const anteil = roundDiv(micros * BigInt(monate), BigInt(intervall));
   if (unitPriceMicros % 10_000 !== 0) return Number(anteil);
-  return Number(rund(anteil, 10_000n) * 10_000n);
+  return Number(roundDiv(anteil, 10_000n) * 10_000n);
 }
 
 /**
  * Schluessel eines USt-Satzes in den gespeicherten Maps (`creditedCents.byRate`,
  * `invoice_stats.vatByRate`): der Prozenttext mit Punkt, genau wie
  * `String(satz)` ihn bisher gebildet hat. NICHT fuer die Anzeige — dafuer gibt
- * es `satzText`.
+ * es `formatVatRate`.
  */
-export function satzSchluessel(rateBp: number): string {
+export function vatRateMapKey(rateBp: number): string {
   return String(rateBp / 100);
 }
 
 /** Ein USt-Satz fuer die Anzeige: oesterreichisch mit Komma, ohne nachlaufende Nullen. */
-export function satzText(rateBp: number): string {
-  return satzSchluessel(rateBp).replace('.', ',');
+export function formatVatRate(rateBp: number): string {
+  return vatRateMapKey(rateBp).replace('.', ',');
 }
 
 /**
@@ -391,7 +391,7 @@ export function satzText(rateBp: number): string {
  * Nachkommastellen, Tausenderpunkt, Komma als Trennzeichen — in jeder Sprache
  * oesterreichisch, wie die Betraege auf dem Blatt.
  */
-export function preisText(unitPriceMicros: number): string {
+export function formatUnitPrice(unitPriceMicros: number): string {
   const negativ = unitPriceMicros < 0;
   const betrag = Math.abs(unitPriceMicros);
   const ganz = Math.trunc(betrag / 1_000_000);

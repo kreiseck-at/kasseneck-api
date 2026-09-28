@@ -14,7 +14,7 @@
  */
 import type { TransportBodyFields } from './transport.js';
 
-export const AUFRUFE = [
+export const ALL_CALLS = [
   'activateCashregister',
   'cancelInvoice',
   'cancelReceipt',
@@ -85,7 +85,7 @@ export const AUFRUFE = [
   'updatePartnerWebhook',
 ] as const;
 
-export type Aufruf = typeof AUFRUFE[number];
+export type ApiCall = typeof ALL_CALLS[number];
 
 /**
  * Die oeffentlichen Endpunkte unter `/v3` (`https://api.kasseneck.at/v3/<name>`),
@@ -196,7 +196,7 @@ export function isPosCall(name: string): boolean {
 /**
  * Nur ueber den Kassenweg erreichbar (19 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
- * [KASSE_BASE_URL] statt an die oeffentliche Basis.
+ * [POS_BASE_URL] statt an die oeffentliche Basis.
  */
 export function isPosOnlyCall(name: string): boolean {
   return NUR_KASSE.has(name);
@@ -204,7 +204,7 @@ export function isPosOnlyCall(name: string): boolean {
 
 /** Wie [KasseneckTransport], nur mit bekanntem Aufrufnamen. Nicht exportiert nach aussen. */
 export type InternerTransport = <T = unknown>(
-  functionName: Aufruf,
+  functionName: ApiCall,
   params?: Record<string, unknown>,
   extraBodyFields?: TransportBodyFields,
   secretParams?: readonly string[],
@@ -212,6 +212,6 @@ export type InternerTransport = <T = unknown>(
 
 /** Wie [KasseneckBinaryTransport], nur mit bekanntem Aufrufnamen. */
 export type InternerBinaerTransport = (
-  functionName: Aufruf,
+  functionName: ApiCall,
   params?: Record<string, unknown>,
 ) => Promise<Uint8Array>;

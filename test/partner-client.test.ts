@@ -18,7 +18,7 @@ import {
 } from '../src/partner/fehler.js';
 import { BUSINESS_FIELDS, unknownBusinessFields } from '../src/partner/betrieb.js';
 import { PARTNER_ENVS } from '../src/partner/typen.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -774,7 +774,7 @@ test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => 
   // keiner.
   for (const schritt of PARTNER_FLOW) {
     if (schritt.call === null) continue;
-    assert.ok((AUFRUFE as readonly string[]).includes(schritt.call), `unbekannter Aufruf: ${schritt.call}`);
+    assert.ok((ALL_CALLS as readonly string[]).includes(schritt.call), `unbekannter Aufruf: ${schritt.call}`);
   }
   assert.equal(nextFlowStep('created')?.key, 'fon');
   assert.equal(nextFlowStep('signature_ready')?.key, 'cashregister');
@@ -809,12 +809,12 @@ test('Partner: alle Aufrufe der Partner-API stehen im Vertrag', () => {
     'rotatePartnerWebhookSecret',
     'reportCustomerContract',
   ]) {
-    assert.ok((AUFRUFE as readonly string[]).includes(name), `${name} fehlt in AUFRUFE`);
+    assert.ok((ALL_CALLS as readonly string[]).includes(name), `${name} fehlt in ALL_CALLS`);
   }
   // Der innere Name reportCustomerVertrag ist kein Aufruf dieses Pakets:
   // unter /v3 heisst der Endpunkt reportCustomerContract.
   assert.equal(
-    (AUFRUFE as readonly string[]).includes('reportCustomerVertrag'),
+    (ALL_CALLS as readonly string[]).includes('reportCustomerVertrag'),
     false,
     'reportCustomerVertrag ist der innere Name',
   );

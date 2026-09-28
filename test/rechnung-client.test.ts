@@ -2,10 +2,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createInvoiceApi } from '../src/rechnung/api.js';
-import { invoiceKeyAuth } from '../src/rechnung/auth.js';
-import { isInvoiceError, invoiceErrorCode, invoiceFieldErrors } from '../src/rechnung/fehler.js';
-import type { IssueInvoiceRequest } from '../src/rechnung/typen.js';
+import { createInvoiceApi } from '../src/invoice/api.js';
+import { invoiceKeyAuth } from '../src/invoice/auth.js';
+import { isInvoiceError, invoiceErrorCode, invoiceFieldErrors } from '../src/invoice/fehler.js';
+import type { IssueInvoiceRequest } from '../src/invoice/typen.js';
 import { KasseneckApiError, KasseneckAuthError, KasseneckValidationError } from '../src/client/errors.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 

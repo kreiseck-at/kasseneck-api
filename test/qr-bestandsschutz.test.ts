@@ -74,7 +74,7 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
-    digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
+    digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 8b9eb8cc…), gleiche Gegenprobe wie oben.
     '4b7a313760cc264b3c47fee7ca9300acdcd5dfa30a8b685cdbbd3074e5dbd8ae',
   );
@@ -89,7 +89,7 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
-    digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
+    digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 76755a9c…), gleiche Gegenprobe wie oben.
     'e091c1f5ff791fc2c561ac91c005fe11443798cb31e0ae3a9ac02b5ae98e107b',
   );

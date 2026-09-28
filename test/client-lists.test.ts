@@ -6,7 +6,7 @@ import { createKasseneckApi } from '../src/client/api.js';
 import {
   createTransport,
   DEFAULT_BASE_URL,
-  KASSE_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -168,7 +168,7 @@ test('listMyCashregisters: Endpunktname und leere Nutzlast', async () => {
   await listMyCashregisters(rufen);
 
   assert.equal(aufrufe.length, 1);
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyCashregisters`);
   // Nur die Kassenbindung der Anmeldung, kein eigener Parameter.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { cashregisterId: KASSEN_ID });
 });
@@ -220,7 +220,7 @@ test('listMyReceipts: Kassen-ID geht als "cashregisterId" hinaus, nie als altes 
   const { rufen, aufrufe } = kassenBenutzerWeg(erfolg(BELEGLISTE_ANTWORT));
   await listMyReceipts(rufen, { cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyReceipts`);
   const params = rumpfVon(aufrufe[0]!).params;
   // Unter /v3 weist der Rand den inneren Namen als deutschen Parameter ab.
   assert.equal(params['cashregisterId'], KASSEN_ID);
@@ -309,6 +309,6 @@ test('die Fassade bindet beide Listen-Aufrufe an denselben Transport', async () 
   });
   await api2.listMyReceipts({ cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${KASSE_BASE_URL}/listMyCashregisters`);
-  assert.equal(aufrufe2[0]?.url, `${KASSE_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe2[0]?.url, `${POS_BASE_URL}/listMyReceipts`);
 });

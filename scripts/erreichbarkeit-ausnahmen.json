@@ -1,6 +1,6 @@
 {
   "_hinweis": [
-    "Aufrufe aus AUFRUFE, die unter der oeffentlichen Adresse api.kasseneck.at/v1 BEWUSST keine",
+    "Aufrufe aus ALL_CALLS, die unter der oeffentlichen Adresse api.kasseneck.at/v1 BEWUSST keine",
     "Weiterleitung haben. Geprueft von scripts/check-erreichbarkeit.mjs (`npm run check:erreichbar`).",
     "",
     "Vorbild und Quelle der Begruendungen: vertragsrouten.json im Repo kasseneck-web, das dieselbe",
@@ -13,7 +13,7 @@
     "",
     "Eine Ausnahme ohne Grund bzw. ohne Issue wird abgewiesen. Eine Ausnahme fuer einen Aufruf, der",
     "inzwischen erreichbar IST, ebenfalls -- sonst saenke die Zahl nie. Und eine Ausnahme fuer einen",
-    "Namen, den AUFRUFE gar nicht mehr fuehrt, auch: eine Ausnahme darf keine Leiche decken.",
+    "Namen, den ALL_CALLS gar nicht mehr fuehrt, auch: eine Ausnahme darf keine Leiche decken.",
     "",
     "Die meisten Eintraege sind Aufrufe des Kassen-Wegs (kasse.kasseneck.at/api): Ausweis ist dort das",
     "gekoppelte Geraet bzw. eine Kassen-Sitzung, nicht der api_key. Ein /v1-Eintrag fuehrte fuer sie",

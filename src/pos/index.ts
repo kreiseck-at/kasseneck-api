@@ -33,14 +33,14 @@ export {
   QUANTITY_RULES, type QuantityRule, type QuantityDefaults, quantityRuleForUnit, quantityDefaults, allowedQuantity,
 } from './artikel.js';
 export {
-  getKasseSettings, setMyKasseSettings, setMyRegisterDeviceSettings, setMyKasseLogo, posSettingsFromWire,
-  type SetMyKasseLogoOptions,
+  getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
+  type SetMyPosLogoOptions,
 } from './client.js';
 export {
   POS_ERROR_CODES, type PosErrorCode, isPosErrorCode, posErrorCode, isPosError,
   type PosFieldError, posFieldErrors,
 } from './errors.js';
-export { verteileRabatt } from '../receipt/discount.js';
+export { distributeDiscount } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
 export { cancelScopeOf, receiptsScopeOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
@@ -52,9 +52,9 @@ export { listMyTipRecipients } from './trinkgeld.js';
 
 // Was die Kasse selbst sagt: ein Katalog fuer Browser-Kasse und App.
 export {
-  MELDUNGEN, FEHLERREGELN, meldung, meldungGiltFuer,
-  BELEG_MAIL_FEHLER, belegMailFehler,
-  STORNO_ZAHLUNG_FEHLER, stornoZahlungFehler, BESCHRIFTUNGEN, beschriftung,
-  type Meldung, type MeldungsSchluessel, type Fehlerart, type Seite,
-  type BelegMailFehlercode, type StornoZahlungFehlercode, type BeschriftungsSchluessel,
+  MESSAGES, ERROR_RULES, messageText, messageAppliesTo,
+  RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, LABELS, labelText,
+  type TextEntry, type MessageKey, type ErrorKind, type Surface,
+  type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';

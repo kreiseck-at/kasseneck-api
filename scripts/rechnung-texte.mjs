@@ -1,12 +1,12 @@
 // Schreibt den Textkatalog der Rechnungen nach fixtures/rechnung-texte.json.
 //
-// Quelle ist src/rechnung/texte.ts — die Datei hier liest nur ab. Das Backend
+// Quelle ist src/invoice/texte.ts — die Datei hier liest nur ab. Das Backend
 // liest den Katalog aus dem vendorierten Paket (PDF, E-Rechnung, Mail), die
-// Statusseite im Web aus dem Unterpfad `@kreiseck/kasseneck-api/rechnung`.
+// Statusseite im Web aus dem Unterpfad `@kreiseck/kasseneck-api/invoice`.
 //
 // Aufruf: `npm run fixtures:rechnungstexte` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
-import * as rechnung from '../dist/esm/rechnung/index.js';
+import * as rechnung from '../dist/esm/invoice/index.js';
 
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 

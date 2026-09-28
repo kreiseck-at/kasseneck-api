@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { INVOICE_LANGUAGES, INVOICE_UNITS, INVOICE_UNIT_CODES } from '../src/rechnung/vertrag.js';
-import { INVOICE_TEXTS, invoiceText, type InvoiceTextKey } from '../src/rechnung/texte.js';
+import { INVOICE_LANGUAGES, INVOICE_UNITS, INVOICE_UNIT_CODES } from '../src/invoice/vertrag.js';
+import { INVOICE_TEXTS, invoiceText, type InvoiceTextKey } from '../src/invoice/texte.js';
 
 const platzhalter = (s: string) => [...s.matchAll(/\{([a-zA-Z]+)\}/g)].map((m) => m[1]).sort();
 const schluessel = Object.keys(INVOICE_TEXTS.de) as InvoiceTextKey[];
@@ -66,7 +66,7 @@ test('Katalog: die UID-Zeile gilt fuer Reverse Charge UND ig. Lieferung', () => 
 });
 
 test('Katalog: jeder Gutschrift-Grund des Vertrags hat einen Text', async () => {
-  const { CREDIT_NOTE_REASONS } = await import('../src/rechnung/vertrag.js');
+  const { CREDIT_NOTE_REASONS } = await import('../src/invoice/vertrag.js');
   for (const grund of CREDIT_NOTE_REASONS) assert.ok(`credit_note.reason.${grund}` in INVOICE_TEXTS.de, grund);
 });
 

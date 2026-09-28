@@ -456,7 +456,7 @@ export function unknownPosSettingValues(settings: PosSettings): string[] {
 
 /**
  * Was sich zwischen zwei Staenden eines Teils geaendert hat, als Nutzlast fuer
- * `setMyKasseSettings` bzw. `setMyRegisterDeviceSettings`: **nur geaenderte
+ * `setMyPosSettings` bzw. `setMyRegisterDeviceSettings`: **nur geaenderte
  * Felder** (der Server mischt, ein nicht geaenderter, hier unbekannter Wert
  * geht so nie verloren). `vatRates` geht bei einer Aenderung als ganze Karte
  * (Nachtrag §11.7.2), `shortcuts` ebenfalls ganz, aber nur mit den Aktionen,

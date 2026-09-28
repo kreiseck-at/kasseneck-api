@@ -8,9 +8,9 @@ import { test, type TestContext } from 'node:test';
 import * as stored from '../src/stored/index.js';
 import { _storedArticleToWire } from '../src/stored/draht.js';
 import { belegMitFirmaAusHuelle } from '../src/client/receipts.js';
-import { posSettingsFromWire } from '../src/kasse/client.js';
-import { fromPosArticlePayload, type PosArticlePayload } from '../src/kasse/artikel.js';
-import { unknownPosSettingValues, type PosSettings } from '../src/kasse/settings.js';
+import { posSettingsFromWire } from '../src/pos/client.js';
+import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
+import { unknownPosSettingValues, type PosSettings } from '../src/pos/settings.js';
 
 /**
  * Backend-Vergleich fuer `./stored`: dieselben gespeicherten Dokumente laufen
@@ -26,7 +26,7 @@ import { unknownPosSettingValues, type PosSettings } from '../src/kasse/settings
  *
  * Die Handler selbst lassen sich ohne Firebase nicht laden. Ihre Verkettung
  * steht darum hier (belegAntwort, die Artikelzeile aus listMyArticles,
- * getKasseSettings); der Quelltext-Waechter haelt genau diese Stellen fest.
+ * getPosSettings); der Quelltext-Waechter haelt genau diese Stellen fest.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

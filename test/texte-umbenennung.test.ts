@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler } from '../src/kasse/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, receiptEmailErrorMessage } from '../src/pos/texte.js';
 import { RECEIPT_EMAIL_SEND_ERROR_CODES } from '../src/models/index.js';
-import { INVOICE_TEXTS } from '../src/rechnung/texte.js';
+import { INVOICE_TEXTS } from '../src/invoice/texte.js';
 
 /*
  * Zwilling der Umbenennung der Textkatalog-Schluessel (1.0): die Tabelle
@@ -71,8 +71,8 @@ test('Umbenennung: das Beispiel aus dem Nachtrag', () => {
 test('Umbenennung: Kassentexte byte-gleich unter neuem Schluessel (Datei und Quelle)', () => {
   katalogPruefen('Meldungen', TABELLE.kasse.meldungen, ALT_KASSE.meldungen, NEU_KASSE.meldungen);
   katalogPruefen('Beschriftungen', TABELLE.kasse.beschriftungen, ALT_KASSE.beschriftungen, NEU_KASSE.beschriftungen);
-  katalogPruefen('Meldungen (Quelle)', TABELLE.kasse.meldungen, ALT_KASSE.meldungen, MELDUNGEN);
-  katalogPruefen('Beschriftungen (Quelle)', TABELLE.kasse.beschriftungen, ALT_KASSE.beschriftungen, BESCHRIFTUNGEN);
+  katalogPruefen('Meldungen (Quelle)', TABELLE.kasse.meldungen, ALT_KASSE.meldungen, MESSAGES);
+  katalogPruefen('Beschriftungen (Quelle)', TABELLE.kasse.beschriftungen, ALT_KASSE.beschriftungen, LABELS);
 });
 
 test('Umbenennung: Rechnungstexte byte-gleich in jeder Sprache, Einheiten unveraendert', () => {
@@ -87,29 +87,29 @@ test('Umbenennung: Rechnungstexte byte-gleich in jeder Sprache, Einheiten unvera
 test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schluessel', () => {
   const meldungen = TABELLE.kasse.meldungen as Record<string, string>;
   assert.deepEqual(
-    FEHLERREGELN,
+    ERROR_RULES,
     (ALT_KASSE.fehlerregeln as Json[]).map((r) => ('schluessel' in r ? { ...r, schluessel: meldungen[r.schluessel] } : r)),
   );
-  assert.deepEqual(STORNO_ZAHLUNG_FEHLER, Object.fromEntries(
+  assert.deepEqual(CANCELLATION_PAYMENT_ERROR_MESSAGES, Object.fromEntries(
     Object.entries(ALT_KASSE.stornoZahlungFehler as Record<string, string>).map(([code, s]) => [code, meldungen[s]]),
   ));
   // Die Belegmail-Codes kommen unter /v3 englisch (Uebersetzung laut Vokabular).
   const uebersetzt = VOKABULAR.errorCodes.translation as Record<string, string>;
-  assert.deepEqual(BELEG_MAIL_FEHLER, Object.fromEntries(
+  assert.deepEqual(RECEIPT_EMAIL_ERROR_MESSAGES, Object.fromEntries(
     Object.entries(ALT_KASSE.belegMailFehler as Record<string, string>).map(([code, s]) => [uebersetzt[code], meldungen[s]]),
   ));
-  assert.deepEqual(NEU_KASSE.fehlerregeln, FEHLERREGELN);
-  assert.deepEqual(NEU_KASSE.belegMailFehler, BELEG_MAIL_FEHLER);
-  assert.deepEqual(NEU_KASSE.stornoZahlungFehler, STORNO_ZAHLUNG_FEHLER);
+  assert.deepEqual(NEU_KASSE.fehlerregeln, ERROR_RULES);
+  assert.deepEqual(NEU_KASSE.belegMailFehler, RECEIPT_EMAIL_ERROR_MESSAGES);
+  assert.deepEqual(NEU_KASSE.stornoZahlungFehler, CANCELLATION_PAYMENT_ERROR_MESSAGES);
 });
 
-test('Belegmail: BELEG_MAIL_FEHLER kennt genau die Codes aus errorCodes.receiptEmail (und RECEIPT_EMAIL_SEND_ERROR_CODES)', () => {
+test('Belegmail: RECEIPT_EMAIL_ERROR_MESSAGES kennt genau die Codes aus errorCodes.receiptEmail (und RECEIPT_EMAIL_SEND_ERROR_CODES)', () => {
   // Kommt ein Code dazu, faellt er hier auf, statt am Tresen still den
   // allgemeinen Satz zu zeigen.
   const codes = VOKABULAR.errorCodes.receiptEmail as string[];
-  assert.deepEqual(Object.keys(BELEG_MAIL_FEHLER).sort(), [...codes].sort());
+  assert.deepEqual(Object.keys(RECEIPT_EMAIL_ERROR_MESSAGES).sort(), [...codes].sort());
   assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES].sort(), [...codes].sort());
-  for (const code of codes) assert.equal(belegMailFehler(code), BELEG_MAIL_FEHLER[code as keyof typeof BELEG_MAIL_FEHLER], code);
+  for (const code of codes) assert.equal(receiptEmailErrorMessage(code), RECEIPT_EMAIL_ERROR_MESSAGES[code as keyof typeof RECEIPT_EMAIL_ERROR_MESSAGES], code);
 });
 
 test('Umbenennung: der Erzeuger gibt die eingecheckte Tabelle byte-gleich wieder (nie von Hand pflegen)', async () => {

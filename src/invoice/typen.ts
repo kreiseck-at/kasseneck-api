@@ -219,7 +219,7 @@ export interface CreditNoteRequest extends CancelInvoiceRequest {
 /**
  * Summen einer Rechnung in Cent, **immer positiv** — auch bei einer Gutschrift
  * (`docType: 'credit_note'`); das Vorzeichen steht im Belegtyp, nicht im Betrag.
- * Gerechnet wird je Satz wie in [rechnungSummen].
+ * Gerechnet wird je Satz wie in [computeInvoiceTotals].
  */
 export interface InvoiceTotals {
   netCents: number;

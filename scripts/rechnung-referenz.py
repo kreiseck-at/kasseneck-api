@@ -2,7 +2,7 @@
 """Unabhaengige Referenz fuer den Ganzzahl-Rechenkern der Rechnung.
 
 Erzeugt die Pruefdatei fixtures/rechnung-rechnen-zufall.json und prueft sie
-wieder. Absichtlich anders gebaut als src/rechnung/rechnen.ts: exakte Brueche
+wieder. Absichtlich anders gebaut als src/invoice/calc.ts: exakte Brueche
 statt eines gemeinsamen Nenners, Rundung ueber Fraction-Vergleich statt ueber
 (2a+b)/(2b). Ein gemeinsamer Denkfehler faellt dadurch auf.
 
@@ -256,7 +256,7 @@ def formatiere_fall(fall: dict, einzug: str) -> str:
 
 
 BESCHREIBUNG = (
-    "Zufällig erzeugte Prüffälle des Ganzzahl-Rechenkerns (rechnungRechnen). "
+    "Zufällig erzeugte Prüffälle des Ganzzahl-Rechenkerns (calculateInvoice). "
     "Erzeugt von scripts/rechnung-referenz.py (npm run fixtures:rechnungzufall), "
     "nicht von Hand — für Handfälle siehe rechnung-rechnen.json. Preise in "
     "Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in "

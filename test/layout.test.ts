@@ -8,7 +8,7 @@ import {
   buildReceiptLayout,
   formatCents,
   escPosLayoutBytes,
-  PUNKTE_JE_ZEICHEN,
+  DOTS_PER_CHAR,
   type LayoutLine,
   type ReceiptLayout,
   SMALL_BUSINESS_NOTICE,
@@ -595,7 +595,7 @@ test('ESC/POS: der Druckbereich folgt dem Blatt, nicht dem Geraet', () => {
   // in der Breite des Blatts: Zeichen je Zeile mal 12 Punkte.
   for (const [paperSize, zeichen] of [['mm58', 32], ['mm80', 48]] as const) {
     const bytes = escPosLayoutBytes({ ...buildReceiptLayout(BELEG, FIRMA), paperSize });
-    const punkte = zeichen * PUNKTE_JE_ZEICHEN;
+    const punkte = zeichen * DOTS_PER_CHAR;
     assert.deepEqual(
       Array.from(bytes.slice(0, 10)),
       [27, 64, 29, 76, 0, 0, 29, 87, punkte & 0xff, punkte >> 8],

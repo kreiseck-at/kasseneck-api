@@ -8,7 +8,7 @@ import { parseWebhookEvent, type ContractAcceptedEventData } from '../src/partne
 import type { Business } from '../src/partner/typen.js';
 import { PARTNER_ERROR_CODES, partnerErrorAdvice } from '../src/partner/fehler.js';
 import { DEFAULT_BASE_URL, apiKeyAuth, createKasseneckApi } from '../src/index.js';
-import { createInvoiceApi } from '../src/rechnung/api.js';
+import { createInvoiceApi } from '../src/invoice/api.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
 /*

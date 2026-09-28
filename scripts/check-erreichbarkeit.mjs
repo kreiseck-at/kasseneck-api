@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prueft, ob unter der **oeffentlichen** Adresse zu jedem Aufruf aus [AUFRUFE]
+ * Prueft, ob unter der **oeffentlichen** Adresse zu jedem Aufruf aus [ALL_CALLS]
  * wirklich eine Function antwortet.
  *
  * Warum das eine eigene Pruefung braucht: Ein neuer Endpunkt ging live und
@@ -52,14 +52,14 @@ const FRIST_MS = 15_000;
 
 const ausnahmenDatei = new URL('./erreichbarkeit-ausnahmen.json', import.meta.url);
 
-/** AUFRUFE kommt aus dem Bau, nicht aus einer Zweitliste -- sonst prueft das Skript sich selbst. */
+/** ALL_CALLS kommt aus dem Bau, nicht aus einer Zweitliste -- sonst prueft das Skript sich selbst. */
 async function aufrufeLaden() {
   try {
     const modul = await import('../dist/esm/client/aufrufe.js');
-    return [...modul.AUFRUFE];
+    return [...modul.ALL_CALLS];
   } catch (fehler) {
     process.stderr.write(
-      `AUFRUFE nicht ladbar (${fehler.message}).\nBitte zuerst \`npm run build\`.\n`,
+      `ALL_CALLS nicht ladbar (${fehler.message}).\nBitte zuerst \`npm run build\`.\n`,
     );
     process.exit(1);
   }
@@ -167,8 +167,8 @@ function ausnahmenLaden(aufrufe) {
     }
     if (!aufrufe.includes(eintrag.aufruf)) {
       // Eine Ausnahme darf keine Leiche decken: Steht der Name nicht mehr in
-      // AUFRUFE, ist der Eintrag stumm geworden und niemandem faellt es auf.
-      maengel.push(`Ausnahme ${eintrag.aufruf} steht nicht (mehr) in AUFRUFE`);
+      // ALL_CALLS, ist der Eintrag stumm geworden und niemandem faellt es auf.
+      maengel.push(`Ausnahme ${eintrag.aufruf} steht nicht (mehr) in ALL_CALLS`);
       continue;
     }
     if (eintrag.art === 'nicht_zutreffend') {
@@ -194,7 +194,7 @@ const aufrufe = await aufrufeLaden();
 const partnerAufrufe = await partnerAufrufeLaden();
 const fremdePartner = [...partnerAufrufe].filter((name) => !aufrufe.includes(name));
 if (fremdePartner.length > 0) {
-  process.stderr.write(`Partner-Aufrufe, die AUFRUFE nicht fuehrt: ${fremdePartner.join(', ')}\n`);
+  process.stderr.write(`Partner-Aufrufe, die ALL_CALLS nicht fuehrt: ${fremdePartner.join(', ')}\n`);
   process.exit(1);
 }
 const { nachName: ausnahmen, maengel } = ausnahmenLaden(aufrufe);

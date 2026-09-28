@@ -108,7 +108,7 @@
   ],
   "zwilling": {
     "src/stored/draht.ts": "7da3e5d5805eb54347fc197769049d565a7536be03463d4f363a2570c2f68e45",
-    "src/stored/einstellungen.ts": "d8d02eaaec04f007a252a606b0e9f5c929975609f8c048b53670347312b368d2",
-    "src/stored/index.ts": "476a0f9e7e490031ac080eab757b225497d60b1a24ac58745d0ab41b592e4a40"
+    "src/stored/einstellungen.ts": "45fc7b702455f49a44f9872fe24d892772fbb72a7bcfef8671e2e7fd43772fed",
+    "src/stored/index.ts": "474e6a7025e83a92f911f0eb146b512f30a4227619407739b771e99fd557dce6"
   }
 }

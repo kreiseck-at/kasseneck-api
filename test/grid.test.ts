@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { KeckPaymentMethod, ReceiptType, VatRate } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../src/receipt/layout.js';
-import { renderReceiptGrid, gridSpaltenBreiten, ZEICHEN_JE_PAPIER, gridAlsText } from '../src/receipt/grid.js';
+import { renderReceiptGrid, gridColumnWidths, CHARS_PER_PAPER_SIZE, gridToText } from '../src/receipt/grid.js';
 import { escPosLayoutBytes } from '../src/receipt/layout-escpos.js';
 
 /**
@@ -29,25 +29,25 @@ const BELEG: Receipt = {
 };
 
 test('Zeichenbreite je Papier: 58 mm = 32, 80 mm = 48; jede Rasterzeile hat exakt N Zeichen', () => {
-  assert.equal(ZEICHEN_JE_PAPIER.mm58, 32);
-  assert.equal(ZEICHEN_JE_PAPIER.mm80, 48);
+  assert.equal(CHARS_PER_PAPER_SIZE.mm58, 32);
+  assert.equal(CHARS_PER_PAPER_SIZE.mm80, 48);
   for (const paperSize of ['mm58', 'mm80'] as const) {
     const g = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA, { paperSize }));
-    assert.equal(g.zeichen, ZEICHEN_JE_PAPIER[paperSize]);
+    assert.equal(g.charsPerLine, CHARS_PER_PAPER_SIZE[paperSize]);
     assert.ok(g.lines.length > 20);
-    for (const z of g.lines) assert.equal(z.text.length, g.zeichen, `${paperSize}: "${z.text}"`);
+    for (const z of g.lines) assert.equal(z.text.length, g.charsPerLine, `${paperSize}: "${z.text}"`);
   }
   // Breite ausdruecklich vorgeben (Font B, 42 Zeichen)
-  const g42 = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA), { zeichen: 42 });
+  const g42 = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA), { charsPerLine: 42 });
   for (const z of g42.lines) assert.equal(z.text.length, 42);
 });
 
 test('Spalten: ganze Zeichen aus Zwoelfteln, Rest an die letzte Spalte, mindestens 1 Zeichen', () => {
-  assert.deepEqual(gridSpaltenBreiten([6, 6], 32), [16, 16]);
-  assert.deepEqual(gridSpaltenBreiten([7, 5], 32), [18, 14]);
-  assert.deepEqual(gridSpaltenBreiten([4, 8], 32), [10, 22]);
-  assert.deepEqual(gridSpaltenBreiten([2, 3, 3, 4], 48), [8, 12, 12, 16]);
-  assert.deepEqual(gridSpaltenBreiten([1, 11], 8), [1, 7]);
+  assert.deepEqual(gridColumnWidths([6, 6], 32), [16, 16]);
+  assert.deepEqual(gridColumnWidths([7, 5], 32), [18, 14]);
+  assert.deepEqual(gridColumnWidths([4, 8], 32), [10, 22]);
+  assert.deepEqual(gridColumnWidths([2, 3, 3, 4], 48), [8, 12, 12, 16]);
+  assert.deepEqual(gridColumnWidths([1, 11], 8), [1, 7]);
 });
 
 test('rechte Spalte buendig am rechten Rand -- der Preis endet exakt ueber dem Ende der Trennlinie', () => {
@@ -132,7 +132,7 @@ test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR trae
   assert.equal(g.lines[3]!.bold, true);
   assert.equal(g.lines[4]!.kind, 'space'); assert.equal(g.lines[5]!.kind, 'space');
   assert.equal(g.lines[6]!.kind, 'qr'); assert.equal(g.lines[6]!.qr, QR);
-  assert.equal(gridAlsText(g).split('\n').length, 7);
+  assert.equal(gridToText(g).split('\n').length, 7);
 });
 
 test('ESC/POS druckt genau die Rasterzeilen (keine eigene Spaltenrechnung mehr): Bytestrom enthaelt jede Zeile', () => {
@@ -163,7 +163,7 @@ test('Golden: grid32/grid48 der Fixtures stimmen zeichengenau', () => {
     for (const zeichen of [32, 48] as const) {
       const soll = readFileSync(new URL(`erwartet/${name}.grid${zeichen}.txt`, wurzel), 'utf8');
       const layout = JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
-      assert.equal(gridAlsText(renderReceiptGrid(layout, { zeichen })), soll, `${name} @${zeichen}`);
+      assert.equal(gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen })), soll, `${name} @${zeichen}`);
     }
   }
 });

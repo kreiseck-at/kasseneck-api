@@ -1,6 +1,6 @@
 import {
   POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS, POS_SHORTCUT_SHARED_PAIRS,
-} from '../kasse/settings.js';
+} from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
 import { KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
 

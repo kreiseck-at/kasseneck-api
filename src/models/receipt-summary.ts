@@ -27,7 +27,7 @@ import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayl
 /** Anlass eines Nullbelegs (Backend: cashregister-lifecycle ZERO_KINDS). */
 export const ZERO_KINDS = ['monthly', 'annual', 'annual_replacement', 'outage_end', 'final', 'manual'] as const;
 export type ZeroKind = (typeof ZERO_KINDS)[number];
-export function istZeroKind(w: unknown): w is ZeroKind {
+export function isZeroKind(w: unknown): w is ZeroKind {
   return typeof w === 'string' && (ZERO_KINDS as readonly string[]).includes(w);
 }
 
@@ -119,7 +119,7 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
     ...(payload.cancellationStatus == null
       ? {}
       : { cancellationStatus: isCancellationStatus(payload.cancellationStatus) ? payload.cancellationStatus : ('unknown' as const) }),
-    ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
+    ...(isZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
   };
 }

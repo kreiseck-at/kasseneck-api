@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fromReceiptCompanyPayload, fromReceiptPayload } from '../dist/esm/models/index.js';
-import { CURRENT_LAYOUT_RULESET, buildReceiptLayout, renderReceiptGrid, gridAlsText, belegBlatt, logoMass, logoRaster } from '../dist/esm/receipt/index.js';
+import { CURRENT_LAYOUT_RULESET, buildReceiptLayout, renderReceiptGrid, gridToText, receiptSheet, logoDimensions, rasterizeLogo } from '../dist/esm/receipt/index.js';
 
 export function ladeFixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/belege/${name}.json`, import.meta.url), 'utf8'));
@@ -52,13 +52,13 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
     // Zeichenraster als Klartext (32 = 58 mm, 48 = 80 mm): lesbar, diff-bar, die Zusage fuer Bildschirm/Druck/PDF.
     const grid = {};
     for (const zeichen of [32, 48]) {
-      const raster = gridAlsText(renderReceiptGrid(layout, { zeichen }));
+      const raster = gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen }));
       writeFileSync(new URL(`../fixtures/erwartet/${name}.grid${zeichen}.txt`, import.meta.url), raster);
       grid[`grid${zeichen}`] = createHash('sha256').update(raster).digest('hex');
     }
     // Blatt mit Probe-Logo und Marke: die Zusage an jeden Zeichner (Reihenfolge, Logo-Mass, QR-Anteil).
     for (const zeichen of [32, 48]) {
-      const blatt = JSON.stringify(belegBlatt(layout, { zeichen, logo: { stufe: 'M', pxBreite: 300, pxHoehe: 120 }, marke: true }), null, 2) + '\n';
+      const blatt = JSON.stringify(receiptSheet(layout, { charsPerLine: zeichen, logo: { size: 'M', pixelWidth: 300, pixelHeight: 120 }, brandMark: true }), null, 2) + '\n';
       writeFileSync(new URL(`../fixtures/erwartet/${name}.blatt${zeichen}.json`, import.meta.url), blatt);
       grid[`blatt${zeichen}`] = createHash('sha256').update(blatt).digest('hex');
     }
@@ -75,9 +75,9 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
     return rgba;
   };
   const rasterText = (b, h, deckung) => {
-    const bild = logoRaster(verlauf(b, h, deckung), b, h, logoMass({ stufe: 'S', pxBreite: b, pxHoehe: h }, 32), 32);
+    const bild = rasterizeLogo(verlauf(b, h, deckung), b, h, logoDimensions({ size: 'S', pixelWidth: b, pixelHeight: h }, 32), 32);
     const zeilen = [];
-    for (let y = 0; y < bild.hoehe; y++) zeilen.push(Array.from(bild.punkte.slice(y * bild.breite, (y + 1) * bild.breite)).join(''));
+    for (let y = 0; y < bild.height; y++) zeilen.push(Array.from(bild.dots.slice(y * bild.width, (y + 1) * bild.width)).join(''));
     return zeilen.join('\n') + '\n';
   };
   // 300x100: oben 10 Zeilen durchsichtig, dann 20 Zeilen Teiltransparenz, darunter deckend (breitenbegrenzt).
