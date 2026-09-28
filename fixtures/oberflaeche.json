@@ -61,6 +61,7 @@
     "sendPartnerCustomerFonLink",
     "sendPartnerWebhookTest",
     "sendReceiptEmail",
+    "setMyKasseLogo",
     "setMyKasseSettings",
     "setMyRegisterDeviceSettings",
     "stripeCaptureIntent",
@@ -150,28 +151,43 @@
     "listMyTipRecipients"
   ],
   "enums": {
-    "autoAbMin": [
+    "autoLogoutMinutes": [
       0,
       1,
       5,
       15,
       30
     ],
-    "belegAusgabe": [
-      "qr",
-      "druck",
-      "mail",
-      "sms",
-      "fragen"
+    "cardProvider": [
+      "none",
+      "external",
+      "gptom",
+      "hobex",
+      "mypos",
+      "stripe"
     ],
-    "druckerArt": [
-      "sdp",
-      "netz",
-      "bt",
-      "usb",
-      "connect"
+    "categoryPosition": [
+      "top",
+      "left"
     ],
-    "fertigSekunden": [
+    "checkoutMode": [
+      "page",
+      "panel"
+    ],
+    "codePage": [
+      "CP1252",
+      "CP437"
+    ],
+    "cut": [
+      "partial",
+      "full",
+      "none"
+    ],
+    "discount": [
+      "off",
+      "on"
+    ],
+    "doneScreenSeconds": [
       0,
       3,
       5,
@@ -180,130 +196,115 @@
       30,
       60
     ],
-    "hoehe": [
-      "S",
-      "M",
-      "L"
+    "drawerAutoOpen": [
+      "cash",
+      "always",
+      "never"
     ],
-    "kachelstil": [
-      "streifen",
-      "voll"
-    ],
-    "kartenanbieter": [
-      "keiner",
-      "extern",
-      "gptom",
-      "hobex",
-      "mypos",
-      "stripe"
-    ],
-    "kassierenModus": [
-      "seite",
-      "panel"
-    ],
-    "katpos": [
-      "oben",
-      "links"
-    ],
-    "ladeAuto": [
-      "bar",
-      "immer",
-      "nie"
-    ],
-    "layout": [
-      "rechts",
-      "links",
-      "vollbild"
-    ],
-    "logoGroesse": [
-      "S",
-      "M",
-      "L"
-    ],
-    "logoSkala": [
+    "fontSize": [
       "S",
       "M",
       "L",
       "XL"
     ],
-    "menge": [
-      "aus",
-      "x",
-      "kg"
+    "layout": [
+      "right",
+      "left",
+      "fullscreen"
     ],
-    "papier": [
+    "logoScale": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "logoSize": [
+      "S",
+      "M",
+      "L"
+    ],
+    "paperSize": [
       "mm58",
       "mm80"
     ],
-    "qrModus": [
+    "printerType": [
+      "sdp",
+      "network",
+      "bluetooth",
+      "usb",
+      "connect"
+    ],
+    "qrMode": [
       "auto",
       "raster",
       "escpos"
     ],
-    "rabatt": [
-      "aus",
-      "an"
+    "quantity": [
+      "off",
+      "x",
+      "kg"
     ],
-    "schnitt": [
-      "partial",
-      "full",
-      "none"
+    "receiptOutput": [
+      "qr",
+      "print",
+      "email",
+      "sms",
+      "ask"
     ],
-    "schrift": [
-      "S",
-      "M",
-      "L",
-      "XL"
-    ],
-    "schriftEinst": [
+    "settingsFontSize": [
       "S",
       "M",
       "L"
     ],
-    "stil": [
-      "klar",
-      "warm",
-      "nacht",
-      "kontrast"
-    ],
-    "terminalArt": [
-      "keins",
+    "terminalType": [
+      "none",
       "hps"
     ],
     "terminalVia": [
-      "direkt",
+      "direct",
       "connect"
     ],
-    "tgModus": [
-      "betrag",
-      "gesamt",
-      "beides"
+    "theme": [
+      "clear",
+      "warm",
+      "night",
+      "contrast"
     ],
-    "wasserzeichen": [
-      "aus",
-      "anmeldung",
-      "ueberall"
+    "tileHeight": [
+      "S",
+      "M",
+      "L"
     ],
-    "wzSeite": [
-      "links",
-      "mitte",
-      "rechts"
+    "tileStyle": [
+      "stripe",
+      "full"
     ],
-    "wzSkala": [
+    "tipMode": [
+      "amount",
+      "total",
+      "both"
+    ],
+    "watermark": [
+      "off",
+      "login",
+      "everywhere"
+    ],
+    "watermarkScale": [
       "S",
       "M",
       "L",
       "XL"
     ],
-    "wzStaerke": [
+    "watermarkSide": [
+      "left",
+      "center",
+      "right"
+    ],
+    "watermarkStrength": [
       3,
       6,
       10,
       16
-    ],
-    "zeichensatz": [
-      "CP1252",
-      "CP437"
     ]
   },
   "rechte": [
@@ -319,24 +320,90 @@
     "discount",
     "tipAssign"
   ],
-  "tastenAktionen": [
-    "kassieren",
-    "abschliessen",
-    "abbrechen",
-    "frei",
-    "bar",
-    "karte",
-    "passend",
-    "belege",
-    "letzteZurueck",
-    "einstellungen",
-    "abmelden",
-    "trinkgeld",
-    "vollbild",
-    "gegebenLeeren",
-    "korbLeeren",
-    "getrennt"
+  "registerErrorCodes": [
+    "cashregister_in_use",
+    "cashregister_not_assigned",
+    "cashregister_not_found",
+    "device_bound_elsewhere",
+    "device_not_found",
+    "device_not_paired",
+    "device_takeover_required",
+    "licenses_exhausted",
+    "live_not_enabled",
+    "location_outside",
+    "location_required",
+    "login_failed",
+    "login_mode_select_user",
+    "login_unavailable",
+    "method_not_allowed",
+    "pairing_code_expired",
+    "pairing_code_unknown",
+    "pairing_code_used",
+    "pairing_failed",
+    "register_user_only",
+    "session_ended",
+    "session_expired",
+    "session_not_running",
+    "too_many_attempts",
+    "unauthorized",
+    "user_disabled",
+    "validation"
   ],
+  "tastenAktionen": [
+    "checkout",
+    "complete",
+    "cancel",
+    "customAmount",
+    "cash",
+    "card",
+    "exactAmount",
+    "receipts",
+    "undoLast",
+    "settings",
+    "logout",
+    "tip",
+    "fullscreen",
+    "clearTendered",
+    "clearCart",
+    "splitPayment"
+  ],
+  "kasse": {
+    "posErrorCodes": [
+      "cashregister_not_assigned",
+      "cashregister_token_missing",
+      "device_not_found",
+      "live_not_enabled",
+      "logo_invalid",
+      "logo_invalid_type",
+      "logo_too_large",
+      "method_not_allowed",
+      "module_inactive",
+      "not_permitted",
+      "print_job_not_found",
+      "print_layout_failed",
+      "printer_not_found",
+      "session_expired",
+      "session_other_cashregister",
+      "unauthorized",
+      "user_disabled",
+      "validation"
+    ],
+    "printJobSources": [
+      "pos",
+      "panel"
+    ],
+    "printJobStatuses": [
+      "pending",
+      "sent",
+      "printed",
+      "failed",
+      "expired"
+    ],
+    "quantityRules": [
+      "piece",
+      "decimal"
+    ]
+  },
   "partner": {
     "austrianStates": [
       "AT-1",

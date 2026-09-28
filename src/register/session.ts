@@ -22,9 +22,9 @@ import type { InternerTransport } from '../client/aufrufe.js';
  * seit 1970).
  *
  * Die Sitzung lebt 90 Sekunden; die Browser-Kasse erneuert alle 30. Ist sie
- * bereits beendet oder uebernommen, antwortet das Backend fachlich ("Sitzung
- * beendet — bitte neu anmelden.") — dann hilft nur eine neue Anmeldung ueber
- * `registerUserLogin`.
+ * bereits beendet oder uebernommen, antwortet das Backend mit dem Code
+ * `session_expired` bzw. `session_ended` (siehe [isRegisterError]); dann hilft
+ * nur eine neue Anmeldung ueber `registerUserLogin` oder `registerPinLogin`.
  */
 export async function renewRegisterSession(rufen: InternerTransport): Promise<number> {
   const daten = await rufen<{ expiresAt?: unknown }>('renewRegisterSession');

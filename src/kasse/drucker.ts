@@ -10,84 +10,101 @@ import type { DruckLogo } from '../receipt/layout-escpos.js';
  * Sekunden) und meldet das Ergebnis. So druckt jeder Browser -- ohne lokale
  * Software. Das ePOS-XML baut das Backend aus dem Zeichenraster (ein Setzweg).
  */
-export interface NetzDrucker {
+export interface NetworkPrinter {
   id: string;
   name: string;
-  art: string;
-  papier: 'mm58' | 'mm80';
-  aktiv: boolean;
-  erstellt: number | null;
+  /** Art des Druckers; heute nur `epson-sdp`. */
+  kind: string;
+  paperSize: 'mm58' | 'mm80';
+  active: boolean;
+  createdAt: number | null;
   /** Letzter Abruf des Druckers (ms); null = noch nie verbunden. */
-  zuletztGesehen: number | null;
-  zuletztErgebnis: { erfolg: boolean; code: string | null; zeit: number } | null;
+  lastSeenAt: number | null;
+  lastResult: { success: boolean; code: string | null; at: number } | null;
   /** Kennung, die der Drucker selbst schickt (Feld ID im Drucker-Menue). */
-  druckerKennung: string | null;
-  /** Abhol-URL fuer das Drucker-Menue -- nur fuer den Chef/das Konto. */
+  printerSerial: string | null;
+  /** Abhol-URL fuer das Drucker-Menue, nur fuer den Chef bzw. das Konto. */
   sdpUrl?: string;
 }
 
-export type DruckJobStatus = 'offen' | 'gesendet' | 'gedruckt' | 'fehler' | 'abgelaufen';
+/** Stand eines Druckjobs (Katalog `DRUCKJOB`). */
+export const PRINT_JOB_STATUSES = ['pending', 'sent', 'printed', 'failed', 'expired'] as const;
+export type PrintJobStatus = typeof PRINT_JOB_STATUSES[number];
 
-export interface DruckJob {
+/** Wer den Job anlegt (Katalog `DRUCK_QUELLE`): die Kasse oder das Panel. */
+export const PRINT_JOB_SOURCES = ['pos', 'panel'] as const;
+export type PrintJobSource = typeof PRINT_JOB_SOURCES[number];
+
+export interface PrintJob {
   jobId: string;
-  status: DruckJobStatus;
-  erstellt?: number | null;
-  gesendetAt?: number | null;
-  ergebnis: { erfolg: boolean; code: string | null; status?: string | null; zeit?: number } | null;
+  status: PrintJobStatus;
+  createdAt?: number | null;
+  sentAt?: number | null;
+  result: { success: boolean; code: string | null; status?: string | null; at?: number } | null;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const STATUS: ReadonlySet<string> = new Set(PRINT_JOB_STATUSES);
 
-export async function listMyPrinters(rufen: InternerTransport): Promise<NetzDrucker[]> {
-  const daten = await rufen<{ drucker?: unknown[] }>('listMyPrinters', {});
-  return (daten?.drucker ?? []).map((r) => {
+/**
+ * Stand eines Jobs aus der Antwort. Ein Wert ausserhalb des Katalogs laesst
+ * das Backend unter `/v3` gar nicht hinaus; kommt trotzdem keiner, gilt
+ * `pending` (der Job wird weiter abgefragt, nie als gedruckt gewertet).
+ */
+function status(v: unknown): PrintJobStatus {
+  return typeof v === 'string' && STATUS.has(v) ? (v as PrintJobStatus) : 'pending';
+}
+
+export async function listMyPrinters(rufen: InternerTransport): Promise<NetworkPrinter[]> {
+  const daten = await rufen<{ printers?: unknown[] }>('listMyPrinters', {});
+  return (Array.isArray(daten?.printers) ? daten.printers : []).map((r) => {
     const d = (r ?? {}) as Record<string, unknown>;
-    const e = d.zuletztErgebnis && typeof d.zuletztErgebnis === 'object' ? (d.zuletztErgebnis as Record<string, unknown>) : null;
+    const e = d.lastResult && typeof d.lastResult === 'object' ? (d.lastResult as Record<string, unknown>) : null;
     return {
-      id: String(d.id ?? ''), name: String(d.name ?? ''), art: String(d.art ?? 'epson-sdp'), papier: d.papier === 'mm58' ? 'mm58' : 'mm80',
-      aktiv: d.aktiv !== false, erstellt: zahl(d.erstellt), zuletztGesehen: zahl(d.zuletztGesehen),
-      zuletztErgebnis: e ? { erfolg: e.erfolg === true, code: text(e.code), zeit: zahl(e.zeit) ?? 0 } : null,
-      druckerKennung: text(d.druckerKennung),
+      id: String(d.id ?? ''), name: String(d.name ?? ''), kind: String(d.kind ?? 'epson-sdp'), paperSize: d.paperSize === 'mm58' ? 'mm58' : 'mm80',
+      active: d.active !== false, createdAt: zahl(d.createdAt), lastSeenAt: zahl(d.lastSeenAt),
+      lastResult: e ? { success: e.success === true, code: text(e.code), at: zahl(e.at) ?? 0 } : null,
+      printerSerial: text(d.printerSerial),
       ...(text(d.sdpUrl) ? { sdpUrl: String(d.sdpUrl) } : {}),
     };
   });
 }
 
 export interface CreatePrintJobOptions {
-  druckerId: string;
+  printerId: string;
   layout: ReceiptLayout;
   receiptId?: string;
-  titel?: string;
-  quelle?: string;
+  title?: string;
+  source?: PrintJobSource;
   /** Firmenlogo als fertiges Rasterbild (`logoRaster`); der Server dekodiert keine Bilder. */
   logo?: DruckLogo | null;
   /** Das Kasseneck-Logo am Ende (Konto-Flag `kreiseck_logo`). */
-  marke?: boolean;
+  brand?: boolean;
 }
 
-export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<DruckJob> {
-  const params: Record<string, unknown> = { druckerId: o.druckerId, layout: o.layout };
+export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJobOptions): Promise<PrintJob> {
+  const params: Record<string, unknown> = { printerId: o.printerId, layout: o.layout };
   if (o.receiptId) params.receiptId = o.receiptId;
-  if (o.titel) params.titel = o.titel;
-  if (o.quelle) params.quelle = o.quelle;
+  if (o.title) params.title = o.title;
+  if (o.source) params.source = o.source;
   if (o.logo) {
     params.logo = {
-      stufe: o.logo.stufe, pxBreite: o.logo.pxBreite, pxHoehe: o.logo.pxHoehe,
-      breite: o.logo.raster.breite, hoehe: o.logo.raster.hoehe, zeilen: rasterZeilenBase64(o.logo.raster),
+      scale: o.logo.stufe, pxWidth: o.logo.pxBreite, pxHeight: o.logo.pxHoehe,
+      width: o.logo.raster.breite, height: o.logo.raster.hoehe, rows: rasterZeilenBase64(o.logo.raster),
     };
   }
-  if (o.marke === true) params.marke = true;
+  if (o.brand === true) params.brand = true;
   const daten = await rufen<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
-  return { jobId: String(daten?.jobId ?? ''), status: (text(daten?.status) as DruckJobStatus) ?? 'offen', ergebnis: null };
+  return { jobId: String(daten?.jobId ?? ''), status: status(daten?.status), result: null };
 }
 
-export async function getPrintJob(rufen: InternerTransport, o: { druckerId: string; jobId: string }): Promise<DruckJob> {
-  const d = await rufen<Record<string, unknown>>('getPrintJob', { druckerId: o.druckerId, jobId: o.jobId });
-  const e = d?.ergebnis && typeof d.ergebnis === 'object' ? (d.ergebnis as Record<string, unknown>) : null;
+export async function getPrintJob(rufen: InternerTransport, o: { printerId: string; jobId: string }): Promise<PrintJob> {
+  const d = await rufen<Record<string, unknown>>('getPrintJob', { printerId: o.printerId, jobId: o.jobId });
+  const e = d?.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>) : null;
   return {
-    jobId: String(d?.jobId ?? o.jobId), status: (text(d?.status) as DruckJobStatus) ?? 'offen',
-    erstellt: zahl(d?.erstellt), gesendetAt: zahl(d?.gesendetAt),
-    ergebnis: e ? { erfolg: e.erfolg === true, code: text(e.code), status: text(e.status), zeit: zahl(e.zeit) ?? undefined } : null,
+    jobId: String(d?.jobId ?? o.jobId), status: status(d?.status),
+    createdAt: zahl(d?.createdAt), sentAt: zahl(d?.sentAt),
+    result: e ? { success: e.success === true, code: text(e.code), status: text(e.status), at: zahl(e.at) ?? undefined } : null,
   };
 }

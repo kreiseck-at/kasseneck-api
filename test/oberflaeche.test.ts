@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { AUFRUFE, POS_CALLS, PUBLIC_CALLS, isPosOnlyCall } from '../src/client/aufrufe.js';
 import * as kasse from '../src/kasse/index.js';
-import { TASTEN_AKTIONEN } from '../src/kasse/index.js';
-import { REGISTER_PERMS } from '../src/register/index.js';
+import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from '../src/kasse/index.js';
+import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/rechnung/index.js';
 
@@ -22,19 +22,19 @@ const veraltet = 'fixtures/oberflaeche.json ist veraltet — `npm run fixtures:o
  */
 const schluessel = (name: string) => name.toLowerCase().replace(/_(.)/g, (_, z: string) => z.toUpperCase());
 const namensraum = kasse as unknown as Record<string, unknown>;
+// `enums` = Wertemengen der Einstellungen (Schluessel = Feldname), `kasse` =
+// alle uebrigen Listen des Kassen-Teils. Jede Liste steht in genau einem.
+const felder = new Set<string>([...Object.keys(POS_BUSINESS_DEFAULTS), ...Object.keys(POS_DEVICE_DEFAULTS)]);
 const enumListen = new Map<string, readonly (string | number)[]>();
-const gesehen = new Set<unknown>();
+const kasseListen = new Map<string, readonly (string | number)[]>();
 for (const name of Object.keys(namensraum).sort()) {
   const wert = namensraum[name];
   if (!/^[A-Z][A-Z0-9_]*$/.test(name)) continue;
   if (!Array.isArray(wert)) continue;
   if (!wert.every((eintrag) => typeof eintrag === 'string' || typeof eintrag === 'number')) continue;
-  // Die Tasten-Aktionen tragen einen eigenen Schluessel, nicht `enums`;
-  // Alias-Paare derselben Liste stehen nur einmal im Vertrag.
-  if (wert === (TASTEN_AKTIONEN as readonly string[])) continue;
-  if (gesehen.has(wert)) continue;
-  gesehen.add(wert);
-  enumListen.set(schluessel(name), wert as readonly (string | number)[]);
+  // Die Tasten-Aktionen tragen einen eigenen Schluessel.
+  if (wert === (POS_SHORTCUT_ACTIONS as readonly string[])) continue;
+  (felder.has(schluessel(name)) ? enumListen : kasseListen).set(schluessel(name), wert as readonly (string | number)[]);
 }
 
 test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
@@ -42,7 +42,8 @@ test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
   assert.deepEqual(vertrag.publicCalls, [...PUBLIC_CALLS], veraltet);
   assert.deepEqual(vertrag.posCalls, [...POS_CALLS], veraltet);
   assert.deepEqual(vertrag.rechte, [...REGISTER_PERMS], veraltet);
-  assert.deepEqual(vertrag.tastenAktionen, [...TASTEN_AKTIONEN], veraltet);
+  assert.deepEqual(vertrag.tastenAktionen, [...POS_SHORTCUT_ACTIONS], veraltet);
+  assert.deepEqual(vertrag.registerErrorCodes, [...REGISTER_ERROR_CODES], veraltet);
 });
 
 test('Golden: der Vertrag fuehrt JEDE Enum-Liste des Pakets, keine mehr und keine weniger', () => {
@@ -50,6 +51,12 @@ test('Golden: der Vertrag fuehrt JEDE Enum-Liste des Pakets, keine mehr und kein
   for (const [name, liste] of enumListen) {
     assert.deepEqual(vertrag.enums[name], [...liste], `${veraltet} (enums.${name})`);
   }
+  assert.deepEqual(Object.keys(vertrag.kasse ?? {}).sort(), [...kasseListen.keys()].sort(), veraltet);
+  for (const [name, liste] of kasseListen) {
+    assert.deepEqual(vertrag.kasse[name], [...liste], `${veraltet} (kasse.${name})`);
+  }
+  // Leer gegen leer waere gruen, ohne etwas zu pruefen.
+  assert.ok(enumListen.has('theme') && kasseListen.has('posErrorCodes'), 'Einstellungs- oder Kassen-Listen fehlen');
 });
 
 /**

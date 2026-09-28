@@ -17,9 +17,9 @@ import { AUFRUFE, POS_CALLS, PUBLIC_CALLS } from '../dist/esm/client/aufrufe.js'
 import * as kasse from '../dist/esm/kasse/index.js';
 import * as partner from '../dist/esm/partner/index.js';
 import * as rechnung from '../dist/esm/rechnung/index.js';
-import { REGISTER_PERMS } from '../dist/esm/register/index.js';
+import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../dist/esm/register/index.js';
 
-/** GROSS_GESCHRIEBEN -> kleinCamel: DRUCKER_ART -> druckerArt, KATPOS -> katpos. */
+/** GROSS_GESCHRIEBEN -> kleinCamel: PRINTER_TYPE -> printerType, CUT -> cut. */
 const schluessel = (name) => name
   .toLowerCase()
   .replace(/_(.)/g, (_, zeichen) => zeichen.toUpperCase());
@@ -29,20 +29,23 @@ const istEnumListe = (name, wert) => /^[A-Z][A-Z0-9_]*$/.test(name)
   && Array.isArray(wert)
   && wert.every((eintrag) => typeof eintrag === 'string' || typeof eintrag === 'number');
 
+// `enums` fuehrt nur die Wertemengen der Einstellungen, jede unter dem Namen
+// ihres Feldes (`TILE_STYLE` -> `tileStyle`): die Enum-Pruefung des
+// Dart-Zwillings schickt jeden Wert durch das Einstellungs-Modell. Die
+// uebrigen Listen des Kassen-Teils (Fehlercodes, Druckjob-Staende,
+// Mengenregeln) stehen unter `kasse`.
+const einstellungsFelder = new Set([...Object.keys(kasse.POS_BUSINESS_DEFAULTS), ...Object.keys(kasse.POS_DEVICE_DEFAULTS)]);
 const enums = {};
-// Alias-Paare (`TASTEN_AKTIONEN` ist dieselbe Liste wie `KASSE_TASTEN_AKTIONEN`)
-// duerfen nicht zweimal im Vertrag stehen; der zuerst gesehene Name gewinnt.
-const gesehen = new Set();
+const kasseListen = {};
 // Die Namen sortiert durchgehen, damit die Reihenfolge in der Datei stabil
 // bleibt und der byteweise Waechter nicht bei jedem Lauf anschlaegt.
 for (const name of Object.keys(kasse).sort()) {
   const wert = kasse[name];
   if (!istEnumListe(name, wert)) continue;
-  // Die Tasten-Aktionen tragen einen eigenen Schluessel, nicht `enums`.
-  if (wert === kasse.TASTEN_AKTIONEN) continue;
-  if (gesehen.has(wert)) continue;
-  gesehen.add(wert);
-  enums[schluessel(name)] = [...wert];
+  // Die Tasten-Aktionen tragen einen eigenen Schluessel.
+  if (wert === kasse.POS_SHORTCUT_ACTIONS) continue;
+  if (einstellungsFelder.has(schluessel(name))) enums[schluessel(name)] = [...wert];
+  else kasseListen[schluessel(name)] = [...wert];
 }
 
 // Dasselbe fuer den Partner-Teil, und aus demselben Grund abgelesen statt
@@ -84,7 +87,9 @@ const vertrag = {
   posCalls: [...POS_CALLS],
   enums,
   rechte: [...REGISTER_PERMS],
-  tastenAktionen: [...kasse.TASTEN_AKTIONEN],
+  registerErrorCodes: [...REGISTER_ERROR_CODES],
+  tastenAktionen: [...kasse.POS_SHORTCUT_ACTIONS],
+  kasse: kasseListen,
   partner: partnerListen,
   rechnung: rechnungListen,
 };

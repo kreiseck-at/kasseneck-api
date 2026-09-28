@@ -108,20 +108,21 @@ const KOPPLUNGS_ANTWORT = {
   deviceSecret: GERAETE_GEHEIMNIS,
   ownerUid: OWNER_UID,
   cashregisterId: KASSEN_ID,
-  betrieb: 'Cafe Kreiseck',
-  kasse: 'Schanigarten',
+  companyName: 'Cafe Kreiseck',
+  cashregisterLabel: 'Schanigarten',
+  testEnvironment: false,
 };
 
 /** `listRegisterUsersForDevice` — users samt Regel und Geraete-Modus.
- * `altbestand: true` steht NUR an Benutzern, deren PIN nicht unter der
+ * `pinPolicyOutdated: true` steht NUR an Benutzern, deren PIN nicht unter der
  * aktuellen Regel gesetzt wurde (Backend laesst das Feld sonst weg). */
 const BENUTZER_ANTWORT = {
   users: [
     { id: 'ru-1', name: 'Anna', kind: 'person' },
-    { id: 'ru-2', name: 'Terminal 2', kind: 'device', altbestand: true },
+    { id: 'ru-2', name: 'Terminal 2', kind: 'device', pinPolicyOutdated: true },
   ],
-  policy: { stellen: 4, zeichen: 'ziffern' },
-  loginMode: 'auswahl',
+  policy: { length: 4, charset: 'digits' },
+  loginMode: 'select_user',
 };
 
 /** `registerUserLogin` — customToken, sessionId, expiresAt, user{id,name,perms}. */
@@ -147,8 +148,8 @@ const ANMELDE_ANTWORT = {
 const SITZUNGS_ANTWORT = {
   licenses: 2,
   sessions: [
-    { id: 's-alt', deviceId: 'dev-a', deviceLabel: 'Theke', startedAt: 1_776_000_000_000, expiresAt: 1_776_000_090_000, selbst: false, userName: 'Anna' },
-    { id: 's-neu', deviceId: 'dev-b', deviceLabel: 'Schank', startedAt: 1_776_000_030_000, expiresAt: 1_776_000_120_000, selbst: true },
+    { id: 's-alt', deviceId: 'dev-a', deviceLabel: 'Theke', startedAt: 1_776_000_000_000, expiresAt: 1_776_000_090_000, own: false, userName: 'Anna' },
+    { id: 's-neu', deviceId: 'dev-b', deviceLabel: 'Schank', startedAt: 1_776_000_030_000, expiresAt: 1_776_000_120_000, own: true },
   ],
 };
 
@@ -167,7 +168,7 @@ test('listRegisterSessionsForDevice: Endpunktname, Nutzlast und Abbildung', asyn
   assert.equal(stand.sessions.length, 2);
   assert.equal(stand.sessions[0]?.deviceLabel, 'Theke');
   assert.equal(stand.sessions[0]?.userName, 'Anna');
-  assert.equal(stand.sessions[1]?.selbst, true);
+  assert.equal(stand.sessions[1]?.own, true);
   // Ohne Namen (nur-PIN-Geraet) bleibt das Feld weg statt leer zu sein --
   // "" hiesse "hat keinen Namen", undefined heisst "wird nicht genannt".
   assert.equal(stand.sessions[1]?.userName, undefined);
@@ -265,7 +266,7 @@ test('pairRegisterDevice: liest das gekoppelte Geraet samt Anzeigenamen', async 
   assert.equal(geraet.deviceSecret, GERAETE_GEHEIMNIS);
   assert.equal(geraet.ownerUid, OWNER_UID);
   assert.equal(geraet.cashregisterId, KASSEN_ID);
-  // Backend: `betrieb` und `kasse` — hier unter den Namen dieses Pakets.
+  // Innen `betrieb` und `kasse`, unter /v3 companyName und cashregisterLabel.
   assert.equal(geraet.companyName, 'Cafe Kreiseck');
   assert.equal(geraet.cashregisterLabel, 'Schanigarten');
 });
@@ -273,7 +274,7 @@ test('pairRegisterDevice: liest das gekoppelte Geraet samt Anzeigenamen', async 
 test('pairRegisterDevice: leere Anzeigenamen sind kein Grund, die Kopplung zu verwerfen', async () => {
   // Das Backend liefert bewusst leere Zeichenketten statt undefined, wenn der
   // Betrieb keinen Firmennamen bzw. die Kasse keine Bezeichnung traegt.
-  const { holen } = fetchFake(erfolg({ ...KOPPLUNGS_ANTWORT, betrieb: '', kasse: '' }));
+  const { holen } = fetchFake(erfolg({ ...KOPPLUNGS_ANTWORT, companyName: '', cashregisterLabel: '' }));
   const geraet = await pairRegisterDevice({ code: CODE, fetch: holen });
   assert.equal(geraet.companyName, '');
   assert.equal(geraet.cashregisterLabel, '');
@@ -344,20 +345,20 @@ test('listRegisterUsersForDevice: Endpunktname und die drei Geraeteangaben', asy
   assert.equal('Authorization' in aufrufe[0]!.init.headers, false);
 });
 
-test('listRegisterUsersForDevice: kasse.bereit kommt durch — samt Grund; Muell und fehlendes Feld fallen weg', async () => {
+test('listRegisterUsersForDevice: cashregister.ready kommt durch, samt Grund; Muell und fehlendes Feld fallen weg', async () => {
   // 0.6.27 ergaenzte nur den Typ; der Zusammenbau warf das Feld stumm weg,
   // und die Kasse sah nie eine Sperre (belegt am Geraet ohne Startbeleg).
-  const { holen } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, kasse: { bereit: false, grund: 'Der Startbeleg fehlt noch.' } }));
+  const { holen } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: false, reason: 'Der Startbeleg fehlt noch.' } }));
   const stand = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
-  assert.deepEqual(stand.kasse, { bereit: false, grund: 'Der Startbeleg fehlt noch.' });
+  assert.deepEqual(stand.cashregister, { ready: false, reason: 'Der Startbeleg fehlt noch.' });
 
   const { holen: ohne } = fetchFake(erfolg(BENUTZER_ANTWORT));
   const alt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: ohne });
-  assert.equal(alt.kasse, undefined);
+  assert.equal(alt.cashregister, undefined);
 
-  const { holen: muell } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, kasse: { bereit: 'ja' } }));
+  const { holen: muell } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: 'ja' } }));
   const kaputt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: muell });
-  assert.equal(kaputt.kasse, undefined);
+  assert.equal(kaputt.cashregister, undefined);
 });
 
 test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
@@ -379,20 +380,20 @@ test('listRegisterUsersForDevice: liest Benutzer, Regel und Modus', async () => 
   });
 
   assert.equal(geraet.users.length, 2);
-  assert.deepEqual(geraet.users[0], { id: 'ru-1', name: 'Anna', kind: 'person', altbestand: false });
-  assert.deepEqual(geraet.users[1], { id: 'ru-2', name: 'Terminal 2', kind: 'device', altbestand: true });
-  assert.deepEqual(geraet.policy, { stellen: 4, zeichen: 'ziffern' });
-  assert.equal(geraet.loginMode, 'auswahl');
-  assert.equal(geraet.standortsperre, false); // altes Backend: keine Sperre
+  assert.deepEqual(geraet.users[0], { id: 'ru-1', name: 'Anna', kind: 'person', pinPolicyOutdated: false });
+  assert.deepEqual(geraet.users[1], { id: 'ru-2', name: 'Terminal 2', kind: 'device', pinPolicyOutdated: true });
+  assert.deepEqual(geraet.policy, { length: 4, charset: 'digits' });
+  assert.equal(geraet.loginMode, 'select_user');
+  assert.equal(geraet.locationLock, false); // altes Backend: keine Sperre
 });
 
-test('Geraetedaten reisen mit: client/geo bei Kopplung und Login, standortsperre aus der Geraete-Antwort', async () => {
+test('Geraetedaten reisen mit: client/geo bei Kopplung und Login, locationLock aus der Geraete-Antwort', async () => {
   const gesehen: Array<Record<string, unknown>> = [];
   const holen: FetchLike = async (_url, init) => {
     gesehen.push(JSON.parse(init.body).params);
-    return erfolg({ deviceId: 'd', deviceSecret: 's', ownerUid: OWNER_UID, cashregisterId: 'K', betrieb: 'B', kasse: 'K',
+    return erfolg({ deviceId: 'd', deviceSecret: 's', ownerUid: OWNER_UID, cashregisterId: 'K', companyName: 'B', cashregisterLabel: 'K',
       sessionId: 'sess', customToken: 'ct', expiresAt: 1, user: { id: 'u', name: 'A', perms: {} },
-      users: [], policy: { stellen: 4, zeichen: 'ziffern' }, standortsperre: true });
+      users: [], policy: { length: 4, charset: 'digits' }, locationLock: true });
   };
   const client = { userAgent: 'UA', platform: 'MacIntel', language: 'de-AT', tz: 'Europe/Vienna', screen: { w: 1440, h: 900 } };
   await pairRegisterDevice({ code: 'ABCD1234', client, geo: { lat: 48.2, lng: 16.3, acc: 10 }, fetch: holen });
@@ -402,7 +403,7 @@ test('Geraetedaten reisen mit: client/geo bei Kopplung und Login, standortsperre
   assert.deepEqual(gesehen[0]?.geo, { lat: 48.2, lng: 16.3, acc: 10 });
   assert.equal(gesehen[1]?.geo, undefined); // null geht als „nicht gesendet“
   assert.deepEqual(gesehen[1]?.client, client);
-  assert.equal(liste.standortsperre, true);
+  assert.equal(liste.locationLock, true);
 });
 
 test('listRegisterUsersForDevice: eine Antwort ohne Regel bleibt lesbar (altes Backend)', async () => {
@@ -417,8 +418,8 @@ test('listRegisterUsersForDevice: eine Antwort ohne Regel bleibt lesbar (altes B
   });
 
   assert.equal(geraet.policy, null);
-  assert.equal(geraet.loginMode, 'auswahl');
-  assert.equal(geraet.users[0]?.altbestand, false);
+  assert.equal(geraet.loginMode, 'select_user');
+  assert.equal(geraet.users[0]?.pinPolicyOutdated, false);
 });
 
 test('listRegisterUsersForDevice: eine Antwort ohne Liste ist ein Antwortfehler', async () => {
@@ -848,7 +849,7 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die acht Aufrufe und die Rechte-Liste — und keine Anmeldung', () => {
+test('der Unterpfad ./register exportiert genau die acht Aufrufe, die Fehlerhelfer und die Rechte-Liste, und keine Anmeldung', () => {
   // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
@@ -856,20 +857,25 @@ test('der Unterpfad ./register exportiert genau die acht Aufrufe und die Rechte-
   assert.deepEqual(
     Object.keys(registerModul).sort(),
     [
+      'REGISTER_ERROR_CODES',
       'REGISTER_PERMS',
       'endRegisterSession',
+      'isRegisterError',
+      'isRegisterErrorCode',
       'listRegisterSessionsForDevice',
       'listRegisterUsersForDevice',
       'pairRegisterDevice',
+      'registerErrorCode',
+      'registerErrorDetails',
       'registerPinLogin',
       'registerUserLogin',
       'renewRegisterSession',
       'unpairRegisterDevice',
     ],
   );
-  // Alles ausser der Rechte-Liste ist ein Aufruf; die Liste ist reine Daten.
+  // Alles ausser den beiden Listen ist eine Funktion (Aufruf oder Fehlerhelfer); die Listen sind reine Daten.
   for (const [name, wert] of Object.entries(registerModul)) {
-    if (name === 'REGISTER_PERMS') {
+    if (name === 'REGISTER_PERMS' || name === 'REGISTER_ERROR_CODES') {
       assert.ok(Array.isArray(wert) && wert.every((eintrag) => typeof eintrag === 'string'));
       continue;
     }

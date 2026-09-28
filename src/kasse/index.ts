@@ -1,42 +1,54 @@
 /**
  * Kachel-Kasse: Einstellungen, Artikelgruppen/Artikel fuer Kacheln,
- * Rabattverteilung. Die Aufrufe heissen 1:1 wie die Backend-Functions
- * (die Rewrites-Waechter der Web-App leiten daraus ab).
+ * Rabattverteilung, Drucker, Trinkgeld-Empfaenger. Die Aufrufe heissen 1:1 wie
+ * die Backend-Functions (die Rewrites-Waechter der Web-App leiten daraus ab)
+ * und sprechen den Kassenweg `/api/v3` (Schluessel und Werte englisch).
  */
 export {
-  type KasseStil, type KasseSchrift, type KasseWasserzeichen, type KasseMenge, type KasseTgModus,
-  type KasseKassierenModus, type KasseKartenanbieter, KARTENANBIETER, type KasseBelegAusgabe,
-  type KasseTastenAktion, type KasseTastenkarte, KASSE_TASTEN_AKTIONEN, KASSE_TASTEN_STANDARD, type KasseLayout, type KasseKatpos, type KasseHoehe,
-  type KasseDruckerArt, type KasseTerminalVia, type KasseTerminalArt,
-  type KassePapier, type KasseZeichensatz, type KasseSchnitt, type KasseLadeAuto,
-  type KasseQrModus,
-  type KasseLogoGroesse, type KasseSchriftEinst, type KasseKachelstil, type KasseAutoAbMin,
-  type KasseRabatt, type KasseWzSeite, type KasseWzStaerke, type KasseLogoSkala,
-  type KasseWzSkala, type KasseFertigSekunden,
-  type Schalterkarte, type KasseSettingsBetrieb, type KasseSettingsGeraet, type KasseSettings,
-  KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
-  // Die Enums als Laufzeitlisten — dieselben Werte, die die Typen oben tragen.
-  STIL, SCHRIFT, WASSERZEICHEN, MENGE, TG_MODUS, KASSIEREN_MODUS, BELEG_AUSGABE,
-  LAYOUT, KATPOS, HOEHE, DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, PAPIER,
-  ZEICHENSATZ, SCHNITT, LADE_AUTO, QR_MODUS, TASTEN_AKTIONEN,
-  LOGO_GROESSE, SCHRIFT_EINST, KACHELSTIL, AUTO_AB_MIN, RABATT, WZ_SEITE,
-  WZ_STAERKE, LOGO_SKALA, WZ_SKALA, FERTIG_SEKUNDEN,
+  type PosTheme, type PosFontSize, type PosWatermark, type PosQuantity, type PosTipMode,
+  type PosCheckoutMode, type PosCardProvider, type PosReceiptOutput,
+  type PosShortcutAction, type PosShortcutMap, POS_SHORTCUT_ACTIONS, POS_SHORTCUT_DEFAULTS,
+  type PosLayout, type PosCategoryPosition, type PosTileHeight,
+  type PosPrinterType, type PosTerminalVia, type PosTerminalType,
+  type PosPaperSize, type PosCodePage, type PosCut, type PosDrawerAutoOpen,
+  type PosQrMode,
+  type PosLogoSize, type PosSettingsFontSize, type PosTileStyle, type PosAutoLogoutMinutes,
+  type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
+  type PosWatermarkScale, type PosDoneScreenSeconds,
+  type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
+  THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
+  LAYOUT, CATEGORY_POSITION, TILE_HEIGHT, PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, PAPER_SIZE,
+  CODE_PAGE, CUT, DRAWER_AUTO_OPEN, QR_MODE,
+  LOGO_SIZE, SETTINGS_FONT_SIZE, TILE_STYLE, AUTO_LOGOUT_MINUTES, DISCOUNT, WATERMARK_SIDE,
+  WATERMARK_STRENGTH, LOGO_SCALE, WATERMARK_SCALE, DONE_SCREEN_SECONDS,
 } from './settings.js';
 export {
   type ArticleGroup, type ArticleGroupPayload, fromArticleGroupPayload,
-  type KasseArtikel, type KasseArtikelPayload, fromKasseArtikelPayload,
+  type PosArticle, type PosArticlePayload, fromPosArticlePayload,
   listMyArticleGroups, listMyArticles,
-  type Mengenregel, type MengenVorgabe, mengenregelFuerEinheit, mengenVorgabe, mengeErlaubt,
+  QUANTITY_RULES, type QuantityRule, type QuantityDefaults, quantityRuleForUnit, quantityDefaults, allowedQuantity,
 } from './artikel.js';
-export { getKasseSettings, setMyKasseSettings, setMyRegisterDeviceSettings } from './client.js';
+export {
+  getKasseSettings, setMyKasseSettings, setMyRegisterDeviceSettings, setMyKasseLogo, posSettingsFromWire,
+  type SetMyKasseLogoOptions,
+} from './client.js';
+export {
+  POS_ERROR_CODES, type PosErrorCode, isPosErrorCode, posErrorCode, isPosError,
+  type PosFieldError, posFieldErrors,
+} from './errors.js';
 export { verteileRabatt } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
 export { cancelScopeOf, receiptsScopeOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
-export { type NetzDrucker, type DruckJob, type DruckJobStatus, type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob } from './drucker.js';
+export {
+  type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES,
+  type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
+} from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
 
-// Was die Kasse selbst sagt — ein Katalog fuer Browser-Kasse und App.
+// Was die Kasse selbst sagt: ein Katalog fuer Browser-Kasse und App.
 export {
   MELDUNGEN, FEHLERREGELN, meldung, meldungGiltFuer,
   BELEG_MAIL_FEHLER, belegMailFehler,

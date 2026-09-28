@@ -3,8 +3,8 @@ import { KasseneckValidationError } from '../client/errors.js';
 
 /**
  * Artikelgruppen (Kategorien der Kachel-Kasse) und Artikel in der Form, die
- * die Kacheln brauchen — Backend: `article-endpoints.js`
- * (`listMyArticleGroups`, `listMyArticles` mit `groupId`/`kasse`).
+ * die Kacheln brauchen, Backend: `article-endpoints.js`
+ * (`listMyArticleGroups`, `listMyArticles` mit `groupId`/`tile`).
  */
 
 export interface ArticleGroup {
@@ -35,20 +35,21 @@ export function fromArticleGroupPayload(p: ArticleGroupPayload): ArticleGroup {
 }
 
 /**
- * Mengenregel eines Artikels: `stueck` = ganze Stueck (1, 2, 3 ...),
- * `dezimal` = Kommamenge in der Einheit (0,250 kg, 1,5 m). Beleg und DEP
- * bleiben ganzzahlig: eine Kommamenge wird an der Kasse als EINE Position mit
- * ausgerechnetem Betrag gebucht, die Bezeichnung traegt die Menge
- * („Wurst 0,250 kg“). Siehe [mengenregelFuerEinheit] fuer die Vorgabe je Einheit.
+ * Mengenregel eines Artikels (Draht `quantityRule`): `piece` = ganze Stueck
+ * (1, 2, 3 ...), `decimal` = Kommamenge in der Einheit (0,250 kg, 1,5 m).
+ * Beleg und DEP bleiben ganzzahlig: eine Kommamenge wird an der Kasse als EINE
+ * Position mit ausgerechnetem Betrag gebucht, die Bezeichnung traegt die Menge
+ * („Wurst 0,250 kg“). Siehe [quantityRuleForUnit] fuer die Vorgabe je Einheit.
  */
-export type Mengenregel = 'stueck' | 'dezimal';
+export const QUANTITY_RULES = ['piece', 'decimal'] as const;
+export type QuantityRule = typeof QUANTITY_RULES[number];
 
-export interface MengenVorgabe {
-  regel: Mengenregel;
+export interface QuantityDefaults {
+  rule: QuantityRule;
   /** Kasse fragt beim Antippen nach der Menge (Wurst nach Gewicht: ja; Semmel: nein). */
-  fragen: boolean;
-  /** Nachkommastellen bei `dezimal`. */
-  stellen: number;
+  ask: boolean;
+  /** Nachkommastellen bei `decimal`. */
+  decimals: number;
 }
 
 /** Einheiten, die nach Menge verkauft werden (Kommazahl, Kasse fragt). */
@@ -56,59 +57,65 @@ const DEZIMAL_EINHEITEN: Readonly<Record<string, number>> = {
   kg: 3, g: 0, l: 2, ml: 0, m: 2, lfm: 2, km: 1, 'm²': 2, m2: 2, 'm³': 3, m3: 3, std: 2, h: 2, min: 0, t: 3,
 };
 
-/** Vorgabe je Einheit -- was der Betrieb bei einem neuen Artikel bekommt und aendern darf. */
-export function mengenregelFuerEinheit(unit: string | null | undefined): MengenVorgabe {
+/** Vorgabe je Einheit: was der Betrieb bei einem neuen Artikel bekommt und aendern darf. */
+export function quantityRuleForUnit(unit: string | null | undefined): QuantityDefaults {
   const u = (unit ?? '').trim().toLowerCase();
   if (u in DEZIMAL_EINHEITEN) {
     const stellen = DEZIMAL_EINHEITEN[u]!;
     return stellen === 0
-      ? { regel: 'stueck', fragen: true, stellen: 0 }   // g, ml, min: ganze Zahl, aber die Menge wird gefragt
-      : { regel: 'dezimal', fragen: true, stellen };
+      ? { rule: 'piece', ask: true, decimals: 0 }   // g, ml, min: ganze Zahl, aber die Menge wird gefragt
+      : { rule: 'decimal', ask: true, decimals: stellen };
   }
-  return { regel: 'stueck', fragen: false, stellen: 0 };
+  return { rule: 'piece', ask: false, decimals: 0 };
 }
 
 /** Wirksame Regel eines Artikels: gespeicherte Angabe schlaegt die Vorgabe der Einheit. */
-export function mengenVorgabe(a: Pick<KasseArtikel, 'unit' | 'mengenregel' | 'mengeFragen'>): MengenVorgabe {
-  const v = mengenregelFuerEinheit(a.unit);
+export function quantityDefaults(a: Pick<PosArticle, 'unit' | 'quantityRule' | 'askQuantity'>): QuantityDefaults {
+  const v = quantityRuleForUnit(a.unit);
   return {
-    regel: a.mengenregel ?? v.regel,
-    fragen: a.mengeFragen ?? v.fragen,
-    stellen: (a.mengenregel ?? v.regel) === 'dezimal' ? Math.max(1, v.stellen || 2) : 0,
+    rule: a.quantityRule ?? v.rule,
+    ask: a.askQuantity ?? v.ask,
+    decimals: (a.quantityRule ?? v.rule) === 'decimal' ? Math.max(1, v.decimals || 2) : 0,
   };
 }
 
 /** Artikel, wie ihn die Kasse fuer Kacheln und Belegpositionen braucht. */
-export interface KasseArtikel {
+export interface PosArticle {
   id: string;
   name: string;
   unitPriceCents: number | null;
   vatRate: number | null;
   unit: string;
   groupId: string | null;
-  sichtbar: boolean;
+  /** Erloesgruppe (Buchhaltung); null = keine. */
+  revenueGroupId: string | null;
+  /** Kachel sichtbar (Draht `tile.visible`, fehlt = sichtbar). */
+  visible: boolean;
+  /** Reihenfolge der Kachel (Draht `tile.sort`). */
   sort: number;
   active: boolean;
   /** Gespeicherte Mengenregel; null = Vorgabe der Einheit. */
-  mengenregel: Mengenregel | null;
+  quantityRule: QuantityRule | null;
   /** Gespeichert: Kasse fragt nach der Menge; null = Vorgabe der Einheit. */
-  mengeFragen: boolean | null;
+  askQuantity: boolean | null;
   /** Hoechstmenge je Beleg (bei kg/l/m auch Kommazahl); null = keine Grenze. */
-  maxMenge: number | null;
+  maxQuantity: number | null;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
-export function mengeErlaubt(a: Pick<KasseArtikel, 'maxMenge'>, gewuenscht: number): number {
-  return a.maxMenge != null && a.maxMenge > 0 ? Math.min(gewuenscht, a.maxMenge) : gewuenscht;
+export function allowedQuantity(a: Pick<PosArticle, 'maxQuantity'>, wanted: number): number {
+  return a.maxQuantity != null && a.maxQuantity > 0 ? Math.min(wanted, a.maxQuantity) : wanted;
 }
 
-export interface KasseArtikelPayload {
+/** Ein Artikel am Draht `/api/v3` (`listMyArticles`), soweit dieses Paket ihn liest. */
+export interface PosArticlePayload {
   id?: string | null; name?: string | null; unitPriceCents?: number | null; vatRate?: number | null; unit?: string | null;
-  groupId?: string | null; kasse?: { sichtbar?: boolean | null; sort?: number | null } | null; active?: boolean | null;
-  mengenregel?: string | null; mengeFragen?: boolean | null; maxMenge?: number | null;
+  groupId?: string | null; revenueGroupId?: string | null;
+  tile?: { visible?: boolean | null; sort?: number | null } | null; active?: boolean | null;
+  quantityRule?: string | null; askQuantity?: boolean | null; maxQuantity?: number | null;
 }
 
-export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
+export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
   return {
     id: p.id ?? '',
     name: p.name ?? '',
@@ -116,12 +123,13 @@ export function fromKasseArtikelPayload(p: KasseArtikelPayload): KasseArtikel {
     vatRate: typeof p.vatRate === 'number' ? p.vatRate : null,
     unit: p.unit ?? '',
     groupId: p.groupId ?? null,
-    sichtbar: p.kasse?.sichtbar !== false,
-    sort: typeof p.kasse?.sort === 'number' ? p.kasse.sort : 0,
+    revenueGroupId: typeof p.revenueGroupId === 'string' && p.revenueGroupId ? p.revenueGroupId : null,
+    visible: p.tile?.visible !== false,
+    sort: typeof p.tile?.sort === 'number' ? p.tile.sort : 0,
     active: p.active !== false,
-    mengenregel: p.mengenregel === 'stueck' || p.mengenregel === 'dezimal' ? p.mengenregel : null,
-    mengeFragen: typeof p.mengeFragen === 'boolean' ? p.mengeFragen : null,
-    maxMenge: typeof p.maxMenge === 'number' && Number.isFinite(p.maxMenge) && p.maxMenge > 0 ? p.maxMenge : null,
+    quantityRule: p.quantityRule === 'piece' || p.quantityRule === 'decimal' ? p.quantityRule : null,
+    askQuantity: typeof p.askQuantity === 'boolean' ? p.askQuantity : null,
+    maxQuantity: typeof p.maxQuantity === 'number' && Number.isFinite(p.maxQuantity) && p.maxQuantity > 0 ? p.maxQuantity : null,
   };
 }
 
@@ -138,7 +146,7 @@ export async function listMyArticleGroups(rufen: InternerTransport): Promise<Art
   return liste(daten, 'groups', 'listMyArticleGroups', (e) => fromArticleGroupPayload(e as ArticleGroupPayload));
 }
 
-export async function listMyArticles(rufen: InternerTransport): Promise<KasseArtikel[]> {
+export async function listMyArticles(rufen: InternerTransport): Promise<PosArticle[]> {
   const daten = await rufen<{ articles?: unknown }>('listMyArticles');
-  return liste(daten, 'articles', 'listMyArticles', (e) => fromKasseArtikelPayload(e as KasseArtikelPayload));
+  return liste(daten, 'articles', 'listMyArticles', (e) => fromPosArticlePayload(e as PosArticlePayload));
 }

@@ -35,9 +35,9 @@ const VERBRAUCHER = `import { createKasseneckApi, apiKeyAuth, VatRate, KeckPayme
 import { buildReceiptLayout, formatCents } from '@kreiseck/kasseneck-api/receipt';
 import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printing';
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
-import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
+import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
-import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
+import { listMyPrinters, setMyKasseSettings, POS_SHORTCUT_ACTIONS, type PosSettings } from '@kreiseck/kasseneck-api/kasse';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
@@ -59,6 +59,10 @@ export const ansicht = ReceiptLayoutView;
 // von aussen bleibt ein KasseneckTransport ohne Umdeutung uebergebbar.
 declare const rufen: KasseneckTransport;
 export const drucker = listMyPrinters(rufen);
+export const betrieb = setMyKasseSettings(rufen, { theme: 'night', vatRates: { '20': true } });
+export const aktionen: readonly string[] = POS_SHORTCUT_ACTIONS;
+export type Einstellungen = PosSettings;
+export const belegt = (e: unknown): string | null => (isRegisterError(e, 'cashregister_in_use') ? registerErrorDetails(e).deviceLabel : null);
 export const partner = createPartnerApi;
 export const webhookPruefen = verifyWebhookSignature;
 export type Geheimnis = KasseneckSecret;

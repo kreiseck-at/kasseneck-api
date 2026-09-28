@@ -3,10 +3,8 @@ import { KasseneckValidationError } from '../client/errors.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { createTransport, type TransportOptions } from '../client/transport.js';
 import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
-import {
-  KASSE_BETRIEB_STANDARD, KASSE_GERAET_STANDARD, mergeKasseSettings,
-  type KasseSettings, type KasseSettingsBetrieb, type KasseSettingsGeraet,
-} from '../kasse/settings.js';
+import type { PosSettings } from '../kasse/settings.js';
+import { posSettingsFromWire } from '../kasse/client.js';
 
 /**
  * Die drei Aufrufe, die **ohne jede Identitaet** laufen: Kopplung eines
@@ -89,12 +87,12 @@ export interface RegisterGeo {
   acc?: number;
 }
 /** Angaben, die Kopplung und Login zusaetzlich mitschicken duerfen. */
-export interface RegisterGeraeteAngaben {
+export interface RegisterDeviceInfo {
   client?: RegisterClientInfo;
   geo?: RegisterGeo | null;
 }
 
-export interface PairRegisterDeviceOptions extends RegisterDeviceConnection, RegisterGeraeteAngaben {
+export interface PairRegisterDeviceOptions extends RegisterDeviceConnection, RegisterDeviceInfo {
   /**
    * Die Kasse ist schon auf einem anderen Geraet geoeffnet (BELEGT-Rueckfrage):
    * `true` uebernimmt sie hierher und widerruft das alte Geraet.
@@ -114,14 +112,25 @@ export interface PairRegisterDeviceOptions extends RegisterDeviceConnection, Reg
   label?: string;
 }
 
-/** Ergebnis der Kopplung — der vollstaendige Ausweis dieses Geraets. */
+/**
+ * Ergebnis der Kopplung: der vollstaendige Ausweis dieses Geraets.
+ *
+ * **Speicherformat der App bleibt, wie es ist** (Nachtrag §9, B2): wer den
+ * Ausweis ablegt, bildet `companyName`/`cashregisterLabel` auf seine
+ * bisherigen Felder ab (Web-Kasse: `betrieb`/`kasse`). Die Aufrufe dieses
+ * Pakets lesen aus einem abgelegten Satz nur `ownerUid`, `deviceId`,
+ * `deviceSecret` (und `cashregisterId` beim Login); weitere Felder eines alten
+ * Satzes stoeren nicht.
+ */
 export interface PairedRegisterDevice extends RegisterDeviceCredentials {
   /** Kasse, an die die Kopplung dieses Geraet gebunden hat. */
   cashregisterId: string;
-  /** Firmenname des Betriebs (Backend: `betrieb`) — Anzeige, kann leer sein. */
+  /** Firmenname des Betriebs; Anzeige, kann leer sein. */
   companyName: string;
-  /** Bezeichnung der Kasse (Backend: `kasse`) — Anzeige, kann leer sein. */
+  /** Bezeichnung der Kasse (ohne Bezeichnung die Kassen-ID); Anzeige, kann leer sein. */
   cashregisterLabel: string;
+  /** Die Kopplung gilt der Test-Umgebung des Betriebs (`kr_test_`-Konto). */
+  testEnvironment: boolean;
 }
 
 /**
@@ -142,28 +151,28 @@ export interface RegisterUserSummary {
    * Betriebs gesetzt: die Kasse zeigt ihm das Freifeld statt der Kaestchen.
    * Das Backend sendet das Feld nur, wenn es zutrifft; gelesen ist es immer da.
    */
-  altbestand: boolean;
+  pinPolicyOutdated: boolean;
 }
 
-/** PIN-Regel des Betriebs — daraus baut die Kasse Kaestchen und Tastatur. */
+/** PIN-Regel des Betriebs: daraus baut die Kasse Kaestchen und Tastatur. */
 export interface RegisterPinPolicy {
   /** Feste Stellenzahl (Backend: 3 bis 6). */
-  stellen: number;
-  /** `ziffern` (nur 0-9) oder `zeichen` (0-9 plus Kopplungs-Alphabet). */
-  zeichen: 'ziffern' | 'zeichen' | (string & {});
+  length: number;
+  /** `digits` (nur 0-9) oder `alphanumeric` (0-9 plus Kopplungs-Alphabet). */
+  charset: 'digits' | 'alphanumeric' | (string & {});
 }
 
-/** Anmeldemodus des Geraets; ein unbekannter kuenftiger Wert kommt durch. */
-export type RegisterLoginMode = 'auswahl' | 'pin' | (string & {});
+/** Anmeldemodus des Geraets: Benutzerauswahl oder nur PIN. */
+export type RegisterLoginMode = 'select_user' | 'pin';
 
 /** Antwort von [listRegisterUsersForDevice]: Benutzer, Regel, Modus. */
 export interface RegisterDeviceUsers {
   /** Im Modus `pin` bewusst leer — Namen haben am nur-PIN-Geraet nichts verloren. */
   users: RegisterUserSummary[];
   /** Kassen-Einstellungen (betriebsweit + Geraet), gemischt mit den Standardwerten. */
-  settings: KasseSettings;
-  /** Belegkopf-Daten des Betriebs (Name, Anschrift, UID, Fusszeilen) -- ohne Geheimnisse. */
-  betriebsdaten: ReceiptCompany | null;
+  settings: PosSettings;
+  /** Belegkopf-Daten des Betriebs (Name, Anschrift, UID, Fusszeilen), ohne Geheimnisse. */
+  receiptHeader: ReceiptCompany | null;
   /**
    * `null`, wenn das Backend (noch) keine Regel nennt — dann zeigt die Kasse
    * das Freifeld, statt Kaestchen mit einer erratenen Stellenzahl.
@@ -171,14 +180,16 @@ export interface RegisterDeviceUsers {
   policy: RegisterPinPolicy | null;
   loginMode: RegisterLoginMode;
   /** Der Betrieb verlangt die Ortung beim Login (Standortsperre an). */
-  standortsperre: boolean;
+  locationLock: boolean;
   /**
-   * Darf die gebundene Kasse ueberhaupt Belege erstellen? `bereit: false`
-   * nennt den Grund (ausser Betrieb, Schlussbeleg erstellt) — die Kasse
-   * sperrt das Kassieren VOR dem ersten Beleg statt an createReceipt zu
-   * scheitern. Fehlt das Feld (aelteres Backend), gilt bereit.
+   * Darf die gebundene Kasse ueberhaupt Belege erstellen? `ready: false`
+   * nennt den Grund als Menschentext (ausser Betrieb, keine Signaturkarte,
+   * Startbeleg fehlt): die Kasse sperrt das Kassieren VOR dem ersten Beleg
+   * statt an createReceipt zu scheitern. Fehlt das Feld, gilt bereit.
    */
-  kasse?: { bereit: boolean; grund?: string | null } | null;
+  cashregister?: { ready: boolean; reason?: string | null };
+  /** Das Geraet haengt an der Test-Umgebung des Betriebs. */
+  testEnvironment: boolean;
 }
 
 /**
@@ -312,7 +323,7 @@ export interface ListRegisterUsersForDeviceOptions
   extends RegisterDeviceConnection,
     RegisterDeviceCredentials {}
 
-export interface RegisterUserLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterGeraeteAngaben {
+export interface RegisterUserLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterDeviceInfo {
   /** Kassen-Benutzer aus [listRegisterUsersForDevice]. */
   userId: string;
   /**
@@ -326,7 +337,8 @@ export interface RegisterUserLoginOptions extends RegisterDeviceConnection, Regi
   /**
    * Eine belegte Kasse uebernehmen. Nur mit dem Recht `takeover` (Kassen-Chef);
    * die aelteste laufende Sitzung wird dabei verdraengt. Ohne das Recht bleibt
-   * es bei der Abweisung "Kasse wird gerade auf … verwendet".
+   * es bei der Abweisung `cashregister_in_use` (Daten `deviceLabel`,
+   * `takeoverAllowed: false`, siehe [registerErrorDetails]).
    */
   takeover?: boolean;
   /**
@@ -340,7 +352,7 @@ export interface RegisterUserLoginOptions extends RegisterDeviceConnection, Regi
   takeoverSessionId?: string;
 }
 
-export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterGeraeteAngaben {
+export interface RegisterPinLoginOptions extends RegisterDeviceConnection, RegisterDeviceCredentials, RegisterDeviceInfo {
   /**
    * Die PIN allein — sie identifiziert UND authentifiziert (Geraete-Modus
    * `pin`; das Backend haelt PINs je Betrieb eindeutig). Das Format prueft
@@ -381,8 +393,9 @@ export async function pairRegisterDevice(options: PairRegisterDeviceOptions): Pr
     deviceSecret: pflichtfeld('pairRegisterDevice', daten, 'deviceSecret'),
     ownerUid: pflichtfeld('pairRegisterDevice', daten, 'ownerUid'),
     cashregisterId: pflichtfeld('pairRegisterDevice', daten, 'cashregisterId'),
-    companyName: text(daten?.['betrieb']),
-    cashregisterLabel: text(daten?.['kasse']),
+    companyName: text(daten?.['companyName']),
+    cashregisterLabel: text(daten?.['cashregisterLabel']),
+    testEnvironment: daten?.['testEnvironment'] === true,
   };
 }
 
@@ -413,12 +426,16 @@ export async function unpairRegisterDevice(options: ListRegisterUsersForDeviceOp
 export interface RegisterSession {
   id: string;
   deviceId: string | null;
-  /** Name des Geraets; „Kasse", wenn keiner gesetzt wurde. */
-  deviceLabel: string;
+  /**
+   * Name des Geraets; `null`, wenn es keinen hat (unter `/v3` sendet das
+   * Backend dann `null` statt des frueheren Ersatzes „Kasse"). Die Oberflaeche
+   * waehlt ihren eigenen Ersatztext.
+   */
+  deviceLabel: string | null;
   startedAt: number | null;
   expiresAt: number | null;
   /** Laeuft diese Sitzung auf DIESEM Geraet? */
-  selbst: boolean;
+  own: boolean;
   /**
    * Wer angemeldet ist. Fehlt an einem nur-PIN-Geraet: Dort zeigt schon die
    * Benutzerliste keine Namen, und was dort nicht steht, darf hier nicht
@@ -429,7 +446,7 @@ export interface RegisterSession {
 }
 
 /** Was eine Kasse gerade haelt -- Lizenzzahl und laufende Sitzungen. */
-export interface RegisterSessionsStand {
+export interface RegisterSessionOverview {
   /** Wie viele Sitzungen gleichzeitig laufen duerfen. */
   licenses: number;
   /** Aelteste zuerst: oben steht, was das Backend ohne Wahl verdraengen wuerde. */
@@ -453,7 +470,7 @@ export interface ListRegisterSessionsForDeviceOptions
  */
 export async function listRegisterSessionsForDevice(
   options: ListRegisterSessionsForDeviceOptions,
-): Promise<RegisterSessionsStand> {
+): Promise<RegisterSessionOverview> {
   const { ownerUid, deviceId, deviceSecret, ...verbindung } = options;
   const name = 'listRegisterSessionsForDevice';
   pflicht(name, 'ownerUid', ownerUid);
@@ -478,10 +495,10 @@ export async function listRegisterSessionsForDevice(
       // nichts tun kann, ist schlimmer als keine.
       id: pflichtfeld(name, roh, 'id'),
       deviceId: typeof roh['deviceId'] === 'string' && roh['deviceId'] ? roh['deviceId'] : null,
-      deviceLabel: text(roh['deviceLabel']) || 'Kasse',
+      deviceLabel: text(roh['deviceLabel']) || null,
       startedAt: typeof roh['startedAt'] === 'number' ? roh['startedAt'] : null,
       expiresAt: typeof roh['expiresAt'] === 'number' ? roh['expiresAt'] : null,
-      selbst: roh['selbst'] === true,
+      own: roh['own'] === true,
       // Nur uebernehmen, wenn wirklich einer kam: ein leerer String stuende
       // in der Oberflaeche als namenlose Zeile, statt die Spalte wegzulassen.
       ...(typeof roh['userName'] === 'string' && roh['userName'] ? { userName: roh['userName'] } : {}),
@@ -500,7 +517,7 @@ export async function listRegisterUsersForDevice(
   pflicht(name, 'deviceId', deviceId);
   pflicht(name, 'deviceSecret', deviceSecret);
 
-  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; betriebsdaten?: unknown; standortsperre?: unknown; kasse?: unknown }>(
+  const daten = await transportFuer(verbindung)<{ users?: unknown; policy?: unknown; loginMode?: unknown; settings?: unknown; receiptHeader?: unknown; locationLock?: unknown; cashregister?: unknown; testEnvironment?: unknown }>(
     name,
     { ownerUid, deviceId, deviceSecret },
     undefined,
@@ -519,46 +536,47 @@ export async function listRegisterUsersForDevice(
       id: pflichtfeld(name, roh, 'id'),
       name: text(roh['name']),
       kind: typeof roh['kind'] === 'string' && roh['kind'] ? (roh['kind'] as RegisterUserKind) : 'person',
-      altbestand: roh['altbestand'] === true,
+      pinPolicyOutdated: roh['pinPolicyOutdated'] === true,
     };
   });
-  const settingsRoh = (daten?.settings ?? {}) as { betrieb?: unknown; geraet?: unknown };
-  const settings: KasseSettings = {
-    betrieb: mergeKasseSettings(KASSE_BETRIEB_STANDARD, (settingsRoh.betrieb ?? null) as Partial<KasseSettingsBetrieb> | null),
-    geraet: mergeKasseSettings(KASSE_GERAET_STANDARD, (settingsRoh.geraet ?? null) as Partial<KasseSettingsGeraet> | null),
-  };
-  const bd = daten?.betriebsdaten;
-  const betriebsdaten = bd && typeof bd === 'object' ? fromReceiptCompanyPayload(bd as ReceiptCompanyPayload) : null;
+  const settingsRoh = daten?.settings;
+  const settings = posSettingsFromWire(
+    settingsRoh !== null && typeof settingsRoh === 'object' ? (settingsRoh as { business?: unknown; device?: unknown }) : null,
+  );
+  const kopf = daten?.receiptHeader;
+  const receiptHeader = kopf && typeof kopf === 'object' ? fromReceiptCompanyPayload(kopf as ReceiptCompanyPayload) : null;
   return {
     users,
     policy: regel(daten?.policy),
-    loginMode: daten?.loginMode === 'pin' ? 'pin' : 'auswahl',
+    // Nur `pin` heisst nur-PIN; alles andere (auch ein kuenftiger Wert) zeigt
+    // die Auswahl: die Namen stehen dann in `users`, und das Backend weist
+    // eine Anmeldung ohne Auswahl ohnehin mit `login_mode_select_user` ab.
+    loginMode: daten?.loginMode === 'pin' ? 'pin' : 'select_user',
     settings,
-    betriebsdaten,
-    standortsperre: daten?.standortsperre === true,
-    // 0.6.27 ergaenzte nur den TYP — hier fiel das Feld beim Zusammenbau
-    // stumm weg, und die Kasse sah nie eine Sperre. Fehlt es (aelteres
-    // Backend), bleibt es undefined: dann gilt bereit.
-    kasse: kasseBereit(daten?.kasse),
+    receiptHeader,
+    locationLock: daten?.locationLock === true,
+    // Fehlt das Feld, bleibt es undefined: dann gilt bereit.
+    ...(kasseBereit(daten?.cashregister) ? { cashregister: kasseBereit(daten?.cashregister)! } : {}),
+    testEnvironment: daten?.testEnvironment === true,
   };
 }
 
-function kasseBereit(wert: unknown): { bereit: boolean; grund?: string | null } | undefined {
+function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null } | undefined {
   if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return undefined;
   const roh = wert as Record<string, unknown>;
-  if (typeof roh['bereit'] !== 'boolean') return undefined;
-  return { bereit: roh['bereit'], grund: typeof roh['grund'] === 'string' ? roh['grund'] : null };
+  if (typeof roh['ready'] !== 'boolean') return undefined;
+  return { ready: roh['ready'], reason: typeof roh['reason'] === 'string' ? roh['reason'] : null };
 }
 
 /** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */
 function regel(wert: unknown): RegisterPinPolicy | null {
   if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return null;
   const roh = wert as Record<string, unknown>;
-  const stellen = roh['stellen'];
-  const zeichen = roh['zeichen'];
-  if (typeof stellen !== 'number' || !Number.isInteger(stellen) || stellen < 1) return null;
-  if (typeof zeichen !== 'string' || zeichen === '') return null;
-  return { stellen, zeichen: zeichen as RegisterPinPolicy['zeichen'] };
+  const length = roh['length'];
+  const charset = roh['charset'];
+  if (typeof length !== 'number' || !Number.isInteger(length) || length < 1) return null;
+  if (typeof charset !== 'string' || charset === '') return null;
+  return { length, charset: charset as RegisterPinPolicy['charset'] };
 }
 
 /**
