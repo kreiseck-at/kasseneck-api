@@ -69,6 +69,7 @@ export const AUFRUFE = [
   'registerPinLogin',
   'registerUserLogin',
   'renewRegisterSession',
+  'reportCustomerContract',
   'requestCustomerSignature',
   'searchCustomers',
   'sendPartnerCustomerFonLink',

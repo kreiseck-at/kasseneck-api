@@ -55,6 +55,7 @@
     "registerPinLogin",
     "registerUserLogin",
     "renewRegisterSession",
+    "reportCustomerContract",
     "requestCustomerSignature",
     "searchCustomers",
     "sendPartnerCustomerFonLink",
@@ -337,7 +338,23 @@
     "getrennt"
   ],
   "partner": {
-    "betriebFelder": [
+    "austrianStates": [
+      "AT-1",
+      "AT-2",
+      "AT-3",
+      "AT-4",
+      "AT-5",
+      "AT-6",
+      "AT-7",
+      "AT-8",
+      "AT-9"
+    ],
+    "avvModes": [
+      "direct",
+      "power_of_attorney",
+      "subprocessor"
+    ],
+    "businessFields": [
       "companyName",
       "legalForm",
       "state",
@@ -365,11 +382,46 @@
       "taxAdvisor.phone",
       "taxAdvisor.mayContact"
     ],
+    "contactRoles": [
+      "management",
+      "accounting",
+      "technical",
+      "pos"
+    ],
+    "contractKinds": [
+      "avv",
+      "terms"
+    ],
+    "contractSources": [
+      "setup_link",
+      "process_link",
+      "partner_power_of_attorney",
+      "admin_paper",
+      "paper_upload",
+      "app",
+      "portal"
+    ],
+    "feeIntervals": [
+      "monthly",
+      "yearly",
+      "once"
+    ],
+    "legalForms": [
+      "sole_proprietor",
+      "eu",
+      "og",
+      "kg",
+      "gmbh",
+      "gmbhcokg",
+      "ag",
+      "association",
+      "other"
+    ],
     "partnerEnvs": [
       "live",
       "test"
     ],
-    "partnerFehlerCodes": [
+    "partnerErrorCodes": [
       "validation",
       "rate_limited",
       "app_not_found",
@@ -407,7 +459,7 @@
       "webhook_inactive",
       "event_not_subscribed"
     ],
-    "partnerPortalFehlerCodes": [
+    "partnerPortalErrorCodes": [
       "app_locked",
       "version_locked",
       "invalid_transition",
@@ -421,12 +473,20 @@
       "card_not_verified",
       "already_assigned"
     ],
+    "partnerRequestErrorCodes": [
+      "method_not_allowed",
+      "unauthorized",
+      "partner_locked",
+      "scope_missing"
+    ],
     "partnerWebhookEvents": [
       "customer.created",
       "customer.updated",
       "customer.status_changed",
       "customer.fon_verified",
       "customer.live_enabled",
+      "customer.avv_accepted",
+      "customer.terms_accepted",
       "signature.requested",
       "signature.ready",
       "signature.failed",
@@ -437,20 +497,40 @@
       "app.version.rejected",
       "webhook.test"
     ],
-    "webhookRetryPlanSec": [
-      60,
-      300,
-      1800,
-      7200,
-      43200
+    "signatureErrorCodes": [
+      "customer_not_found",
+      "incomplete",
+      "finanzonline_error"
     ],
-    "webhookUmschlagFelder": [
+    "signatureHistoryReasons": [
+      "api",
+      "portal",
+      "card_entered",
+      "finanzonline",
+      "automation_off",
+      "test_environment",
+      "no_stock"
+    ],
+    "webhookDeliveryStatuses": [
+      "pending",
+      "delivered",
+      "failed",
+      "dropped"
+    ],
+    "webhookEnvelopeFields": [
       "id",
       "type",
       "createdAt",
       "partnerId",
       "test",
       "data"
+    ],
+    "webhookRetryPlanSec": [
+      60,
+      300,
+      1800,
+      7200,
+      43200
     ]
   },
   "rechnung": {

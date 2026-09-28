@@ -12,7 +12,7 @@ import {
 import {
   parseWebhookEvent,
   PARTNER_WEBHOOK_EVENTS,
-  WEBHOOK_UMSCHLAG_FELDER,
+  WEBHOOK_ENVELOPE_FIELDS,
 } from '../src/partner/webhooks.js';
 
 /**
@@ -354,20 +354,23 @@ test('Webhook: eine Probe traegt test:true, ein echtes Ereignis das Feld gar nic
 test('Webhook: der Umschlag fuehrt genau die Felder des Backends', () => {
   // webhook-core.payload() baut ihn in dieser Reihenfolge; `test` steht nur
   // auf Proben darin.
-  assert.deepEqual([...WEBHOOK_UMSCHLAG_FELDER], ['id', 'type', 'createdAt', 'partnerId', 'test', 'data']);
+  assert.deepEqual([...WEBHOOK_ENVELOPE_FIELDS], ['id', 'type', 'createdAt', 'partnerId', 'test', 'data']);
 });
 
 test('Webhook: der Ereignis-Katalog stimmt mit dem Backend ueberein', () => {
   // Diese Liste ist eine Zusage an den Aufrufer (Typvervollstaendigung beim
-  // Abonnieren). Sie steht so in partner-core.js WEBHOOK_EVENTS_OFFEN —
-  // OHNE die internen Ereignisse: was ein Partner nicht abonnieren kann, darf
-  // hier nicht als abonnierbar erscheinen.
+  // Abonnieren). Sie steht so in partner-core.js WEBHOOK_EVENTS_OFFEN, ohne
+  // interne Ereignisse (heute gibt es keine). Die beiden Vertragsereignisse
+  // sind abonnierbar; die Fixture aus listPartnerWebhooks belegt das
+  // (partner-1-0.test.ts).
   assert.deepEqual([...PARTNER_WEBHOOK_EVENTS], [
     'customer.created',
     'customer.updated',
     'customer.status_changed',
     'customer.fon_verified',
     'customer.live_enabled',
+    'customer.avv_accepted',
+    'customer.terms_accepted',
     'signature.requested',
     'signature.ready',
     'signature.failed',
@@ -378,11 +381,6 @@ test('Webhook: der Ereignis-Katalog stimmt mit dem Backend ueberein', () => {
     'app.version.rejected',
     'webhook.test',
   ]);
-  assert.equal(
-    PARTNER_WEBHOOK_EVENTS.includes('customer.avv_accepted' as never),
-    false,
-    'customer.avv_accepted ist intern — weder abonnierbar noch probbar',
-  );
 });
 
 test('Webhook: Wiederholungsplan und Toleranz stimmen mit dem Versand ueberein', () => {

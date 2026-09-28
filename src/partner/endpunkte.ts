@@ -11,7 +11,7 @@
  * PLZ, Gericht) macht das Backend mit `@kreiseck/validator` — sie hier zu
  * wiederholen hiesse, zwei Wahrheiten zu haben, von denen eine veraltet.
  * Ein Formfehler kommt als `KasseneckApiError` mit `code:"validation"` zurueck;
- * `partnerFeldFehler(fehler)` macht `data.errors[]` daraus. **Es entsteht dabei
+ * `partnerFieldErrors(fehler)` macht `data.errors[]` daraus. **Es entsteht dabei
  * nichts** — der Aufruf ist folgenlos wiederholbar.
  *
  * Nach dem Senden wird nichts hart gecastet: fehlt ein zugesagtes Feld, wirft
@@ -23,10 +23,10 @@ import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { alsSecret } from './secret.js';
 import type {
-  AvvStand,
-  KundenFonStand,
-  KundenZeile,
-  VertragStand,
+  AvvStatus,
+  PartnerCustomerFonStatus,
+  PartnerCustomerSummary,
+  ContractStatus,
   ActivateCashregisterResult,
   CreateCashregisterOptions,
   CreateCashregisterResult,
@@ -34,18 +34,20 @@ import type {
   CreateCustomerResult,
   CustomerCredentials,
   FonLinkResult,
-  Kasse,
-  KassenListe,
-  Kunde,
-  KundenListe,
+  CustomerCashregister,
+  CustomerCashregisterList,
+  PartnerCustomer,
+  PartnerCustomerList,
   ListCustomersOptions,
   CustomerSignature,
   PartnerFee,
   PartnerInfo,
+  ReportCustomerContractOptions,
+  ReportCustomerContractResult,
   RequestSignatureOptions,
   RequestSignatureResult,
-  SignaturAntrag,
-  SignaturStand,
+  SignatureRequest,
+  CustomerSignatureStatus,
 } from './typen.js';
 
 // ---------------------------------------------------------------------------
@@ -223,7 +225,7 @@ export async function createPartnerCustomer(
 export async function listPartnerCustomers(
   rufen: InternerTransport,
   optionen: ListCustomersOptions = {},
-): Promise<KundenListe> {
+): Promise<PartnerCustomerList> {
   if (optionen.limit !== undefined && (!Number.isInteger(optionen.limit) || optionen.limit < 1 || optionen.limit > 200)) {
     throw new KasseneckValidationError('listPartnerCustomers', 'limit muss zwischen 1 und 200 liegen', 'request');
   }
@@ -241,7 +243,7 @@ export async function listPartnerCustomers(
   };
 }
 
-function kundenZeile(eintrag: unknown): KundenZeile {
+function kundenZeile(eintrag: unknown): PartnerCustomerSummary {
   const k = objekt(eintrag);
   return {
     customerId: text(k['customerId']),
@@ -256,7 +258,7 @@ function kundenZeile(eintrag: unknown): KundenZeile {
   };
 }
 
-function fonStand(wert: unknown): KundenFonStand | null {
+function fonStand(wert: unknown): PartnerCustomerFonStatus | null {
   if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
   const f = wert as Record<string, unknown>;
   return {
@@ -266,7 +268,7 @@ function fonStand(wert: unknown): KundenFonStand | null {
   };
 }
 
-function vertragStand(wert: unknown): VertragStand | null {
+function vertragStand(wert: unknown): ContractStatus | null {
   if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return null;
   const v = wert as Record<string, unknown>;
   return { status: text(v['status']), version: textOderNull(v['version']), confirmedAt: zahlOderNull(v['confirmedAt']) };
@@ -277,14 +279,14 @@ function vertragStand(wert: unknown): VertragStand | null {
  * erfundenes `pending`: „nicht mitgeliefert" und „nicht bestaetigt" duerfen
  * fuer einen Aufrufer nicht dasselbe sein.
  */
-function avvStand(wert: unknown): AvvStand | null {
+function avvStand(wert: unknown): AvvStatus | null {
   const v = vertragStand(wert);
   if (!v) return null;
   return { ...v, mode: textOderNull((wert as Record<string, unknown>)['mode']) };
 }
 
 /** Ein Betrieb mit allem, was der Partner ueber ihn sehen darf — nie Geheimnisse. */
-export async function getPartnerCustomer(rufen: InternerTransport, customerId: string): Promise<Kunde> {
+export async function getPartnerCustomer(rufen: InternerTransport, customerId: string): Promise<PartnerCustomer> {
   const id = pflicht(customerId, 'getPartnerCustomer', 'customerId');
   const daten = objekt(await rufen<unknown>('getPartnerCustomer', { customerId: id }));
   const k = verlangt(daten['customer'], 'getPartnerCustomer', 'customer');
@@ -360,7 +362,7 @@ export async function sendPartnerCustomerFonLink(
 // Signatur
 // ---------------------------------------------------------------------------
 
-function antrag(eintrag: unknown): SignaturAntrag {
+function antrag(eintrag: unknown): SignatureRequest {
   const a = objekt(eintrag);
   const fehler = a['error'];
   return {
@@ -460,7 +462,7 @@ function signaturEinzeln(eintrag: unknown): CustomerSignature {
 export async function getCustomerSignatureStatus(
   rufen: InternerTransport,
   customerId: string,
-): Promise<SignaturStand> {
+): Promise<CustomerSignatureStatus> {
   const id = pflicht(customerId, 'getCustomerSignatureStatus', 'customerId');
   const daten = objekt(await rufen<unknown>('getCustomerSignatureStatus', { customerId: id }));
   const signatur = objekt(daten['signature']);
@@ -482,7 +484,7 @@ export async function getCustomerSignatureStatus(
 // Kassen
 // ---------------------------------------------------------------------------
 
-function kasse(eintrag: unknown): Kasse {
+function kasse(eintrag: unknown): CustomerCashregister {
   const k = objekt(eintrag);
   const fehler = k['lastError'];
   return {
@@ -579,7 +581,7 @@ export async function activateCashregister(
 export async function listCustomerCashregisters(
   rufen: InternerTransport,
   customerId: string,
-): Promise<KassenListe> {
+): Promise<CustomerCashregisterList> {
   const id = pflicht(customerId, 'listCustomerCashregisters', 'customerId');
   const daten = objekt(await rufen<unknown>('listCustomerCashregisters', { customerId: id }));
   return {
@@ -626,5 +628,52 @@ export async function getCustomerCredentials(
       };
     }),
     note: text(daten['note']),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Vertraege
+// ---------------------------------------------------------------------------
+
+/**
+ * Meldet eine Zustimmung des Betriebs, die der Partner **in Vollmacht**
+ * eingeholt hat (Endpunkt `reportCustomerContract`, unter `/v1`
+ * `reportCustomerVertrag`). Braucht die Berechtigung `customers:write`.
+ *
+ * Vor dem Senden prueft dieser Client nur, dass jede Pflichtangabe da ist und
+ * `acceptedAt` eine Zahl ist. Ob die Art erlaubt ist (`kind_not_allowed`), die
+ * Fassung gilt (`unknown_version`, `no_version`) und der Text derselbe ist
+ * (`text_changed`), entscheidet der Server. Eine schon bestaetigte Fassung
+ * kommt als `already_accepted` mit `data.contractId`; das ist kein Schaden,
+ * sondern die Bestaetigung, dass es sie gibt.
+ */
+export async function reportCustomerContract(
+  rufen: InternerTransport,
+  optionen: ReportCustomerContractOptions,
+): Promise<ReportCustomerContractResult> {
+  const vorgang = 'reportCustomerContract';
+  const o = objekt(optionen);
+  const customerId = pflicht(o['customerId'], vorgang, 'customerId');
+  const kind = pflicht(o['kind'], vorgang, 'kind');
+  const version = pflicht(o['version'], vorgang, 'version');
+  const textHash = pflicht(o['textHash'], vorgang, 'textHash');
+  const name = pflicht(o['name'], vorgang, 'name');
+  const signerRole = pflicht(o['signerRole'], vorgang, 'signerRole');
+  const acceptedAt = o['acceptedAt'];
+  if (acceptedAt !== undefined && (typeof acceptedAt !== 'number' || !Number.isFinite(acceptedAt))) {
+    throw new KasseneckValidationError(vorgang, 'acceptedAt muss eine Zahl sein (Unix-Millisekunden)', 'request');
+  }
+  const daten = objekt(
+    await rufen<unknown>(vorgang, { customerId, kind, version, textHash, name, signerRole, acceptedAt }),
+  );
+  const contractId = daten['contractId'];
+  if (typeof contractId !== 'string' || !contractId) {
+    throw new KasseneckValidationError(vorgang, 'Antwort enthaelt keine contractId', 'response');
+  }
+  return {
+    contractId,
+    confirmedAt: zahlOderNull(daten['confirmedAt']),
+    kind: text(daten['kind'], kind),
+    version: text(daten['version'], version),
   };
 }

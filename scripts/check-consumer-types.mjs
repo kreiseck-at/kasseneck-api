@@ -38,7 +38,7 @@ import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
 import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
-import { createPartnerApi, verifyWebhookSignature, KasseneckSecret } from '@kreiseck/kasseneck-api/partner';
+import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
@@ -62,6 +62,9 @@ export const drucker = listMyPrinters(rufen);
 export const partner = createPartnerApi;
 export const webhookPruefen = verifyWebhookSignature;
 export type Geheimnis = KasseneckSecret;
+export const vertragMelden = reportCustomerContract;
+export const rat: string = partnerErrorAdvice('brand_new_code');
+export type Betriebsdaten = Business;
 export const summen = rechnungRechnen(
   [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
   { priceMode: 'gross' },

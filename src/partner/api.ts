@@ -8,7 +8,7 @@
 import { createTransport, type FetchLike } from '../client/transport.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { partnerKeyAuth } from './auth.js';
-import { partnerFehlerRat } from './fehler.js';
+import { partnerErrorAdvice } from './fehler.js';
 import {
   activateCashregister,
   createCustomerCashregister,
@@ -19,6 +19,7 @@ import {
   getPartnerInfo,
   checkPartnerCustomerEmail,
   listCustomerCashregisters,
+  reportCustomerContract,
   listPartnerCustomers,
   requestCustomerSignature,
   sendPartnerCustomerFonLink,
@@ -35,11 +36,11 @@ import {
   type CreateWebhookResult,
   type DeleteWebhookResult,
   type PartnerWebhook,
-  type WebhookListe,
+  type WebhookList,
   type PartnerWebhookEventType,
   type WebhookPatch,
   type WebhookTestResult,
-  type WebhookZustellung,
+  type WebhookDelivery,
 } from './webhooks.js';
 import type {
   ActivateCashregisterResult,
@@ -49,14 +50,16 @@ import type {
   CreateCustomerResult,
   CustomerCredentials,
   FonLinkResult,
-  KassenListe,
-  Kunde,
-  KundenListe,
+  CustomerCashregisterList,
+  PartnerCustomer,
+  PartnerCustomerList,
   ListCustomersOptions,
   PartnerInfo,
+  ReportCustomerContractOptions,
+  ReportCustomerContractResult,
   RequestSignatureOptions,
   RequestSignatureResult,
-  SignaturStand,
+  CustomerSignatureStatus,
 } from './typen.js';
 
 /**
@@ -89,18 +92,18 @@ export interface PartnerApi {
 
   // Betriebe
   createPartnerCustomer(optionen: CreateCustomerOptions): Promise<CreateCustomerResult>;
-  listPartnerCustomers(optionen?: ListCustomersOptions): Promise<KundenListe>;
-  getPartnerCustomer(customerId: string): Promise<Kunde>;
+  listPartnerCustomers(optionen?: ListCustomersOptions): Promise<PartnerCustomerList>;
+  getPartnerCustomer(customerId: string): Promise<PartnerCustomer>;
   sendPartnerCustomerFonLink(customerId: string): Promise<FonLinkResult>;
 
   // Signatur
   requestCustomerSignature(customerId: string, optionen?: RequestSignatureOptions): Promise<RequestSignatureResult>;
-  getCustomerSignatureStatus(customerId: string): Promise<SignaturStand>;
+  getCustomerSignatureStatus(customerId: string): Promise<CustomerSignatureStatus>;
 
   // Kassen
   createCustomerCashregister(optionen: CreateCashregisterOptions): Promise<CreateCashregisterResult>;
   activateCashregister(customerId: string, cashregisterId: string): Promise<ActivateCashregisterResult>;
-  listCustomerCashregisters(customerId: string): Promise<KassenListe>;
+  listCustomerCashregisters(customerId: string): Promise<CustomerCashregisterList>;
   /** Geheimnisse des Betriebs — siehe `getCustomerCredentials` in endpunkte.ts. */
   getCustomerCredentials(customerId: string): Promise<CustomerCredentials>;
   /**
@@ -110,9 +113,16 @@ export interface PartnerApi {
    */
   checkPartnerCustomerEmail(email: string): Promise<boolean>;
 
+  // Vertraege
+  /**
+   * Meldet eine in Vollmacht eingeholte Zustimmung des Betriebs (nur AVV);
+   * siehe `reportCustomerContract` in endpunkte.ts.
+   */
+  reportCustomerContract(optionen: ReportCustomerContractOptions): Promise<ReportCustomerContractResult>;
+
   // Webhooks
   createPartnerWebhook(optionen: CreateWebhookOptions): Promise<CreateWebhookResult>;
-  listPartnerWebhooks(): Promise<WebhookListe>;
+  listPartnerWebhooks(): Promise<WebhookList>;
   updatePartnerWebhook(webhookId: string, patch: WebhookPatch): Promise<PartnerWebhook>;
   deletePartnerWebhook(webhookId: string): Promise<DeleteWebhookResult>;
   /**
@@ -129,14 +139,15 @@ export interface PartnerApi {
     webhookId: string,
     event?: PartnerWebhookEventType | (string & {}),
   ): Promise<WebhookTestResult>;
-  listPartnerWebhookDeliveries(optionen?: { webhookId?: string; limit?: number }): Promise<WebhookZustellung[]>;
+  listPartnerWebhookDeliveries(optionen?: { webhookId?: string; limit?: number }): Promise<WebhookDelivery[]>;
 
   /**
    * Der Handlungssatz zu einem beliebigen Fehlercode der Partner-API. Gehoert
    * in die eigene Fehlermeldung, damit ein Anwender nicht in der Doku
-   * nachschlagen muss.
+   * nachschlagen muss. Fuer einen unbekannten Code kommt ein Rueckfallsatz,
+   * nie `undefined` und nie ein Wurf.
    */
-  fehlerRat(code: string): string | undefined;
+  errorAdvice(code: string): string;
 }
 
 export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
@@ -164,6 +175,8 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     getCustomerCredentials: (id) => getCustomerCredentials(rufen, id),
     checkPartnerCustomerEmail: (email) => checkPartnerCustomerEmail(rufen, email),
 
+    reportCustomerContract: (o) => reportCustomerContract(rufen, o),
+
     createPartnerWebhook: (o) => createPartnerWebhook(rufen, o),
     listPartnerWebhooks: () => listPartnerWebhooks(rufen),
     updatePartnerWebhook: (id, patch) => updatePartnerWebhook(rufen, id, patch),
@@ -172,6 +185,6 @@ export function createPartnerApi(optionen: PartnerApiOptions): PartnerApi {
     sendPartnerWebhookTest: (id, event) => sendPartnerWebhookTest(rufen, id, event),
     listPartnerWebhookDeliveries: (o) => listPartnerWebhookDeliveries(rufen, o),
 
-    fehlerRat: (code) => partnerFehlerRat(code),
+    errorAdvice: (code) => partnerErrorAdvice(code),
   };
 }

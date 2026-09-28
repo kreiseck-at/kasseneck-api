@@ -15,13 +15,13 @@
  *
  * - der Typ [Betrieb] (typen.ts) hat genau diese Felder, und TypeScript meldet
  *   ein ueberzaehliges schon beim Tippen;
- * - [unbekannteBetriebsfelder] beantwortet dieselbe Frage zur Laufzeit — fuer
+ * - [unknownBusinessFields] beantwortet dieselbe Frage zur Laufzeit, fuer
  *   Daten, die aus einer Datenbank oder einem Formular kommen und deshalb nie
  *   durch die Typpruefung gelaufen sind.
  *
  * **Die Wahrheit bleibt der Server.** Dieser Client weist nichts von sich aus
  * ab: eine spaetere Backend-Fassung darf ein Feld ergaenzen, ohne dass ein
- * aelterer Client es blockiert. [unbekannteBetriebsfelder] ist die Vorschau,
+ * aelterer Client es blockiert. [unknownBusinessFields] ist die Vorschau,
  * nicht das Tor.
  *
  * Quelle der Liste: `partner-core.BETRIEB_FELDER` im Backend.
@@ -35,7 +35,7 @@
  * Zwilling Zeile fuer Zeile nachhalten kann. Das Schema fuer die Pruefung
  * entsteht daraus (siehe unten) und nicht daneben.
  */
-export const BETRIEB_FELDER = [
+export const BUSINESS_FIELDS = [
   'companyName',
   'legalForm',
   'state',
@@ -64,17 +64,17 @@ export const BETRIEB_FELDER = [
   'taxAdvisor.mayContact',
 ] as const;
 
-export type BetriebFeld = typeof BETRIEB_FELDER[number];
+export type BusinessField = typeof BUSINESS_FIELDS[number];
 
 /** `true` = einfacher Wert, `Schema` = Unterfelder, `[Schema]` = Liste davon. */
 interface Schema {
   [feld: string]: true | Schema | [Schema];
 }
 
-/** Das Schema entsteht aus [BETRIEB_FELDER] — eine Quelle, keine zweite Liste. */
+/** Das Schema entsteht aus [BUSINESS_FIELDS]: eine Quelle, keine zweite Liste. */
 const SCHEMA: Schema = (() => {
   const wurzel: Schema = {};
-  for (const pfad of BETRIEB_FELDER) {
+  for (const pfad of BUSINESS_FIELDS) {
     const teile = pfad.split('.');
     let stand = wurzel;
     teile.forEach((rohes, i) => {
@@ -128,7 +128,7 @@ function sammle(eingabe: unknown, schema: Schema, pfad: string): string[] {
 }
 
 /**
- * Die Feldpfade eines Betriebs, die [BETRIEB_FELDER] nicht kennt — dieselbe
+ * Die Feldpfade eines Betriebs, die [BUSINESS_FIELDS] nicht kennt, dieselbe
  * Ableitung wie im Backend, also dieselben Pfade wie in `data.errors[].field`.
  * Leer heisst: aus dieser Sicht ist nichts ueberzaehlig.
  *
@@ -136,6 +136,6 @@ function sammle(eingabe: unknown, schema: Schema, pfad: string): string[] {
  * das Backend mit `@kreiseck/validator`. Diese Funktion beantwortet nur die
  * Frage „schicke ich etwas, das dort niemand erwartet?".
  */
-export function unbekannteBetriebsfelder(business: unknown): string[] {
+export function unknownBusinessFields(business: unknown): string[] {
   return sammle(business, SCHEMA, '');
 }
