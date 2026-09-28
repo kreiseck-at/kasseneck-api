@@ -3,6 +3,13 @@
 // (functions/gemeinsam/api-vokabular-v3.js). So beschreiben die Fixtures, was
 // der Server unter /v3 wirklich schickt, und nicht, was jemand dafuer haelt.
 //
+// Uebergang: der Vertrags-Export des Backends (fixtures/v3, geholt mit
+// scripts/v3-vertrag-holen.mjs) fuehrt fuer die Partner-Endpunkte bisher nur
+// das Vokabular (Kataloge, errorCodes.partner, events, schemas), aber keine
+// Antwortfaelle wie antworten/belege.json. Bis das Backend sie exportiert,
+// bleibt dieser Generator die Quelle der Partner-Antworten. Was das Vokabular
+// abdeckt, pruefen die Tests direkt gegen fixtures/v3.
+//
 // Aufruf (braucht einen Backend-Checkout mit installierten node_modules):
 //   KASSENECK_BACKEND=../kasseneck node scripts/partner-v3-antworten.cjs > test/fixtures/partner-v3-antworten.json
 const B = process.env.KASSENECK_BACKEND;
@@ -13,6 +20,7 @@ if (!B) {
 const vok3 = require(`${B}/functions/gemeinsam/api-vokabular-v3.js`);
 const pc = require(`${B}/functions-partner/partner-core.js`);
 const sc = require(`${B}/functions/signatur-core.js`);
+const vc = require(`${B}/functions-partner/gemeinsam/vertrag-core.js`);
 const ok = (data) => ({ status: 'success', message: '', data });
 const aus = (name, data) => vok3.antwortNachAussen(name, ok(data));
 
@@ -54,7 +62,7 @@ const webhookDoc = { url: 'https://api.example.at/kasseneck', events: ['cashregi
 const webhookV3 = { ...webhookDoc, apiVersion: 'v3', letzteZustellung: { at: T + 9, status: 'zugestellt', statusCode: 200 } };
 
 const raus = {
-  _quelle: 'scripts/partner-v3-antworten.cjs: echte Sichten des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Stand keck#470. Nicht von Hand pflegen.',
+  _quelle: 'scripts/partner-v3-antworten.cjs: echte Sichten des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Stand keck a9607ec. Nicht von Hand pflegen.',
   createPartnerCustomer: aus('createPartnerCustomer', {
     customerId: 'cust_1', status: 'created', env: 'live', companyName: konto.company_name, appId: 'a_1',
     access: { invited: false, sentTo: null }, nextSteps: ['FinanzOnline-Zugang einrichten lassen.'],
@@ -83,6 +91,23 @@ const raus = {
       pc.deliveryView('dlv_1', { webhookId: 'wh_1', type: 'signature.ready', eventId: 'evt_1', status: 'zugestellt', versuche: 2, letzterVersuchAt: T + 8, naechsterVersuchAt: null, statusCode: 200, antwort: 'ok', createdAt: T }),
     ],
   }),
+  // reportCustomerContract heisst innen reportCustomerVertrag (NAMEN des
+  // Vokabulars). Antwort wie vertrag-endpoints.bestaetige sie baut
+  // ({ vertragId, bestaetigtAt, art, version }), durch den Rand gereicht.
+  reportCustomerContract: aus('reportCustomerVertrag', { vertragId: 'kunde_u_1_avv_1-0', bestaetigtAt: T, art: 'avv', version: '1.0' }),
+  // Was der Rand aus den Parametern macht, die der Client sendet: kein Rest
+  // unbekannter Namen, jeder Name kommt innen so an, wie der Handler ihn liest.
+  reportCustomerContractParams: vok3.paramsNachInnen(vok3.innerName('reportCustomerContract'), {
+    customerId: 'cust_1', kind: 'avv', version: '1.0', textHash: 'a'.repeat(64), name: 'Anna Jobst', signerRole: 'Geschaeftsfuehrerin', acceptedAt: T,
+  }),
+  // Fehlerantworten des Handlers, wie er sie baut, durch denselben Rand.
+  reportCustomerContractFehler: {
+    already_accepted: vok3.antwortNachAussen('reportCustomerVertrag', { status: 'error', message: 'Diese Fassung ist bereits bestätigt.', data: { code: 'already_accepted', vertragId: 'kunde_u_1_avv_1-0' } }),
+    // Innen art_not_allowed, der Schluessel nennt den Code, den /v3 sendet.
+    kind_not_allowed: vok3.antwortNachAussen('reportCustomerVertrag', { status: 'error', message: 'In Vollmacht lässt sich nur der Auftragsverarbeitungsvertrag melden.', data: { code: 'art_not_allowed' } }),
+    text_changed: vok3.antwortNachAussen('reportCustomerVertrag', { status: 'error', message: vc.FEHLER.textHash, data: { code: 'text_changed', errors: [{ field: 'textHash', message: vc.FEHLER.textHash }], textHash: 'b'.repeat(64) } }),
+    validation: vok3.antwortNachAussen('reportCustomerVertrag', { status: 'error', message: 'Bitte Eingaben prüfen.', data: { code: 'validation', errors: [{ field: 'art', message: vc.FEHLER.art }, { field: 'funktion', message: vc.FEHLER.funktion }, { field: 'akzeptiertAt', message: vc.FEHLER.zeitpunkt }] } }),
+  },
   // Die Codes, die die Schnittstelle liefern kann (Flaeche 'api' oder 'beide'),
   // durch denselben Fehlerzweig wie jede echte Fehlerantwort gereicht
   // (antwortNachAussen -> fehlerNachAussen -> fehlerCodeNachAussen): nicht die
@@ -93,6 +118,8 @@ const raus = {
   ereignisse: {
     'customer.terms_accepted': vok3.ereignisNachAussen('customer.terms_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'nutzung', version: '1.0', confirmedAt: T, source: 'einrichten' }),
     'customer.avv_accepted': vok3.ereignisNachAussen('customer.avv_accepted', { customerId: 'cust_1', companyName: konto.company_name, kind: 'avv', version: '1.0', confirmedAt: T, source: 'partner_vollmacht' }),
+    'signature.failed': vok3.ereignisNachAussen('signature.failed', { customerId: 'cust_1', companyName: konto.company_name, requestId: 'req_2', code: 'fon_fehler', rc: 'B13', message: 'FinanzOnline hat die Anmeldung der Signatureinheit abgelehnt.' }),
+    'cashregister.failed': vok3.ereignisNachAussen('cashregister.failed', { customerId: 'cust_1', companyName: konto.company_name, cashregisterId: 'kasse_1', step: 'register_cashregister', code: 'vertrag_offen', rc: null, message: sc.FEHLER.vertrag_offen, env: 'live' }),
   },
 };
 process.stdout.write(JSON.stringify(raus, null, 2) + '\n');
