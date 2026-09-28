@@ -4,7 +4,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { fromReceiptPayload } from '../src/models/index.js';
 import { buildReceiptLayout, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
-import { belegFixtureAufV3 } from './belege-fixture.js';
 import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
 
 /**
@@ -46,7 +45,7 @@ test('Druck-Goldens: jeder Golden-Beleg ist aufgenommen, keiner zu viel', () => 
 
 for (const name of namen) {
   test(`Druck-Golden ${name}: ESC/POS, ePOS, Blatt und HTML byte-gleich`, () => {
-    const f = belegFixtureAufV3(JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture);
+    const f = JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
     const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
     vergleiche(name, buildReceiptLayout(receipt, f.company, f.options ?? {}), goldens.belege[name]);
   });
@@ -75,12 +74,12 @@ test('Druck-Goldens: alle Server-Layouts aus dem Vertrag sind aufgenommen', () =
 });
 
 // Regelwerk 1 (Altbelege; der Nullbeleg traegt „Betrag: 0,00 €“ statt der
-// Prüfangaben). Aufgenommen am Stand 4d71203 mit der Option `regelwerk: 1`;
-// hier geht dieselbe 0.x-Option durch den Lader und wird zu `ruleset: 1`.
+// Prüfangaben). Aufgenommen am Stand 4d71203 mit der 0.x-Option
+// `regelwerk: 1`; heute heisst sie `ruleset: 1`.
 for (const name of Object.keys(goldens.ruleset1)) {
   test(`Druck-Golden Regelwerk 1 ${name}: byte-gleich`, () => {
     const roh = JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
-    const f = belegFixtureAufV3({ ...roh, options: { ...(roh.options ?? {}), regelwerk: 1 } as BuildReceiptLayoutOptions });
+    const f: Fixture = { ...roh, options: { ...(roh.options ?? {}), ruleset: 1 } };
     const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
     const layout = buildReceiptLayout(receipt, f.company, f.options ?? {});
     assert.equal(layout.ruleset, 1);

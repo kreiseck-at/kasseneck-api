@@ -5,8 +5,8 @@
     "zip": "4830",
     "city": "Hallstatt",
     "phone": "+43 6134 12345",
-    "uid": "ATU12345678",
-    "taxnr": "",
+    "vatId": "ATU12345678",
+    "taxNumber": "",
     "isSmallBusiness": false,
     "footer1": "Vielen Dank für Ihren Einkauf",
     "footer2": "www.baeckerei-muster.at",
@@ -61,7 +61,7 @@
       "fullReceiptId": null,
       "timeStamp": "2026-08-11T09:02:17"
     },
-    "cancellationReason": "fehleingabe"
+    "cancellationReason": "input_error"
   },
   "options": {
     "paperSize": "mm80"

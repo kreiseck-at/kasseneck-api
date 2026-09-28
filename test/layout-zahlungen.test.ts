@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 
 import { fromReceiptPayload, type ReceiptPaymentPayload } from '../src/models/index.js';
 import { buildReceiptLayout, renderReceiptGrid, gridToText, type ReceiptLayout } from '../src/receipt/index.js';
-import { belegFixtureAufV3 } from './belege-fixture.js';
 
 /**
  * Aufschluesselung mehrerer Zahlungen im Beleg-Layout (`payments`). Die
@@ -16,7 +15,7 @@ import { belegFixtureAufV3 } from './belege-fixture.js';
 const wurzel = new URL('../../fixtures/', import.meta.url);
 
 interface Fixture { company: Parameters<typeof buildReceiptLayout>[1]; receipt: Record<string, unknown> & { customerDetails: string[]; legalMessage: string[] }; options?: Parameters<typeof buildReceiptLayout>[2] }
-const lade = (name: string): Fixture => belegFixtureAufV3(JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture);
+const lade = (name: string): Fixture => JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
 
 function layoutMit(name: string, aenderung: Record<string, unknown>): ReceiptLayout {
   const f = lade(name);
