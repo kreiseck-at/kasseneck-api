@@ -9,6 +9,7 @@ export {
 
 export {
   DEFAULT_BASE_URL,
+  POS_BASE_URL,
   DEFAULT_TIMEOUT_MS,
   type HttpResponseLike,
   type HttpRequestInit,
@@ -22,8 +23,12 @@ export {
 } from './transport.js';
 
 export {
-  AUFRUFE,
-  type Aufruf,
+  ALL_CALLS,
+  type ApiCall,
+  PUBLIC_CALLS,
+  POS_CALLS,
+  type PublicCall,
+  type PosCall,
 } from './aufrufe.js';
 
 export {
@@ -36,27 +41,31 @@ export {
   type KasseneckError,
   type HttpFailureReason,
   type CauseDigest,
+  type ErrorOutcome,
+  CLIENT_ERROR_CODES,
+  type ClientErrorCode,
   isKasseneckApiError,
   isKasseneckAuthError,
   isKasseneckHttpError,
   isKasseneckNetworkError,
   isKasseneckValidationError,
+  isOutcomeUnknown,
 } from './errors.js';
 
 export {
   type ReceiptCommonOptions,
   type SellReceiptOptions,
-  type SellReceiptWithPaymentsOptions,
   type TipOptions,
   type TipRecipientShare,
   type CancelReceiptOptions,
-  type CreateCancelReceiptOptions,
   type ReceiptWithCompany,
   sellReceipt,
   sellReceiptWithCompany,
+  paymentsExpectedCents,
+  cardRefundReference,
+  receiptLayoutFromResult,
   cancelReceipt,
   type CancelReceiptResult,
-  createCancelReceipt,
   zeroReceipt,
   getReceipt,
   getReceiptWithCompany,
@@ -74,7 +83,7 @@ export {
 
 export { listMyCashregisters } from './cashregisters.js';
 
-export { downloadDailyReport, downloadMonthlyReport } from './reports.js';
+export { downloadDailyReport, downloadMonthlyReport, getReportV2, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 
 export {
   type CashboxStatus,

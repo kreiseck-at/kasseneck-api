@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inspect } from 'node:util';
 
-import { KasseneckSecret, SECRET_MASKE } from '../src/partner/secret.js';
+import { KasseneckSecret, SECRET_MASK } from '../src/partner/secret.js';
 import { getCustomerCredentials } from '../src/partner/endpunkte.js';
 import type { InternerTransport } from '../src/client/aufrufe.js';
 
@@ -24,15 +24,15 @@ const TOKEN = 'cb_live_GEHEIMESKASSENTOKEN77';
 test('Geheimnis: reveal ist der einzige Weg an den Klartext', () => {
   const geheim = new KasseneckSecret('apiKey', KLARTEXT);
   assert.equal(geheim.reveal(), KLARTEXT);
-  assert.equal(geheim.vorhanden, true);
-  assert.equal(new KasseneckSecret('apiKey', '').vorhanden, false);
+  assert.equal(geheim.hasValue, true);
+  assert.equal(new KasseneckSecret('apiKey', '').hasValue, false);
 });
 
 test('Geheimnis: toString, Vorlagenzeichenkette und Verkettung zeigen die Maske', () => {
   const geheim = new KasseneckSecret('apiKey', KLARTEXT);
   const wege = [geheim.toString(), `${geheim}`, '' + (geheim as unknown as string), String(geheim)];
   for (const weg of wege) {
-    assert.ok(weg.includes(SECRET_MASKE), `Maske fehlt: ${weg}`);
+    assert.ok(weg.includes(SECRET_MASK), `Maske fehlt: ${weg}`);
     assert.ok(!weg.includes(KLARTEXT), `Klartext durchgereicht: ${weg}`);
     assert.ok(weg.includes('apiKey'), 'die Beschriftung fehlt — ein Protokoll saehe nicht, WELCHER Wert fehlt');
   }
@@ -42,7 +42,7 @@ test('Geheimnis: JSON.stringify gibt den Klartext nicht aus — auch tief versch
   const geheim = new KasseneckSecret('cashregisterToken', TOKEN);
   const text = JSON.stringify({ a: { b: [geheim] } });
   assert.ok(!text.includes(TOKEN));
-  assert.ok(text.includes(SECRET_MASKE));
+  assert.ok(text.includes(SECRET_MASK));
 });
 
 test('Geheimnis: util.inspect und console.log zeigen nichts', () => {
@@ -51,7 +51,7 @@ test('Geheimnis: util.inspect und console.log zeigen nichts', () => {
   // Fehlerdienst tut, wenn er ein Objekt aufschluesselt.
   const tief = inspect({ access: geheim }, { depth: null, showHidden: true, getters: true });
   assert.ok(!tief.includes(KLARTEXT), `inspect zeigte den Klartext: ${tief}`);
-  assert.ok(tief.includes(SECRET_MASKE));
+  assert.ok(tief.includes(SECRET_MASK));
 });
 
 test('Geheimnis: kein eigenes Feld traegt den Klartext', () => {
@@ -94,6 +94,6 @@ test('Geheimnis: eine fehlende Angabe wird ein leeres Geheimnis, kein undefined'
   // Ein `undefined` waere hier das schlimmste Ergebnis: der Aufrufer haette
   // einen Typ, der Geheimnis sagt, und einen Wert, den er ungeprueft ausgibt.
   assert.ok(zugang.apiKey instanceof KasseneckSecret);
-  assert.equal(zugang.apiKey.vorhanden, false);
+  assert.equal(zugang.apiKey.hasValue, false);
   assert.equal(zugang.apiKey.reveal(), '');
 });

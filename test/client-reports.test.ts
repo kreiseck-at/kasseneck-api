@@ -63,7 +63,7 @@ function jsonAntwort(
 ): HttpResponseLike {
   return {
     status,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -82,7 +82,7 @@ function binaerAntwort(
 ): HttpResponseLike {
   return {
     status,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => {
       throw new Error('Der Binaerweg darf text() nicht anfassen');
     },
@@ -275,7 +275,7 @@ test('der Binaerweg trennt seine Fehlerfaelle mit denselben Gruenden wie der JSO
   const faelle: Array<[string, HttpResponseLike]> = [
     ['server-error', binaerAntwort(new Uint8Array([0x35, 0x30, 0x30]), { status: 500, contentType: 'text/html' })],
     ['empty-body', binaerAntwort(new Uint8Array())],
-    ['not-json', binaerAntwort(new TextEncoder().encode('<!doctype html><html></html>'), { contentType: 'text/html' })],
+    ['not-json', binaerAntwort(new TextEncoder().encode('<!doctype html><html></html>'), { contentType: 'text/plain' })],
     ['missing-status', binaerAntwort(new TextEncoder().encode('{"irgendwas":true}'))],
   ];
 
@@ -375,8 +375,9 @@ const stoerungen: Array<[string, FetchLike, string]> = [
     'Network',
   ],
   ['HTTP 500', async () => jsonAntwort('<html>500</html>', { status: 500, contentType: 'text/html' }), 'Http:server-error'],
-  // HTTP 200 mit HTML: der Aufruf landete mangels Rewrite auf der Single-Page-App.
-  ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { contentType: 'text/html' }), 'Http:not-json'],
+  // HTTP 200 mit HTML: der Aufruf landete mangels Rewrite auf der Single-Page-App (route_missing).
+  ['HTML statt Antwort', async () => jsonAntwort('<html>oops</html>', { contentType: 'text/html' }), 'Api'],
+  ['Text statt JSON', async () => jsonAntwort('oops', { contentType: 'text/plain' }), 'Http:not-json'],
   ['leere Antwort', async () => jsonAntwort(''), 'Http:empty-body'],
   ['JSON ohne Statusfeld', async () => jsonAntwort('{"irgendwas":true}'), 'Http:missing-status'],
   ['fachlicher Fehler', async () => jsonAntwort(JSON.stringify({ status: 'error', message: 'nein', data: null })), 'Api'],
@@ -400,8 +401,13 @@ test('alle vier Aufrufe melden dieselbe Stoerung als denselben Fehler der Union'
   // Zusage nur scheinbar zu erfuellen.
   for (const [name, aufruf] of alleAufrufe) {
     for (const [stoerung, holen, erwartet] of stoerungen) {
+      // financeWebService zaehlt zu den signierenden Aufrufen: HTML mit
+      // Kennzeichen v3 hat der Rand gesehen, darum unlesbarer Rumpf mit
+      // unklarem Ausgang statt route_missing.
+      const finanzOnline = name === 'getCashboxStatus' || name === 'getSignatureStatus';
+      const soll = finanzOnline && stoerung === 'HTML statt Antwort' ? 'Http:not-json' : erwartet;
       await assert.rejects(aufruf(holen), (fehler: unknown) => {
-        assert.equal(kennung(fehler), erwartet, `${name} / ${stoerung}`);
+        assert.equal(kennung(fehler), soll, `${name} / ${stoerung}`);
         return true;
       });
     }

@@ -1,7 +1,15 @@
-import type { ReportMonth } from '../models/index.js';
+import {
+  type Receipt,
+  type ReceiptCompany,
+  type ReceiptCompanyPayload,
+  type ReceiptPayloadRead,
+  type ReportMonth,
+  fromReceiptCompanyPayload,
+  fromReceiptPayload,
+} from '../models/index.js';
 import { toViennaWallClock } from '../vienna-time.js';
 import { KasseneckValidationError } from './errors.js';
-import type { InternerBinaerTransport } from './aufrufe.js';
+import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
 
 /**
  * Bericht-Downloads — Zwilling von `downloadDailyReport`/`downloadMonthlyReport`
@@ -35,7 +43,7 @@ import type { InternerBinaerTransport } from './aufrufe.js';
  */
 // `async`, damit auch die Eingabepruefung als abgelehntes Versprechen ankommt
 // und nicht als synchroner Wurf am `await` des Aufrufers vorbei.
-export async function downloadDailyReport(rufen: InternerBinaerTransport, date: Date): Promise<Uint8Array> {
+export async function downloadDailyReport(transport: InternerBinaerTransport, date: Date): Promise<Uint8Array> {
   let wanduhr;
   try {
     wanduhr = toViennaWallClock(date);
@@ -44,7 +52,7 @@ export async function downloadDailyReport(rufen: InternerBinaerTransport, date: 
     // Rumpf (JSON.stringify macht aus NaN null) und einen ratlosen Serverfehler.
     throw eingabefehler('downloadDailyReport', 'Uebergebener Zeitpunkt ist unbrauchbar (Invalid Date)');
   }
-  return rufen('downloadDailyReport', { year: wanduhr.year, month: wanduhr.month, day: wanduhr.day });
+  return transport('downloadDailyReport', { year: wanduhr.year, month: wanduhr.month, day: wanduhr.day });
 }
 
 /**
@@ -58,7 +66,7 @@ export async function downloadDailyReport(rufen: InternerBinaerTransport, date: 
  * wo `KeckMonth.january.id === 1` ist) — kein Name, kein nullbasierter Index.
  */
 export async function downloadMonthlyReport(
-  rufen: InternerBinaerTransport,
+  transport: InternerBinaerTransport,
   reportMonth: ReportMonth,
 ): Promise<Uint8Array> {
   const { month, year } = reportMonth;
@@ -68,7 +76,57 @@ export async function downloadMonthlyReport(
   if (!Number.isInteger(year)) {
     throw eingabefehler('downloadReport', `Berichtsmonat: year muss eine ganze Zahl sein, war "${year}"`);
   }
-  return rufen('downloadReport', { month, year });
+  return transport('downloadReport', { month, year });
+}
+
+/** Zeitfenster von [getReportV2]: Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel, `end` ausschliesslich. */
+export interface ReportV2Options {
+  start: string;
+  end: string;
+}
+
+/** Firmendaten des Berichts: die Beleg-Firmendaten plus die Bezeichnung der Kasse. */
+export interface ReportV2Metadata extends ReceiptCompany {
+  /** Bezeichnung der Kasse; leer, wenn keine gepflegt ist. */
+  label: string;
+}
+
+export interface ReportV2 {
+  /** Alle Belege der angemeldeten Kasse mit `start <= timeStamp < end`. */
+  receipts: Receipt[];
+  metadata: ReportV2Metadata;
+}
+
+/**
+ * Rohdaten eines Zeitraums (`getReportV2`): alle Belege der Kasse und die
+ * Firmendaten fuer Kopf und Fuss. Der Server vergleicht die Zeitstempel als
+ * Text (`start <= timeStamp < end`), darum Wiener Wanduhr im Serverformat.
+ * Nur ueber den API-Schluessel-Weg (Kasse aus dem `cashregister-token`).
+ */
+export async function getReportV2(transport: InternerTransport, options: ReportV2Options): Promise<ReportV2> {
+  for (const feld of ['start', 'end'] as const) {
+    const wert = options?.[feld];
+    if (typeof wert !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(wert)) {
+      throw eingabefehler('getReportV2', `${feld} muss mit YYYY-MM-DD beginnen, war "${String(wert)}"`);
+    }
+  }
+  if (options.start >= options.end) {
+    throw eingabefehler('getReportV2', 'end muss nach start liegen (end ist ausschliesslich)');
+  }
+  const daten = await transport<{ receipts?: unknown; metadata?: unknown }>('getReportV2', { start: options.start, end: options.end });
+  const liste = daten?.receipts;
+  if (!Array.isArray(liste) || liste.some((b) => b == null || typeof b !== 'object' || Array.isArray(b))) {
+    throw new KasseneckValidationError('getReportV2', 'Antwort enthaelt keine Belegliste (data.receipts fehlt)', 'response');
+  }
+  const meta = daten.metadata;
+  if (meta == null || typeof meta !== 'object' || Array.isArray(meta)) {
+    throw new KasseneckValidationError('getReportV2', 'Antwort enthaelt keine Firmendaten (data.metadata fehlt)', 'response');
+  }
+  const label = (meta as { label?: unknown }).label;
+  return {
+    receipts: liste.map((b) => fromReceiptPayload(b as ReceiptPayloadRead)),
+    metadata: { ...fromReceiptCompanyPayload(meta as ReceiptCompanyPayload), label: typeof label === 'string' ? label : '' },
+  };
 }
 
 /** Fehler in der Eingabe des Aufrufers — es geht keine Anfrage raus. */

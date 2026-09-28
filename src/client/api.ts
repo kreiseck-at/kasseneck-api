@@ -7,13 +7,12 @@ import {
 } from '../payments/stripe.js';
 import { hobexPay, hobexRefund, type HobexPayOptions, type HobexRefundOptions } from '../payments/hobex.js';
 import { createTransport, createBinaryTransport, type TransportOptions } from './transport.js';
-import { downloadDailyReport, downloadMonthlyReport } from './reports.js';
+import { downloadDailyReport, downloadMonthlyReport, getReportV2, type ReportV2, type ReportV2Options } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
 import {
   sellReceipt,
   sellReceiptWithCompany,
   cancelReceipt,
-  createCancelReceipt,
   zeroReceipt,
   getReceipt,
   getReceiptWithCompany,
@@ -27,10 +26,8 @@ import {
   type ReceiptList,
   type ReceiptWithCompany,
   type SellReceiptOptions,
-  type SellReceiptWithPaymentsOptions,
   type CancelReceiptOptions,
   type CancelReceiptResult,
-  type CreateCancelReceiptOptions,
 } from './receipts.js';
 import { listMyCashregisters } from './cashregisters.js';
 import { renewRegisterSession, endRegisterSession } from '../register/session.js';
@@ -61,13 +58,11 @@ import { renewRegisterSession, endRegisterSession } from '../register/session.js
  */
 export interface KasseneckApi {
   /** Normalbeleg (Verkauf). */
-  sellReceipt(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt>;
+  sellReceipt(options: SellReceiptOptions): Promise<Receipt>;
   /** Normalbeleg samt Firmen-/Druckdaten fuer den Belegdruck. */
-  sellReceiptWithCompany(options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<ReceiptWithCompany>;
+  sellReceiptWithCompany(options: SellReceiptOptions): Promise<ReceiptWithCompany>;
   /** Storno eines bestehenden Belegs — voll oder in Teilen, ueber den Storno-Endpunkt. */
   cancelReceipt(options: CancelReceiptOptions): Promise<CancelReceiptResult>;
-  /** Storno aus frei uebergebenen Positionen. */
-  createCancelReceipt(options: CreateCancelReceiptOptions): Promise<Receipt>;
   /** Nullbeleg (RKSV-Pruefbeleg). */
   zeroReceipt(): Promise<Receipt>;
   /** Einzelnen Beleg holen. */
@@ -84,6 +79,8 @@ export interface KasseneckApi {
   listMyReceipts(options: ListMyReceiptsOptions): Promise<ReceiptList>;
   /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
   listMyCashregisters(): Promise<Cashregister[]>;
+  /** Rohdaten eines Zeitraums: Belege und Firmendaten (`getReportV2`). */
+  getReportV2(options: ReportV2Options): Promise<ReportV2>;
   /** Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
   downloadDailyReport(date: Date): Promise<Uint8Array>;
   /** Monatsbericht als PDF (Endpunkt `downloadReport`). */
@@ -91,7 +88,7 @@ export interface KasseneckApi {
   /** Betriebsstatus der Kasse bei FinanzOnline. */
   getCashboxStatus(): Promise<CashboxStatus>;
   /** Status der Signatureinheit bei FinanzOnline. */
-  getSignatureStatus(zertifikatNrHex: string): Promise<SignatureStatus>;
+  getSignatureStatus(certificateSerialHex: string): Promise<SignatureStatus>;
   /** Stripe-Zahlungslink erzeugen (Endpunkt `createPaymentLinkStripe`). */
   createStripeLink(options: CreateStripeLinkOptions): Promise<StripeUrlSession>;
   /** Reservierte Stripe-Zahlung einziehen. */
@@ -115,7 +112,6 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     sellReceipt: (o) => sellReceipt(rufen, o),
     sellReceiptWithCompany: (o) => sellReceiptWithCompany(rufen, o),
     cancelReceipt: (o) => cancelReceipt(rufen, o),
-    createCancelReceipt: (o) => createCancelReceipt(rufen, o),
     zeroReceipt: () => zeroReceipt(rufen),
     getReceipt: (receiptId) => getReceipt(rufen, receiptId),
     getReceiptWithCompany: (receiptId) => getReceiptWithCompany(rufen, receiptId),
@@ -124,10 +120,11 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     listMyReceipts: (o) => listMyReceipts(rufen, o),
     sendReceiptEmail: (o) => sendReceiptEmail(rufen, o),
     listMyCashregisters: () => listMyCashregisters(rufen),
+    getReportV2: (o) => getReportV2(rufen, o),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
     getCashboxStatus: () => getCashboxStatus(rufen),
-    getSignatureStatus: (zertifikatNrHex) => getSignatureStatus(rufen, zertifikatNrHex),
+    getSignatureStatus: (certificateSerialHex) => getSignatureStatus(rufen, certificateSerialHex),
     createStripeLink: (o) => createStripeLink(rufen, o),
     stripeCaptureIntent: (stripeSessionId) => stripeCaptureIntent(rufen, stripeSessionId),
     hobexPay: (o) => hobexPay(rufen, o),

@@ -1,0 +1,114 @@
+{
+  "backend": [
+    {
+      "datei": "functions-kasse/kasse-settings-core.js",
+      "marke": null,
+      "sha256": "d9957b031a393d0e9a6ee288aaaa25d34c39e566ecad368146272ed1228af8af"
+    },
+    {
+      "datei": "functions-kasse/kasse-settings-v3.js",
+      "marke": "function nurGueltig(",
+      "sha256": "51a8e71d5279dc3e8cc23792625edddf98ac397dc8d170eb5af14779661aae4c"
+    },
+    {
+      "datei": "functions-kasse/article-groups-core.js",
+      "marke": "function kachelAttribute(",
+      "sha256": "c21ce308a1b8230a66e12a9fd78d27c14cd760ce64f0e1feeb9086959754c863"
+    },
+    {
+      "datei": "functions-kasse/article-endpoints.js",
+      "marke": "const listMyArticles = ",
+      "sha256": "c7334eefdc6d25c6d12a1f51465d2d180a33b7378fce5e702992ba6353e16473"
+    },
+    {
+      "datei": "functions/beleg-kopf-core.js",
+      "marke": null,
+      "sha256": "0dd75ae601a742beba863aac20ad610e3fd59373ea4cf84772a4e3f158087a68"
+    },
+    {
+      "datei": "functions/beleg-kopf.js",
+      "marke": "async function versionFuerBeleg(",
+      "sha256": "4fdbff502e5ce421a5589f1d113dab2ab99ac02aaae8dc2e51507c1be6c7fa27"
+    },
+    {
+      "datei": "functions/beleg-layout.js",
+      "marke": null,
+      "sha256": "fc674ad7d3cbab8d4ef8572af958a8b9a3b8ec1854365841f340857c8c0e2a6c"
+    },
+    {
+      "datei": "functions/beleg-pruefangaben.js",
+      "marke": null,
+      "sha256": "7378c148f2cb861355e85db1893676ccbbc015b6c503e86fc8748014c04ad673"
+    },
+    {
+      "datei": "functions/gemeinsam/storno-core.js",
+      "marke": "function ohneInterneStornoFelder(",
+      "sha256": "2671908095ddf48e773fd8b3853929d6fd2e5f97fd7992cd96e5543a7ef74154"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function schluessel(",
+      "sha256": "00623b2ba03f4da4d19659717d0672a75828e32e8cb65524b4d3f9da0d4899da"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function anPfad(",
+      "sha256": "4bd8bbee76f1e81c7ccef017d804d6c655ce7e0e1b872f53dea9800fd597b1fa"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function werteAbbilden(",
+      "sha256": "80483203518e4cdd1064ac5b34da5f952813c3adea913efb9fc5aee37e9ca8fc"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function bezugOhneMarke(",
+      "sha256": "6645138e4cb891c81baf9b154a2d5719cdd4d1ee7d86983ca4e00f898d5dae85"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function ohneStornoMarke(",
+      "sha256": "013be828b0a60dc7cf85feea556540a638ce9814d414b5820ecc5fe24bf1f29d"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function huelleOhneStornoMarke(",
+      "sha256": "b010c1c06b8a1b92bf34f3aff2568e5890354f6b19707559386345f6dea75453"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "const belegJeKanal = ",
+      "sha256": "f34abe753659b9c4d9fa3a9a64e19f8a32b467a197f0d8b697432df420fed241"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function nurBekannte(",
+      "sha256": "1b8bb51fe573ed1b6a80811fcec97b90082e6e061827a4f0fa62b6f4a2180814"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function artikelNachAussen(",
+      "sha256": "6e5cb6c58a0c658f3aae8f38a01e5553abdfde9627928618eeba00fbe760295d"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function antwortNachAussen(",
+      "sha256": "570adb5c274052fc00b53de5771b0505ad0a343c54e9c6236322a4e418748892"
+    },
+    {
+      "datei": "functions/index.js",
+      "marke": "async function belegKopfVersionOderKonto(",
+      "sha256": "d0a498a905057fa021544d3e34a5f9b351638300b3ecc264f2ed1fcaff527d7b"
+    },
+    {
+      "datei": "functions/index.js",
+      "marke": "async function belegAntwort(",
+      "sha256": "fe183ce56204b000c79a56da10dc90717e2aa8fe11420f5b037ff7d21f1f7d92"
+    }
+  ],
+  "zwilling": {
+    "src/stored/draht.ts": "7da3e5d5805eb54347fc197769049d565a7536be03463d4f363a2570c2f68e45",
+    "src/stored/einstellungen.ts": "45fc7b702455f49a44f9872fe24d892772fbb72a7bcfef8671e2e7fd43772fed",
+    "src/stored/index.ts": "474e6a7025e83a92f911f0eb146b512f30a4227619407739b771e99fd557dce6"
+  }
+}

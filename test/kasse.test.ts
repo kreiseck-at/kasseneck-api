@@ -2,24 +2,24 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  KASSE_BETRIEB_STANDARD,
-  KASSE_TASTEN_STANDARD,
-  KARTENANBIETER,
-  KASSE_GERAET_STANDARD,
-  mergeKasseSettings,
-  verteileRabatt,
+  POS_BUSINESS_DEFAULTS,
+  POS_SHORTCUT_DEFAULTS,
+  CARD_PROVIDER,
+  POS_DEVICE_DEFAULTS,
+  mergePosSettings,
+  distributeDiscount,
   fromArticleGroupPayload,
-  fromKasseArtikelPayload,
-  mengeErlaubt,
-  getKasseSettings,
-  setMyKasseSettings,
+  fromPosArticlePayload,
+  allowedQuantity,
+  getPosSettings,
+  setMyPosSettings,
   setMyRegisterDeviceSettings,
   listMyArticleGroups,
   listMyArticles,
-  mengenregelFuerEinheit,
-  mengenVorgabe,
+  quantityRuleForUnit,
+  quantityDefaults,
   listMyTipRecipients,
-} from '../src/kasse/index.js';
+} from '../src/pos/index.js';
 import { fromReceiptSummaryPayload } from '../src/models/index.js';
 import { listMyReceipts, createTransport, apiKeyAuth, type KasseneckTransport, type FetchLike, type HttpResponseLike } from '../src/client/index.js';
 import { VatRate } from '../src/enums/index.js';
@@ -34,7 +34,7 @@ function transportMit(daten: unknown): { rufen: KasseneckTransport; aufrufe: Auf
     const rumpf = JSON.stringify({ status: 'success', message: '', data: daten });
     const antwort: HttpResponseLike = {
       status: 200,
-      headers: { get: (n: string) => (n.toLowerCase() === 'content-type' ? 'application/json' : null) },
+      headers: { get: (n: string) => (n.toLowerCase() === 'content-type' ? 'application/json' : n.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
       text: async () => rumpf,
       arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
     };
@@ -51,33 +51,33 @@ function gesendet(aufrufe: Aufruf[]): { fn: string; params: Record<string, unkno
 
 // --- Einstellungen: Standardwerte + Merge -----------------------------------
 test('Standardwerte: klar, Korb rechts, Trinkgeld aus, Beleg fragt -- wie im Backend', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.stil, 'klar');
-  assert.equal(KASSE_BETRIEB_STANDARD.trinkgeld, false);
+  assert.equal(POS_BUSINESS_DEFAULTS.theme, 'clear');
+  assert.equal(POS_BUSINESS_DEFAULTS.tip, false);
   // 'fragen': Fertig-Seite bietet QR und Bon an — Standard seit 0.6.21.
-  assert.equal(KASSE_BETRIEB_STANDARD.belegAusgabe, 'fragen');
-  assert.deepEqual(KASSE_BETRIEB_STANDARD.saetze, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false });
-  assert.equal(KASSE_GERAET_STANDARD.layout, 'rechts');
-  assert.equal(KASSE_GERAET_STANDARD.druckerPort, 9100);
-  assert.equal(KASSE_GERAET_STANDARD.touch, false); // Standard: Tastatur, kein Ziffernfeld
+  assert.equal(POS_BUSINESS_DEFAULTS.receiptOutput, 'ask');
+  assert.deepEqual(POS_BUSINESS_DEFAULTS.vatRates, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: false });
+  assert.equal(POS_DEVICE_DEFAULTS.layout, 'right');
+  assert.equal(POS_DEVICE_DEFAULTS.printerPort, 9100);
+  assert.equal(POS_DEVICE_DEFAULTS.touch, false); // Standard: Tastatur, kein Ziffernfeld
   // Schluesselmengen sind getrennt
-  const b = Object.keys(KASSE_BETRIEB_STANDARD), g = Object.keys(KASSE_GERAET_STANDARD);
+  const b = Object.keys(POS_BUSINESS_DEFAULTS), g = Object.keys(POS_DEVICE_DEFAULTS);
   assert.deepEqual(b.filter((x) => g.includes(x)), []);
 });
 
-test('mergeKasseSettings: gespeichertes ueberlagert, Landkarten je Schluessel, Unbekanntes bleibt draussen', () => {
-  const r = mergeKasseSettings(KASSE_BETRIEB_STANDARD, { stil: 'warm', saetze: { 19: true }, foo: 1 } as never);
-  assert.equal(r.stil, 'warm');
-  assert.deepEqual(r.saetze, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: true });
+test('mergePosSettings: gespeichertes ueberlagert, Landkarten je Schluessel, Unbekanntes bleibt draussen', () => {
+  const r = mergePosSettings(POS_BUSINESS_DEFAULTS, { theme: 'warm', vatRates: { 19: true }, foo: 1 } as never);
+  assert.equal(r.theme, 'warm');
+  assert.deepEqual(r.vatRates, { 20: true, 13: true, 10: true, 4.9: true, 0: true, 19: true });
   assert.equal((r as unknown as Record<string, unknown>)['foo'], undefined);
-  assert.deepEqual(mergeKasseSettings(KASSE_GERAET_STANDARD, null), KASSE_GERAET_STANDARD);
+  assert.deepEqual(mergePosSettings(POS_DEVICE_DEFAULTS, null), POS_DEVICE_DEFAULTS);
 });
 
 // --- Rabattverteilung --------------------------------------------------------
 const SEMMEL: ReceiptItem = { name: 'Semmel', quantity: 4, vat: VatRate.vat10, priceCents: 79 };  // 3,16 (10 %)
 const KAFFEE: ReceiptItem = { name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 280 }; // 2,80 (20 %)
 
-test('verteileRabatt: eine negative Rabattzeile je Steuersatz, anteilig zum Brutto, Summe = Rabatt', () => {
-  const zeilen = verteileRabatt([SEMMEL, KAFFEE], 100);
+test('distributeDiscount: eine negative Rabattzeile je Steuersatz, anteilig zum Brutto, Summe = Rabatt', () => {
+  const zeilen = distributeDiscount([SEMMEL, KAFFEE], 100);
   assert.equal(zeilen.length, 2);
   const summe = zeilen.reduce((s, z) => s + z.priceCents * z.quantity, 0);
   assert.equal(summe, -100);
@@ -89,46 +89,46 @@ test('verteileRabatt: eine negative Rabattzeile je Steuersatz, anteilig zum Brut
   assert.equal(zehn.quantity, 1);
 });
 
-test('verteileRabatt: nur ein Satz -> eine Zeile; kein Rabatt -> keine Zeile; nie ueber den Umsatz eines Satzes', () => {
-  assert.equal(verteileRabatt([SEMMEL], 50).length, 1);
-  assert.deepEqual(verteileRabatt([SEMMEL, KAFFEE], 0), []);
-  const alles = verteileRabatt([SEMMEL, KAFFEE], 596);
+test('distributeDiscount: nur ein Satz -> eine Zeile; kein Rabatt -> keine Zeile; nie ueber den Umsatz eines Satzes', () => {
+  assert.equal(distributeDiscount([SEMMEL], 50).length, 1);
+  assert.deepEqual(distributeDiscount([SEMMEL, KAFFEE], 0), []);
+  const alles = distributeDiscount([SEMMEL, KAFFEE], 596);
   assert.equal(alles.reduce((s, z) => s + z.priceCents, 0), -596);
-  assert.throws(() => verteileRabatt([SEMMEL], 400), /Rabatt/);
-  assert.throws(() => verteileRabatt([SEMMEL], -1), /Rabatt/);
+  assert.throws(() => distributeDiscount([SEMMEL], 400), /Rabatt/);
+  assert.throws(() => distributeDiscount([SEMMEL], -1), /Rabatt/);
 });
 
-test('verteileRabatt: Cent-Rest landet bei der groessten Gruppe, jede Zeile <= Umsatz ihres Satzes (Rot-Probe: 1 Cent auf drei Saetze)', () => {
+test('distributeDiscount: Cent-Rest landet bei der groessten Gruppe, jede Zeile <= Umsatz ihres Satzes (Rot-Probe: 1 Cent auf drei Saetze)', () => {
   const drei: ReceiptItem[] = [SEMMEL, KAFFEE, { name: 'Zeitung', quantity: 1, vat: VatRate.vat0, priceCents: 250 }];
-  const z = verteileRabatt(drei, 1);
+  const z = distributeDiscount(drei, 1);
   assert.equal(z.length, 1);
   assert.equal(z[0]!.vat, VatRate.vat10); // groesste Gruppe 3,16
-  for (const zeile of verteileRabatt(drei, 845)) {
+  for (const zeile of distributeDiscount(drei, 845)) {
     const umsatz = drei.filter((p) => p.vat === zeile.vat).reduce((s, p) => s + p.priceCents * p.quantity, 0);
     assert.ok(-zeile.priceCents <= umsatz);
   }
 });
 
 // --- Artikelgruppen + Artikel fuer die Kacheln --------------------------------
-test('fromArticleGroupPayload / fromKasseArtikelPayload lesen die Backend-Form', () => {
+test('fromArticleGroupPayload / fromPosArticlePayload lesen die Backend-Form', () => {
   const g = fromArticleGroupPayload({ id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   assert.deepEqual(g, { id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
-  const a = fromKasseArtikelPayload({ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', kasse: { sichtbar: true, sort: 2 }, active: true });
-  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', sichtbar: true, sort: 2, active: true, mengenregel: null, mengeFragen: null, maxMenge: null });
+  const a = fromPosArticlePayload({ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', tile: { visible: true, sort: 2 }, active: true });
+  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', revenueGroupId: null, visible: true, sort: 2, active: true, quantityRule: null, askQuantity: null, maxQuantity: null });
   // Hoechstmenge je Beleg: nur positive ganze Zahlen zaehlen, sonst keine Grenze
-  assert.equal(fromKasseArtikelPayload({ id: 'a2', name: 'Torte', maxMenge: 3 }).maxMenge, 3);
-  assert.equal(fromKasseArtikelPayload({ id: 'a3', name: 'X', maxMenge: 0 }).maxMenge, null);
-  assert.equal(fromKasseArtikelPayload({ id: 'a4', name: 'X', maxMenge: 2.5 }).maxMenge, 2.5); // Kommazahl (2,5 kg)
-  assert.equal(fromKasseArtikelPayload({ id: 'a5', name: 'X', maxMenge: -1 }).maxMenge, null);
-  assert.equal(mengeErlaubt({ maxMenge: 2.5 }, 3), 2.5);
-  assert.equal(mengeErlaubt({ maxMenge: 3 }, 2), 2);
-  assert.equal(mengeErlaubt({ maxMenge: 3 }, 5), 3);
-  assert.equal(mengeErlaubt({ maxMenge: null }, 500), 500);
-  assert.equal(mengeErlaubt({ maxMenge: 3 }, 0), 0);
+  assert.equal(fromPosArticlePayload({ id: 'a2', name: 'Torte', maxQuantity: 3 }).maxQuantity, 3);
+  assert.equal(fromPosArticlePayload({ id: 'a3', name: 'X', maxQuantity: 0 }).maxQuantity, null);
+  assert.equal(fromPosArticlePayload({ id: 'a4', name: 'X', maxQuantity: 2.5 }).maxQuantity, 2.5); // Kommazahl (2,5 kg)
+  assert.equal(fromPosArticlePayload({ id: 'a5', name: 'X', maxQuantity: -1 }).maxQuantity, null);
+  assert.equal(allowedQuantity({ maxQuantity: 2.5 }, 3), 2.5);
+  assert.equal(allowedQuantity({ maxQuantity: 3 }, 2), 2);
+  assert.equal(allowedQuantity({ maxQuantity: 3 }, 5), 3);
+  assert.equal(allowedQuantity({ maxQuantity: null }, 500), 500);
+  assert.equal(allowedQuantity({ maxQuantity: 3 }, 0), 0);
   // Altbestand ohne Kachel-Felder
-  const alt = fromKasseArtikelPayload({ id: 'a2', name: 'Alt', unitPriceCents: 100, vatRate: 20 });
+  const alt = fromPosArticlePayload({ id: 'a2', name: 'Alt', unitPriceCents: 100, vatRate: 20 });
   assert.equal(alt.groupId, null);
-  assert.equal(alt.sichtbar, true);
+  assert.equal(alt.visible, true);
   assert.equal(alt.unit, '');
 });
 
@@ -137,42 +137,42 @@ test('listMyArticleGroups und listMyArticles rufen die Endpunkte und lesen die L
   const gruppen = await listMyArticleGroups(g.rufen);
   assert.equal(gesendet(g.aufrufe).fn, 'listMyArticleGroups');
   assert.equal(gruppen[0]!.symbol, null);
-  const a = transportMit({ articles: [{ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, groupId: null, kasse: { sichtbar: false, sort: 0 } }] });
+  const a = transportMit({ articles: [{ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, groupId: null, tile: { visible: false, sort: 0 } }] });
   const artikel = await listMyArticles(a.rufen);
   assert.equal(gesendet(a.aufrufe).fn, 'listMyArticles');
-  assert.equal(artikel[0]!.sichtbar, false);
+  assert.equal(artikel[0]!.visible, false);
   const kaputt = transportMit({ nix: true });
   await assert.rejects(() => listMyArticleGroups(kaputt.rufen), /groups/);
 });
 
 // --- Einstellungen: Client -----------------------------------------------------
-test('getKasseSettings mischt die Antwort mit den Standardwerten', async () => {
-  const { rufen, aufrufe } = transportMit({ betrieb: { stil: 'nacht' }, geraet: { layout: 'links' } });
-  const s = await getKasseSettings(rufen, { deviceId: 'dev1' });
+test('getPosSettings mischt die Antwort mit den Standardwerten', async () => {
+  const { rufen, aufrufe } = transportMit({ business: { theme: 'night' }, device: { layout: 'left' } });
+  const s = await getPosSettings(rufen, { deviceId: 'dev1' });
   assert.deepEqual(gesendet(aufrufe).params, { deviceId: 'dev1' });
-  assert.equal(s.betrieb.stil, 'nacht');
-  assert.equal(s.betrieb.freiErlaubt, true);
-  assert.equal(s.geraet.layout, 'links');
-  assert.equal(s.geraet.druckerPort, 9100);
+  assert.equal(s.business.theme, 'night');
+  assert.equal(s.business.customAmountAllowed, true);
+  assert.equal(s.device.layout, 'left');
+  assert.equal(s.device.printerPort, 9100);
 });
 
-test('setMyKasseSettings / setMyRegisterDeviceSettings senden nur den Block und lesen den Stand zurueck', async () => {
-  const b = transportMit({ betrieb: { stil: 'warm' } });
-  const rb = await setMyKasseSettings(b.rufen, { stil: 'warm' });
-  assert.deepEqual(gesendet(b.aufrufe).params, { betrieb: { stil: 'warm' } });
-  assert.equal(rb.stil, 'warm');
-  const g = transportMit({ geraet: { layout: 'vollbild' } });
-  const rg = await setMyRegisterDeviceSettings(g.rufen, 'dev1', { layout: 'vollbild' });
-  assert.deepEqual(gesendet(g.aufrufe).params, { deviceId: 'dev1', geraet: { layout: 'vollbild' } });
-  assert.equal(rg.layout, 'vollbild');
-  await assert.rejects(() => setMyKasseSettings(b.rufen, {} as never), /Einstellungen/);
+test('setMyPosSettings / setMyRegisterDeviceSettings senden nur den Block und lesen den Stand zurueck', async () => {
+  const b = transportMit({ business: { theme: 'warm' } });
+  const rb = await setMyPosSettings(b.rufen, { theme: 'warm' });
+  assert.deepEqual(gesendet(b.aufrufe).params, { business: { theme: 'warm' } });
+  assert.equal(rb.theme, 'warm');
+  const g = transportMit({ device: { layout: 'fullscreen' } });
+  const rg = await setMyRegisterDeviceSettings(g.rufen, 'dev1', { layout: 'fullscreen' });
+  assert.deepEqual(gesendet(g.aufrufe).params, { deviceId: 'dev1', device: { layout: 'fullscreen' } });
+  assert.equal(rg.layout, 'fullscreen');
+  await assert.rejects(() => setMyPosSettings(b.rufen, {} as never), /Einstellungen/);
 });
 
 // --- Belegliste: Zeitfenster + neue Felder ---------------------------------------
 test('listMyReceipts schickt from/to und liest Positionen, Bediener und Storno-Stand', async () => {
   const { rufen, aufrufe } = transportMit({
     receipts: [{ receiptId: 'K-ID-9', receiptType: 'standard', timeStamp: '2026-08-16T09:00:00', total: 4.56, paymentMethod: 'cash',
-      items: [{ name: 'Semmel', quantity: 2 }], operator: { uid: 'anna', name: 'Anna' }, cancellationOf: null, cancellationReason: null, stornoStand: 'teil' }],
+      items: [{ name: 'Semmel', quantity: 2 }], operator: { uid: 'anna', name: 'Anna' }, cancellationOf: null, cancellationReason: null, cancellationStatus: 'partial' }],
     stats: { today: { revenue_cents: 0, count: 0 }, trend_percent: null, days: [] },
   });
   const l = await listMyReceipts(rufen, { cashregisterId: 'K', from: '2026-08-16', to: '2026-08-16' });
@@ -182,7 +182,7 @@ test('listMyReceipts schickt from/to und liest Positionen, Bediener und Storno-S
   const b = l.receipts[0]!;
   assert.deepEqual(b.items, [{ name: 'Semmel', quantity: 2 }]);
   assert.deepEqual(b.operator, { uid: 'anna', name: 'Anna' });
-  assert.equal(b.stornoStand, 'teil');
+  assert.equal(b.cancellationStatus, 'partial');
   assert.equal(b.cancellationOf, undefined);
 });
 
@@ -197,83 +197,88 @@ test('fromReceiptSummaryPayload ohne die neuen Felder bleibt wie bisher', () => 
   const s = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash' });
   assert.deepEqual(s.items, []);
   assert.equal(s.operator, undefined);
-  assert.equal(s.stornoStand, 'offen');
+  assert.equal(s.cancellationStatus, undefined);
+  // Ein unbekannter oder alter Wert kommt sichtbar an, nie still als 'none'.
+  for (const roh of ['voll', 'refunded']) {
+    const u = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash', cancellationStatus: roh });
+    assert.equal(u.cancellationStatus, 'unknown', roh);
+  }
 });
 
 test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit Fragen; g/ml ganz mit Fragen), gespeicherte Angabe schlaegt', () => {
-  assert.deepEqual(mengenregelFuerEinheit('Stk'), { regel: 'stueck', fragen: false, stellen: 0 });
-  assert.deepEqual(mengenregelFuerEinheit('kg'), { regel: 'dezimal', fragen: true, stellen: 3 });
-  assert.deepEqual(mengenregelFuerEinheit('l'), { regel: 'dezimal', fragen: true, stellen: 2 });
-  assert.deepEqual(mengenregelFuerEinheit('g'), { regel: 'stueck', fragen: true, stellen: 0 });
-  assert.deepEqual(mengenregelFuerEinheit(''), { regel: 'stueck', fragen: false, stellen: 0 });
-  const wurst = fromKasseArtikelPayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg' });
-  assert.deepEqual(mengenVorgabe(wurst), { regel: 'dezimal', fragen: true, stellen: 3 });
-  const stueckwurst = fromKasseArtikelPayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg', mengenregel: 'stueck', mengeFragen: false });
-  assert.deepEqual(mengenVorgabe(stueckwurst), { regel: 'stueck', fragen: false, stellen: 0 });
+  assert.deepEqual(quantityRuleForUnit('Stk'), { rule: 'piece', ask: false, decimals: 0 });
+  assert.deepEqual(quantityRuleForUnit('kg'), { rule: 'decimal', ask: true, decimals: 3 });
+  assert.deepEqual(quantityRuleForUnit('l'), { rule: 'decimal', ask: true, decimals: 2 });
+  assert.deepEqual(quantityRuleForUnit('g'), { rule: 'piece', ask: true, decimals: 0 });
+  assert.deepEqual(quantityRuleForUnit(''), { rule: 'piece', ask: false, decimals: 0 });
+  const wurst = fromPosArticlePayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg' });
+  assert.deepEqual(quantityDefaults(wurst), { rule: 'decimal', ask: true, decimals: 3 });
+  const stueckwurst = fromPosArticlePayload({ id: 'w', name: 'Wurst', unitPriceCents: 1990, vatRate: 10, unit: 'kg', quantityRule: 'piece', askQuantity: false });
+  assert.deepEqual(quantityDefaults(stueckwurst), { rule: 'piece', ask: false, decimals: 0 });
   // Rot-Probe: Unsinn im Payload faellt auf null zurueck
-  assert.equal(fromKasseArtikelPayload({ id: 'x', name: 'x', mengenregel: 'halb' }).mengenregel, null);
+  assert.equal(fromPosArticlePayload({ id: 'x', name: 'x', quantityRule: 'halb' }).quantityRule, null);
 });
 
 test('Kassieren: Vorgabe im Korb-Panel -- die Kacheln bleiben stehen (seit 0.31.0)', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.kassierenModus, 'panel');
+  assert.equal(POS_BUSINESS_DEFAULTS.checkoutMode, 'panel');
   // Ein gespeichertes 'seite' bleibt beim Mischen erhalten.
-  assert.equal(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { kassierenModus: 'seite' }).kassierenModus, 'seite');
+  assert.equal(mergePosSettings(POS_BUSINESS_DEFAULTS, { checkoutMode: 'page' }).checkoutMode, 'page');
 });
 
 test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
-  assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);
-  assert.deepEqual([...KARTENANBIETER], ['keiner', 'extern', 'gptom', 'hobex', 'mypos', 'stripe']);
+  assert.equal(POS_BUSINESS_DEFAULTS.cardProvider, 'none');
+  assert.equal(POS_BUSINESS_DEFAULTS.payCard, false);
+  assert.deepEqual([...CARD_PROVIDER], ['none', 'external', 'gptom', 'hobex', 'mypos', 'stripe']);
 });
 
 test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {
   // Mod+F gehoert seit 0.6.24 dem Vollbild, Mod+B seit 0.6.25 den Belegen.
-  assert.equal(KASSE_TASTEN_STANDARD.frei[0], 'Mod+D');
-  assert.equal(KASSE_TASTEN_STANDARD.vollbild[0], 'Mod+F');
-  assert.equal(KASSE_TASTEN_STANDARD.belege[0], 'Mod+J');
-  assert.equal(KASSE_TASTEN_STANDARD.bar[0], 'Mod+B');
-  assert.ok(!Object.values(KASSE_TASTEN_STANDARD).flat().some((t) => /^F\d/.test(t)));
-  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: { ...KASSE_TASTEN_STANDARD, bar: ['Mod+G'] } });
-  assert.deepEqual(g.tasten.bar, ['Mod+G']);
-  assert.deepEqual(g.tasten.karte, ['Mod+K']);
+  assert.equal(POS_SHORTCUT_DEFAULTS.customAmount[0], 'Mod+D');
+  assert.equal(POS_SHORTCUT_DEFAULTS.fullscreen[0], 'Mod+F');
+  assert.equal(POS_SHORTCUT_DEFAULTS.receipts[0], 'Mod+J');
+  assert.equal(POS_SHORTCUT_DEFAULTS.cash[0], 'Mod+B');
+  assert.ok(!Object.values(POS_SHORTCUT_DEFAULTS).flat().some((t) => /^F\d/.test(t)));
+  const g = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: { ...POS_SHORTCUT_DEFAULTS, cash: ['Mod+G'] } });
+  assert.deepEqual(g.shortcuts.cash, ['Mod+G']);
+  assert.deepEqual(g.shortcuts.card, ['Mod+K']);
 });
 
 test('schnellLogin (Vorgabe an) und tgChips (Vorgabe 5/10) stehen im Betriebs-Standard', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.schnellLogin, true);
-  assert.deepEqual(KASSE_BETRIEB_STANDARD.tgChips, [5, 10]);
-  assert.deepEqual(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { tgChips: [7.5] }).tgChips, [7.5]);
+  assert.equal(POS_BUSINESS_DEFAULTS.fastLogin, true);
+  assert.deepEqual(POS_BUSINESS_DEFAULTS.tipChips, [5, 10]);
+  assert.deepEqual(mergePosSettings(POS_BUSINESS_DEFAULTS, { tipChips: [7.5] }).tipChips, [7.5]);
 });
 
 // --- Netzwerk-Bondrucker (Server Direct Print) --------------------------------
-import { listMyPrinters, createPrintJob, getPrintJob } from '../src/kasse/index.js';
-import { KASSE_GERAET_STANDARD as GERAET_STD } from '../src/kasse/index.js';
+import { listMyPrinters, createPrintJob, getPrintJob } from '../src/pos/index.js';
+import { POS_DEVICE_DEFAULTS as GERAET_STD } from '../src/pos/index.js';
 
 test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-Einstellungen kennen sdp + druckerId', async () => {
-  const l = transportMit({ drucker: [{ id: 'd1', name: 'Theke', art: 'epson-sdp', papier: 'mm58', aktiv: true, erstellt: 1, zuletztGesehen: 5, zuletztErgebnis: null, druckerKennung: 'TM-m30III' }] });
+  const l = transportMit({ printers: [{ id: 'd1', name: 'Theke', kind: 'epson-sdp', paperSize: 'mm58', active: true, createdAt: 1, lastSeenAt: 5, lastResult: null, printerSerial: 'TM-m30III' }] });
   const drucker = await listMyPrinters(l.rufen);
   assert.equal(gesendet(l.aufrufe).fn, 'listMyPrinters');
-  assert.deepEqual(drucker.map((d) => [d.id, d.name, d.papier, d.zuletztGesehen]), [['d1', 'Theke', 'mm58', 5]]);
-  const c = transportMit({ jobId: 'j1', status: 'offen' });
-  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
-  const job = await createPrintJob(c.rufen, { druckerId: 'd1', layout, receiptId: 'K1-ID-1', titel: 'Beleg', quelle: 'kasse' });
+  assert.deepEqual(drucker.map((d) => [d.id, d.name, d.paperSize, d.lastSeenAt]), [['d1', 'Theke', 'mm58', 5]]);
+  const c = transportMit({ jobId: 'j1', status: 'pending' });
+  const layout = { paperSize: 'mm80' as const, ruleset: 2 as const, lines: [] };
+  const job = await createPrintJob(c.rufen, { printerId: 'd1', layout, receiptId: 'K1-ID-1', title: 'Beleg', source: 'pos' });
   assert.equal(job.jobId, 'j1');
   const g = gesendet(c.aufrufe);
   assert.equal(g.fn, 'createPrintJob');
-  assert.deepEqual(g.params, { druckerId: 'd1', layout, receiptId: 'K1-ID-1', titel: 'Beleg', quelle: 'kasse' });
-  const s = transportMit({ jobId: 'j1', status: 'gedruckt', erstellt: 1, gesendetAt: 2, ergebnis: { erfolg: true, code: null, status: '0', zeit: 3 } });
-  const st = await getPrintJob(s.rufen, { druckerId: 'd1', jobId: 'j1' });
-  assert.equal(st.status, 'gedruckt');
-  assert.equal(st.ergebnis?.erfolg, true);
+  assert.deepEqual(g.params, { printerId: 'd1', layout, receiptId: 'K1-ID-1', title: 'Beleg', source: 'pos' });
+  const s = transportMit({ jobId: 'j1', status: 'printed', createdAt: 1, sentAt: 2, result: { success: true, code: null, status: '0', at: 3 } });
+  const st = await getPrintJob(s.rufen, { printerId: 'd1', jobId: 'j1' });
+  assert.equal(st.status, 'printed');
+  assert.equal(st.result?.success, true);
   // Einstellungen: neue Verbindungsart und Drucker-Kennung
-  assert.equal(GERAET_STD.druckerId, '');
+  assert.equal(GERAET_STD.printerId, '');
   // Epson direkt per IP (ePOS): Device-ID des Druckers, Vorgabe local_printer
-  assert.equal(GERAET_STD.druckerDevid, 'local_printer');
-  const rd = await getKasseSettings(transportMit({ geraet: { druckerArt: 'netz', druckerIp: '192.168.0.136', druckerDevid: 'theke' } }).rufen);
-  assert.equal(rd.geraet.druckerDevid, 'theke');
-  assert.equal(rd.geraet.druckerIp, '192.168.0.136');
-  const rz = await getKasseSettings(transportMit({ geraet: { druckerArt: 'sdp', druckerId: 'd1' } }).rufen);
-  assert.equal(rz.geraet.druckerArt, 'sdp');
-  assert.equal(rz.geraet.druckerId, 'd1');
+  assert.equal(GERAET_STD.printerDeviceId, 'local_printer');
+  const rd = await getPosSettings(transportMit({ device: { printerType: 'network', printerIp: '192.168.0.136', printerDeviceId: 'theke' } }).rufen);
+  assert.equal(rd.device.printerDeviceId, 'theke');
+  assert.equal(rd.device.printerIp, '192.168.0.136');
+  const rz = await getPosSettings(transportMit({ device: { printerType: 'sdp', printerId: 'd1' } }).rufen);
+  assert.equal(rz.device.printerType, 'sdp');
+  assert.equal(rz.device.printerId, 'd1');
 });
 
 /**
@@ -282,33 +287,33 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
  * Ohne Angabe bleibt die Nutzlast wie bisher.
  */
 test('createPrintJob: Logo als Mass + Base64-Zeilen, Marke nur wenn gesetzt; ohne beides Nutzlast wie bisher', async () => {
-  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
-  const raster = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
+  const layout = { paperSize: 'mm80' as const, ruleset: 2 as const, lines: [] };
+  const raster = { width: 10, height: 2, dots: new Uint8Array(20).fill(1) };
 
-  const mit = transportMit({ jobId: 'j2', status: 'offen' });
-  await createPrintJob(mit.rufen, { druckerId: 'd1', layout, logo: { stufe: 'S', pxBreite: 40, pxHoehe: 20, raster }, marke: true });
+  const mit = transportMit({ jobId: 'j2', status: 'pending' });
+  await createPrintJob(mit.rufen, { printerId: 'd1', layout, logo: { size: 'S', pixelWidth: 40, pixelHeight: 20, raster }, brandMark: true });
   const g = gesendet(mit.aufrufe);
   assert.equal(g.fn, 'createPrintJob');
-  assert.deepEqual(g.params.logo, { stufe: 'S', pxBreite: 40, pxHoehe: 20, breite: 10, hoehe: 2, zeilen: '/8D/wA==' });
-  assert.equal(g.params.marke, true);
+  assert.deepEqual(g.params.logo, { scale: 'S', pxWidth: 40, pxHeight: 20, width: 10, height: 2, rows: '/8D/wA==' });
+  assert.equal(g.params.brand, true);
 
-  const ohne = transportMit({ jobId: 'j3', status: 'offen' });
-  await createPrintJob(ohne.rufen, { druckerId: 'd1', layout, logo: null, marke: false });
-  assert.deepEqual(Object.keys(gesendet(ohne.aufrufe).params).sort(), ['druckerId', 'layout']);
+  const ohne = transportMit({ jobId: 'j3', status: 'pending' });
+  await createPrintJob(ohne.rufen, { printerId: 'd1', layout, logo: null, brandMark: false });
+  assert.deepEqual(Object.keys(gesendet(ohne.aufrufe).params).sort(), ['layout', 'printerId']);
 });
 
 test('Kasseneck Connect: connectDruckerId + terminalVia im Geraet-Standard, Merge nimmt sie an, unbekannte Schluessel bleiben draussen', () => {
-  assert.equal(KASSE_GERAET_STANDARD.connectDruckerId, '');
-  assert.equal(KASSE_GERAET_STANDARD.terminalVia, 'direkt');
+  assert.equal(POS_DEVICE_DEFAULTS.connectPrinterId, '');
+  assert.equal(POS_DEVICE_DEFAULTS.terminalVia, 'direct');
   // Kartenterminal: ohne Zuweisung 'keins', HPS-Port-Vorgabe 8080 (20008 war nie funktionsfaehig).
-  assert.equal(KASSE_GERAET_STANDARD.terminalArt, 'keins');
-  assert.equal(KASSE_GERAET_STANDARD.terminalTid, '');
-  assert.equal(KASSE_GERAET_STANDARD.terminalPort, 8080);
-  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { druckerArt: 'connect', connectDruckerId: 'p_x', terminalVia: 'connect', terminalArt: 'hps', terminalTid: '3600335', unsinn: 'weg' } as never);
-  assert.equal(g.druckerArt, 'connect');
-  assert.equal(g.connectDruckerId, 'p_x');
+  assert.equal(POS_DEVICE_DEFAULTS.terminalType, 'none');
+  assert.equal(POS_DEVICE_DEFAULTS.terminalTid, '');
+  assert.equal(POS_DEVICE_DEFAULTS.terminalPort, 8080);
+  const g = mergePosSettings(POS_DEVICE_DEFAULTS, { printerType: 'connect', connectPrinterId: 'p_x', terminalVia: 'connect', terminalType: 'hps', terminalTid: '3600335', unsinn: 'weg' } as never);
+  assert.equal(g.printerType, 'connect');
+  assert.equal(g.connectPrinterId, 'p_x');
   assert.equal(g.terminalVia, 'connect');
-  assert.equal(g.terminalArt, 'hps');
+  assert.equal(g.terminalType, 'hps');
   assert.equal(g.terminalTid, '3600335');
   assert.ok(!('unsinn' in g));
 });
@@ -324,50 +329,50 @@ test('QR-Modus des Bondruckers: unbestimmt als Vorgabe, beide Modi annehmbar, Li
   // nie durch den Wizard lief, druckte ploetzlich anders als bisher. 'auto'
   // heisst "hier hat niemand entschieden" — jede Kasse bleibt bei ihrer
   // Praxis, bis ein ausdruecklicher Wert danebensteht.
-  assert.equal(KASSE_GERAET_STANDARD.qrModus, 'auto');
-  const e = mergeKasseSettings(KASSE_GERAET_STANDARD, { qrModus: 'escpos' });
-  assert.equal(e.qrModus, 'escpos');
-  const r = mergeKasseSettings(KASSE_GERAET_STANDARD, { qrModus: 'raster' });
-  assert.equal(r.qrModus, 'raster');
+  assert.equal(POS_DEVICE_DEFAULTS.qrMode, 'auto');
+  const e = mergePosSettings(POS_DEVICE_DEFAULTS, { qrMode: 'escpos' });
+  assert.equal(e.qrMode, 'escpos');
+  const r = mergePosSettings(POS_DEVICE_DEFAULTS, { qrMode: 'raster' });
+  assert.equal(r.qrMode, 'raster');
   // Als Laufzeitliste und nicht nur als Typ: der Backend-Validator und das
   // Flutter-Paket pruefen gegen genau diese Werte.
-  assert.deepEqual([...QR_MODUS], ['auto', 'raster', 'escpos']);
+  assert.deepEqual([...QR_MODE], ['auto', 'raster', 'escpos']);
 });
 
-test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/kasse-settings-standard.json', () => {
+test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/pos-settings-defaults.json', () => {
   // Die Datei ist die Zusage an die Zwillinge (Backend, Flutter-Kasse). Weicht
   // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu
   // veroeffentlichen — oder umgekehrt.
-  const datei = JSON.parse(readFileSync(new URL('../../fixtures/kasse-settings-standard.json', import.meta.url), 'utf8'));
-  assert.deepEqual(datei, JSON.parse(JSON.stringify({ betrieb: KASSE_BETRIEB_STANDARD, geraet: KASSE_GERAET_STANDARD })),
-    'fixtures/kasse-settings-standard.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
+  const datei = JSON.parse(readFileSync(new URL('../../fixtures/pos-settings-defaults.json', import.meta.url), 'utf8'));
+  assert.deepEqual(datei, JSON.parse(JSON.stringify({ business: POS_BUSINESS_DEFAULTS, device: POS_DEVICE_DEFAULTS })),
+    'fixtures/pos-settings-defaults.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
 });
 
 // --- Laufzeitlisten ----------------------------------------------------------
 // Die Enums sind Daten, nicht nur Typen: die Zwillinge (Backend-Validator,
 // Flutter-Paket) pruefen gegen genau diese Listen.
 import {
-  DRUCKER_ART, TERMINAL_VIA, TERMINAL_ART, TASTEN_AKTIONEN, QR_MODUS,
-} from '../src/kasse/index.js';
+  PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, POS_SHORTCUT_ACTIONS, QR_MODE,
+} from '../src/pos/index.js';
 import { REGISTER_PERMS } from '../src/register/index.js';
 
 test('Enums gibt es zur Laufzeit — Verbraucher koennen pruefen statt zu raten', () => {
-  assert.deepEqual([...DRUCKER_ART], ['sdp', 'netz', 'bt', 'usb', 'connect']);
-  assert.deepEqual([...TERMINAL_VIA], ['direkt', 'connect']);
-  assert.deepEqual([...TERMINAL_ART], ['keins', 'hps']);
-  assert.equal(TASTEN_AKTIONEN.length, 16);
+  assert.deepEqual([...PRINTER_TYPE], ['sdp', 'network', 'bluetooth', 'usb', 'connect']);
+  assert.deepEqual([...TERMINAL_VIA], ['direct', 'connect']);
+  assert.deepEqual([...TERMINAL_TYPE], ['none', 'hps']);
+  assert.equal(POS_SHORTCUT_ACTIONS.length, 16);
 });
 
 test('GP Tom ist ein Kartenanbieter — sonst verwirft der Backend-Validator die Einstellung', () => {
-  assert.ok(KARTENANBIETER.includes('gptom'));
+  assert.ok(CARD_PROVIDER.includes('gptom'));
 });
 
 test('druckerName gibt es — der Dart-Zwilling schickt ihn, sonst faellt er still weg', () => {
-  assert.equal(KASSE_GERAET_STANDARD.druckerName, '');
+  assert.equal(POS_DEVICE_DEFAULTS.printerName, '');
 });
 
 test('Die Markenfarbe ist Petrol aus der Palette', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.farbe, '#136B6B');
+  assert.equal(POS_BUSINESS_DEFAULTS.color, '#136B6B');
 });
 
 test('Die Rechte-Schluessel stehen als Liste bereit', () => {
@@ -403,13 +408,13 @@ test('owner ist nur bei echtem true wahr', async () => {
 // Standard aus: fuer Betriebe ohne Bedarf aendert sich nichts. Die Tasten-Aktion
 // gibt es, aber ohne Vorgabe – eine unerprobte Taste faengt sonst der Browser ab.
 test('zahlGetrennt ist aus, die Aktion getrennt hat keine Vorgabe-Taste', () => {
-  assert.equal(KASSE_BETRIEB_STANDARD.zahlGetrennt, false);
-  assert.ok(TASTEN_AKTIONEN.includes('getrennt'));
-  assert.deepEqual(KASSE_TASTEN_STANDARD.getrennt, []);
-  assert.equal(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { zahlGetrennt: true }).zahlGetrennt, true);
-  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: { ...KASSE_TASTEN_STANDARD, getrennt: ['Mod+I'] } });
-  assert.deepEqual(g.tasten.getrennt, ['Mod+I']);
+  assert.equal(POS_BUSINESS_DEFAULTS.paySplit, false);
+  assert.ok(POS_SHORTCUT_ACTIONS.includes('splitPayment'));
+  assert.deepEqual(POS_SHORTCUT_DEFAULTS.splitPayment, []);
+  assert.equal(mergePosSettings(POS_BUSINESS_DEFAULTS, { paySplit: true }).paySplit, true);
+  const g = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: { ...POS_SHORTCUT_DEFAULTS, splitPayment: ['Mod+I'] } });
+  assert.deepEqual(g.shortcuts.splitPayment, ['Mod+I']);
   // Ein Altgeraet ohne die Aktion bekommt sie beim Mischen dazu.
-  const { getrennt: _weg, ...alt } = KASSE_TASTEN_STANDARD;
-  assert.deepEqual(mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: alt as typeof KASSE_TASTEN_STANDARD }).tasten.getrennt, []);
+  const { splitPayment: _weg, ...alt } = POS_SHORTCUT_DEFAULTS;
+  assert.deepEqual(mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: alt as typeof POS_SHORTCUT_DEFAULTS }).shortcuts.splitPayment, []);
 });

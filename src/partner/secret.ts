@@ -36,7 +36,7 @@
 const werte = new WeakMap<KasseneckSecret, string>();
 
 /** Wie ein maskiertes Geheimnis in Text erscheint. */
-export const SECRET_MASKE = '«verborgen»';
+export const SECRET_MASK = '«verborgen»';
 
 export class KasseneckSecret {
   /**
@@ -46,9 +46,9 @@ export class KasseneckSecret {
    */
   readonly label: string;
 
-  constructor(label: string, wert: string) {
+  constructor(label: string, value: string) {
     this.label = label;
-    werte.set(this, wert);
+    werte.set(this, value);
   }
 
   /**
@@ -63,12 +63,12 @@ export class KasseneckSecret {
   }
 
   /** Ob ueberhaupt ein Wert da ist — ohne ihn anzufassen. */
-  get vorhanden(): boolean {
+  get hasValue(): boolean {
     return (werte.get(this) ?? '').length > 0;
   }
 
   toString(): string {
-    return `[${this.label} ${SECRET_MASKE}]`;
+    return `[${this.label} ${SECRET_MASK}]`;
   }
 
   /**

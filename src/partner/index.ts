@@ -11,11 +11,12 @@
  * des Backends (`docs/api/partner.md`, kompakt `docs/api/partner.llms.txt`).
  * Was hier steht, ist die Benutzung dieses Clients.
  *
- * Reihenfolge der Kette: [PARTNER_ABLAUF].
+ * Reihenfolge der Kette: [PARTNER_FLOW].
  *
- * **Seit 0.28.0 spricht dieser Teil die englische `/v3`** ([PARTNER_BASE_URL]).
- * Alles andere im Paket (Belege, Rechnungen, Kasse, Druck, Zahlungen) bleibt
- * auf `/v1`, bis es dort eine `/v3` gibt.
+ * **Seit 0.28.0 spricht dieser Teil die englische `/v3`** ([PARTNER_BASE_URL]),
+ * seit 1.0 heissen auch seine Exporte englisch; die Tabelle alt/neu steht im
+ * CHANGELOG. Die Aliase aus 0.28 (`Rechtsform`, `Bundesland`, `KontaktRolle`)
+ * sind entfernt.
  */
 
 export { createPartnerApi, PARTNER_BASE_URL, type PartnerApi, type PartnerApiOptions } from './api.js';
@@ -23,34 +24,36 @@ export { createPartnerApi, PARTNER_BASE_URL, type PartnerApi, type PartnerApiOpt
 export { partnerKeyAuth, partnerKeyEnv, type PartnerKeyAuthOptions } from './auth.js';
 
 export {
-  PARTNER_ABLAUF,
-  naechsterSchritt,
-  type AblaufSchritt,
+  PARTNER_FLOW,
+  nextFlowStep,
+  type FlowStep,
 } from './ablauf.js';
 
 export {
-  PARTNER_FEHLER_CODES,
-  PARTNER_PORTAL_FEHLER_CODES,
-  istPartnerFehlerCode,
-  istPartnerPortalFehlerCode,
-  istPartnerFehler,
-  partnerFehlerCode,
-  partnerFehlerRat,
-  partnerFeldFehler,
-  partnerWartezeitSek,
+  PARTNER_ERROR_CODES,
+  PARTNER_PORTAL_ERROR_CODES,
+  PARTNER_REQUEST_ERROR_CODES,
+  isPartnerErrorCode,
+  isPartnerPortalErrorCode,
+  isPartnerError,
+  partnerErrorCode,
+  partnerErrorAdvice,
+  partnerFieldErrors,
+  partnerRetryAfterSec,
   type PartnerCode,
-  type PartnerFehlerCode,
-  type PartnerPortalFehlerCode,
-  type PartnerFeldFehler,
+  type PartnerErrorCode,
+  type PartnerPortalErrorCode,
+  type PartnerRequestErrorCode,
+  type PartnerFieldError,
 } from './fehler.js';
 
 export {
-  BETRIEB_FELDER,
-  unbekannteBetriebsfelder,
-  type BetriebFeld,
+  BUSINESS_FIELDS,
+  unknownBusinessFields,
+  type BusinessField,
 } from './betrieb.js';
 
-export { KasseneckSecret, SECRET_MASKE } from './secret.js';
+export { KasseneckSecret, SECRET_MASK } from './secret.js';
 
 export {
   getPartnerInfo,
@@ -65,6 +68,7 @@ export {
   activateCashregister,
   listCustomerCashregisters,
   getCustomerCredentials,
+  reportCustomerContract,
 } from './endpunkte.js';
 
 export {
@@ -76,9 +80,10 @@ export {
   sendPartnerWebhookTest,
   listPartnerWebhookDeliveries,
   parseWebhookEvent,
-  istPartnerWebhookEvent,
+  isPartnerWebhookEvent,
   PARTNER_WEBHOOK_EVENTS,
-  WEBHOOK_UMSCHLAG_FELDER,
+  WEBHOOK_ENVELOPE_FIELDS,
+  WEBHOOK_DELIVERY_STATUSES,
   type PartnerWebhookEvent,
   type PartnerWebhookEventType,
   type PartnerWebhook,
@@ -87,13 +92,13 @@ export {
   type DeleteWebhookResult,
   type WebhookApiVersion,
   type WebhookDeliveryStatus,
-  type WebhookTestZustellung,
-  type ContractKind,
-  type ContractSource,
+  type WebhookTestDelivery,
   type ContractAcceptedEventData,
+  type SignatureFailedEventData,
+  type CashregisterFailedEventData,
   type WebhookPatch,
-  type WebhookListe,
-  type WebhookZustellung,
+  type WebhookList,
+  type WebhookDelivery,
   type WebhookTestResult,
   type WebhookEventResult,
 } from './webhooks.js';
@@ -114,7 +119,18 @@ export {
   type WebhookVerifyReason,
 } from './webhook-signatur.js';
 
-export { PARTNER_ENVS } from './typen.js';
+export {
+  PARTNER_ENVS,
+  LEGAL_FORMS,
+  AUSTRIAN_STATES,
+  CONTACT_ROLES,
+  AVV_MODES,
+  FEE_INTERVALS,
+  CONTRACT_KINDS,
+  CONTRACT_SOURCES,
+  SIGNATURE_HISTORY_REASONS,
+  SIGNATURE_ERROR_CODES,
+} from './typen.js';
 
 export type {
   PartnerEnv,
@@ -131,37 +147,38 @@ export type {
   SignatureErrorCode,
   RequestSignatureOptions,
   CustomerSignature,
-  Rechtsform,
-  Bundesland,
-  KontaktRolle,
-  BetriebAdresse,
-  BetriebSteuer,
-  BetriebKontakt,
-  BetriebSteuerberater,
-  Betrieb,
+  ContractKind,
+  ContractSource,
+  ReportCustomerContractOptions,
+  ReportCustomerContractResult,
+  BusinessAddress,
+  BusinessTaxDetails,
+  BusinessContact,
+  BusinessTaxAdvisor,
+  Business,
   CreateCustomerOptions,
   CreateCustomerResult,
-  KundenStatus,
-  KundenZeile,
-  AvvStand,
-  VertragStand,
-  KundenFonStand,
+  PartnerCustomerStatus,
+  PartnerCustomerSummary,
+  AvvStatus,
+  ContractStatus,
+  PartnerCustomerFonStatus,
   ListCustomersOptions,
-  KundenListe,
-  Kunde,
+  PartnerCustomerList,
+  PartnerCustomer,
   FonLinkResult,
-  SignaturAntragStatus,
-  SignaturHistorieEintrag,
-  SignaturAntrag,
+  SignatureRequestStatus,
+  SignatureHistoryEntry,
+  SignatureRequest,
   RequestSignatureResult,
-  SignaturStand,
-  KassenSchritt,
-  KassenStatus,
-  Kasse,
+  CustomerSignatureStatus,
+  CashregisterActivationStep,
+  CustomerCashregisterStatus,
+  CustomerCashregister,
   CreateCashregisterOptions,
   CreateCashregisterResult,
   ActivateCashregisterResult,
-  KassenListe,
+  CustomerCashregisterList,
   CustomerCashregisterCredential,
   CustomerCredentials,
 } from './typen.js';

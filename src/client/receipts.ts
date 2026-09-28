@@ -19,7 +19,6 @@ import {
   toReceiptItemPayload,
   toVoucherPayload,
   receiptItemIsValid,
-  negateReceiptItem,
   voucherIsValid,
   fromReceiptSummaryPayload,
   type ReceiptSummary,
@@ -30,28 +29,40 @@ import {
   type CancellationReason,
   isCancellationReason,
   type ReceiptPaymentInput,
+  type RegistrationInfo,
+  type ReceiptEmailVia,
+  RECEIPT_EMAIL_VIAS,
+  readRegistrationInfo,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
-import { KasseneckValidationError } from './errors.js';
+import { KasseneckApiError, KasseneckValidationError, isKasseneckApiError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
-import type { Pruefangaben, ReceiptLayout } from '../receipt/layout.js';
-import type { LogoStufe } from '../receipt/blatt.js';
+import { buildReceiptLayout, type ReceiptLayout } from '../receipt/layout.js';
+import type { PosPaperSize } from '../printing/escpos.js';
+import type { SheetLogoSize } from '../receipt/blatt.js';
 
 /**
  * Beleg-Endpunkte — Zwilling der Beleg-Aufrufe in
  * kasseneck_api/lib/kasseneck_api.dart.
  *
- * **Verkauf, freier Storno und Nullbeleg laufen ueber einen einzigen
- * Backend-Endpunkt `createReceipt`.** `sellReceipt`, `createCancelReceipt` und
- * `zeroReceipt` sind — wie im Flutter-Vorbild — benannte Bequemlichkeits-
- * schichten ueber [createReceipt]; sie legen den Belegtyp fest und reichen den
- * Rest durch. **[cancelReceipt] geht an den eigenen Endpunkt `cancelReceipt`**:
- * der Server negiert die Positionen des Originals, prueft Restmengen und
- * Rechte und verkettet beide Belege (Storno-API).
+ * **Draht `/v3`, englisch.** Verkauf und Nullbeleg laufen ueber den
+ * Endpunkt `createReceipt`; `sellReceipt` und `zeroReceipt` legen den
+ * Belegtyp fest und reichen den Rest durch. Bezahlt wird immer ueber
+ * `payments[]` (Pflicht unter `/v3`); `paymentMethod` und die Kartenfelder am
+ * Beleg gibt es nicht mehr, die Kartenangaben stehen in der einzelnen
+ * Zahlung. Den Zahlbetrag rechnet `receiptDueCents` vorher aus.
+ * **[cancelReceipt] geht an den eigenen Endpunkt `cancelReceipt`**: der
+ * Server negiert die Positionen des Originals, prueft Restmengen und Rechte
+ * und verkettet beide Belege. Einen Storno ueber `createReceipt` gibt es
+ * nicht mehr.
  *
  * **Kein Wiederholen fehlgeschlagener Aufrufe** (siehe transport.ts): ein
- * Beleg ist nicht folgenlos wiederholbar.
+ * Beleg ist nicht folgenlos wiederholbar. Bei `outcome: 'unknown'`
+ * (`receipt_outcome_unknown`, `cancellation_outcome_unknown`, Netz- oder
+ * Serverfehler nach dem Senden) erst nachlesen, und bei
+ * `payments_sum_mismatch` nennt [paymentsExpectedCents] den Betrag des
+ * Servers; auch dann wiederholt das Paket nie selbst.
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Von den
  * Endpunkten dieser Datei setzen [listMyReceipts], [getReceipt],
@@ -68,14 +79,8 @@ export interface ReceiptCommonOptions {
   customerDetails?: string[];
   /** Rechtshinweise (z. B. Reverse Charge); gehen als `\n`-verbundene Zeichenkette raus. */
   legalMessage?: string[];
-  /** Kartenanbieter; ohne Angabe gilt `custom`. */
-  creditCardProvider?: CreditCardProvider;
-  /** Transaktionsbezeichner der Kartenzahlung. */
-  cardPaymentId?: string;
   /** Freier Bezeichner des Aufrufers (Projekt, Auftrag, Schicht). */
   customProjectId?: string;
-  /** Rohdaten der Kartenzahlung (Terminal-/Anbieterantwort). */
-  cardPaymentData?: Record<string, unknown>;
   /**
    * Trinkgeld in Cent — als Zahl (an den angemeldeten Kassen-Benutzer, Zahlart
    * des Belegs) oder als [TipOptions]. Das Backend bucht daraus signierte
@@ -88,7 +93,7 @@ export interface ReceiptCommonOptions {
 /** Trinkgeld mit eigener Zahlart und/oder Empfaengern (Kassen-Benutzer-IDs, Summe = cents). */
 export interface TipOptions {
   cents: number;
-  /** Zahlart des Trinkgelds; ohne Angabe gilt die des Belegs. */
+  /** Zahlart des Trinkgelds; bei mehreren Zahlarten Pflicht (`tip_payment_method_required`). */
   paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
   /** Empfaenger; ohne Angabe der angemeldete Kassen-Benutzer. Summe der cents = cents. */
   recipients?: TipRecipientShare[];
@@ -107,7 +112,7 @@ export interface TipOptions {
    * das nicht am Geraet umstellen koennen. Ueber einen Geraete-API-Schluessel
    * (ohne angemeldeten Kassen-Benutzer) gilt die Einschraenkung nicht.
    */
-  sofortErhalten?: boolean;
+  receivedImmediately?: boolean;
 }
 
 export interface TipRecipientShare {
@@ -115,57 +120,31 @@ export interface TipRecipientShare {
   cents: number;
 }
 
-/** Belegtyp und Inhalt — die vollstaendige Eingabe von [createReceipt]. */
+/** Belegtyp und Inhalt, die vollstaendige Eingabe von [createReceipt]. */
 export interface CreateReceiptOptions extends ReceiptCommonOptions {
   receiptType: ReceiptType | ReceiptTypeKey;
-  /** Zahlungsart des Aufrufers — wird vor dem Senden geprueft. */
-  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
   /**
-   * Zahlungsart, die aus einer **Serverantwort** stammt (Storno eines
-   * gelesenen Belegs). Geht ungeprueft hinaus: der
-   * Server hat den Wert selbst vergeben und weist unbekannte selbst ab —
-   * ergaenzt er eine Zahlungsart vor dem naechsten Paket-Update, waeren sonst
-   * alle Belege damit unstornierbar. Nur fuer diesen einen Weg gedacht; eine
-   * ausdruecklich uebergebene `paymentMethod` sticht.
-   */
-  paymentMethodFromServer?: string;
-  /**
-   * Mehrere Zahlungen je Beleg (siehe [ReceiptPaymentInput]). Schliesst
-   * `paymentMethod`, `paymentMethodFromServer` und die Kartenfelder aus —
-   * die Kartenangaben gehoeren dann in die einzelne Zahlung (Backend:
-   * `PAYMENTS_CONFLICT`). Nur bei `standard` und `training`.
+   * Zahlungen (siehe [ReceiptPaymentInput]); bei `standard` und `training`
+   * Pflicht, auch leer, wenn der Zahlbetrag 0 ist. Null- und Startbeleg
+   * nehmen keine (`payments_not_allowed`). Die Summe muss
+   * [receiptDueCents] treffen.
    */
   payments?: ReceiptPaymentInput[];
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
 
-/** Verkauf mit einer Zahlungsart (`paymentMethod`, Kartenfelder aus [ReceiptCommonOptions]). */
+/**
+ * Verkauf: Positionen, Gutscheine, Trinkgeld und die Zahlungen. Die
+ * Kartenangaben (`provider`, `providerPaymentId`, `providerData`) stehen in
+ * der einzelnen Zahlung; die Summe der Zahlungen ist [receiptDueCents].
+ */
 export interface SellReceiptOptions extends ReceiptCommonOptions {
-  paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey;
-  payments?: undefined;
-  items?: ReceiptItem[];
-  vouchers?: Voucher[];
-}
-
-/**
- * Verkauf mit mehreren Zahlungen (`payments`, siehe [ReceiptPaymentInput]).
- * Ohne `paymentMethod` und ohne die Kartenfelder aus [ReceiptCommonOptions] —
- * die Kartenangaben stehen in der einzelnen Zahlung (Backend:
- * `PAYMENTS_CONFLICT`, zur Laufzeit ebenso geprueft).
- */
-export interface SellReceiptWithPaymentsOptions extends ReceiptCommonOptions {
   payments: ReceiptPaymentInput[];
-  paymentMethod?: undefined;
   items?: ReceiptItem[];
   vouchers?: Voucher[];
 }
 
-/**
- * `customerDetails` fehlt hier absichtlich (wie im Flutter-Vorbild): die
- * Kundendaten des Stornos sind die des stornierten Belegs, sonst stimmten
- * Beleg und Storno nicht mehr ueberein.
- */
 /**
  * Storno ueber den Endpunkt `cancelReceipt` (Backend: storno-endpoints.js).
  * Der Server negiert die Positionen, prueft Restmengen und Rechte, verkettet
@@ -179,22 +158,17 @@ export type CancelReceiptOptions = {
   items?: CancellationItem[];
   /** Interne Anmerkung (≤ 200 Zeichen), wird gespeichert, nie gedruckt. */
   note?: string;
-  /** Rueckzahlweg; ohne Angabe die Zahlungsart des stornierten Belegs. */
-  paymentMethod?: KeckPaymentMethod | KeckPaymentMethodKey;
-  /**
-   * Kartendaten der ERSTATTUNG (Gutschrift oder Aufhebung am Terminal) fuer
-   * den Kartenblock am Storno-Bon -- nur bei Rueckzahlweg Karte. Beschreiben
-   * nie die Originalzahlung; das Backend uebernimmt sie nicht vom Original.
-   */
-  creditCardProvider?: CreditCardProvider;
-  cardPaymentId?: string;
-  cardPaymentData?: Record<string, unknown>;
   /**
    * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
-   * Originalzahlung). Schliesst `paymentMethod` und die Kartenfelder aus
-   * (Backend: `PAYMENTS_CONFLICT`). Ohne Angabe spiegelt der Server die
-   * Restbetraege jeder Originalzahlung; ein Teilstorno eines Belegs mit
-   * mehreren Zahlungen braucht sie (`STORNO_PAYMENTS_REQUIRED`).
+   * Originalzahlung). Ohne Angabe spiegelt der Server die Restbetraege jeder
+   * Originalzahlung; ein Teilstorno eines Belegs mit mehreren Zahlungen
+   * braucht sie (`cancellation_payments_required`).
+   *
+   * **Karten-Storno:** `provider`, `providerPaymentId` und `providerData`
+   * beschreiben die ERSTATTUNG am Terminal, nie die Originalzahlung. Die
+   * Kennung der Originalzahlung (fuer die Rueckbuchung am Terminal) steht in
+   * `payments[].providerPaymentId` des Originals; die liefert nur der
+   * Kassenweg (Kanal `app`, `registerUserAuth`).
    */
   payments?: ReceiptPaymentInput[];
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
@@ -204,12 +178,6 @@ export interface CancelReceiptResult {
   receipt: Receipt;
   cancellationOf: CancellationOf;
   remaining: number[];
-}
-
-export interface CreateCancelReceiptOptions extends ReceiptCommonOptions {
-  paymentMethod: KeckPaymentMethod | KeckPaymentMethodKey;
-  /** Positionen, wie sie auf dem Storno stehen sollen — **nicht** negiert. */
-  items: ReceiptItem[];
 }
 
 /**
@@ -223,24 +191,56 @@ export interface ReceiptWithCompany {
   /** Kopf/Fuss, wie sie fuer DIESEN Beleg gelten (eingefrorene Version des Backends). */
   company: ReceiptCompany;
   /** Beleg einer Testumgebung (Aufdruck TESTKASSE). */
-  testKasse: boolean;
+  testCashregister: boolean;
   /** Produktionskonto mit Test-Signatureinheit (Aufdruck TESTSIGNATUR). */
-  testSignatur: boolean;
-  /** Kennung der Kopf-Version; null bei altem Backend/Altbeleg ohne Zuordnung. */
-  kopfId: string | null;
-  /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
+  testSignature: boolean;
+  /** Kennung der Kopf-Version; null bei Altbeleg ohne Zuordnung. */
+  headerVersionId: string | null;
+  /**
+   * Vom Backend gebautes Zeilenmodell (`data.layout`, Regelwerk des Belegs,
+   * 80 mm); null, wenn nicht mitgeliefert. Es geht unveraendert an
+   * `escPosLayoutBytes`, `eposPrintXml`, `receiptSheet` und die React-Ansichten.
+   * Drucken und anzeigen ueber [receiptLayoutFromResult].
+   */
   layout: ReceiptLayout | null;
   /**
-   * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2) --
-   * fuer Clients, die das Layout selbst bauen; null bei altem Backend.
+   * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2),
+   * fuer Clients, die das Layout selbst bauen; null bei anderen Belegen.
    */
-  pruefangaben: Pruefangaben | null;
+  registrationInfo: RegistrationInfo | null;
   /**
-   * Groesse des Firmenlogos am Beleg (Kasse-Einstellung `logoSkala` des
-   * Betriebs). Bildschirm, Bon und PDF setzen das Logo in genau dieser Stufe;
-   * liefert das Backend sie nicht (alt), gilt `M` -- der Bestandswert.
+   * Groesse des Firmenlogos am Beleg (`logo_scale`). Bildschirm, Bon und PDF
+   * setzen das Logo in genau dieser Stufe; fehlt der Wert, gilt `M`.
    */
-  logoStufe: LogoStufe;
+  logoScale: SheetLogoSize;
+}
+
+/**
+ * Das Zeilenmodell zum Drucken und Anzeigen eines Belegs aus einer Antwort.
+ *
+ * **Ein Server-Layout gewinnt immer.** Liefert der Server `data.layout`, gilt
+ * genau dieses, in seiner Breite (80 mm): im oeffentlichen Kanal traegt nur
+ * es den Kartenblock (der Beleg selbst kommt dort ohne Anbieterdaten), und
+ * Bildschirm, Bon und PDF zeigen so denselben Beleg. Fehlt es, wird das
+ * Layout hier gebaut, mit den Angaben derselben Antwort (`testCashregister`,
+ * `testSignature`, `registrationInfo`) und in `fallbackPaperSize` (Vorgabe
+ * `mm58` wie in 0.x). Die Druckbreite waehlt allein der Druckweg
+ * (`paperSize` bei `escPosLayoutBytes`, `charsPerLine` bei ePOS und Blatt), nie
+ * dieser Helfer.
+ */
+export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { fallbackPaperSize?: PosPaperSize } = {}): ReceiptLayout {
+  for (const name of Object.keys(options)) {
+    if (name !== 'fallbackPaperSize') {
+      throw new KasseneckValidationError('receiptLayoutFromResult', `Unbekannte Option "${name}" (die Druckbreite waehlt der Druckweg)`, 'request');
+    }
+  }
+  if (result.layout != null) return result.layout;
+  return buildReceiptLayout(result.receipt, result.company, {
+    paperSize: options.fallbackPaperSize ?? 'mm58',
+    testCashregister: result.testCashregister,
+    testSignature: result.testSignature,
+    registrationInfo: result.registrationInfo,
+  });
 }
 
 /**
@@ -249,7 +249,8 @@ export interface ReceiptWithCompany {
  * die Hand des Aufrufers, sondern zu einem der benannten Aufrufe darunter.
  */
 export async function createReceipt(rufen: InternerTransport, options: CreateReceiptOptions): Promise<Receipt> {
-  return belegAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
+  const daten = await rufen('createReceipt', createReceiptParams(options));
+  return signiertGelesen('createReceipt', () => belegAusHuelle(daten, 'createReceipt'));
 }
 
 /** Wie [createReceipt], liest aus derselben Antwort zusaetzlich die Firmendaten. */
@@ -257,7 +258,8 @@ async function createReceiptWithCompany(
   rufen: InternerTransport,
   options: CreateReceiptOptions,
 ): Promise<ReceiptWithCompany> {
-  return belegMitFirmaAusHuelle(await rufen('createReceipt', createReceiptParams(options)), 'createReceipt');
+  const daten = await rufen('createReceipt', createReceiptParams(options));
+  return signiertGelesen('createReceipt', () => belegMitFirmaAusHuelle(daten, 'createReceipt'));
 }
 
 /**
@@ -268,8 +270,18 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
   const typ = belegtyp(options.receiptType);
   const { items, vouchers } = options;
 
+  // Unter /v3 weist der Server diese Felder ab (payment_method_not_supported);
+  // ein Aufrufer ohne Typen erfaehrt es hier, bevor etwas hinausgeht.
+  const altfeld = ALTE_ZAHLFELDER.find((feld) => (options as unknown as Record<string, unknown>)[feld] != null);
+  if (altfeld != null) {
+    throw eingabefehler(`${altfeld} gibt es unter /v3 nicht mehr: Zahlungen und Kartenangaben gehen als payments hinaus.`);
+  }
+  if (typ.value === ReceiptType.cancellation.value) {
+    throw eingabefehler('Ein Storno geht nur ueber cancelReceipt (Bezug, Grund, Restmengen).');
+  }
+
   if (typ.needsItems) {
-    // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen — deshalb
+    // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen, deshalb
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
     const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell) ?? false;
     if ((items == null || items.length === 0) && !hatVerkaufsgutschein) {
@@ -300,48 +312,20 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
   }
 
-  // `payments: null` gilt wie im Backend (zahlungs-eingang.js) als nicht angegeben.
-  if (options.payments != null) {
-    // Der alte Storno-Weg und der Null-/Startbeleg nehmen keine Zahlungsliste
-    // (Backend: PAYMENTS_NOT_ALLOWED); ein Storno mit mehreren Zahlungen
-    // laeuft ueber cancelReceipt.
-    if (typ.value === ReceiptType.cancellation.value) {
-      throw eingabefehler('payments am Storno gehen nur ueber cancelReceipt.');
+  const umsatz = typ.value === ReceiptType.standard.value || typ.value === ReceiptType.training.value;
+  if (umsatz) {
+    // Pflicht unter /v3 (payments_required); eine leere Liste ist erlaubt,
+    // wenn nichts zu zahlen ist (Rabatt deckt alles).
+    if (options.payments == null) {
+      throw eingabefehler('payments fehlt: unter /v3 ist die Zahlungsliste Pflicht (Summe = receiptDueCents).');
     }
-    if (typ.value !== ReceiptType.standard.value && typ.value !== ReceiptType.training.value) {
-      throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
-    }
-    const konflikt = zahlungsKonflikt(options);
-    if (konflikt != null) throw eingabefehler(konflikt);
     params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt');
-  }
-
-  // Vom Aufrufer kommt sie geprueft, vom Server roh — siehe die beiden Felder
-  // in [CreateReceiptOptions]. Die Typpruefung allein reicht dafuer nicht: ein
-  // Verbraucher ohne Typen faellt durch dieses Netz, und ein Tippfehler in der
-  // Zahlungsart faellt sonst erst am Server auf.
-  const zahlungsart =
-    options.paymentMethod != null ? gepruefteZahlungsart(options.paymentMethod) : options.paymentMethodFromServer;
-  if (zahlungsart != null) {
-    params['paymentMethod'] = zahlungsart;
-    const anbieter = options.creditCardProvider ?? CreditCardProvider.custom;
-    if (zahlungsart === KeckPaymentMethod.creditCard.value) {
-      if (options.cardPaymentId != null) {
-        params['cardPaymentId'] = options.cardPaymentId;
-        // Der Kartenanbieter kommt dagegen vom Aufrufer, nicht vom Server —
-        // hier bleibt der Schreibpfad streng.
-        params['creditCardProvider'] = kartenanbieter(anbieter);
-        // Bewusst auch als `null`, wenn der Anbieter keine Rohdaten liefert:
-        // das Feld gehoert zur Kartenzahlung und das Backend nimmt null an.
-        params['cardPaymentData'] = options.cardPaymentData ?? null;
-      } else if (anbieter !== CreditCardProvider.custom) {
-        throw eingabefehler(`cardPaymentId ist Pflicht bei creditCardProvider "${anbieter}".`);
-      }
-    }
+  } else if (options.payments != null) {
+    throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
   }
 
   if (options.tip != null) {
-    if (typ.value !== ReceiptType.standard.value && typ.value !== ReceiptType.training.value) {
+    if (!umsatz) {
       throw eingabefehler(`Trinkgeld ist nur bei receiptType standard oder training moeglich, nicht bei "${typ.value}".`);
     }
     params['tip'] = gepruefterTip(options.tip);
@@ -360,9 +344,12 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
   return params;
 }
 
+/** Felder des alten Einzel-Zahlungswegs; unter /v3 abgewiesen. */
+const ALTE_ZAHLFELDER = ['paymentMethod', 'paymentMethodFromServer', 'creditCardProvider', 'cardPaymentId', 'cardPaymentData'] as const;
+
 /** Normalbeleg (Verkauf) nach RKSV. */
-export function sellReceipt(rufen: InternerTransport, options: SellReceiptOptions | SellReceiptWithPaymentsOptions): Promise<Receipt> {
-  return createReceipt(rufen, { ...options, receiptType: ReceiptType.standard });
+export function sellReceipt(transport: InternerTransport, options: SellReceiptOptions): Promise<Receipt> {
+  return createReceipt(transport, { ...options, receiptType: ReceiptType.standard });
 }
 
 /**
@@ -370,10 +357,10 @@ export function sellReceipt(rufen: InternerTransport, options: SellReceiptOption
  * aus derselben Antwort — alles, was ein Belegdruck braucht, in einem Aufruf.
  */
 export function sellReceiptWithCompany(
-  rufen: InternerTransport,
-  options: SellReceiptOptions | SellReceiptWithPaymentsOptions,
+  transport: InternerTransport,
+  options: SellReceiptOptions,
 ): Promise<ReceiptWithCompany> {
-  return createReceiptWithCompany(rufen, { ...options, receiptType: ReceiptType.standard });
+  return createReceiptWithCompany(transport, { ...options, receiptType: ReceiptType.standard });
 }
 
 const NOTE_MAX = 200;
@@ -384,7 +371,7 @@ const NOTE_MAX = 200;
  * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
  * signierten Storno-Beleg. Gutscheine des Originals wandern nicht mit.
  */
-export async function cancelReceipt(rufen: InternerTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
+export async function cancelReceipt(transport: InternerTransport, options: CancelReceiptOptions): Promise<CancelReceiptResult> {
   const cashregisterId = options.receipt?.cashregisterId ?? options.cashregisterId;
   const originalReceiptId = options.receipt?.receiptId ?? options.originalReceiptId;
   if (typeof cashregisterId !== 'string' || cashregisterId.trim() === '') {
@@ -409,34 +396,27 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
     throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
   }
+  const altfeld = ALTE_ZAHLFELDER.find((feld) => (options as unknown as Record<string, unknown>)[feld] != null);
+  if (altfeld != null) {
+    throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
+  }
   // `payments: null` gilt wie im Backend als nicht angegeben.
-  const zahlungen = options.payments != null ? gepruefteStornoZahlungen(options) : undefined;
+  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt') : undefined;
+  if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
-  if (options.paymentMethod != null) params.paymentMethod = gepruefteZahlungsart(options.paymentMethod);
-  const karte = options.creditCardProvider != null || options.cardPaymentId != null || options.cardPaymentData != null;
-  if (karte) {
-    // Ohne paymentMethod entscheidet das Backend an der Zahlungsart des
-    // Originals; ein ausdruecklich anderer Rueckzahlweg ist hier schon falsch.
-    if (params.paymentMethod != null && params.paymentMethod !== KeckPaymentMethod.creditCard.value) {
-      throw new KasseneckValidationError('cancelReceipt', 'Kartendaten gibt es nur bei paymentMethod creditCard', 'request');
-    }
-    if (options.creditCardProvider != null) {
-      if (!Object.prototype.hasOwnProperty.call(CreditCardProvider, options.creditCardProvider)) {
-        throw new KasseneckValidationError('cancelReceipt', `Kartenanbieter: unbekannter Schluessel "${options.creditCardProvider}"`, 'request');
-      }
-      params.creditCardProvider = options.creditCardProvider;
-    }
-    if (options.cardPaymentId != null && options.cardPaymentId !== '') params.cardPaymentId = options.cardPaymentId;
-    if (options.cardPaymentData != null) params.cardPaymentData = options.cardPaymentData;
-  }
 
-  const daten = await rufen('cancelReceipt', params);
+  const daten = await transport('cancelReceipt', params);
+  return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));
+}
+
+/** Liest die Storno-Antwort `{ receipt, cancellationOf, remaining }`. */
+function stornoAusHuelle(daten: unknown): CancelReceiptResult {
   const receipt = belegAusHuelle(daten, 'cancelReceipt');
   const huelle = daten as { cancellationOf?: unknown; remaining?: unknown };
-  const bezug = huelle.cancellationOf as { receiptId?: unknown; fullReceiptId?: unknown } | undefined;
+  const bezug = huelle.cancellationOf as { receiptId?: unknown; fullReceiptId?: unknown; timeStamp?: unknown } | undefined;
   if (bezug == null || typeof bezug.receiptId !== 'string') {
     throw antwortfehler('cancelReceipt', 'Antwort enthaelt keinen Bezug (data.cancellationOf fehlt)');
   }
@@ -445,29 +425,18 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   }
   return {
     receipt,
-    cancellationOf: { receiptId: bezug.receiptId, fullReceiptId: typeof bezug.fullReceiptId === 'string' ? bezug.fullReceiptId : null },
+    cancellationOf: {
+      receiptId: bezug.receiptId,
+      fullReceiptId: typeof bezug.fullReceiptId === 'string' ? bezug.fullReceiptId : null,
+      ...(typeof bezug.timeStamp === 'string' && bezug.timeStamp !== '' ? { timeStamp: bezug.timeStamp } : {}),
+    },
     remaining: huelle.remaining as number[],
   };
 }
 
-/**
- * Stornobeleg aus frei uebergebenen Positionen — fuer den Fall, dass der
- * Originalbeleg nicht als Objekt vorliegt. Die Positionen gehen **unveraendert**
- * hinaus; das Vorzeichen setzt der Aufrufer.
- *
- * @deprecated Alter Storno-Weg ohne Bezug: kein Verweis auf das Original,
- * keine Restmengen, kein Schutz vor doppeltem Storno, Gutscheine werden nicht
- * zurueckgenommen. Das Backend nimmt ihn weiter an und legt `deprecation` in
- * die Antwort. Stattdessen [cancelReceipt] (Endpunkt `cancelReceipt`): Bezug,
- * Grund, Teilstorno, Fehlercodes.
- */
-export function createCancelReceipt(rufen: InternerTransport, options: CreateCancelReceiptOptions): Promise<Receipt> {
-  return createReceipt(rufen, { ...options, receiptType: ReceiptType.cancellation });
-}
-
 /** Nullbeleg (RKSV-Pruefbeleg) — ohne Positionen und ohne Zahlungsart. */
-export function zeroReceipt(rufen: InternerTransport): Promise<Receipt> {
-  return createReceipt(rufen, { receiptType: ReceiptType.zero });
+export function zeroReceipt(transport: InternerTransport): Promise<Receipt> {
+  return createReceipt(transport, { receiptType: ReceiptType.zero });
 }
 
 /** Belegliste einer Kasse samt der Kennzahlen, die dieselbe Antwort mitliefert. */
@@ -493,12 +462,7 @@ export interface ReceiptListStats {
 }
 
 export interface ListMyReceiptsOptions {
-  /**
-   * Kasse, deren Belege gelistet werden. Geht als Parameter **`cashregisterid`**
-   * hinaus — klein geschrieben, anders als das `cashregisterId` der Anmeldung:
-   * so heisst der Pflichtparameter dieses Endpunkts im Backend, und ein
-   * Tippfehler faellt sonst erst im Betrieb auf.
-   */
+  /** Kasse, deren Belege gelistet werden (Parameter `cashregisterId`). */
   cashregisterId: string;
   /**
    * Anzahl Belege; ohne Angabe nimmt das Backend 50. Es begrenzt den Wert
@@ -525,7 +489,7 @@ export interface ListMyReceiptsOptions {
  * (der Endpunkt laeuft mit `checkCashRegister: false`), ein Kassen-Benutzer
  * bekommt also nur die ihm zugewiesenen Kassen.
  */
-export async function listMyReceipts(rufen: InternerTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
+export async function listMyReceipts(transport: InternerTransport, options: ListMyReceiptsOptions): Promise<ReceiptList> {
   if (typeof options.cashregisterId !== 'string' || options.cashregisterId.trim() === '') {
     throw new KasseneckValidationError('listMyReceipts', 'cashregisterId fehlt', 'request');
   }
@@ -542,8 +506,8 @@ export async function listMyReceipts(rufen: InternerTransport, options: ListMyRe
       throw new KasseneckValidationError('listMyReceipts', `${feld} muss mit YYYY-MM-DD beginnen, war "${wert}"`, 'request');
     }
   }
-  const daten = await rufen<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
-    cashregisterid: options.cashregisterId,
+  const daten = await transport<{ receipts?: unknown; stats?: unknown }>('listMyReceipts', {
+    cashregisterId: options.cashregisterId,
     limit: options.limit,
     ...(options.from !== undefined ? { from: options.from } : {}),
     ...(options.to !== undefined ? { to: options.to } : {}),
@@ -567,30 +531,30 @@ export async function listMyReceipts(rufen: InternerTransport, options: ListMyRe
  */
 function kennzahlen(roh: unknown): ReceiptListStats {
   const quelle = (typeof roh === 'object' && roh !== null ? roh : {}) as {
-    today?: { umsatz?: unknown; count?: unknown } | null;
+    today?: { revenue?: unknown; count?: unknown } | null;
     trendPct?: unknown;
     days?: unknown;
   };
   const tage = Array.isArray(quelle.days) ? quelle.days : [];
   return {
     today: {
-      revenueCents: euroToCents(quelle.today?.umsatz),
+      revenueCents: euroToCents(quelle.today?.revenue),
       count: typeof quelle.today?.count === 'number' ? quelle.today.count : 0,
     },
     trendPercent: typeof quelle.trendPct === 'number' ? quelle.trendPct : null,
     days: tage.map((tag: unknown) => {
-      const eintrag = (typeof tag === 'object' && tag !== null ? tag : {}) as { date?: unknown; umsatz?: unknown };
+      const eintrag = (typeof tag === 'object' && tag !== null ? tag : {}) as { date?: unknown; revenue?: unknown };
       return {
         date: typeof eintrag.date === 'string' ? eintrag.date : '',
-        revenueCents: euroToCents(eintrag.umsatz),
+        revenueCents: euroToCents(eintrag.revenue),
       };
     }),
   };
 }
 
 /** Einzelnen Beleg der angemeldeten Kasse holen. */
-export async function getReceipt(rufen: InternerTransport, receiptId: string): Promise<Receipt> {
-  return belegAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
+export async function getReceipt(transport: InternerTransport, receiptId: string): Promise<Receipt> {
+  return belegAusHuelle(await transport('getReceipt', { receiptId }), 'getReceipt');
 }
 
 /**
@@ -600,18 +564,18 @@ export async function getReceipt(rufen: InternerTransport, receiptId: string): P
  * traegt (siehe models/receipt-company.ts).
  */
 export async function getReceiptWithCompany(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   receiptId: string,
 ): Promise<ReceiptWithCompany> {
-  return belegMitFirmaAusHuelle(await rufen('getReceipt', { receiptId }), 'getReceipt');
+  return belegMitFirmaAusHuelle(await transport('getReceipt', { receiptId }), 'getReceipt');
 }
 
 /**
  * Verschluesselte Volltext-Belegnummer erzeugen — der Bezeichner, unter dem der
  * Beleg oeffentlich abrufbar ist (Beleg-Download, Pruefportal).
  */
-export async function generateFullReceiptId(rufen: InternerTransport, receiptId: string): Promise<string> {
-  const daten = await rufen<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
+export async function generateFullReceiptId(transport: InternerTransport, receiptId: string): Promise<string> {
+  const daten = await transport<{ fullReceiptId?: unknown }>('generateFullReceiptId', { receiptId });
   const id = daten?.fullReceiptId;
   if (typeof id !== 'string') {
     throw antwortfehler('generateFullReceiptId', 'Antwort enthaelt keine fullReceiptId');
@@ -627,8 +591,8 @@ export async function generateFullReceiptId(rufen: InternerTransport, receiptId:
  * fuehrt kein `allowRegisterUser`, das Backend weist die Browser-Kasse hier ab
  * (siehe Modulkommentar oben). Mit `apiKeyAuth` ist er offen.
  */
-export async function getFirstReceiptDate(rufen: InternerTransport): Promise<ReportMonth> {
-  const roh = await rufen<unknown>('getFirstReceiptDate');
+export async function getFirstReceiptDate(transport: InternerTransport): Promise<ReportMonth> {
+  const roh = await transport<unknown>('getFirstReceiptDate');
   if (typeof roh !== 'string') {
     throw antwortfehler('getFirstReceiptDate', 'Antwort enthaelt keinen Zeitstempel');
   }
@@ -670,7 +634,7 @@ export interface SendReceiptEmailOptions {
    * steht im Vertrag, damit eine zweite Sprache spaeter kein neuer Vertrag ist.
    * Ohne Angabe geht das Feld gar nicht erst hinaus.
    */
-  sprache?: string;
+  language?: string;
 }
 
 /** Was der Versand bestaetigt (Backend: beleg-mail-endpoints.js). */
@@ -680,13 +644,17 @@ export interface SendReceiptEmailResult {
   /** Zeitpunkt des Versands, ISO mit Wiener Zonenoffset (`2026-09-11T14:05:00+02:00`). */
   at: string;
   /**
-   * Versandweg: `eigen` (Postfach des Betriebs), `plattform` oder
-   * `plattform-fallback`. `null`, wenn die Antwort ihn nicht nennt — das ist
-   * eine Auskunft ueber den Weg, keine ueber den Erfolg, und darf den
-   * bestaetigten Versand nicht zu einem Fehler machen.
+   * Versandweg: `own` (Postfach des Betriebs), `platform` oder
+   * `platform_fallback` ([RECEIPT_EMAIL_VIAS]). `null`, wenn die Antwort ihn
+   * nicht oder mit einem unbekannten Wert nennt: das ist eine Auskunft ueber
+   * den Weg, keine ueber den Erfolg, und darf den bestaetigten Versand nicht
+   * zu einem Fehler machen.
    */
-  via: string | null;
+  via: ReceiptEmailVia | null;
 }
+
+/** Felder von [SendReceiptEmailOptions]; jedes andere wirft vor dem Senden. */
+const MAIL_FELDER: readonly string[] = ['fullReceiptId', 'to', 'language'];
 
 /**
  * Schickt einen bereits ausgestellten Beleg als **Link auf die oeffentliche
@@ -698,20 +666,26 @@ export interface SendReceiptEmailResult {
  * das Backend in einer Unter-Sammlung neben dem Beleg.
  *
  * **Am Code entscheiden, nie am Text:** fachliche Fehler kommen als
- * [KasseneckApiError] mit `code` aus [RECEIPT_EMAIL_ERROR_CODES] heraus —
- * `adresse_ungueltig`, `beleg_nicht_gefunden` (auch fuer einen Beleg einer
- * fremden Kasse: das Backend gibt darueber bewusst keine Auskunft), `zu_oft`
- * (5 Mails je Beleg in 24 Stunden, 30 je Kasse und Stunde) und
- * `versand_fehlgeschlagen`. Dieses Paket reicht sie unveraendert durch und
+ * [KasseneckApiError] mit `code` aus [RECEIPT_EMAIL_ERROR_CODES] heraus:
+ * `invalid_address`, `receipt_not_found` (auch fuer einen Beleg einer
+ * fremden Kasse: das Backend gibt darueber bewusst keine Auskunft),
+ * `too_many_requests` (5 Mails je Beleg in 24 Stunden, 30 je Kasse und
+ * Stunde) und `send_failed`. Dieses Paket reicht sie unveraendert durch und
  * legt keine eigenen Codes an.
  *
  * **Kein Wiederholen ohne Zutun des Bedieners:** ein zweiter Versuch schickt
  * eine zweite Mail und zaehlt auf die Schleuse.
  */
 export async function sendReceiptEmail(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   options: SendReceiptEmailOptions,
 ): Promise<SendReceiptEmailResult> {
+  // Ein unbekanntes Feld (etwa das alte `sprache`) ginge sonst still verloren,
+  // und die Mail kaeme in der falschen Sprache.
+  const fremd = Object.keys(options ?? {}).find((k) => !MAIL_FELDER.includes(k));
+  if (fremd != null) {
+    throw new KasseneckValidationError('sendReceiptEmail', `unbekanntes Feld "${fremd}"`, 'request');
+  }
   // Getrimmt, weil beides von Hand oder per Scanner ins Feld kommt und ein
   // angehaengtes Leerzeichen sonst als ungueltige Adresse zurueckkaeme --
   // nach einem Aufruf, der schon eine Zeile im Protokoll gekostet hat.
@@ -724,20 +698,21 @@ export async function sendReceiptEmail(
     throw new KasseneckValidationError('sendReceiptEmail', 'to fehlt (Empfaengeradresse)', 'request');
   }
   // Die Adresse selbst wird hier NICHT geprueft: das Backend prueft sie mit
-  // kreiseck_validator und antwortet mit `adresse_ungueltig`. Eine zweite,
+  // kreiseck_validator und antwortet mit `invalid_address`. Eine zweite,
   // eigene Regel im Paket koennte strenger sein als die des Backends und eine
   // gueltige Adresse abweisen, ohne dass jemand die Abweichung bemerkt.
   const params: Record<string, unknown> = { fullReceiptId, to };
-  if (options.sprache !== undefined && options.sprache !== '') params.sprache = options.sprache;
+  if (options.language !== undefined && options.language !== '') params.language = options.language;
 
-  const daten = await rufen<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
+  const daten = await transport<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
   if (typeof daten?.to !== 'string' || daten.to === '') {
     throw antwortfehler('sendReceiptEmail', 'Antwort nennt keine Empfaengeradresse (data.to fehlt)');
   }
   if (typeof daten.at !== 'string' || daten.at === '') {
     throw antwortfehler('sendReceiptEmail', 'Antwort nennt keinen Zeitpunkt (data.at fehlt)');
   }
-  return { to: daten.to, at: daten.at, via: typeof daten.via === 'string' && daten.via !== '' ? daten.via : null };
+  const via = (RECEIPT_EMAIL_VIAS as readonly unknown[]).includes(daten.via) ? (daten.via as ReceiptEmailVia) : null;
+  return { to: daten.to, at: daten.at, via };
 }
 
 /**
@@ -835,17 +810,21 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   if (tip == null || typeof tip !== 'object' || !istCentBetrag(tip.cents)) {
     throw eingabefehler('Trinkgeld: Betrag muss eine ganze Zahl in Cent > 0 sein.');
   }
+  // Ein unbekannter Schluessel (etwa das alte `sofortErhalten`) weist der
+  // Server unter /v3 ab; hier faellt er vor dem Senden.
+  const fremd = Object.keys(tip).find((k) => !TIP_FELDER.includes(k));
+  if (fremd != null) throw eingabefehler(`Trinkgeld: unbekanntes Feld "${fremd}".`);
   const nutzlast: Record<string, unknown> = { cents: tip.cents };
   if (tip.paymentMethod != null) nutzlast['paymentMethod'] = gepruefteZahlungsart(tip.paymentMethod);
   // Nur mitschicken, wenn gesetzt: fehlt das Feld, entscheidet die
   // Voreinstellung des Betriebs. Ein `false` waere dort eine Aussage, kein
   // Weglassen. Der Wortlaut des Fehlers ist der des Backends
   // (tip-core.normalizeTip) -- wer ihn hier sieht, sieht denselben Satz.
-  if (tip.sofortErhalten != null) {
-    if (typeof tip.sofortErhalten !== 'boolean') {
-      throw eingabefehler('Trinkgeld: sofortErhalten muss true oder false sein.');
+  if (tip.receivedImmediately != null) {
+    if (typeof tip.receivedImmediately !== 'boolean') {
+      throw eingabefehler('Trinkgeld: receivedImmediately muss true oder false sein.');
     }
-    nutzlast['sofortErhalten'] = tip.sofortErhalten;
+    nutzlast['receivedImmediately'] = tip.receivedImmediately;
   }
   if (tip.recipients != null) {
     if (!Array.isArray(tip.recipients) || tip.recipients.length === 0) {
@@ -870,6 +849,8 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   return nutzlast;
 }
 
+const TIP_FELDER: readonly string[] = ['cents', 'paymentMethod', 'recipients', 'receivedImmediately'];
+
 /**
  * Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht.
  * `mixed` wirft ebenfalls: den Wert vergibt nur der Server (Beleg mit
@@ -893,25 +874,6 @@ function gepruefteZahlungsart(wert: KeckPaymentMethod | KeckPaymentMethodKey): s
 
 /** Hoechstzahl der Zahlungen je Beleg (Backend: MAX_ZAHLUNGEN). */
 const MAX_ZAHLUNGEN = 20;
-
-/**
- * `payments` neben einer Einzel-Zahlungsart oder Kartenfeldern? Liefert den
- * Grund (Backend: PAYMENTS_CONFLICT), sonst null. Nie still eines bevorzugen.
- */
-function zahlungsKonflikt(options: {
-  paymentMethod?: unknown;
-  paymentMethodFromServer?: unknown;
-  creditCardProvider?: unknown;
-  cardPaymentId?: unknown;
-  cardPaymentData?: unknown;
-}): string | null {
-  for (const feld of ['paymentMethod', 'paymentMethodFromServer', 'creditCardProvider', 'cardPaymentId', 'cardPaymentData'] as const) {
-    if (options[feld] != null) {
-      return `payments und ${feld} duerfen nicht gemeinsam gesendet werden – Kartenangaben gehoeren in die Zahlung.`;
-    }
-  }
-  return null;
-}
 
 /**
  * Zahlungsliste pruefen und in Nutzlast-Form bringen — Formpruefung wie
@@ -975,11 +937,64 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string)
   });
 }
 
-/** `payments` am Storno: Konflikt mit Zahlungsart/Kartenfeldern, dann Form. */
-function gepruefteStornoZahlungen(options: CancelReceiptOptions): Record<string, unknown>[] {
-  const konflikt = zahlungsKonflikt(options);
-  if (konflikt != null) throw new KasseneckValidationError('cancelReceipt', konflikt, 'request');
-  return gepruefteZahlungen(options.payments, true, 'cancelReceipt');
+/** Zahlarten mit Kartenterminal (Backend: KARTEN_ZAHLARTEN). */
+const KARTEN_ZAHLARTEN = new Set(['creditCard', 'uberCard', 'boltCard']);
+
+/**
+ * Kennung der Originalzahlung fuer die Rueckbuchung am Terminal (Hobex
+ * `originalTransactionId`, SumUp-Transaktion, ...): `providerPaymentId` der
+ * Zahlung `paymentId` des Originals. Die liefert nur der Kassenweg (Kanal
+ * `app`, `registerUserAuth`); am oeffentlichen Weg fehlt sie, und dann wirft
+ * dieser Aufruf, statt `undefined` an ein Terminal weiterzugeben.
+ */
+export function cardRefundReference(receipt: Receipt, paymentId: string): string {
+  const zahlung = receipt.payments?.find((z) => z.id === paymentId);
+  if (zahlung == null) {
+    throw new KasseneckValidationError('cancelReceipt', `Zahlung "${paymentId}" gibt es am Beleg nicht`, 'request');
+  }
+  const methode = typeof zahlung.method === 'object' ? zahlung.method.value : zahlung.method;
+  if (!KARTEN_ZAHLARTEN.has(methode)) {
+    throw new KasseneckValidationError('cancelReceipt', `Zahlung "${paymentId}" ist keine Kartenzahlung`, 'request');
+  }
+  if (typeof zahlung.providerPaymentId !== 'string' || zahlung.providerPaymentId === '') {
+    throw new KasseneckValidationError(
+      'cancelReceipt',
+      `Kennung der Kartenzahlung "${paymentId}" fehlt: sie kommt nur ueber den Kassenweg (registerUserAuth, kasse.kasseneck.at/api/v3), nicht ueber den oeffentlichen Weg`,
+      'request',
+    );
+  }
+  return zahlung.providerPaymentId;
+}
+
+/**
+ * Karten-Rueckbuchung am Storno, geprueft vor dem Senden:
+ * - Sie nennt ihren Anbieter (`provider`; `custom` fuer eine Erstattung
+ *   ohne angebundenes Terminal). Ganz ohne Anbieterfelder faellt sie.
+ * - Ueber einen Anbieter (nicht `custom`) braucht sie einen Bezug: ihre eigene
+ *   Terminal-Kennung (`providerPaymentId` der Erstattung) oder, liegt das
+ *   Original vor, die Kennung der erstatteten Kartenzahlung dort. Erst wenn
+ *   beides fehlt, wirft sie.
+ */
+function pruefeKartenRueckbuchung(zahlungen: Record<string, unknown>[], original: Receipt | undefined): void {
+  zahlungen.forEach((z, i) => {
+    if (!KARTEN_ZAHLARTEN.has(String(z['method']))) return;
+    const anbieter = z['provider'];
+    if (anbieter == null && z['providerPaymentId'] == null) {
+      throw new KasseneckValidationError(
+        'cancelReceipt',
+        `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Anbieter und ohne Kennung (provider angeben, custom fuer eine Erstattung ohne angebundenes Terminal)`,
+        'request',
+      );
+    }
+    if (anbieter === CreditCardProvider.custom || z['providerPaymentId'] != null) return;
+    const orig = original != null && typeof z['refundOf'] === 'string' ? original.payments?.find((o) => o.id === z['refundOf']) : undefined;
+    if (typeof orig?.providerPaymentId === 'string' && orig.providerPaymentId !== '') return;
+    throw new KasseneckValidationError(
+      'cancelReceipt',
+      `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Bezug: providerPaymentId der Erstattung am Terminal angeben (oder das Original ueber den Kassenweg lesen, dort traegt es die Kennung der Kartenzahlung)`,
+      'request',
+    );
+  });
 }
 
 /** Kartenanbieter pruefen — er stammt vom Aufrufer, nicht aus Serverdaten. */
@@ -995,6 +1010,29 @@ function eingabefehler(grund: string): KasseneckValidationError {
   return new KasseneckValidationError('createReceipt', grund, 'request');
 }
 
+/**
+ * Liest die Erfolgsantwort eines **signierenden** Aufrufs. Scheitert das
+ * Lesen (fehlender Beleg, fehlender Bezug, unbrauchbares Feld oder ein
+ * Laufzeitfehler beim Umwandeln), hat der Server trotzdem Erfolg gemeldet:
+ * der Beleg ist signiert und im DEP. Das darf nie als gewoehnlicher Fehler
+ * enden, sonst kassiert die Kasse ein zweites Mal. Darum wird daraus
+ * `KasseneckApiError` mit Code `response_unreadable` und `outcome: 'unknown'`.
+ * Der Grund stammt vom Paket; aus der Antwort selbst wird nichts uebernommen.
+ */
+function signiertGelesen<T>(functionName: string, lesen: () => T): T {
+  try {
+    return lesen();
+  } catch (ursache) {
+    const grund = ursache instanceof KasseneckValidationError ? ursache.reason : 'Antwort nicht lesbar';
+    throw new KasseneckApiError(
+      functionName,
+      `Erfolg gemeldet, Antwort aber unlesbar (${grund}). Der Vorgang kann ausgefuehrt sein: nicht wiederholen, sondern nachlesen.`,
+      {},
+      'response_unreadable',
+    );
+  }
+}
+
 /** Die Antwort meldete Erfolg, trug aber nicht, was der Aufruf zusagt. */
 function antwortfehler(functionName: string, grund: string): KasseneckValidationError {
   return new KasseneckValidationError(functionName, grund, 'response');
@@ -1007,8 +1045,11 @@ function antwortfehler(functionName: string, grund: string): KasseneckValidation
  * models/receipt.ts), und die bestehenden Aufrufe sollen ihre Zusage behalten.
  * Wer beides braucht, nimmt [belegMitFirmaAusHuelle] ueber die
  * `…WithCompany`-Varianten.
+ *
+ * Paketintern exportiert, damit `./stored` gespeicherte Belege mit demselben
+ * Leser liest; nicht Teil der Paketoberflaeche.
  */
-function belegAusHuelle(daten: unknown, functionName: string): Receipt {
+export function belegAusHuelle(daten: unknown, functionName: string): Receipt {
   const huelle = daten as { receipt?: unknown } | null | undefined;
   if (huelle == null || typeof huelle !== 'object' || huelle.receipt == null) {
     throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt fehlt)');
@@ -1037,21 +1078,41 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
  * fehlt er, ist die Antwort unbrauchbar. Die Firmendaten duerfen dagegen
  * luecken haben — ein Kundendokument ohne gepflegte Fusszeile ist kein Grund,
  * einen ausgestellten Beleg nicht anzuzeigen (siehe models/receipt-company.ts).
+ * Paketintern exportiert wie [belegAusHuelle].
  */
-function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
+export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
   const receipt = belegAusHuelle(daten, functionName);
-  const d = (daten ?? {}) as { testKasse?: unknown; testSignatur?: unknown; kopfId?: unknown; layout?: unknown; pruefangaben?: unknown; logo_skala?: unknown };
+  const d = (daten ?? {}) as {
+    testCashregister?: unknown;
+    testSignature?: unknown;
+    headerVersionId?: unknown;
+    layout?: unknown;
+    registrationInfo?: unknown;
+    logo_scale?: unknown;
+  };
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
-  const pa = d.pruefangaben && typeof d.pruefangaben === 'object' ? (d.pruefangaben as { karteRegistriertAm?: unknown; kasseRegistriertAm?: unknown }) : null;
-  const text = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
+  const angaben = d.registrationInfo && typeof d.registrationInfo === 'object' ? readRegistrationInfo(d.registrationInfo as Record<string, unknown>) : null;
   return {
     receipt,
     company: fromReceiptCompanyPayload(daten as ReceiptCompanyPayload),
-    testKasse: d.testKasse === true,
-    testSignatur: d.testSignatur === true,
-    kopfId: typeof d.kopfId === 'string' ? d.kopfId : null,
+    testCashregister: d.testCashregister === true,
+    testSignature: d.testSignature === true,
+    headerVersionId: typeof d.headerVersionId === 'string' && d.headerVersionId !== '' ? d.headerVersionId : null,
     layout,
-    pruefangaben: pa ? { karteRegistriertAm: text(pa.karteRegistriertAm), kasseRegistriertAm: text(pa.kasseRegistriertAm) } : null,
-    logoStufe: d.logo_skala === 'S' || d.logo_skala === 'M' || d.logo_skala === 'L' || d.logo_skala === 'XL' ? d.logo_skala : 'M',
+    registrationInfo: angaben,
+    logoScale: d.logo_scale === 'S' || d.logo_scale === 'M' || d.logo_scale === 'L' || d.logo_scale === 'XL' ? d.logo_scale : 'M',
   };
+}
+
+/**
+ * Zahlbetrag des Servers aus einem `payments_sum_mismatch`
+ * (`details.expectedCents`), sonst `undefined`. Das Paket wiederholt nie
+ * selbst mit diesem Betrag: eine Kartenzahlung ist schon belastet. Die Kasse
+ * entscheidet (Differenz nachkassieren oder erstatten) und schickt dann einen
+ * neuen Verkauf.
+ */
+export function paymentsExpectedCents(error: unknown): number | undefined {
+  if (!isKasseneckApiError(error) || error.code !== 'payments_sum_mismatch') return undefined;
+  const wert = error.details['expectedCents'];
+  return Number.isSafeInteger(wert) ? (wert as number) : undefined;
 }

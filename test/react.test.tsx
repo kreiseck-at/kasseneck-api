@@ -28,8 +28,8 @@ const FIRMA: ReceiptCompany = {
   zip: '1010',
   city: 'Wien',
   phone: '+43 1 1234567',
-  uid: 'ATU12345678',
-  taxnr: '12-345/6789',
+  vatId: 'ATU12345678',
+  taxNumber: '12-345/6789',
   isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf',
   footer2: 'www.kreiseck.com',
@@ -210,7 +210,7 @@ test('Kern: ein Import des Pakets laedt React nicht', () => {
 
 test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die Nutzlast bleibt als data-qr', () => {
   const layout = buildReceiptLayout(BELEG, FIRMA, { paperSize: 'mm80' });
-  const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrVerdeckt renderQr={(d) => <i data-qr-bild={d} />} />);
+  const html = renderToStaticMarkup(<ReceiptLayoutView layout={layout} qrHidden renderQr={(d) => <i data-qr-bild={d} />} />);
   assert.match(html, /keck-receipt-qr-toggle/);
   assert.match(html, /aria-pressed="false"/);
   // blur(3px): unscannbar, aber als QR erkennbar; der Hinweis ist ein
@@ -229,7 +229,7 @@ test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die N
 test('Spaltenzellen brechen lange Woerter um (min-width:0 + break-word) — Hex-Seriennummern werden nie abgeschnitten', () => {
   const layout = {
     paperSize: 'mm58' as const,
-    regelwerk: 2 as const,
+    ruleset: 2 as const,
     lines: [{ kind: 'columns' as const, columns: [
       { text: 'Signaturkarte:', width: 6, align: 'left' as const },
       { text: '0x01ccc48e1d40f6c3067ab12345cdef', width: 6, align: 'right' as const },

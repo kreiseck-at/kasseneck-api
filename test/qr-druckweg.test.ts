@@ -8,11 +8,11 @@ import {
   escPosQrCode,
   escPosQrRaster,
   escPosReset,
-  qrModulAnzahl,
-  qrRasterPunkte,
+  qrModuleCount,
+  qrRasterDots,
   type QrMatrix,
 } from '../src/printing/index.js';
-import { escPosLayoutBytes, escPosLayoutErgebnis, type ReceiptLayout } from '../src/receipt/index.js';
+import { escPosLayoutBytes, escPosLayoutResult, type ReceiptLayout } from '../src/receipt/index.js';
 
 /**
  * Der Druckweg: gerechnete Modulgroesse am nativen Befehl, der Notausgang auf
@@ -55,44 +55,44 @@ function qrBytes(text: string, optionen: Parameters<typeof escPosQrCode>[2], pap
 test('nativ: ohne Wahl gilt auto (hoechstens 6, wie im Dart-Zwilling), mit Wahl rechnet die Regel', () => {
   // Ruling 11: auto deckelt einheitlich bei 6 (bis 0.13 hier 4).
   assert.equal(modulgroesse(qrBytes(kurz, {}).bytes), 6);
-  assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'klein' }).bytes), 4);
-  assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'mittel' }).bytes), 6);
-  assert.equal(modulgroesse(qrBytes(kurz, { groesse: 'gross' }).bytes), 8);
+  assert.equal(modulgroesse(qrBytes(kurz, { moduleSize: 'small' }).bytes), 4);
+  assert.equal(modulgroesse(qrBytes(kurz, { moduleSize: 'medium' }).bytes), 6);
+  assert.equal(modulgroesse(qrBytes(kurz, { moduleSize: 'large' }).bytes), 8);
 });
 
 test('nativ: der Deckel wird heruntergerechnet, wo das Papier nicht reicht', () => {
   // 93 Module (600 Byte) auf 58 mm: (93 + 8) * 3 = 303 <= 384, mit 4 waeren es 404.
-  assert.equal(qrModulAnzahl(lang(600)), 93);
-  const { bytes, doc } = qrBytes(lang(600), { groesse: 'gross' });
+  assert.equal(qrModuleCount(lang(600)), 93);
+  const { bytes, doc } = qrBytes(lang(600), { moduleSize: 'large' });
   assert.equal(modulgroesse(bytes), 3);
-  assert.match(doc.qrAusweich ?? '', /unter dem Mindestmass/);
-  assert.equal(doc.qrFehler, null);
+  assert.match(doc.qrFallback ?? '', /unter dem Mindestmass/);
+  assert.equal(doc.qrError, null);
   // Auf 80 mm reicht der Platz fuer den vollen Deckel.
-  assert.equal(modulgroesse(qrBytes(lang(600), { groesse: 'gross' }, 'mm80').bytes), 5);
+  assert.equal(modulgroesse(qrBytes(lang(600), { moduleSize: 'large' }, 'mm80').bytes), 5);
 });
 
 test('nativ: feste Groesse schaltet die Rechnung ab', () => {
   const { bytes, doc } = qrBytes(lang(600), { size: 8 });
   assert.equal(modulgroesse(bytes), 8);
-  assert.equal(doc.qrAusweich, null);
+  assert.equal(doc.qrFallback, null);
 });
 
 test('nativ: was nicht aufs Papier passt, wird nicht als Befehl vorgetaeuscht', () => {
-  assert.equal(qrModulAnzahl(lang(1000)), 121);
+  assert.equal(qrModuleCount(lang(1000)), 121);
   const { bytes, doc } = qrBytes(lang(1000), {});
   assert.equal(modulgroesse(bytes), null, 'es steht doch ein QR-Befehl im Strom');
-  assert.match(doc.qrFehler ?? '', /121 Modulen ist fuer 58 mm \(384 Punkte\) zu breit/);
-  assert.equal(doc.qrAusweich, null);
+  assert.match(doc.qrError ?? '', /121 Modulen ist fuer 58 mm \(384 Punkte\) zu breit/);
+  assert.equal(doc.qrFallback, null);
   // Auf 80 mm passt dasselbe Symbol mit 4 Punkten.
   const breit = qrBytes(lang(1000), {}, 'mm80');
   assert.equal(modulgroesse(breit.bytes), 4);
-  assert.equal(breit.doc.qrFehler, null);
+  assert.equal(breit.doc.qrError, null);
 });
 
 test('nativ: leere Nutzlast geht unveraendert den Bestandsweg', () => {
   const { bytes, doc } = qrBytes('', {});
   assert.equal(modulgroesse(bytes), 4);
-  assert.equal(doc.qrFehler, null);
+  assert.equal(doc.qrError, null);
 });
 
 test('nativ: eine Nutzlast, die in keine QR-Version passt, wird gemeldet', () => {
@@ -102,17 +102,17 @@ test('nativ: eine Nutzlast, die in keine QR-Version passt, wird gemeldet', () =>
 test('escPosReset raeumt die QR-Meldungen des vorigen Belegs weg', () => {
   const doc = createEscPosDocument({ paperSize: 'mm58' });
   escPosQrCode(doc, lang(1000));
-  assert.ok(doc.qrFehler !== null);
+  assert.ok(doc.qrError !== null);
   escPosReset(doc);
-  assert.equal(doc.qrFehler, null);
-  assert.equal(doc.qrAusweich, null);
+  assert.equal(doc.qrError, null);
+  assert.equal(doc.qrFallback, null);
 });
 
 // ---------------------------------------------------------------- Modell 1
 
 test('Modell 1: der Wahlbefehl steht vorn — und nur, wenn er verlangt ist', () => {
   const ohne = qrBytes(kurz, {}).bytes;
-  const mit = qrBytes(kurz, { modell1: true }).bytes;
+  const mit = qrBytes(kurz, { model1: true }).bytes;
   assert.equal(findeFolge(ohne, MODELL1), -1, 'der Bestandsweg schickt einen Modellbefehl');
   const i = findeFolge(mit, MODELL1);
   assert.ok(i >= 0, 'Modell-1-Befehl fehlt');
@@ -122,7 +122,7 @@ test('Modell 1: der Wahlbefehl steht vorn — und nur, wenn er verlangt ist', ()
 });
 
 test('Modell 1: nimmt dieselbe gerechnete Modulgroesse', () => {
-  assert.equal(modulgroesse(qrBytes(lang(600), { modell1: true, groesse: 'gross' }).bytes), 3);
+  assert.equal(modulgroesse(qrBytes(lang(600), { model1: true, moduleSize: 'large' }).bytes), 3);
 });
 
 // ------------------------------------------------------------- Bildweg/GS v 0
@@ -130,7 +130,7 @@ test('Modell 1: nimmt dieselbe gerechnete Modulgroesse', () => {
 test('Bildweg: Rasterbild traegt Kopf, Ruhezone und Skalierung', () => {
   const matrix: QrMatrix = Array.from({ length: 21 }, () => Array.from({ length: 21 }, () => true));
   const doc = createEscPosDocument({ paperSize: 'mm58' });
-  escPosQrRaster(doc, matrix, { punkteJeModul: 1, ruhezoneModule: 0 });
+  escPosQrRaster(doc, matrix, { dotsPerModule: 1, quietZoneModules: 0 });
   const bytes = escPosBytes(doc);
   const i = findeFolge(bytes, [0x1d, 0x76, 0x30, 0x00]);
   assert.ok(i >= 0, 'GS v 0 fehlt');
@@ -149,7 +149,7 @@ test('Bildweg: die Ruhezone bleibt weiss und das Bild bleibt auf dem Papier', ()
   const i = findeFolge(bytes, [0x1d, 0x76, 0x30, 0x00]);
   const byteJeZeile = bytes[i + 4] as number;
   const zeilen = (bytes[i + 6] as number) + ((bytes[i + 7] as number) << 8);
-  assert.equal(qrRasterPunkte('mm58', 121), 2);
+  assert.equal(qrRasterDots('mm58', 121), 2);
   assert.equal(zeilen, (121 + 8) * 2, 'Gesamtbreite falsch');
   assert.ok(zeilen <= 384, 'Bild breiter als das Papier');
   assert.equal(byteJeZeile, Math.ceil(zeilen / 8));
@@ -161,14 +161,14 @@ test('Bildweg: kaputte Raster werden abgelehnt', () => {
   const doc = createEscPosDocument({ paperSize: 'mm58' });
   assert.throws(() => escPosQrRaster(doc, []), /leer/);
   assert.throws(() => escPosQrRaster(doc, [[true, false]]), /quadratisch/);
-  assert.throws(() => escPosQrRaster(doc, [[true]], { punkteJeModul: 0 }), /punkteJeModul/);
+  assert.throws(() => escPosQrRaster(doc, [[true]], { dotsPerModule: 0 }), /punkteJeModul/);
 });
 
 // -------------------------------------------------------------- Belegweg
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const basis: ReceiptLayout = {
-  ...(JSON.parse(readFileSync(new URL('erwartet/verkauf-bar.lines.json', wurzel), 'utf8')) as ReceiptLayout),
+  ...(JSON.parse(readFileSync(new URL('expected/sale-cash.lines.json', wurzel), 'utf8')) as ReceiptLayout),
   paperSize: 'mm58',
 };
 
@@ -178,61 +178,61 @@ const mitQr = (nutzlast: string): ReceiptLayout => ({
 });
 
 const rasterFuer = (nutzlast: string): QrMatrix => {
-  const n = qrModulAnzahl(nutzlast);
+  const n = qrModuleCount(nutzlast);
   return Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => ((x + y) & 1) === 0));
 };
 
 test('Belegweg: ohne Optionen ist das Ergebnis Byte fuer Byte der Bestand', () => {
-  const ergebnis = escPosLayoutErgebnis(basis);
+  const ergebnis = escPosLayoutResult(basis);
   assert.deepEqual(ergebnis.bytes, escPosLayoutBytes(basis));
-  assert.deepEqual([ergebnis.qrFehler, ergebnis.qrAusweich], [null, null]);
+  assert.deepEqual([ergebnis.qrError, ergebnis.qrFallback], [null, null]);
   // Ruling 11: 45 Module auf 58 mm, (45 + 8) * 7 passte -- auto deckelt bei 6 wie im Dart-Zwilling (vorher 4).
   assert.equal(modulgroesse(ergebnis.bytes), 6);
 });
 
 test('Belegweg: qrGroesse waehlt den Deckel, qrModus waehlt Modell 1', () => {
   // 45 Module auf 58 mm: (45 + 8) * 7 = 371 <= 384, mit 8 waeren es 424 --
-  // der Deckel 'gross' erlaubt 8, das Papier gibt nur 7 her.
-  assert.equal(modulgroesse(escPosLayoutBytes(basis, { qrGroesse: 'gross' })), 7);
-  assert.equal(modulgroesse(escPosLayoutBytes({ ...basis, paperSize: 'mm80' }, { qrGroesse: 'gross' })), 8);
-  const m1 = escPosLayoutBytes(basis, { qrModus: 'nativeModel1' });
+  // der Deckel 'large' erlaubt 8, das Papier gibt nur 7 her.
+  assert.equal(modulgroesse(escPosLayoutBytes(basis, { qrModuleSize: 'large' })), 7);
+  assert.equal(modulgroesse(escPosLayoutBytes({ ...basis, paperSize: 'mm80' }, { qrModuleSize: 'large' })), 8);
+  const m1 = escPosLayoutBytes(basis, { qrMode: 'nativeModel1' });
   assert.ok(findeFolge(m1, MODELL1) >= 0);
-  assert.equal(findeFolge(escPosLayoutBytes(basis, { qrModus: 'native' }), MODELL1), -1);
+  assert.equal(findeFolge(escPosLayoutBytes(basis, { qrMode: 'native' }), MODELL1), -1);
 });
 
 test('Belegweg: ohne Bildweg geht der Beleg ohne QR hinaus — und sagt es', () => {
-  const ohneBild = escPosLayoutErgebnis(mitQr(lang(1000)));
+  const ohneBild = escPosLayoutResult(mitQr(lang(1000)));
   assert.equal(modulgroesse(ohneBild.bytes), null);
   assert.equal(findeFolge(ohneBild.bytes, [0x1d, 0x76, 0x30, 0x00]), -1);
-  assert.match(ohneBild.qrFehler ?? '', /zu breit/);
+  assert.match(ohneBild.qrError ?? '', /zu breit/);
 });
 
 test('Belegweg: der Notausgang druckt das Bild statt gar nichts', () => {
-  const mitBild = escPosLayoutErgebnis(mitQr(lang(1000)), { qrMatrix: rasterFuer });
+  const mitBild = escPosLayoutResult(mitQr(lang(1000)), { qrMatrix: rasterFuer });
   assert.ok(findeFolge(mitBild.bytes, [0x1d, 0x76, 0x30, 0x00]) >= 0, 'kein Rasterbild im Strom');
   assert.equal(modulgroesse(mitBild.bytes), null, 'der native Befehl steht trotzdem im Strom');
 });
 
 test('Belegweg: der Notausgang nennt den Grund und meldet keinen Ausfall', () => {
-  const mitBild = escPosLayoutErgebnis(mitQr(lang(1000)), { qrMatrix: rasterFuer });
-  assert.match(mitBild.qrAusweich ?? '', /passt nativ nicht auf 58 mm \(384 Punkte\) -- als Bild gedruckt/);
-  assert.equal(mitBild.qrFehler, null, 'der QR steht ja auf dem Papier');
+  const mitBild = escPosLayoutResult(mitQr(lang(1000)), { qrMatrix: rasterFuer });
+  assert.match(mitBild.qrFallback ?? '', /passt nativ nicht auf 58 mm \(384 Punkte\) -- als Bild gedruckt/);
+  assert.equal(mitBild.qrError, null, 'der QR steht ja auf dem Papier');
 });
 
 test('Belegweg: wo der native Weg reicht, rastert der Notausgang nicht', () => {
-  const mitBild = escPosLayoutErgebnis(basis, { qrMatrix: rasterFuer });
+  const mitBild = escPosLayoutResult(basis, { qrMatrix: rasterFuer });
   assert.deepEqual(mitBild.bytes, escPosLayoutBytes(basis));
 });
 
 test('Belegweg: qrModus imageRaster rastert immer — und braucht ein Raster', () => {
-  const ergebnis = escPosLayoutErgebnis(basis, { qrModus: 'imageRaster', qrMatrix: rasterFuer });
+  const ergebnis = escPosLayoutResult(basis, { qrMode: 'imageRaster', qrMatrix: rasterFuer });
   assert.ok(findeFolge(ergebnis.bytes, [0x1d, 0x76, 0x30, 0x00]) >= 0);
   assert.equal(modulgroesse(ergebnis.bytes), null);
-  assert.throws(() => escPosLayoutErgebnis(basis, { qrModus: 'imageRaster' }), /qrMatrix/);
+  assert.throws(() => escPosLayoutResult(basis, { qrMode: 'imageRaster' }), /qrMatrix/);
 });
 
 test('Belegweg: feste qrSize schaltet Rechnung und Notausgang ab', () => {
-  const ergebnis = escPosLayoutErgebnis(mitQr(lang(1000)), { qrSize: 8, qrMatrix: rasterFuer });
+  const ergebnis = escPosLayoutResult(mitQr(lang(1000)), { qrSize: 8, qrMatrix: rasterFuer });
   assert.equal(modulgroesse(ergebnis.bytes), 8);
-  assert.deepEqual([ergebnis.qrFehler, ergebnis.qrAusweich], [null, null]);
+  assert.deepEqual([ergebnis.qrError, ergebnis.qrFallback], [null, null]);
 });

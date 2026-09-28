@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { KeckPaymentMethod, ReceiptType, VatRate } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../src/receipt/layout.js';
-import { renderReceiptGrid, gridSpaltenBreiten, ZEICHEN_JE_PAPIER, gridAlsText } from '../src/receipt/grid.js';
+import { renderReceiptGrid, gridColumnWidths, CHARS_PER_PAPER_SIZE, gridToText } from '../src/receipt/grid.js';
 import { escPosLayoutBytes } from '../src/receipt/layout-escpos.js';
 
 /**
@@ -16,7 +16,7 @@ import { escPosLayoutBytes } from '../src/receipt/layout-escpos.js';
  */
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck', street: 'Hauptstraße 5', zip: '1010', city: 'Wien', phone: '+43 1 1234567',
-  uid: 'ATU12345678', taxnr: '', isSmallBusiness: false,
+  vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf', footer2: 'www.kreiseck.com', thanksMessage: ['Bis bald!'], showKreiseckLogo: false,
 };
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
@@ -29,25 +29,25 @@ const BELEG: Receipt = {
 };
 
 test('Zeichenbreite je Papier: 58 mm = 32, 80 mm = 48; jede Rasterzeile hat exakt N Zeichen', () => {
-  assert.equal(ZEICHEN_JE_PAPIER.mm58, 32);
-  assert.equal(ZEICHEN_JE_PAPIER.mm80, 48);
+  assert.equal(CHARS_PER_PAPER_SIZE.mm58, 32);
+  assert.equal(CHARS_PER_PAPER_SIZE.mm80, 48);
   for (const paperSize of ['mm58', 'mm80'] as const) {
     const g = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA, { paperSize }));
-    assert.equal(g.zeichen, ZEICHEN_JE_PAPIER[paperSize]);
+    assert.equal(g.charsPerLine, CHARS_PER_PAPER_SIZE[paperSize]);
     assert.ok(g.lines.length > 20);
-    for (const z of g.lines) assert.equal(z.text.length, g.zeichen, `${paperSize}: "${z.text}"`);
+    for (const z of g.lines) assert.equal(z.text.length, g.charsPerLine, `${paperSize}: "${z.text}"`);
   }
   // Breite ausdruecklich vorgeben (Font B, 42 Zeichen)
-  const g42 = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA), { zeichen: 42 });
+  const g42 = renderReceiptGrid(buildReceiptLayout(BELEG, FIRMA), { charsPerLine: 42 });
   for (const z of g42.lines) assert.equal(z.text.length, 42);
 });
 
 test('Spalten: ganze Zeichen aus Zwoelfteln, Rest an die letzte Spalte, mindestens 1 Zeichen', () => {
-  assert.deepEqual(gridSpaltenBreiten([6, 6], 32), [16, 16]);
-  assert.deepEqual(gridSpaltenBreiten([7, 5], 32), [18, 14]);
-  assert.deepEqual(gridSpaltenBreiten([4, 8], 32), [10, 22]);
-  assert.deepEqual(gridSpaltenBreiten([2, 3, 3, 4], 48), [8, 12, 12, 16]);
-  assert.deepEqual(gridSpaltenBreiten([1, 11], 8), [1, 7]);
+  assert.deepEqual(gridColumnWidths([6, 6], 32), [16, 16]);
+  assert.deepEqual(gridColumnWidths([7, 5], 32), [18, 14]);
+  assert.deepEqual(gridColumnWidths([4, 8], 32), [10, 22]);
+  assert.deepEqual(gridColumnWidths([2, 3, 3, 4], 48), [8, 12, 12, 16]);
+  assert.deepEqual(gridColumnWidths([1, 11], 8), [1, 7]);
 });
 
 test('rechte Spalte buendig am rechten Rand -- der Preis endet exakt ueber dem Ende der Trennlinie', () => {
@@ -62,7 +62,7 @@ test('rechte Spalte buendig am rechten Rand -- der Preis endet exakt ueber dem E
 });
 
 test('mindestens ein Leerzeichen zwischen Spalten, auch wenn die linke Spalte voll ist', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
     { kind: 'columns', columns: [{ text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', width: 7, align: 'left' }, { text: '1,00 A', width: 5, align: 'right' }] },
   ] };
   const g = renderReceiptGrid(layout);
@@ -73,8 +73,8 @@ test('mindestens ein Leerzeichen zwischen Spalten, auch wenn die linke Spalte vo
 });
 
 test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
-    { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', ton: 'warnung' },
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
+    { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', tone: 'warning' },
     { kind: 'text', text: 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.', align: 'center', bold: false },
     { kind: 'columns', columns: [{ text: '4  x Semmel je 0,79', width: 7, align: 'left' }, { text: '3,16 B', width: 5, align: 'right' }] },
     { kind: 'text', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEF', align: 'left', bold: false },
@@ -88,7 +88,7 @@ test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', 
 });
 
 test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die anderen Spalten leer sind; geschuetztes Leerzeichen haelt "je 0,79" zusammen; ueberlange Woerter brechen am Bindestrich', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
     // Artikelname laenger als die Spalte: Rest ueber die volle Breite statt in der schmalen Spalte
     { kind: 'columns', columns: [{ text: '2  x Hausgemachte Bio-Dinkelvollkornsemmel mit Kürbiskernen je\u00a01,49', width: 7, align: 'left' }, { text: '2,98 B', width: 5, align: 'right' }] },
     // beide Spalten lang: bleibt im Raster (kein Fliessen, sonst verschoebe sich die rechte)
@@ -115,8 +115,8 @@ test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die an
 });
 
 test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR traegt die Nutzlast, Leerraum als Leerzeilen', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
-    { kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' },
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
+    { kind: 'banner', text: 'STORNOBELEG', tone: 'receipt_type' },
     { kind: 'text', text: 'Fett', align: 'center', bold: true },
     { kind: 'space', lines: 2 },
     { kind: 'qr', data: QR },
@@ -124,7 +124,7 @@ test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR trae
   const g = renderReceiptGrid(layout);
   // Rahmen oben, Text, Rahmen unten -- jede Ausgabe setzt ihn damit zeichengleich.
   for (const i of [0, 1, 2]) {
-    assert.equal(g.lines[i]!.kind, 'banner'); assert.equal(g.lines[i]!.bold, true); assert.equal(g.lines[i]!.ton, 'belegart');
+    assert.equal(g.lines[i]!.kind, 'banner'); assert.equal(g.lines[i]!.bold, true); assert.equal(g.lines[i]!.tone, 'receipt_type');
   }
   assert.equal(g.lines[0]!.text, '='.repeat(32));
   assert.equal(g.lines[1]!.text, ' '.repeat(10) + 'STORNOBELEG' + ' '.repeat(11));
@@ -132,7 +132,7 @@ test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR trae
   assert.equal(g.lines[3]!.bold, true);
   assert.equal(g.lines[4]!.kind, 'space'); assert.equal(g.lines[5]!.kind, 'space');
   assert.equal(g.lines[6]!.kind, 'qr'); assert.equal(g.lines[6]!.qr, QR);
-  assert.equal(gridAlsText(g).split('\n').length, 7);
+  assert.equal(gridToText(g).split('\n').length, 7);
 });
 
 test('ESC/POS druckt genau die Rasterzeilen (keine eigene Spaltenrechnung mehr): Bytestrom enthaelt jede Zeile', () => {
@@ -157,19 +157,19 @@ test('ESC/POS druckt genau die Rasterzeilen (keine eigene Spaltenrechnung mehr):
 
 test('Golden: grid32/grid48 der Fixtures stimmen zeichengenau', () => {
   const wurzel = new URL('../../fixtures/', import.meta.url);
-  const namen = readdirSync(new URL('belege/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
+  const namen = readdirSync(new URL('receipts/', wurzel)).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
   assert.ok(namen.length >= 17);
   for (const name of namen) {
     for (const zeichen of [32, 48] as const) {
-      const soll = readFileSync(new URL(`erwartet/${name}.grid${zeichen}.txt`, wurzel), 'utf8');
-      const layout = JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
-      assert.equal(gridAlsText(renderReceiptGrid(layout, { zeichen })), soll, `${name} @${zeichen}`);
+      const soll = readFileSync(new URL(`expected/${name}.grid${zeichen}.txt`, wurzel), 'utf8');
+      const layout = JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+      assert.equal(gridToText(renderReceiptGrid(layout, { charsPerLine: zeichen })), soll, `${name} @${zeichen}`);
     }
   }
 });
 
 test('ESC/POS: Aufdruck ohne doppelte Hoehe -- genau die drei Rasterzeilen fett', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [{ kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' }] };
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [{ kind: 'banner', text: 'STORNOBELEG', tone: 'receipt_type' }] };
   const text = Array.from(escPosLayoutBytes(layout, { cut: false }), (b) => String.fromCharCode(b)).join('');
   assert.equal((text.match(new RegExp('='.repeat(32), 'g')) ?? []).length, 2);
   assert.ok(text.includes('STORNOBELEG'));

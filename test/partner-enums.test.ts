@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import abzug from './fixtures/dart-partner.json' with { type: 'json' };
 import {
   PARTNER_ENVS,
-  PARTNER_FEHLER_CODES,
-  PARTNER_PORTAL_FEHLER_CODES,
+  PARTNER_ERROR_CODES,
+  PARTNER_PORTAL_ERROR_CODES,
   PARTNER_WEBHOOK_EVENTS,
-  WEBHOOK_UMSCHLAG_FELDER,
-  BETRIEB_FELDER,
+  WEBHOOK_ENVELOPE_FIELDS,
+  BUSINESS_FIELDS,
   WEBHOOK_RETRY_PLAN_SEC,
-  partnerFehlerRat,
+  partnerErrorAdvice,
 } from '../src/partner/index.js';
 
 /*
@@ -17,7 +17,7 @@ import {
  * `enums.test.ts` fuer die Kassen-Enums: verglichen wird gegen den
  * eingecheckten Abzug der Dart-Seite (test/fixtures/dart-partner.json).
  *
- * **Warum es diese Datei zusaetzlich zu fixtures/oberflaeche.json gibt.** Der
+ * **Warum es diese Datei zusaetzlich zu fixtures/surface.json gibt.** Der
  * Vertrag in `fixtures/` geht in die andere Richtung: den prueft das
  * Dart-Repo gegen dieses Paket. Hier faellt auf, was NUR in Dart landet —
  * ein Fehlercode, ein Ereignis, ein Betriebsfeld oder die Marke `test`, die
@@ -32,13 +32,17 @@ import {
 
 const abzugAls = abzug as unknown as Record<string, unknown>;
 
+/**
+ * Schluessel sind die Namen im Abzug (Dart 5.3.0, damals wie die 0.x-Namen
+ * hier); die Werte die Listen unter ihren 1.0-Namen.
+ */
 const listen: Record<string, readonly (string | number)[]> = {
   PARTNER_ENVS,
-  PARTNER_FEHLER_CODES,
-  PARTNER_PORTAL_FEHLER_CODES,
+  PARTNER_FEHLER_CODES: PARTNER_ERROR_CODES,
+  PARTNER_PORTAL_FEHLER_CODES: PARTNER_PORTAL_ERROR_CODES,
   PARTNER_WEBHOOK_EVENTS,
-  WEBHOOK_UMSCHLAG_FELDER,
-  BETRIEB_FELDER,
+  WEBHOOK_UMSCHLAG_FELDER: WEBHOOK_ENVELOPE_FIELDS,
+  BETRIEB_FELDER: BUSINESS_FIELDS,
   WEBHOOK_RETRY_PLAN_SEC,
 };
 
@@ -59,7 +63,7 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
   // activateCashregister live), seit 0.29.0 in ihrer `/v3`-Schreibweise.
   // Die uebrigen acht sind reportCustomerContract/reportCustomerVertrag
   // (partner-core.FEHLER_KATALOG, flaeche 'api'/'beide'); dieser Endpunkt
-  // existierte in Dart 5.3.0 so wenig wie in diesem Paket. `not_required`
+  // existierte in Dart 5.3.0 nicht (in diesem Paket seit 1.0). `not_required`
   // gehoert NICHT dazu: derselbe Server-Zweig, aber ueber die Partner-API
   // unerreichbar, darum in fehler.ts seit dieser Korrektur weder hier noch
   // dort gefuehrt (siehe Kopfkommentar dort).
@@ -68,6 +72,9 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
     'kind_not_allowed', 'mode_not_allowed', 'power_of_attorney_missing',
     'not_found', 'no_version', 'unknown_version', 'text_changed', 'already_accepted',
   ],
+  // Die Vertragsereignisse bietet das Backend seit dem Vollmachtsweg an; seit
+  // 1.0 stehen sie hier in der Reihenfolge des Backend-Katalogs.
+  PARTNER_WEBHOOK_EVENTS: ['customer.avv_accepted', 'customer.terms_accepted'],
 };
 
 /**
@@ -75,7 +82,7 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
  * seit 0.29.0 aber nicht mehr: `kein_partnerbetrieb` und `request_not_found`
  * sind admin-only (`functions-partner/partner-endpoints.js`, ausserhalb von
  * `FEHLER_KATALOG`) und erreichten `/v3` nie; sie standen bis 0.28.0
- * versehentlich in PARTNER_FEHLER_CODES (siehe Kopfkommentar in fehler.ts).
+ * versehentlich in PARTNER_ERROR_CODES (siehe Kopfkommentar in fehler.ts).
  * Der Dart-Snapshot ist aelter als diese Korrektur und aendert sich nicht mehr.
  */
 const NICHT_MEHR_OEFFENTLICH: Record<string, readonly string[]> = {
@@ -153,7 +160,7 @@ test('Partner: die Marke test steht im Umschlag beider Sprachen', () => {
   // Die eine Stelle, an der eine Probe von einem echten Ereignis zu
   // unterscheiden ist. Faellt sie auf einer Seite weg, haelt dort jemand eine
   // Probe fuer echt und schreibt seinem Kunden, die Kasse sei fertig.
-  assert.ok(WEBHOOK_UMSCHLAG_FELDER.includes('test'), 'hier fehlt die Marke');
+  assert.ok(WEBHOOK_ENVELOPE_FIELDS.includes('test'), 'hier fehlt die Marke');
   assert.ok((abzugAls['WEBHOOK_UMSCHLAG_FELDER'] as string[]).includes('test'), 'im Dart-Paket fehlt die Marke');
 });
 
@@ -174,7 +181,7 @@ test('Partner: jeder Code des Abzugs hat hier auch einen Handlungssatz', () => {
     .map((c) => uebersetzt[c] ?? c);
   assert.equal(codes.length, 38, 'der Katalog des Backends hat 26 API- und 12 Portal-Codes ohne die zwei Streichungen');
   for (const code of codes) {
-    const rat = partnerFehlerRat(code);
+    const rat = partnerErrorAdvice(code);
     assert.ok(rat && rat.length > 20, `${code}: kein brauchbarer Handlungssatz`);
   }
 });

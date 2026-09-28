@@ -9,7 +9,7 @@ import {
   type HttpRequestInit,
   type HttpResponseLike,
 } from '../src/client/transport.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -41,7 +41,7 @@ function antwort(
 ): HttpResponseLike {
   return {
     status,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     // Dieselben Bytes wie der Text — eine Attrappe, die nur eine der beiden
     // Seiten kennt, laesst den jeweils anderen Weg ins Leere laufen.
@@ -91,15 +91,15 @@ test('Aufruf geht als POST an <basis>/<funktionsname> mit JSON-Rumpf {params}', 
 
 test('Basis-URL ist konfigurierbar (eigene Rewrites der Browser-Kasse)', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({}));
-  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen, baseUrl: 'https://kasse.example.at/api/v1/' });
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen, baseUrl: 'https://kasse.example.at/api/v3/' });
 
   await rufen('getReceipt', { receiptId: 'r1' });
 
-  assert.equal(aufrufe[0]!.url, 'https://kasse.example.at/api/v1/getReceipt');
+  assert.equal(aufrufe[0]!.url, 'https://kasse.example.at/api/v3/getReceipt');
 });
 
 test('Vorgabewerte: Basis-URL und Zeitlimit wie im Flutter-Zwilling', () => {
-  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v1');
+  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v3');
   assert.equal(DEFAULT_TIMEOUT_MS, 30000);
 });
 
@@ -218,15 +218,26 @@ test('HTTP-Fehler (500) ist kein fachlicher Fehler', async () => {
   });
 });
 
-test('HTML statt JSON bei HTTP 200 (fehlender Rewrite) ist ein HTTP-Fehler, kein fachlicher', async () => {
+test('HTML statt JSON bei HTTP 200 (fehlender Rewrite) ist route_missing, kein HTTP-Fehler', async () => {
   const { holen } = fetchFake(antwort('<!doctype html><html><body>App</body></html>', { contentType: 'text/html; charset=utf-8' }));
-  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen, baseUrl: 'https://kasse.example.at/v1' });
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen, baseUrl: 'https://kasse.example.at/api/v3' });
+
+  await assert.rejects(rufen('getReceipt'), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckApiError, 'muss KasseneckApiError sein');
+    assert.equal(fehler.code, 'route_missing');
+    assert.match(fehler.message, /getReceipt/);
+    return true;
+  });
+});
+
+test('Text statt JSON bei HTTP 200 (mit Kennzeichen) bleibt ein HTTP-Fehler not-json', async () => {
+  const { holen } = fetchFake(antwort('kein json', { contentType: 'text/plain' }));
+  const rufen = createTransport({ auth: apiSchluesselWeg(), fetch: holen });
 
   await assert.rejects(rufen('getReceipt'), (fehler: unknown) => {
     assert.ok(fehler instanceof KasseneckHttpError, 'muss KasseneckHttpError sein');
     assert.equal(fehler.statusCode, 200);
-    assert.match(fehler.contentType ?? '', /text\/html/);
-    assert.match(fehler.message, /getReceipt/);
+    assert.equal(fehler.reason, 'not-json');
     return true;
   });
 });
@@ -695,7 +706,7 @@ test('kein Aufruf wird wiederholt — auch nicht auf dem Fehlerpfad', async () =
 test('der HTTP-Fehler nennt seinen Grund als eigenes Feld, nicht nur im Text', async () => {
   const faelle: Array<[string, HttpResponseLike]> = [
     ['server-error', antwort('<html>500</html>', { status: 500, contentType: 'text/html' })],
-    ['not-json', antwort('<!doctype html><html></html>', { contentType: 'text/html' })],
+    ['not-json', antwort('<!doctype html><html></html>', { contentType: 'text/plain' })],
     ['empty-body', antwort('')],
     ['missing-status', antwort(JSON.stringify({ irgendwas: true }))],
   ];
@@ -752,7 +763,7 @@ test('Zeitlimit greift auch, wenn erst das Lesen des Antwortrumpfs haengt', asyn
   // den Rumpf offen laesst (oder ein Proxy, der auf halbem Weg einschlaeft).
   const haengenderRumpf: FetchLike = async () => ({
     status: 200,
-    headers: { get: () => 'application/json' },
+    headers: { get: (name: string) => (name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : 'application/json') },
     text: () => new Promise<string>(() => {}),
     arrayBuffer: () => new Promise<ArrayBuffer>(() => {}),
   });
@@ -783,9 +794,9 @@ test('Die Aufrufliste traegt jeden Namen, den das Paket benutzt', () => {
   // ueber InternerTransport, nicht dieser Test.
   for (const name of ['createReceipt', 'listMyPrinters', 'createPrintJob', 'getPrintJob',
                       'pairRegisterDevice', 'financeWebService', 'downloadReport']) {
-    assert.ok(AUFRUFE.includes(name as never), `${name} fehlt in AUFRUFE`);
+    assert.ok(ALL_CALLS.includes(name as never), `${name} fehlt in ALL_CALLS`);
   }
-  assert.equal(new Set(AUFRUFE).size, AUFRUFE.length, 'Doppelte Namen in AUFRUFE');
+  assert.equal(new Set(ALL_CALLS).size, ALL_CALLS.length, 'Doppelte Namen in ALL_CALLS');
 });
 
 // Stabile Fehlercodes: das Backend legt bei fachlichen Fehlern (heute: Storno)

@@ -47,8 +47,8 @@ const BELEG_NUTZLAST: ReceiptPayload = {
 const HUELLE_GET = {
   receipt: BELEG_NUTZLAST,
   is_small_business: true,
-  uid: 'ATU12345678',
-  taxnr: '12-345/6789',
+  vatId: 'ATU12345678',
+  taxNumber: '12-345/6789',
   company: 'Café Kreiseck',
   phone: '+43 1 1234567',
   street: 'Hauptstraße 5',
@@ -94,8 +94,8 @@ test('getReceiptWithCompany: liefert Beleg und Firmendaten aus derselben Antwort
     zip: '1010',
     city: 'Wien',
     phone: '+43 1 1234567',
-    uid: 'ATU12345678',
-    taxnr: '12-345/6789',
+    vatId: 'ATU12345678',
+    taxNumber: '12-345/6789',
     isSmallBusiness: true,
     footer1: 'Vielen Dank',
     footer2: 'www.kreiseck.com',
@@ -107,7 +107,7 @@ test('getReceiptWithCompany: liefert Beleg und Firmendaten aus derselben Antwort
 
 test('sellReceiptWithCompany: schickt dieselbe Nutzlast wie sellReceipt und liefert die Firmendaten mit', async () => {
   const optionen = {
-    paymentMethod: KeckPaymentMethod.cash,
+    payments: [{ method: KeckPaymentMethod.cash, amountCents: 500 }],
     items: [{ name: 'Espresso', quantity: 2, vat: VatRate.vat20, priceCents: 250 }],
   };
   const mitFirma = transportMit(HUELLE_CREATE);
@@ -126,7 +126,7 @@ test('sellReceiptWithCompany: schickt dieselbe Nutzlast wie sellReceipt und lief
 test('Firmendaten: fehlendes thanks_message ist kein Fehler (createReceipt liefert es nicht)', async () => {
   const { rufen } = transportMit(HUELLE_CREATE);
   const { company } = await sellReceiptWithCompany(rufen, {
-    paymentMethod: KeckPaymentMethod.cash,
+    payments: [{ method: KeckPaymentMethod.cash, amountCents: 250 }],
     items: [{ name: 'Espresso', quantity: 1, vat: VatRate.vat20, priceCents: 250 }],
   });
   assert.deepEqual(company.thanksMessage, []);
@@ -143,7 +143,7 @@ test('Firmendaten: fehlende und leere Felder werden zu leeren Zeichenketten, nic
     zip: '',
     city: '',
     phone: '',
-    taxnr: '',
+    taxNumber: '',
     isSmallBusiness: false,
     footer1: '',
     footer2: '',
@@ -182,7 +182,7 @@ test('Die Fabrik reicht beide Varianten durch', async () => {
       aufrufe.push(url);
       return {
         status: 200,
-        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
         text: async () => JSON.stringify({ status: 'success', message: '', data: HUELLE_GET }),
         arrayBuffer: async () => new ArrayBuffer(0),
       };
@@ -192,7 +192,7 @@ test('Die Fabrik reicht beide Varianten durch', async () => {
   const { company } = await api.getReceiptWithCompany('AT0-42');
   assert.equal(company.companyName, 'Café Kreiseck');
   const verkauf = await api.sellReceiptWithCompany({
-    paymentMethod: KeckPaymentMethod.cash,
+    payments: [{ method: KeckPaymentMethod.cash, amountCents: 250 }],
     items: [{ name: 'Espresso', quantity: 1, vat: VatRate.vat20, priceCents: 250 }],
   });
   assert.equal(verkauf.receipt.receiptId, 'AT0-42');

@@ -6,6 +6,7 @@ import { createKasseneckApi } from '../src/client/api.js';
 import {
   createTransport,
   DEFAULT_BASE_URL,
+  POS_BASE_URL,
   type FetchLike,
   type HttpRequestInit,
   type HttpResponseLike,
@@ -20,9 +21,8 @@ import { KeckPaymentMethod, ReceiptType } from '../src/enums/index.js';
  * Endpunktname, Parameternamen und Antwortform sind aus `origin/main`
  * (functions/index.js, `listMyCashregisters` und `listMyReceipts` samt
  * `projectReceiptForCustomer`) **abgeschrieben** — nicht aus dieser Umsetzung
- * abgeleitet. Die Falle sitzt beim Parameternamen: der Endpunkt verlangt
- * `cashregisterid` **klein**, waehrend die Anmeldung `cashregisterId` in die
- * Nutzlast legt. Ein Tippfehler hier faellt der Typpruefung nicht auf.
+ * abgeleitet. Unter `/v3` heisst der Parameter `cashregisterId` (innen
+ * `cashregisterid`); ein Tippfehler hier faellt der Typpruefung nicht auf.
  */
 
 const API_KEY = 'kr_live_GEHEIMERAPIKEY';
@@ -39,7 +39,7 @@ interface Aufruf {
 function antwort(rumpf: string): HttpResponseLike {
   return {
     status: 200,
-    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => rumpf,
     arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer,
   };
@@ -125,16 +125,16 @@ const BELEGLISTE_ANTWORT = {
     },
   ],
   stats: {
-    today: { umsatz: 19.9, count: 2 },
+    today: { revenue: 19.9, count: 2 },
     trendPct: 25,
     days: [
-      { date: '2026-08-07', umsatz: 0 },
-      { date: '2026-08-08', umsatz: 12.5 },
-      { date: '2026-08-09', umsatz: 0 },
-      { date: '2026-08-10', umsatz: 0 },
-      { date: '2026-08-11', umsatz: 0 },
-      { date: '2026-08-12', umsatz: 15.92 },
-      { date: '2026-08-13', umsatz: 19.9 },
+      { date: '2026-08-07', revenue: 0 },
+      { date: '2026-08-08', revenue: 12.5 },
+      { date: '2026-08-09', revenue: 0 },
+      { date: '2026-08-10', revenue: 0 },
+      { date: '2026-08-11', revenue: 0 },
+      { date: '2026-08-12', revenue: 15.92 },
+      { date: '2026-08-13', revenue: 19.9 },
     ],
   },
 };
@@ -168,7 +168,7 @@ test('listMyCashregisters: Endpunktname und leere Nutzlast', async () => {
   await listMyCashregisters(rufen);
 
   assert.equal(aufrufe.length, 1);
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyCashregisters`);
   // Nur die Kassenbindung der Anmeldung, kein eigener Parameter.
   assert.deepEqual(rumpfVon(aufrufe[0]!).params, { cashregisterId: KASSEN_ID });
 });
@@ -216,16 +216,15 @@ test('listMyCashregisters: eine Antwort ohne Liste ist ein Antwortfehler', async
 
 // ------------------------------------------------------------ listMyReceipts
 
-test('listMyReceipts: Kassen-ID geht als "cashregisterid" klein geschrieben raus', async () => {
+test('listMyReceipts: Kassen-ID geht als "cashregisterId" hinaus, nie als altes "cashregisterid"', async () => {
   const { rufen, aufrufe } = kassenBenutzerWeg(erfolg(BELEGLISTE_ANTWORT));
   await listMyReceipts(rufen, { cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyReceipts`);
   const params = rumpfVon(aufrufe[0]!).params;
-  // Der Pflichtparameter des Backends heisst klein geschrieben; die Anmeldung
-  // legt daneben ihr cashregisterId. Beide muessen da sein.
-  assert.equal(params['cashregisterid'], KASSEN_ID);
+  // Unter /v3 weist der Rand den inneren Namen als deutschen Parameter ab.
   assert.equal(params['cashregisterId'], KASSEN_ID);
+  assert.equal('cashregisterid' in params, false);
   assert.equal('limit' in params, false, 'ohne Angabe darf kein limit gesendet werden');
 });
 
@@ -310,6 +309,6 @@ test('die Fassade bindet beide Listen-Aufrufe an denselben Transport', async () 
   });
   await api2.listMyReceipts({ cashregisterId: KASSEN_ID });
 
-  assert.equal(aufrufe[0]?.url, `${DEFAULT_BASE_URL}/listMyCashregisters`);
-  assert.equal(aufrufe2[0]?.url, `${DEFAULT_BASE_URL}/listMyReceipts`);
+  assert.equal(aufrufe[0]?.url, `${POS_BASE_URL}/listMyCashregisters`);
+  assert.equal(aufrufe2[0]?.url, `${POS_BASE_URL}/listMyReceipts`);
 });

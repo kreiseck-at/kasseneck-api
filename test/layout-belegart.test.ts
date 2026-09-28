@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { KeckPaymentMethod, ReceiptType, VatRate } from '../src/enums/index.js';
 import type { Receipt, ReceiptCompany } from '../src/models/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { AKTUELLES_REGELWERK, buildReceiptLayout, receiptAmountsAreZero, receiptIsSmallBusinessConsistent, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
+import { CURRENT_LAYOUT_RULESET, buildReceiptLayout, receiptAmountsAreZero, receiptIsSmallBusinessConsistent, receiptSignatureIsTest, type ReceiptLayout } from '../src/receipt/layout.js';
 import { CANCELLATION_REASONS } from '../src/models/index.js';
 
 /**
@@ -14,7 +14,7 @@ import { CANCELLATION_REASONS } from '../src/models/index.js';
  */
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck', street: 'Hauptstraße 5', zip: '1010', city: 'Wien', phone: '+43 1 1234567',
-  uid: 'ATU12345678', taxnr: '', isSmallBusiness: false,
+  vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf', footer2: 'www.kreiseck.com', thanksMessage: ['Bis bald!'], showKreiseckLogo: false,
 };
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
@@ -49,7 +49,7 @@ test('Verkaufsbeleg traegt keinen Belegart-Aufdruck (Rot-Probe fuer die anderen)
 // ohne die Zeile -- kein geratenes Datum.
 test('Stornobeleg: Datum des Originals als eigene Zeile zwischen Bezug und Grund', () => {
   const mit = { ...BELEG, receiptType: ReceiptType.cancellation,
-    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null, timeStamp: '2026-08-11T09:02:17' }, cancellationReason: 'fehleingabe' };
+    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null, timeStamp: '2026-08-11T09:02:17' }, cancellationReason: 'input_error' };
   const t = alsText(buildReceiptLayout(mit, FIRMA));
   const i = t.indexOf('Stornobuchung zu Beleg AT0-KASSE1-42');
   assert.ok(i >= 0, t.join('\n'));
@@ -63,7 +63,7 @@ test('Stornobeleg: Datum des Originals als eigene Zeile zwischen Bezug und Grund
 test('Stornobeleg: STORNOBELEG unter dem Kopf, Stornobuchung mit Bezug und Grund', () => {
   const storno: Receipt = { ...BELEG, receiptId: 'AT0-KASSE1-43', receiptType: ReceiptType.cancellation,
     items: [{ name: 'Espresso', quantity: -2, vat: VatRate.vat20, priceCents: 250 }],
-    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null }, cancellationReason: 'kunde_storniert' };
+    cancellationOf: { receiptId: 'AT0-KASSE1-42', fullReceiptId: null }, cancellationReason: 'customer_cancelled' };
   const l = buildReceiptLayout(storno, FIRMA);
   assert.deepEqual(banner(l), ['STORNOBELEG']);
   const t = alsText(l);
@@ -84,7 +84,7 @@ test('Trainingsbeleg: TRAININGSBELEG mit Erklaerung -- kein Kauf, keine Zahlung,
 
 test('Nullbeleg (Regelwerk 1, Altbelege): reduziert -- Kopf, Aufdruck, Kennung, Betrag 0, QR; keine Positionen, MwSt-Tabelle, Zahlungsart, Fusszeilen', () => {
   const null0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '' };
-  const l = buildReceiptLayout(null0, FIRMA, { regelwerk: 1 });
+  const l = buildReceiptLayout(null0, FIRMA, { ruleset: 1 });
   assert.deepEqual(banner(l), ['NULLBELEG']);
   const t = alsText(l);
   assert.ok(t.includes('Prüfbeleg'), t.join('\n'));
@@ -122,7 +122,7 @@ test('Nullbeleg-Arten: Untertitel aus zeroKind (Start/Monat/Jahr/Schluss/Ausfall
 });
 
 test('Testkasse: Rahmen oben UND unten -- zusaetzlich zur Belegart', () => {
-  const l = buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.training }, FIRMA, { testKasse: true });
+  const l = buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.training }, FIRMA, { testCashregister: true });
   const b = banner(l);
   assert.equal(b[0], 'TESTKASSE — kein gültiger Beleg');
   assert.equal(b[b.length - 1], 'TESTKASSE — kein gültiger Beleg');
@@ -134,19 +134,19 @@ test('Testsignatur: erkannt am ZDA AT100 im QR; Aufdruck nur, wenn der Aufrufer 
   const testQr = QR.replace('_R1-AT1_', '_R1-AT100_');
   assert.equal(receiptSignatureIsTest({ ...BELEG, qr: testQr }), true);
   assert.equal(receiptSignatureIsTest(BELEG), false);
-  const l = buildReceiptLayout({ ...BELEG, qr: testQr }, FIRMA, { testSignatur: true });
+  const l = buildReceiptLayout({ ...BELEG, qr: testQr }, FIRMA, { testSignature: true });
   assert.ok(banner(l).includes('TESTSIGNATUR — kein gültiger Beleg'));
   // Rot-Probe: ohne Verlangen kein Aufdruck (Testumgebung signiert immer mit AT100)
   assert.deepEqual(banner(buildReceiptLayout({ ...BELEG, qr: testQr }, FIRMA)), []);
 });
 
 test('Regelwerk: 2 ist die Vorgabe und steht am Layout; 1 setzt Altbelege wie bisher; unbekannt wirft', () => {
-  assert.equal(AKTUELLES_REGELWERK, 2);
-  assert.equal(buildReceiptLayout(BELEG, FIRMA).regelwerk, 2);
-  assert.equal(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 1 }).regelwerk, 1);
-  assert.throws(() => buildReceiptLayout(BELEG, FIRMA, { regelwerk: 99 as 1 }), /Regelwerk/);
+  assert.equal(CURRENT_LAYOUT_RULESET, 2);
+  assert.equal(buildReceiptLayout(BELEG, FIRMA).ruleset, 2);
+  assert.equal(buildReceiptLayout(BELEG, FIRMA, { ruleset: 1 }).ruleset, 1);
+  assert.throws(() => buildReceiptLayout(BELEG, FIRMA, { ruleset: 99 as 1 }), /Regelwerk/);
   // Vollbelege sind in beiden Regelwerken zeilengleich -- Regelwerk 2 aendert nur den Nullbeleg.
-  assert.deepEqual(alsText(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 2 })), alsText(buildReceiptLayout(BELEG, FIRMA, { regelwerk: 1 })));
+  assert.deepEqual(alsText(buildReceiptLayout(BELEG, FIRMA, { ruleset: 2 })), alsText(buildReceiptLayout(BELEG, FIRMA, { ruleset: 1 })));
 });
 
 // --- Regelwerk 2: Nullbeleg als Pruefbeleg -------------------------------------
@@ -154,7 +154,7 @@ const NULL0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], pay
   qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR' };
 
 test('Regelwerk 2: Nullbeleg traegt einen Block "Prüfangaben" statt der Summenzeile', () => {
-  const l = buildReceiptLayout(NULL0, FIRMA, { pruefangaben: { karteRegistriertAm: '2024-03-12', kasseRegistriertAm: '2024-03-12' } });
+  const l = buildReceiptLayout(NULL0, FIRMA, { registrationInfo: { cardRegisteredAt: '2024-03-12', cashregisterRegisteredAt: '2024-03-12' } });
   const t = alsText(l);
   assert.deepEqual(banner(l), ['MONATSBELEG']);
   assert.ok(t.includes('Prüfangaben'), t.join('\n'));

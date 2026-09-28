@@ -51,3 +51,37 @@ test('Paket: im mitgelieferten fixtures/ liegt nichts Oertliches', () => {
   gehe(join(wurzel, 'fixtures'), '');
   assert.deepEqual(gefunden, [], `oertliche Datei in fixtures/: ${gefunden.join(', ')}`);
 });
+
+/**
+ * Jeder Eintrag unter `fixtures/` reist im Tarball mit (`files: fixtures`)
+ * und hat darum einen Abnehmer ausserhalb dieses Pakets. Der Dart-Zwilling
+ * zieht das ganze Verzeichnis aus dem Tarball und vergleicht es byteweise
+ * (kasseneck_api `tool/zwillinge.sh pruefen`). Wer hier etwas ablegt, das nur
+ * die eigenen Tests brauchen, legt es unter `test/fixtures/` ab.
+ */
+const ABNEHMER: Record<string, string> = {
+  'receipts': 'Golden-Eingaben: Dart (Pruefsumme, Storno-Probe); kasseneck-web apps/admin/src/features/labor/fixtures.ts + druck.test.ts, apps/app/src/components/beleg-detail.test.tsx, apps/app/src/lib/beleg-kopf.test.ts, apps/kasse/src/test/golden-belege.test.tsx',
+  'expected': 'Golden-Ausgaben (Zeilen, Raster, Blatt): Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/druck.test.ts + labor-core.test.ts, apps/app/src/components/beleg-render.test.tsx, apps/app/src/lib/beleg-kopf.test.ts',
+  'manifest.json': 'Pruefsummen der Goldens: Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/fixtures.ts, apps/kasse/src/test/golden-belege.test.tsx',
+  'hobex-hps-codes.json': 'Terminal-Codes: Dart-Zwilling (hobex_hps_codes_vertrag_test)',
+  'pos-message-cases.json': 'Fehlereinordnung der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh); kasseneck-web apps/kasse/src/test/meldung-faelle.test.ts',
+  'pos-settings-defaults.json': 'Standardwerte der Kasseneinstellungen: Dart-Zwilling; Kassen-App (kasseneck-apps tool/vertrag.sh)',
+  'pos-texts.json': 'Textkatalog der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh; apps/kasse/tool/texte_erzeugen.dart erzeugt daraus die Konstanten)',
+  'surface.json': 'Aufrufe, Wege und Enums: Dart-Zwilling (zwillinge.yaml); kasseneck-web scripts/vertrag.sh + scripts/check-rewrites.mjs (Routen je Aufruf)',
+  'item-from-euro.json': 'Prueffaelle itemFromEuro: Dart-Zwilling, Panel',
+  'invoice-api-examples': 'Rechnungs-API-Beispiele: Dart-Zwilling',
+  'invoice-api.schema.json': 'Anfrage-Schema der Rechnungs-API: Dart-Zwilling',
+  'invoice-calc.json': 'Prueffaelle Rechenkern (Hand): Server, Dart, Panel',
+  'invoice-calc-random.json': 'Prueffaelle Rechenkern (Python-Referenz): Server, Dart, Panel',
+  'invoice-totals.json': 'Prueffaelle Rechnungssummen: Dart-Zwilling; kasseneck-web apps/app/src/lib/invoice-summen.test.ts',
+  'invoice-texts.json': 'Textkatalog der Rechnung: Dart (das Backend liest noch die 0.x-Datei)',
+  'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/)',
+  'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
+  'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
+  'receipt-due-generated.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',
+};
+
+test('Paket: jeder Eintrag unter fixtures/ hat einen Abnehmer ausserhalb des Pakets', () => {
+  assert.deepEqual(readdirSync(join(wurzel, 'fixtures')).sort(), Object.keys(ABNEHMER).sort(),
+    'neuer oder entfernter Eintrag unter fixtures/: Abnehmer nennen oder nach test/fixtures/ legen');
+});

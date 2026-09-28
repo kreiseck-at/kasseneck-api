@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "0.31.0",
+  "version": "1.0.0-rc.1",
   "description": "Austrian fiscal cash register (RKSV) client for JavaScript and TypeScript: signed receipts, cancellations, card payments, receipt printing (ESC/POS), invoices. RKSV-Registrierkasse für JavaScript und TypeScript.",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -48,6 +48,7 @@
     "javascript"
   ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/cjs/index.d.ts",
@@ -112,14 +113,14 @@
         "default": "./dist/cjs/react/index.js"
       }
     },
-    "./kasse": {
+    "./pos": {
       "import": {
-        "types": "./dist/esm/kasse/index.d.ts",
-        "default": "./dist/esm/kasse/index.js"
+        "types": "./dist/esm/pos/index.d.ts",
+        "default": "./dist/esm/pos/index.js"
       },
       "require": {
-        "types": "./dist/cjs/kasse/index.d.ts",
-        "default": "./dist/cjs/kasse/index.js"
+        "types": "./dist/cjs/pos/index.d.ts",
+        "default": "./dist/cjs/pos/index.js"
       }
     },
     "./partner": {
@@ -132,24 +133,34 @@
         "default": "./dist/cjs/partner/index.js"
       }
     },
-    "./rechnung": {
+    "./stored": {
       "import": {
-        "types": "./dist/esm/rechnung/index.d.ts",
-        "default": "./dist/esm/rechnung/index.js"
+        "types": "./dist/esm/stored/index.d.ts",
+        "default": "./dist/esm/stored/index.js"
       },
       "require": {
-        "types": "./dist/cjs/rechnung/index.d.ts",
-        "default": "./dist/cjs/rechnung/index.js"
+        "types": "./dist/cjs/stored/index.d.ts",
+        "default": "./dist/cjs/stored/index.js"
       }
     },
-    "./rechnung/rechnen": {
+    "./invoice": {
       "import": {
-        "types": "./dist/esm/rechnung/rechnen.d.ts",
-        "default": "./dist/esm/rechnung/rechnen.js"
+        "types": "./dist/esm/invoice/index.d.ts",
+        "default": "./dist/esm/invoice/index.js"
       },
       "require": {
-        "types": "./dist/cjs/rechnung/rechnen.d.ts",
-        "default": "./dist/cjs/rechnung/rechnen.js"
+        "types": "./dist/cjs/invoice/index.d.ts",
+        "default": "./dist/cjs/invoice/index.js"
+      }
+    },
+    "./invoice/calc": {
+      "import": {
+        "types": "./dist/esm/invoice/calc.d.ts",
+        "default": "./dist/esm/invoice/calc.js"
+      },
+      "require": {
+        "types": "./dist/cjs/invoice/calc.d.ts",
+        "default": "./dist/cjs/invoice/calc.js"
       }
     },
     "./fixtures/*": "./fixtures/*"
@@ -175,14 +186,17 @@
     "check:erreichbar": "node scripts/check-erreichbarkeit.mjs",
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
-    "fixtures:kasse": "npm run build && node scripts/kasse-settings-fixture.mjs",
+    "fixtures:kasse": "node scripts/kasse-settings-fixture.mjs",
     "fixtures:marke": "node scripts/marke-raster.mjs",
     "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
     "fixtures:rechnung": "npm run build && node scripts/rechnung-vertrag.mjs",
     "fixtures:rechnungstexte": "npm run build && node scripts/rechnung-texte.mjs",
     "fixtures:hobex-hps-codes": "npm run build && node scripts/hobex-hps-codes.mjs",
     "fixtures:texte": "npm run build && node scripts/texte.mjs",
-    "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/rechnung-rechnen-zufall.json"
+    "fixtures:umbenennung": "node scripts/umbenennung-1.0.mjs",
+    "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/invoice-calc-random.json",
+    "fixtures:stored": "node scripts/stored-vokabular.mjs",
+    "fixtures:stored-zwillinge": "node scripts/stored-zwillinge.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-import { eposPrintXml, eposPrintXmlErgebnis, type ReceiptLayout } from '../src/receipt/index.js';
-import { qrModulAnzahl } from '../src/printing/index.js';
+import { eposPrintXml, eposPrintXmlResult, type ReceiptLayout } from '../src/receipt/index.js';
+import { qrModuleCount } from '../src/printing/index.js';
 
 /**
  * Der zweite Druckweg: ePOS-Print XML fuer Epson-Geraete. Dort steckte
@@ -22,7 +22,7 @@ import { qrModulAnzahl } from '../src/printing/index.js';
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const roh = JSON.parse(
-  readFileSync(new URL('erwartet/verkauf-bar.lines.json', wurzel), 'utf8'),
+  readFileSync(new URL('expected/sale-cash.lines.json', wurzel), 'utf8'),
 ) as ReceiptLayout;
 const basis: ReceiptLayout = { ...roh, paperSize: 'mm58' };
 
@@ -69,15 +69,15 @@ test('ePOS-Bestandsschutz: wo der Bestandswert passt, bleibt es bei 6', () => {
   assert.equal(symbolBreite(eposPrintXml({ ...roh, paperSize: 'mm80' })), 6);
   // Die Vorgabe `auto` ist derselbe Wert wie die alte Vorgabe `mittel` (Ruling 11): kein Byte anders.
   for (const layout of [basis, { ...roh, paperSize: 'mm80' as const }, mitQr(RKSV)]) {
-    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrGroesse: 'mittel' }));
-    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrGroesse: 'auto' }));
+    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrModuleSize: 'medium' }));
+    assert.equal(eposPrintXml(layout), eposPrintXml(layout, { qrModuleSize: 'auto' }));
   }
 });
 
 // ------------------------------------------------------------- die Rechnung
 
 test('ePOS: der reale Beleg-QR wird auf 58 mm heruntergerechnet — heute faellt er aus', () => {
-  assert.equal(qrModulAnzahl(RKSV), 57);
+  assert.equal(qrModuleCount(RKSV), 57);
   // (57 + 8) * 6 = 390 > 384 -> der Drucker laesst das Symbol weg.
   // (57 + 8) * 5 = 325 <= 384.
   assert.equal(symbolBreite(eposPrintXml(mitQr(RKSV))), 5);
@@ -86,44 +86,44 @@ test('ePOS: der reale Beleg-QR wird auf 58 mm heruntergerechnet — heute faellt
 });
 
 test('ePOS: der Deckel waehlt, das Papier begrenzt', () => {
-  assert.equal(symbolBreite(eposPrintXml(basis, { qrGroesse: 'klein' })), 4);
-  assert.equal(symbolBreite(eposPrintXml(basis, { qrGroesse: 'gross' })), 7);
-  assert.equal(symbolBreite(eposPrintXml({ ...roh, paperSize: 'mm80' }, { qrGroesse: 'gross' })), 8);
+  assert.equal(symbolBreite(eposPrintXml(basis, { qrModuleSize: 'small' })), 4);
+  assert.equal(symbolBreite(eposPrintXml(basis, { qrModuleSize: 'large' })), 7);
+  assert.equal(symbolBreite(eposPrintXml({ ...roh, paperSize: 'mm80' }, { qrModuleSize: 'large' })), 8);
   // Kein Deckel hebt an, wo das Papier nicht reicht.
-  assert.equal(symbolBreite(eposPrintXml(mitQr(RKSV), { qrGroesse: 'gross' })), 5);
+  assert.equal(symbolBreite(eposPrintXml(mitQr(RKSV), { qrModuleSize: 'large' })), 5);
 });
 
 test('ePOS: feste qrBreite schaltet die Rechnung ab', () => {
-  const ergebnis = eposPrintXmlErgebnis(mitQr(RKSV), { qrBreite: 6 });
+  const ergebnis = eposPrintXmlResult(mitQr(RKSV), { qrWidth: 6 });
   assert.equal(symbolBreite(ergebnis.xml), 6);
-  assert.deepEqual([ergebnis.qrFehler, ergebnis.qrAusweich], [null, null]);
+  assert.deepEqual([ergebnis.qrError, ergebnis.qrFallback], [null, null]);
 });
 
 test('ePOS: unter der Mindestgroesse wird gedruckt, aber gemeldet', () => {
-  const ergebnis = eposPrintXmlErgebnis(mitQr('X'.repeat(600)));
+  const ergebnis = eposPrintXmlResult(mitQr('X'.repeat(600)));
   assert.equal(symbolBreite(ergebnis.xml), 3);
-  assert.match(ergebnis.qrAusweich ?? '', /unter dem Mindestmass/);
-  assert.equal(ergebnis.qrFehler, null);
+  assert.match(ergebnis.qrFallback ?? '', /unter dem Mindestmass/);
+  assert.equal(ergebnis.qrError, null);
 });
 
 test('ePOS: was nicht aufs Papier passt, wird nicht als Symbol vorgetaeuscht', () => {
-  const ergebnis = eposPrintXmlErgebnis(mitQr('X'.repeat(1000)));
+  const ergebnis = eposPrintXmlResult(mitQr('X'.repeat(1000)));
   assert.equal(symbolBreite(ergebnis.xml), null, 'es steht doch ein <symbol> im XML');
   assert.equal(ergebnis.xml.includes('<symbol'), false);
-  assert.match(ergebnis.qrFehler ?? '', /121 Modulen ist fuer 58 mm \(384 Punkte\) zu breit/);
-  assert.equal(ergebnis.qrAusweich, null);
+  assert.match(ergebnis.qrError ?? '', /121 Modulen ist fuer 58 mm \(384 Punkte\) zu breit/);
+  assert.equal(ergebnis.qrFallback, null);
   // Der Beleg selbst bleibt vollstaendig: die Ausrichtungs-Klammer bleibt heil.
   assert.equal(ergebnis.xml.includes('</epos-print>'), true);
 });
 
 test('ePOS: leere Nutzlast geht unveraendert den Bestandsweg', () => {
-  const ergebnis = eposPrintXmlErgebnis(mitQr(''));
+  const ergebnis = eposPrintXmlResult(mitQr(''));
   assert.equal(symbolBreite(ergebnis.xml), 6);
-  assert.deepEqual([ergebnis.qrFehler, ergebnis.qrAusweich], [null, null]);
+  assert.deepEqual([ergebnis.qrError, ergebnis.qrFallback], [null, null]);
 });
 
 test('ePOS: eposPrintXml gibt genau das XML des Ergebnisses', () => {
   for (const layout of [basis, mitQr(RKSV), mitQr('X'.repeat(1000))]) {
-    assert.equal(eposPrintXml(layout), eposPrintXmlErgebnis(layout).xml);
+    assert.equal(eposPrintXml(layout), eposPrintXmlResult(layout).xml);
   }
 });

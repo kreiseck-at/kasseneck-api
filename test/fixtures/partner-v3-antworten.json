@@ -1,5 +1,5 @@
 {
-  "_quelle": "scripts/partner-v3-antworten.cjs: echte Sichten des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Stand keck#470. Nicht von Hand pflegen.",
+  "_quelle": "scripts/partner-v3-antworten.cjs: echte Sichten und Ereignis-Beispiele des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Rohdaten nachgebaut und per Waechter gegen den Backend-Quelltext geprueft (--nachgebaut), Stand keck a9607ec. Nicht von Hand pflegen.",
   "createPartnerCustomer": {
     "status": "success",
     "message": "",
@@ -270,7 +270,7 @@
               "from": "requested",
               "to": "failed",
               "at": 1788052010643,
-              "reason": null
+              "reason": "finanzonline"
             }
           ]
         }
@@ -490,6 +490,77 @@
       ]
     }
   },
+  "reportCustomerContract": {
+    "status": "success",
+    "message": "",
+    "data": {
+      "version": "1.0",
+      "contractId": "kunde_u_1_avv_1-0",
+      "confirmedAt": 1788052010642,
+      "kind": "avv"
+    }
+  },
+  "reportCustomerContractParams": {
+    "version": "1.0",
+    "textHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "name": "Anna Jobst",
+    "kundeId": "cust_1",
+    "art": "avv",
+    "funktion": "Geschaeftsfuehrerin",
+    "akzeptiertAt": 1788052010642
+  },
+  "reportCustomerContractFehler": {
+    "already_accepted": {
+      "status": "error",
+      "message": "Diese Fassung ist bereits bestätigt.",
+      "data": {
+        "code": "already_accepted",
+        "contractId": "kunde_u_1_avv_1-0"
+      }
+    },
+    "kind_not_allowed": {
+      "status": "error",
+      "message": "In Vollmacht lässt sich nur der Auftragsverarbeitungsvertrag melden.",
+      "data": {
+        "code": "kind_not_allowed"
+      }
+    },
+    "text_changed": {
+      "status": "error",
+      "message": "Der Vertragstext hat sich zwischenzeitlich geändert. Bitte lade die Seite neu.",
+      "data": {
+        "code": "text_changed",
+        "errors": [
+          {
+            "field": "textHash",
+            "message": "Der Vertragstext hat sich zwischenzeitlich geändert. Bitte lade die Seite neu."
+          }
+        ],
+        "textHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "validation": {
+      "status": "error",
+      "message": "Bitte Eingaben prüfen.",
+      "data": {
+        "code": "validation",
+        "errors": [
+          {
+            "field": "kind",
+            "message": "Unbekannte Vertragsart."
+          },
+          {
+            "field": "signerRole",
+            "message": "Bitte die Funktion oder Rolle angeben (z. B. Inhaberin, Geschäftsführer)."
+          },
+          {
+            "field": "acceptedAt",
+            "message": "Der gemeldete Zeitpunkt der Zustimmung ist ungültig."
+          }
+        ]
+      }
+    }
+  },
   "fehlerCodesApi": [
     "validation",
     "rate_limited",
@@ -544,6 +615,24 @@
       "version": "1.0",
       "confirmedAt": 1788052010642,
       "source": "partner_power_of_attorney"
+    },
+    "signature.failed": {
+      "customerId": "cust_1",
+      "companyName": "Beispiel Handel GmbH",
+      "requestId": "sig_beispiel0000",
+      "code": "signature_failed",
+      "rc": "B13",
+      "message": "FinanzOnline hat die Registrierung abgelehnt."
+    },
+    "cashregister.failed": {
+      "customerId": "cust_1",
+      "companyName": "Beispiel Handel GmbH",
+      "cashregisterId": "KECK-1",
+      "step": "signature",
+      "code": "signature_not_ready",
+      "rc": null,
+      "message": "Die Signaturkarte ist noch nicht bereit.",
+      "env": "test"
     }
   }
 }

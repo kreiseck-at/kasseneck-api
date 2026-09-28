@@ -14,8 +14,12 @@
  * Compilerfehler sein und keine `validation`-Antwort vom Server.
  *
  * **Die Formen sind die der `/v3`** (seit 0.28.0): Feldnamen und Werte, auf
- * die ein Programm verzweigt, sind englisch; Texte fuer Menschen (`message`,
- * `note`, `statusText`, `nextSteps`) bleiben deutsch, die Fehlercodes ebenso.
+ * die ein Programm verzweigt, sind englisch, die Fehlercodes ebenso; Texte fuer
+ * Menschen (`message`, `note`, `statusText`, `nextSteps`) bleiben deutsch.
+ *
+ * Die Listen in GROSSSCHRIFT (`LEGAL_FORMS`, `CONTRACT_KINDS` …) sind die
+ * Zielwerte der Kataloge im Vertrags-Export des Backends
+ * (`fixtures/v3/v3-vokabular.json`, `catalogs`); die Tests halten sie gleich.
  */
 
 import type { KasseneckSecret } from './secret.js';
@@ -95,28 +99,25 @@ export interface PartnerInfo {
  * englisch. `/v3` weist die deutschen Werte aus `/v1` (`einzel`, `verein`,
  * `sonstige`) mit `validation` ab, statt sie still zu uebersetzen.
  */
-export type LegalForm = 'sole_proprietor' | 'eu' | 'og' | 'kg' | 'gmbh' | 'gmbhcokg' | 'ag' | 'association' | 'other';
+export const LEGAL_FORMS = ['sole_proprietor', 'eu', 'og', 'kg', 'gmbh', 'gmbhcokg', 'ag', 'association', 'other'] as const;
 
-/** @deprecated Seit 0.28.0 dasselbe wie [LegalForm] (englische Werte der `/v3`). */
-export type Rechtsform = LegalForm;
+export type LegalForm = typeof LEGAL_FORMS[number];
 
 /**
  * Bundesland als ISO-3166-2-Code: `AT-1` Burgenland, `AT-2` Kaernten,
  * `AT-3` Niederoesterreich, `AT-4` Oberoesterreich, `AT-5` Salzburg,
  * `AT-6` Steiermark, `AT-7` Tirol, `AT-8` Vorarlberg, `AT-9` Wien.
  */
-export type AustrianState = 'AT-1' | 'AT-2' | 'AT-3' | 'AT-4' | 'AT-5' | 'AT-6' | 'AT-7' | 'AT-8' | 'AT-9';
+export const AUSTRIAN_STATES = ['AT-1', 'AT-2', 'AT-3', 'AT-4', 'AT-5', 'AT-6', 'AT-7', 'AT-8', 'AT-9'] as const;
 
-/** @deprecated Seit 0.28.0 dasselbe wie [AustrianState] (ISO-Codes der `/v3`). */
-export type Bundesland = AustrianState;
+export type AustrianState = typeof AUSTRIAN_STATES[number];
 
-/** Rolle einer Kontaktperson; `/v1` sagte `geschaeftsfuehrung`, `buchhaltung`, `technik`, `kasse`. */
-export type ContactRole = 'management' | 'accounting' | 'technical' | 'pos';
+/** Rollen einer Kontaktperson; `/v1` sagte `geschaeftsfuehrung`, `buchhaltung`, `technik`, `kasse`. */
+export const CONTACT_ROLES = ['management', 'accounting', 'technical', 'pos'] as const;
 
-/** @deprecated Seit 0.28.0 dasselbe wie [ContactRole] (englische Werte der `/v3`). */
-export type KontaktRolle = ContactRole;
+export type ContactRole = typeof CONTACT_ROLES[number];
 
-export interface BetriebAdresse {
+export interface BusinessAddress {
   street: string;
   /** Hausnummer, kurz und alphanumerisch: `49`, `12a`, `49/5`. */
   number?: string;
@@ -125,7 +126,7 @@ export interface BetriebAdresse {
   city: string;
 }
 
-export interface BetriebSteuer {
+export interface BusinessTaxDetails {
   /** Steuernummer im Format `12-345/6789`; die Pruefziffer wird geprueft. */
   taxNumber: string;
   smallBusiness: boolean;
@@ -138,14 +139,14 @@ export interface BetriebSteuer {
   gln?: string;
 }
 
-export interface BetriebKontakt {
+export interface BusinessContact {
   name: string;
   email: string;
   phone?: string;
   roles?: ContactRole[];
 }
 
-export interface BetriebSteuerberater {
+export interface BusinessTaxAdvisor {
   name: string;
   email: string;
   phone: string;
@@ -161,21 +162,21 @@ export interface BetriebSteuerberater {
  * **Genau diese Felder, kein weiteres.** Das Backend weist ein unbekanntes
  * Feld ab, statt es stillschweigend zu verwerfen, und nennt seinen vollen
  * Pfad (`address.land`, `contacts.0.rolle`). Deshalb hat dieser Typ dieselbe
- * Liste wie `partner-core.BETRIEB_FELDER` — ein ueberzaehliges Feld ist hier
+ * Liste wie `partner-core.BETRIEB_FELDER`: ein ueberzaehliges Feld ist hier
  * ein Compilerfehler und nicht erst eine Antwort vom Server. Fuer Daten, die
  * nicht durch die Typpruefung kommen (Datenbank, Formular), beantwortet
- * [unbekannteBetriebsfelder] dieselbe Frage zur Laufzeit.
+ * [unknownBusinessFields] dieselbe Frage zur Laufzeit.
  */
-export interface Betrieb {
+export interface Business {
   companyName: string;
   legalForm: LegalForm;
   /** Anmeldung des Betriebs im Kasseneck-Panel; darf dort noch keinen Zugang haben. */
   email: string;
-  address: BetriebAdresse;
+  address: BusinessAddress;
   state: AustrianState;
-  taxDetails: BetriebSteuer;
+  taxDetails: BusinessTaxDetails;
   /** Mindestens einer, hoechstens zehn. */
-  contacts: BetriebKontakt[];
+  contacts: BusinessContact[];
   billingEmail?: string;
   /** Firmenbuchnummer, z. B. `FN 123456 a`. */
   companyRegister?: string;
@@ -184,12 +185,12 @@ export interface Betrieb {
   web?: string;
   phone?: string;
   industry?: string;
-  taxAdvisor?: BetriebSteuerberater;
+  taxAdvisor?: BusinessTaxAdvisor;
 }
 
 export interface CreateCustomerOptions {
   appId: string;
-  business: Betrieb;
+  business: Business;
   /**
    * Eigener Schluessel gegen Doppelanlage, hoechstens 120 Zeichen. Derselbe
    * Schluessel liefert die gespeicherte Antwort zurueck — auch bei abweichendem
@@ -223,7 +224,7 @@ export interface CreateCustomerOptions {
   env?: PartnerEnv;
 }
 
-export type KundenStatus =
+export type PartnerCustomerStatus =
   | 'created'
   | 'fon_configured'
   | 'signature_requested'
@@ -233,8 +234,10 @@ export type KundenStatus =
   | 'blocked'
   | (string & {});
 
-/** Abrechnungsrhythmus eines Entgelts; `/v1` sagte `monat`, `jahr`, `einmal`. */
-export type FeeInterval = 'monthly' | 'yearly' | 'once';
+/** Abrechnungsrhythmen eines Entgelts; `/v1` sagte `monat`, `jahr`, `einmal`. */
+export const FEE_INTERVALS = ['monthly', 'yearly', 'once'] as const;
+
+export type FeeInterval = typeof FEE_INTERVALS[number];
 
 /**
  * Das Entgelt, das mit einem Aufruf gebucht wurde: nur dann in der Antwort,
@@ -251,7 +254,7 @@ export interface PartnerFee {
 
 export interface CreateCustomerResult {
   customerId: string;
-  status: KundenStatus;
+  status: PartnerCustomerStatus;
   env: PartnerEnv;
   companyName: string;
   appId: string;
@@ -267,7 +270,9 @@ export interface CreateCustomerResult {
  * Wie das Partnerkonto den AVV handhabt; `/v1` sagte `direkt`, `vollmacht`,
  * `unterauftrag`.
  */
-export type AvvMode = 'direct' | 'power_of_attorney' | 'subprocessor';
+export const AVV_MODES = ['direct', 'power_of_attorney', 'subprocessor'] as const;
+
+export type AvvMode = typeof AVV_MODES[number];
 
 /**
  * Stand eines Vertrags des Betriebs mit Kasseneck: `pending` (noch nicht
@@ -281,7 +286,7 @@ export type AvvMode = 'direct' | 'power_of_attorney' | 'subprocessor';
  * `customer.terms_accepted` melden die Bestaetigung. In der Testumgebung sind
  * sie nicht noetig.
  */
-export interface VertragStand {
+export interface ContractStatus {
   status: 'pending' | 'confirmed' | 'outdated' | 'not_required' | (string & {});
   version: string | null;
   confirmedAt: number | null;
@@ -289,62 +294,62 @@ export interface VertragStand {
 
 /**
  * Stand des Auftragsverarbeitungsvertrags (AVV, Art. 28 DSGVO). Zusaetzlich zu
- * [VertragStand] der Status `via_partner` (der Partnervertrag deckt den AVV,
+ * [ContractStatus] der Status `via_partner` (der Partnervertrag deckt den AVV,
  * Weg `subprocessor`) und `mode`, der Weg des Partnerkontos.
  */
-export interface AvvStand extends VertragStand {
-  status: VertragStand['status'] | 'via_partner';
+export interface AvvStatus extends ContractStatus {
+  status: ContractStatus['status'] | 'via_partner';
   mode: AvvMode | (string & {}) | null;
 }
 
 /** FinanzOnline-Stand in der Liste: ist der Link draussen, geoeffnet, der Zugang geprueft? */
-export interface KundenFonStand {
+export interface PartnerCustomerFonStatus {
   configured: boolean;
   linkSentAt: number | null;
   /** Erste Oeffnung; wird mit einem Ersatz-Link zurueckgesetzt. */
   linkOpenedAt: number | null;
 }
 
-export interface KundenZeile {
+export interface PartnerCustomerSummary {
   customerId: string;
   companyName: string;
-  status: KundenStatus;
+  status: PartnerCustomerStatus;
   appId: string | null;
   env: PartnerEnv;
   createdAt: number | null;
   /** FinanzOnline-Stand; `null`, wenn die Antwort ihn nicht fuehrt. */
-  fon: KundenFonStand | null;
+  fon: PartnerCustomerFonStatus | null;
   /**
    * AVV-Stand; `null`, wenn die Antwort ihn nicht fuehrt. Kein erfundenes
    * `pending`: "nicht mitgeliefert" und "nicht bestaetigt" sind zweierlei.
    */
-  avv: AvvStand | null;
+  avv: AvvStatus | null;
   /** Stand des Nutzungsvertrags; `null`, wenn die Antwort ihn nicht fuehrt. */
-  terms: VertragStand | null;
+  terms: ContractStatus | null;
 }
 
 export interface ListCustomersOptions {
-  status?: KundenStatus;
+  status?: PartnerCustomerStatus;
   /** 1 bis 200; Vorgabe 50. */
   limit?: number;
   cursor?: string;
 }
 
-export interface KundenListe {
-  customers: KundenZeile[];
+export interface PartnerCustomerList {
+  customers: PartnerCustomerSummary[];
   /** Weiter mit diesem Wert als `cursor`; `null` heisst: das war alles. */
   cursor: string | null;
   total: number;
 }
 
-export interface Kunde extends KundenZeile {
+export interface PartnerCustomer extends PartnerCustomerSummary {
   statusAt: number | null;
   liveEnabled: boolean;
   createdAt: number | null;
   createdVia: string | null;
   business: Record<string, unknown>;
   /** In der Einzelsicht zusaetzlich: wann geprueft, an welche (maskierte) Adresse der Link ging. */
-  fon: KundenFonStand & { verifiedAt: number | null; linkSentTo: string | null };
+  fon: PartnerCustomerFonStatus & { verifiedAt: number | null; linkSentTo: string | null };
   access: { email: string | null; invitedAt: number | null; acceptedAt: number | null } | null;
 }
 
@@ -356,6 +361,75 @@ export interface FonLinkResult {
 }
 
 // ---------------------------------------------------------------------------
+// Vertraege des Betriebs
+// ---------------------------------------------------------------------------
+
+/**
+ * Vertragsarten: `avv` (Auftragsverarbeitungsvertrag, Art. 28 DSGVO) und
+ * `terms` (Nutzungsvertrag, unter `/v1` `nutzung`).
+ */
+export const CONTRACT_KINDS = ['avv', 'terms'] as const;
+
+export type ContractKind = typeof CONTRACT_KINDS[number];
+
+/**
+ * Wo der Betrieb bestaetigt hat. Unter `v1` hiessen die ersten fuenf
+ * `einrichten`, `prozess`, `partner_vollmacht`, `admin_papier`,
+ * `papier_upload`; `app` und `portal` sind in beiden Sprachen gleich.
+ */
+export const CONTRACT_SOURCES = [
+  'setup_link',
+  'process_link',
+  'partner_power_of_attorney',
+  'admin_paper',
+  'paper_upload',
+  'app',
+  'portal',
+] as const;
+
+/** Offen fuer spaeter ergaenzte Wege, siehe [CONTRACT_SOURCES]. */
+export type ContractSource = typeof CONTRACT_SOURCES[number] | (string & {});
+
+/**
+ * Meldung einer Zustimmung, die der Partner **in Vollmacht** fuer den Betrieb
+ * eingeholt hat (`reportCustomerContract`).
+ *
+ * Geht nur, wenn das Partnerkonto auf dem Vollmachtsweg steht
+ * (`mode_not_allowed`) und sein Partnervertrag das Vollmachtskapitel traegt
+ * (`power_of_attorney_missing`). Der Vollmachtsweg nimmt nur `kind: 'avv'`;
+ * `terms` beantwortet der Server mit `kind_not_allowed`.
+ */
+export interface ReportCustomerContractOptions {
+  customerId: string;
+  kind: ContractKind;
+  /** Die Fassung, der zugestimmt wurde; muss die geltende sein. */
+  version: string;
+  /**
+   * Pruefsumme des gezeigten Vertragstexts. Weicht sie von der geltenden ab,
+   * kommt `text_changed` mit der geltenden in `data.textHash`.
+   */
+  textHash: string;
+  /** Wer zugestimmt hat. */
+  name: string;
+  /** In welcher Funktion (z. B. Inhaberin, Geschaeftsfuehrer); unter `/v1` `funktion`. */
+  signerRole: string;
+  /**
+   * Zeitpunkt der Zustimmung in Unix-Millisekunden; ohne Angabe gilt der
+   * Eingang beim Server. Nicht in der Zukunft, nicht aelter als ein Jahr.
+   */
+  acceptedAt?: number;
+}
+
+export interface ReportCustomerContractResult {
+  /** Kennung des Vertragsdatensatzes; unter `/v1` `vertragId`. */
+  contractId: string;
+  /** Unix-Millisekunden; unter `/v1` `bestaetigtAt`. */
+  confirmedAt: number | null;
+  kind: ContractKind | (string & {});
+  version: string;
+}
+
+// ---------------------------------------------------------------------------
 // Signatur
 // ---------------------------------------------------------------------------
 
@@ -364,7 +438,7 @@ export interface FonLinkResult {
  * Einheit ist FinanzOnline bekannt; `ready` heisst: sie darf signieren. In der
  * Testumgebung wird ohne `registered` direkt `ready` erreicht.
  */
-export type SignaturAntragStatus =
+export type SignatureRequestStatus =
   | 'requested'
   | 'assigned'
   | 'registered'
@@ -377,34 +451,40 @@ export type SignaturAntragStatus =
  * Gruende in der Historie eines Signaturantrags. `card_entered` und
  * `finanzonline` hiessen unter `/v1` `karte_eingetragen` und `fon`.
  */
-export type SignatureHistoryReason =
-  | 'api'
-  | 'portal'
-  | 'card_entered'
-  | 'finanzonline'
-  | 'automation_off'
-  | 'test_environment'
-  | 'no_stock'
-  | (string & {});
+export const SIGNATURE_HISTORY_REASONS = [
+  'api',
+  'portal',
+  'card_entered',
+  'finanzonline',
+  'automation_off',
+  'test_environment',
+  'no_stock',
+] as const;
+
+/** Offen fuer spaeter ergaenzte Gruende, siehe [SIGNATURE_HISTORY_REASONS]. */
+export type SignatureHistoryReason = typeof SIGNATURE_HISTORY_REASONS[number] | (string & {});
 
 /**
- * `error.code` eines Signaturantrags oder einer Signatur (`SignaturAntrag`,
+ * `error.code` eines Signaturantrags oder einer Signatur (`SignatureRequest`,
  * `CustomerSignature`). Hiess unter `/v1` `kunde_nicht_gefunden` /
  * `unvollstaendig` / `fon_fehler`; dieser Client spricht seit 0.28.0 nur noch
  * `/v3` und sieht darum nur die englische Form.
  */
-export type SignatureErrorCode = 'customer_not_found' | 'incomplete' | 'finanzonline_error' | (string & {});
+export const SIGNATURE_ERROR_CODES = ['customer_not_found', 'incomplete', 'finanzonline_error'] as const;
 
-export interface SignaturHistorieEintrag {
-  from: SignaturAntragStatus | null;
-  to: SignaturAntragStatus;
+/** Offen fuer spaeter ergaenzte Codes, siehe [SIGNATURE_ERROR_CODES]. */
+export type SignatureErrorCode = typeof SIGNATURE_ERROR_CODES[number] | (string & {});
+
+export interface SignatureHistoryEntry {
+  from: SignatureRequestStatus | null;
+  to: SignatureRequestStatus;
   at: number;
   reason: SignatureHistoryReason | null;
 }
 
-export interface SignaturAntrag {
+export interface SignatureRequest {
   requestId: string;
-  status: SignaturAntragStatus;
+  status: SignatureRequestStatus;
   statusText: string;
   /** Art der Signatureinheit; heute nur `signature_card`. */
   kind: string;
@@ -414,7 +494,7 @@ export interface SignaturAntrag {
   requestedVia: string | null;
   createdAt: number | null;
   updatedAt: number | null;
-  history: SignaturHistorieEintrag[];
+  history: SignatureHistoryEntry[];
 }
 
 export interface RequestSignatureOptions {
@@ -425,7 +505,7 @@ export interface RequestSignatureOptions {
 }
 
 export interface RequestSignatureResult {
-  request: SignaturAntrag;
+  request: SignatureRequest;
   /** `true`, wenn schon ein Antrag lief — dann ist es der laufende. */
   replayed: boolean;
   note: string | null;
@@ -440,7 +520,7 @@ export interface RequestSignatureResult {
  */
 export interface CustomerSignature {
   signatureRequestId: string;
-  status: SignaturAntragStatus | 'decommissioned';
+  status: SignatureRequestStatus | 'decommissioned';
   statusText: string;
   inProgress: boolean;
   ready: boolean;
@@ -453,13 +533,13 @@ export interface CustomerSignature {
   updatedAt: number | null;
 }
 
-export interface SignaturStand {
+export interface CustomerSignatureStatus {
   customerId: string;
   /** Die Kurzform: hat der Betrieb ueberhaupt eine brauchbare Signatur? */
   signature: { ready: boolean; signatureId: string | null; vdaId: string | null };
   /** Jede Signatur einzeln. */
   signatures: CustomerSignature[];
-  requests: SignaturAntrag[];
+  requests: SignatureRequest[];
   fon: { present: boolean; verifiedAt: number | null };
 }
 
@@ -468,30 +548,30 @@ export interface SignaturStand {
 // ---------------------------------------------------------------------------
 
 /** Die Schritte der Inbetriebnahme, in dieser Reihenfolge. */
-export type KassenSchritt = 'signature' | 'register_cashregister' | 'start_receipt' | 'transmit_start_receipt' | (string & {});
+export type CashregisterActivationStep = 'signature' | 'register_cashregister' | 'start_receipt' | 'transmit_start_receipt' | (string & {});
 
-export type KassenStatus = 'draft' | 'in_progress' | 'live' | 'failed' | (string & {});
+export type CustomerCashregisterStatus = 'draft' | 'in_progress' | 'live' | 'failed' | (string & {});
 
-export interface Kasse {
+export interface CustomerCashregister {
   cashregisterId: string;
   name: string | null;
-  status: KassenStatus;
+  status: CustomerCashregisterStatus;
   statusText: string;
   /** `true`: die Kasse geht von selbst live, sobald die Signatur bereit ist. */
   automatic: boolean;
   /** Der naechste offene Schritt; `null`, wenn die Kasse live ist. */
-  step: KassenSchritt | null;
+  step: CashregisterActivationStep | null;
   stepText: string | null;
-  completedSteps: KassenSchritt[];
+  completedSteps: CashregisterActivationStep[];
   /** Die Schritte, die fuer genau diese Kasse gelten (Testumgebung: weniger). */
-  steps: { key: KassenSchritt; text: string }[];
+  steps: { key: CashregisterActivationStep; text: string }[];
   signatureId: string | null;
   attempts: number;
   lastError: {
     code: string | null;
     message: string | null;
     rc: string | null;
-    step: KassenSchritt | null;
+    step: CashregisterActivationStep | null;
     at: number | null;
   } | null;
   createdAt: number | null;
@@ -518,25 +598,25 @@ export interface CreateCashregisterOptions {
 }
 
 export interface CreateCashregisterResult {
-  cashregister: Kasse;
+  cashregister: CustomerCashregister;
   activation: {
     started: boolean;
     ok: boolean | null;
-    step: KassenSchritt | null;
+    step: CashregisterActivationStep | null;
     /** `signature_not_ready` oder `automation_off`, wenn nicht gestartet wurde. */
     reason: string | null;
   };
 }
 
 export interface ActivateCashregisterResult {
-  cashregister: Kasse;
+  cashregister: CustomerCashregister;
   /** `true`: die Kasse war schon live, es wurde nichts getan. */
   unchanged: boolean;
 }
 
-export interface KassenListe {
+export interface CustomerCashregisterList {
   customerId: string;
-  cashregisters: Kasse[];
+  cashregisters: CustomerCashregister[];
   signatureReady: boolean;
 }
 

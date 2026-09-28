@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ReceiptLayout } from '../src/receipt/layout.js';
-import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseResponse, eposPrintXml, eposServiceUrl, eposSoapEnvelope, eposXmlEscape, ZEICHEN_JE_PAPIER } from '../src/receipt/index.js';
+import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseResponse, eposPrintXml, eposServiceUrl, eposSoapEnvelope, eposXmlEscape, CHARS_PER_PAPER_SIZE } from '../src/receipt/index.js';
 
 /**
  * ePOS-Print XML (Epson TM, Server Direct Print / ePOS-Print): aus dem
@@ -11,8 +11,8 @@ import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseRespon
  * Raster zeigt, druckt der Epson Zeile fuer Zeile.
  */
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
-const LAYOUT: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
-  { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', ton: 'warnung' },
+const LAYOUT: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
+  { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', tone: 'warning' },
   { kind: 'text', text: 'Bäckerei <Muster> & Söhne', align: 'center', bold: true },
   { kind: 'columns', columns: [{ text: 'Gesamt:', width: 6, align: 'left' }, { text: '5,96 €', width: 6, align: 'right' }] },
   { kind: 'rule', char: '-' },
@@ -44,12 +44,12 @@ test('eposPrintXml: Namensraum, lang de, eine <text> je Rasterzeile mit exakt N 
   assert.ok(/<cut type="feed"\/>\s*<\/epos-print>\s*$/.test(xml));
   // 58 mm: 32 Zeichen
   const xml58 = eposPrintXml({ ...LAYOUT, paperSize: 'mm58' });
-  assert.ok(xml58.includes(`<text>${'-'.repeat(ZEICHEN_JE_PAPIER.mm58)}&#10;</text>`));
+  assert.ok(xml58.includes(`<text>${'-'.repeat(CHARS_PER_PAPER_SIZE.mm58)}&#10;</text>`));
 });
 
 test('eposXmlEscape und Zeilen ohne Text; jede Textzeile hat einen Zeilenumbruch (Epson druckt sonst nicht um)', () => {
   assert.equal(eposXmlEscape('a<b>&"\''), 'a&lt;b&gt;&amp;&quot;&apos;');
-  const xml = eposPrintXml({ paperSize: 'mm58', regelwerk: 2, lines: [{ kind: 'text', text: 'Zeile', align: 'left', bold: false }] });
+  const xml = eposPrintXml({ paperSize: 'mm58', ruleset: 2, lines: [{ kind: 'text', text: 'Zeile', align: 'left', bold: false }] });
   assert.ok(/<text>Zeile {27}&#10;<\/text>/.test(xml), xml);
 });
 
@@ -72,7 +72,7 @@ test('ePOS direkt: Service-URL, SOAP-Huelle, Antwort lesen', () => {
 test('ePOS direkt: drucken und Status ueber fetch; Netzfehler wird verstaendlich', async () => {
   const aufrufe: { url: string; init: RequestInit }[] = [];
   const fetchOk = (async (url: string, init: RequestInit) => { aufrufe.push({ url, init }); return { ok: true, status: 200, text: async () => '<response success="true" code="" status="1"/>' }; }) as unknown as typeof fetch;
-  const r = await eposDirectPrint(LAYOUT, { ip: '192.168.0.136', papier: 'mm58' }, fetchOk);
+  const r = await eposDirectPrint(LAYOUT, { ip: '192.168.0.136', paperSize: 'mm58' }, fetchOk);
   assert.deepEqual(r, { success: true, code: '', status: '1' });
   assert.equal(aufrufe[0]!.url, 'https://192.168.0.136/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000');
   assert.equal(aufrufe[0]!.init.method, 'POST');
@@ -81,8 +81,8 @@ test('ePOS direkt: drucken und Status ueber fetch; Netzfehler wird verstaendlich
   assert.ok(body.startsWith('<?xml version="1.0" encoding="utf-8"?><s:Envelope'));
   assert.ok(body.includes('<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'));
   // 58 mm: dieselben Bytes wie das 32-Zeichen-Raster, nicht das 48er des Layouts
-  assert.ok(body.includes(eposPrintXml({ ...LAYOUT, paperSize: 'mm58' }, { zeichen: 32 })));
-  assert.ok(!body.includes(eposPrintXml(LAYOUT, { zeichen: 48 })));
+  assert.ok(body.includes(eposPrintXml({ ...LAYOUT, paperSize: 'mm58' }, { charsPerLine: 32 })));
+  assert.ok(!body.includes(eposPrintXml(LAYOUT, { charsPerLine: 48 })));
   // Statusabfrage: leeres Dokument, druckt nichts
   const s = await eposDirectStatus({ ip: '192.168.0.136', devid: 'p1' }, fetchOk);
   assert.deepEqual(s, { success: true, code: '', status: '1' });

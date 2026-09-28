@@ -35,11 +35,22 @@ const VERBRAUCHER = `import { createKasseneckApi, apiKeyAuth, VatRate, KeckPayme
 import { buildReceiptLayout, formatCents } from '@kreiseck/kasseneck-api/receipt';
 import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printing';
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
-import { pairRegisterDevice, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
+import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
-import { listMyPrinters } from '@kreiseck/kasseneck-api/kasse';
-import { createPartnerApi, verifyWebhookSignature, KasseneckSecret } from '@kreiseck/kasseneck-api/partner';
-import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
+import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings } from '@kreiseck/kasseneck-api/pos';
+import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
+import { createInvoiceApi, INVOICE_ERROR_CODES } from '@kreiseck/kasseneck-api/invoice';
+import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
+// 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
+// ./rechnung -> ./invoice, ./rechnung/rechnen -> ./invoice/calc). Loest einer
+// wieder auf, meldet tsc die unbenutzte Erwartung.
+// @ts-expect-error entfernt in 1.0
+import * as altKasse from '@kreiseck/kasseneck-api/kasse';
+// @ts-expect-error entfernt in 1.0
+import * as altRechnung from '@kreiseck/kasseneck-api/rechnung';
+// @ts-expect-error entfernt in 1.0
+import * as altRechnen from '@kreiseck/kasseneck-api/rechnung/rechnen';
+import { fromStoredReceipt, fromStoredReceiptWithCompany, fromStoredCompany, fromStoredPosSettings, invalidStoredPosSettings, fromStoredArticle, type StoredDocument } from '@kreiseck/kasseneck-api/stored';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
@@ -59,13 +70,31 @@ export const ansicht = ReceiptLayoutView;
 // von aussen bleibt ein KasseneckTransport ohne Umdeutung uebergebbar.
 declare const rufen: KasseneckTransport;
 export const drucker = listMyPrinters(rufen);
+export const betrieb = setMyPosSettings(rufen, { theme: 'night', vatRates: { '20': true } });
+export const aktionen: readonly string[] = POS_SHORTCUT_ACTIONS;
+export type Einstellungen = PosSettings;
+export const belegt = (e: unknown): string | null => (isRegisterError(e, 'cashregister_in_use') ? registerErrorDetails(e).deviceLabel : null);
 export const partner = createPartnerApi;
 export const webhookPruefen = verifyWebhookSignature;
 export type Geheimnis = KasseneckSecret;
-export const summen = rechnungRechnen(
+export const vertragMelden = reportCustomerContract;
+export const rat: string = partnerErrorAdvice('brand_new_code');
+export type Betriebsdaten = Business;
+export const rechnungen = createInvoiceApi;
+export const rechnungsCodes: readonly string[] = INVOICE_ERROR_CODES;
+export const alt: unknown[] = [altKasse, altRechnung, altRechnen];
+export const summen = calculateInvoice(
   [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
   { priceMode: 'gross' },
 );
+// ./stored: gespeicherte Dokumente als dieselben Modelle wie am Draht.
+export const gespeichert: string = fromStoredReceipt({ receiptId: 'K-1' }).receiptId;
+declare const kopf: StoredDocument;
+export const mitFirma = fromStoredReceiptWithCompany({}, { headerVersion: kopf }).layout;
+export const firma: string = fromStoredCompany({}).companyName;
+export const thema: string = fromStoredPosSettings({ betrieb: { stil: 'nacht' } }).business.theme;
+export const kachel: boolean = fromStoredArticle('a1', {}).visible;
+export const ungueltig: string[] = invalidStoredPosSettings({ betrieb: { wzPos: 500 } });
 // Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
 // weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
 // auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein

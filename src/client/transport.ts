@@ -1,4 +1,6 @@
-import type { AuthCredentials, KasseneckAuth } from './auth.js';
+import { isRegisterUserAuth, type AuthCredentials, type KasseneckAuth } from './auth.js';
+import { isPosCall, isPosOnlyCall } from './aufrufe.js';
+import { PACKAGE_VERSION } from '../version.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -7,6 +9,7 @@ import {
   KasseneckValidationError,
   causeDigest,
   fehlerDetails,
+  type ErrorOutcome,
 } from './errors.js';
 
 /**
@@ -25,13 +28,64 @@ import {
  * Fehlerarten sind bei beiden dieselben; sie unterscheiden sich nur darin, wie
  * der Antwortrumpf gelesen und ausgewertet wird.
  *
+ * **Nur `/v3`, fail closed.** Jede Antwort muss das Kennzeichen
+ * `Kasseneck-Api-Version: v3` tragen; fehlt es, wirft der Transport
+ * `dialect_mismatch`, **bevor** er den Rumpf liest, und tut nichts weiter
+ * (Nachtrag §5.4, Risiko R1: eine Route auf eine Function mit altem Rand
+ * haette die englischen Parameter deutsch gedeutet). Eine HTML-Antwort ist
+ * `route_missing`: die Hosting-Auffangregel hat den Aufruf abgefangen, bevor
+ * ihn eine Function sah.
+ *
+ * **Kasseneck-Kopfzeilen nur an Kasseneck-Basen** (Nachtrag §6, Risiko R3):
+ * `Kasseneck-Api-Version: v3` und `Kasseneck-Client: <produkt>/<version>`
+ * setzt der Transport selbst, abhaengig von der Basis, und nie ueber die
+ * `fetch`-Umsetzung. Dieselbe Umsetzung darf darum auch Connect, ePOS-Drucker
+ * und Terminals bedienen, ohne dass dort eine fremde Kopfzeile den Vorflug
+ * scheitern laesst.
+ *
  * **Kein Wiederholen fehlgeschlagener Aufrufe.** Ein Beleg ist nicht folgenlos
  * wiederholbar; ohne entschiedene Idempotenz waere ein automatischer zweiter
  * Versuch ein zweiter Beleg.
  */
 
-/** Basis-URL der Produktion. */
-export const DEFAULT_BASE_URL = 'https://api.kasseneck.at/v1';
+/** Basis-URL der oeffentlichen API (Produktion). */
+export const DEFAULT_BASE_URL = 'https://api.kasseneck.at/v3';
+
+/**
+ * Basis-URL des Kassenwegs (Kanal `app`, Nachtrag §5.2). Die Web-Kasse ruft
+ * denselben Weg im gleichen Ursprung als `/api/v3`.
+ */
+export const POS_BASE_URL = 'https://kasse.kasseneck.at/api/v3';
+
+/** Kennzeichen der `/v3`-Antworten und -Anfragen. */
+const VERSION_KOPF = 'Kasseneck-Api-Version';
+const CLIENT_KOPF = 'Kasseneck-Client';
+const VERSION_WERT = 'v3';
+
+/**
+ * Hosts, die als Kasseneck-Basis gelten, nur ueber https und ohne eigenen
+ * Port. Alles andere (Proxys, Emulator, `127.0.0.1` fuer Connect) bekommt die
+ * Kasseneck-Kopfzeilen nicht.
+ */
+const KASSENECK_HOSTS: ReadonlySet<string> = new Set(['api.kasseneck.at', 'kasse.kasseneck.at']);
+
+/** Die 1.x-Linie spricht nur `/v3`: jede Basis endet so (`/v3` oder `/api/v3`). */
+const V3_ENDE = /\/v3$/;
+
+/**
+ * Aufrufe, die signieren bzw. bei FinanzOnline etwas ausloesen. Ein Netzfehler,
+ * nachdem die Anfrage unterwegs war, laesst ihren Ausgang offen.
+ */
+const SIGNIERENDE_AUFRUFE: ReadonlySet<string> = new Set(['createReceipt', 'cancelReceipt', 'financeWebService']);
+
+/**
+ * Produkte, die das Backend in `Kasseneck-Client` zaehlt (Positivliste,
+ * Nachtrag §6); alles andere zaehlte dort als `ungueltig`. Das Paket weist
+ * es darum schon beim Anlegen des Transports ab.
+ */
+const CLIENT_PRODUKTE: ReadonlySet<string> = new Set(['kasse-web', 'kasse-app', 'kasseneck-api', 'kasseneck_api']);
+const CLIENT_VERSION = /^[0-9A-Za-z.+-]{1,40}$/;
+const CLIENT_MAX = 64;
 
 /**
  * Zeitlimit je Aufruf (wie im Flutter-Zwilling). Ohne Zeitlimit bleibt eine
@@ -77,12 +131,44 @@ export type FetchLike = (url: string, init: HttpRequestInit) => Promise<HttpResp
 export interface TransportOptions {
   /** Anmeldung; wird pro Aufruf befragt. */
   auth: KasseneckAuth;
-  /** Abweichende Basis-URL (z. B. eigene Rewrites der Browser-Kasse). */
+  /**
+   * Abweichende Basis der **oeffentlichen** Aufrufe (Vorgabe
+   * [DEFAULT_BASE_URL]): alles ausser den 25 Aufrufen des Kassenwegs, und die
+   * sechs oeffentlichen davon nur, wenn nicht mit `registerUserAuth`
+   * angemeldet. Muss auf `/v3` enden (eigene Proxys erlaubt), sonst wirft das
+   * Anlegen; `/v1` oder `/api` gibt es in der 1.x-Linie nicht.
+   */
   baseUrl?: string;
+  /**
+   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 19
+   * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
+   * Drucker, ...) und mit `registerUserAuth` alle 25 Aufrufe des Kassenwegs.
+   * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
+   * (in der Regel `/api/v3`), sonst wirft das Anlegen.
+   */
+  posBaseUrl?: string;
   /** Zeitlimit je Aufruf in Millisekunden. */
   timeoutMs?: number;
   /** Eigene `fetch`-Umsetzung (Tests, Proxys). */
   fetch?: FetchLike;
+  /**
+   * Wert der Kopfzeile `Kasseneck-Client`, Vorgabe `kasseneck-api/<version>`.
+   * Eine App nennt sich selbst (`kasse-web/<build>`, `kasse-app/<version+build>`).
+   * Erlaubt sind nur die Produkte `kasse-web`, `kasse-app`, `kasseneck-api`,
+   * `kasseneck_api` mit einer Version aus `[0-9A-Za-z.+-]` (hoechstens 40
+   * Zeichen, gesamt hoechstens 64); sonst wirft das Anlegen.
+   */
+  clientHeader?: string;
+  /**
+   * `true` laesst `Kasseneck-Api-Version` und `Kasseneck-Client` auch an
+   * Kasseneck-Basen weg. Fuer Browser, die die oeffentliche API von einem
+   * fremden Ursprung aus rufen: solange der Vorflug unter `/v3` die beiden
+   * Kopfzeilen nicht erlaubt, scheiterte sonst jeder Aufruf schon dort. Die
+   * Pruefung des Kennzeichens in der **Antwort** bleibt unberuehrt; es entfaellt
+   * nur die Gegenpruefung des Rands (`createReceipt`/`cancelReceipt` weisen
+   * eine als v3 gekennzeichnete Anfrage auf einem Nicht-v3-Pfad ab).
+   */
+  omitKasseneckHeaders?: boolean;
 }
 
 /**
@@ -146,6 +232,12 @@ type Auswertung<R, T> = (
    * einem gesendeten Geheimnis ueberlappt, ueberlebt das Sieb nicht.
    */
   geheimnisse: readonly string[],
+  /**
+   * Ausgang, wenn der Rumpf trotz HTTP 200 und Kennzeichen unlesbar ist
+   * (leer, kein JSON, ohne Statusfeld). Bei einem signierenden Aufruf kann
+   * der Handler gelaufen sein: dann `'unknown'`.
+   */
+  unlesbar: ErrorOutcome,
 ) => T;
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
@@ -186,9 +278,24 @@ export function createBinaryTransport(options: TransportOptions): KasseneckBinar
  * `auswerten`.
  */
 function createCore(options: TransportOptions) {
-  const basis = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const oeffentlicheBasis = v3Basis('baseUrl', options.baseUrl) ?? DEFAULT_BASE_URL;
+  const kassenBasis = v3Basis('posBaseUrl', options.posBaseUrl) ?? POS_BASE_URL;
+  const kassenweg = isRegisterUserAuth(options.auth);
   const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
+  const kennung = options.clientHeader ?? `kasseneck-api/${PACKAGE_VERSION}`;
+  pruefeKennung(kennung);
+  const kopfzeilenSenden = options.omitKasseneckHeaders !== true;
+
+  /**
+   * Basis je Aufruf. Die 19 reinen Kassenaufrufe gehen immer an den
+   * Kassenweg (unter der oeffentlichen Basis gibt es sie nicht), und die
+   * Kassen-Anmeldung ruft alle 25 Aufrufe des Kassenwegs dort, auch die sechs
+   * oeffentlichen (Kanal `app`). Was der Kassenweg gar nicht fuehrt
+   * (Berichte, Zahlungen, FinanzOnline), geht an die oeffentliche Basis.
+   */
+  const basisFuer = (functionName: string): string =>
+    isPosOnlyCall(functionName) || (kassenweg && isPosCall(functionName)) ? kassenBasis : oeffentlicheBasis;
 
   return async function aufrufen<R, T>(
     functionName: string,
@@ -232,6 +339,26 @@ function createCore(options: TransportOptions) {
       // Geraetegeheimnis, PIN). Ohne die zweite Haelfte greift die Zusage genau
       // dort nicht, wo es gar keine Kopfzeilen gibt.
       const geheimnisse = [...Object.values(anmeldung.headers), ...(secretParams ?? [])];
+      // Bis zur ersten Antwort (bzw. beim Lesen des Rumpfs) ist alles Scheitern
+      // Netz oder Zeitlimit.
+      const netzfehler = (ursache: unknown): Error => {
+        // Ein Formfehler des Pakets ist kein Netzfehler und behaelt seine Art
+        // (der Binaerweg wirft ihn, wenn die fetch-Antwort keine Bytes liefert).
+        if (ursache instanceof KasseneckValidationError) {
+          return ursache;
+        }
+        // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
+        // Die Anfrage war schon unterwegs: bei einem signierenden Aufruf kann
+        // der Beleg entstanden sein (Ausgang unklar, nachlesen).
+        return new KasseneckNetworkError(
+          fehlerName,
+          abbruch.signal.aborted,
+          zeitlimitMs,
+          causeDigest(ursache, geheimnisse),
+          SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected',
+        );
+      };
+      const basis = basisFuer(functionName);
       const url = `${basis}/${encodeURIComponent(functionName)}`;
       // `params` steht ZULETZT: so kann kein Zusatzfeld die Nutzlast (und mit
       // ihr die Kassenbindung aus der Anmeldung) verdraengen — auch nicht von
@@ -239,7 +366,6 @@ function createCore(options: TransportOptions) {
       const rumpf = JSON.stringify({ ...extraBodyFields, params: nutzlast(anmeldung.params, params) });
 
       let antwort: HttpResponseLike;
-      let koerper: R;
       try {
         // Auch der Aufruf laeuft gegen den Abbruch — nicht nur die Anmeldung.
         // Das `AbortSignal` geht zwar mit, aber ob eine fetch-Umsetzung es
@@ -252,41 +378,181 @@ function createCore(options: TransportOptions) {
         antwort = await Promise.race([
           holen(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...anmeldung.headers },
+            headers: {
+              'Content-Type': 'application/json',
+              ...ohneKasseneckKopfzeilen(anmeldung.headers),
+              ...(kopfzeilenSenden && istKasseneckBasis(basis)
+                ? { [VERSION_KOPF]: VERSION_WERT, [CLIENT_KOPF]: kennung }
+                : {}),
+            },
             body: rumpf,
             signal: abbruch.signal,
           }),
           abbruchAlsAblehnung(abbruch.signal),
         ]);
-        koerper = await Promise.race([lesen(antwort, fehlerName), abbruchAlsAblehnung(abbruch.signal)]);
       } catch (ursache) {
-        // Ein Formfehler des Pakets ist kein Netzfehler und behaelt seine Art
-        // (der Binaerweg wirft ihn, wenn die fetch-Antwort keine Bytes liefert).
-        if (ursache instanceof KasseneckValidationError) {
-          throw ursache;
+        throw netzfehler(ursache);
+      }
+
+      // Alles Folgende entscheidet an den Kopfzeilen, **bevor** der Rumpf
+      // gelesen wird: was nicht vom `/v3`-Rand kommt, wird nicht gedeutet.
+      const inhaltstyp = antwort.headers.get('content-type') ?? undefined;
+      // Das Backend antwortet auf jeden fachlichen Ausgang mit HTTP 200; alles
+      // andere kommt nicht von ihm (Proxy, Rewrite-Luecke, Infrastruktur). Das
+      // steht VOR der HTML-Pruefung: eine 500er-Fehlerseite ist auch HTML, aber
+      // dort kann eine Function gelaufen sein; `route_missing` sagt das Gegenteil.
+      if (antwort.status !== 200) {
+        // Ausnahme: der `/v3`-Rand antwortet auf einen unbekannten Endpunkt mit
+        // HTTP 404, Kennzeichen und Huelle samt Code (`not_found`). Nur mit
+        // Kennzeichen wird dieser Rumpf gelesen.
+        if (antwort.status === 404 && traegtKennzeichen(antwort)) {
+          const fehler = await randFehler404(antwort, fehlerName, geheimnisse, abbruch.signal);
+          if (fehler) throw fehler;
         }
-        // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
-        throw new KasseneckNetworkError(
+        // 5xx auf einem signierenden Aufruf: der Handler kann gelaufen sein.
+        const ausgang = antwort.status >= 500 && SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+        throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error', ausgang);
+      }
+      // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
+      // bedient, keine Function hat ihn gesehen (Nachtrag §5.4, R15).
+      if (inhaltstyp !== undefined && /^\s*text\/html\b/i.test(inhaltstyp)) {
+        // Mit Kennzeichen hat der `/v3`-Rand den Aufruf gesehen (etwa ein
+        // Proxy, der nur den Inhaltstyp umschreibt). Bei einem signierenden
+        // Aufruf kann der Beleg dann entstanden sein: unlesbarer Rumpf,
+        // Ausgang unklar, statt `route_missing`.
+        if (SIGNIERENDE_AUFRUFE.has(functionName) && traegtKennzeichen(antwort)) {
+          throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'not-json', 'unknown');
+        }
+        throw new KasseneckApiError(
           fehlerName,
-          abbruch.signal.aborted,
-          zeitlimitMs,
-          causeDigest(ursache, geheimnisse),
+          'Route fehlt: die Antwort ist eine HTML-Seite statt des Backends',
+          {},
+          'route_missing',
+        );
+      }
+      if (!traegtKennzeichen(antwort)) {
+        throw new KasseneckApiError(
+          fehlerName,
+          'Server spricht nicht /v3 (Kennzeichen Kasseneck-Api-Version fehlt); Antwort verworfen',
+          {},
+          'dialect_mismatch',
         );
       }
 
-      const inhaltstyp = antwort.headers.get('content-type') ?? undefined;
-      // Das Backend antwortet auf jeden fachlichen Ausgang mit HTTP 200; alles
-      // andere kommt nicht von ihm (Proxy, Rewrite-Luecke, Infrastruktur).
-      if (antwort.status !== 200) {
-        throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error');
+      let koerper: R;
+      try {
+        koerper = await Promise.race([lesen(antwort, fehlerName), abbruchAlsAblehnung(abbruch.signal)]);
+      } catch (ursache) {
+        throw netzfehler(ursache);
       }
 
-      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse);
+      // Ab hier kam HTTP 200 mit Kennzeichen: der `/v3`-Rand hat den Aufruf
+      // gesehen. Ist der Rumpf dann unlesbar (gekuerzt von einem Proxy,
+      // abgebrochene Verbindung), kann ein signierender Handler gelaufen sein.
+      const unlesbar: ErrorOutcome = SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse, unlesbar);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
     }
   };
+}
+
+/** Traegt die Antwort das Kennzeichen `Kasseneck-Api-Version: v3`? */
+function traegtKennzeichen(antwort: HttpResponseLike): boolean {
+  return (antwort.headers.get(VERSION_KOPF) ?? '').trim().toLowerCase() === VERSION_WERT;
+}
+
+/**
+ * Liest die 404-Huelle des `/v3`-Rands. Liefert den fachlichen Fehler, wenn
+ * es eine Fehlerhuelle mit Code ist, sonst `null` (dann bleibt es beim
+ * HTTP-Fehler). Ein Lesefehler zaehlt ebenfalls als `null`.
+ */
+async function randFehler404(
+  antwort: HttpResponseLike,
+  functionName: string,
+  geheimnisse: readonly string[],
+  signal: AbortSignal,
+): Promise<KasseneckApiError | null> {
+  try {
+    const text = await Promise.race([antwort.text(), abbruchAlsAblehnung(signal)]);
+    const huelle = alsHuelle(JSON.parse(text));
+    if (huelle === null || huelle.status === 'success') return null;
+    const fehler = fachfehler(functionName, huelle.message, huelle.data, geheimnisse, huelle.code);
+    return fehler.code === undefined ? null : fehler;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Prueft eine abweichende Basis beim Anlegen: die 1.x-Linie spricht nur
+ * `/v3`. Liefert sie ohne abschliessende Schraegstriche, oder `undefined`
+ * ohne Angabe.
+ */
+function v3Basis(option: 'baseUrl' | 'posBaseUrl', basis: string | undefined): string | undefined {
+  if (basis === undefined) return undefined;
+  const ohne = typeof basis === 'string' ? basis.replace(/\/+$/, '') : '';
+  if (!V3_ENDE.test(ohne)) {
+    const beispiel = option === 'posBaseUrl' ? "'/api/v3' bzw. POS_BASE_URL" : 'DEFAULT_BASE_URL';
+    throw new KasseneckValidationError(
+      'createTransport',
+      `${option} muss auf /v3 oder /api/v3 enden (1.x spricht nur /v3; z. B. ${beispiel} statt /api oder /v1)`,
+      'request',
+    );
+  }
+  return ohne;
+}
+
+/**
+ * Ist `basis` eine Kasseneck-Basis? Relativ (gleicher Ursprung) immer,
+ * ausser `//host` (fremder Host ohne Schema); absolut nur
+ * `https://api.kasseneck.at` bzw. `https://kasse.kasseneck.at` ohne Port und
+ * ohne Zugangsdaten.
+ */
+function istKasseneckBasis(basis: string): boolean {
+  if (basis.startsWith('//')) return false;
+  let adresse: URL;
+  try {
+    adresse = new URL(basis);
+  } catch {
+    // Keine absolute Adresse: relativ zum eigenen Ursprung.
+    return true;
+  }
+  return adresse.protocol === 'https:'
+    && adresse.port === ''
+    && adresse.username === ''
+    && adresse.password === ''
+    && KASSENECK_HOSTS.has(adresse.hostname);
+}
+
+/**
+ * Die beiden Kasseneck-Kopfzeilen setzt allein der Transport. Liefert die
+ * Anmeldung sie mit (in beliebiger Schreibweise), fallen sie weg: sonst kaeme
+ * ein zweiter Wert daneben, oder eine fremde Basis bekaeme sie doch.
+ */
+function ohneKasseneckKopfzeilen(kopfzeilen: Record<string, string>): Record<string, string> {
+  const gesperrt = new Set([VERSION_KOPF.toLowerCase(), CLIENT_KOPF.toLowerCase()]);
+  const ergebnis: Record<string, string> = {};
+  for (const [name, wert] of Object.entries(kopfzeilen)) {
+    if (!gesperrt.has(name.toLowerCase())) ergebnis[name] = wert;
+  }
+  return ergebnis;
+}
+
+/** Prueft `Kasseneck-Client` gegen Positivliste und Form (Nachtrag §6). */
+function pruefeKennung(kennung: unknown): void {
+  const text = typeof kennung === 'string' ? kennung : '';
+  const trenner = text.indexOf('/');
+  const produkt = trenner > 0 ? text.slice(0, trenner) : '';
+  const version = trenner > 0 ? text.slice(trenner + 1) : '';
+  if (text.length > CLIENT_MAX || !CLIENT_PRODUKTE.has(produkt) || !CLIENT_VERSION.test(version)) {
+    throw new KasseneckValidationError(
+      'createTransport',
+      'clientHeader muss <produkt>/<version> sein (Produkt: kasse-web, kasse-app, kasseneck-api, kasseneck_api)',
+      'request',
+    );
+  }
 }
 
 /** JSON-Weg: der Rumpf ist Text. */
@@ -318,9 +584,10 @@ function jsonAuswerten<T>(
   statusCode: number,
   inhaltstyp: string | undefined,
   geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
 ): T {
   if (!text.trim()) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body', unlesbar);
   }
   let roh: unknown;
   try {
@@ -328,11 +595,11 @@ function jsonAuswerten<T>(
   } catch {
     // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
     // der Single-Page-App — HTTP 200, aber kein JSON.
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json', unlesbar);
   }
   const huelle = alsHuelle(roh);
   if (huelle === null) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status', unlesbar);
   }
   if (huelle.status === 'success') {
     return huelle.data as T;
@@ -361,9 +628,10 @@ function pdfAuswerten(
   statusCode: number,
   inhaltstyp: string | undefined,
   geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
 ): Uint8Array {
   if (bytes.length === 0) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body', unlesbar);
   }
   if (istPdf(bytes)) {
     return bytes;
@@ -378,11 +646,11 @@ function pdfAuswerten(
   try {
     roh = JSON.parse(new TextDecoder('utf-8').decode(bytes));
   } catch {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json', unlesbar);
   }
   const huelle = alsHuelle(roh);
   if (huelle === null) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status', unlesbar);
   }
   if (huelle.status === 'success') {
     // Erfolg gemeldet, aber kein PDF geliefert: die Antwort traegt nicht, was

@@ -8,8 +8,8 @@
 import { execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
-const DATEI = 'src/rechnung/rechnen.ts';
-const SICHERUNG = 'src/rechnung/rechnen.ts.original';
+const DATEI = 'src/invoice/calc.ts';
+const SICHERUNG = 'src/invoice/calc.ts.original';
 
 // Ein frueherer Lauf kann mitten in einer Mutante abgebrochen worden sein (z. B.
 // getoetet) — dann liegt noch eine Sicherung da und der Kern selbst ist mutiert.
@@ -24,16 +24,16 @@ if (existsSync(SICHERUNG)) {
 
 const MUTANTEN = [
   ['Rundung halb-gerade', 'const ganz = (2n * betrag + b) / (2n * b);', 'const ganz = (2n * betrag + b - 1n) / (2n * b);'],
-  ['je Zeile statt je Satz runden', 'const S = gruppe.reduce((s, z) => s + z.L, 0n);', 'const S = gruppe.reduce((s, z) => s + rund(z.L, E) * E, 0n);'],
-  ['Brutto-Formel wie Weg 1', 'netCents = rund(grossCents * 10_000n, 10_000n + r);', 'netCents = rund(S * 10_000n, E * (10_000n + r));'],
-  ['USt aus dem gerundeten Netto statt aus der Summe', 'vatCents = rund(S * r, E * 10_000n);', 'vatCents = rund(netCents * r, 10_000n);'],
+  ['je Zeile statt je Satz runden', 'const S = gruppe.reduce((s, z) => s + z.L, 0n);', 'const S = gruppe.reduce((s, z) => s + roundDiv(z.L, E) * E, 0n);'],
+  ['Brutto-Formel wie Weg 1', 'netCents = roundDiv(grossCents * 10_000n, 10_000n + r);', 'netCents = roundDiv(S * 10_000n, E * (10_000n + r));'],
+  ['USt aus dem gerundeten Netto statt aus der Summe', 'vatCents = roundDiv(S * r, E * 10_000n);', 'vatCents = roundDiv(netCents * r, 10_000n);'],
   ['Rabatt per Ganzzahldivision auf den Einzelpreis', 'const L = preis * menge * (10_000n - rabatt) * 1_000_000n;', 'const L = (preis * (10_000n - rabatt) / 10_000n) * menge * 10_000n * 1_000_000n;'],
   ['byRate aufsteigend', 'byRate.sort((a, b) => b.rateBp - a.rateBp);', 'byRate.sort((a, b) => a.rateBp - b.rateBp);'],
   ['Verteilung aufsteigend nach Rest', 'if (da !== db) return db > da ? 1 : -1;', 'if (da !== db) return da > db ? 1 : -1;'],
   ['Gleichstand an die spaetere Zeile', 'return a.z.index - b.z.index;', 'return b.z.index - a.z.index;'],
   ['Nullzeile bekommt Cent', '.filter((w) => w.zaehler !== 0n)', '.filter(() => true)'],
   ['Satzschluessel mit Komma', "return String(rateBp / 100);", "return String(rateBp / 100).replace('.', ',');"],
-  ['Grenze zu hoch', 'export const BETRAG_GRENZE_CENTS = 99_999_999_999;', 'export const BETRAG_GRENZE_CENTS = 999_999_999_999;'],
+  ['Grenze zu hoch', 'export const MAX_AMOUNT_CENTS = 99_999_999_999;', 'export const MAX_AMOUNT_CENTS = 999_999_999_999;'],
 ];
 
 copyFileSync(DATEI, SICHERUNG);

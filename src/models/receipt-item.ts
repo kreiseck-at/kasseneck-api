@@ -31,7 +31,7 @@ export interface ReceiptItem {
   priceCents: number;
   /**
    * Trinkgeld-Position (vom Backend aus dem Parameter `tip` erzeugt, siehe
-   * [ReceiptCommonOptions.tip]) oder Rabatt-Position (`verteileRabatt`).
+   * [ReceiptCommonOptions.tip]) oder Rabatt-Position (`distributeDiscount`).
    * Mitarbeiter-Trinkgeld ist Durchlaeufer (0 %, kein Umsatz),
    * Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Rabatt-Positionen sind
    * negative Entgeltminderungen je Steuersatz; die Kennzeichnung steuert nur
@@ -42,6 +42,11 @@ export interface ReceiptItem {
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
   paymentMethod?: string;
+  /**
+   * Nur Personal-Trinkgeld: hat der Empfaenger das Geld schon (`true`) oder
+   * behaelt der Betrieb es und schuldet es (`false`)? Fehlt bei Altbelegen.
+   */
+  receivedImmediately?: boolean;
   /**
    * Artikel-Verweis (Artikelstamm) — Grundlage der Erloesgruppen-Zuordnung
    * im Bericht. Optional; Handeingaben haben keinen.
@@ -80,6 +85,7 @@ export interface ReceiptItemPayload {
   kind?: 'tip' | 'discount';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
+  receivedImmediately?: boolean;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string;
 }
@@ -104,6 +110,8 @@ export interface ReceiptItemPayloadRead {
   kind?: string | null;
   recipient?: TipRecipient | null;
   paymentMethod?: string | null;
+  /** Trinkgeld-Position, siehe [ReceiptItem.receivedImmediately]. */
+  receivedImmediately?: boolean | null;
   /** v2: Menge */
   quantity?: number | null;
   /** v2: Einzelpreis in Cent */
@@ -140,6 +148,7 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
     nutzlast.kind = 'tip';
     nutzlast.recipient = item.recipient ?? null;
     if (item.paymentMethod != null) nutzlast.paymentMethod = item.paymentMethod;
+    if (typeof item.receivedImmediately === 'boolean') nutzlast.receivedImmediately = item.receivedImmediately;
   }
   // Rabatt-Kennzeichnung reist mit — sonst kaeme ein Storno dieser Position
   // am Bon wieder als gewoehnliche Warenzeile mit "1 x" an.
@@ -183,6 +192,7 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
           kind: 'tip' as const,
           recipient: payload.recipient ?? null,
           ...(payload.paymentMethod != null ? { paymentMethod: payload.paymentMethod } : {}),
+          ...(typeof payload.receivedImmediately === 'boolean' ? { receivedImmediately: payload.receivedImmediately } : {}),
         }
       : payload.kind === 'discount'
         ? { kind: 'discount' as const }

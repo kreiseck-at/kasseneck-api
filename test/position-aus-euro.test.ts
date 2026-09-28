@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { positionAusEuro, type Umwandlung } from '../src/rechnung/rechnen.js';
+import { itemFromEuro, type ItemConversion } from '../src/invoice/calc.js';
 
 test('Umwandler: der uebliche Fall', () => {
   assert.deepEqual(
-    positionAusEuro({ unitPrice: 14.79, quantity: 2.5, vatRate: 20, discountPct: 12.5, description: 'Pflege' }),
+    itemFromEuro({ unitPrice: 14.79, quantity: 2.5, vatRate: 20, discountPct: 12.5, description: 'Pflege' }),
     {
       ok: true,
-      position: {
+      item: {
         unitPriceMicros: 14_790_000,
         quantityMilli: 2500,
         discountBp: 1250,
@@ -22,28 +22,28 @@ test('Umwandler: der uebliche Fall', () => {
 
 test('Umwandler: eine Position in Ganzzahl-Form kommt unveraendert zurueck', () => {
   const ganz = { unitPriceMicros: 4, quantityMilli: 1000, vatRateBp: 2000 };
-  assert.deepEqual(positionAusEuro({ ...ganz }), { ok: true, position: ganz });
+  assert.deepEqual(itemFromEuro({ ...ganz }), { ok: true, item: ganz });
 });
 
 test('Umwandler: fehlende Menge und fehlender Satz gelten als 0', () => {
-  assert.deepEqual(positionAusEuro({ unitPrice: 5 }), {
+  assert.deepEqual(itemFromEuro({ unitPrice: 5 }), {
     ok: true,
-    position: { unitPriceMicros: 5_000_000, quantityMilli: 0, discountBp: 0, vatRateBp: 0 },
+    item: { unitPriceMicros: 5_000_000, quantityMilli: 0, discountBp: 0, vatRateBp: 0 },
   });
 });
 
 test('Umwandler: ein fehlender Preis ist nie 0, sondern ein Grund', () => {
-  assert.deepEqual(positionAusEuro({ quantity: 1, vatRate: 20 }), {
+  assert.deepEqual(itemFromEuro({ quantity: 1, vatRate: 20 }), {
     ok: false,
-    feld: 'unitPrice',
-    grund: 'kein_zahlwert',
+    field: 'unitPrice',
+    reason: 'not_a_number',
   });
 });
 
 test('Umwandler: ein Minus am Preis wandert an die Menge', () => {
-  assert.deepEqual(positionAusEuro({ unitPrice: -10, quantity: 2, vatRate: 20 }), {
+  assert.deepEqual(itemFromEuro({ unitPrice: -10, quantity: 2, vatRate: 20 }), {
     ok: true,
-    position: { unitPriceMicros: 10_000_000, quantityMilli: -2000, discountBp: 0, vatRateBp: 2000 },
+    item: { unitPriceMicros: 10_000_000, quantityMilli: -2000, discountBp: 0, vatRateBp: 2000 },
   });
 });
 
@@ -56,60 +56,60 @@ test('Umwandler: zu viele Stellen werden abgelehnt, auch Gleitkomma-Rauschen', (
     [{ unitPrice: 1, quantity: 1, vatRate: 4.955 }, 'vatRate'],
   ];
   for (const [item, feld] of faelle) {
-    const e = positionAusEuro(item) as Extract<Umwandlung, { ok: false }>;
+    const e = itemFromEuro(item) as Extract<ItemConversion, { ok: false }>;
     assert.equal(e.ok, false, JSON.stringify(item));
-    assert.equal(e.feld, feld);
-    assert.equal(e.grund, 'nachkommastellen');
+    assert.equal(e.field, feld);
+    assert.equal(e.reason, 'too_many_decimals');
   }
 });
 
 test('Umwandler: zwei Nachkommastellen im Satz sind verlustfrei', () => {
   // Der Umwandler prueft Verlustfreiheit, nicht ob es den Satz gibt: 4,95 %
   // sind genau 495 Hundertstel-Prozent (Spec § 5.9: 2 Stellen bei Satz und Rabatt).
-  const e = positionAusEuro({ unitPrice: 1, quantity: 1, vatRate: 4.95 });
+  const e = itemFromEuro({ unitPrice: 1, quantity: 1, vatRate: 4.95 });
   assert.equal(e.ok, true);
-  if (e.ok) assert.equal(e.position.vatRateBp, 495);
+  if (e.ok) assert.equal(e.item.vatRateBp, 495);
 });
 
 test('Umwandler: Text, NaN und unmoegliche Werte', () => {
-  assert.equal((positionAusEuro({ unitPrice: '12,00' }) as { grund: string }).grund, 'kein_zahlwert');
-  assert.equal((positionAusEuro({ unitPrice: Number.NaN }) as { grund: string }).grund, 'kein_zahlwert');
-  assert.equal((positionAusEuro({ unitPrice: 1, quantity: 1, vatRate: 120 }) as { grund: string }).grund, 'ausserhalb');
+  assert.equal((itemFromEuro({ unitPrice: '12,00' }) as { reason: string }).reason, 'not_a_number');
+  assert.equal((itemFromEuro({ unitPrice: Number.NaN }) as { reason: string }).reason, 'not_a_number');
+  assert.equal((itemFromEuro({ unitPrice: 1, quantity: 1, vatRate: 120 }) as { reason: string }).reason, 'out_of_range');
   assert.equal(
-    (positionAusEuro({ unitPrice: 1, quantity: 1, discountPct: -5 }) as { grund: string }).grund,
-    'ausserhalb',
+    (itemFromEuro({ unitPrice: 1, quantity: 1, discountPct: -5 }) as { reason: string }).reason,
+    'out_of_range',
   );
 });
 
 test('Umwandler: dichte Abtastung — alles Erlaubte geht verlustfrei', () => {
   for (let rabatt = 0; rabatt <= 10_000; rabatt++) {
-    const e = positionAusEuro({ unitPrice: 1, quantity: 1, discountPct: rabatt / 100 });
+    const e = itemFromEuro({ unitPrice: 1, quantity: 1, discountPct: rabatt / 100 });
     assert.equal(e.ok, true, `Rabatt ${rabatt / 100}`);
-    if (e.ok) assert.equal(e.position.discountBp, rabatt);
+    if (e.ok) assert.equal(e.item.discountBp, rabatt);
   }
   for (let cent = 0; cent <= 100_000; cent += 7) {
-    const e = positionAusEuro({ unitPrice: cent / 100, quantity: 1 });
+    const e = itemFromEuro({ unitPrice: cent / 100, quantity: 1 });
     assert.equal(e.ok, true, `Preis ${cent / 100}`);
-    if (e.ok) assert.equal(e.position.unitPriceMicros, cent * 10_000);
+    if (e.ok) assert.equal(e.item.unitPriceMicros, cent * 10_000);
   }
   for (let milli = 1; milli <= 1_000_000; milli += 13) {
-    const e = positionAusEuro({ unitPrice: 1, quantity: milli / 1000 });
+    const e = itemFromEuro({ unitPrice: 1, quantity: milli / 1000 });
     assert.equal(e.ok, true, `Menge ${milli / 1000}`);
-    if (e.ok) assert.equal(e.position.quantityMilli, milli);
+    if (e.ok) assert.equal(e.item.quantityMilli, milli);
   }
 });
 
 interface UmwandlungsFall {
   name: string;
   item: Record<string, unknown>;
-  erwartet: Umwandlung;
+  expected: ItemConversion;
 }
 
 const datei = JSON.parse(
-  readFileSync(new URL('../../fixtures/position-aus-euro.json', import.meta.url), 'utf8'),
-) as { faelle: UmwandlungsFall[] };
+  readFileSync(new URL('../../fixtures/item-from-euro.json', import.meta.url), 'utf8'),
+) as { cases: UmwandlungsFall[] };
 
 test('Umwandler: jeder Fall der Prueffall-Datei trifft', () => {
-  assert.ok(datei.faelle.length >= 12);
-  for (const f of datei.faelle) assert.deepEqual(positionAusEuro(f.item), f.erwartet, f.name);
+  assert.ok(datei.cases.length >= 12);
+  for (const f of datei.cases) assert.deepEqual(itemFromEuro(f.item), f.expected, f.name);
 });

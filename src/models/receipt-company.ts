@@ -4,7 +4,8 @@
  * (`toMetadataJson`/`fromMetadata`).
  *
  * Das Backend liefert sie **neben** dem Beleg: `getReceipt` und `createReceipt`
- * legen Firma, Anschrift, Steuernummer, UID, Fusszeilen, Logo-Adresse und das
+ * legen Firma, Anschrift, Steuernummer (`taxNumber`), UID (`vatId`),
+ * Fusszeilen, Logo-Adresse und das
  * Kleinunternehmer-Kennzeichen direkt in die Antwort (functions/index.js).
  * Zum RKSV-Kernbeleg gehoeren sie nicht — sie betreffen ausschliesslich die
  * Darstellung. Deshalb stehen sie hier als eigenes Modell und nicht in
@@ -23,9 +24,9 @@ export interface ReceiptCompany {
   city: string;
   phone: string;
   /** UID (Umsatzsteuer-Identifikationsnummer); fehlt bei Kleinunternehmern. */
-  uid?: string;
+  vatId?: string;
   /** Steuernummer des Finanzamts. */
-  taxnr: string;
+  taxNumber: string;
   /** Kleinunternehmer nach § 6 Abs 1 Z 27 UStG (keine USt im Ausweis). */
   isSmallBusiness: boolean;
   footer1: string;
@@ -52,8 +53,8 @@ export interface ReceiptCompanyPayload {
   zip?: string | null;
   city?: string | null;
   phone?: string | null;
-  uid?: string | null;
-  taxnr?: string | null;
+  vatId?: string | null;
+  taxNumber?: string | null;
   is_small_business?: boolean | null;
   footer1?: string | null;
   footer2?: string | null;
@@ -89,7 +90,7 @@ export function fromReceiptCompanyPayload(payload: ReceiptCompanyPayload): Recei
     zip: text(payload.zip),
     city: text(payload.city),
     phone: text(payload.phone),
-    taxnr: text(payload.taxnr),
+    taxNumber: text(payload.taxNumber),
     isSmallBusiness: payload.is_small_business === true,
     footer1: text(payload.footer1),
     footer2: text(payload.footer2),
@@ -98,7 +99,7 @@ export function fromReceiptCompanyPayload(payload: ReceiptCompanyPayload): Recei
   };
   // Die vier Kann-Felder bleiben weg, wenn sie leer sind — ein leerer String
   // in `footer3` erzeugte sonst eine leere Zeile auf dem Beleg.
-  if (payload.uid) firma.uid = payload.uid;
+  if (payload.vatId) firma.vatId = payload.vatId;
   if (payload.footer3) firma.footer3 = payload.footer3;
   if (payload.footer4) firma.footer4 = payload.footer4;
   if (payload.logo_url) firma.logoUrl = payload.logo_url;
@@ -110,5 +111,5 @@ export function fromReceiptCompanyPayload(payload: ReceiptCompanyPayload): Recei
  * wenn es eine gibt, sonst die Steuernummer.
  */
 export function receiptCompanyTaxInfo(company: ReceiptCompany): string {
-  return company.uid !== undefined && company.uid.length > 0 ? company.uid : company.taxnr;
+  return company.vatId !== undefined && company.vatId.length > 0 ? company.vatId : company.taxNumber;
 }

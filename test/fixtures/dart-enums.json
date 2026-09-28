@@ -9,7 +9,7 @@
   },
   "VatRate": {
     "vat0": { "rate": 0, "category": "D" },
-    "vat4komma9": { "rate": 4.9, "category": "G" },
+    "vat4_9": { "rate": 4.9, "category": "G" },
     "vat10": { "rate": 10, "category": "B" },
     "vat13": { "rate": 13, "category": "C" },
     "vat19": { "rate": 19, "category": "E" },

@@ -79,7 +79,7 @@ test('usbWriteAll: ein haengender transferOut haelt den Aufruf nicht unbegrenzt 
     usbWriteAll(haengt, 3, new Uint8Array([1, 2, 3]), 16384, 30),
     (e: unknown) => {
       assert.ok(e instanceof UsbTimeoutError, `falsche Fehlerart: ${String(e)}`);
-      assert.equal(e.schritt, 'transferOut');
+      assert.equal(e.step, 'transferOut');
       return true;
     },
   );
@@ -91,7 +91,7 @@ test('usbConnectPrinter: ein haengendes open() haelt den Aufruf nicht unbegrenzt
   const start = Date.now();
   await assert.rejects(
     usbConnectPrinter(d, 30),
-    (e: unknown) => e instanceof UsbTimeoutError && e.schritt === 'open',
+    (e: unknown) => e instanceof UsbTimeoutError && e.step === 'open',
   );
   assert.ok(Date.now() - start < 2000);
 });
@@ -104,7 +104,7 @@ test('usbConnectPrinter: ein haengendes claimInterface() bleibt als Zeitablauf e
   const d = geraet({ claimInterface: () => new Promise<void>(() => { /* loest nie auf */ }) });
   await assert.rejects(
     usbConnectPrinter(d, 30),
-    (e: unknown) => e instanceof UsbTimeoutError && e.schritt === 'claimInterface',
+    (e: unknown) => e instanceof UsbTimeoutError && e.step === 'claimInterface',
   );
   // Regression: eine ECHTE Ablehnung (Treiber haelt das Geraet) bleibt die
   // verstaendliche Meldung, kein UsbTimeoutError.

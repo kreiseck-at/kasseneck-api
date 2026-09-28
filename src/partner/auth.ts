@@ -27,8 +27,8 @@ const SCHLUESSEL_FORM = /^pk_(test|live)_[A-Za-z0-9_-]{16,}$/;
  * keiner ist. Nuetzlich fuer die Zusicherung „auf diesem Server laeuft nur
  * `pk_live_`" beim Hochfahren.
  */
-export function partnerKeyEnv(schluessel: string): PartnerEnv | null {
-  const treffer = SCHLUESSEL_FORM.exec(typeof schluessel === 'string' ? schluessel.trim() : '');
+export function partnerKeyEnv(key: string): PartnerEnv | null {
+  const treffer = SCHLUESSEL_FORM.exec(typeof key === 'string' ? key.trim() : '');
   return treffer ? (treffer[1] as PartnerEnv) : null;
 }
 

@@ -21,8 +21,8 @@ import type { InternerTransport } from './aufrufe.js';
  *
  * Ohne diesen Aufruf kann eine Browser-Kasse ihre Kasse nicht auswaehlen.
  */
-export async function listMyCashregisters(rufen: InternerTransport): Promise<Cashregister[]> {
-  const daten = await rufen<{ cashregisters?: unknown }>('listMyCashregisters');
+export async function listMyCashregisters(transport: InternerTransport): Promise<Cashregister[]> {
+  const daten = await transport<{ cashregisters?: unknown }>('listMyCashregisters');
   const liste = daten?.cashregisters;
   if (!Array.isArray(liste)) {
     throw new KasseneckValidationError(

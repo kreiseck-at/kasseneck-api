@@ -4,6 +4,308 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.0.0
+
+The package speaks the English API `/v3` and nothing else, and its own
+surface is English as well: exported names, fields, values, error codes,
+subpaths, text catalogue keys, placeholders and the contract files in
+`fixtures/`. Reason: the backend now runs `/v3` for every endpoint
+group, `/v1` is deprecated, and a half-German client on an English wire would
+translate twice and drift. One breaking release instead of several: every
+consumer migrates once. Rendered texts (messages, labels, printed receipts,
+invoice PDFs) are byte for byte the same as in 0.31.0, and so are the printed
+bytes of every golden receipt.
+
+This entry is written in English, like the developer documentation from here
+on.
+
+### Migrating from 0.x
+
+#### The 0.x line
+
+0.x keeps talking to `/v1` and gets fixes only. Before 1.0.0 becomes
+`latest`, the last 0.x release is to be tagged with the npm dist-tag `legacy`, so
+that `npm install @kreiseck/kasseneck-api@legacy` keeps installing it; until then,
+pin the 0.x version you use (`@kreiseck/kasseneck-api@^0.31.0`). Nothing forces
+an upgrade as long as `/v1` is served.
+
+#### Wire: `/v3` only
+
+- **Base URLs.** Public calls go to `https://api.kasseneck.at/v3`
+  (`DEFAULT_BASE_URL`, option `baseUrl`), the register calls to
+  `https://kasse.kasseneck.at/api/v3` (`POS_BASE_URL`, new option
+  `posBaseUrl`). The browser register on its own origin passes
+  `posBaseUrl: '/api/v3'`. The package routes each call itself: the 19
+  register-only calls (pairing, sign-in, settings, articles, printers, …)
+  always take the register path, and with `registerUserAuth` so do the six
+  calls both paths serve (`createReceipt`, `getReceipt`,
+  `generateFullReceiptId`, `cancelReceipt`, `sendReceiptEmail`,
+  `listMyTipRecipients`). `PUBLIC_CALLS` and `POS_CALLS` list them. Reason:
+  the register path and the public API are different hosts with different
+  authentication; a single base could not serve both.
+- **`baseUrl` now covers public calls only.** Whoever passed `baseUrl` to
+  pairing, sign-in or the register calls (the browser register used `/api`)
+  switches to `posBaseUrl: '/api/v3'`. Every base must end in `/v3` once
+  trailing slashes are removed; `/v1` or a bare `/api` throws a
+  `KasseneckValidationError` when the client is created. Reason: a 1.x client
+  must never speak `/v1` by accident.
+- **Marker, fail closed.** Requests to a Kasseneck base carry
+  `Kasseneck-Api-Version: v3` and `Kasseneck-Client: kasseneck-api/<version>`
+  (new option `clientHeader` for apps that name themselves). Each response is
+  checked before its body is read: HTTP 200 with HTML is `route_missing`, a
+  response without `Kasseneck-Api-Version: v3` is `dialect_mismatch`, HTTP 404
+  with marker and error envelope is `not_found`. All three are
+  `KasseneckApiError`s. In 0.x an HTML page at HTTP 200 was a
+  `KasseneckHttpError`. Reason: an answer from an edge without `/v3` may still
+  have signed a receipt, and reading it as a 0.x answer would hide that.
+- **Browser on another origin.** Until the backend allows the two headers in
+  the `/v3` CORS preflight, a browser that calls `api.kasseneck.at/v3` from a
+  foreign origin sets the new option `omitKasseneckHeaders: true`. The
+  response check stays. Same-origin clients and Node need nothing.
+- **English keys, values and codes on the wire.** Error codes are English,
+  lower case, `snake_case`: `bereits_storniert` is `already_cancelled`,
+  `STORNO_REFUND_REFERENCE_UNKNOWN` is `cancellation_refund_reference_unknown`,
+  `PAYMENTS_SUM_MISMATCH` is `payments_sum_mismatch`, `adresse_ungueltig` is
+  `invalid_address`, `zu_oft` is `too_many_requests`. Cancellation reasons are
+  `input_error`, `customer_cancelled`, `wrong_payment_method`, `duplicate`,
+  `other` (the German display text stays in `CANCELLATION_REASONS`). Register
+  settings are `{ business, device }` with English keys and values
+  (`stil: 'nacht'` is `theme: 'night'`). `listMyReceipts` sends
+  `cashregisterId`, `sendReceiptEmail` takes `language` (was `sprache`) and
+  reports `via` as `own`, `platform` or `platform_fallback`. The invoice API
+  uses `docType` `invoice`/`credit_note` (was `RE`/`GU`) and `taxScheme`
+  `intraCommunitySupply` (was `igLieferung`). Texts for people (`message`,
+  `serverMessage`, `nextSteps`) and the terms of the BMF and FinanzOnline stay
+  German.
+
+#### Behaviour changes
+
+- **`payments[]` is mandatory** on every sale (`sellReceipt`,
+  `sellReceiptWithCompany`, `createReceipt` with `standard` or `training`),
+  empty only when the amount due is 0. The new `receiptDueCents(items,
+  vouchers, receiptType, { tip, tipRecipient })` computes that amount exactly
+  as the backend does, including its rounding (checked against 1206 cases
+  computed by the backend's own code, `fixtures/receipt-due-generated.json`);
+  `receiptDueBreakdown` adds the buckets. `paymentsExpectedCents(error)` reads
+  the expected amount of a `payments_sum_mismatch`. Reason: `/v3` knows no
+  single payment method; a table that pays with two cards and cash is one
+  receipt.
+- **`tipRecipient` is required** in `receiptDueCents` (`'owner'` or
+  `'staff'`) for a tip without `recipients`, and each `recipients[].owner` is
+  required. Reason: an owner's tip is turnover, spread over the goods' VAT
+  rates and discounted with them, a staff tip is not; only the register knows
+  who is signed in, and a guess would give a wrong amount due. The helper also
+  refuses `tip` together with `payments[].tipCents` (`tip_conflict`, as the
+  server does). On the sale itself `tip.sofortErhalten` is
+  `tip.receivedImmediately`, and unknown tip keys throw.
+- **`outcome` on errors.** `KasseneckApiError`, `KasseneckHttpError` and
+  `KasseneckNetworkError` carry `outcome: 'unknown' | 'rejected'`
+  (`ErrorOutcome`), and `isOutcomeUnknown(error)` covers all three. Unknown
+  means the operation may have happened: `dialect_mismatch`,
+  `receipt_outcome_unknown`, `cancellation_outcome_unknown`,
+  `response_translation_failed` (unless `details.handled === false`),
+  `response_unreadable` (a signing call reported success but the response
+  lacks the receipt, the reference or the remaining quantities), and on
+  `createReceipt`, `cancelReceipt` and `financeWebService` a network error,
+  timeout or HTTP 5xx after sending as well as HTTP 200 with the `/v3` marker
+  but an empty, non-JSON or status-less body. Never retry those; read the
+  result back. Reason: a retried receipt is a second signed receipt in the
+  chain.
+- **Strict validation before sending.** The 0.x payment fields
+  (`paymentMethod`, `paymentMethodFromServer`, `creditCardProvider`,
+  `cardPaymentId`, `cardPaymentData`) throw, also from plain JavaScript.
+  Unknown keys in tips, layout options, register settings and
+  `sendReceiptEmail` throw; for the layout options of 0.x (`testKasse`,
+  `testSignatur`, `pruefangaben`, `regelwerk`) the message names the English
+  successor. Settings values outside a field's list, a `vatRates` map without
+  any rate switched on, unknown shortcut actions and a key bound twice are
+  rejected. A card refund through a provider without its own
+  `providerPaymentId` and without the original payment's id throws before
+  sending. Reason: under 0.x an unknown German option was ignored, and a test
+  receipt could silently lose its TESTKASSE banner.
+- **Register settings: send only what changed.** Values the package does not
+  know are kept as read (`PosOpen<T>`, `unknownPosSettingValues`) and never
+  replaced by a default; `posSettingsChanges(before, after)` produces the
+  patch, with `vatRates` and `shortcuts` as whole maps. `mergePosSettings`
+  always drops the German values of 0.x; `sanitizePosSettings` does the same
+  for a state you stored yourself. Reason: the server merges deeply, and a
+  whole block would overwrite values a newer server knows.
+- **Unknown values stay visible.** `ReceiptSummary.cancellationStatus`
+  (was `stornoStand` `offen`/`teil`/`voll`) is `none`/`partial`/`full`, or
+  `'unknown'` for a value this version does not know; a missing field stays
+  missing and never becomes `none`. `PrintJobStatus` gains `'unknown'`, and
+  `isPrintJobFinished` treats it as final.
+- **Server layout first.** `receiptLayoutFromResult(result, {
+  fallbackPaperSize })` returns the server's `layout` (80 mm) whenever the
+  response carries one and only builds one otherwise (default `mm58`, as in
+  0.x). Print width is chosen by the print path. Reason: on the public
+  channel only the server's layout carries the card block.
+- **Error catalogues per endpoint group, one shape everywhere.**
+  `RECEIPT_ERROR_CODES` (new), `CANCELLATION_ERROR_CODES`,
+  `PAYMENT_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`, `REGISTER_ERROR_CODES`
+  (new) and `POS_ERROR_CODES` (new) list the group's own codes, then the
+  sign-in and edge codes that can reach it, then the codes the package sets
+  itself (`CLIENT_ERROR_CODES`: `route_missing` everywhere,
+  `response_unreadable` for receipts and cancellations), so the derived types
+  are wider. The `payments[]` codes of a sale or cancellation
+  (`payments_sum_mismatch`, `payment_method_not_supported`, …) are in
+  `PAYMENT_ERROR_CODES`: a sale can answer with a code from
+  `RECEIPT_ERROR_CODES` or `PAYMENT_ERROR_CODES`, a cancellation with one from
+  `CANCELLATION_ERROR_CODES` or `PAYMENT_ERROR_CODES`.
+  `RECEIPT_EMAIL_SEND_ERROR_CODES` holds the four sending codes.
+  `INVOICE_ERROR_CODES` and `PARTNER_ERROR_CODES` stay the server's catalogues;
+  `INVOICE_REQUEST_ERROR_CODES` (new) and `PARTNER_REQUEST_ERROR_CODES` add
+  the sign-in, edge and package codes. Every group offers
+  `is…ErrorCode(value)`, `…ErrorCode(error)`, `is…Error(error, code?)` (a type
+  guard, code optional) and `…FieldErrors(error)`; new are `isReceiptError`,
+  `isCancellationError`, `isPaymentError`, `isReceiptEmailError`,
+  `isInvoiceErrorCode`, `receiptFieldErrors`, `cancellationFieldErrors`,
+  `paymentFieldErrors`, `receiptEmailFieldErrors` and `registerFieldErrors`, and
+  `isInvoiceError` takes the code as optional.
+- **Partner.** `partnerErrorAdvice` (was `partnerFehlerRat`) always returns a
+  sentence, with a fallback for unknown codes; `isPartnerError` accepts
+  unknown codes. `reportCustomerContract` is offered now.
+- **Tree shaking.** `package.json` declares `"sideEffects": false`, so a
+  bundler drops every module whose exports are unused (esbuild, one import of
+  `isOutcomeUnknown` from the root: 13 kB before, 2 kB after). No module
+  changes anything outside itself when imported, and the package ships no
+  CSS; the build checks both (`scripts/check-build-exports.mjs`). Parameter
+  names of exported functions and methods are English now as well (for
+  example `rasterizeLogo(rgba, pxWidth, pxHeight, dimensions, chars)`); that
+  changes nothing at runtime.
+
+#### Exported names
+
+Every German export name has an English successor; there are no aliases, so
+the compiler finds every place to change. The most common ones:
+
+| Area | 0.x | 1.0 |
+|---|---|---|
+| root | `AUFRUFE`, `Aufruf` | `ALL_CALLS`, `ApiCall` |
+| root | `KASSE_BETRIEB_STANDARD`, `KASSE_GERAET_STANDARD`, `mergeKasseSettings`, `fromKasseArtikelPayload` | `POS_BUSINESS_DEFAULTS`, `POS_DEVICE_DEFAULTS`, `mergePosSettings`, `fromPosArticlePayload` |
+| root | `KasseSettings`, `KasseSettingsBetrieb`, `KasseSettingsGeraet`, `KasseArtikel` | `PosSettings`, `PosBusinessSettings`, `PosDeviceSettings`, `PosArticle` |
+| layout | `AKTUELLES_REGELWERK`, `LayoutRegelwerk`, `Pruefangaben` | `CURRENT_LAYOUT_RULESET`, `LayoutRuleset`, `RegistrationInfo` |
+| layout options | `testKasse`, `testSignatur`, `pruefangaben`, `regelwerk` | `testCashregister`, `testSignature`, `registrationInfo`, `ruleset` |
+| `ReceiptWithCompany` | `testKasse`, `testSignatur`, `kopfId`, `pruefangaben`, `logoStufe` | `testCashregister`, `testSignature`, `headerVersionId`, `registrationInfo`, `logoScale` |
+| `ReceiptCompany` | `taxnr`, `uid` | `taxNumber`, `vatId` |
+| layout lines | `regelwerk`, `ton` (`belegart`, `warnung`) | `ruleset`, `tone` (`receipt_type`, `warning`) |
+| receipt sheet | `belegBlatt`, `BelegBlatt`, `BlattBlock`, `LogoStufe`, `logoRaster`, `logoMass` | `receiptSheet`, `ReceiptSheet`, `SheetBlock`, `SheetLogoSize`, `rasterizeLogo`, `logoDimensions` |
+| sheet fields | `zeichen`, `bloecke`, `art`, `fett`, `marke`, `stufe`, `pxBreite`, `pxHoehe` | `charsPerLine`, `blocks`, `kind`, `bold`, `brandMark`, `size`, `pixelWidth`, `pixelHeight` |
+| printing | `qrGroesseFuer`, `QR_DRUCK_PUNKTE`, `QrModulGroesse` (`klein`/`mittel`/`gross`) | `qrSizingFor`, `QR_PRINT_WIDTH_DOTS`, `QrModuleSize` (`small`/`medium`/`large`) |
+| printing options | `qrGroesse`, `qrModus`, `qrAusweich`, `qrFehler`, `marke` | `qrModuleSize`, `qrMode`, `qrFallback`, `qrError`, `brandMark` |
+| React | `BelegBlattView`, `BelegBlattZeilen`, `qrVerdeckt` | `ReceiptSheetView`, `ReceiptSheetLines`, `qrHidden` |
+| `./pos` | `getKasseSettings`, `setMyKasseSettings`, `KASSE_TASTEN_AKTIONEN`, `TASTEN_AKTIONEN` | `getPosSettings`, `setMyPosSettings`, `POS_SHORTCUT_ACTIONS` |
+| `./pos` value lists | `STIL`, `SCHRIFT`, `DRUCKER_ART`, `PAPIER`, `KASSIEREN_MODUS`, … | `THEME`, `FONT_SIZE`, `PRINTER_TYPE`, `PAPER_SIZE`, `CHECKOUT_MODE`, … |
+| `./pos` texts | `MELDUNGEN`, `BESCHRIFTUNGEN`, `meldung`, `beschriftung`, `BELEG_MAIL_FEHLER`, `belegMailFehler` | `MESSAGES`, `LABELS`, `messageText`, `labelText`, `RECEIPT_EMAIL_ERROR_MESSAGES`, `receiptEmailErrorMessage` |
+| `./pos` printers | `NetzDrucker`, `DruckJob`, `druckerId`, `titel`, `quelle`, `marke` | `NetworkPrinter`, `PrintJob`, `printerId`, `title`, `source`, `brandMark` |
+| `./register` | `RegisterGeraeteAngaben`, `RegisterSessionsStand`, `altbestand`, `selbst` | `RegisterDeviceInfo`, `RegisterSessionOverview`, `pinPolicyOutdated`, `own` |
+| `./invoice` | `createRechnungApi`, `rechnungKeyAuth`, `istRechnungFehler`, `rechnungFeldFehler`, `RECHNUNG_TEXTE` | `createInvoiceApi`, `invoiceKeyAuth`, `isInvoiceError`, `invoiceFieldErrors`, `INVOICE_TEXTS` |
+| `./invoice` | `rechnungSummen`, `RECHNUNG_AUFRUFE`, `RECHNUNG_VERTRAG_VERSION` (1) | `computeInvoiceTotals`, `INVOICE_ENDPOINTS`, `INVOICE_CONTRACT_VERSION` (2) |
+| `./invoice/calc` | `rechnungRechnen`, `positionAusEuro`, `RechenFehler`, `STEUERFREIE_FAELLE`, `BETRAG_GRENZE_CENTS` | `calculateInvoice`, `itemFromEuro`, `CalcError`, `ZERO_RATED_TAX_SCHEMES`, `MAX_AMOUNT_CENTS` |
+| `./invoice/calc` codes | `kein_ganzzahlwert`, `ausserhalb`, `kein_zahlwert`, `nachkommastellen` | `not_integer`, `out_of_range`, `not_a_number`, `too_many_decimals` |
+| `./partner` | `PARTNER_ABLAUF`, `PARTNER_FEHLER_CODES`, `istPartnerFehler`, `partnerFehlerRat`, `partnerFeldFehler` | `PARTNER_FLOW`, `PARTNER_ERROR_CODES`, `isPartnerError`, `partnerErrorAdvice`, `partnerFieldErrors` |
+| `./partner` types | `Betrieb`, `Kunde`, `Kasse`, `SignaturStand`, `WebhookZustellung` | `Business`, `PartnerCustomer`, `CustomerCashregister`, `CustomerSignatureStatus`, `WebhookDelivery` |
+| enums | `VatRate.vat4komma9` | `VatRate.vat4_9` |
+| misc | `KasseneckSecret.vorhanden`, `UsbTimeoutError.schritt`, `istZeroKind`, `verteileRabatt` | `hasValue`, `step`, `isZeroKind`, `distributeDiscount` |
+
+The register settings fields follow the `/v3` vocabulary (`logoAn` is
+`logoEnabled`, `zahlGetrennt` is `paySplit`, `kassierenModus` is
+`checkoutMode`, `druckerArt` is `printerType`, `tasten` is `shortcuts`, the
+shortcut action `kassieren` is `checkout`, `getrennt` is `splitPayment`, …).
+The complete list of settings keys and values, like every other renamed
+key in the contract files, is in `fixtures/renames-1.0.json` (`structure`,
+`values`). For export names the TSDoc of each 1.0 export and the compiler are
+the reference: an old name no longer resolves.
+
+#### Subpaths
+
+| 0.x | 1.0 |
+|---|---|
+| `@kreiseck/kasseneck-api/kasse` | `@kreiseck/kasseneck-api/pos` |
+| `@kreiseck/kasseneck-api/rechnung` | `@kreiseck/kasseneck-api/invoice` |
+| `@kreiseck/kasseneck-api/rechnung/rechnen` | `@kreiseck/kasseneck-api/invoice/calc` |
+| (none) | `@kreiseck/kasseneck-api/stored` |
+
+The old subpaths are gone, not aliased.
+
+#### Text keys and placeholders
+
+The keys of the register catalogue (`MESSAGES`, `LABELS`) and of the invoice
+texts are English: `storno.ergebnis_unklar` is `cancellation.outcome_unknown`,
+`getrennt.*` is `split.*`, `kartenzahlung.*` is `card_payment.*`,
+`abschluss.*` is `completion.*`, `steuer.igLieferung.titel` is
+`tax.intra_community_supply.title`. Every part is lower case with underscores,
+only country codes stay upper case (`country.AT`). Placeholders are English
+too: `{betrag}` is `{amount}`, `{grund}` is `{reason}`, `{sekunden}` is
+`{seconds}`, `{uid}` is `{vatId}`, and so on for 23 of 30 names; pass the
+values under the new names (`messageText('checkout.locked', { reason })`). An
+old name throws as a missing value. `ERROR_RULES` entries use
+`kind`/`behavior`/`key` with the kinds `api`, `plain_text`, `timeout`,
+`network`, `unexpected`, `other`. Every rendered text is unchanged; a test
+fills each text of both catalogues old and new with the same values and
+compares them character for character. The full key and placeholder tables
+are `texts` and `placeholders` in `fixtures/renames-1.0.json`.
+
+#### Contract files
+
+The files in `fixtures/` have English paths and keys: `kasse-texte.json` is
+`pos-texts.json`, `oberflaeche.json` is `surface.json`,
+`kasse-settings-standard.json` is `pos-settings-defaults.json`,
+`rechnung-texte.json` is `invoice-texts.json`, `belege/` is `receipts/`,
+`erwartet/` is `expected/` (`.blatt32.json` is `.sheet32.json`), golden
+receipts are renamed (`verkauf-bar` is `sale-cash`, `storno-voll` is
+`cancellation-full`), and the manifest uses `ruleset`, `receipts`, `input`,
+`expected`. `surface.json` replaces `aufrufe` with `baseUrls`, `calls` and
+`routes`. `fixtures/renames-1.0.json` lists every path and key that changed
+from 0.30.0/0.31.0, the renamed machine values and the shape changes; a test
+checks it against the frozen 0.x inventory, so no old key is missing. New: `fixtures/v3/` (the backend's `/v3` contract, copied byte for
+byte), `receipt-due-generated.json`, `stored/pos-settings-defaults.json`.
+
+#### Removed
+
+- `createCancelReceipt`, `CreateCancelReceiptOptions` and cancelling through
+  `createReceipt` with `receiptType: 'cancellation'`: use `cancelReceipt`.
+- The single-payment path: `paymentMethod`, `paymentMethodFromServer`,
+  `creditCardProvider`, `cardPaymentId`, `cardPaymentData` on sales and
+  cancellations, and `SellReceiptWithPaymentsOptions` (there is only one way
+  to sell now).
+- The deprecated aliases of 0.28: `Rechtsform`, `Bundesland`, `KontaktRolle`
+  (use `LegalForm`, `AustrianState`, `ContactRole`).
+- `KASSE_TASTEN_AKTIONEN` and `TASTEN_AKTIONEN` as two names for one list:
+  there is only `POS_SHORTCUT_ACTIONS`.
+
+#### New
+
+- `…/stored`: `fromStoredReceipt`, `fromStoredReceiptWithCompany`,
+  `fromStoredCompany`, `fromStoredPosSettings`, `invalidStoredPosSettings`,
+  `fromStoredArticle` turn stored Firestore documents into the `/v3` models,
+  following the server's rules. For clients that read Firestore directly.
+- Receipts: `receiptDueCents`, `receiptDueBreakdown`, `paymentsExpectedCents`,
+  `cardRefundReference`, `receiptLayoutFromResult`, `getReportV2`,
+  `RECEIPT_ERROR_CODES`/`isReceiptErrorCode`, `CANCELLATION_STATUSES`,
+  `RECEIPT_EMAIL_VIAS`, `RECEIPT_EMAIL_SEND_ERROR_CODES`.
+- Transport: `POS_BASE_URL`, `PUBLIC_CALLS`, `POS_CALLS`, options
+  `posBaseUrl`, `clientHeader`, `omitKasseneckHeaders`; `ErrorOutcome`,
+  `isOutcomeUnknown`.
+- `…/register`: `REGISTER_ERROR_CODES`, `isRegisterErrorCode`,
+  `registerErrorCode`, `isRegisterError`, `registerErrorDetails`; the pairing
+  result carries `companyName`, `cashregisterLabel` and `testEnvironment`.
+- `…/pos`: `posSettingsChanges`, `sanitizePosSettings`,
+  `unknownPosSettingValues`, `posSettingsFromWire`, `POS_BUSINESS_VALUES`,
+  `POS_DEVICE_VALUES`, `POS_SHORTCUT_SHARED_PAIRS`, `posShortcutConflict`,
+  `setMyPosLogo`, `isPrintJobFinished`, `POS_ERROR_CODES`, `isPosError`,
+  `posFieldErrors`, `QUANTITY_RULES`, `PRINT_JOB_STATUSES`,
+  `PRINT_JOB_SOURCES`.
+- `…/partner`: `reportCustomerContract`, `PARTNER_REQUEST_ERROR_CODES`, the
+  value lists `LEGAL_FORMS`, `AUSTRIAN_STATES`, `CONTACT_ROLES`, `AVV_MODES`,
+  `FEE_INTERVALS`, `CONTRACT_KINDS`, `CONTRACT_SOURCES`,
+  `SIGNATURE_HISTORY_REASONS`, `SIGNATURE_ERROR_CODES`,
+  `WEBHOOK_DELIVERY_STATUSES`, and the events `customer.avv_accepted` and
+  `customer.terms_accepted` in `PARTNER_WEBHOOK_EVENTS`.
+- `…/invoice`: `WRITE_OFF_REASON_CODES`, `EINVOICE_MISSING_CODES`;
+  `getInvoiceXml` returns `{ xml, format, filename }` instead of the bare XML
+  text; `InvoiceDetail.payments[]` carries `id` and `reference`.
+
 ## 0.31.0
 
 Texte und Einstellung für „Getrennt zahlen" an der Kasse (ein Tisch zahlt in Teilen, ein Beleg mit

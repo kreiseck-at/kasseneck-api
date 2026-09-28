@@ -17,13 +17,13 @@
  * im Backend (Abzug aus `partner-core.FEHLER_KATALOG`); ein Code, den nur eine
  * Seite kennt, ist fuer einen Aufrufer nicht von „gibt es nicht" zu
  * unterscheiden. Deshalb stehen hier BEIDE Flaechen: die der Schnittstelle
- * ([PARTNER_FEHLER_CODES]) und die des Partner-Portals
- * ([PARTNER_PORTAL_FEHLER_CODES]).
+ * ([PARTNER_ERROR_CODES]) und die des Partner-Portals
+ * ([PARTNER_PORTAL_ERROR_CODES]).
  *
  * **Seit 0.29.0 englisch, wie der Rest von `/v3`.** Dieser Client spricht seit
  * 0.28.0 ausschliesslich `/v3` (`PARTNER_BASE_URL`): die paar deutschen Codes,
  * die der Server bis dahin noch roh durchreichte, kommen jetzt genauso englisch
- * an wie alle anderen. [PARTNER_FEHLER_CODES] fuehrt deshalb ausnahmslos die
+ * an wie alle anderen. [PARTNER_ERROR_CODES] fuehrt deshalb ausnahmslos die
  * `/v3`-Schreibweise aus `fehlercodes.json`s `v3`-Zuordnung (deutsch -> englisch);
  * ein Aufrufer bekommt vom Server nie mehr die deutsche Form.
  *
@@ -36,15 +36,22 @@
  *
  * **Die Vertrags-Codes (`kind_not_allowed`, `mode_not_allowed`,
  * `power_of_attorney_missing`, `not_found`, `no_version`,
- * `unknown_version`, `text_changed`, `already_accepted`) stehen hier, obwohl
- * dieses Paket `reportCustomerContract` nicht anbietet.** Der Katalog des
- * Backends fuehrt sie mit `flaeche: 'api'`/`'beide'`, dieselbe Regel wie bei
- * den Portal-Codes oben: vollstaendig heisst vollstaendig, auch fuer einen
- * Endpunkt, den (noch) kein Aufruf dieses Clients ausloest. Ein Server-Update,
- * das den Endpunkt ergaenzt, bräuchte dann keinen zweiten Fehlerkatalog-Umbau.
- * `not_required` fehlt bewusst: derselbe gemeinsame Server-Zweig wie die
- * anderen sechs, aber ueber die Partner-API nicht erreichbar (der Server hat
- * ihn aus `FEHLER_KATALOG` entfernt, siehe `partner-core.js` im Backend).
+ * `unknown_version`, `text_changed`, `already_accepted`)** kommen aus
+ * `reportCustomerContract` (seit 1.0 in diesem Paket). `not_required` fehlt
+ * bewusst: derselbe gemeinsame Server-Zweig, aber ueber die Partner-API nicht
+ * erreichbar (der Server hat ihn aus `FEHLER_KATALOG` entfernt, siehe
+ * `partner-core.js` im Backend).
+ *
+ * **Seit 1.0 ist [PARTNER_ERROR_CODES] genau `errorCodes.partner` des
+ * Vertrags-Exports** (`fixtures/v3/v3-vokabular.json`); ein Test haelt beide
+ * gleich. Dazu kommen die Anmelde- und Anfragecodes, die `/v3` seit
+ * 2026-09-27 auch an Partner-Aufrufen setzt ([PARTNER_REQUEST_ERROR_CODES]).
+ *
+ * **Ein unbekannter Code ist kein Fehler dieses Pakets.** Der Server darf
+ * Fehlern, die heute keinen Code tragen, spaeter einen geben (vorhandene Codes
+ * aendern sich nie). [partnerErrorAdvice] antwortet darauf mit einem
+ * Rueckfallsatz statt `undefined`, die Erkenner mit `false`; geworfen wird
+ * nie.
  */
 
 import { KasseneckApiError } from '../client/errors.js';
@@ -56,7 +63,7 @@ import { KasseneckApiError } from '../client/errors.js';
  *
  * Reihenfolge und Bestand wie im Abzug des Backends.
  */
-export const PARTNER_FEHLER_CODES = [
+export const PARTNER_ERROR_CODES = [
   // Eingabe, Konto und Takt
   'validation',
   'rate_limited',
@@ -86,8 +93,7 @@ export const PARTNER_FEHLER_CODES = [
   'cashregister_limit',
   'cashregister_not_found',
   'contracts_pending',
-  // Vertraege (reportCustomerContract: dieses Paket bietet den Endpunkt nicht
-  // an, der Katalog fuehrt die Codes trotzdem vollstaendig, siehe oben)
+  // Vertraege (reportCustomerContract)
   'kind_not_allowed',
   'mode_not_allowed',
   'power_of_attorney_missing',
@@ -112,7 +118,7 @@ export const PARTNER_FEHLER_CODES = [
  * Wer eine Katalogseite baut oder eine fremde Antwort einsortiert, findet
  * damit jeden Code des Backends wieder.
  */
-export const PARTNER_PORTAL_FEHLER_CODES = [
+export const PARTNER_PORTAL_ERROR_CODES = [
   'app_locked',
   'version_locked',
   'invalid_transition',
@@ -127,18 +133,50 @@ export const PARTNER_PORTAL_FEHLER_CODES = [
   'already_assigned',
 ] as const;
 
-export type PartnerFehlerCode = typeof PARTNER_FEHLER_CODES[number];
-export type PartnerPortalFehlerCode = typeof PARTNER_PORTAL_FEHLER_CODES[number];
+/**
+ * Codes der Anmeldung und der Anfragepruefung, die `/v3` auch an
+ * Partner-Aufrufen setzt (Partner-Doku, Abschnitt Fehlercodes; im
+ * Vertrags-Export unter `errorCodes.auth`). Unter `/v1` kamen diese Fehler
+ * ohne Code. `validation` und `rate_limited` stehen schon in
+ * [PARTNER_ERROR_CODES]. Dahinter die Codes des Rands (`errorCodes.edge`,
+ * soweit nicht schon im Katalog; `not_found` und `validation` stehen dort)
+ * und `route_missing`, den das Paket selbst vergibt.
+ */
+export const PARTNER_REQUEST_ERROR_CODES = [
+  'method_not_allowed',
+  'unauthorized',
+  'partner_locked',
+  'scope_missing',
+  // Rand (errorCodes.edge, soweit nicht im Katalog) und Code des Pakets
+  'internal_translation_error',
+  'dialect_mismatch',
+  'response_translation_failed',
+  'route_missing',
+] as const;
 
-/** Ein Code aus einer der beiden Flaechen. */
-export type PartnerCode = PartnerFehlerCode | PartnerPortalFehlerCode;
+export type PartnerErrorCode = typeof PARTNER_ERROR_CODES[number];
+export type PartnerPortalErrorCode = typeof PARTNER_PORTAL_ERROR_CODES[number];
+export type PartnerRequestErrorCode = typeof PARTNER_REQUEST_ERROR_CODES[number];
 
-export function istPartnerFehlerCode(wert: unknown): wert is PartnerFehlerCode {
-  return typeof wert === 'string' && (PARTNER_FEHLER_CODES as readonly string[]).includes(wert);
+/** Ein Code aus einer der Flaechen, die dieses Paket kennt. */
+export type PartnerCode = PartnerErrorCode | PartnerPortalErrorCode | PartnerRequestErrorCode;
+
+function enthaelt(liste: readonly string[], wert: unknown): boolean {
+  return typeof wert === 'string' && liste.includes(wert);
 }
 
-export function istPartnerPortalFehlerCode(wert: unknown): wert is PartnerPortalFehlerCode {
-  return typeof wert === 'string' && (PARTNER_PORTAL_FEHLER_CODES as readonly string[]).includes(wert);
+/**
+ * `true` fuer einen Code, den ein Partner-Aufruf liefern kann: aus
+ * [PARTNER_ERROR_CODES] (Katalog) oder [PARTNER_REQUEST_ERROR_CODES]
+ * (Anmeldung, Rand, Paket). Alles andere, auch Unsinn, ist `false`.
+ */
+export function isPartnerErrorCode(value: unknown): value is PartnerErrorCode | PartnerRequestErrorCode {
+  return enthaelt(PARTNER_ERROR_CODES, value) || enthaelt(PARTNER_REQUEST_ERROR_CODES, value);
+}
+
+/** `true` fuer einen Code aus [PARTNER_PORTAL_ERROR_CODES]; alles andere ist `false`. */
+export function isPartnerPortalErrorCode(value: unknown): value is PartnerPortalErrorCode {
+  return enthaelt(PARTNER_PORTAL_ERROR_CODES, value);
 }
 
 /**
@@ -191,11 +229,8 @@ const RAT: Record<PartnerCode, string> = {
   contracts_pending:
     'Nur live: der Betrieb hat Auftragsverarbeitungs- und Nutzungsvertrag noch nicht bestaetigt. An der Kasse aendert sich nichts. Den Betrieb ueber den Einrichtungs-Link bestaetigen lassen (sendPartnerCustomerFonLink, Stand in avv/terms von getPartnerCustomer), danach activateCashregister erneut.',
   // -- Vertraege (reportCustomerContract) ------------------------------------
-  // Dieser Client bietet den Endpunkt (noch) nicht an; die Codes stehen hier
-  // nur fuer die Katalogseite und fuer einen Aufrufer, der die rohe Antwort
-  // selbst auswertet (siehe Kopfkommentar der Datei).
   kind_not_allowed:
-    'reportCustomerContract mit einer anderen Art als "avv". Der Vollmachtsweg nimmt nur den Auftragsverarbeitungsvertrag entgegen. Dieser Client bietet den Endpunkt nicht an.',
+    'reportCustomerContract mit einer anderen Art als "avv". Der Vollmachtsweg nimmt nur den Auftragsverarbeitungsvertrag entgegen; den Nutzungsvertrag bestaetigt der Betrieb selbst ueber den Einrichtungs-Link.',
   mode_not_allowed:
     'Der Vollmachtsweg ist fuer dieses Partner-Konto nicht freigeschaltet. Kasseneck fragen (hello@kasseneck.at).',
   power_of_attorney_missing:
@@ -214,6 +249,22 @@ const RAT: Record<PartnerCode, string> = {
   event_not_subscribed:
     'Der Endpunkt abonniert dieses Ereignis nicht — auch eine Probe bekommt nur, was in seiner events-Liste steht. events erweitern und erneut versuchen.',
 
+  // -- Anmeldung und Anfrage -----------------------------------------------
+  method_not_allowed: 'Die Anfrage war kein POST. Jeder Aufruf der Partner-API geht als POST mit JSON-Rumpf.',
+  unauthorized:
+    'Kein, ein ungueltiger oder ein widerrufener Partner-Schluessel. Den Schluessel im Partner-Portal pruefen bzw. einen neuen erzeugen.',
+  partner_locked: 'Das Partner-Konto ist gesperrt. Kasseneck fragen (hello@kasseneck.at).',
+  scope_missing:
+    'Dem Schluessel fehlt eine Berechtigung, die dieser Aufruf braucht (data.scope). Einen Schluessel mit dieser Berechtigung erzeugen.',
+  internal_translation_error:
+    'Der Server konnte die Anfrage nicht in seine innere Form uebersetzen. Nichts wurde ausgefuehrt; hello@kasseneck.at mit Aufruf und Zeitpunkt melden.',
+  dialect_mismatch:
+    'Die Antwort kam nicht vom /v3-Rand (Kennzeichen fehlt), der Ausgang ist unklar. Nicht blind wiederholen: den Stand mit getPartnerCustomer bzw. listCustomerCashregisters nachlesen.',
+  response_translation_failed:
+    'Der Server konnte seine Antwort nicht uebersetzen. Mit details.handled === false lief nichts; sonst kann der Aufruf ausgefuehrt sein, dann den Stand nachlesen statt wiederholen.',
+  route_missing:
+    'Statt des Backends kam eine HTML-Seite: die Basisadresse stimmt nicht (PARTNER_BASE_URL bzw. eigener Proxy). Der Aufruf kam nie an.',
+
   // -- Partner-Portal -------------------------------------------------------
   app_locked:
     'Name, Verteilungen und Kontakt einer App sind fest, sobald eine Version geprueft wird. Aenderungen daran gehen ueber Kasseneck.',
@@ -231,26 +282,41 @@ const RAT: Record<PartnerCode, string> = {
 };
 
 /**
- * Der Handlungssatz zu einem Code — aus beiden Flaechen. `undefined` fuer
- * einen Code, den dieses Paket nicht kennt; ein erfundener Satz waere
- * schlimmer als keiner.
+ * Der Rueckfall fuer einen Code, den dieses Paket nicht kennt: kein geratener
+ * Handgriff, sondern der Hinweis, wo die Auskunft steht.
  */
-export function partnerFehlerRat(code: string): string | undefined {
-  return (RAT as Record<string, string | undefined>)[code];
+const RUECKFALL =
+  'Dieser Code ist diesem Paket nicht bekannt (neuer als diese Fassung). Die Meldung des Servers (message) sagt, was geschah; im Zweifel wie einen Fehler ohne Code behandeln und hello@kasseneck.at fragen.';
+
+/**
+ * Der Handlungssatz zu einem Code, aus allen Flaechen. Fuer einen Code, den
+ * dieses Paket nicht kennt (oder fuer Unsinn), kommt ein Rueckfallsatz; die
+ * Funktion wirft nie.
+ */
+export function partnerErrorAdvice(code: string): string {
+  if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(RAT, code)) return RUECKFALL;
+  return RAT[code as PartnerCode];
 }
 
 /** Der Fehlercode eines geworfenen Fehlers — `undefined`, wenn es keiner der unseren ist. */
-export function partnerFehlerCode(error: unknown): string | undefined {
+export function partnerErrorCode(error: unknown): string | undefined {
   return error instanceof KasseneckApiError ? error.code : undefined;
 }
 
-/** Kurzform fuer `catch (e) { if (istPartnerFehler(e, 'signature_missing')) … }`. */
-export function istPartnerFehler(error: unknown, code: PartnerCode): boolean {
-  return partnerFehlerCode(error) === code;
+/**
+ * Kurzform fuer `catch (e) { if (isPartnerError(e, 'signature_missing')) … }`.
+ * Mit `code` nimmt sie auch Codes, die dieses Paket (noch) nicht kennt.
+ * Ohne `code`: traegt der Fehler einen Code, den ein Partner-Aufruf liefern
+ * kann ([isPartnerErrorCode])?
+ */
+export function isPartnerError(error: unknown, code?: PartnerCode | (string & {})): error is KasseneckApiError {
+  const gefunden = partnerErrorCode(error);
+  if (gefunden === undefined) return false;
+  return code === undefined ? isPartnerErrorCode(gefunden) : gefunden === code;
 }
 
 /** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */
-export interface PartnerFeldFehler {
+export interface PartnerFieldError {
   /**
    * Der Feldpfad, so wie er im gesendeten Betrieb steht — verschachtelt und je
    * Kontakt: `address.zip`, `taxDetails.taxNumber`, `contacts.0.email`.
@@ -260,11 +326,11 @@ export interface PartnerFeldFehler {
 }
 
 /** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
-export function partnerFeldFehler(error: unknown): PartnerFeldFehler[] {
+export function partnerFieldErrors(error: unknown): PartnerFieldError[] {
   if (!(error instanceof KasseneckApiError)) return [];
   const roh = error.details['errors'];
   if (!Array.isArray(roh)) return [];
-  const raus: PartnerFeldFehler[] = [];
+  const raus: PartnerFieldError[] = [];
   for (const eintrag of roh) {
     if (eintrag === null || typeof eintrag !== 'object') continue;
     const { field, message } = eintrag as { field?: unknown; message?: unknown };
@@ -277,8 +343,8 @@ export function partnerFeldFehler(error: unknown): PartnerFeldFehler[] {
  * Wie lange `rate_limited` noch gilt, in Sekunden. `undefined`, wenn der
  * Fehler kein `rate_limited` ist oder das Backend keine Angabe macht.
  */
-export function partnerWartezeitSek(error: unknown): number | undefined {
-  if (partnerFehlerCode(error) !== 'rate_limited') return undefined;
+export function partnerRetryAfterSec(error: unknown): number | undefined {
+  if (partnerErrorCode(error) !== 'rate_limited') return undefined;
   const wert = (error as KasseneckApiError).details['retryAfterSec'];
   return typeof wert === 'number' && Number.isFinite(wert) && wert >= 0 ? wert : undefined;
 }

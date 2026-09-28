@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const quelle = readFileSync(new URL('../../src/rechnung/rechnen.ts', import.meta.url), 'utf8');
+const quelle = readFileSync(new URL('../../src/invoice/calc.ts', import.meta.url), 'utf8');
 const paket = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
   exports: Record<string, { import: { types: string; default: string }; require: { types: string; default: string } }>;
 };
@@ -16,18 +16,18 @@ test('Reinheit: der Kern holt sich nur Typen', () => {
   }
 });
 
-test('Unterpfad: ./rechnung/rechnen ist fuer beide Welten eingetragen', () => {
-  const eintrag = paket.exports['./rechnung/rechnen'];
+test('Unterpfad: ./invoice/calc ist fuer beide Welten eingetragen', () => {
+  const eintrag = paket.exports['./invoice/calc'];
   assert.ok(eintrag, 'Unterpfad fehlt in den exports');
-  assert.equal(eintrag.import.default, './dist/esm/rechnung/rechnen.js');
-  assert.equal(eintrag.import.types, './dist/esm/rechnung/rechnen.d.ts');
-  assert.equal(eintrag.require.default, './dist/cjs/rechnung/rechnen.js');
-  assert.equal(eintrag.require.types, './dist/cjs/rechnung/rechnen.d.ts');
+  assert.equal(eintrag.import.default, './dist/esm/invoice/calc.js');
+  assert.equal(eintrag.import.types, './dist/esm/invoice/calc.d.ts');
+  assert.equal(eintrag.require.default, './dist/cjs/invoice/calc.js');
+  assert.equal(eintrag.require.types, './dist/cjs/invoice/calc.d.ts');
 });
 
-test('Unterpfad: ./rechnung reicht den Kern weiter', async () => {
-  const rechnung = await import('../src/rechnung/index.js');
-  for (const name of ['rechnungRechnen', 'positionAusEuro', 'anteiligerPreis', 'satzSchluessel', 'preisText', 'satzText']) {
+test('Unterpfad: ./invoice reicht den Kern weiter', async () => {
+  const rechnung = await import('../src/invoice/index.js');
+  for (const name of ['calculateInvoice', 'itemFromEuro', 'proratedPriceMicros', 'vatRateMapKey', 'formatUnitPrice', 'formatVatRate']) {
     assert.equal(typeof (rechnung as Record<string, unknown>)[name], 'function', name);
   }
 });

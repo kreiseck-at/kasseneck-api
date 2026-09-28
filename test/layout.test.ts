@@ -8,7 +8,7 @@ import {
   buildReceiptLayout,
   formatCents,
   escPosLayoutBytes,
-  PUNKTE_JE_ZEICHEN,
+  DOTS_PER_CHAR,
   type LayoutLine,
   type ReceiptLayout,
   SMALL_BUSINESS_NOTICE,
@@ -35,8 +35,8 @@ const FIRMA: ReceiptCompany = {
   zip: '1010',
   city: 'Wien',
   phone: '+43 1 1234567',
-  uid: 'ATU12345678',
-  taxnr: '12-345/6789',
+  vatId: 'ATU12345678',
+  taxNumber: '12-345/6789',
   isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf',
   footer2: 'www.kreiseck.com',
@@ -139,7 +139,7 @@ test('Layout: der Belegkopf traegt Unternehmen, Anschrift, Steuernummer und Tele
 });
 
 test('Layout: ohne UID steht die Steuernummer im Kopf', () => {
-  const ohneUid: ReceiptCompany = { ...FIRMA, uid: '' };
+  const ohneUid: ReceiptCompany = { ...FIRMA, vatId: '' };
   assert.equal(textZeilen(buildReceiptLayout(BELEG, ohneUid))[3], '12-345/6789');
 });
 
@@ -319,7 +319,7 @@ test('Layout: ein Kleinunternehmer-Beleg traegt den Hinweis auf die Steuerbefrei
   // Wortlaut aus dem Backend (functions/index.js, INVOICE_TAX_NOTE.smallBusiness).
   // Ohne den Hinweis stuende in der USt-Tabelle "D 0%" ohne jede Begruendung.
   const hinweis = 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.';
-  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true, uid: '' };
+  const firma: ReceiptCompany = { ...FIRMA, isSmallBusiness: true, vatId: '' };
   const layout = buildReceiptLayout(BELEG, firma);
 
   assert.ok(textZeilen(layout).includes(hinweis), 'Kleinunternehmer-Hinweis fehlt');
@@ -359,7 +359,7 @@ test('Betraege: mehrere Steuersaetze behalten ihre Summen', () => {
     items: [
       { name: 'Wein', quantity: 1, vat: VatRate.vat20, priceCents: 1999 },
       { name: 'Milch', quantity: 2, vat: VatRate.vat10, priceCents: 149 },
-      { name: 'Brot', quantity: 3, vat: VatRate.vat4komma9, priceCents: 333 },
+      { name: 'Brot', quantity: 3, vat: VatRate.vat4_9, priceCents: 333 },
       { name: 'Buch', quantity: 1, vat: VatRate.vat0, priceCents: 1000 },
     ],
   };
@@ -492,7 +492,7 @@ test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — reduziert, mit QR 
     customerDetails: [],
     legalMessage: [],
   };
-  const layout = buildReceiptLayout(beleg, FIRMA, { regelwerk: 1 });
+  const layout = buildReceiptLayout(beleg, FIRMA, { ruleset: 1 });
   assert.ok(textZeilen(layout).includes('Betrag: 0,00 €'));
   assert.equal(layout.lines.filter((z) => z.kind === 'qr').length, 1);
   // Reduziert: keine Gesamt-/Zahlungsart-Zeile, keine Fusszeilen (siehe layout-belegart.test)
@@ -595,7 +595,7 @@ test('ESC/POS: der Druckbereich folgt dem Blatt, nicht dem Geraet', () => {
   // in der Breite des Blatts: Zeichen je Zeile mal 12 Punkte.
   for (const [paperSize, zeichen] of [['mm58', 32], ['mm80', 48]] as const) {
     const bytes = escPosLayoutBytes({ ...buildReceiptLayout(BELEG, FIRMA), paperSize });
-    const punkte = zeichen * PUNKTE_JE_ZEICHEN;
+    const punkte = zeichen * DOTS_PER_CHAR;
     assert.deepEqual(
       Array.from(bytes.slice(0, 10)),
       [27, 64, 29, 76, 0, 0, 29, 87, punkte & 0xff, punkte >> 8],

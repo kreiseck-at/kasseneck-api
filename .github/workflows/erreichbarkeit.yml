@@ -27,5 +27,8 @@ jobs:
       - name: Abhängigkeiten
         run: npm ci
 
+      - name: Bau
+        run: npm run build
+
       - name: Antwortet unter der öffentlichen Adresse zu jedem Aufruf eine Function?
         run: npm run check:erreichbar

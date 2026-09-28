@@ -26,16 +26,16 @@
  *
  * Nicht enthalten (bewusst): Bilddekodierung (PNG/JPEG liest die Huelle),
  * Capability-Profile einzelner Druckermodelle, Kassenlade, 1D-Barcodes.
- * Fertige einfarbige Rasterbilder (Logo) gehen ueber [escPosRasterBild].
+ * Fertige einfarbige Rasterbilder (Logo) gehen ueber [escPosRasterImage].
  */
 
 import {
-  QR_DRUCK_PUNKTE,
-  QR_MINDEST_PUNKTE,
-  QR_MODUL_DECKEL,
-  QR_RUHEZONE_MODULE,
-  qrGroesseFuer,
-  type QrModulGroesse,
+  QR_PRINT_WIDTH_DOTS,
+  QR_MIN_MODULE_DOTS,
+  QR_MODULE_SIZE_CAP,
+  QR_QUIET_ZONE_MODULES,
+  qrSizingFor,
+  type QrModuleSize,
 } from './qr-groesse.js';
 
 // ------------------------------------------------------------------- Typen
@@ -132,19 +132,19 @@ export interface EscPosQrOptions {
   /** Fehlerkorrektur; Vorgabe `M` wie auf allen Druckwegen (siehe `qrCodeBytes`). */
   correction?: QrCorrection;
   /** Deckel fuer die gerechnete Modulgroesse; wirkungslos neben `size`. */
-  groesse?: QrModulGroesse;
+  moduleSize?: QrModuleSize;
   /** Modell 1 des Symbols ausdruecklich waehlen — siehe `qrCodeBytes`. */
-  modell1?: boolean;
+  model1?: boolean;
 }
 
 export interface EscPosQrRasterOptions {
   align?: PosAlign;
   /** Feste Punkte je Modul; ohne Angabe gerechnet (mindestens 1). */
-  punkteJeModul?: number;
+  dotsPerModule?: number;
   /** Deckel fuer die gerechnete Groesse. */
-  groesse?: QrModulGroesse;
-  /** Ruhezone je Seite in Modulen; Vorgabe `QR_RUHEZONE_MODULE` (4). */
-  ruhezoneModule?: number;
+  moduleSize?: QrModuleSize;
+  /** Ruhezone je Seite in Modulen; Vorgabe `QR_QUIET_ZONE_MODULES` (4). */
+  quietZoneModules?: number;
 }
 
 /** Interner Stilzustand — immer vollstaendig, nie teilbefuellt. */
@@ -175,18 +175,18 @@ export interface EscPosDocument {
    * ist der QR die maschinenlesbare Signatur: das muss der Aufrufer erfahren,
    * ohne den Bytestrom zu durchsuchen.
    */
-  qrFehler: string | null;
+  qrError: string | null;
   /**
    * Der QR steht auf dem Papier, aber nicht so wie eingestellt — `null`,
    * solange nichts abgewichen ist. Zwei Faelle, beide mit Grund im Text: das
    * Symbol war fuer den nativen Befehl zu breit und ging als Bild hinaus, oder
    * es passte nur unter der Mindest-Modulgroesse.
    *
-   * Getrennt von `qrFehler`, weil die Handlung eine andere ist: dort heisst es
+   * Getrennt von `qrError`, weil die Handlung eine andere ist: dort heisst es
    * "Beleg ohne QR, nachdrucken oder elektronisch ausgeben", hier "gedruckt,
    * aber der eingestellte Weg taugt fuer dieses Geraet nicht".
    */
-  qrAusweich: string | null;
+  qrFallback: string | null;
   /** intern: bisher erzeugte Bytes */
   readonly bytes: number[];
   /** intern: global gesetzte Codepage (ueberlebt `escPosReset`) */
@@ -418,8 +418,8 @@ export function createEscPosDocument(options: EscPosOptions = {}): EscPosDocumen
     globalFont: null,
     maxCharsPerLine: null,
     styles: vollstaendigeStile(),
-    qrFehler: null,
-    qrAusweich: null,
+    qrError: null,
+    qrFallback: null,
     };
 }
 
@@ -439,8 +439,8 @@ export function escPosReset(doc: EscPosDocument): void {
   doc.styles = vollstaendigeStile();
   // Wie `PrintPaper.reset()` im Flutter-Zwilling: ein neu begonnener Beleg
   // erbt die QR-Meldungen des vorigen nicht.
-  doc.qrFehler = null;
-  doc.qrAusweich = null;
+  doc.qrError = null;
+  doc.qrFallback = null;
   escPosSetGlobalCodeTable(doc, doc.globalCodeTable);
   escPosSetGlobalFont(doc, doc.globalFont);
 }
@@ -513,7 +513,7 @@ export function escPosSetGlobalFont(
  * geaendert haben. Fehlende Felder in [styles] gelten als Vorgabe: wer fett
  * weglaesst, schaltet fett also ab.
  *
- * `zeilenanfang` (Vorgabe `true`) sagt, ob dieser Aufruf am Anfang einer
+ * `atLineStart` (Vorgabe `true`) sagt, ob dieser Aufruf am Anfang einer
  * Druckzeile steht. Nur dort nimmt der Drucker `ESC a` (Ausrichtung)
  * ueberhaupt an; mitten in der Zeile verwirft er den Befehl wortlos. Der
  * Bytestrom bekommt ihn trotzdem -- die Bytefolge soll sich dadurch nicht
@@ -524,11 +524,11 @@ export function escPosSetGlobalFont(
 export function escPosSetStyles(
   doc: EscPosDocument,
   styles: PosStyles = {},
-  optionen: { zeilenanfang?: boolean } = {},
+  options: { atLineStart?: boolean } = {},
 ): void {
   const neu = vollstaendigeStile(styles);
   const alt = doc.styles;
-  const zeilenanfang = optionen.zeilenanfang ?? true;
+  const zeilenanfang = options.atLineStart ?? true;
 
   if (neu.align !== alt.align) {
     anhaengen(
@@ -586,7 +586,7 @@ export function escPosSetStyles(
  * sonst kaeme die Zeile nie voran. Ein Bondrucker bricht sonst hart mitten
  * im Wort ("Kleinunter|nehmer", "0,7|9"); das soll nie aufs Papier.
  */
-export function escPosWortzeilen(textBytes: Uint8Array, max: number): Uint8Array[] {
+export function escPosWrapLines(textBytes: Uint8Array, max: number): Uint8Array[] {
   const grenze = Math.max(1, Math.floor(max));
   const out: Uint8Array[] = [];
   let rest = textBytes;
@@ -642,7 +642,7 @@ function verketten(teile: Uint8Array[]): Uint8Array {
  * - ein ueberlanges Wort bricht nach einem Bindestrich, wenn es einen hat
  *   ("Bio-" / "Dinkelvollkornsemmel"), sonst hart.
  */
-export function wortzeilenText(text: string, max: number): string[] {
+export function wrapText(text: string, max: number): string[] {
   const grenze = Math.max(1, Math.floor(max));
   const out: string[] = [];
   let rest = text;
@@ -701,7 +701,7 @@ function textIntern(
 
   // Ausrichtung vor Position -- `ESC a` gilt nur am Zeilenanfang, nach `ESC $`
   // verwirft der Drucker ihn. Zwilling von `_text` in generator.dart.
-  escPosSetStyles(doc, stileFuerDrucker, { zeilenanfang: colInd === 0 });
+  escPosSetStyles(doc, stileFuerDrucker, { atLineStart: colInd === 0 });
 
   // Eine volle Zeile beginnt am linken Rand; ein Positionsbefehl dafuer waere
   // nicht nur ueberfluessig, er entwertet die Ausrichtung.
@@ -740,7 +740,7 @@ export function escPosText(doc: EscPosDocument, text: string, options: EscPosTex
   // selbst wuerde hart mitten im Wort umbrechen.
   const stile = vollstaendigeStile(options.styles);
   const zeichenJeZeile = Math.max(1, Math.floor(zeichenProZeile(doc, stile) / (stile.width === 2 ? 2 : 1)));
-  const zeilen = escPosWortzeilen(encodeEscPosText(text, doc.globalCodeTable ?? 'CP1252'), zeichenJeZeile);
+  const zeilen = escPosWrapLines(encodeEscPosText(text, doc.globalCodeTable ?? 'CP1252'), zeichenJeZeile);
   zeilen.forEach((z, i) => {
     textIntern(doc, z, { styles: options.styles });
     if (i < zeilen.length - 1) escPosEmptyLines(doc, 1);
@@ -840,7 +840,7 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
       if (zuDrucken.length > maxZeichen) {
         // Wortweise: erste Zeile bis zum letzten Leerzeichen innerhalb der
         // Spalte, der Rest (ohne fuehrende Leerzeichen) in die Folgezeile.
-        const [erste, ...weitere] = escPosWortzeilen(zuDrucken, maxZeichen);
+        const [erste, ...weitere] = escPosWrapLines(zuDrucken, maxZeichen);
         const rest = weitere.length ? verketten(weitere) : new Uint8Array(0);
         folge.textEncoded = rest;
         zuDrucken = erste!;
@@ -875,14 +875,14 @@ export function escPosRow(doc: EscPosDocument, columns: readonly PosColumn[]): v
  * Bei Kasseneck-Belegen steht hier der maschinenlesbare RKSV-Code.
  *
  * Fehlerkorrektur ohne Angabe: **M** (bis 0.13: L). Die Groessenrechnung
- * (`qrModulAnzahl`), das Blatt (Anteil am Bildschirm und im PDF), der
+ * (`qrModuleCount`), das Blatt (Anteil am Bildschirm und im PDF), der
  * ePOS-Weg (`level_m`) und der Bildweg rechnen alle mit M — druckte der
  * native Befehl mit L, kaeme fuer manche Nutzlasten ein kleineres Symbol
  * heraus als der Bildschirm zeigt.
  */
 export function qrCodeBytes(
   text: string,
-  options: { size?: QrSize; correction?: QrCorrection; modell1?: boolean } = {},
+  options: { size?: QrSize; correction?: QrCorrection; model1?: boolean } = {},
 ): Uint8Array {
   const size = options.size ?? 4;
   if (!istGanzzahl(size) || size < 1 || size > 8) {
@@ -908,7 +908,7 @@ export function qrCodeBytes(
   // Befehl erkannt hat. Der Befehl geht deshalb nur hinaus, wenn er
   // ausdruecklich verlangt ist; ein aufgedraengtes "Modell 2 fuer alle" waere
   // eine stille Umstellung an jedem Bestandsgeraet.
-  if (options.modell1 === true) {
+  if (options.model1 === true) {
     bytes.push(...C_QR_HEADER, 0x04, 0x00, 0x31, 0x41, 0x31, 0x00);
   }
   // Funktion 167: Modulgroesse
@@ -952,29 +952,29 @@ export function escPosQrCode(
   escPosSetStyles(doc, { align: options.align ?? 'center' });
   const qrOptionen: Parameters<typeof qrCodeBytes>[1] = {};
   if (options.correction !== undefined) qrOptionen.correction = options.correction;
-  if (options.modell1 !== undefined) qrOptionen.modell1 = options.modell1;
+  if (options.model1 !== undefined) qrOptionen.model1 = options.model1;
 
   let drucken = true;
   if (options.size !== undefined) {
     qrOptionen.size = options.size;
   } else if (text !== '') {
-    const mass = qrGroesseFuer({
-      nutzlast: text,
-      papierbreitePunkte: QR_DRUCK_PUNKTE[doc.paperSize],
-      groesse: options.groesse ?? 'auto',
+    const mass = qrSizingFor({
+      payload: text,
+      paperWidthDots: QR_PRINT_WIDTH_DOTS[doc.paperSize],
+      moduleSize: options.moduleSize ?? 'auto',
     });
-    if (!mass.passt) {
-      doc.qrFehler =
-        `QR mit ${mass.module} Modulen ist fuer ${PAPIER_MM[doc.paperSize]} mm ` +
-        `(${QR_DRUCK_PUNKTE[doc.paperSize]} Punkte) zu breit`;
+    if (!mass.fits) {
+      doc.qrError =
+        `QR mit ${mass.modules} Modulen ist fuer ${PAPIER_MM[doc.paperSize]} mm ` +
+        `(${QR_PRINT_WIDTH_DOTS[doc.paperSize]} Punkte) zu breit`;
       drucken = false;
     } else {
-      if (mass.unterMindestmass) {
-        doc.qrAusweich =
-          `QR mit ${mass.module} Modulen passt nur mit ${String(mass.punkte)} Punkten ` +
-          `je Modul — unter dem Mindestmass von ${QR_MINDEST_PUNKTE}`;
+      if (mass.belowMinimum) {
+        doc.qrFallback =
+          `QR mit ${mass.modules} Modulen passt nur mit ${String(mass.moduleDots)} Punkten ` +
+          `je Modul — unter dem Mindestmass von ${QR_MIN_MODULE_DOTS}`;
       }
-      qrOptionen.size = mass.punkte as QrSize;
+      qrOptionen.size = mass.moduleDots as QrSize;
     }
   }
   if (drucken) anhaengen(doc, qrCodeBytes(text, qrOptionen));
@@ -1001,15 +1001,15 @@ export function escPosQrRaster(
   for (const zeile of matrix) {
     if (zeile.length !== module) throw new Error('QR-Raster ist nicht quadratisch');
   }
-  const ruhezone = options.ruhezoneModule ?? QR_RUHEZONE_MODULE;
+  const ruhezone = options.quietZoneModules ?? QR_QUIET_ZONE_MODULES;
   if (!istGanzzahl(ruhezone) || ruhezone < 0) {
     throw new Error('ruhezoneModule muss eine Ganzzahl >= 0 sein');
   }
   const gesamtModule = module + 2 * ruhezone;
-  let punkte = options.punkteJeModul;
+  let punkte = options.dotsPerModule;
   if (punkte === undefined) {
-    const deckel = QR_MODUL_DECKEL[options.groesse ?? 'auto'] as number;
-    punkte = Math.max(1, Math.min(deckel, Math.floor(QR_DRUCK_PUNKTE[doc.paperSize] / gesamtModule)));
+    const deckel = QR_MODULE_SIZE_CAP[options.moduleSize ?? 'auto'] as number;
+    punkte = Math.max(1, Math.min(deckel, Math.floor(QR_PRINT_WIDTH_DOTS[doc.paperSize] / gesamtModule)));
   }
   if (!istGanzzahl(punkte) || punkte < 1) {
     throw new Error('punkteJeModul muss eine Ganzzahl >= 1 sein');
@@ -1030,7 +1030,7 @@ export function escPosQrRaster(
       bildpunkte[y * breite + x] = 1;
     }
   }
-  const daten = rasterZeilenBytes({ breite, hoehe: breite, punkte: bildpunkte });
+  const daten = rasterRowsBytes({ width: breite, height: breite, dots: bildpunkte });
 
   escPosSetStyles(doc, { align: options.align ?? 'center' });
   // GS v 0 m xL xH yL yH d1...dk — m = 0: normale Dichte, 1:1.
@@ -1044,40 +1044,40 @@ export function escPosQrRaster(
  * dieses Papier bringt — dieselbe Rechnung, nur ohne Untergrenze 3: ein Bild
  * darf bis auf einen Punkt je Modul schrumpfen und passt darum immer.
  */
-export function qrRasterPunkte(
+export function qrRasterDots(
   paperSize: PosPaperSize,
-  moduleAnzahl: number,
-  options: { groesse?: QrModulGroesse; ruhezoneModule?: number } = {},
+  moduleCount: number,
+  options: { moduleSize?: QrModuleSize; quietZoneModules?: number } = {},
 ): number {
-  const ruhezone = options.ruhezoneModule ?? QR_RUHEZONE_MODULE;
-  const deckel = QR_MODUL_DECKEL[options.groesse ?? 'auto'] as number;
+  const ruhezone = options.quietZoneModules ?? QR_QUIET_ZONE_MODULES;
+  const deckel = QR_MODULE_SIZE_CAP[options.moduleSize ?? 'auto'] as number;
   return Math.max(
     1,
-    Math.min(deckel, Math.floor(QR_DRUCK_PUNKTE[paperSize] / (moduleAnzahl + 2 * ruhezone))),
+    Math.min(deckel, Math.floor(QR_PRINT_WIDTH_DOTS[paperSize] / (moduleCount + 2 * ruhezone))),
   );
 }
 
 /**
  * Einfarbiges Rasterbild in Druckpunkten, zeilenweise: `punkte[y * breite + x]`,
- * 1 = schwarz. Entsteht fuer das Firmenlogo in `logoRaster` (receipt/bild.ts).
+ * 1 = schwarz. Entsteht fuer das Firmenlogo in `rasterizeLogo` (receipt/bild.ts).
  */
-export interface RasterBild {
-  readonly breite: number;
-  readonly hoehe: number;
-  readonly punkte: Uint8Array;
+export interface RasterImage {
+  readonly width: number;
+  readonly height: number;
+  readonly dots: Uint8Array;
 }
 
 /** Die Rasterzeilen als Bytes: MSB zuerst, jede Zeile auf volle Bytes aufgefuellt. */
-export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
-  if (!istGanzzahl(bild.breite) || bild.breite < 1 || !istGanzzahl(bild.hoehe) || bild.hoehe < 1) {
+export function rasterRowsBytes(image: RasterImage): Uint8Array {
+  if (!istGanzzahl(image.width) || image.width < 1 || !istGanzzahl(image.height) || image.height < 1) {
     throw new Error('Rasterbild ohne gueltiges Mass');
   }
-  if (bild.punkte.length !== bild.breite * bild.hoehe) throw new Error('Rasterbild: Punkte passen nicht zum Mass');
-  const byteJeZeile = Math.ceil(bild.breite / 8);
-  const daten = new Uint8Array(byteJeZeile * bild.hoehe);
-  for (let y = 0; y < bild.hoehe; y++) {
-    for (let x = 0; x < bild.breite; x++) {
-      if (bild.punkte[y * bild.breite + x] !== 1) continue;
+  if (image.dots.length !== image.width * image.height) throw new Error('Rasterbild: Punkte passen nicht zum Mass');
+  const byteJeZeile = Math.ceil(image.width / 8);
+  const daten = new Uint8Array(byteJeZeile * image.height);
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      if (image.dots[y * image.width + x] !== 1) continue;
       const i = y * byteJeZeile + (x >> 3);
       daten[i] = (daten[i] as number) | (0x80 >> (x & 7));
     }
@@ -1089,8 +1089,8 @@ export function rasterZeilenBytes(bild: RasterBild): Uint8Array {
  * Die Rasterzeilen als Base64 -- ohne Buffer, laeuft im Browser und in Node.
  * Eine Stelle fuer ePOS-`<image>` und den Druckjob an den Server.
  */
-export function rasterZeilenBase64(bild: RasterBild): string {
-  const bytes = rasterZeilenBytes(bild);
+export function rasterRowsBase64(image: RasterImage): string {
+  const bytes = rasterRowsBytes(image);
   let binaer = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binaer += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -1100,7 +1100,7 @@ export function rasterZeilenBase64(bild: RasterBild): string {
 
 /**
  * Der `GS v 0`-Kopf (Byte-Breite, Zeilenhoehe) -- die Rasterzeilen selbst
- * haengt der Aufrufer an. Gemeinsame Rahmung fuer das Logo (`escPosRasterBild`)
+ * haengt der Aufrufer an. Gemeinsame Rahmung fuer das Logo (`escPosRasterImage`)
  * und den QR-Bildweg (`escPosQrRaster`): beide drucken dasselbe Bildkommando,
  * nur mit unterschiedlichem Nachlauf (Zeilenvorschub ja/nein).
  */
@@ -1116,15 +1116,15 @@ function rasterBildKopf(breite: number, hoehe: number): number[] {
  * Papier um die Bildhoehe, ein LF danach waere eine zusaetzliche Leerzeile,
  * die Bildschirm und PDF nicht haben. Die Luft um das Logo kommt aus dem Blatt.
  */
-export function escPosRasterBild(doc: EscPosDocument, bild: RasterBild, options: { align?: PosAlign } = {}): void {
+export function escPosRasterImage(doc: EscPosDocument, image: RasterImage, options: { align?: PosAlign } = {}): void {
   // Masse pruefen, BEVOR gepackt wird: ein zu breites Bild soll nicht erst
   // Speicher fuer seine Rasterzeilen belegen. `GS v 0` traegt die Hoehe in zwei
   // Bytes (yL yH) -- ueber 65535 Punkte liefe sie still ueber und der Drucker
   // laese den Rest des Bilds als Befehle.
-  if (bild.breite > QR_DRUCK_PUNKTE[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
-  if (bild.hoehe > 0xffff) throw new Error('Rasterbild hoeher als 65535 Punkte');
-  const daten = rasterZeilenBytes(bild);
+  if (image.width > QR_PRINT_WIDTH_DOTS[doc.paperSize]) throw new Error('Rasterbild breiter als der Druckkopf');
+  if (image.height > 0xffff) throw new Error('Rasterbild hoeher als 65535 Punkte');
+  const daten = rasterRowsBytes(image);
   escPosSetStyles(doc, { align: options.align ?? 'center' });
-  anhaengen(doc, rasterBildKopf(bild.breite, bild.hoehe));
+  anhaengen(doc, rasterBildKopf(image.width, image.height));
   anhaengen(doc, daten);
 }

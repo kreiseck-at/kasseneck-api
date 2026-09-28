@@ -58,12 +58,12 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const erwartet = (name: string): ReceiptLayout =>
-  JSON.parse(readFileSync(new URL(`erwartet/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
+  JSON.parse(readFileSync(new URL(`expected/${name}.lines.json`, wurzel), 'utf8')) as ReceiptLayout;
 
 const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', () => {
-  const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm58' as const };
+  const layout = { ...erwartet('sale-cash'), paperSize: 'mm58' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 08c1d6f7…): Ausrichtung-Trias nach dem QR
@@ -74,14 +74,14 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
-    digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
+    digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 8b9eb8cc…), gleiche Gegenprobe wie oben.
     '4b7a313760cc264b3c47fee7ca9300acdcd5dfa30a8b685cdbbd3074e5dbd8ae',
   );
 });
 
 test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', () => {
-  const layout = { ...erwartet('verkauf-bar'), paperSize: 'mm80' as const };
+  const layout = { ...erwartet('sale-cash'), paperSize: 'mm80' as const };
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 49c45fd8…), gleiche Gegenprobe wie oben.
@@ -89,7 +89,7 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
-    digest(escPosLayoutBytes(layout, { qrGroesse: 'klein', qrCorrection: 'L' })),
+    digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 76755a9c…), gleiche Gegenprobe wie oben.
     'e091c1f5ff791fc2c561ac91c005fe11443798cb31e0ae3a9ac02b5ae98e107b',
   );

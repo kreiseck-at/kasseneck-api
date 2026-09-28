@@ -41,13 +41,13 @@ import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
 
 const layout = (paperSize: 'mm58' | 'mm80'): ReceiptLayout => ({
   ...(JSON.parse(
-    readFileSync(new URL('../../fixtures/erwartet/verkauf-bar.lines.json', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../fixtures/expected/sale-cash.lines.json', import.meta.url), 'utf8'),
   ) as ReceiptLayout),
   paperSize,
 });
 
 const digest = (paperSize: 'mm58' | 'mm80', marke: boolean): string =>
-  createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { marke })).digest('hex');
+  createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { brandMark: marke })).digest('hex');
 
 test('58 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
   assert.equal(digest('mm58', false), '42a673115d099035009a72aa171d0785f1ec697bd9042a669720e3b416d6d749');

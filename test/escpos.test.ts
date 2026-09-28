@@ -17,7 +17,7 @@ import {
   escPosQrCode,
   escPosReset,
   escPosRow,
-  wortzeilenText,
+  wrapText,
   escPosSetGlobalCodeTable,
   escPosSetGlobalFont,
   escPosText,
@@ -672,12 +672,12 @@ test('row: ein Wort ohne Leerzeichen wird weiterhin hart geteilt (sonst kaeme di
   assert.equal(z[1], 'PQRSTUVWXYZ');
 });
 
-test('wortzeilenText: Zeichenketten-Zwilling von escPosWortzeilen', () => {
-  assert.deepEqual(wortzeilenText('TESTSIGNATUR - kein gültiger Beleg', 32), ['TESTSIGNATUR - kein gültiger', 'Beleg']);
-  assert.deepEqual(wortzeilenText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10), ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ']);
-  assert.deepEqual(wortzeilenText('Ein sehr langer Artikelname', 15), ['Ein sehr langer', 'Artikelname']);
-  assert.deepEqual(wortzeilenText('a  b', 3), ['a', 'b']);
-  assert.deepEqual(wortzeilenText('', 5), ['']);
+test('wrapText: Zeichenketten-Zwilling von escPosWrapLines', () => {
+  assert.deepEqual(wrapText('TESTSIGNATUR - kein gültiger Beleg', 32), ['TESTSIGNATUR - kein gültiger', 'Beleg']);
+  assert.deepEqual(wrapText('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10), ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ']);
+  assert.deepEqual(wrapText('Ein sehr langer Artikelname', 15), ['Ein sehr langer', 'Artikelname']);
+  assert.deepEqual(wrapText('a  b', 3), ['a', 'b']);
+  assert.deepEqual(wrapText('', 5), ['']);
 });
 
 test('text: laengere Texte werden wortweise auf die Zeilenbreite umbrochen (32 Zeichen bei 58 mm)', () => {
@@ -1072,6 +1072,7 @@ test('Bauwerkzeug: der Waechter meldet den fehlenden CommonJS-Marker', () => {
     join(ordner, 'package.json'),
     JSON.stringify({
       type: 'module',
+      sideEffects: false,
       exports: {
         './printing': {
           import: { types: './dist/esm/printing/index.d.ts', default: './dist/esm/printing/index.js' },
@@ -1101,6 +1102,65 @@ test('Bauwerkzeug: der Waechter meldet den fehlenden CommonJS-Marker', () => {
     assert.fail('Der Waechter haette bei type: module anschlagen muessen');
   } catch (fehler) {
     assert.match(String((fehler as { stderr?: string }).stderr ?? ''), /commonjs/);
+  } finally {
+    rmSync(ordner, { recursive: true, force: true });
+  }
+});
+
+test('Bauwerkzeug: der Waechter verlangt sideEffects false und meldet Seiteneffekte beim Import', () => {
+  // "sideEffects": false laesst den Bundler ungenutzte Module weglassen. Das
+  // ist nur richtig, solange kein Modul beim Import etwas ausserhalb seiner
+  // selbst veraendert; der Waechter prueft den ESM-Bau darauf.
+  const waechter = fileURLToPath(new URL('../../scripts/check-build-exports.mjs', import.meta.url));
+  const ordner = mkdtempSync(join(tmpdir(), 'keck-exports-seiteneffekte-'));
+  const paket = (sideEffects: boolean | undefined) => writeFileSync(join(ordner, 'package.json'), JSON.stringify({
+    type: 'module',
+    ...(sideEffects === undefined ? {} : { sideEffects }),
+    exports: {
+      './printing': {
+        import: { types: './dist/esm/printing/index.d.ts', default: './dist/esm/printing/index.js' },
+        require: { types: './dist/cjs/printing/index.d.ts', default: './dist/cjs/printing/index.js' },
+      },
+    },
+  }));
+  const lauf = (): { ok: boolean; text: string } => {
+    try {
+      return { ok: true, text: execFileSync(process.execPath, [waechter], { cwd: ordner, encoding: 'utf8', stdio: 'pipe' }) };
+    } catch (fehler) {
+      return { ok: false, text: String((fehler as { stderr?: string }).stderr ?? '') };
+    }
+  };
+  try {
+    for (const datei of ['dist/esm/printing/index.d.ts', 'dist/cjs/printing/index.js', 'dist/cjs/printing/index.d.ts']) {
+      mkdirSync(join(ordner, dirname(datei)), { recursive: true });
+      writeFileSync(join(ordner, datei), '');
+    }
+    writeFileSync(join(ordner, 'dist/cjs/package.json'), JSON.stringify({ type: 'commonjs' }));
+    const rein = "import { a } from './a.js';\nexport const LISTE = Object.freeze(['x']);\nexport function f() { globalThis.y = 1; }\n'use client';\n"
+      + "export const LOKAL = (() => { const o = {}; let n = 0; o.x = 1; n += 1; for (let i = 0; i < 2; i++) o[i] = i; return o; })();\n";
+    writeFileSync(join(ordner, 'dist/esm/printing/index.js'), rein);
+    paket(false);
+    assert.equal(lauf().ok, true, 'ein Bau ohne Seiteneffekte muss durchgehen');
+
+    paket(undefined);
+    assert.match(lauf().text, /"sideEffects": false fehlt/);
+
+    paket(false);
+    for (const [zusatz, grund] of [
+      ['globalThis.kasseneck = 1;', /Anweisung auf oberster Ebene/],
+      ["export const z = (globalThis.k = 2);", /Zuweisung beim Import/],
+      ["import './polyfill.js';", /nackter Import/],
+      ["import stil from './stil.css';", /CSS-Import/],
+      ['export class K { static n = 1; }', /statischer Initialisierung/],
+      ['export const q = (() => { globalThis.k = 1; return 2; })();', /Zuweisung in sofort aufgerufener Funktion/],
+      ['export const r = (function () { a.x += 1; return 2; }());', /Zuweisung in sofort aufgerufener Funktion/],
+      ['export const t = (() => { delete globalThis.k; return 2; })();', /delete in sofort aufgerufener Funktion/],
+    ] as const) {
+      writeFileSync(join(ordner, 'dist/esm/printing/index.js'), `${rein}${zusatz}\n`);
+      const { ok, text } = lauf();
+      assert.equal(ok, false, zusatz);
+      assert.match(text, grund, zusatz);
+    }
   } finally {
     rmSync(ordner, { recursive: true, force: true });
   }

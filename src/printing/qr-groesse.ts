@@ -27,59 +27,59 @@ import type { PosPaperSize, QrSize } from './escpos.js';
  * alten Wert des nativen ESC/POS-Wegs), in Dart bei 6; derselbe Beleg kam
  * dadurch je nach Paket verschieden gross aus dem Drucker. Einheitlich gilt
  * jetzt 6: der Wert von Dart und vom Epson-Weg, und ein groesseres Modul
- * liest sich besser. `klein` (4) druckt den QR so gross wie frueher `auto`;
- * `mittel` (6) und `gross` (8) waehlt ein Mensch.
+ * liest sich besser. `small` (4) druckt den QR so gross wie frueher `auto`;
+ * `medium` (6) und `large` (8) waehlt ein Mensch.
  */
-export type QrModulGroesse = 'auto' | 'klein' | 'mittel' | 'gross';
+export type QrModuleSize = 'auto' | 'small' | 'medium' | 'large';
 
 /** Groesste Modulgroesse in Druckpunkten, die der jeweilige Deckel zulaesst. */
-export const QR_MODUL_DECKEL: Readonly<Record<QrModulGroesse, number>> = {
+export const QR_MODULE_SIZE_CAP: Readonly<Record<QrModuleSize, number>> = {
   auto: 6,
-  klein: 4,
-  mittel: 6,
-  gross: 8,
+  small: 4,
+  medium: 6,
+  large: 8,
 };
 
 /**
  * Ergebnis der Modulgroessen-Rechnung.
  *
- * Traegt bewusst mehr als die Zahl: ob ueberhaupt etwas passt (`passt`), ob
- * nur unter der Mindestgroesse (`unterMindestmass`) und wie breit das Symbol
- * wird (`breitePunkte`). Eine blosse Zahl haette die Ausnahme verschwiegen.
+ * Traegt bewusst mehr als die Zahl: ob ueberhaupt etwas passt (`fits`), ob
+ * nur unter der Mindestgroesse (`belowMinimum`) und wie breit das Symbol
+ * wird (`widthDots`). Eine blosse Zahl haette die Ausnahme verschwiegen.
  */
-export interface QrGroesse {
+export interface QrSizing {
   /**
    * Modulgroesse in Druckpunkten, `null` wenn das Symbol auch mit der
    * Ausnahmegroesse nicht aufs Papier passt.
    */
-  readonly punkte: QrSize | null;
+  readonly moduleDots: QrSize | null;
   /** Modulanzahl des Symbols (ohne Ruhezone). */
-  readonly module: number;
+  readonly modules: number;
   /** Gesamtbreite inklusive Ruhezone in Druckpunkten; 0, wenn nichts passt. */
-  readonly breitePunkte: number;
+  readonly widthDots: number;
   /**
-   * Gedruckt wird unter `QR_MINDEST_PUNKTE`. Erlaubt, aber eine Ausnahme, von
+   * Gedruckt wird unter `QR_MIN_MODULE_DOTS`. Erlaubt, aber eine Ausnahme, von
    * der der Aufrufer erfahren muss — billige Thermodrucker und Handykameras
    * tun sich damit schwer, besonders auf gewelltem Papier.
    */
-  readonly unterMindestmass: boolean;
+  readonly belowMinimum: boolean;
   /** Kurz fuer `punkte !== null`. */
-  readonly passt: boolean;
+  readonly fits: boolean;
 }
 
 // --------------------------------------------------------------- Konstanten
 
 /** Ruhezone je Seite, in Modulen (QR-Norm). */
-export const QR_RUHEZONE_MODULE = 4;
+export const QR_QUIET_ZONE_MODULES = 4;
 
 /** Untergrenze: 4 Punkte sind bei 203 dpi rund 0,5 mm je Modul. */
-export const QR_MINDEST_PUNKTE = 4;
+export const QR_MIN_MODULE_DOTS = 4;
 
-/** Ausnahme, wenn `QR_MINDEST_PUNKTE` nicht passt — gemeldet, nicht still. */
-export const QR_AUSNAHME_PUNKTE = 3;
+/** Ausnahme, wenn `QR_MIN_MODULE_DOTS` nicht passt – gemeldet, nicht still. */
+export const QR_EXCEPTION_MODULE_DOTS = 3;
 
 /** Obergrenze des Druckbefehls in diesem Stack (`GS ( k` Funktion 167: 1..8). */
-export const QR_HOECHST_PUNKTE = 8;
+export const QR_MAX_MODULE_DOTS = 8;
 
 /**
  * Druckbreite des Kopfes in Punkten (203 dpi): 58 mm = 384, 80 mm = 576 —
@@ -91,7 +91,7 @@ export const QR_HOECHST_PUNKTE = 8;
  * die echte Kopfbreite — ein QR, der auch nur einen Punkt zu breit ist, wird
  * von den meisten Geraeten gar nicht gedruckt.
  */
-export const QR_DRUCK_PUNKTE: Readonly<Record<PosPaperSize, number>> = { mm58: 384, mm80: 576 };
+export const QR_PRINT_WIDTH_DOTS: Readonly<Record<PosPaperSize, number>> = { mm58: 384, mm80: 576 };
 
 /**
  * Nutzlast in Byte, die eine QR-Version 1..40 bei Fehlerkorrektur **M** im
@@ -111,7 +111,7 @@ const BYTE_KAPAZITAET_M: readonly number[] = [
 // ------------------------------------------------------------- oeffentlich
 
 /**
- * Modulanzahl, die `nutzlast` bei Fehlerkorrektur **M** braucht.
+ * Modulanzahl, die `payload` bei Fehlerkorrektur **M** braucht.
  *
  * Alle Druckwege setzen den QR mit Fehlerkorrektur **M** (nativer
  * ESC/POS-Befehl, ePOS `level_m`; das Raster fuer den Bildweg rechnet der
@@ -126,8 +126,8 @@ const BYTE_KAPAZITAET_M: readonly number[] = [
  * langem Inhalt. Ein still zurueckgegebenes "passt nicht" haette den
  * Datenfehler als Papierfehler getarnt.
  */
-export function qrModulAnzahl(nutzlast: string): number {
-  const laenge = new TextEncoder().encode(nutzlast).length;
+export function qrModuleCount(payload: string): number {
+  const laenge = new TextEncoder().encode(payload).length;
   for (let i = 0; i < BYTE_KAPAZITAET_M.length; i++) {
     if (laenge <= (BYTE_KAPAZITAET_M[i] as number)) return 17 + 4 * (i + 1);
   }
@@ -135,78 +135,78 @@ export function qrModulAnzahl(nutzlast: string): number {
 }
 
 /**
- * Ob `nutzlast` in irgendeine QR-Version 1..40 bei Fehlerkorrektur M passt --
- * dieselbe Tabelle wie `qrModulAnzahl`, aber ohne zu werfen.
+ * Ob `payload` in irgendeine QR-Version 1..40 bei Fehlerkorrektur M passt --
+ * dieselbe Tabelle wie `qrModuleCount`, aber ohne zu werfen.
  *
  * Fuer Aufrufer, denen ein zu langer Inhalt kein Programmierfehler ist,
  * sondern ein Datenfehler, den sie selbst behandeln (das Beleg-Blatt: ohne
  * QR weiterbauen statt den ganzen Zeichner mitzureissen).
  */
-export function qrPasstInVersion(nutzlast: string): boolean {
-  const laenge = new TextEncoder().encode(nutzlast).length;
+export function qrFitsInVersion(payload: string): boolean {
+  const laenge = new TextEncoder().encode(payload).length;
   return laenge <= (BYTE_KAPAZITAET_M[BYTE_KAPAZITAET_M.length - 1] as number);
 }
 
 /**
- * Groesste Modulgroesse, mit der `moduleAnzahl` Module **samt Ruhezone** in
- * `papierbreitePunkte` passen, gedeckelt durch `groesse`.
+ * Groesste Modulgroesse, mit der `moduleCount` Module **samt Ruhezone** in
+ * `paperWidthDots` passen, gedeckelt durch `moduleSize`.
  *
  * Wirft bei sinnlosen Eingaben: eine Papierbreite von 0 oder ein Symbol ohne
  * Module ist ein Programmierfehler, und ein still zurueckgegebenes "passt
  * nicht" haette ihn als Druckerproblem getarnt.
  */
-export function qrGroesseBerechnen(options: {
-  papierbreitePunkte: number;
-  moduleAnzahl: number;
-  groesse?: QrModulGroesse;
-}): QrGroesse {
-  const { papierbreitePunkte, moduleAnzahl } = options;
-  const groesse = options.groesse ?? 'auto';
+export function computeQrSizing(options: {
+  paperWidthDots: number;
+  moduleCount: number;
+  moduleSize?: QrModuleSize;
+}): QrSizing {
+  const { paperWidthDots: papierbreitePunkte, moduleCount: moduleAnzahl } = options;
+  const groesse = options.moduleSize ?? 'auto';
   if (!Number.isInteger(papierbreitePunkte) || papierbreitePunkte <= 0) {
     throw new Error('papierbreitePunkte muss eine Ganzzahl > 0 sein');
   }
   if (!Number.isInteger(moduleAnzahl) || moduleAnzahl <= 0) {
     throw new Error('moduleAnzahl muss eine Ganzzahl > 0 sein');
   }
-  const roh = QR_MODUL_DECKEL[groesse];
+  const roh = QR_MODULE_SIZE_CAP[groesse];
   if (roh === undefined) {
     throw new Error(`Unbekannte QR-Modulgroesse: ${String(groesse)}`);
   }
-  const gesamtModule = moduleAnzahl + QR_RUHEZONE_MODULE * 2;
+  const gesamtModule = moduleAnzahl + QR_QUIET_ZONE_MODULES * 2;
   const passend = Math.floor(papierbreitePunkte / gesamtModule);
-  if (passend < QR_AUSNAHME_PUNKTE) {
-    return { punkte: null, module: moduleAnzahl, breitePunkte: 0, unterMindestmass: false, passt: false };
+  if (passend < QR_EXCEPTION_MODULE_DOTS) {
+    return { moduleDots: null, modules: moduleAnzahl, widthDots: 0, belowMinimum: false, fits: false };
   }
-  const deckel = Math.min(Math.max(roh, QR_AUSNAHME_PUNKTE), QR_HOECHST_PUNKTE);
-  const punkte = passend < QR_MINDEST_PUNKTE ? QR_AUSNAHME_PUNKTE : Math.min(passend, deckel);
+  const deckel = Math.min(Math.max(roh, QR_EXCEPTION_MODULE_DOTS), QR_MAX_MODULE_DOTS);
+  const punkte = passend < QR_MIN_MODULE_DOTS ? QR_EXCEPTION_MODULE_DOTS : Math.min(passend, deckel);
   return {
-    punkte: punkte as QrSize,
-    module: moduleAnzahl,
-    breitePunkte: gesamtModule * punkte,
-    unterMindestmass: punkte < QR_MINDEST_PUNKTE,
-    passt: true,
+    moduleDots: punkte as QrSize,
+    modules: moduleAnzahl,
+    widthDots: gesamtModule * punkte,
+    belowMinimum: punkte < QR_MIN_MODULE_DOTS,
+    fits: true,
   };
 }
 
 /**
- * Wie `qrGroesseBerechnen`, nur mit der Modulanzahl aus `nutzlast`.
+ * Wie `computeQrSizing`, nur mit der Modulanzahl aus `payload`.
  *
  * Eine leere Nutzlast ergibt kein Symbol — sie "passt nicht", statt zu
  * werfen: der Aufrufer behandelt den Fall ohnehin schon (leerer QR am Beleg
  * ist ein Datenfehler, kein Papierfehler).
  */
-export function qrGroesseFuer(options: {
-  nutzlast: string;
-  papierbreitePunkte: number;
-  groesse?: QrModulGroesse;
-}): QrGroesse {
-  if (options.nutzlast === '') {
-    return { punkte: null, module: 0, breitePunkte: 0, unterMindestmass: false, passt: false };
+export function qrSizingFor(options: {
+  payload: string;
+  paperWidthDots: number;
+  moduleSize?: QrModuleSize;
+}): QrSizing {
+  if (options.payload === '') {
+    return { moduleDots: null, modules: 0, widthDots: 0, belowMinimum: false, fits: false };
   }
-  const weiter: Parameters<typeof qrGroesseBerechnen>[0] = {
-    papierbreitePunkte: options.papierbreitePunkte,
-    moduleAnzahl: qrModulAnzahl(options.nutzlast),
+  const weiter: Parameters<typeof computeQrSizing>[0] = {
+    paperWidthDots: options.paperWidthDots,
+    moduleCount: qrModuleCount(options.payload),
   };
-  if (options.groesse !== undefined) weiter.groesse = options.groesse;
-  return qrGroesseBerechnen(weiter);
+  if (options.moduleSize !== undefined) weiter.moduleSize = options.moduleSize;
+  return computeQrSizing(weiter);
 }

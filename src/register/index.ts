@@ -43,6 +43,18 @@
  * });
  * ```
  *
+ * Abweisungen entscheidet die Kasse am Code, nie am Meldungstext:
+ *
+ * ```ts
+ * } catch (e) {
+ *   if (isRegisterError(e, 'cashregister_in_use')) {
+ *     const { deviceLabel, takeoverAllowed } = registerErrorDetails(e);
+ *   } else if (isRegisterError(e, 'too_many_attempts')) {
+ *     const { retryAfterSec } = registerErrorDetails(e);
+ *   }
+ * }
+ * ```
+ *
  * Mit `sitzung.customToken` meldet sich der Verbraucher beim Anmeldedienst an; das
  * daraus entstehende ID-Token und `sitzung.sessionId` ergeben zusammen
  * `registerUserAuth` — ab da laeuft alles Weitere ueber den ueblichen Weg.
@@ -68,9 +80,9 @@ export {
   type RegisterDeviceUsers,
   type RegisterClientInfo,
   type RegisterGeo,
-  type RegisterGeraeteAngaben,
+  type RegisterDeviceInfo,
   type RegisterSession,
-  type RegisterSessionsStand,
+  type RegisterSessionOverview,
   type ListRegisterSessionsForDeviceOptions,
   pairRegisterDevice,
   listRegisterUsersForDevice,
@@ -81,3 +93,15 @@ export {
 } from './pairing.js';
 
 export { renewRegisterSession, endRegisterSession } from './session.js';
+
+export {
+  REGISTER_ERROR_CODES,
+  type RegisterErrorCode,
+  isRegisterErrorCode,
+  registerErrorCode,
+  registerFieldErrors,
+  type RegisterFieldError,
+  isRegisterError,
+  type RegisterErrorDetails,
+  registerErrorDetails,
+} from './errors.js';

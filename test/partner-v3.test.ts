@@ -5,10 +5,10 @@ import { createHmac } from 'node:crypto';
 import antworten from './fixtures/partner-v3-antworten.json' with { type: 'json' };
 import { createPartnerApi, PARTNER_BASE_URL } from '../src/partner/api.js';
 import { parseWebhookEvent, type ContractAcceptedEventData } from '../src/partner/webhooks.js';
-import type { Betrieb } from '../src/partner/typen.js';
-import { PARTNER_FEHLER_CODES, partnerFehlerRat } from '../src/partner/fehler.js';
+import type { Business } from '../src/partner/typen.js';
+import { PARTNER_ERROR_CODES, partnerErrorAdvice } from '../src/partner/fehler.js';
 import { DEFAULT_BASE_URL, apiKeyAuth, createKasseneckApi } from '../src/index.js';
-import { createRechnungApi } from '../src/rechnung/api.js';
+import { createInvoiceApi } from '../src/invoice/api.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
 /*
@@ -26,7 +26,7 @@ function antwort(rumpf: unknown): HttpResponseLike {
   const text = JSON.stringify(rumpf);
   return {
     status: 200,
-    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => text,
     arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer,
   };
@@ -74,13 +74,12 @@ test('v3: baseUrl bleibt einstellbar', async () => {
 });
 
 /**
- * Rot-Probe: `DEFAULT_BASE_URL` in client/transport.ts auf `/v3` stellen (statt
- * die Vorgabe nur in partner/api.ts zu setzen) — dann faellt dieser Test. Belege
- * und Rechnungen haben noch keine `/v3`; dorthin geschickt, antwortete der
- * Server mit `not_found`.
+ * Die 1.x-Linie spricht nur `/v3`: auch Belege und Rechnungen gehen dorthin,
+ * die Partner-Basis ist dieselbe wie die allgemeine.
  */
-test('v3: Belege und Rechnungen bleiben auf /v1', async () => {
-  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v1');
+test('v3: Belege und Rechnungen gehen wie der Partner-Teil an /v3', async () => {
+  assert.equal(DEFAULT_BASE_URL, 'https://api.kasseneck.at/v3');
+  assert.equal(PARTNER_BASE_URL, DEFAULT_BASE_URL);
   const urls: string[] = [];
   const holen: FetchLike = async (url) => {
     urls.push(url);
@@ -88,10 +87,10 @@ test('v3: Belege und Rechnungen bleiben auf /v1', async () => {
   };
   const kasse = createKasseneckApi({ auth: apiKeyAuth({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', cashregisterToken: 'cb_live_ABCDEFGHIJKLMNOPQRSTUVWX' }), fetch: holen });
   await kasse.zeroReceipt().catch(() => undefined);
-  const rechnung = createRechnungApi({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', fetch: holen });
+  const rechnung = createInvoiceApi({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', fetch: holen });
   await rechnung.listInvoices().catch(() => undefined);
   assert.equal(urls.length, 2);
-  for (const url of urls) assert.ok(url.startsWith('https://api.kasseneck.at/v1/'), url);
+  for (const url of urls) assert.ok(url.startsWith('https://api.kasseneck.at/v3/'), url);
 });
 
 // ---------------------------------------------------------------------------
@@ -100,13 +99,13 @@ test('v3: Belege und Rechnungen bleiben auf /v1', async () => {
 
 test('v3: createPartnerCustomer liest fee{cents,interval,test} statt entgelt', async () => {
   const { api } = stelle();
-  const r = await api.createPartnerCustomer({ appId: 'a_1', business: {} as Betrieb });
+  const r = await api.createPartnerCustomer({ appId: 'a_1', business: {} as Business });
   assert.deepEqual(r.fee, { cents: 1500, interval: 'monthly', test: false });
 
   // Ohne Preis in den Konditionen fuehrt die Antwort kein fee: dann null, kein
   // erfundenes 0, das wie ein kostenloser Posten aussaehe.
   const holen: FetchLike = async () => antwort({ status: 'success', message: '', data: { customerId: 'cust_2', access: {} } });
-  const ohne = await createPartnerApi({ partnerKey: PARTNER_KEY, fetch: holen }).createPartnerCustomer({ appId: 'a_1', business: {} as Betrieb });
+  const ohne = await createPartnerApi({ partnerKey: PARTNER_KEY, fetch: holen }).createPartnerCustomer({ appId: 'a_1', business: {} as Business });
   assert.equal(ohne.fee, null);
 });
 
@@ -125,7 +124,7 @@ test('v3: der Betrieb kommt mit englischer Rechtsform, ISO-Bundesland, englische
 });
 
 test('v3: ein Betrieb mit den Werten der /v1 ist ein Compilerfehler', () => {
-  const betrieb: Betrieb = {
+  const betrieb: Business = {
     companyName: 'A',
     // @ts-expect-error `einzel` gibt es unter /v3 nicht mehr (sole_proprietor)
     legalForm: 'einzel',
@@ -167,19 +166,19 @@ test('v3: Liste und Einzelsicht fuehren fon, avv und terms so, wie der Server si
 
 /**
  * Rot-Probe: einen der neuen Vertrags-Codes (z. B. `power_of_attorney_missing`)
- * aus PARTNER_FEHLER_CODES streichen, dann faellt dieser Test. Die Liste der
+ * aus PARTNER_ERROR_CODES streichen, dann faellt dieser Test. Die Liste der
  * Schnittstellen-Codes kommt aus dem Katalog des Backends
  * (`fehlerKatalogFuer('api')`), durch denselben Fehlerzweig wie jede echte
  * `/v3`-Antwort uebersetzt (`fehlerCodesApi` in der Fixture), nicht von Hand.
  */
-test('v3: jeder Code, den die Schnittstelle liefern kann, steht englisch in PARTNER_FEHLER_CODES und hat einen Satz', () => {
+test('v3: jeder Code, den die Schnittstelle liefern kann, steht englisch in PARTNER_ERROR_CODES und hat einen Satz', () => {
   const backend = A['fehlerCodesApi'] as string[];
-  const hier = PARTNER_FEHLER_CODES as readonly string[];
+  const hier = PARTNER_ERROR_CODES as readonly string[];
   for (const code of backend) {
-    assert.ok(hier.includes(code), `${code} fehlt in PARTNER_FEHLER_CODES`);
-    assert.ok((partnerFehlerRat(code) ?? '').length > 20, `${code}: kein Handlungssatz`);
+    assert.ok(hier.includes(code), `${code} fehlt in PARTNER_ERROR_CODES`);
+    assert.ok((partnerErrorAdvice(code) ?? '').length > 20, `${code}: kein Handlungssatz`);
   }
-  // Umgekehrt: PARTNER_FEHLER_CODES fuehrt nichts, was die Schnittstelle laut
+  // Umgekehrt: PARTNER_ERROR_CODES fuehrt nichts, was die Schnittstelle laut
   // Katalog nicht liefern kann.
   assert.deepEqual(hier.filter((c) => !backend.includes(c)), []);
   // Kein deutscher Rest: die alten deutschen Schluessel duerfen nirgends mehr
@@ -189,7 +188,7 @@ test('v3: jeder Code, den die Schnittstelle liefern kann, steht englisch in PART
     'zugang_nicht_erlaubt', 'kennung_fehlt', 'vertrag_offen',
     'art_not_allowed', 'modus_not_allowed', 'vollmacht_fehlt',
   ];
-  for (const d of deutschesRelikt) assert.ok(!hier.includes(d), `${d} steht noch deutsch in PARTNER_FEHLER_CODES`);
+  for (const d of deutschesRelikt) assert.ok(!hier.includes(d), `${d} steht noch deutsch in PARTNER_ERROR_CODES`);
   // Admin-only, nie oeffentlich (siehe Kopfkommentar in fehler.ts): duerfen
   // nicht wieder auftauchen.
   assert.ok(!hier.includes('kein_partnerbetrieb'));
@@ -310,6 +309,7 @@ test('v3: customer.terms_accepted und customer.avv_accepted tragen kind und sour
   const secret = 'whsec_TESTGEHEIMNIS_0123456789';
   const ereignisse = A['ereignisse'] as Record<string, ContractAcceptedEventData>;
   for (const [type, data] of Object.entries(ereignisse)) {
+    if (!type.startsWith('customer.')) continue;
     const body = JSON.stringify({ id: `evt_${type}`, type, createdAt: 1, partnerId: 'ptn_1', data });
     const t = 1_756_000_000;
     const signatureHeader = `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;

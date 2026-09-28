@@ -4,21 +4,21 @@ import { inspect } from 'node:util';
 
 import { createPartnerApi } from '../src/partner/api.js';
 import { partnerKeyAuth, partnerKeyEnv } from '../src/partner/auth.js';
-import { PARTNER_ABLAUF, naechsterSchritt } from '../src/partner/ablauf.js';
+import { PARTNER_FLOW, nextFlowStep } from '../src/partner/ablauf.js';
 import {
-  PARTNER_FEHLER_CODES,
-  PARTNER_PORTAL_FEHLER_CODES,
-  istPartnerFehler,
-  istPartnerFehlerCode,
-  istPartnerPortalFehlerCode,
-  partnerFehlerCode,
-  partnerFehlerRat,
-  partnerFeldFehler,
-  partnerWartezeitSek,
+  PARTNER_ERROR_CODES,
+  PARTNER_PORTAL_ERROR_CODES,
+  isPartnerError,
+  isPartnerErrorCode,
+  isPartnerPortalErrorCode,
+  partnerErrorCode,
+  partnerErrorAdvice,
+  partnerFieldErrors,
+  partnerRetryAfterSec,
 } from '../src/partner/fehler.js';
-import { BETRIEB_FELDER, unbekannteBetriebsfelder } from '../src/partner/betrieb.js';
+import { BUSINESS_FIELDS, unknownBusinessFields } from '../src/partner/betrieb.js';
 import { PARTNER_ENVS } from '../src/partner/typen.js';
-import { AUFRUFE } from '../src/client/aufrufe.js';
+import { ALL_CALLS } from '../src/client/aufrufe.js';
 import {
   KasseneckApiError,
   KasseneckAuthError,
@@ -38,7 +38,7 @@ function antwort(rumpf: unknown): HttpResponseLike {
   const text = typeof rumpf === 'string' ? rumpf : JSON.stringify(rumpf);
   return {
     status: 200,
-    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    headers: { get: (name) => (name.toLowerCase() === 'content-type' ? 'application/json' : name.toLowerCase() === 'kasseneck-api-version' ? 'v3' : null) },
     text: async () => text,
     arrayBuffer: async () => new TextEncoder().encode(text).buffer as ArrayBuffer,
   };
@@ -486,18 +486,18 @@ test('Partner: eine Probe kann jedes abonnierte Ereignis ausloesen, nicht nur we
 // ---------------------------------------------------------------------------
 
 test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlungssatz', async () => {
-  for (const code of PARTNER_FEHLER_CODES) {
+  for (const code of PARTNER_ERROR_CODES) {
     const { api } = stelle(fehler('Etwas ging schief.', { code }));
     try {
       await api.getPartnerInfo();
       assert.fail(`${code}: haette werfen muessen`);
     } catch (e) {
       assert.ok(e instanceof KasseneckApiError, `${code}: falsche Fehlerart`);
-      assert.equal(partnerFehlerCode(e), code);
-      assert.equal(istPartnerFehler(e, code), true);
-      const rat = partnerFehlerRat(code);
+      assert.equal(partnerErrorCode(e), code);
+      assert.equal(isPartnerError(e, code), true);
+      const rat = partnerErrorAdvice(code);
       assert.ok(rat && rat.length > 20, `${code}: kein brauchbarer Handlungssatz`);
-      assert.equal(api.fehlerRat(code), rat);
+      assert.equal(api.errorAdvice(code), rat);
     }
   }
 });
@@ -507,12 +507,12 @@ test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlu
  * (Fläche `api`/`beide`, seit 0.29.0 in der `/v3`-Schreibweise aus dessen
  * `v3`-Zuordnung).
  *
- * Rot-Probe: einen Code aus PARTNER_FEHLER_CODES streichen — dieser Test
+ * Rot-Probe: einen Code aus PARTNER_ERROR_CODES streichen, dieser Test
  * faellt sofort mit dem fehlenden Namen. Ein Code, den nur eine Seite kennt,
  * ist fuer einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
  */
 test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 12 des Portals', () => {
-  assert.deepEqual([...PARTNER_FEHLER_CODES], [
+  assert.deepEqual([...PARTNER_ERROR_CODES], [
     'validation',
     'rate_limited',
     'app_not_found',
@@ -550,9 +550,9 @@ test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 1
     'webhook_inactive',
     'event_not_subscribed',
   ]);
-  assert.equal(PARTNER_FEHLER_CODES.length, 36);
+  assert.equal(PARTNER_ERROR_CODES.length, 36);
 
-  assert.deepEqual([...PARTNER_PORTAL_FEHLER_CODES], [
+  assert.deepEqual([...PARTNER_PORTAL_ERROR_CODES], [
     'app_locked',
     'version_locked',
     'invalid_transition',
@@ -566,28 +566,29 @@ test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 1
     'card_not_verified',
     'already_assigned',
   ]);
-  assert.equal(PARTNER_PORTAL_FEHLER_CODES.length, 12);
+  assert.equal(PARTNER_PORTAL_ERROR_CODES.length, 12);
 
   // Auch die Portal-Codes tragen einen Satz: der Katalog ist eine Liste, und
   // eine halbe Liste ist schlimmer als keine.
-  for (const code of PARTNER_PORTAL_FEHLER_CODES) {
-    const rat = partnerFehlerRat(code);
+  for (const code of PARTNER_PORTAL_ERROR_CODES) {
+    const rat = partnerErrorAdvice(code);
     assert.ok(rat && rat.length > 20, `${code}: kein brauchbarer Handlungssatz`);
   }
 
   // Die beiden Flaechen ueberschneiden sich nicht, und die Erkenner trennen
   // sie sauber.
-  for (const code of PARTNER_FEHLER_CODES) {
-    assert.equal(istPartnerFehlerCode(code), true, code);
-    assert.equal(istPartnerPortalFehlerCode(code), false, code);
+  for (const code of PARTNER_ERROR_CODES) {
+    assert.equal(isPartnerErrorCode(code), true, code);
+    assert.equal(isPartnerPortalErrorCode(code), false, code);
   }
-  for (const code of PARTNER_PORTAL_FEHLER_CODES) {
-    assert.equal(istPartnerPortalFehlerCode(code), true, code);
-    assert.equal(istPartnerFehlerCode(code), false, code);
+  for (const code of PARTNER_PORTAL_ERROR_CODES) {
+    assert.equal(isPartnerPortalErrorCode(code), true, code);
+    assert.equal(isPartnerErrorCode(code), false, code);
   }
 
-  // Ein Code, den es nicht (mehr) gibt, darf keinen Handlungssatz behalten:
-  // sonst raet dieses Paket zu einem Weg, den es nicht gibt.
+  // Ein Code, den es nicht (mehr) gibt, darf keinen eigenen Handlungssatz
+  // behalten: sonst raet dieses Paket zu einem Weg, den es nicht gibt. Seit
+  // 1.0 bekommt er den Rueckfall wie jeder unbekannte Code.
   // - `modus_not_allowed`/`vollmacht_fehlt`/`art_not_allowed`: die deutschen
   //   Rohformen der Vertrags-Codes. Seit 0.29.0 stehen nur noch ihre
   //   `/v3`-Uebersetzungen im Katalog (`mode_not_allowed`,
@@ -604,8 +605,8 @@ test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 1
     'zugang_nicht_erlaubt', 'kennung_fehlt', 'vertrag_offen',
     'kein_partnerbetrieb', 'request_not_found', 'no_card_available',
   ]) {
-    assert.equal(partnerFehlerRat(weg), undefined, `${weg} steht nicht mehr im Katalog`);
-    assert.equal(istPartnerFehlerCode(weg), false, weg);
+    assert.equal(partnerErrorAdvice(weg), partnerErrorAdvice('gibt_es_nicht'), `${weg} steht nicht mehr im Katalog`);
+    assert.equal(isPartnerErrorCode(weg), false, weg);
   }
 });
 
@@ -644,7 +645,7 @@ test('Partner: validation liefert Feld und Grund, rate_limited die Wartezeit', a
     await v.api.createPartnerCustomer({ appId: 'app_1', business: BETRIEB as never });
     assert.fail('haette werfen muessen');
   } catch (e) {
-    assert.deepEqual(partnerFeldFehler(e), [{ field: 'taxDetails.taxNumber', message: 'Pruefziffer stimmt nicht.' }]);
+    assert.deepEqual(partnerFieldErrors(e), [{ field: 'taxDetails.taxNumber', message: 'Pruefziffer stimmt nicht.' }]);
   }
 
   const r = stelle(fehler('Zu viele Aufrufe.', { code: 'rate_limited', retryAfterSec: 42 }));
@@ -652,7 +653,7 @@ test('Partner: validation liefert Feld und Grund, rate_limited die Wartezeit', a
     await r.api.getPartnerInfo();
     assert.fail('haette werfen muessen');
   } catch (e) {
-    assert.equal(partnerWartezeitSek(e), 42);
+    assert.equal(partnerRetryAfterSec(e), 42);
   }
 });
 
@@ -663,9 +664,9 @@ test('Partner: ein Fehler ohne Code bleibt ohne Code — kein geratener Wert', a
     assert.fail('haette werfen muessen');
   } catch (e) {
     assert.equal((e as KasseneckApiError).code, undefined);
-    assert.equal(partnerFehlerCode(e), undefined);
-    assert.deepEqual(partnerFeldFehler(e), []);
-    assert.equal(partnerWartezeitSek(e), undefined);
+    assert.equal(partnerErrorCode(e), undefined);
+    assert.deepEqual(partnerFieldErrors(e), []);
+    assert.equal(partnerRetryAfterSec(e), undefined);
   }
 });
 
@@ -698,10 +699,10 @@ test('Partner: kein gesendetes Geheimnis kommt ueber die Fehler-Beilage zurueck'
  * geschickt.
  */
 test('Partner: ein unbekanntes Betriebsfeld faellt hier auf, mit demselben Pfad wie beim Server', () => {
-  assert.deepEqual(unbekannteBetriebsfelder(BETRIEB), [], 'ein gueltiger Betrieb ist sauber');
+  assert.deepEqual(unknownBusinessFields(BETRIEB), [], 'ein gueltiger Betrieb ist sauber');
 
   assert.deepEqual(
-    unbekannteBetriebsfelder({
+    unknownBusinessFields({
       ...BETRIEB,
       iban: 'AT61 1904 3002 3457 3201',
       address: { ...BETRIEB.address, land: 'AT' },
@@ -714,23 +715,23 @@ test('Partner: ein unbekanntes Betriebsfeld faellt hier auf, mit demselben Pfad 
   // Der Pfad traegt den INDEX des Kontakts, nicht nur "contacts" — sonst
   // suchte jemand in zehn Kontakten nach dem einen falschen Feld.
   assert.deepEqual(
-    unbekannteBetriebsfelder({ contacts: [{ name: 'A' }, { name: 'B' }, { name: 'C', abteilung: 'Kasse' }] }),
+    unknownBusinessFields({ contacts: [{ name: 'A' }, { name: 'B' }, { name: 'C', abteilung: 'Kasse' }] }),
     ['contacts.2.abteilung'],
   );
 
   // Ein falscher Typ ist KEIN unbekanntes Feld — den meldet der Server als
   // eigenen Formfehler auf demselben Pfad. Hier darf er nicht als
   // "unbekannt" durchgehen und schon gar nicht werfen.
-  assert.deepEqual(unbekannteBetriebsfelder({ contacts: 'Anna', address: null }), []);
-  assert.deepEqual(unbekannteBetriebsfelder(null), []);
-  assert.deepEqual(unbekannteBetriebsfelder('kein Betrieb'), []);
+  assert.deepEqual(unknownBusinessFields({ contacts: 'Anna', address: null }), []);
+  assert.deepEqual(unknownBusinessFields(null), []);
+  assert.deepEqual(unknownBusinessFields('kein Betrieb'), []);
 });
 
 test('Partner: die Feldliste deckt sich mit BETRIEB_FELDER des Backends', () => {
   // partner-core.BETRIEB_FELDER, flach ausgeschrieben. Ein Feld, das hier
   // fehlt, laesst sich nicht senden; eines zu viel gaukelt ein Feld vor, das
   // der Server abweist.
-  assert.deepEqual([...BETRIEB_FELDER], [
+  assert.deepEqual([...BUSINESS_FIELDS], [
     'companyName',
     'legalForm',
     'state',
@@ -760,25 +761,26 @@ test('Partner: die Feldliste deckt sich mit BETRIEB_FELDER des Backends', () => 
   ]);
   // Jedes Feld des Typs Betrieb steht auch in der Liste — sonst haette der
   // Typ ein Feld, das die Laufzeitpruefung als unbekannt meldete.
-  assert.deepEqual(unbekannteBetriebsfelder(BETRIEB), []);
+  assert.deepEqual(unknownBusinessFields(BETRIEB), []);
 });
 
 test('Partner: der Ablauf steht als Daten da und ist in sich schluessig', () => {
-  const keys = PARTNER_ABLAUF.map((s) => s.key);
-  // OHNE Vertragsschritt: Vertraege wirken im Partner-Weg nicht mehr.
-  assert.deepEqual(keys, ['business', 'fon', 'signature', 'cashregister', 'zugangsdaten', 'belege']);
+  const keys = PARTNER_FLOW.map((s) => s.key);
+  // Ohne eigenen Vertragsschritt: der Betrieb bestaetigt ueber den
+  // Einrichtungs-Link (Schritt fon).
+  assert.deepEqual(keys, ['business', 'fon', 'signature', 'cashregister', 'credentials', 'receipts']);
   // Jeder Aufruf der Kette ist einer, den dieses Paket wirklich kennt — ein
   // Schritt, der auf einen erfundenen Endpunkt zeigt, waere schlimmer als
   // keiner.
-  for (const schritt of PARTNER_ABLAUF) {
-    if (schritt.aufruf === null) continue;
-    assert.ok((AUFRUFE as readonly string[]).includes(schritt.aufruf), `unbekannter Aufruf: ${schritt.aufruf}`);
+  for (const schritt of PARTNER_FLOW) {
+    if (schritt.call === null) continue;
+    assert.ok((ALL_CALLS as readonly string[]).includes(schritt.call), `unbekannter Aufruf: ${schritt.call}`);
   }
-  assert.equal(naechsterSchritt('created')?.key, 'fon');
-  assert.equal(naechsterSchritt('signature_ready')?.key, 'cashregister');
-  assert.equal(naechsterSchritt('live')?.key, 'zugangsdaten');
-  assert.equal(naechsterSchritt('blocked'), null);
-  assert.equal(naechsterSchritt('etwas_neues'), null);
+  assert.equal(nextFlowStep('created')?.key, 'fon');
+  assert.equal(nextFlowStep('signature_ready')?.key, 'cashregister');
+  assert.equal(nextFlowStep('live')?.key, 'credentials');
+  assert.equal(nextFlowStep('blocked'), null);
+  assert.equal(nextFlowStep('etwas_neues'), null);
 });
 
 test('Partner: alle Aufrufe der Partner-API stehen im Vertrag', () => {
@@ -805,14 +807,15 @@ test('Partner: alle Aufrufe der Partner-API stehen im Vertrag', () => {
     'listPartnerWebhookDeliveries',
     'checkPartnerCustomerEmail',
     'rotatePartnerWebhookSecret',
+    'reportCustomerContract',
   ]) {
-    assert.ok((AUFRUFE as readonly string[]).includes(name), `${name} fehlt in AUFRUFE`);
+    assert.ok((ALL_CALLS as readonly string[]).includes(name), `${name} fehlt in ALL_CALLS`);
   }
-  // Und umgekehrt: ein Aufruf, den es nicht mehr gibt, darf keine Adresse
-  // behalten — sonst zeigt die Doku auf einen Endpunkt, der nichts tut.
+  // Der innere Name reportCustomerVertrag ist kein Aufruf dieses Pakets:
+  // unter /v3 heisst der Endpunkt reportCustomerContract.
   assert.equal(
-    (AUFRUFE as readonly string[]).includes('reportCustomerVertrag'),
+    (ALL_CALLS as readonly string[]).includes('reportCustomerVertrag'),
     false,
-    'Vertraege wirken im Partner-Weg nicht mehr',
+    'reportCustomerVertrag ist der innere Name',
   );
 });

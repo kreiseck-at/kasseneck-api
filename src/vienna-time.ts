@@ -78,8 +78,8 @@ type WanduhrFelder = ViennaWallClock;
  * die Hinrichtung; hier ist er direkt anwendbar, weil der Zeitpunkt schon
  * feststeht.
  */
-export function toViennaWallClock(zeitpunkt: Date): ViennaWallClock {
-  const utcMs = zeitpunkt.getTime();
+export function toViennaWallClock(instant: Date): ViennaWallClock {
+  const utcMs = instant.getTime();
   // Ein Invalid Date wuerde hier lautlos zu NaN in jedem Feld — und damit zu
   // einem NaN-Berichtsmonat beim Aufrufer.
   if (Number.isNaN(utcMs)) {

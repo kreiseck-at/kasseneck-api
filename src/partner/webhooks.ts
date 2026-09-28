@@ -8,6 +8,12 @@
 
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
+import type {
+  CashregisterActivationStep,
+  ContractKind,
+  ContractSource,
+  PartnerEnv,
+} from './typen.js';
 import {
   verifyWebhookSignature,
   type VerifyWebhookOptions,
@@ -19,14 +25,13 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Alle Ereignisse, die ein Webhook abonnieren **und proben** kann. Ein
+ * Alle Ereignisse, die ein Webhook abonnieren **und proben** kann, in der
+ * Reihenfolge des Backend-Katalogs (`listPartnerWebhooks().events`). Ein
  * Endpunkt bekommt ausschliesslich die, die in seiner `events`-Liste stehen.
  *
- * **Noch nicht in der Liste:** `customer.avv_accepted` und
- * `customer.terms_accepted`. Das Backend bietet sie inzwischen zum Abonnieren
- * an; die Liste wird mit dem Dart-Zwilling gemeinsam erweitert, weil beide
- * gegeneinander geprueft werden. Abonnieren geht trotzdem schon (`events`
- * nimmt jeden Namen), die Nutzlast beschreibt [ContractAcceptedEventData].
+ * Die Nutzlasten der Ereignisse, die `/v3` uebersetzt, beschreiben
+ * [ContractAcceptedEventData], [SignatureFailedEventData] und
+ * [CashregisterFailedEventData].
  */
 export const PARTNER_WEBHOOK_EVENTS = [
   'customer.created',
@@ -34,6 +39,8 @@ export const PARTNER_WEBHOOK_EVENTS = [
   'customer.status_changed',
   'customer.fon_verified',
   'customer.live_enabled',
+  'customer.avv_accepted',
+  'customer.terms_accepted',
   'signature.requested',
   'signature.ready',
   'signature.failed',
@@ -47,8 +54,8 @@ export const PARTNER_WEBHOOK_EVENTS = [
 
 export type PartnerWebhookEventType = typeof PARTNER_WEBHOOK_EVENTS[number];
 
-export function istPartnerWebhookEvent(wert: unknown): wert is PartnerWebhookEventType {
-  return typeof wert === 'string' && (PARTNER_WEBHOOK_EVENTS as readonly string[]).includes(wert);
+export function isPartnerWebhookEvent(value: unknown): value is PartnerWebhookEventType {
+  return typeof value === 'string' && (PARTNER_WEBHOOK_EVENTS as readonly string[]).includes(value);
 }
 
 /**
@@ -58,7 +65,7 @@ export function istPartnerWebhookEvent(wert: unknown): wert is PartnerWebhookEve
  * genau ein solches Feld verschwindet sonst auf einer Seite, ohne dass etwas
  * rot wird.
  */
-export const WEBHOOK_UMSCHLAG_FELDER = ['id', 'type', 'createdAt', 'partnerId', 'test', 'data'] as const;
+export const WEBHOOK_ENVELOPE_FIELDS = ['id', 'type', 'createdAt', 'partnerId', 'test', 'data'] as const;
 
 /**
  * Die Huelle jeder Zustellung. `type` bleibt bewusst offen fuer unbekannte
@@ -103,24 +110,6 @@ export interface PartnerWebhookEvent<T = Record<string, unknown>> {
  */
 export type WebhookApiVersion = 'v1' | 'v3';
 
-/** Art des Vertrags in `customer.avv_accepted` / `customer.terms_accepted`. */
-export type ContractKind = 'avv' | 'terms';
-
-/**
- * Wo der Betrieb bestaetigt hat. Unter `v1` hiessen die ersten fuenf
- * `einrichten`, `prozess`, `partner_vollmacht`, `admin_papier`,
- * `papier_upload`; `app` und `portal` sind in beiden Sprachen gleich.
- */
-export type ContractSource =
-  | 'setup_link'
-  | 'process_link'
-  | 'partner_power_of_attorney'
-  | 'admin_paper'
-  | 'paper_upload'
-  | 'app'
-  | 'portal'
-  | (string & {});
-
 /**
  * Nutzlast von `customer.avv_accepted` und `customer.terms_accepted` in der
  * Sprache `v3`. Ein Webhook mit `apiVersion: 'v1'` schickt hier weiter
@@ -133,6 +122,43 @@ export interface ContractAcceptedEventData {
   version: string;
   confirmedAt: number;
   source: ContractSource;
+}
+
+/**
+ * Nutzlast von `signature.failed` in der Sprache `v3`. `code` ist immer
+ * `signature_failed` (FinanzOnline hat die Registrierung abgelehnt, `rc`
+ * nennt den Rueckgabecode); die Ursache im Einzelnen steht am Antrag
+ * (`getCustomerSignatureStatus`, `requests[].error.code`, siehe
+ * [SIGNATURE_ERROR_CODES]). `message` ist ein Text fuer Menschen.
+ */
+export interface SignatureFailedEventData {
+  customerId: string;
+  companyName: string;
+  requestId: string;
+  code: 'signature_failed' | (string & {});
+  /** Rueckgabecode von FinanzOnline, falls es einen gab. */
+  rc: string | null;
+  message: string;
+}
+
+/**
+ * Nutzlast von `cashregister.failed` in der Sprache `v3`: an welchem Schritt
+ * die Inbetriebnahme stehen blieb und mit welchem Code. Der Server feuert das
+ * Ereignis mit `signature_not_ready`, `fon_missing` oder `activation_failed`.
+ * Fehlende Vertraege (`contracts_pending`) loesen **kein** Ereignis aus: das
+ * meldet `activateCashregister` als Fehler, die Freigabe melden
+ * `customer.avv_accepted` und `customer.terms_accepted`.
+ */
+export interface CashregisterFailedEventData {
+  customerId: string;
+  companyName: string;
+  cashregisterId: string;
+  step: CashregisterActivationStep | null;
+  code: 'signature_not_ready' | 'fon_missing' | 'activation_failed' | (string & {});
+  /** Rueckgabecode von FinanzOnline, falls es einen gab. */
+  rc: string | null;
+  message: string;
+  env: PartnerEnv;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,11 +184,11 @@ export type WebhookEventResult =
  * Eine ausbleibende Antwort wird bis zu fuenfmal wiederholt (1 min, 5 min,
  * 30 min, 2 h, 12 h) und gilt dann als fehlgeschlagen.
  */
-export async function parseWebhookEvent(optionen: VerifyWebhookOptions): Promise<WebhookEventResult> {
-  const geprueft = await verifyWebhookSignature(optionen);
+export async function parseWebhookEvent(options: VerifyWebhookOptions): Promise<WebhookEventResult> {
+  const geprueft = await verifyWebhookSignature(options);
   if (!geprueft.ok) return { ok: false, reason: geprueft.reason };
 
-  const text = typeof optionen.body === 'string' ? optionen.body : new TextDecoder('utf-8').decode(optionen.body);
+  const text = typeof options.body === 'string' ? options.body : new TextDecoder('utf-8').decode(options.body);
   let roh: unknown;
   try {
     roh = JSON.parse(text);
@@ -196,8 +222,10 @@ export async function parseWebhookEvent(optionen: VerifyWebhookOptions): Promise
 // Endpunkte verwalten
 // ---------------------------------------------------------------------------
 
-/** Stand einer Zustellung; `/v1` sagte `offen`, `zugestellt`, `fehlgeschlagen`, `verworfen`. */
-export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'dropped';
+/** Staende einer Zustellung; `/v1` sagte `offen`, `zugestellt`, `fehlgeschlagen`, `verworfen`. */
+export const WEBHOOK_DELIVERY_STATUSES = ['pending', 'delivered', 'failed', 'dropped'] as const;
+
+export type WebhookDeliveryStatus = typeof WEBHOOK_DELIVERY_STATUSES[number];
 
 export interface PartnerWebhook {
   webhookId: string;
@@ -261,13 +289,13 @@ export interface DeleteWebhookResult {
   deleted: boolean;
 }
 
-export interface WebhookListe {
+export interface WebhookList {
   webhooks: PartnerWebhook[];
   /** Der Katalog: Ereignisname und deutscher Text, so wie das Panel ihn zeigt. */
   events: { key: string; text: string }[];
 }
 
-export interface WebhookZustellung {
+export interface WebhookDelivery {
   deliveryId: string;
   webhookId: string;
   event: string;
@@ -323,20 +351,20 @@ function webhook(eintrag: unknown): PartnerWebhook {
  * schreiben, wo der Empfaenger es liest — nicht in ein Protokoll.
  */
 export async function createPartnerWebhook(
-  rufen: InternerTransport,
-  optionen: CreateWebhookOptions,
+  transport: InternerTransport,
+  options: CreateWebhookOptions,
 ): Promise<CreateWebhookResult> {
-  const url = typeof optionen?.url === 'string' ? optionen.url.trim() : '';
+  const url = typeof options?.url === 'string' ? options.url.trim() : '';
   if (!url) throw new KasseneckValidationError('createPartnerWebhook', 'url fehlt', 'request');
-  if (!Array.isArray(optionen.events) || optionen.events.length === 0) {
+  if (!Array.isArray(options.events) || options.events.length === 0) {
     throw new KasseneckValidationError('createPartnerWebhook', 'events ist leer — ein Endpunkt ohne Ereignis bekaeme nie etwas', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('createPartnerWebhook', {
+    await transport<unknown>('createPartnerWebhook', {
       url,
-      events: optionen.events,
-      description: optionen.description,
-      active: optionen.active,
+      events: options.events,
+      description: options.description,
+      active: options.active,
     }),
   );
   const secret = daten['secret'];
@@ -361,12 +389,12 @@ export async function createPartnerWebhook(
  * schon mit dem neuen signiert. Erst speichern, dann weiterarbeiten.
  */
 export async function rotatePartnerWebhookSecret(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
 ): Promise<CreateWebhookResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('rotatePartnerWebhookSecret', 'webhookId fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('rotatePartnerWebhookSecret', { webhookId: id }));
+  const daten = objekt(await transport<unknown>('rotatePartnerWebhookSecret', { webhookId: id }));
   const secret = daten['secret'];
   if (typeof secret !== 'string' || !secret) {
     throw new KasseneckValidationError(
@@ -379,8 +407,8 @@ export async function rotatePartnerWebhookSecret(
 }
 
 /** Die Webhook-Endpunkte dieses Partners samt Ereignis-Katalog. */
-export async function listPartnerWebhooks(rufen: InternerTransport): Promise<WebhookListe> {
-  const daten = objekt(await rufen<unknown>('listPartnerWebhooks'));
+export async function listPartnerWebhooks(transport: InternerTransport): Promise<WebhookList> {
+  const daten = objekt(await transport<unknown>('listPartnerWebhooks'));
   return {
     webhooks: (Array.isArray(daten['webhooks']) ? daten['webhooks'] : []).map(webhook),
     events: (Array.isArray(daten['events']) ? daten['events'] : []).map((e) => ({
@@ -396,7 +424,7 @@ export async function listPartnerWebhooks(rufen: InternerTransport): Promise<Web
  * tun.
  */
 export async function updatePartnerWebhook(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
   patch: WebhookPatch,
 ): Promise<PartnerWebhook> {
@@ -405,7 +433,7 @@ export async function updatePartnerWebhook(
   if (patch === null || typeof patch !== 'object' || Object.keys(patch).length === 0) {
     throw new KasseneckValidationError('updatePartnerWebhook', 'patch nennt keine Aenderung', 'request');
   }
-  const daten = objekt(await rufen<unknown>('updatePartnerWebhook', { webhookId: id, patch }));
+  const daten = objekt(await transport<unknown>('updatePartnerWebhook', { webhookId: id, patch }));
   return webhook(daten['webhook']);
 }
 
@@ -414,12 +442,12 @@ export async function updatePartnerWebhook(
  * Zustellungen werden verworfen (`dropped`).
  */
 export async function deletePartnerWebhook(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
 ): Promise<DeleteWebhookResult> {
   const id = typeof webhookId === 'string' ? webhookId.trim() : '';
   if (!id) throw new KasseneckValidationError('deletePartnerWebhook', 'webhookId fehlt', 'request');
-  const daten = objekt(await rufen<unknown>('deletePartnerWebhook', { webhookId: id }));
+  const daten = objekt(await transport<unknown>('deletePartnerWebhook', { webhookId: id }));
   return {
     webhookId: typeof daten['webhookId'] === 'string' ? daten['webhookId'] : id,
     deleted: daten['deleted'] === true,
@@ -427,7 +455,7 @@ export async function deletePartnerWebhook(
 }
 
 /** Eine Zustellung der Probe, so wie `sendPartnerWebhookTest` sie meldet. */
-export interface WebhookTestZustellung {
+export interface WebhookTestDelivery {
   deliveryId: string;
   webhookId: string;
   status: WebhookDeliveryStatus | (string & {});
@@ -438,7 +466,7 @@ export interface WebhookTestResult {
   eventId: string;
   /** Welches Ereignis geprobt wurde — ohne Angabe `webhook.test`. */
   event: string;
-  deliveries: WebhookTestZustellung[];
+  deliveries: WebhookTestDelivery[];
 }
 
 /**
@@ -462,7 +490,7 @@ export interface WebhookTestResult {
  * suchen.
  */
 export async function sendPartnerWebhookTest(
-  rufen: InternerTransport,
+  transport: InternerTransport,
   webhookId: string,
   event?: PartnerWebhookEventType | (string & {}),
 ): Promise<WebhookTestResult> {
@@ -470,7 +498,7 @@ export async function sendPartnerWebhookTest(
   if (!id) throw new KasseneckValidationError('sendPartnerWebhookTest', 'webhookId fehlt', 'request');
   const ereignis = typeof event === 'string' ? event.trim() : '';
   const daten = objekt(
-    await rufen<unknown>('sendPartnerWebhookTest', { webhookId: id, event: ereignis || undefined }),
+    await transport<unknown>('sendPartnerWebhookTest', { webhookId: id, event: ereignis || undefined }),
   );
   return {
     eventId: typeof daten['eventId'] === 'string' ? daten['eventId'] : '',
@@ -493,14 +521,14 @@ export async function sendPartnerWebhookTest(
  * laesst, ohne bei Kasseneck nachzufragen.
  */
 export async function listPartnerWebhookDeliveries(
-  rufen: InternerTransport,
-  optionen: { webhookId?: string; limit?: number } = {},
-): Promise<WebhookZustellung[]> {
-  if (optionen.limit !== undefined && (!Number.isInteger(optionen.limit) || optionen.limit < 1 || optionen.limit > 200)) {
+  transport: InternerTransport,
+  options: { webhookId?: string; limit?: number } = {},
+): Promise<WebhookDelivery[]> {
+  if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 200)) {
     throw new KasseneckValidationError('listPartnerWebhookDeliveries', 'limit muss zwischen 1 und 200 liegen', 'request');
   }
   const daten = objekt(
-    await rufen<unknown>('listPartnerWebhookDeliveries', { webhookId: optionen.webhookId, limit: optionen.limit }),
+    await transport<unknown>('listPartnerWebhookDeliveries', { webhookId: options.webhookId, limit: options.limit }),
   );
   return (Array.isArray(daten['deliveries']) ? daten['deliveries'] : []).map((eintrag) => {
     const z = objekt(eintrag);

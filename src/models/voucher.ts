@@ -22,31 +22,27 @@ export interface Voucher {
 }
 
 /**
- * Nutzlast: traegt **beide** Felder, `value` (Euro) und `valueCents` (Cent).
- * Das Backend erwartet das Euro-Feld weiterhin (Altkompatibilitaet) — die
- * Umwandlung passiert nur hier, an dieser einen Stelle.
+ * Nutzlast eines Gutscheins. Geschrieben wird nur `valueCents` (ganze Cent);
+ * `value` (Euro) kommt nur beim Lesen vor: der Server legt es in seinen
+ * Antworten daneben, gelesen wird es nur, wenn `valueCents` fehlt.
+ * `name` und `code` gehen nur hinaus, wenn sie gesetzt sind.
  */
 export interface VoucherPayload {
-  name: string | null;
-  code: string | null;
+  name?: string | null;
+  code?: string | null;
   action: string;
   type: string;
-  value: number | null;
+  value?: number | null;
   valueCents: number | null;
 }
 
 export function toVoucherPayload(voucher: Voucher): VoucherPayload {
   return {
-    name: voucher.name ?? null,
-    code: voucher.code ?? null,
-    // Schreibpfad bleibt streng: action/type sehen fuer bekannte und
-    // unbekannte Werte gleich aus (reine Strings) — erst der Lookup hier
-    // entscheidet, ob geschrieben werden darf.
     action: requireEnumKey(VoucherAction, voucher.action, 'Gutschein-Aktion'),
     type: requireEnumKey(VoucherType, voucher.type, 'Gutscheinart'),
-    // Euro-Feld nur fuer Altbestand-Konsumenten des Backends — siehe Kommentar oben.
-    value: voucher.valueCents == null ? null : voucher.valueCents / 100,
     valueCents: voucher.valueCents ?? null,
+    ...(voucher.code != null ? { code: voucher.code } : {}),
+    ...(voucher.name != null ? { name: voucher.name } : {}),
   };
 }
 

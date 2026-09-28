@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { rechnungRechnen } from '../src/rechnung/rechnen.js';
-import { rechnungSummen, type SummenPosition } from '../src/rechnung/summen.js';
-import type { PriceMode } from '../src/rechnung/vertrag.js';
+import { calculateInvoice } from '../src/invoice/calc.js';
+import { computeInvoiceTotals, type TotalsItem } from '../src/invoice/summen.js';
+import type { PriceMode } from '../src/invoice/vertrag.js';
 import { zufall } from './zufall.js';
 
 /**
@@ -38,7 +38,7 @@ function feldKlassen(modus: PriceMode): { einmal: readonly string[]; abgeleitet:
  * Tausendstel/Zehntausendstel -- ein paar tausend Laeufe reichen so fuer
  * verlaessliche Treffer, ohne die Suite (3 Zeitzonen-Durchlaeufe) zu bremsen.
  */
-function zufallsPosition(r: () => number, saetze: readonly number[]): SummenPosition & { vatRate: number } {
+function zufallsPosition(r: () => number, saetze: readonly number[]): TotalsItem & { vatRate: number } {
   return {
     unitPriceCents: 1 + Math.floor(r() * 500_000),
     quantity: (Math.round(r() * 16) * 250) / 1000, // Viertelschritte 0,00 .. 4,00
@@ -47,7 +47,7 @@ function zufallsPosition(r: () => number, saetze: readonly number[]): SummenPosi
   };
 }
 
-test('Kern gegen rechnungSummen: je Satz hoechstens 1 (direkt) bzw. 2 Cent (abgeleitet) Abstand', () => {
+test('Kern gegen computeInvoiceTotals: je Satz hoechstens 1 (direkt) bzw. 2 Cent (abgeleitet) Abstand', () => {
   const saetze = [0, 10, 13, 20];
   const startwerte = [20_260_919, 300, 7];
   for (const startwert of startwerte) {
@@ -57,8 +57,8 @@ test('Kern gegen rechnungSummen: je Satz hoechstens 1 (direkt) bzw. 2 Cent (abge
       const anzahl = 1 + Math.floor(r() * 4);
       const api = Array.from({ length: anzahl }, () => zufallsPosition(r, saetze));
       const modus: PriceMode = r() < 0.5 ? 'net' : 'gross';
-      const alt = rechnungSummen(api, modus);
-      const neu = rechnungRechnen(
+      const alt = computeInvoiceTotals(api, modus);
+      const neu = calculateInvoice(
         api.map((p) => ({
           unitPriceMicros: p.unitPriceCents * 10_000,
           quantityMilli: Math.round(p.quantity * 1000),
@@ -110,7 +110,7 @@ test('Kern gegen rechnungSummen: je Satz hoechstens 1 (direkt) bzw. 2 Cent (abge
   }
 });
 
-test('Kern gegen rechnungSummen: bekannte Faelle an der Halbcent-Grenze', () => {
+test('Kern gegen computeInvoiceTotals: bekannte Faelle an der Halbcent-Grenze', () => {
   const faelle: Array<{
     position: { unitPriceCents: number; quantity: number; vatRate: number; discountPct?: number };
     modus: PriceMode;
@@ -139,8 +139,8 @@ test('Kern gegen rechnungSummen: bekannte Faelle an der Halbcent-Grenze', () => 
     },
   ];
   for (const { position, modus, erwartet } of faelle) {
-    const alt = rechnungSummen([position], modus);
-    const neu = rechnungRechnen(
+    const alt = computeInvoiceTotals([position], modus);
+    const neu = calculateInvoice(
       [
         {
           unitPriceMicros: position.unitPriceCents * 10_000,
