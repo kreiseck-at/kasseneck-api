@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosOnlyCall } from '../src/client/aufrufe.js';
+import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosCall, isPosOnlyCall } from '../src/client/aufrufe.js';
+import { DEFAULT_BASE_URL, POS_BASE_URL } from '../src/client/transport.js';
 import * as kasse from '../src/pos/index.js';
 import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from '../src/pos/index.js';
 import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../src/register/index.js';
@@ -38,12 +39,25 @@ for (const name of Object.keys(namensraum).sort()) {
 }
 
 test('Golden: die Oberflaeche steht in fixtures/oberflaeche.json', () => {
-  assert.deepEqual(vertrag.aufrufe, [...ALL_CALLS], veraltet);
-  assert.deepEqual(vertrag.publicCalls, [...PUBLIC_CALLS], veraltet);
-  assert.deepEqual(vertrag.posCalls, [...POS_CALLS], veraltet);
-  assert.deepEqual(vertrag.rechte, [...REGISTER_PERMS], veraltet);
-  assert.deepEqual(vertrag.tastenAktionen, [...POS_SHORTCUT_ACTIONS], veraltet);
+  assert.deepEqual(Object.keys(vertrag), [
+    'version', 'baseUrls', 'calls', 'routes', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice',
+  ], veraltet);
+  assert.deepEqual(vertrag.routes, { public: [...PUBLIC_CALLS], pos: [...POS_CALLS] }, veraltet);
+  assert.deepEqual(vertrag.registerPerms, [...REGISTER_PERMS], veraltet);
+  assert.deepEqual(vertrag.posShortcutActions, [...POS_SHORTCUT_ACTIONS], veraltet);
   assert.deepEqual(vertrag.registerErrorCodes, [...REGISTER_ERROR_CODES], veraltet);
+});
+
+test('Golden: die Aufrufe des Pakets, geteilt nach Weg (oeffentlich /v3, Kassenweg /api/v3)', () => {
+  assert.deepEqual(vertrag.baseUrls, { public: DEFAULT_BASE_URL, pos: POS_BASE_URL }, veraltet);
+  assert.equal(vertrag.baseUrls.public, 'https://api.kasseneck.at/v3');
+  assert.equal(vertrag.baseUrls.pos, 'https://kasse.kasseneck.at/api/v3');
+  assert.deepEqual(vertrag.calls.public, ALL_CALLS.filter((n) => !isPosOnlyCall(n)), veraltet);
+  assert.deepEqual(vertrag.calls.pos, ALL_CALLS.filter((n) => isPosCall(n)), veraltet);
+  // Jeder Aufruf des Pakets hat mindestens einen Weg; die Kasse ruft alle 25 des Kassenwegs.
+  const beide = new Set<string>([...vertrag.calls.public, ...vertrag.calls.pos]);
+  assert.deepEqual(ALL_CALLS.filter((n) => !beide.has(n)), []);
+  assert.deepEqual([...vertrag.calls.pos].sort(), [...POS_CALLS].sort());
 });
 
 test('Golden: der Vertrag fuehrt JEDE Enum-Liste des Pakets, keine mehr und keine weniger', () => {
@@ -51,9 +65,9 @@ test('Golden: der Vertrag fuehrt JEDE Enum-Liste des Pakets, keine mehr und kein
   for (const [name, liste] of enumListen) {
     assert.deepEqual(vertrag.enums[name], [...liste], `${veraltet} (enums.${name})`);
   }
-  assert.deepEqual(Object.keys(vertrag.kasse ?? {}).sort(), [...kasseListen.keys()].sort(), veraltet);
+  assert.deepEqual(Object.keys(vertrag.pos ?? {}).sort(), [...kasseListen.keys()].sort(), veraltet);
   for (const [name, liste] of kasseListen) {
-    assert.deepEqual(vertrag.kasse[name], [...liste], `${veraltet} (kasse.${name})`);
+    assert.deepEqual(vertrag.pos[name], [...liste], `${veraltet} (pos.${name})`);
   }
   // Leer gegen leer waere gruen, ohne etwas zu pruefen.
   assert.ok(enumListen.has('theme') && kasseListen.has('posErrorCodes'), 'Einstellungs- oder Kassen-Listen fehlen');
@@ -101,9 +115,9 @@ for (const name of Object.keys(rechnungRaum).sort()) {
 }
 
 test('Golden: der Vertrag fuehrt JEDE Rechnungs-Liste des Pakets, keine mehr und keine weniger', () => {
-  assert.deepEqual(Object.keys(vertrag.rechnung ?? {}).sort(), [...rechnungListen.keys()].sort(), veraltet);
+  assert.deepEqual(Object.keys(vertrag.invoice ?? {}).sort(), [...rechnungListen.keys()].sort(), veraltet);
   for (const [name, liste] of rechnungListen) {
-    assert.deepEqual(vertrag.rechnung[name], [...liste], `${veraltet} (rechnung.${name})`);
+    assert.deepEqual(vertrag.invoice[name], [...liste], `${veraltet} (invoice.${name})`);
   }
   // Leer gegen leer waere gruen, ohne etwas zu pruefen.
   assert.ok(rechnungListen.has('invoiceErrorCodes') && rechnungListen.has('creditNoteReasons'),

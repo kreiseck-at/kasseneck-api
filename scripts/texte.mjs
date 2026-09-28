@@ -9,14 +9,17 @@ const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url
 // Die Zuordnung `code` -> Satz steht mit in der Datei: die App liest sie aus
 // dem Tarball und entscheidet damit am Code dasselbe wie das Web, das die
 // Quelle direkt importiert.
+// Strukturschluessel englisch seit 1.0 (unter 0.x: meldungen, fehlerregeln,
+// belegMailFehler, stornoZahlungFehler, beschriftungen; Tabelle in
+// fixtures/texte-umbenennung.json, Abschnitt `struktur`).
 const vertrag = {
   version: paket.version,
-  meldungen: MESSAGES,
-  fehlerregeln: ERROR_RULES,
-  belegMailFehler: RECEIPT_EMAIL_ERROR_MESSAGES,
-  stornoZahlungFehler: CANCELLATION_PAYMENT_ERROR_MESSAGES,
-  // Knoepfe und Zeilennamen – keine Saetze, darum nicht unter `meldungen`.
-  beschriftungen: LABELS,
+  messages: MESSAGES,
+  errorRules: ERROR_RULES,
+  receiptEmailErrors: RECEIPT_EMAIL_ERROR_MESSAGES,
+  cancellationPaymentErrors: CANCELLATION_PAYMENT_ERROR_MESSAGES,
+  // Knoepfe und Zeilennamen, keine Saetze, darum nicht unter `messages`.
+  labels: LABELS,
 };
 writeFileSync(new URL('../fixtures/kasse-texte.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
 console.log('Kassen-Texte geschrieben:', Object.keys(MESSAGES).length, 'Meldungen,', ERROR_RULES.length, 'Regeln,',

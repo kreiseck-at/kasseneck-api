@@ -13,7 +13,8 @@
 //
 // Aufruf: `npm run fixtures:oberflaeche` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS } from '../dist/esm/client/aufrufe.js';
+import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosCall, isPosOnlyCall } from '../dist/esm/client/aufrufe.js';
+import { DEFAULT_BASE_URL, POS_BASE_URL } from '../dist/esm/client/transport.js';
 import * as kasse from '../dist/esm/pos/index.js';
 import * as partner from '../dist/esm/partner/index.js';
 import * as rechnung from '../dist/esm/invoice/index.js';
@@ -33,7 +34,7 @@ const istEnumListe = (name, wert) => /^[A-Z][A-Z0-9_]*$/.test(name)
 // ihres Feldes (`TILE_STYLE` -> `tileStyle`): die Enum-Pruefung des
 // Dart-Zwillings schickt jeden Wert durch das Einstellungs-Modell. Die
 // uebrigen Listen des Kassen-Teils (Fehlercodes, Druckjob-Staende,
-// Mengenregeln) stehen unter `kasse`.
+// Mengenregeln) stehen unter `pos`.
 const einstellungsFelder = new Set([...Object.keys(kasse.POS_BUSINESS_DEFAULTS), ...Object.keys(kasse.POS_DEVICE_DEFAULTS)]);
 const enums = {};
 const kasseListen = {};
@@ -78,23 +79,32 @@ for (const name of Object.keys(rechnung).sort()) {
 
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
+// Schluessel englisch seit 1.0. Unter 0.x: aufrufe (eine Liste), rechte,
+// tastenAktionen, kasse, rechnung.
 const vertrag = {
   version: paket.version,
-  aufrufe: [...ALL_CALLS],
-  // Die Endpunkte je Weg unter /v3 (oeffentlich bzw. Kassenweg), wie im
-  // Backend-Vertrag fixtures/v3/v3-vokabular.json.
-  publicCalls: [...PUBLIC_CALLS],
-  posCalls: [...POS_CALLS],
+  // Die zwei Wege unter /v3: oeffentlich und Kassenweg.
+  baseUrls: { public: DEFAULT_BASE_URL, pos: POS_BASE_URL },
+  // Die Aufrufe dieses Pakets je Weg. Die sechs Beleg-Aufrufe, die es auf
+  // beiden Wegen gibt, stehen in beiden Listen: die Kasse ruft sie ueber den
+  // Kassenweg, alle anderen Verbraucher oeffentlich.
+  calls: {
+    public: ALL_CALLS.filter((name) => !isPosOnlyCall(name)),
+    pos: ALL_CALLS.filter((name) => isPosCall(name)),
+  },
+  // Alle Endpunkte je Weg, wie im Backend-Vertrag fixtures/v3/v3-vokabular.json
+  // (endpoints.public mit aeusseren Namen, endpoints.register).
+  routes: { public: [...PUBLIC_CALLS], pos: [...POS_CALLS] },
   enums,
-  rechte: [...REGISTER_PERMS],
+  registerPerms: [...REGISTER_PERMS],
   registerErrorCodes: [...REGISTER_ERROR_CODES],
-  tastenAktionen: [...kasse.POS_SHORTCUT_ACTIONS],
-  kasse: kasseListen,
+  posShortcutActions: [...kasse.POS_SHORTCUT_ACTIONS],
+  pos: kasseListen,
   partner: partnerListen,
-  rechnung: rechnungListen,
+  invoice: rechnungListen,
 };
 
 writeFileSync(new URL('../fixtures/oberflaeche.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
-console.log('Oberflaeche geschrieben:', vertrag.aufrufe.length, 'Aufrufe,',
-  Object.keys(vertrag.enums).length, 'Enums,', vertrag.rechte.length, 'Rechte,',
+console.log('Oberflaeche geschrieben:', vertrag.calls.public.length, 'oeffentliche und', vertrag.calls.pos.length, 'Kassen-Aufrufe,',
+  Object.keys(vertrag.enums).length, 'Enums,', vertrag.registerPerms.length, 'Rechte,',
   Object.keys(vertrag.partner).length, 'Partner-Listen');

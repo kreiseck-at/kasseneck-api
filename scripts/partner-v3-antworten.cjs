@@ -23,7 +23,7 @@
 // test/partner-nachgebaut.test.ts prueft damit, dass jeder Code, jedes
 // Ereignis und jeder Statuswert darin in diesen Dateien wirklich vorkommt.
 // Die dauerhafte Loesung ist ein Export der Partner-Faelle aus dem Backend
-// (fixtures/v3/antworten, Aufgabe 10); dann entfaellt dieser Generator.
+// (fixtures/v3/antworten, Backend-Folgepunkt); dann entfaellt dieser Generator.
 //
 // Aufruf (braucht einen Backend-Checkout mit installierten node_modules):
 //   KASSENECK_BACKEND=../kasseneck node scripts/partner-v3-antworten.cjs > test/fixtures/partner-v3-antworten.json

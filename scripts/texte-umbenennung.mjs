@@ -26,6 +26,7 @@ const lies = (pfad) => JSON.parse(readFileSync(new URL(pfad, import.meta.url), '
 const alt = {
   kasse: lies('../test/fixtures/texte-vor-1.0/kasse-texte.json'),
   rechnung: lies('../test/fixtures/texte-vor-1.0/rechnung-texte.json'),
+  faelle: lies('../test/fixtures/texte-vor-1.0/kasse-meldungen-faelle.json'),
 };
 
 // ---- Kasse ---------------------------------------------------------------------
@@ -417,6 +418,62 @@ function tabelle(schluessel, uebersetze, katalog) {
 }
 
 /** Die Tabelle alt -> neu, ohne zu schreiben (auch fuer den Frischewaechter im Test). */
+// ---- Struktur der Vertragsdateien -------------------------------------------------
+//
+// Seit 1.0 sind auch die Strukturschluessel der Vertragsdateien englisch
+// (kasse-texte.json, rechnung-texte.json, kasse-meldungen-faelle.json) und
+// die Werte der Fehlerregeln (`ErrorKind`). Die Texte bleiben byte-gleich.
+// Jede Zuordnung muss jeden alten Schluessel des eingefrorenen Stands genau
+// einmal nennen; sonst bricht der Erzeuger ab.
+
+const STRUKTUR = {
+  'kasse-texte.json': {
+    datei: { version: 'version', meldungen: 'messages', fehlerregeln: 'errorRules', belegMailFehler: 'receiptEmailErrors', stornoZahlungFehler: 'cancellationPaymentErrors', beschriftungen: 'labels' },
+    eintrag: { text: 'text', platzhalter: 'placeholders', nur: 'only' },
+    fehlerregel: { art: 'kind', verhalten: 'behavior', schluessel: 'key' },
+    art: { api: 'api', klartext: 'plain_text', zeitablauf: 'timeout', netz: 'network', unerwartet: 'unexpected', sonst: 'other' },
+    verhalten: { server_text: 'server_text', eigener_text: 'own_text', ersatz: 'fallback' },
+  },
+  'rechnung-texte.json': {
+    datei: { version: 'version', sprachen: 'languages', texte: 'texts', einheiten: 'units' },
+  },
+  'kasse-meldungen-faelle.json': {
+    datei: { version: 'version', faelle: 'cases' },
+    fall: { name: 'name', fehler: 'error', ersatz: 'fallback', erwartet: 'expected' },
+    fehler: { art: 'kind', serverMessage: 'serverMessage', text: 'text', status: 'status' },
+    erwartet: { schluessel: 'key', werte: 'values' },
+  },
+};
+
+/** Alle Schluessel einer Ebene: jeder alte genau einmal, sonst Abbruch. */
+function deckt(name, zuordnung, alteSchluessel) {
+  const fehlt = [...new Set(alteSchluessel)].filter((s) => !(s in zuordnung));
+  const tot = Object.keys(zuordnung).filter((s) => !alteSchluessel.includes(s));
+  if (fehlt.length || tot.length) throw new Error(`${name}: fehlt ${fehlt.join(', ') || '-'}; zu viel ${tot.join(', ') || '-'}`);
+}
+
+function struktur() {
+  const k = STRUKTUR['kasse-texte.json'];
+  deckt('kasse-texte.json', k.datei, Object.keys(alt.kasse));
+  const eintraege = [...Object.values(alt.kasse.meldungen), ...Object.values(alt.kasse.beschriftungen)];
+  deckt('kasse-texte.json/Eintrag', k.eintrag, eintraege.flatMap((e) => Object.keys(e)));
+  deckt('kasse-texte.json/Fehlerregel', k.fehlerregel, alt.kasse.fehlerregeln.flatMap((r) => Object.keys(r)));
+  deckt('kasse-texte.json/art', k.art, alt.kasse.fehlerregeln.map((r) => r.art));
+  deckt('kasse-texte.json/verhalten', k.verhalten, alt.kasse.fehlerregeln.filter((r) => 'verhalten' in r).map((r) => r.verhalten));
+  deckt('rechnung-texte.json', STRUKTUR['rechnung-texte.json'].datei, Object.keys(alt.rechnung));
+  const f = STRUKTUR['kasse-meldungen-faelle.json'];
+  deckt('kasse-meldungen-faelle.json', f.datei, Object.keys(alt.faelle));
+  deckt('kasse-meldungen-faelle.json/Fall', f.fall, alt.faelle.faelle.flatMap((x) => Object.keys(x)));
+  deckt('kasse-meldungen-faelle.json/Fehler', f.fehler, alt.faelle.faelle.flatMap((x) => Object.keys(x.fehler)));
+  deckt('kasse-meldungen-faelle.json/Erwartet', f.erwartet, alt.faelle.faelle.flatMap((x) => (typeof x.erwartet === 'object' ? Object.keys(x.erwartet) : [])));
+  for (const [name, zuordnung] of Object.entries(STRUKTUR).flatMap(([d, z]) => Object.entries(z).map(([t, m]) => [`${d}/${t}`, m]))) {
+    const neu = Object.values(zuordnung);
+    if (new Set(neu).size !== neu.length) throw new Error(`${name}: ein neuer Name ist doppelt vergeben`);
+    for (const n of neu) if (!/^[a-z][A-Za-z_]*$/.test(n)) throw new Error(`${name}: ${n}`);
+  }
+  return STRUKTUR;
+}
+
 export function umbenennungsTabelle() {
   return {
     _hinweis:
@@ -426,6 +483,7 @@ export function umbenennungsTabelle() {
       beschriftungen: tabelle(Object.keys(alt.kasse.beschriftungen), kasseSchluessel, 'Kasse/Beschriftungen'),
     },
     rechnung: tabelle(Object.keys(alt.rechnung.texte.de), rechnungSchluessel, 'Rechnung'),
+    struktur: struktur(),
   };
 }
 

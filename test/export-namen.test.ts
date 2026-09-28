@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { deutschIn } from './deutsch.js';
 
 /**
  * Waechter: die oeffentliche Oberflaeche von 1.0 ist englisch.
@@ -15,7 +16,7 @@ import ts from 'typescript';
  * `dist/esm/X.d.ts` -> Quelle `src/X.ts(x)`), nicht aufgezaehlt: ein neuer
  * Unterpfad faellt damit automatisch unter den Waechter.
  *
- * Deutsch erkennt der Waechter an Umlauten und am Wortschatz unten. Die
+ * Deutsch erkennt der Waechter an Umlauten und am Wortschatz in `test/deutsch.ts`. Die
  * Liste ist bewusst eine Sperrliste deutscher Woerter und Wortstaemme, keine
  * Positivliste englischer: sie haelt, was die Umbenennung zu 1.0 entfernt
  * hat, und die naheliegenden Nachbarn. Wer ein neues deutsches Wort
@@ -28,59 +29,6 @@ import ts from 'typescript';
  */
 
 const wurzel = fileURLToPath(new URL('../../', import.meta.url));
-
-/** Ganze Teilwoerter (nach camelCase/`_` getrennt), die deutsch sind. */
-const WOERTER = new Set([
-  'als', 'alt', 'anteil', 'art', 'aufruf', 'aus', 'aufrufe', 'ausweich', 'betrieb', 'bild', 'blatt', 'bloecke',
-  'breite', 'breiten', 'deckel', 'druck', 'fall', 'faelle', 'fehler', 'fehlerart', 'fehlercode',
-  'fehlerregeln', 'feld', 'fett', 'fuer', 'geraet', 'gilt', 'grund', 'hoehe', 'ist', 'je', 'kasse',
-  'kein', 'klein', 'komma', 'leer', 'marke', 'mass', 'meldung', 'meldungen', 'mit', 'mittel', 'modell', 'modul',
-  'neu', 'nur', 'oder', 'ohne', 'papier', 'passt', 'platzhalter', 'preis', 'punkte', 'rabatt',
-  'rechnen', 'rechnung', 'rund', 'satz', 'schluessel', 'schritt', 'seite', 'spalten', 'stufe', 'stufen',
-  'summe', 'summen', 'und', 'verhalten', 'vorhanden', 'zeichen', 'zeile', 'zeilen',
-]);
-
-/**
- * Wortstaemme, die auch mitten in einem Teilwort deutsch sind
- * (`Beschriftungs`, `Zulaessig`, `Umwandlungs` …).
- */
-const STAEMME = [
-  'ausnahme', 'beleg', 'berechn', 'beschrift', 'betrag', 'darstell', 'ergebnis', 'fehler',
-  'groesse', 'grenze', 'hoechst', 'mindest', 'nutzlast', 'optionen', 'pruef', 'rechen',
-  'ruhezone', 'steuer', 'storno', 'umwandl', 'verdeckt', 'verteil', 'wort', 'zahlung', 'zulaessig',
-  'anzahl', 'zeilenanfang',
-];
-
-const UMLAUT = /[äöüÄÖÜß]/;
-
-/**
- * Feste Begriffe aus BMF/RKSV, die deutsch bleiben, obwohl ein Stamm oben sie
- * trifft. Teilwort -> Grund.
- */
-const FACHBEGRIFFE: Record<string, string> = {
-  startbeleg: 'RKSV-Begriff Startbeleg (§ 6 Abs. 4 RKSV), so auch in FinanzOnline und am Draht (/v3 behaelt ihn)',
-};
-
-/** Teilwoerter eines Bezeichners: camelCase, GROSS_SCHRIFT, Ziffern, Pfadtrenner. */
-function teile(name: string): string[] {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .split(/[\s_./\-*]+|(?<=\D)(?=\d)|(?<=\d)(?=\D)/)
-    .filter(Boolean)
-    .map((t) => t.toLowerCase());
-}
-
-/** Warum ein Name deutsch ist, oder `null`. */
-export function deutschIn(name: string): string | null {
-  if (UMLAUT.test(name)) return 'Umlaut';
-  for (const t of teile(name)) {
-    if (t in FACHBEGRIFFE) continue;
-    if (WOERTER.has(t)) return `Wort "${t}"`;
-    for (const s of STAEMME) if (t.includes(s)) return `Stamm "${s}"`;
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------- Ausnahmen
 
@@ -99,11 +47,6 @@ const AUSNAHMEN_FELDER: Record<string, string> = {
   'src/stored/index.ts:fromStoredPosSettings.geraet': 'wie betrieb: gespeicherte Firestore-Form, die ./stored als Eingabe annimmt',
   'src/stored/index.ts:invalidStoredPosSettings.betrieb': 'dieselbe gespeicherte Firestore-Form als Eingabe der Pruefung',
   'src/stored/index.ts:invalidStoredPosSettings.geraet': 'dieselbe gespeicherte Firestore-Form als Eingabe der Pruefung',
-  'src/pos/texte.ts:TextEntry.nur': 'Struktur der Textkataloge, als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling; Strukturschluessel der Vertragsdateien folgen in Aufgabe 10',
-  'src/pos/texte.ts:TextEntry.platzhalter': 'Struktur der Textkataloge wie nur (fixtures/kasse-texte.json, Aufgabe 10)',
-  'src/pos/texte.ts:ERROR_RULES.art': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
-  'src/pos/texte.ts:ERROR_RULES.verhalten': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
-  'src/pos/texte.ts:ERROR_RULES.schluessel': 'Fehlerregeln als fixtures/kasse-texte.json Vertrag mit dem Dart-Zwilling (Aufgabe 10)',
 };
 
 /** Welche Ausnahmen die Laeufe unten wirklich gebraucht haben. */

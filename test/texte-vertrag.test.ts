@@ -9,27 +9,30 @@ const veraltet = 'fixtures/kasse-texte.json ist veraltet — `npm run fixtures:t
 
 test('Golden: der Katalog steht in fixtures/kasse-texte.json', () => {
   const vertrag = lies('kasse-texte.json');
-  assert.deepEqual(vertrag.meldungen, MESSAGES, veraltet);
-  assert.deepEqual(vertrag.fehlerregeln, ERROR_RULES, veraltet);
+  assert.deepEqual(Object.keys(vertrag), ['version', 'messages', 'errorRules', 'receiptEmailErrors', 'cancellationPaymentErrors', 'labels'], veraltet);
+  assert.deepEqual(vertrag.messages, MESSAGES, veraltet);
+  assert.deepEqual(vertrag.errorRules, ERROR_RULES, veraltet);
   // Die App liest die Zuordnung `code` -> Satz aus dieser Datei; fehlt sie
   // dort, entscheidet die App am Satz des Backends und weicht vom Web ab.
-  assert.deepEqual(vertrag.belegMailFehler, RECEIPT_EMAIL_ERROR_MESSAGES, veraltet);
-  assert.deepEqual(vertrag.stornoZahlungFehler, CANCELLATION_PAYMENT_ERROR_MESSAGES, veraltet);
-  assert.deepEqual(vertrag.beschriftungen, LABELS, veraltet);
+  assert.deepEqual(vertrag.receiptEmailErrors, RECEIPT_EMAIL_ERROR_MESSAGES, veraltet);
+  assert.deepEqual(vertrag.cancellationPaymentErrors, CANCELLATION_PAYMENT_ERROR_MESSAGES, veraltet);
+  assert.deepEqual(vertrag.labels, LABELS, veraltet);
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(vertrag.version, pkg.version, veraltet);
 });
 
 test('die Faelle decken jede Fehlerart ab und erwarten nur, was der Katalog hergibt', () => {
-  const { faelle } = lies('kasse-meldungen-faelle.json') as { faelle: Array<{ name: string; fehler: { art: string }; ersatz: string; erwartet: string | { schluessel: keyof typeof MESSAGES; werte?: Record<string, string | number> } }> };
-  const arten = new Set(faelle.map((f) => f.fehler.art));
-  assert.deepEqual([...arten].sort(), ERROR_RULES.map((r) => r.art).sort());
-  for (const fall of faelle) {
-    if (typeof fall.erwartet === 'string') continue;
-    // Eigene Variable statt `fall.erwartet` in der Closure: TypeScript verengt
+  const datei = lies('kasse-meldungen-faelle.json') as { version: number; cases: Array<{ name: string; error: { kind: string }; fallback: string; expected: string | { key: keyof typeof MESSAGES; values?: Record<string, string | number> } }> };
+  assert.deepEqual(Object.keys(datei), ['version', 'cases']);
+  const arten = new Set(datei.cases.map((f) => f.error.kind));
+  assert.deepEqual([...arten].sort(), ERROR_RULES.map((r) => r.kind).sort());
+  for (const fall of datei.cases) {
+    assert.deepEqual(Object.keys(fall), ['name', 'error', 'fallback', 'expected'], fall.name);
+    if (typeof fall.expected === 'string') continue;
+    // Eigene Variable statt `fall.expected` in der Closure: TypeScript verengt
     // eine Eigenschaft nicht ueber Funktionsgrenzen hinweg.
-    const erwartet: { schluessel: MessageKey; werte?: Record<string, string | number> } = fall.erwartet;
-    assert.ok(erwartet.schluessel in MESSAGES, fall.name);
-    assert.doesNotThrow(() => messageText(erwartet.schluessel, erwartet.werte), fall.name);
+    const erwartet: { key: MessageKey; values?: Record<string, string | number> } = fall.expected;
+    assert.ok(erwartet.key in MESSAGES, fall.name);
+    assert.doesNotThrow(() => messageText(erwartet.key, erwartet.values), fall.name);
   }
 });

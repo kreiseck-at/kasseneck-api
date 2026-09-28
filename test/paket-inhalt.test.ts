@@ -51,3 +51,37 @@ test('Paket: im mitgelieferten fixtures/ liegt nichts Oertliches', () => {
   gehe(join(wurzel, 'fixtures'), '');
   assert.deepEqual(gefunden, [], `oertliche Datei in fixtures/: ${gefunden.join(', ')}`);
 });
+
+/**
+ * Jeder Eintrag unter `fixtures/` reist im Tarball mit (`files: fixtures`)
+ * und hat darum einen Abnehmer ausserhalb dieses Pakets. Der Dart-Zwilling
+ * zieht das ganze Verzeichnis aus dem Tarball und vergleicht es byteweise
+ * (kasseneck_api `tool/zwillinge.sh pruefen`). Wer hier etwas ablegt, das nur
+ * die eigenen Tests brauchen, legt es unter `test/fixtures/` ab.
+ */
+const ABNEHMER: Record<string, string> = {
+  'belege': 'Golden-Eingaben: Dart (Pruefsumme, Storno-Probe), keck, Web',
+  'erwartet': 'Golden-Ausgaben (Zeilen, Raster, Blatt): Dart-Zwilling, keck, Web',
+  'manifest.json': 'Pruefsummen der Goldens: Dart-Zwilling',
+  'hobex-hps-codes.json': 'Terminal-Codes: Dart-Zwilling (hobex_hps_codes_vertrag_test)',
+  'kasse-meldungen-faelle.json': 'Fehlereinordnung der Kasse: Kassen-App (Dart)',
+  'kasse-settings-standard.json': 'Standardwerte der Kasseneinstellungen: Dart-Zwilling',
+  'kasse-texte.json': 'Textkatalog der Kasse: Kassen-App (Dart) erzeugt daraus ihre Konstanten',
+  'oberflaeche.json': 'Aufrufe, Wege und Enums: Dart-Zwilling (zwillinge.yaml)',
+  'position-aus-euro.json': 'Prueffaelle positionFromEuro: Dart-Zwilling, Panel',
+  'rechnung-api-beispiele': 'Rechnungs-API-Beispiele: Dart-Zwilling',
+  'rechnung-api.schema.json': 'Anfrage-Schema der Rechnungs-API: Dart-Zwilling',
+  'rechnung-rechnen.json': 'Prueffaelle Rechenkern (Hand): Server, Dart, Panel',
+  'rechnung-rechnen-zufall.json': 'Prueffaelle Rechenkern (Python-Referenz): Server, Dart, Panel',
+  'rechnung-summen.json': 'Prueffaelle Rechnungssummen: Dart-Zwilling',
+  'rechnung-texte.json': 'Textkatalog der Rechnung: Backend (0.x-Linie), Dart',
+  'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/)',
+  'texte-umbenennung.json': 'Umstiegstabelle 0.x -> 1.0 der Texte und Strukturschluessel: Dart 10, Web-Kasse',
+  'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
+  'v3-zahlbetrag-generiert.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',
+};
+
+test('Paket: jeder Eintrag unter fixtures/ hat einen Abnehmer ausserhalb des Pakets', () => {
+  assert.deepEqual(readdirSync(join(wurzel, 'fixtures')).sort(), Object.keys(ABNEHMER).sort(),
+    'neuer oder entfernter Eintrag unter fixtures/: Abnehmer nennen oder nach test/fixtures/ legen');
+});

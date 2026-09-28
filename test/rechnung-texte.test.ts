@@ -81,10 +81,11 @@ test('Golden: der Katalog steht in fixtures/rechnung-texte.json', () => {
   const datei = JSON.parse(readFileSync(new URL('../../fixtures/rechnung-texte.json', import.meta.url), 'utf8'));
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   const veraltet = 'fixtures/rechnung-texte.json ist veraltet — `npm run fixtures:rechnungstexte` ausfuehren';
-  assert.deepEqual(datei.texte, INVOICE_TEXTS, veraltet);
+  assert.deepEqual(Object.keys(datei), ['version', 'languages', 'texts', 'units'], veraltet);
+  assert.deepEqual(datei.texts, INVOICE_TEXTS, veraltet);
   assert.equal(datei.version, pkg.version, veraltet);
-  assert.deepEqual(datei.sprachen, [...INVOICE_LANGUAGES], veraltet);
-  assert.deepEqual(datei.einheiten, INVOICE_UNIT_CODES, veraltet);
+  assert.deepEqual(datei.languages, [...INVOICE_LANGUAGES], veraltet);
+  assert.deepEqual(datei.units, INVOICE_UNIT_CODES, veraltet);
 });
 
 test('Katalog: jede Einheit hat Kuerzel und Namen in jeder Sprache', () => {

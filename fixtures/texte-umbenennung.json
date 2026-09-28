@@ -423,5 +423,70 @@
     "einheitName.roll": "unit_name.roll",
     "einheitName.bag": "unit_name.bag",
     "einheitName.pallet": "unit_name.pallet"
+  },
+  "struktur": {
+    "kasse-texte.json": {
+      "datei": {
+        "version": "version",
+        "meldungen": "messages",
+        "fehlerregeln": "errorRules",
+        "belegMailFehler": "receiptEmailErrors",
+        "stornoZahlungFehler": "cancellationPaymentErrors",
+        "beschriftungen": "labels"
+      },
+      "eintrag": {
+        "text": "text",
+        "platzhalter": "placeholders",
+        "nur": "only"
+      },
+      "fehlerregel": {
+        "art": "kind",
+        "verhalten": "behavior",
+        "schluessel": "key"
+      },
+      "art": {
+        "api": "api",
+        "klartext": "plain_text",
+        "zeitablauf": "timeout",
+        "netz": "network",
+        "unerwartet": "unexpected",
+        "sonst": "other"
+      },
+      "verhalten": {
+        "server_text": "server_text",
+        "eigener_text": "own_text",
+        "ersatz": "fallback"
+      }
+    },
+    "rechnung-texte.json": {
+      "datei": {
+        "version": "version",
+        "sprachen": "languages",
+        "texte": "texts",
+        "einheiten": "units"
+      }
+    },
+    "kasse-meldungen-faelle.json": {
+      "datei": {
+        "version": "version",
+        "faelle": "cases"
+      },
+      "fall": {
+        "name": "name",
+        "fehler": "error",
+        "ersatz": "fallback",
+        "erwartet": "expected"
+      },
+      "fehler": {
+        "art": "kind",
+        "serverMessage": "serverMessage",
+        "text": "text",
+        "status": "status"
+      },
+      "erwartet": {
+        "schluessel": "key",
+        "werte": "values"
+      }
+    }
   }
 }

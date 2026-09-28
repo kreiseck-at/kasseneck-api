@@ -10,12 +10,13 @@ import * as rechnung from '../dist/esm/invoice/index.js';
 
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
+// Strukturschluessel englisch seit 1.0 (unter 0.x: sprachen, texte, einheiten).
 const datei = {
   version: paket.version,
-  sprachen: [...rechnung.INVOICE_LANGUAGES],
-  texte: rechnung.INVOICE_TEXTS,
-  einheiten: rechnung.INVOICE_UNIT_CODES,
+  languages: [...rechnung.INVOICE_LANGUAGES],
+  texts: rechnung.INVOICE_TEXTS,
+  units: rechnung.INVOICE_UNIT_CODES,
 };
 
 writeFileSync(new URL('../fixtures/rechnung-texte.json', import.meta.url), JSON.stringify(datei, null, 2) + '\n');
-console.log('Rechnungstexte geschrieben:', Object.keys(rechnung.INVOICE_TEXTS.de).length, 'Schluessel,', datei.sprachen.join('/'));
+console.log('Rechnungstexte geschrieben:', Object.keys(rechnung.INVOICE_TEXTS.de).length, 'Schluessel,', datei.languages.join('/'));
