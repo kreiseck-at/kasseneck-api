@@ -13,6 +13,7 @@ import {
   KasseneckNetworkError,
   isOutcomeUnknown,
   PAYMENT_CALL_REJECTED_CODES,
+  CLIENT_ERROR_CODES,
 } from '../src/client/errors.js';
 import { StripeLinkMode, VatRate } from '../src/enums/index.js';
 
@@ -292,6 +293,46 @@ test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler 
   assert.equal(erwartet.size, 23);
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
   assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
+});
+
+test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen paymentCallRejectedCodes im Dart-Zwilling', () => {
+  const vok = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url)), 'utf8'),
+  ) as { errorCodes: { all: string[] } };
+  const alle = new Set(vok.errorCodes.all);
+  for (const code of PAYMENT_CALL_REJECTED_CODES) {
+    assert.ok(alle.has(code) || (CLIENT_ERROR_CODES as readonly string[]).includes(code), `${code} nicht im Vertrag`);
+  }
+  for (const code of ['dialect_mismatch', 'response_translation_failed', 'response_unreadable']) {
+    assert.ok(!PAYMENT_CALL_REJECTED_CODES.includes(code), `${code} darf nie abgelehnt heissen`);
+  }
+  // Festgeschrieben wie in kasseneck_api (lib/src/register/fehler.dart,
+  // paymentCallRejectedCodes); aendert sich eine Seite, zieht die andere mit.
+  assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [
+    'account_not_found',
+    'admin_required',
+    'cashregister_not_assigned',
+    'cashregister_not_found',
+    'cashregister_token_invalid',
+    'cashregister_token_missing',
+    'internal_translation_error',
+    'live_not_enabled',
+    'method_not_allowed',
+    'mfa_required',
+    'module_inactive',
+    'not_found',
+    'not_permitted',
+    'register_user_no_business',
+    'register_user_not_allowed',
+    'register_user_not_found',
+    'route_missing',
+    'session_expired',
+    'session_other_cashregister',
+    'unauthorized',
+    'user_disabled',
+    'user_verification_failed',
+    'validation',
+  ]);
 });
 
 test('Geldwege ueber die Fassade: Erstattung mit Huelle ohne Code ist outcome unknown', async () => {
