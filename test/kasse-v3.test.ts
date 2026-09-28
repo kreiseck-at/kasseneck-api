@@ -22,6 +22,7 @@ import { registerUserAuth } from '../src/client/auth.js';
 import { isKasseneckApiError, isKasseneckValidationError, KasseneckApiError } from '../src/client/errors.js';
 import type { ReceiptLayout } from '../src/receipt/layout.js';
 import { _ALTFORM_0X } from '../src/kasse/settings.js';
+import { partnerZugangsCodes, randUndAnmeldung } from './kassenweg-codes.js';
 
 /*
  * Kasse und Anmeldung am Kassenweg `/api/v3` gegen den Vertrags-Export des
@@ -476,12 +477,8 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
       for (const f of fehler(e)) codes.add(f.response.code);
       for (const c of VOKABULAR.errorCodes.registerHandlersByEndpoint[e] ?? []) codes.add(c);
     }
-    // Was der Rand auf jedem Kassen-Endpunkt erzeugen kann: Anmelde-/Pruefcodes
-    // ohne die des Partner-Zugangs (partner-auth.FEHLER) und die Rand-Codes.
-    const partnerZugang = new Set(['partner_locked', 'scope_missing', 'rate_limited', 'not_a_partner',
-      'partner_membership_missing', 'partner_owner_only', 'partner_account_not_allowed']);
-    for (const c of VOKABULAR.errorCodes.auth as string[]) if (!partnerZugang.has(c)) codes.add(c);
-    for (const c of VOKABULAR.errorCodes.edge as string[]) codes.add(c);
+    // Was Anmeldung und Rand auf jedem Kassen-Endpunkt erzeugen koennen (test/kassenweg-codes.ts).
+    for (const c of randUndAnmeldung()) codes.add(c);
     return [...codes].sort();
   };
   assert.deepEqual([...REGISTER_ERROR_CODES], ableiten(Object.keys(ANMELDE_AUFRUFE)));
@@ -561,7 +558,7 @@ test('F1: ein unbekannter Wert des Servers bleibt beim Lesen stehen und geht bei
   assert.deepEqual(Object.keys(saetze), ['vatRates']);
   assert.equal(Object.keys(saetze.vatRates!).length, Object.keys(stand.business.vatRates).length);
   const taste = kasse.posSettingsChanges(stand.device, { ...stand.device, shortcuts: { ...stand.device.shortcuts, cash: ['Mod+X'] } });
-  assert.deepEqual(taste, { shortcuts: { cash: ['Mod+X'] } });
+  assert.deepEqual(taste, { shortcuts: { ...stand.device.shortcuts, cash: ['Mod+X'] } });
 });
 
 test('F2: der 0.x-Filter gilt immer, auch fuer eine Kopie der Standards', () => {
@@ -666,4 +663,51 @@ test('F7: ein unbekannter Druckjob-Stand ist sichtbar unknown und beendet die Ab
   const ohne: Fall = JSON.parse(JSON.stringify(basis));
   delete ohne.response.data.status;
   assert.equal((await getPrintJob(kassenweg(ohne).rufen, { printerId: 'dr_theke', jobId: 'job2' })).status, 'unknown');
+});
+
+// --- Nachpruefung Aufgabe 7 (N1 bis N4) -------------------------------------------
+
+test('N1: eine Tastenaenderung sendet die ganze Karte bekannter Aktionen, eine Doppelbelegung geht nicht hinaus', async () => {
+  // Gespeichert: bar (cash) liegt auf Mod+B, vom Chef gesetzt. Neu soll karte (card) Mod+B bekommen.
+  const vorher = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: { ...POS_SHORTCUT_DEFAULTS, cash: ['Mod+B'], druckNochmal: ['Mod+R'] } } as never);
+  const nachher = { ...vorher, shortcuts: { ...vorher.shortcuts, card: ['Mod+B'] } };
+  const aenderung = kasse.posSettingsChanges(vorher, nachher);
+  assert.deepEqual(Object.keys(aenderung), ['shortcuts']);
+  assert.deepEqual(Object.keys(aenderung.shortcuts!).sort(), [...POS_SHORTCUT_ACTIONS].sort(), 'ganze Karte, nur bekannte Aktionen');
+  const f = fall('setMyRegisterDeviceSettings', 'success_manager');
+  const { rufen, aufrufe } = kassenweg(f);
+  const e = await wurf(setMyRegisterDeviceSettings(rufen, 'dev_pin', aenderung));
+  assert.ok(isKasseneckValidationError(e));
+  assert.match((e as Error).message, /device\.shortcuts\.(card|cash): Taste Mod\+B schon belegt/);
+  assert.equal(aufrufe.length, 0, 'nichts ging hinaus');
+  // Die erlaubten Paare teilen sich eine Taste (Vorgabe: checkout/complete auf Enter).
+  assert.equal(kasse.posShortcutConflict(POS_SHORTCUT_DEFAULTS), null);
+  assert.deepEqual(kasse.posShortcutConflict({ cash: ['Mod+B'], card: ['Mod+B'] }), { action: 'card', key: 'Mod+B', heldBy: 'cash' });
+  // Wird cash zugleich frei, geht die ganze Karte hinaus.
+  const sauber = kasse.posSettingsChanges(vorher, { ...vorher, shortcuts: { ...vorher.shortcuts, cash: ['Mod+Y'], card: ['Mod+B'] } });
+  const w = kassenweg(f);
+  await setMyRegisterDeviceSettings(w.rufen, 'dev_pin', sauber);
+  assert.equal(w.aufrufe[0]!.params.device.shortcuts.card[0], 'Mod+B');
+  assert.equal('druckNochmal' in w.aufrufe[0]!.params.device.shortcuts, false);
+});
+
+test('N2: die Abweisung eines unbekannten Serverwerts nennt posSettingsChanges, ein 0.x-Wert die innere Form', async () => {
+  const f = fall('setMyKasseSettings', 'success_manager');
+  const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, { theme: 'sepia' }));
+  assert.match((e as Error).message, /business\.theme: .*posSettingsChanges/);
+  const alt = await wurf(setMyKasseSettings(kassenweg(f).rufen, { theme: 'nacht' }));
+  assert.match((alt as Error).message, /business\.theme: .*0\.x/);
+});
+
+test('N3: unknownPosSettingValues nennt auch unbekannte Tasten-Aktionen', () => {
+  const s = kasse.sanitizePosSettings({ device: { shortcuts: { druckNochmal: ['Mod+R'] } } });
+  assert.deepEqual(kasse.unknownPosSettingValues(s), ['device.shortcuts.druckNochmal']);
+});
+
+test('N4: der Partner-Zugang ist aus dem Vertrag abgeleitet und steht vollstaendig in errorCodes.auth', () => {
+  const partner = partnerZugangsCodes();
+  assert.deepEqual(partner, ['partner_locked', 'scope_missing', 'rate_limited', 'not_a_partner',
+    'partner_membership_missing', 'partner_owner_only', 'partner_account_not_allowed']);
+  for (const c of partner) assert.ok((VOKABULAR.errorCodes.auth as string[]).includes(c), c);
+  for (const c of partner) assert.equal((REGISTER_ERROR_CODES as readonly string[]).includes(c), false, c);
 });

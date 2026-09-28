@@ -214,6 +214,39 @@ export const POS_SHORTCUT_DEFAULTS: Readonly<PosShortcutMap> = Object.freeze({
   splitPayment: [],
 });
 
+/**
+ * Aktionen, die sich eine Taste teilen duerfen (Backend `TASTEN_PAARE`): sie
+ * leben in verschiedenen Momenten, der Verteiler laesst die nicht zustaendige
+ * durchfallen. Jede andere Doppelbelegung weist der Server ab, und dieses
+ * Paket schon vor dem Senden.
+ */
+export const POS_SHORTCUT_SHARED_PAIRS: readonly (readonly [PosShortcutAction, PosShortcutAction])[] = Object.freeze([
+  ['checkout', 'complete'],
+  ['clearTendered', 'clearCart'],
+] as const);
+
+const darfTeilen = (a: string, b: string): boolean =>
+  POS_SHORTCUT_SHARED_PAIRS.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+
+/**
+ * Die erste Doppelbelegung einer Tastenkarte: `{ action, key, heldBy }` oder
+ * `null`. Geprueft wird die ganze Karte, so wie der Server sie nach dem
+ * Speichern haelt (er selbst prueft nur die gesendeten Eintraege).
+ */
+export function posShortcutConflict(shortcuts: Readonly<Record<string, readonly string[] | undefined>>): { action: string; key: string; heldBy: string } | null {
+  const belegt = new Map<string, string>();
+  for (const aktion of Object.keys(shortcuts)) {
+    const tasten = shortcuts[aktion];
+    if (!Array.isArray(tasten)) continue;
+    for (const t of tasten) {
+      const vorher = belegt.get(t);
+      if (vorher !== undefined && vorher !== aktion && !darfTeilen(vorher, aktion)) return { action: aktion, key: t, heldBy: vorher };
+      belegt.set(t, aktion);
+    }
+  }
+  return null;
+}
+
 export interface PosDeviceSettings {
   layout: PosOpen<PosLayout>; categoryPosition: PosOpen<PosCategoryPosition>; extraColumns: number; tileHeight: PosOpen<PosTileHeight>; touch: boolean;
   /** Tastenbelegung dieses Geraets (Vorgabe POS_SHORTCUT_DEFAULTS, je Aktion mischbar). */
@@ -330,6 +363,12 @@ const ALTAKTIONEN_0X: ReadonlySet<string> = new Set([
   'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren', 'getrennt',
 ]);
 
+/** Ein Wert der inneren Form 0.x fuer dieses Feld? (paketintern, fuer die Meldung der Vorab-Pruefung) */
+export function _istAltwert0x(feld: string, wert: unknown): boolean {
+  const alte = eigen(ALTWERTE_0X, feld) ? ALTWERTE_0X[feld] : undefined;
+  return !!alte && alte.includes(wert as string | number);
+}
+
 /** Nur fuer den Test: die beiden Tabellen der inneren Form. */
 export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALTAKTIONEN_0X] });
 
@@ -406,6 +445,12 @@ export function unknownPosSettingValues(settings: PosSettings): string[] {
   };
   pruefe('business', settings.business, POS_BUSINESS_VALUES);
   pruefe('device', settings.device, POS_DEVICE_VALUES);
+  // Tasten-Aktionen, die dieses Paket nicht kennt (eine kuenftige des Servers).
+  const bekannt: ReadonlySet<string> = new Set(POS_SHORTCUT_ACTIONS);
+  const tasten = eigen(settings.device, 'shortcuts') ? settings.device.shortcuts : undefined;
+  if (tasten && typeof tasten === 'object') {
+    for (const aktion of Object.keys(tasten)) if (!bekannt.has(aktion)) raus.push(`device.shortcuts.${aktion}`);
+  }
   return raus;
 }
 
@@ -414,8 +459,10 @@ export function unknownPosSettingValues(settings: PosSettings): string[] {
  * `setMyKasseSettings` bzw. `setMyRegisterDeviceSettings`: **nur geaenderte
  * Felder** (der Server mischt, ein nicht geaenderter, hier unbekannter Wert
  * geht so nie verloren). `vatRates` geht bei einer Aenderung als ganze Karte
- * (Nachtrag §11.7.2), `tipSteps` und `shortcuts` nur mit den geaenderten
- * Eintraegen.
+ * (Nachtrag §11.7.2), `shortcuts` ebenfalls ganz, aber nur mit den Aktionen,
+ * die dieses Paket kennt: so sieht die Doppelbelegungspruefung des Servers die
+ * ganze Belegung, und eine unbekannte Aktion bleibt per Mischen am Server
+ * stehen. `tipSteps` geht nur mit den geaenderten Eintraegen.
  */
 export function posSettingsChanges<T extends object>(before: Readonly<T>, after: Readonly<T>): Partial<T> {
   const raus: Record<string, unknown> = {};
@@ -425,6 +472,13 @@ export function posSettingsChanges<T extends object>(before: Readonly<T>, after:
     const neu = (after as Record<string, unknown>)[k];
     const alt = eigen(before, k) ? (before as Record<string, unknown>)[k] : undefined;
     if (gleich(alt, neu)) continue;
+    if (k === 'shortcuts' && neu && typeof neu === 'object' && !Array.isArray(neu)) {
+      const bekannt: ReadonlySet<string> = new Set(POS_SHORTCUT_ACTIONS);
+      const ganz: Record<string, unknown> = {};
+      for (const aktion of Object.keys(neu)) if (bekannt.has(aktion)) ganz[aktion] = (neu as Record<string, unknown>)[aktion];
+      raus[k] = ganz;
+      continue;
+    }
     if (k !== 'vatRates' && neu && typeof neu === 'object' && !Array.isArray(neu) && alt && typeof alt === 'object' && !Array.isArray(alt)) {
       const teil: Record<string, unknown> = {};
       for (const e of Object.keys(neu)) {

@@ -2,7 +2,7 @@ import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
-  mergePosSettings,
+  mergePosSettings, posShortcutConflict, _istAltwert0x,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -77,6 +77,12 @@ export async function setMyRegisterDeviceSettings(rufen: InternerTransport, devi
         throw new KasseneckValidationError(name, `device.shortcuts.${aktion}: unbekannte Aktion`, 'request');
       }
     }
+    // Doppelbelegung innerhalb der gesendeten Karte; posSettingsChanges sendet
+    // bei jeder Tastenaenderung die ganze Karte, so ist das die ganze Belegung.
+    const konflikt = posShortcutConflict(karte as Record<string, readonly string[] | undefined>);
+    if (konflikt) {
+      throw new KasseneckValidationError(name, `device.shortcuts.${konflikt.action}: Taste ${konflikt.key} schon belegt (${konflikt.heldBy})`, 'request');
+    }
   }
   const daten = await rufen<{ device?: unknown }>(name, { deviceId, device });
   return mergePosSettings(POS_DEVICE_DEFAULTS, objekt(daten?.device) as Partial<PosDeviceSettings> | null);
@@ -137,7 +143,13 @@ function pruefeTeil(
     }
     const erlaubt = Object.prototype.hasOwnProperty.call(werte, schluessel) ? werte[schluessel] : undefined;
     if (erlaubt && !erlaubt.includes(wert as string | number)) {
-      throw new KasseneckValidationError(name, `${teil}.${schluessel}: ungueltiger Wert`, 'request');
+      // Kein Altwert: dann ein Wert, den der Server kennt und dieses Paket
+      // nicht. Er kam beim Lesen herein; wer den ganzen Block zurueckschickt,
+      // braucht den Hinweis auf den richtigen Weg.
+      const hinweis = _istAltwert0x(schluessel, wert)
+        ? 'ungueltiger Wert (innere Form 0.x)'
+        : 'ungueltiger Wert (vom Server unbekannt? nur geaenderte Felder senden: posSettingsChanges)';
+      throw new KasseneckValidationError(name, `${teil}.${schluessel}: ${hinweis}`, 'request');
     }
   }
 }

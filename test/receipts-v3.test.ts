@@ -44,6 +44,7 @@ import { KeckPaymentMethod } from '../src/enums/index.js';
 import { receiptDueCents } from '../src/receipt/due.js';
 import { getReportV2 } from '../src/client/reports.js';
 import * as wurzel from '../src/index.js';
+import { randUndAnmeldung } from './kassenweg-codes.js';
 
 /*
  * Belege, Storno, Belegmail und Zahlungen am englischen Draht `/v3`, gegen
@@ -479,11 +480,9 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   const codes = VOKABULAR.errorCodes;
   // Jede Liste: die Codes des Endpunkts, dahinter (sortiert, ohne Doppel) die
   // der Anmeldung und des Rands: errorCodes.auth ohne die sieben des
-  // Partner-Zugangs (partner-auth.FEHLER) und errorCodes.edge.
-  const partnerZugang = new Set(['partner_locked', 'scope_missing', 'rate_limited', 'not_a_partner',
-    'partner_membership_missing', 'partner_owner_only', 'partner_account_not_allowed']);
-  const randUndAnmeldung = [...new Set([...(codes.auth as string[]).filter((c) => !partnerZugang.has(c)), ...codes.edge])].sort();
-  const mitRand = (eigen: string[]) => [...eigen, ...randUndAnmeldung.filter((c) => !eigen.includes(c))];
+  // Partner-Zugangs und errorCodes.edge (test/kassenweg-codes.ts).
+  const rand = randUndAnmeldung();
+  const mitRand = (eigen: string[]) => [...eigen, ...rand.filter((c) => !eigen.includes(c))];
   assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand(codes.cancellation));
   assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments));
   assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail));
