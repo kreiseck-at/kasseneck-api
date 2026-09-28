@@ -40,11 +40,11 @@ jobs:
           # (argparse, json, random, fractions, pathlib) — kein pip install noetig,
           # Python 3 liegt auf ubuntu-latest bereits bei.
           python3 --version
-          python3 scripts/rechnung-referenz.py --pruefe fixtures/rechnung-rechnen-zufall.json
+          python3 scripts/rechnung-referenz.py --pruefe fixtures/invoice-calc-random.json
           python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 \
-            --ziel /tmp/rechnung-rechnen-zufall-neu.json
-          diff -u fixtures/rechnung-rechnen-zufall.json /tmp/rechnung-rechnen-zufall-neu.json \
-            || { echo "fixtures/rechnung-rechnen-zufall.json weicht von der aus demselben Seed neu erzeugten Datei ab — von Hand geaendert?"; exit 1; }
+            --ziel /tmp/invoice-calc-random-neu.json
+          diff -u fixtures/invoice-calc-random.json /tmp/invoice-calc-random-neu.json \
+            || { echo "fixtures/invoice-calc-random.json weicht von der aus demselben Seed neu erzeugten Datei ab — von Hand geaendert?"; exit 1; }
 
       # Nur der lokale Teil (Adressen und Aufrufe aus dem Bau, Ausnahmeliste);
       # der Netzteil laeuft taeglich in erreichbarkeit.yml.
