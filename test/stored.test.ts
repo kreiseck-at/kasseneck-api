@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import * as stored from '../src/stored/index.js';
-import { _storedArticleToWire, _storedPosSettingsToWire, _storedReceiptToWire } from '../src/stored/draht.js';
+import { _storedArticleToWire, _storedReceiptToWire } from '../src/stored/draht.js';
+import { _storedPosSettingsToWire } from '../src/stored/einstellungen.js';
 import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, VOKABULAR_QUELLE } from '../src/stored/vokabular.js';
 import type { InternerTransport } from '../src/client/aufrufe.js';
 import { getReceipt, getReceiptWithCompany } from '../src/client/receipts.js';
@@ -223,11 +224,39 @@ test('stored: Storno-Marke faellt weg, Grund englisch, unbekannter Grund bleibt 
   assert.equal(doc.stornoMarke, 'mui3ncw0-1111111111');
 });
 
-test('stored: Registrierdaten als Firestore-Zeitstempel werden ISO-Zeitpunkte', () => {
-  const doc = belegDokument('KECK-1-ID-6');
+test('stored: Registrierdaten der Huelle wie beleg-pruefangaben.alsIso, im Beleg woertlich', () => {
+  const kopf = KASSE_GESPEICHERT.endpoints.createReceipt.cases.start_receipt['users/kw_betrieb1/beleg_kopf/auto1'];
+  const doc = { ...belegDokument('KECK-1-ID-6'), kopfId: 'auto1' };
+  const mit = (p: Json, angabe?: Json) => stored.fromStoredReceiptWithCompany({ ...doc, pruefangaben: p }, { headerVersion: { id: 'auto1', data: kopf }, ...(angabe ? { registrationInfo: angabe } : {}) });
   const zeit = { toDate: () => new Date('2024-03-11T08:00:00.000Z') };
-  const b = stored.fromStoredReceipt({ ...doc, pruefangaben: { karteRegistriertAm: zeit, kasseRegistriertAm: null } });
-  assert.deepEqual(b.registrationInfo, { cardRegisteredAt: '2024-03-11T08:00:00.000Z', cashregisterRegisteredAt: null });
+  // Zeichenketten werden normalisiert, leer (0, '') und Unlesbares ergibt null, Zusatzfelder fallen weg.
+  assert.deepEqual(mit({ karteRegistriertAm: '2025-01-01T10:00:00+01:00', kasseRegistriertAm: '2025-01-01', extra: 1 }).registrationInfo,
+    { cardRegisteredAt: '2025-01-01T09:00:00.000Z', cashregisterRegisteredAt: '2025-01-01T00:00:00.000Z' });
+  assert.deepEqual(mit({ karteRegistriertAm: 0, kasseRegistriertAm: 'kein Datum' }).registrationInfo, { cardRegisteredAt: null, cashregisterRegisteredAt: null });
+  assert.deepEqual(mit({ karteRegistriertAm: zeit }).registrationInfo, { cardRegisteredAt: '2024-03-11T08:00:00.000Z', cashregisterRegisteredAt: null });
+  assert.deepEqual(mit({ karteRegistriertAm: 1710144000000 }).registrationInfo, { cardRegisteredAt: '2024-03-11T08:00:00.000Z', cashregisterRegisteredAt: null });
+  // Ohne festgehaltene Angaben: die des Aufrufers, sonst leer.
+  const ohne = { ...doc };
+  delete ohne.pruefangaben;
+  const angabe = { cardRegisteredAt: '2024-01-01T00:00:00.000Z', cashregisterRegisteredAt: null };
+  assert.deepEqual(stored.fromStoredReceiptWithCompany(ohne, { headerVersion: { id: 'auto1', data: kopf }, registrationInfo: angabe }).registrationInfo, angabe);
+  assert.deepEqual(stored.fromStoredReceiptWithCompany(ohne, { headerVersion: { id: 'auto1', data: kopf } }).registrationInfo, { cardRegisteredAt: null, cashregisterRegisteredAt: null });
+  // Kein Nullbeleg: keine Registrierdaten in der Huelle.
+  assert.equal(stored.fromStoredReceiptWithCompany({ ...belegDokument('KECK-1-ID-4'), kopfId: 'auto1' }, { headerVersion: { id: 'auto1', data: kopf } }).registrationInfo, null);
+  // Im Beleg selbst reicht der Server die gespeicherte Form durch (Zeichenkette woertlich).
+  assert.deepEqual(stored.fromStoredReceipt({ ...doc, pruefangaben: { karteRegistriertAm: '2025-01-01', kasseRegistriertAm: null } }).registrationInfo,
+    { cardRegisteredAt: '2025-01-01', cashregisterRegisteredAt: null });
+});
+
+test('stored: eine fremde Kopf-Version wird abgewiesen (eingefrorener Kopf, BAO § 131)', () => {
+  const kopf = KASSE_GESPEICHERT.endpoints.createReceipt.cases.start_receipt['users/kw_betrieb1/beleg_kopf/auto1'];
+  const doc = { ...belegDokument('KECK-1-ID-4'), kopfId: 'v1' };
+  assert.throws(() => stored.fromStoredReceiptWithCompany(doc, { headerVersion: { id: 'v2', data: kopf } }),
+    (e) => isKasseneckValidationError(e) && /v2/.test(e.message) && /v1/.test(e.message));
+  // Altbeleg ohne kopfId: die Version waehlt der Aufrufer.
+  const alt = { ...doc };
+  delete alt.kopfId;
+  assert.equal(stored.fromStoredReceiptWithCompany(alt, { headerVersion: { id: 'v2', data: kopf } }).headerVersionId, 'v2');
 });
 
 test('stored: kein Belegdokument -> Fehler, nie ein halbes Modell', () => {
@@ -328,13 +357,66 @@ test('stored: gespeicherte Tasten gewinnen, die Vorgabe raeumt eine beanspruchte
   assert.equal('unbekannt' in s.device.shortcuts, false);
 });
 
+test('stored: eine unbekannte Aktion beansprucht ihre Taste vor dem Entfernen (entwirreTasten, dann nurGueltig)', () => {
+  const alt = stored.fromStoredPosSettings({ geraet: { tasten: { altAktion: ['Mod+B'] } } });
+  assert.deepEqual(alt.device.shortcuts.cash, []);
+  assert.equal('altAktion' in alt.device.shortcuts, false);
+  assert.deepEqual(stored.invalidStoredPosSettings({ geraet: { tasten: { altAktion: ['Mod+B'] } } }), ['device.shortcuts.altAktion']);
+  // Englischer Aktionsname im gespeicherten Stand ist innen unbekannt.
+  const englisch = stored.fromStoredPosSettings({ geraet: { tasten: { cash: ['Mod+K'] } } });
+  assert.deepEqual(englisch.device.shortcuts.card, []);
+  assert.deepEqual(englisch.device.shortcuts.cash, ['Mod+B']);
+});
+
+test('stored: was der Server beim Lesen weglaesst, faellt weg und wird gemeldet', () => {
+  const stand = {
+    betrieb: { saetze: { 7: true, 20: false, 13: 'ja' }, tgStufen: { 7: true, 5: false }, wzPos: 500, farbe: 'rot', logoText: 'abcd', stil: 'night', tgChips: [5, 5], autoAbMin: '5' },
+    geraet: { tasten: { bar: ['Mod+Ü'] }, druckerIp: '300.1.1.1', druckerName: '  ', terminalTid: 'x1', papier: 7 },
+  };
+  const s = stored.fromStoredPosSettings(stand);
+  // F1: kein fremder Eintrag in den Karten, das naechste Speichern bleibt gueltig.
+  assert.equal('7' in s.business.vatRates, false);
+  assert.equal(s.business.vatRates['20'], false);
+  assert.equal(s.business.vatRates['13'], true);
+  assert.equal('7' in s.business.tipSteps, false);
+  assert.equal(s.business.tipSteps['5'], false);
+  assert.equal(s.business.watermarkX, 50);
+  assert.equal(s.business.color, '#136B6B');
+  assert.equal(s.business.logoText, 'K');
+  assert.equal(s.business.theme, 'clear');
+  assert.deepEqual(s.business.tipChips, [5, 10]);
+  assert.equal(s.business.autoLogoutMinutes, 0);
+  assert.deepEqual(s.device.shortcuts.cash, ['Mod+B']);
+  assert.equal(s.device.printerIp, '');
+  assert.equal(s.device.paperSize, 'mm80');
+  assert.deepEqual(unknownPosSettingValues(s), []);
+  assert.deepEqual(stored.invalidStoredPosSettings(stand).sort(), [
+    'business.autoLogoutMinutes', 'business.color', 'business.logoText', 'business.theme', 'business.tipChips',
+    'business.tipSteps.7', 'business.vatRates.13', 'business.vatRates.7', 'business.watermarkX',
+    'device.paperSize', 'device.printerIp', 'device.printerName', 'device.shortcuts.cash', 'device.terminalTid',
+  ]);
+  // Gueltiges bleibt, auch in Rohform (der Server reicht den gespeicherten Wert durch).
+  const gut = stored.fromStoredPosSettings({ betrieb: { farbe: '#abcdef', wzPos: -25 }, geraet: { druckerName: ' TM ' } });
+  assert.equal(gut.business.color, '#abcdef');
+  assert.equal(gut.business.watermarkX, -25);
+  assert.equal(gut.device.printerName, ' TM ');
+  assert.deepEqual(stored.invalidStoredPosSettings(null), []);
+});
+
+test('stored: die Pruefer decken genau die Felder der Vorgabe', async () => {
+  const { _PRUEFER_FELDER } = await import('../src/stored/einstellungen.js');
+  assert.deepEqual([..._PRUEFER_FELDER.business].sort(), [..._PRUEFER_FELDER.standard.business].sort());
+  assert.deepEqual([..._PRUEFER_FELDER.device].sort(), [..._PRUEFER_FELDER.standard.device].sort());
+});
+
 // ---- Artikel ---------------------------------------------------------------------
 
 test('stored: gespeicherte Artikel ergeben die Antwort des Servers, Draht und Modell', () => {
   const w = welt(null, null);
-  const antwort = kasseFall('listMyArticles', 'success_owner');
-  const artikel = antwort.response.data.articles as Json[];
-  assert.ok(artikel.length > 0);
+  // success_empty liest eine Welt ohne Artikel, deren Vorbereitung der Export nicht fuehrt (Backend-Folgepunkt).
+  const artikel = ['module_inventory', 'success_cashregister', 'success_owner']
+    .flatMap((f) => kasseFall('listMyArticles', f).response.data.articles as Json[]);
+  assert.equal(artikel.length, 6);
   for (const a of artikel) {
     const doc = w[`users/kw_betrieb1/articles/${a.id}`];
     assert.ok(doc, a.id);

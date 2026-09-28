@@ -21,8 +21,9 @@ import { sanitizePosSettings, type PosSettings } from '../kasse/settings.js';
 import { fromPosArticlePayload, type PosArticle, type PosArticlePayload } from '../kasse/artikel.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import {
-  _receiptEnvelopeToWire, _storedArticleToWire, _storedPosSettingsToWire, _storedReceiptInner, _storedReceiptToWire,
+  _receiptEnvelopeToWire, _storedArticleToWire, _storedReceiptInner, _storedReceiptToWire, pruefangabenDerHuelle,
 } from './draht.js';
+import { _storedPosSettingsToWire } from './einstellungen.js';
 
 type Objekt = Record<string, unknown>;
 const istObjekt = (w: unknown): w is Objekt => w !== null && typeof w === 'object' && !Array.isArray(w);
@@ -46,8 +47,11 @@ export function fromStoredReceipt(doc: unknown): Receipt {
 
 /**
  * Freitextzeilen (`customerDetails`, `legalMessage`) als Liste gespeichert:
- * wie am Server (beleg-layout.belegPayload) als Text mit Zeilenumbruechen
- * lesen, statt am Leser zu scheitern.
+ * als Text mit Zeilenumbruechen lesen, wie das Layout am Server
+ * (beleg-layout.belegPayload). Bewusst nachsichtiger als der Draht: dort
+ * geht die Liste woertlich hinaus, und der Leser des Pakets scheitert an ihr
+ * (Backend-Folgepunkt: Huelle oder Leser). Das Panel soll anzeigen statt
+ * abzustuerzen.
  */
 function zeilenAlsText(beleg: Objekt): Objekt {
   const raus = { ...beleg };
@@ -91,25 +95,38 @@ export function fromStoredReceiptWithCompany(doc: unknown, options: StoredReceip
     throw new KasseneckValidationError(name, 'headerVersion { id, data } fehlt', 'request');
   }
   const beleg = _storedReceiptInner(doc, name);
+  // Die Version muss die des Belegs sein: sonst zeigte er still den heutigen
+  // Kopf statt des eingefrorenen (BAO § 131). Altbelege ohne kopfId waehlt der
+  // Aufrufer ueber das Zeitfenster.
+  if (typeof beleg.kopfId === 'string' && beleg.kopfId !== options.headerVersion.id) {
+    throw new KasseneckValidationError(name, `headerVersion ${options.headerVersion.id} ist nicht die Kopf-Version des Belegs (${beleg.kopfId})`, 'request');
+  }
   const testKasse = options.testCashregister === true;
-  const nullbeleg = beleg.receiptType === 'zero';
   const huelle: Objekt = {
     receipt: beleg,
     ...betriebsfelder(options.headerVersion.data, options.account, beleg),
     logo_skala: logoStufe(options.account),
     kopfId: options.headerVersion.id,
-    pruefangaben: nullbeleg && istObjekt(beleg.pruefangaben) ? beleg.pruefangaben : null,
+    pruefangaben: pruefangabenFuer(beleg, options.registrationInfo),
     testSignatur: receiptSignatureIsTest({ qr: typeof beleg.qr === 'string' ? beleg.qr : '' }) && !testKasse,
     testKasse,
   };
   const draht = _receiptEnvelopeToWire(huelle);
   draht.receipt = zeilenAlsText(draht.receipt as Objekt);
   const raus = belegMitFirmaAusHuelle(draht, name);
-  if (nullbeleg && raus.registrationInfo === null) {
-    raus.registrationInfo = options.registrationInfo ?? { cardRegisteredAt: null, cashregisterRegisteredAt: null };
-  }
   raus.layout = layoutWieServer(raus, beleg.layoutRegeln);
   return raus;
+}
+
+/**
+ * Registrierdaten der Huelle wie `pruefangabenFuerBeleg`: nur Nullbelege;
+ * festgehaltene `pruefangaben` des Belegs gehen vor, sonst die Angabe des
+ * Aufrufers (der Server schlaegt dann an Karte und Kasse nach), sonst leer.
+ */
+function pruefangabenFuer(beleg: Objekt, angabe: RegistrationInfo | undefined): Objekt | null {
+  if (beleg.receiptType !== 'zero') return null;
+  if (beleg.pruefangaben && typeof beleg.pruefangaben === 'object') return pruefangabenDerHuelle(beleg.pruefangaben as Objekt);
+  return { karteRegistriertAm: angabe?.cardRegisteredAt ?? null, kasseRegistriertAm: angabe?.cashregisterRegisteredAt ?? null };
 }
 
 /**
@@ -154,6 +171,8 @@ function nurKopf(version: unknown): Objekt {
  */
 function betriebsfelder(version: unknown, account: unknown, beleg: { receiptType?: unknown } | undefined): Objekt {
   const k = nurKopf(version);
+  // Nachsichtiger als der Server: ein Dank als Zeichenkette (moeglich ueber
+  // nachtragKopf) laesst belegAntwort scheitern (`join`), hier bleibt er leer.
   const dank = Array.isArray(k.thanksMessage) ? k.thanksMessage : [];
   const konto = istObjekt(account) ? account : {};
   let logo: unknown;
@@ -196,14 +215,32 @@ export function fromStoredCompany(headerVersion: unknown, options: { account?: u
  * `users/{uid}.register_settings.kasse`, `geraet` aus
  * `users/{uid}/register_devices/{id}.kasse` (fehlt = Vorgaben).
  *
- * Wie beim Lesen vom Draht bleibt ein unbekannter Wert eines bekannten Feldes
- * woertlich stehen ([unknownPosSettingValues] nennt ihn), und Reste der
- * inneren Form 0.x fallen auf die Vorgabe zurueck. Anders als der Server
- * prueft dieser Weg keine Bereiche: einen gespeicherten Wert, den der Server
- * beim Lesen als ungueltig weglaesst, zeigt er als unbekannten Wert.
+ * Wie am Server faellt weg, was der Validator beim Lesen nicht annimmt: ein
+ * fremder Steuersatz oder eine fremde Trinkgeldstufe, eine unbekannte
+ * Tasten-Aktion (erst nach dem Entwirren der Tasten, wie `mische`), eine Taste
+ * ausserhalb des Musters, ein Wert ausserhalb seines Bereichs oder Musters
+ * (`wzPos: 500`, Farbe, IP). An seiner Stelle steht die Vorgabe;
+ * [invalidStoredPosSettings] nennt jeden solchen Pfad. So schickt ein
+ * spaeteres Speichern nie einen Eintrag, den der Server abweist.
+ *
+ * Einzige Ausnahme: ein unbekannter Wert eines Aufzaehlungsfeldes vom
+ * richtigen Typ (`stil: 'sepia'`) bleibt woertlich stehen wie ein unbekannter
+ * Wert vom Draht; [unknownPosSettingValues] nennt ihn. Reste der inneren Form
+ * 0.x fallen auf die Vorgabe zurueck.
  */
 export function fromStoredPosSettings(stored: { betrieb?: unknown; geraet?: unknown } | null | undefined): PosSettings {
-  return sanitizePosSettings(_storedPosSettingsToWire(stored));
+  const { business, device } = _storedPosSettingsToWire(stored);
+  return sanitizePosSettings({ business, device });
+}
+
+/**
+ * Die aeusseren Pfade (`business.watermarkX`, `business.vatRates.7`,
+ * `device.shortcuts.cash`), deren gespeicherten Wert der Server beim Lesen
+ * weglaesst und [fromStoredPosSettings] darum durch die Vorgabe ersetzt. Fuer
+ * die Anzeige „gespeicherter Wert ungueltig, Vorgabe gilt“.
+ */
+export function invalidStoredPosSettings(stored: { betrieb?: unknown; geraet?: unknown } | null | undefined): string[] {
+  return _storedPosSettingsToWire(stored).weggelassen;
 }
 
 // ---- Artikel ------------------------------------------------------------------

@@ -40,7 +40,7 @@ import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters, setMyKasseSettings, POS_SHORTCUT_ACTIONS, type PosSettings } from '@kreiseck/kasseneck-api/kasse';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
-import { fromStoredReceipt, fromStoredReceiptWithCompany, fromStoredCompany, fromStoredPosSettings, fromStoredArticle, type StoredDocument } from '@kreiseck/kasseneck-api/stored';
+import { fromStoredReceipt, fromStoredReceiptWithCompany, fromStoredCompany, fromStoredPosSettings, invalidStoredPosSettings, fromStoredArticle, type StoredDocument } from '@kreiseck/kasseneck-api/stored';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
@@ -81,6 +81,7 @@ export const mitFirma = fromStoredReceiptWithCompany({}, { headerVersion: kopf }
 export const firma: string = fromStoredCompany({}).companyName;
 export const thema: string = fromStoredPosSettings({ betrieb: { stil: 'nacht' } }).business.theme;
 export const kachel: boolean = fromStoredArticle('a1', {}).visible;
+export const ungueltig: string[] = invalidStoredPosSettings({ betrieb: { wzPos: 500 } });
 // Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
 // weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
 // auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein

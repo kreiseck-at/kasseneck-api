@@ -194,7 +194,8 @@
     "fixtures:texte": "npm run build && node scripts/texte.mjs",
     "fixtures:texte-umbenennung": "node scripts/texte-umbenennung.mjs",
     "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/rechnung-rechnen-zufall.json",
-    "fixtures:stored": "node scripts/stored-vokabular.mjs"
+    "fixtures:stored": "node scripts/stored-vokabular.mjs",
+    "fixtures:stored-zwillinge": "node scripts/stored-zwillinge.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

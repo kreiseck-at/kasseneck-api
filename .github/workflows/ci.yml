@@ -21,6 +21,9 @@ jobs:
       - name: Bau
         run: npm run build
 
+      # Ohne KASSENECK_BACKEND (kein Backend-Checkout hier) ueberspringen
+      # stored-backend.test.ts und der Backend-Teil von stored-zwillinge.test.ts;
+      # beide laufen lokal mit KASSENECK_BACKEND=../kasseneck npm test.
       - name: Tests (drei Zeitzonen)
         run: npm test
 

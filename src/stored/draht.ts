@@ -1,5 +1,4 @@
 import { KasseneckValidationError } from '../client/errors.js';
-import { POS_SHORTCUT_DEFAULTS, POS_SHORTCUT_SHARED_PAIRS } from '../kasse/settings.js';
 import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
 
 /*
@@ -19,12 +18,12 @@ import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjek
  *   Kachel-Vorgaben eines Artikels oder das Mischen der Tastenkarte.
  */
 
-type Objekt = Record<string, unknown>;
-const hat = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
-const istObjekt = (w: unknown): w is Objekt => w !== null && typeof w === 'object' && !Array.isArray(w);
+export type Objekt = Record<string, unknown>;
+export const hat = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+export const istObjekt = (w: unknown): w is Objekt => w !== null && typeof w === 'object' && !Array.isArray(w);
 
 /** Schema-Eintrag zerlegt: innerer Name, Unterschema (ohne `__`) und ob es eine Liste ist. */
-function regel(eintrag: SchemaEintrag): { innen: string; unter: SchemaObjekt | null; liste: boolean } {
+export function regel(eintrag: SchemaEintrag): { innen: string; unter: SchemaObjekt | null; liste: boolean } {
   const liste = Array.isArray(eintrag);
   const kern = (liste ? (eintrag as readonly [SchemaObjekt])[0] : eintrag) as string | SchemaObjekt;
   if (typeof kern === 'string') return { innen: kern, unter: null, liste };
@@ -55,7 +54,7 @@ function schluesselNachAussen(obj: unknown, schema: SchemaObjekt): unknown {
 }
 
 /** Innere Namen einer Schema-Ebene (was der Server innen an dieser Stelle kennt). */
-function innereNamen(schema: SchemaObjekt): Map<string, string> {
+export function innereNamen(schema: SchemaObjekt): Map<string, string> {
   const raus = new Map<string, string>();
   for (const [aussen, eintrag] of Object.entries(schema)) if (aussen !== '__') raus.set(regel(eintrag).innen, aussen);
   return raus;
@@ -109,18 +108,24 @@ const ohneMarke = (o: unknown): unknown => {
   return rest;
 };
 
-/** Registrierdaten eines Nullbelegs: Firestore-Zeitstempel als ISO-Zeitpunkt (wie `alsIso` am Server). */
-function alsIso(w: unknown): unknown {
-  if (w == null || typeof w === 'string') return w;
-  let d: unknown = w;
-  if (typeof (w as { toDate?: unknown }).toDate === 'function') d = (w as { toDate: () => unknown }).toDate();
-  else if (typeof w === 'number') d = new Date(w);
+/**
+ * Zwilling von `beleg-pruefangaben.alsIso`: leer (auch 0, '') -> null;
+ * Firestore-Zeitstempel, Zahl oder Zeichenkette -> ISO-Zeitpunkt in UTC;
+ * nicht lesbar -> null.
+ */
+function alsIso(ts: unknown): string | null {
+  if (!ts) return null;
+  let d: unknown = ts;
+  if (typeof (d as { toDate?: unknown }).toDate === 'function') d = (d as { toDate: () => unknown }).toDate();
+  if (typeof d === 'number' || typeof d === 'string') d = new Date(d);
   return d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
 }
 
 /**
  * Ein Belegdokument, wie Handler und Rand es vor der Uebersetzung sehen:
- * ohne Storno-Marke, Registrierdaten als ISO-Zeitpunkt. Wirft, wenn es kein
+ * ohne Storno-Marke (storno-core.ohneInterneStornoFelder, Rand
+ * ohneStornoMarke). Alles andere bleibt woertlich, auch `pruefangaben` im
+ * Beleg selbst (der Server reicht sie so durch). Wirft, wenn es kein
  * Belegdokument ist.
  */
 export function _storedReceiptInner(doc: unknown, functionName: string): Objekt {
@@ -130,15 +135,16 @@ export function _storedReceiptInner(doc: unknown, functionName: string): Objekt 
   const { [STORNO_MARKE]: _s, ...beleg } = doc;
   if (hat(beleg, 'cancellationOf')) beleg.cancellationOf = ohneMarke(beleg.cancellationOf);
   if (Array.isArray(beleg.cancellations)) beleg.cancellations = beleg.cancellations.map(ohneMarke);
-  if (istObjekt(beleg.pruefangaben)) beleg.pruefangaben = pruefangabenIso(beleg.pruefangaben);
   return beleg;
 }
 
-/** Registrierdaten (innere Namen) mit ISO-Zeitpunkten; nur vorhandene Felder. */
-export function pruefangabenIso(p: Objekt): Objekt {
-  const raus: Objekt = { ...p };
-  for (const k of ['karteRegistriertAm', 'kasseRegistriertAm']) if (hat(raus, k)) raus[k] = alsIso(raus[k]);
-  return raus;
+/**
+ * Registrierdaten der Huelle aus den beim Ausstellen festgehaltenen
+ * `pruefangaben` (Zwilling von `pruefangabenFuerBeleg`, erster Zweig): genau
+ * die zwei Felder, je ueber [alsIso].
+ */
+export function pruefangabenDerHuelle(p: Objekt): Objekt {
+  return { karteRegistriertAm: alsIso(p.karteRegistriertAm), kasseRegistriertAm: alsIso(p.kasseRegistriertAm) };
 }
 
 /**
@@ -158,78 +164,6 @@ export function _receiptEnvelopeToWire(huelle: Objekt): Objekt {
  */
 export function _storedReceiptToWire(doc: unknown, functionName = 'fromStoredReceipt'): Objekt {
   return _receiptEnvelopeToWire({ receipt: _storedReceiptInner(doc, functionName) }).receipt as Objekt;
-}
-
-// ---- Kassen-Einstellungen ------------------------------------------------------
-
-/** Tasten, die zwei Aktionen teilen duerfen (Backend TASTEN_PAARE). */
-const darfTeilen = (a: string, b: string): boolean =>
-  POS_SHORTCUT_SHARED_PAIRS.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
-
-/**
- * Zwilling von `entwirreTasten` (kasse-settings-core): die gespeicherte Wahl
- * gewinnt, ein Vorgabe-Eintrag, dessen Taste eine andere gespeicherte Aktion
- * beansprucht, verliert sie. Hier mit aeusseren Aktionsnamen.
- */
-function entwirreTasten(gespeichert: Objekt): Objekt {
-  const gemischt: Objekt = { ...POS_SHORTCUT_DEFAULTS, ...gespeichert };
-  const beansprucht = new Map<unknown, string>();
-  for (const [aktion, tasten] of Object.entries(gespeichert)) {
-    if (!Array.isArray(tasten)) continue;
-    for (const t of tasten) beansprucht.set(t, aktion);
-  }
-  const raus: Objekt = {};
-  for (const [aktion, tasten] of Object.entries(gemischt)) {
-    if (!Array.isArray(tasten) || hat(gespeichert, aktion)) { raus[aktion] = tasten; continue; }
-    raus[aktion] = tasten.filter((t) => {
-      const inhaber = beansprucht.get(t);
-      return !inhaber || inhaber === aktion || darfTeilen(inhaber, aktion);
-    });
-  }
-  return raus;
-}
-
-/**
- * Ein Teil der Einstellungen (`betrieb` bzw. `geraet`) in die Drahtform. Wie
- * `mische` am Server bleiben nur Schluessel, die innen bekannt sind (auch ein
- * englischer Schluessel im gespeicherten Stand faellt weg), in der
- * Tastenkarte nur bekannte Aktionen. Die Standardwerte mischt erst der Leser
- * des Pakets dazu ([mergePosSettings]).
- */
-function teilNachAussen(teil: 'business' | 'device', gespeichert: unknown): Objekt {
-  if (!istObjekt(gespeichert)) return {};
-  const schema = SCHEMAS.getKasseSettings;
-  const teilSchema = regel(schema.data[teil] as SchemaEintrag).unter as SchemaObjekt;
-  const bekannt = innereNamen(teilSchema);
-  const innen: Objekt = {};
-  for (const [k, w] of Object.entries(gespeichert)) {
-    if (!bekannt.has(k) || w === undefined) continue;
-    innen[k] = w;
-  }
-  const tastenRegel = hat(teilSchema, 'shortcuts') ? regel(teilSchema.shortcuts as SchemaEintrag) : null;
-  if (tastenRegel && istObjekt(innen[tastenRegel.innen])) {
-    const aktionen = innereNamen(tastenRegel.unter as SchemaObjekt);
-    const nur: Objekt = {};
-    for (const [a, t] of Object.entries(innen[tastenRegel.innen] as Objekt)) if (aktionen.has(a)) nur[a] = t;
-    innen[tastenRegel.innen] = nur;
-  } else if (tastenRegel && hat(innen, tastenRegel.innen)) {
-    delete innen[tastenRegel.innen];
-  }
-  const huelle = werteNachAussen(schluesselNachAussen({ [regel(schema.data[teil] as SchemaEintrag).innen]: innen }, schema.data), schema.werte) as Objekt;
-  const raus = huelle[teil] as Objekt;
-  if (istObjekt(raus.shortcuts)) raus.shortcuts = entwirreTasten(raus.shortcuts);
-  return raus;
-}
-
-/**
- * Gespeicherte Kassen-Einstellungen in der Drahtform `{business, device}`:
- * `betrieb` aus `users/{uid}.register_settings.kasse`, `geraet` aus
- * `users/{uid}/register_devices/{id}.kasse`. Nur die gespeicherten Felder;
- * die Vorgaben mischt der Leser dazu.
- */
-export function _storedPosSettingsToWire(stored: { betrieb?: unknown; geraet?: unknown } | null | undefined): { business: Objekt; device: Objekt } {
-  const s = istObjekt(stored) ? stored : {};
-  return { business: teilNachAussen('business', s.betrieb), device: teilNachAussen('device', s.geraet) };
 }
 
 // ---- Artikel ------------------------------------------------------------------
