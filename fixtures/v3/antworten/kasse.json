@@ -4,8 +4,8 @@
     "default": {
       "sha256": "bf1e7c100e328517c72d5badf31904183efe22d1fddec308e2fe2722068854bc",
       "head": [],
-      "inputsSha256": "5e7e069613b697aad3d2329d022eb66dea1c549e3a4c3d56a30033b2abcc035f",
-      "backendPackage": "@kreiseck/kasseneck-api@0.30.0",
+      "inputsSha256": "c2bd7a2b137ff4a84a7b6e68dada87a7141168456147e3f53fb061309cc8ccc4",
+      "backendPackage": "@kreiseck/kasseneck-api@0.31.0",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
         "functions/gemeinsam/api-rand.js",
@@ -19,12 +19,12 @@
       ]
     },
     "kasse": {
-      "sha256": "5432dcbb19b9546a35bfb4cbc3a77ba7d5efc78e949af80d05244aa04a2e75c6",
+      "sha256": "a769893a8ee82a0075c87c6ef270ce090112acb12088d8296d14fb0db293551b",
       "head": [
         "channel",
         "note"
       ],
-      "inputsSha256": "e04f99911afd3daa3728550400538ed71e5643f261bc178577cda710efec90ef",
+      "inputsSha256": "69aca2a0a94edbbdf175470da3f45974bbd16de3a25aa84a36fb94414c683ee1",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -795,6 +795,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -811,7 +812,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -881,7 +882,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -1032,6 +1034,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -1048,7 +1051,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -1118,7 +1121,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -1269,6 +1273,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -1285,7 +1290,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -1355,7 +1360,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -1465,6 +1471,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -1481,7 +1488,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -1551,7 +1558,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -1661,6 +1669,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -1677,7 +1686,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -1747,7 +1756,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -1857,6 +1867,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -1873,7 +1884,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -1943,7 +1954,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -2052,6 +2064,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -2068,7 +2081,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -2138,7 +2151,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -2248,6 +2262,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -2264,7 +2279,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -2334,7 +2349,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -2443,6 +2459,7 @@
                   "discount": "off",
                   "payCash": true,
                   "payCard": false,
+                  "paySplit": false,
                   "cardProvider": "none",
                   "tip": false,
                   "tipMode": "both",
@@ -2459,7 +2476,7 @@
                     10
                   ],
                   "exactCash": false,
-                  "checkoutMode": "page",
+                  "checkoutMode": "panel",
                   "receiptOutput": "ask",
                   "doneScreenSeconds": 0,
                   "logoImage": "",
@@ -2529,7 +2546,8 @@
                     ],
                     "clearCart": [
                       "Mod+C"
-                    ]
+                    ],
+                    "splitPayment": []
                   },
                   "printerEnabled": false,
                   "printerType": "sdp",
@@ -9760,6 +9778,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -9776,7 +9795,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -9846,7 +9865,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
@@ -9924,6 +9944,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -9940,7 +9961,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -10010,7 +10031,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
@@ -10126,6 +10148,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -10142,7 +10165,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -10212,7 +10235,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
@@ -10290,6 +10314,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -10306,7 +10331,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -10376,7 +10401,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
@@ -10454,6 +10480,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -10470,7 +10497,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -10540,7 +10567,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
@@ -10827,6 +10855,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -10843,7 +10872,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -10919,6 +10948,7 @@
                 "discount": "off",
                 "payCash": true,
                 "payCard": false,
+                "paySplit": false,
                 "cardProvider": "none",
                 "tip": false,
                 "tipMode": "both",
@@ -10935,7 +10965,7 @@
                   10
                 ],
                 "exactCash": false,
-                "checkoutMode": "page",
+                "checkoutMode": "panel",
                 "receiptOutput": "ask",
                 "doneScreenSeconds": 0,
                 "logoImage": "",
@@ -11487,7 +11517,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": true,
                 "printerType": "sdp",
@@ -11584,7 +11615,8 @@
                   ],
                   "clearCart": [
                     "Mod+C"
-                  ]
+                  ],
+                  "splitPayment": []
                 },
                 "printerEnabled": false,
                 "printerType": "sdp",
