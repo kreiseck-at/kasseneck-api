@@ -3,7 +3,7 @@
     {
       "kind": "banner",
       "text": "TESTKASSE — kein gültiger Beleg",
-      "ton": "warnung"
+      "tone": "warning"
     },
     {
       "kind": "text",
@@ -262,9 +262,9 @@
     {
       "kind": "banner",
       "text": "TESTKASSE — kein gültiger Beleg",
-      "ton": "warnung"
+      "tone": "warning"
     }
   ],
   "paperSize": "mm80",
-  "regelwerk": 2
+  "ruleset": 2
 }

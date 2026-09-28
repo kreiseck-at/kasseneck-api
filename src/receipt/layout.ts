@@ -13,6 +13,7 @@ import {
   type ReceiptCompany,
   type ReceiptItem,
   type ReceiptPayment,
+  type RegistrationInfo,
   type Voucher,
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
@@ -105,9 +106,15 @@ export interface LayoutQrLine {
 export interface LayoutBannerLine {
   kind: 'banner';
   text: string;
-  /** `warnung` fuer Testkasse/Testsignatur (nicht gueltiger Beleg), sonst `belegart`. */
-  ton: 'belegart' | 'warnung';
+  /**
+   * `warning` fuer Testkasse/Testsignatur (kein gueltiger Beleg), sonst
+   * `receipt_type` (Belegart). Werte wie am `/v3`-Draht (Katalog `LAYOUT_TON`).
+   */
+  tone: LayoutBannerTone;
 }
+
+/** Ton einer hervorgehobenen Zeile, wie am `/v3`-Draht. */
+export type LayoutBannerTone = 'receipt_type' | 'warning';
 
 export type LayoutLine = LayoutTextLine | LayoutColumnsLine | LayoutRuleLine | LayoutSpaceLine | LayoutQrLine | LayoutBannerLine;
 
@@ -119,19 +126,8 @@ export type LayoutLine = LayoutTextLine | LayoutColumnsLine | LayoutRuleLine | L
  *   Signaturkarte, Zertifizierungsdienst, Registrierdaten); reduziert nur,
  *   wenn alle Betraege wirklich 0 sind. Vollbelege unveraendert.
  */
-export type LayoutRegelwerk = 1 | 2;
-export const AKTUELLES_REGELWERK: LayoutRegelwerk = 2;
-
-/**
- * Registrierdaten fuer den Block „Prüfangaben“ auf Nullbelegen (Regelwerk 2).
- * Kennt sie nur das Backend (FinanzOnline-Registrierung der Signaturkarte und
- * der Kasse); fehlen sie, entfallen die Zeilen. Datum als „YYYY-MM-DD“ oder
- * ISO-Zeitstempel (Wiener Kalendertag).
- */
-export interface Pruefangaben {
-  karteRegistriertAm?: string | null;
-  kasseRegistriertAm?: string | null;
-}
+export type LayoutRuleset = 1 | 2;
+export const CURRENT_LAYOUT_RULESET: LayoutRuleset = 2;
 
 /** Der fertige Bauplan eines Belegs. */
 export interface ReceiptLayout {
@@ -139,7 +135,7 @@ export interface ReceiptLayout {
   /** Papierbreite, nach der die Spaltenbreiten gewaehlt wurden. */
   paperSize: PosPaperSize;
   /** Regelwerk, nach dem gesetzt wurde. */
-  regelwerk: LayoutRegelwerk;
+  ruleset: LayoutRuleset;
 }
 
 export interface BuildReceiptLayoutOptions {
@@ -149,17 +145,56 @@ export interface BuildReceiptLayoutOptions {
    */
   paperSize?: PosPaperSize;
   /** Layout-Regelwerk (Vorgabe: aktuelles). Unbekannt -> Fehler, nie stumm anders setzen. */
-  regelwerk?: LayoutRegelwerk;
-  /** Beleg einer Testumgebung: Rahmen „TESTKASSE — kein gültiger Beleg“ oben und unten. */
-  testKasse?: boolean;
+  ruleset?: LayoutRuleset;
+  /**
+   * Beleg einer Testumgebung: Rahmen „TESTKASSE — kein gültiger Beleg“ oben
+   * und unten. Aus einer Antwort: `ReceiptWithCompany.testCashregister`.
+   */
+  testCashregister?: boolean;
   /**
    * Produktionskonto hat mit einer Test-Signatureinheit signiert: Rahmen
    * „TESTSIGNATUR — kein gültiger Beleg“. Der Aufrufer entscheidet (er kennt
-   * das Konto); [receiptSignatureIsTest] sagt nur, OB die Signatur eine Testsignatur ist.
+   * das Konto); [receiptSignatureIsTest] sagt nur, OB die Signatur eine
+   * Testsignatur ist. Aus einer Antwort: `ReceiptWithCompany.testSignature`.
    */
-  testSignatur?: boolean;
-  /** Registrierdaten fuer den Block „Prüfangaben“ (nur Nullbelege, Regelwerk 2). */
-  pruefangaben?: Pruefangaben | null;
+  testSignature?: boolean;
+  /**
+   * Registrierdaten fuer den Block „Prüfangaben“ (nur Nullbelege, Regelwerk 2).
+   * Kennt sie nur das Backend (FinanzOnline-Registrierung der Signaturkarte
+   * und der Kasse); fehlen sie, entfallen die Zeilen. Datum als „YYYY-MM-DD“
+   * oder ISO-Zeitstempel (Wiener Kalendertag). Aus einer Antwort:
+   * `ReceiptWithCompany.registrationInfo`.
+   */
+  registrationInfo?: RegistrationInfo | null;
+}
+
+/** Die Optionen von [buildReceiptLayout]; jede andere wird abgewiesen. */
+const LAYOUT_OPTIONEN: ReadonlySet<string> = new Set(['paperSize', 'ruleset', 'testCashregister', 'testSignature', 'registrationInfo']);
+
+/** Namen bis 0.x -> Namen seit 1.0 (fuer eine Meldung, die den Weg nennt). */
+const LAYOUT_OPTIONEN_ALT: Readonly<Record<string, string>> = {
+  testKasse: 'testCashregister',
+  testSignatur: 'testSignature',
+  pruefangaben: 'registrationInfo',
+  regelwerk: 'ruleset',
+};
+
+/**
+ * Weist unbekannte Optionen ab. Eine alte deutsche Option (`testKasse`) darf
+ * nie still verschwinden: der Rahmen „TESTKASSE — kein gültiger Beleg“ fehlte
+ * sonst auf einem Testbeleg, und der saehe aus wie ein gueltiger. Das gilt
+ * auch fuer Aufrufer ohne Typpruefung (JavaScript).
+ */
+function pruefeLayoutOptionen(options: BuildReceiptLayoutOptions): void {
+  for (const name of Object.keys(options)) {
+    if (LAYOUT_OPTIONEN.has(name)) continue;
+    const neu = LAYOUT_OPTIONEN_ALT[name];
+    throw new KasseneckValidationError(
+      'buildReceiptLayout',
+      neu !== undefined ? `Option "${name}" heisst seit 1.0 "${neu}"` : `Unbekannte Option "${name}"`,
+      'request',
+    );
+  }
 }
 
 // -------------------------------------------------------------- Formatierung
@@ -827,8 +862,8 @@ const TRAINING_ERKLAERUNG = [
   'Sollten Sie diesen Beleg als Kunde erhalten haben, sagen Sie bitte dem Betrieb Bescheid.',
 ];
 
-function bannerZeile(text: string, ton: LayoutBannerLine['ton'] = 'belegart'): LayoutBannerLine {
-  return { kind: 'banner', text, ton };
+function bannerZeile(text: string, tone: LayoutBannerTone = 'receipt_type'): LayoutBannerLine {
+  return { kind: 'banner', text, tone };
 }
 
 /** Belegtyp als Zeichenkette (Enum-Objekt oder roher Serverwert). */
@@ -881,7 +916,7 @@ function pruefDatum(wert: string | null | undefined): string | null {
 }
 
 /** Block „Prüfangaben“ des Nullbelegs (Regelwerk 2). Nichts Geheimes: alles steht auch im QR bzw. bei FinanzOnline. */
-function pruefangabenBlock(receipt: Receipt, angaben: Pruefangaben | null): LayoutLine[] {
+function pruefangabenBlock(receipt: Receipt, angaben: RegistrationInfo | null): LayoutLine[] {
   const out: LayoutLine[] = [];
   out.push({ kind: 'rule', char: '-' });
   out.push(textZeile('Prüfangaben', 'center', true));
@@ -892,9 +927,9 @@ function pruefangabenBlock(receipt: Receipt, angaben: Pruefangaben | null): Layo
   if (receipt.certificateSerialNumber) out.push(paarZeile('Signaturkarte:', `0x${receipt.certificateSerialNumber}`));
   const zda = receiptZdaText(receipt.qr);
   if (zda) out.push(paarZeile('Zertifizierungsdienst:', zda, 7, 5));
-  const karte = pruefDatum(angaben?.karteRegistriertAm);
+  const karte = pruefDatum(angaben?.cardRegisteredAt);
   if (karte) out.push(paarZeile('Karte registriert:', karte));
-  const kasse = pruefDatum(angaben?.kasseRegistriertAm);
+  const kasse = pruefDatum(angaben?.cashregisterRegisteredAt);
   if (kasse) out.push(paarZeile('Kasse registriert:', kasse));
   out.push({ kind: 'rule', char: '-' });
   return out;
@@ -987,18 +1022,19 @@ export function buildReceiptLayout(
   company: ReceiptCompany,
   options: BuildReceiptLayoutOptions = {},
 ): ReceiptLayout {
+  pruefeLayoutOptionen(options);
   const paperSize = options.paperSize ?? 'mm58';
-  const regelwerk = options.regelwerk ?? AKTUELLES_REGELWERK;
-  if (regelwerk !== 1 && regelwerk !== 2) {
-    throw new KasseneckValidationError('buildReceiptLayout', `Unbekanntes Layout-Regelwerk ${String(regelwerk)} — bitte Paket aktualisieren`, 'request');
+  const ruleset = options.ruleset ?? CURRENT_LAYOUT_RULESET;
+  if (ruleset !== 1 && ruleset !== 2) {
+    throw new KasseneckValidationError('buildReceiptLayout', `Unbekanntes Layout-Regelwerk (ruleset ${String(ruleset)}), bitte Paket aktualisieren`, 'request');
   }
   const lines: LayoutLine[] = [];
   // Regelwerk 2: ein „Nullbeleg“ mit echten Betraegen wird nicht reduziert --
   // die Zahlen stehen drauf, statt hinter einer Null zu verschwinden.
-  const nullbeleg = receiptIsZero(receipt) && (regelwerk === 1 || receiptAmountsAreZero(receipt));
+  const nullbeleg = receiptIsZero(receipt) && (ruleset === 1 || receiptAmountsAreZero(receipt));
   const warnungen: LayoutBannerLine[] = [];
-  if (options.testKasse) warnungen.push(bannerZeile(TESTKASSE_TEXT, 'warnung'));
-  if (options.testSignatur) warnungen.push(bannerZeile(TESTSIGNATUR_TEXT, 'warnung'));
+  if (options.testCashregister) warnungen.push(bannerZeile(TESTKASSE_TEXT, 'warning'));
+  if (options.testSignature) warnungen.push(bannerZeile(TESTSIGNATUR_TEXT, 'warning'));
 
   // --- Warnrahmen oben (Testkasse/Testsignatur): ueber dem Kopf, damit ihn niemand uebersieht.
   lines.push(...warnungen);
@@ -1025,10 +1061,10 @@ export function buildReceiptLayout(
     lines.push(paarZeile('Kassen-ID:', receipt.cashregisterId));
     lines.push(paarZeile('Beleg-ID:', receipt.receiptId));
     lines.push({ kind: 'space', lines: 1 });
-    if (regelwerk === 1) {
+    if (ruleset === 1) {
       lines.push(textZeile('Betrag: 0,00 €', 'center', true));
     } else {
-      lines.push(...pruefangabenBlock(receipt, options.pruefangaben ?? null));
+      lines.push(...pruefangabenBlock(receipt, options.registrationInfo ?? null));
     }
     lines.push({ kind: 'space', lines: 1 });
     if (receiptSignatureFailed(receipt)) {
@@ -1038,7 +1074,7 @@ export function buildReceiptLayout(
     lines.push({ kind: 'qr', data: receipt.qr });
     lines.push({ kind: 'space', lines: 1 });
     lines.push(...warnungen);
-    return { lines, paperSize, regelwerk };
+    return { lines, paperSize, ruleset };
   }
 
   // --- Kundendaten
@@ -1255,7 +1291,7 @@ export function buildReceiptLayout(
     lines.push(...warnungen);
   }
 
-  return { lines, paperSize, regelwerk };
+  return { lines, paperSize, ruleset };
 }
 
 /**

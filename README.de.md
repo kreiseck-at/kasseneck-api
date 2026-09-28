@@ -22,22 +22,23 @@ optional und nur für `@kreiseck/kasseneck-api/react` nötig.
 ## Ein Beleg in wenigen Zeilen
 
 ```ts
-import { createKasseneckApi, apiKeyAuth, KeckPaymentMethod, VatRate, receiptDueCents } from '@kreiseck/kasseneck-api';
-import { buildReceiptLayout, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
+import { createKasseneckApi, apiKeyAuth, KeckPaymentMethod, VatRate, receiptDueCents, receiptLayoutFromResult } from '@kreiseck/kasseneck-api';
+import { escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
 
 const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' }),
 });
 
 const items = [{ name: 'Café Latte', quantity: 2, vat: VatRate.vat20, priceCents: 390 }];
-const { receipt, company, testCashregister, testSignature } = await api.sellReceiptWithCompany({
+const result = await api.sellReceiptWithCompany({
   items,
   // Die Zahlungen ergeben genau den Zahlbetrag (ganze Cent).
   payments: [{ method: KeckPaymentMethod.cash, amountCents: receiptDueCents(items, [], 'standard') }],
 });
 
-const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse: testCashregister, testSignatur: testSignature });
-const bytes = escPosLayoutBytes(layout);   // für den Bondrucker
+// Das Layout des Servers (`layout`, 80 mm); fehlt es, entsteht es aus derselben Antwort.
+const layout = receiptLayoutFromResult(result);
+const bytes = escPosLayoutBytes(layout, { paperSize: 'mm58' });   // für den Bondrucker
 ```
 
 Beträge sind immer ganze Cent (`priceCents`), Mengen am Beleg ganze Zahlen.

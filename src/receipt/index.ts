@@ -16,10 +16,10 @@ export {
   receiptAmountsAreZero,
   receiptIsSmallBusinessConsistent,
   receiptZdaText,
-  type Pruefangaben,
-  AKTUELLES_REGELWERK,
+  CURRENT_LAYOUT_RULESET,
   type LayoutBannerLine,
-  type LayoutRegelwerk,
+  type LayoutBannerTone,
+  type LayoutRuleset,
   SMALL_BUSINESS_NOTICE,
   formatCents,
 } from './layout.js';

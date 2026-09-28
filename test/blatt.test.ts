@@ -11,12 +11,12 @@ import { LOGO_PIXEL_MAX, LOGO_STUFEN, belegBlatt, logoMass, logoPixelZulaessig, 
  * Abstaende und Groessen hier und nirgends sonst.
  */
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
-const TESTKASSE: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
-  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
+const TESTKASSE: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
+  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', tone: 'warning' },
   { kind: 'text', text: 'Bäckerei Muster', align: 'center', bold: true },
   { kind: 'space', lines: 1 },
   { kind: 'qr', data: QR },
-  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
+  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', tone: 'warning' },
 ] };
 
 test('ohne Logo und Marke: das Blatt ist genau das Raster (QR als eigener Block)', () => {

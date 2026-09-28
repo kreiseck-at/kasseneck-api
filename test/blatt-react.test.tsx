@@ -8,8 +8,8 @@ import { belegBlatt, PUNKTE_JE_ZEICHEN } from '../src/receipt/index.js';
 import { BelegBlattView, BelegBlattZeilen } from '../src/react/index.js';
 import { logoPixelZulaessig, MARKE_PFADE } from '../src/receipt/index.js';
 
-const LAYOUT: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
-  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
+const LAYOUT: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
+  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', tone: 'warning' },
   { kind: 'columns', columns: [{ text: 'Gesamt:', width: 6, align: 'left' }, { text: '5,96 €', width: 6, align: 'right' }] },
   { kind: 'qr', data: 'QR-INHALT' },
 ] };

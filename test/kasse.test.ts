@@ -259,7 +259,7 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
   assert.equal(gesendet(l.aufrufe).fn, 'listMyPrinters');
   assert.deepEqual(drucker.map((d) => [d.id, d.name, d.papier, d.zuletztGesehen]), [['d1', 'Theke', 'mm58', 5]]);
   const c = transportMit({ jobId: 'j1', status: 'offen' });
-  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
+  const layout = { paperSize: 'mm80' as const, ruleset: 2 as const, lines: [] };
   const job = await createPrintJob(c.rufen, { druckerId: 'd1', layout, receiptId: 'K1-ID-1', titel: 'Beleg', quelle: 'kasse' });
   assert.equal(job.jobId, 'j1');
   const g = gesendet(c.aufrufe);
@@ -287,7 +287,7 @@ test('listMyPrinters/createPrintJob/getPrintJob: Aufrufe und Antworten; Drucker-
  * Ohne Angabe bleibt die Nutzlast wie bisher.
  */
 test('createPrintJob: Logo als Mass + Base64-Zeilen, Marke nur wenn gesetzt; ohne beides Nutzlast wie bisher', async () => {
-  const layout = { paperSize: 'mm80' as const, regelwerk: 2 as const, lines: [] };
+  const layout = { paperSize: 'mm80' as const, ruleset: 2 as const, lines: [] };
   const raster = { breite: 10, hoehe: 2, punkte: new Uint8Array(20).fill(1) };
 
   const mit = transportMit({ jobId: 'j2', status: 'offen' });

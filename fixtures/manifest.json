@@ -3,7 +3,7 @@
   "belege": {
     "karte-eigener": {
       "eingabe": "0741f3a45aae71f268ebdc62a2f61373a9e4d2c46206f561ef89a3a6237c7c10",
-      "erwartet": "69117d5c4d70891bef27955b339cfdd63969c2100369dfeb355792b954e67534",
+      "erwartet": "a974b8867c6399ce19da9cae28f4d328fc1fdbc25535858906c8e36cecb393e2",
       "grid32": "12a7448b4698be696f10564cc1d38f75c675de1a87fc959f1edfca97e4c62ea0",
       "grid48": "f217c70c4204d134cc3b7de77504be21cb4e4797c2a2af9b997f45d817abbf4f",
       "blatt32": "d44378416c463fc5fde1b25e539829d5cb956baace4f0d62176780ac585f6ae5",
@@ -11,7 +11,7 @@
     },
     "karte-gptom": {
       "eingabe": "e282e413f59f4d53cb10d0e5240b9fa429984739a0109bc272fd1a2015933f51",
-      "erwartet": "3dee0d64dbf6f34a04737130d729a77c4e5437008bfa8df84bf3617b11dd11d6",
+      "erwartet": "e7e29df16e8575694abe8f9da7a60d561de7845deea6a2cbea86edbfc79b45df",
       "grid32": "12db9f41bbeb30ba212442b18b6b493f13de4a18919017612390c17b890c03d7",
       "grid48": "b6501f07789d34d458b36d36478d34e84ab857a5de5b3403d22a629dcd45a94f",
       "blatt32": "739debae28dd21a07058fece0b451a219788774761305293512255af648364af",
@@ -19,7 +19,7 @@
     },
     "karte-gptom-ios": {
       "eingabe": "2db06836e2c103252adcc2753df929dd6e810e437289e72b7ddebe5bebd8545f",
-      "erwartet": "479137c5b98db4e70dce20c79cf0e27a2d9b60049a0a4795202bdec6c76bd0f2",
+      "erwartet": "7ae688972896b53f1c0163acd0902124bbe01e3204c9c3ec5796605fe4383e8c",
       "grid32": "4d990a3bf241ea1fe8f05e58abce89e296a872e32295858a4f3e77f4b0018427",
       "grid48": "ea95ba747fb94d98d592e23ec2481910adb5b7ef5fd33df98088776590c8a5be",
       "blatt32": "3caa3d28098ce40b630c9e554f07b423534c9ef85403e83365f7bf980ba7236b",
@@ -27,7 +27,7 @@
     },
     "karte-hobex-cloud": {
       "eingabe": "bc8034b2542fbd90113040b5357ec0217fb254736494c37d2be90416813db776",
-      "erwartet": "2b729018415305f80b01bb456a58cb26dee8460b4a37def44cf6a9f1afc705fa",
+      "erwartet": "1c2fd70a6000aae202cb120ddfaedaef4a8bd9ae2b87ecf63b48818fb5dbc42f",
       "grid32": "a478ae42b2e0ccf48013c3b7df5c9991b79ec2931ca8cfaa7763d4fe72195454",
       "grid48": "054c91bd542b2a80cecd39cfbe1140b27aa527d0e8d067e34464492948aa114c",
       "blatt32": "db83bb00fd4c440cb136a198e5f91252d90c3599010c544081d7d457b4be7c40",
@@ -35,7 +35,7 @@
     },
     "karte-hobex-hps": {
       "eingabe": "2564a49745c26b92eb1a52532d18407db5be330404ef5e8ea17a2ee601b01ddf",
-      "erwartet": "61c093340136946b8dea538493b5100f1d507614cb5992fbe3e5d5ca2ea4bba9",
+      "erwartet": "570a09d2a9f07a78ab01e0d2273fd930a239627d5581331826af292d5adf5151",
       "grid32": "62e3b47d8a31990ccdf8d97b99d7b37491c6776b8f535778d5e2b23a08487fe7",
       "grid48": "4236be127c8e7fa3cd2ebf52799516cf44f1d0ed06c66f52a822a7460e0f5a35",
       "blatt32": "4015b5bbdd2e3721235e8f737df9848befc8127d202a09acbc4135728d912624",
@@ -43,7 +43,7 @@
     },
     "karte-mypos": {
       "eingabe": "0a259816b86094d3e460e5b5ad95ebfe6d408da70a2f284f005e79197835c422",
-      "erwartet": "6154554e3c8458284ece27bb98e99aee64eb935f913c57e679631ac8d6c92419",
+      "erwartet": "b3510f11ccf1f8851abc645492f0bb62dd99b63a8b54af21ce18d0d8f2dc33ba",
       "grid32": "5928fa03a75cd7ccff06ce0fe5670d80bf61ccde14d96a2d140e1f26ac16fa9b",
       "grid48": "8a7002db14b4ec1b90f349976c9999b4fa5fc96645b233c349d02214d8f167c7",
       "blatt32": "d0726aa905ab412ae69a1e04944509f1ea674f01cf3fd7beaa48420b3b09084b",
@@ -51,7 +51,7 @@
     },
     "karte-stripe": {
       "eingabe": "225452a726938edf13bc2ecb18f3e4a2f959ac85c67405da8ca1a06204290371",
-      "erwartet": "1a9803bd34a8303f5b2027294c6797e34beeb95e8d173ea091235d2985b79bf0",
+      "erwartet": "871be1003a6b4058923f287075bf561634ca158c25a857a6fd37fef93599f037",
       "grid32": "f2dbd3abe8129dcfe6a82db165d4f909c0077de1e788a4fe8977a9aa0bbae505",
       "grid48": "ce064febd9e540b9346d1730e2581ee79902f0c115068d44f814d25177a2c974",
       "blatt32": "cf12d4e947c8346ff8b95d34fc3353984258804d172b43f631fe7b18eba2c89a",
@@ -59,7 +59,7 @@
     },
     "karte-stripe-eps": {
       "eingabe": "f94fb8183c35e571f576bf5180a39622a02d496fa140434662fa6a6b7576b5a1",
-      "erwartet": "b6d963cf777739eb845f4a346e02911bc9435a04260553aedbf48efb48d5ffae",
+      "erwartet": "38d9972b50f6133520e59e193d60ab3907be0837357b2ba233d10e120aefeee1",
       "grid32": "c8d8189c51159c639a2a861557fe32bbfdc6e65c0e91656e94caa99e5ff2c9ed",
       "grid48": "3d35cf200c94588d2fd28333e8f78a2d0d12860603ebbfd12cd86295df159d0e",
       "blatt32": "28be090b610b4de1d0423cd6693ad42bc3cc957fc26e2c277dc908e42b0653aa",
@@ -67,7 +67,7 @@
     },
     "karte-sumup": {
       "eingabe": "8e0d0883d1faa0a1af96f7a57cde400d6154e90b13856b65bd04a138b868e1ed",
-      "erwartet": "6569440a4aef13bca4f4f09d40919e7459ae38a1d29ae929d81e3743ea396287",
+      "erwartet": "16fc88b52027565d21d210771a4a22c61b7e4aaac21329e81595342be0830983",
       "grid32": "66ea91d4363bea96a28ca88020780d25f7bd2e42a42289f325d59116f6b960f7",
       "grid48": "043e2aa367473ae8ecbaf7b92d886380d1e0d0dc461140c69771cfd18b7a1a39",
       "blatt32": "927de16956d6a1b65387b741a9bc1140718123fb583cee185de248b0831f7766",
@@ -75,7 +75,7 @@
     },
     "langer-artikelname": {
       "eingabe": "a9a8832989937db8c2abb0e548f31549040c89ae46d707102aff545e3a1a8c21",
-      "erwartet": "97405d2030efc2e8eb092d0051fd4567b4c0d5ba88050c3e063d9996d10c4313",
+      "erwartet": "e925c1e3fd8aa86fb76b80b50eaebe4838f977ec94c543b08e9a1aefdcb7ddd3",
       "grid32": "bb2c6e8b50c321441f9729d4baad6165d9075523a92d8932671687b49c0953d0",
       "grid48": "80dbf16d8b7e9eb1f5d3987b94f3e27af4acb71086955058b8ca9668f75fd976",
       "blatt32": "ef3050d01b3a504680905a0dfe6e96032c47c648e11febcd6d9cf5710c71d244",
@@ -83,7 +83,7 @@
     },
     "null-ausfall": {
       "eingabe": "3a0a6bb819b1432f5e0d9f0746e6a3c91ed8e542705219d28a6ac053392e5768",
-      "erwartet": "2771191e0fcf4757d7793439eecb874773e65020c78b00ce1fb3186108b2d165",
+      "erwartet": "d1804edb7624967e92b1502adf54d7101cfbc4905282359debeb3cfd83e588c3",
       "grid32": "0730d40611a8a0a673443ddd4da97f25ecedd483b735afe40f058ea4723446db",
       "grid48": "cbf9663a1540318f08b441ef11f3266a073c41c41d710db29541b28355fbdfb0",
       "blatt32": "5db0904d6c58f9c405fc7334bb2c46a5f510e66a13b176e727cbac8373f070c2",
@@ -91,7 +91,7 @@
     },
     "null-jahr": {
       "eingabe": "89b71acdff4fba787f2d633c50a95ac4c149e43a19c995394b6dec3b69055366",
-      "erwartet": "cdefdd72af1c22abf3af756239bc53ac6c17f72e8077053f6dcfa420d88ad1ca",
+      "erwartet": "eae025403d80897b18bb893d4d8f6d1a6543fea1f6b24c7eb2ac1f4f9ad629ba",
       "grid32": "b4afc8a5b524b641bc60d6bf143c985b1a4df71dfcd5b1a69406a333bb12d3e7",
       "grid48": "269db9849b48394398812465886d2f45caffded49528f29de86e23b1557313b3",
       "blatt32": "e243ccb93a56ecbfe6d4955f9b58ca3b5addc922b9615147aa32ab6d9e42b70e",
@@ -99,7 +99,7 @@
     },
     "null-monat": {
       "eingabe": "7251752ad1a25009b44a5342dad491b1e9eb06680fabe97dc7e2d4e1fa8ba0b2",
-      "erwartet": "4fce602aa6fb2d9e73693b51b6fa24f8548e64d575dd2a6a425199b16f70f498",
+      "erwartet": "691a15bd605fc63346c7c9a64b864d3373d92586367c36afa72ba5db9268d3e0",
       "grid32": "b522b2cfc11ae2ed39d61449ba1686963c260ae8970d4addd19861c33e428a01",
       "grid48": "a245d422617f1e5a10c434f13589eb991455f4b25d8819c3c1f840c91b9290a4",
       "blatt32": "d9dcdb4233432fb4525b9773114aa61e4aa7862c21d512fbc056cf231beac4c2",
@@ -107,7 +107,7 @@
     },
     "null-pruef": {
       "eingabe": "a4237023049b3c7b56b05858005b72fdfe31bb940ff291e098f916bb6ce21f84",
-      "erwartet": "5f75008e45068c323ee2212bebb00210fa7f2fbe334b7071c5249ab320407db6",
+      "erwartet": "3d25b3cdefc93955e073bde3ab8ee94bc47f07628df2e426045e53d6040d9db6",
       "grid32": "2efe1b8c879cbaed93b5497b5f1253790254e18a3228c986c820520c6674e267",
       "grid48": "2d21f0e00a19be93bd847370c7539d4f56bb812aea04740b47e077eb38d343d8",
       "blatt32": "af13a8c589ce30ee375f5a877fe12f089068a44cd6bee3f066941b8ee67438c0",
@@ -115,7 +115,7 @@
     },
     "null-schluss": {
       "eingabe": "91c1eb9863cc4a6e52fe0c64385e4e4ea8d0c264817ba554ce5ce6a733837359",
-      "erwartet": "7530191d4461c332266dd2779a109bcfab83bf0eb20c10f2c063b9fcd1e3e12f",
+      "erwartet": "61c9e038f3519e2cbce331b4d468a181c67374c8585e3d2e00d23539f62baf1f",
       "grid32": "f2a9f238c45531cf50e1af96d688a7cb95a96ef7c3d6bea2ce63064fb251d2e5",
       "grid48": "ed324e3a87399e29201b10f44bb1c2deeede7b7251f286e309fe5c5d6123645f",
       "blatt32": "f92bf4fd5e7c5d49dc91ba33766f2ac1f6efcd063587b390b4f183afdd65b396",
@@ -123,7 +123,7 @@
     },
     "null-start": {
       "eingabe": "3999878177c54dffde05b8b933355af23cd2781a98d54cf9b990824c0602014a",
-      "erwartet": "115d350efbb9d84e8e111a46202430f3e28ce4d6dababe2e4b10046bf3cb62e3",
+      "erwartet": "9f1ef2efae270de705c47423a215b91b7c878d85b61852a7d2ebce79a9aab53c",
       "grid32": "a47bc70d39beaf096d1b6f9979cde3766b9330fa305d6a931cb4548bd4a7bc13",
       "grid48": "1891ebb2a309ddcc5422579377de09f38d6c3c87af747ba7f3a9e8d417fa3799",
       "blatt32": "2f78bf67d17d2e59d30b659b264d9b5a2f51e6f69db4711483f054e84b598e58",
@@ -131,7 +131,7 @@
     },
     "rabatt-chef-trinkgeld": {
       "eingabe": "ca7d8996e9e6dff17eb7a86c68a7760222c6f8abf78d6d70cb376787cc35feea",
-      "erwartet": "00c23751a269d39b1fda2e5f22da770cbd843c27640307ebee6acb465672efbf",
+      "erwartet": "9de715b44ec1f257a2af1b2c475bd75b09916abea54ca656553ecc6f4708fb32",
       "grid32": "be28ba90768afdc8bfa3524f5e79f99552d59dd17dc6edda8b0bd9084581a955",
       "grid48": "471748fcecefd7962b15d57db92194013ed46330be8b2c88c46183cf5c379342",
       "blatt32": "4e029333b428d73eaecabd5241e2981bac796f3e1df7758d1b6af05a7de9c5c3",
@@ -139,7 +139,7 @@
     },
     "rabatt-einfach": {
       "eingabe": "78f7d6710b09d1553d5c623748df9788d826c3d5495d7cec47af485b6561f29b",
-      "erwartet": "4c935c7de85874eb8ccf115e2b000c1f27836b239a86f5e99d42f6f6f3977471",
+      "erwartet": "1214fc1c7023e40f23f4e0a3588112dd1796ab0ac7b3eff6d3b53cfc676686f5",
       "grid32": "0cf218c0cd752a1d02e1597971342d989deb2407966fa0d56b763ebd18e965be",
       "grid48": "2429714cd6b2036e41f44f319bd77ac26e0997f2fd078e9b8e21f32dbd23ad1c",
       "blatt32": "a4f9c46e177e9c26fe53a73e0b2534ec348d9031bf22381af9e01af499faec5b",
@@ -147,7 +147,7 @@
     },
     "rabatt-trinkgeld": {
       "eingabe": "011ab5d531477726cc35bced87f0c212fda2729adf0cd644df6a2af0adff3770",
-      "erwartet": "0efb064b8f20eea29be2948575b9a4d6d509dd4ac5fa8c10e4559326e911842b",
+      "erwartet": "451bf578790a17516439c7c2b9562ff7547094427426969bbcdfe77b3581e7e2",
       "grid32": "8a6876699e500e45605ea0c46dbf71ec4c90cbeb968a24324c36b4030bdbe216",
       "grid48": "e85172a54003b9a2d8b11c145c34e909c8c3edef4a63d1364949ec1648708386",
       "blatt32": "c8cfbc115e5b9775faef471c5defaf06bb366613372bbccdd7bd00a4a773345c",
@@ -155,7 +155,7 @@
     },
     "rabatt-wertgutschein": {
       "eingabe": "1ea18b2feedc924f65537a806f58489e4f839e18e81c6e8b46f60364f44856a8",
-      "erwartet": "4945a64cf0c386560a1155561433fc81e531908890ca35391eed711345a1bfc3",
+      "erwartet": "60fba425ac6d069c12b2ff4447670afe08a12e3bf88adc9bd5233ba70e2b7ea1",
       "grid32": "7178707063a9178cb433ee6928ad663503242cab32f961c2ef9a105d551ffac5",
       "grid48": "3aeebcfe2a846af8b0b1267a946cc7242085b7e02722ea427c03ee736555cb1c",
       "blatt32": "615eecf5a5157d15a0a5159625f9cd05440c87327e4a350eb0f7b5a183a74078",
@@ -163,7 +163,7 @@
     },
     "rabattzeilen": {
       "eingabe": "746b4fa54aadd62925a08a828632f9ff1829475d63a2839b8310c0451cda4766",
-      "erwartet": "3395fead05ccdd43eefc1f063ddb1c5ffb4f56aa00a264d8dfdcad48913acd8d",
+      "erwartet": "f0886c9efd735e526b5cc76c56e1bb4b6a9fa1c6564b0f4f3024f7d01f52c14b",
       "grid32": "175f207c673b7cdef2175cf8b0cf0aebb5c82cb714804dacac8208d9742f97fb",
       "grid48": "29d21112a7cde5db0f546233c9580451199c0490ab01dcfa4365d79c066218a0",
       "blatt32": "9de473c6b61e068e5bce3f36a4dd1e787607338572cc5ec89f817aecfe06aefb",
@@ -171,7 +171,7 @@
     },
     "signaturausfall-verkauf": {
       "eingabe": "c84c9cb97e2cbf0ead3ce537399d2227ab501a90adc2ead79233e95b3a30b8c2",
-      "erwartet": "0ce2c1d6f30dc12d4f32bb2d03616645f88b6ef782b9e0764fd1b632d5a782e3",
+      "erwartet": "fd624ec3600731146fad318a8b5a9865fb8e3dcb61c6ab1d36e85ea75224b731",
       "grid32": "c7e3cc1ad61b942e819c438a728ab59b013b2354c78981429fa3a4fa483e8073",
       "grid48": "e0f4e73c873ae0a70623c7c05673a5ca9b736822375c13f6ed0cd3351ab767f9",
       "blatt32": "06b97959a3e91c3413853fb71fedda97dc4cd72a499ffd269f4cce22e5fc3775",
@@ -179,7 +179,7 @@
     },
     "split-bar-rueckgeld": {
       "eingabe": "b12d3e1adee77d743250f3719550f92af268e81170dfe9595a689513798a0e6c",
-      "erwartet": "1cc70b5206948f2931813b4df778fe4b77d083f7211f4f070cc6bc1d9c23af65",
+      "erwartet": "3bdbfd103b85cce3aa80d97c0ecadca93de8fda37e3d2f8026b265a92ee1f05f",
       "grid32": "6b8c53058b779712885bad15c1c68135d834f4f741ce62b8361ddd90efa84b95",
       "grid48": "9a06f420fc81ba463e6d29b3601de1db28a45fb646db41a6dde1c632bde02bef",
       "blatt32": "e69b5b4e3abaa6f126eeb385a201a14f4b888aa7606e7a95584b9b0b7ec275c6",
@@ -187,7 +187,7 @@
     },
     "split-eine-karte-trinkgeld": {
       "eingabe": "c6df0651c38cc9be34aeab745bf79cf64504d0eb5bdb4788d736109930cfd966",
-      "erwartet": "697ebb0d994a38a4b7718198df91e99473da6a00e6abf73d37e340546604b702",
+      "erwartet": "352494ae47285e79e7f9aa986b38601a2f1673526cc9f707a771aa2f51e75e4a",
       "grid32": "8717df55a7a829ae89f52623d015d3b44a15a20e76633ddb5e419468c888b6ac",
       "grid48": "661d67c760b39090888cc2b9ab3811081e763b98860f98cc07a8ca09afc36ae8",
       "blatt32": "6b4c77b65d2e20c5313551939ade180635a961d416af82af4203cc18ecf7d503",
@@ -195,7 +195,7 @@
     },
     "split-karte-karte-bar": {
       "eingabe": "546c64d96ab81cd5615d6d9ea7bd79c516ce47937382fd1a3a33741bdd11098c",
-      "erwartet": "f699ba931d9ba1e9971a81020bda8d67df33de9fb21a385d9d2340b7106a9217",
+      "erwartet": "264a0f8d1a30b1150e02c982bd56d26864e47f909d06d3f4338319ecd46324f8",
       "grid32": "a51255ebc313dbeb834e720d1752cf2908579115a1c7b16d7f70fe7cecb196e0",
       "grid48": "49180dc43f4c2f69164e4a3c8841fad2dad64328fb5a97a5f5d0726be34799d5",
       "blatt32": "781e0427e26e159ca985bef5aa9cf0ad7497182472d9ed4d79687825fae0d494",
@@ -203,7 +203,7 @@
     },
     "split-langer-betrag": {
       "eingabe": "cd0bc2dfc4003b605f46b3133f6d66bbf0f6a2fc56a4ab7724e1c5bc4e3d2862",
-      "erwartet": "9e6d972fa52a36b37bbacdd4b65c68a6d624360fcfec53140c8549cd65efd5ae",
+      "erwartet": "b53328868d4f5dedfc8fad3ff63dd2c586109a73d71a1a56eb2b9f07eca89903",
       "grid32": "f4cfeb80e9258ba66b899e0ae489cbbb58381b108eb69012a653482239ae08ad",
       "grid48": "1924a3c7fa04de1afb8307fa4d1fc49a9664cf7f97abd6d4bcb9a02a267a6cd0",
       "blatt32": "348c9ce13aaf649ddd092696563a3987842c44e50357942e628bd72ea7b7976f",
@@ -211,7 +211,7 @@
     },
     "split-tischrunde-trinkgeld": {
       "eingabe": "b71083c468c353d8c2f88d80c138244b35fe205cedfdf55b59c66024487c0b71",
-      "erwartet": "a0c26ec17130941ac89d2069bd20a00d5b8e2732d90a5c5d6957f46b6ea48596",
+      "erwartet": "1fbe8ef576df6eb6d90f5f61626d2142eb1b4c0b3d214d9184fa84bcce76ec1e",
       "grid32": "1be9b5f616b72e01f02f5099724c5383885ba3bc6d4d462810a6c657f226c331",
       "grid48": "64ca8d9424c51ebf9a46e64610d5a5a01928eb3946b0d625f3dfbb38f9d295a4",
       "blatt32": "e2fcefebb42ba7d30fa3aee97b2de30d85e7eba083feedd80abfb8f02cab8c92",
@@ -219,7 +219,7 @@
     },
     "split-trinkgeld-karte": {
       "eingabe": "c51af4387d90820afb10c53943519fbecac43c3b4d9e3e06292689ad72d2fb13",
-      "erwartet": "8905104ad3f93faa12e50fb421678185ac4124a8ccda5d7ca629b1a5d508ff3e",
+      "erwartet": "13a9773d05ea4ec6538962787b08b34ffeb8109a48b0c73ca71b70fb8ddc109c",
       "grid32": "841d6a935531b43646f8e549cae4f2cb9047144cfa6fdae04a4ed2485da8ff63",
       "grid48": "12278d2c9b2c59b2e9898daad119498d3ceec04dd761870f0c118d872946dbcc",
       "blatt32": "17fe2ed1a4cbe533019d282e0969b683b2f16086c1c148cb71ce943e98bc1d7e",
@@ -227,7 +227,7 @@
     },
     "split-zwei-karten-gleicher-anbieter": {
       "eingabe": "fece48d5aaf2293b42ca4e33184cfa47c382b4df3d75d0a9aa9181c7158f4a9f",
-      "erwartet": "89536c00c511185e153bed051784911e4140cfed92ccf174b4b3df877129d832",
+      "erwartet": "75e39a1005003a58279b833910f60ab3cfec11216b4f9c1eb54156dbfd9c2cc5",
       "grid32": "cfb1e8e1e621b09a53026113161551978febc9a667f5ea6a044cd958ad9c499c",
       "grid48": "62cf28cbd34afb9d4cb9f5424cea9ac83154afab4b60eba87170ee89eb0f940a",
       "blatt32": "6c17ff2940f45df0a41fbfe0f603dce15137605f941a576aa402f9d67aa967f4",
@@ -235,7 +235,7 @@
     },
     "storno-rabatt": {
       "eingabe": "d6bd978f4cc3e9c8c4315c573c7a3f5c8dfea4bf65fce6789f268056a521ec15",
-      "erwartet": "a10fc0dbbfd46366feab7431ab1608ad5a76418e80b50d2903c574ee2cb70040",
+      "erwartet": "2aadaef9cdebb54b127e759f5bf53f73d236a01902c539a9e2b1e7ea06a6462b",
       "grid32": "ff2902f734516b0d09bc16320bd390fd3c2f6722fa3dd10520b137b5b88261bd",
       "grid48": "ee69cc5d38a73b1ee99f6dd66a72a9b90e8fc54066b0d2c0e437f6eac187900c",
       "blatt32": "4b4c46f72efb23a654a50308a95bd852f42a5bcd50903fa5190799a7d4423ed0",
@@ -243,7 +243,7 @@
     },
     "storno-split-teil": {
       "eingabe": "f2249f3fe529f8fcb9930b52e65c15b45af3f9a44a36ec6286814886bbb0a02e",
-      "erwartet": "4cac951b716c60043e77877bd4f7194fc43a493c61f62ef9b07eea4048b6059a",
+      "erwartet": "dd00a3ed59f555a37dd15ad6970b6a3ea32f04532211460edf9549e782d8d709",
       "grid32": "73b152cf7de2ee75c8d3f27d43cfb8f5fdd166b1e6956e407b68c31458884185",
       "grid48": "9bc0f04402205cbe212afe9302775986ff625f03eb1fe1dcda0b89a180074773",
       "blatt32": "2430db5aad6409c2bd5fabd79643c5d1a9077ae6163da58e325ad1cab6d8ff3e",
@@ -251,7 +251,7 @@
     },
     "storno-split-voll": {
       "eingabe": "84c58b31420af43fe46fb77a10cd2268b29224be7a26112a659079958e72895d",
-      "erwartet": "380f241d8ef791d257a9eb17787b93021ac00472d1a19994bc5d02e20c337105",
+      "erwartet": "b4e5f1f5915a75fe3a905f263ca48ec4f0cd30dd3c142778ce1aeda298702106",
       "grid32": "e7f3129bef7e683e2cf8b4b212b9eab66a2a068077792716313fec87c71e464c",
       "grid48": "4de3a192f6bb1fe9bc0ebf28476e6f631b2de2ac85cdc2032b550207fc93a321",
       "blatt32": "910f89e3a814ce5c62dd735e51c9656fc9c7e08be3104d3e44869b72f7e832f5",
@@ -259,7 +259,7 @@
     },
     "storno-teil": {
       "eingabe": "2f4cab11c1c9e8bb4722dd6c4a279825a9e31e3b6a9335c017bc587d97af0fd4",
-      "erwartet": "dcf388d74261171b3b004f1abb51650dd7d2d53f7b2c8a4ae453ce47ec3e01e6",
+      "erwartet": "f3b4eaee3d0138665f30319357f51bbdd353a05d12095bfa3b9a0c20bdef768d",
       "grid32": "88aa5a63fe604b8f739a56d5cfa3baa2ce1ca291cf12aa29986f277bde5ca8af",
       "grid48": "9bdeee63514edd16938b5c3356cde27fde2f53bbc04133eb05ae7b53c80a55e2",
       "blatt32": "1e34b4d3e14b54d6964ac15195d6149d20498039795ec81af5938a3dbde08185",
@@ -267,7 +267,7 @@
     },
     "storno-voll": {
       "eingabe": "11f4f58f4f06cd2d414f982b85a017c2a3f62cd23fb8c54d000c16ce1490d2f8",
-      "erwartet": "8e595d6afb36e9c2d2dd77ec71927a039435d74eafe2321c73fff48d321d3602",
+      "erwartet": "1360fdf0301f3acf349d87612f995f963ad737236ae201db6b77b779367408fe",
       "grid32": "29f38655b8076522639c078a602f97075032f25f6d687e6a748a0da513ac96b0",
       "grid48": "da9d112db80cc27fcae5521e25cbb35d724b1bf6a7e670c298d9727e248bdcb3",
       "blatt32": "8ff300a3564f93af09c3765e1a03cb39119dabcac91d92452a8b0a24007ce379",
@@ -275,7 +275,7 @@
     },
     "testkasse-verkauf": {
       "eingabe": "5cd594029a3d7af4a7c502719763d8b5df0063ff7e46da43c9c7dc4fd2638e1f",
-      "erwartet": "90abdfd08ef7f924939c6d4a05bdf2b8f633ef24d0f928939f6dfcf0f7c91342",
+      "erwartet": "2335e49c8c20f8245a646bc761c66ab054a411a259e6442d3f6601a7e9ff602a",
       "grid32": "c26b2c71fcccc255f91e4432741b9ef54f311bdf08bff4ad48a19a3f09ed3d54",
       "grid48": "b246b6b40aef1d29b740d34c3f05bab5cdbcdabd50c577f05fd03e81124eebdc",
       "blatt32": "445b15e648c252d027696fa8b25f606a58ddc0fa24eaa66eee46601bfce9fcd9",
@@ -283,7 +283,7 @@
     },
     "testsignatur-verkauf": {
       "eingabe": "d56eec2e877fe23b02564240ca0af23ab00c99aeb51ae15fcb8080265dc56465",
-      "erwartet": "ff03332eada98c7c37902a84671a81eb404cf27eb8e65a218305a1ffe697fe96",
+      "erwartet": "a5cbb04832e65177cd330458b39d3e1ebdb45f8790c58d444ec7dcbf2f060947",
       "grid32": "e2b024b69774c66178c4138e70f17554ea7dc518ecc0b86cd6ce7c72001b68ea",
       "grid48": "7bc9f07177423df49dd2834b3c52f37eb432c4e34fd71a387e4e3e020156e107",
       "blatt32": "951f7aee41448eb09caa691dc9b1c2f667c26506845bdbc6759c7c3ef5b178fd",
@@ -291,7 +291,7 @@
     },
     "training": {
       "eingabe": "4bc356192020d159b396badf474357485d8a2033cfa47c8c160f41e3b0e5411c",
-      "erwartet": "f0739c073a70c326c42469b189971663f36ddfc8a476a8760a2efc1ff387c90e",
+      "erwartet": "372b5e2f6a6a79dbaa44c89c03a9daf86252e09104d11b84d01d3f5806ed79e9",
       "grid32": "281df5c496b7f1a7ecaf445cf4514dd2d9be78444f8c9e346a27c740be1e117c",
       "grid48": "91db5ea850b144893507291d54909a9fa03a7769099ff0abb45688d09d7ba4d2",
       "blatt32": "65b878eb6c144c390745dcc9dff38150d22b84cd5188ca3b01991cd3f6666bea",
@@ -299,7 +299,7 @@
     },
     "verkauf-bar": {
       "eingabe": "272523f758d809edacc8eb2f26b90f8ae58a47c023d4bf6a6308ec495f53cebe",
-      "erwartet": "7ad60145b59a89c32031bb10b2f1467db3257af4395ebdbf5dc363842cf11c8a",
+      "erwartet": "5ecd3ff890d7e21ae98bdca33ede6d57314e607fe68c7fc99ce63a996cd1adba",
       "grid32": "5320fcb263fb9f56f009a2e0840241901fba642e4875e046b74bd20312ab1aa7",
       "grid48": "f8fa7ced142af62f83d69af5a4bfc7d7cc767436775e18d22c461c62c9c42a36",
       "blatt32": "5b85820e20a9af9b3758e41c7433b7446179a364bb9e87eda99ee565df684efa",
@@ -307,7 +307,7 @@
     },
     "verkauf-karte": {
       "eingabe": "94990f6141c0cc7677d5383eb935a41bd1b14217d43ab46380acc3277e6db571",
-      "erwartet": "31248e914f7189e65005533cf897c3317a0126cc10adfe004842a8660e2afc34",
+      "erwartet": "aa4420dcd209485d48d2830de8f1ed94900a27da26c269091f4b471555dff83b",
       "grid32": "cab1b35c45cc604f290ea780b7d13e7dc4f88f02906a390482a9f1800d3c9a64",
       "grid48": "4e0a767e8bbfd4dcfdbda42663a19611bce95813056b0a4b7336c67b79f20cec",
       "blatt32": "f22be471d134c02b86089fe521800583a6d687492fac45d48f0438c7384ed228",
@@ -315,7 +315,7 @@
     },
     "verkauf-kleinunternehmer": {
       "eingabe": "9949de21f217f32ee9ee9ea5897d2fb34fa1a8e318bf49076bf14fddcf85f59a",
-      "erwartet": "236a6bcf1373aa4afe43c368aa291e46958cbdbdbd5543fc924a4fdd058987bb",
+      "erwartet": "d0d47b8cd9f0c1c5626960c0b591f6f14adff1bbeaa0659ad7c6ad367ad10d2e",
       "grid32": "7f76b0c47e5ae09d215ed500256f8876e62d7412c3452a7e6aea5c1a7fd6aa05",
       "grid48": "d331b2b69874f3ee13f196067a5e993f0b5844d8dd021758fce2c625031b776b",
       "blatt32": "e347f293de8b8f557392968f13f701715ea2faaefab97cf107b4b9eb95adc040",

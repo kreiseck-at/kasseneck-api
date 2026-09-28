@@ -38,7 +38,7 @@ import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckValidationError, isKasseneckApiError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
-import type { LayoutLine, LayoutBannerLine, LayoutRegelwerk } from '../receipt/layout.js';
+import { buildReceiptLayout, type ReceiptLayout } from '../receipt/layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 import type { LogoStufe } from '../receipt/blatt.js';
 
@@ -180,28 +180,6 @@ export interface CancelReceiptResult {
   remaining: number[];
 }
 
-/** Hervorgehobene Zeile im Server-Layout unter `/v3` (Katalog `LAYOUT_TON`). */
-export interface ServerLayoutBannerLine {
-  kind: 'banner';
-  text: string;
-  /** `warning` fuer Testkasse/Testsignatur (kein gueltiger Beleg), sonst `receipt_type`. */
-  tone: 'receipt_type' | 'warning';
-}
-
-/** Zeile des Server-Layouts: wie [LayoutLine], das Banner mit englischem `tone`. */
-export type ServerLayoutLine = Exclude<LayoutLine, LayoutBannerLine> | ServerLayoutBannerLine;
-
-/**
- * Zeilenmodell, wie der Server es unter `/v3` in `data.layout` liefert
- * (`ruleset`, `lines[].tone`). Es wird unveraendert durchgereicht; das
- * Zeichnen aus dieser Form kommt mit der Layout-Umstellung (Aufgabe 4).
- */
-export interface ServerReceiptLayout {
-  lines: ServerLayoutLine[];
-  paperSize: PosPaperSize;
-  ruleset: LayoutRegelwerk;
-}
-
 /**
  * Beleg **und** die Firmen-/Druckdaten derselben Antwort — das Ergebnis der
  * `…WithCompany`-Varianten. Das Backend liefert beides in einem Aufruf
@@ -218,8 +196,13 @@ export interface ReceiptWithCompany {
   testSignature: boolean;
   /** Kennung der Kopf-Version; null bei Altbeleg ohne Zuordnung. */
   headerVersionId: string | null;
-  /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
-  layout: ServerReceiptLayout | null;
+  /**
+   * Vom Backend gebautes Zeilenmodell (`data.layout`, Regelwerk des Belegs,
+   * 80 mm); null, wenn nicht mitgeliefert. Es geht unveraendert an
+   * `escPosLayoutBytes`, `eposPrintXml`, `belegBlatt` und die React-Ansichten.
+   * Drucken und anzeigen ueber [receiptLayoutFromResult].
+   */
+  layout: ReceiptLayout | null;
   /**
    * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2),
    * fuer Clients, die das Layout selbst bauen; null bei anderen Belegen.
@@ -230,6 +213,27 @@ export interface ReceiptWithCompany {
    * setzen das Logo in genau dieser Stufe; fehlt der Wert, gilt `M`.
    */
   logoScale: LogoStufe;
+}
+
+/**
+ * Das Zeilenmodell zum Drucken und Anzeigen eines Belegs aus einer Antwort.
+ *
+ * Liefert der Server `data.layout`, gilt genau dieses: im oeffentlichen Kanal
+ * traegt nur es den Kartenblock (der Beleg selbst kommt dort ohne
+ * Anbieterdaten), und Bildschirm, Bon und PDF zeigen so denselben Beleg.
+ * Fehlt es, wird das Layout hier gebaut, mit den Angaben derselben Antwort
+ * (`testCashregister`, `testSignature`, `registrationInfo`); `paperSize`
+ * gilt nur fuer diesen Fall (Vorgabe `mm80` wie am Server). Die Papierbreite
+ * beim Drucken waehlt der Druckweg (`paperSize`/`zeichen` dort).
+ */
+export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { paperSize?: PosPaperSize } = {}): ReceiptLayout {
+  if (result.layout != null) return result.layout;
+  return buildReceiptLayout(result.receipt, result.company, {
+    paperSize: options.paperSize ?? 'mm80',
+    testCashregister: result.testCashregister,
+    testSignature: result.testSignature,
+    registrationInfo: result.registrationInfo,
+  });
 }
 
 /**
@@ -1045,7 +1049,7 @@ function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWi
     registrationInfo?: unknown;
     logo_scale?: unknown;
   };
-  const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ServerReceiptLayout) : null;
+  const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
   const angaben = d.registrationInfo && typeof d.registrationInfo === 'object' ? readRegistrationInfo(d.registrationInfo as Record<string, unknown>) : null;
   return {
     receipt,

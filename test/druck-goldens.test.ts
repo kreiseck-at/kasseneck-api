@@ -10,7 +10,7 @@ import { druckAusgaben, sha } from './druck-ausgaben.js';
 /**
  * Druck-Goldens: was am Papier und am Schirm landet, Byte fuer Byte.
  *
- * `fixtures/druck-goldens.json` haelt je Golden-Beleg und je Server-Layout
+ * `test/fixtures/druck-goldens.json` haelt je Golden-Beleg und je Server-Layout
  * aus `fixtures/v3/antworten` den SHA-256 jeder Ausgabe (ESC/POS in fuenf
  * Varianten je Papier, ePOS-XML, Zeichenraster, Blatt, HTML von Blatt- und
  * Zeilenansicht). Aufgenommen am Stand 4d71203, BEVOR die Layout-Schluessel
@@ -55,25 +55,15 @@ for (const name of namen) {
 // Paket nur die deutsche Form; aufgenommen wurde darum dieselbe Zeilenfolge
 // mit `regelwerk`/`ton` (belegart/warnung). Seit der Umstellung wird die
 // Antwort unveraendert gezeichnet und muss dieselben Bytes ergeben.
-const TON = { receipt_type: 'belegart', warning: 'warnung' } as const;
-interface ServerLayout { paperSize: 'mm58' | 'mm80'; ruleset: 1 | 2; lines: ({ kind: string; text?: string; tone?: keyof typeof TON } & Record<string, unknown>)[] }
-function zeichenbar(l: ServerLayout): ReceiptLayout {
-  return {
-    paperSize: l.paperSize,
-    regelwerk: l.ruleset,
-    lines: l.lines.map((z) => (z.kind === 'banner' ? { kind: 'banner', text: z.text!, ton: TON[z.tone!] } : z)),
-  } as unknown as ReceiptLayout;
-}
-
 let serverFaelle = 0;
 for (const datei of ['belege', 'kasse-belege']) {
-  const d = JSON.parse(readFileSync(new URL(`v3/antworten/${datei}.json`, wurzel), 'utf8')) as { cases: { name: string; response?: { data?: { layout?: ServerLayout } } }[] };
+  const d = JSON.parse(readFileSync(new URL(`v3/antworten/${datei}.json`, wurzel), 'utf8')) as { cases: { name: string; response?: { data?: { layout?: ReceiptLayout } } }[] };
   for (const c of d.cases) {
     const layout = c.response?.data?.layout;
     if (!layout) continue;
     serverFaelle += 1;
     test(`Druck-Golden Server-Layout ${datei}/${c.name}: gezeichnet wie aufgenommen`, () => {
-      vergleiche(`${datei}/${c.name}`, zeichenbar(layout), goldens.server[`${datei}/${c.name}`]);
+      vergleiche(`${datei}/${c.name}`, layout, goldens.server[`${datei}/${c.name}`]);
     });
   }
 }

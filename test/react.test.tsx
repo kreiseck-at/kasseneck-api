@@ -229,7 +229,7 @@ test('qrVerdeckt: der QR ist zunaechst weichgezeichnet hinter einem Knopf, die N
 test('Spaltenzellen brechen lange Woerter um (min-width:0 + break-word) — Hex-Seriennummern werden nie abgeschnitten', () => {
   const layout = {
     paperSize: 'mm58' as const,
-    regelwerk: 2 as const,
+    ruleset: 2 as const,
     lines: [{ kind: 'columns' as const, columns: [
       { text: 'Signaturkarte:', width: 6, align: 'left' as const },
       { text: '0x01ccc48e1d40f6c3067ab12345cdef', width: 6, align: 'right' as const },

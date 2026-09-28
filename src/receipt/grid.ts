@@ -1,5 +1,5 @@
 import { wortzeilenText } from '../printing/escpos.js';
-import type { LayoutAlign, LayoutLine, ReceiptLayout } from './layout.js';
+import type { LayoutAlign, LayoutBannerTone, LayoutLine, ReceiptLayout } from './layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 
 /**
@@ -32,8 +32,8 @@ export interface GridLine {
   text: string;
   kind: GridLineKind;
   bold: boolean;
-  /** Bei `banner` (Rahmen- und Textzeilen): `warnung` = Test/Ausfall, `belegart` = Storno, Nullbeleg … */
-  ton?: 'belegart' | 'warnung';
+  /** Bei `banner` (Rahmen- und Textzeilen): `warning` = Testkasse/Testsignatur, `receipt_type` = Storno, Nullbeleg … */
+  tone?: LayoutBannerTone;
   /** Bei `qr`: die Nutzlast. */
   qr?: string;
 }
@@ -96,9 +96,9 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         // myPOS -- Zeichen fuer Zeichen gleich. Vorher zeichnete jeder Weg seinen
         // eigenen Rahmen (Rechteck, doppelt hoch, invers, gefuellt).
         const rahmen = '='.repeat(zeichen);
-        lines.push({ text: rahmen, kind: 'banner', bold: true, ton: z.ton });
-        for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, 'center'), kind: 'banner', bold: true, ton: z.ton });
-        lines.push({ text: rahmen, kind: 'banner', bold: true, ton: z.ton });
+        lines.push({ text: rahmen, kind: 'banner', bold: true, tone: z.tone });
+        for (const t of wortzeilenText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, 'center'), kind: 'banner', bold: true, tone: z.tone });
+        lines.push({ text: rahmen, kind: 'banner', bold: true, tone: z.tone });
         break;
       }
       case 'rule':

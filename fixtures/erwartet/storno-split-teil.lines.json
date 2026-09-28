@@ -37,7 +37,7 @@
     {
       "kind": "banner",
       "text": "STORNOBELEG",
-      "ton": "belegart"
+      "tone": "receipt_type"
     },
     {
       "kind": "text",
@@ -300,5 +300,5 @@
     }
   ],
   "paperSize": "mm58",
-  "regelwerk": 2
+  "ruleset": 2
 }

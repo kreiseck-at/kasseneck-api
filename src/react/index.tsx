@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import type { LayoutAlign, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
+import type { LayoutAlign, LayoutBannerTone, LayoutLine, ReceiptLayout } from '../receipt/layout.js';
 import { belegBlatt, logoPixelZulaessig, PUNKTE_JE_ZEICHEN, type BelegBlatt, type BelegBlattOptionen, type LogoStufe } from '../receipt/blatt.js';
 import { MARKE_PFADE } from '../receipt/marke-daten.js';
 import type { QrModulGroesse } from '../printing/qr-groesse.js';
@@ -51,6 +51,17 @@ export interface ReceiptLayoutViewProps {
   /** Text auf dem verdeckten QR (Vorgabe „Antippen zum Anzeigen“). */
   qrVerdecktText?: string;
 }
+
+/**
+ * CSS-Klasse je Ton. Die Klassennamen bleiben die von 0.x
+ * (`keck-receipt-banner--belegart`/`--warnung`): Stylesheets der Verbraucher
+ * haengen daran, und das HTML soll durch die englischen Werte kein Byte
+ * anders werden.
+ */
+const BANNER_KLASSE: Readonly<Record<LayoutBannerTone, string>> = {
+  receipt_type: 'belegart',
+  warning: 'warnung',
+};
 
 const AUSRICHTUNG: Readonly<Record<LayoutAlign, CSSProperties['textAlign']>> = {
   left: 'left',
@@ -160,8 +171,8 @@ function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutL
     case 'banner':
       return (
         <div
-          className={`keck-receipt-banner keck-receipt-banner--${zeile.ton}`}
-          role={zeile.ton === 'warnung' ? 'alert' : undefined}
+          className={`keck-receipt-banner keck-receipt-banner--${BANNER_KLASSE[zeile.tone] ?? String(zeile.tone)}`}
+          role={zeile.tone === 'warning' ? 'alert' : undefined}
           style={{ textAlign: 'center', fontWeight: 'bold', letterSpacing: '0.06em', padding: '0.2em 0.4em', border: '2px solid currentColor', margin: '0.3em 0' }}
         >
           {zeile.text}

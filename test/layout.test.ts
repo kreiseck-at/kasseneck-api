@@ -492,7 +492,7 @@ test('Layout: ein Nullbeleg ohne Positionen baut trotzdem — reduziert, mit QR 
     customerDetails: [],
     legalMessage: [],
   };
-  const layout = buildReceiptLayout(beleg, FIRMA, { regelwerk: 1 });
+  const layout = buildReceiptLayout(beleg, FIRMA, { ruleset: 1 });
   assert.ok(textZeilen(layout).includes('Betrag: 0,00 €'));
   assert.equal(layout.lines.filter((z) => z.kind === 'qr').length, 1);
   // Reduziert: keine Gesamt-/Zahlungsart-Zeile, keine Fusszeilen (siehe layout-belegart.test)

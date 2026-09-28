@@ -11,8 +11,8 @@ import { blattFuerDruck } from '../src/receipt/layout-escpos.js';
  * Ende, und ein Rasterbild, dessen Groesse nicht zum Blatt passt, wird
  * abgewiesen statt verzerrt gedruckt.
  */
-const LAYOUT: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
-  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
+const LAYOUT: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
+  { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', tone: 'warning' },
   { kind: 'text', text: 'Bäckerei Muster', align: 'center', bold: true },
 ] };
 
@@ -80,7 +80,7 @@ test('Druckwege und Blatt zaehlen dieselben Zeilen', () => {
  * Byte): kein Druckweg darf daran scheitern. Der Beleg geht ohne QR hinaus und
  * meldet es ueber `qrFehler` -- wie das Blatt, das dem QR den Anteil 0 gibt.
  */
-const ZU_LANG: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
+const ZU_LANG: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
   { kind: 'text', text: 'Firma', align: 'center', bold: true },
   { kind: 'qr', data: 'x'.repeat(2332) },
   { kind: 'text', text: 'Danke', align: 'center', bold: false },

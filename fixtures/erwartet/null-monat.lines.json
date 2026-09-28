@@ -37,7 +37,7 @@
     {
       "kind": "banner",
       "text": "MONATSBELEG",
-      "ton": "belegart"
+      "tone": "receipt_type"
     },
     {
       "kind": "text",
@@ -216,5 +216,5 @@
     }
   ],
   "paperSize": "mm80",
-  "regelwerk": 2
+  "ruleset": 2
 }

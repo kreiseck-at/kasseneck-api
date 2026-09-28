@@ -66,8 +66,9 @@ import {
   KeckPaymentMethod,
   VatRate,
   receiptDueCents,
+  receiptLayoutFromResult,
 } from '@kreiseck/kasseneck-api';
-import { buildReceiptLayout, renderReceiptGrid, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
+import { renderReceiptGrid, escPosLayoutBytes } from '@kreiseck/kasseneck-api/receipt';
 
 const api = createKasseneckApi({
   auth: apiKeyAuth({ apiKey: 'kr_live_…', cashregisterToken: 'cb_live_…' }),
@@ -85,23 +86,24 @@ const tip = 100;
 // tip without recipients is the logged-in register user: 'owner' or 'staff'.
 const dueCents = receiptDueCents(items, [], 'standard', { tip, tipRecipient: 'staff' }); // 1130
 
-// Sell, and get the company data for the receipt header in the same call.
-const { receipt, company, testCashregister, testSignature } = await api.sellReceiptWithCompany({
+// Sell, and get the company data and the receipt layout in the same call.
+const result = await api.sellReceiptWithCompany({
   items,
   tip,
   payments: [{ method: KeckPaymentMethod.cash, amountCents: dueCents, tenderedCents: 2000 }],
 });
 
-// Layout: a plain data model (lines, alignment, columns, QR code).
-// The test flags add the "not a valid receipt" banner where needed.
-const layout = buildReceiptLayout(receipt, company, { paperSize: 'mm58', testKasse: testCashregister, testSignatur: testSignature });
+// Layout: a plain data model (lines, alignment, columns, QR code). The server
+// sends it as `layout` (80 mm); without it, receiptLayoutFromResult builds it
+// from the same response, test banners ("not a valid receipt") included.
+const layout = receiptLayoutFromResult(result);
 
 // Character grid: exactly 32 (58 mm) or 48 (80 mm) characters per line.
 // Screen, printed receipt and PDF all use this one grid.
-const grid = renderReceiptGrid(layout);          // grid.lines[i].text, .bold, .kind, .qr
+const grid = renderReceiptGrid(layout, { zeichen: 32 }); // grid.lines[i].text, .bold, .kind, .qr
 
 // ESC/POS bytes for a thermal printer; they print exactly the grid lines.
-const bytes = escPosLayoutBytes(layout);
+const bytes = escPosLayoutBytes(layout, { paperSize: 'mm58' });
 ```
 
 The receipt returned by `sellReceiptWithCompany` (or `sellReceipt`) has already
@@ -311,12 +313,30 @@ The facade from `createKasseneckApi` offers `sellReceipt` and
 payments.
 
 **Layout rule sets.** `buildReceiptLayout` sets receipts according to a
-numbered rule set. Without the `regelwerk` option the current one applies
-(`AKTUELLES_REGELWERK`, currently 2: zero receipts carry a block
+numbered rule set. Without the `ruleset` option the current one applies
+(`CURRENT_LAYOUT_RULESET`, currently 2: zero receipts carry a block
 "Prüfangaben" with the registration data, which `getReceiptWithCompany`
 returns as `registrationInfo`). The backend stores the rule set with each receipt,
 and `getReceiptWithCompany` also returns the backend-built `layout` in that
 rule set, so an old receipt looks the way it did when it was issued.
+
+**Print and show the server's layout.** `layout` in a `…WithCompany` result
+is a `ReceiptLayout` (`ruleset`, banner lines with `tone: 'receipt_type' |
+'warning'`) and goes unchanged to `escPosLayoutBytes`, `eposPrintXml`,
+`belegBlatt` and the React views; `receiptLayoutFromResult(result)` returns
+it. On the public channel only this layout carries the card block, because
+the receipt itself comes without provider data. If you build the layout
+yourself, pass the options from the same response:
+
+```ts
+buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo });
+```
+
+The options of 0.x (`testKasse`, `testSignatur`, `pruefangaben`,
+`regelwerk`) are rejected with a `KasseneckValidationError` instead of being
+ignored: a test receipt must never lose its "TESTKASSE" banner. The printed
+text stays German, and the CSS classes of the React banner stay
+`keck-receipt-banner--belegart` and `--warnung`.
 
 Times on receipts are read as **Vienna wall-clock time**
 (`parseServerTimeStamp`), never through `new Date(text)`.
@@ -473,12 +493,13 @@ sheet width and in lines (one line = two character widths).
 ```tsx
 import { BelegBlattView } from '@kreiseck/kasseneck-api/react';
 
-const { receipt, company, logoStufe } = await api.getReceiptWithCompany(receiptId);
-const layout = buildReceiptLayout(receipt, company);
+const result = await api.getReceiptWithCompany(receiptId);
+const { company, logoScale } = result;
+const layout = receiptLayoutFromResult(result);
 
 <BelegBlattView
   layout={layout}
-  logo={company.logoUrl ? { url: company.logoUrl, stufe: logoStufe } : null}
+  logo={company.logoUrl ? { url: company.logoUrl, stufe: logoScale } : null}
   marke={company.showKreiseckLogo}
   renderQr={(data) => <QrSvg data={data} />}
 />

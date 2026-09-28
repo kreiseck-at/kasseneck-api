@@ -4,20 +4,32 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fromReceiptCompanyPayload, fromReceiptPayload } from '../dist/esm/models/index.js';
-import { AKTUELLES_REGELWERK, buildReceiptLayout, renderReceiptGrid, gridAlsText, belegBlatt, logoMass, logoRaster } from '../dist/esm/receipt/index.js';
+import { CURRENT_LAYOUT_RULESET, buildReceiptLayout, renderReceiptGrid, gridAlsText, belegBlatt, logoMass, logoRaster } from '../dist/esm/receipt/index.js';
 
 export function ladeFixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/belege/${name}.json`, import.meta.url), 'utf8'));
 }
 // Bis Aufgabe 10 die Eingaben auf /v3 umstellt: Firma mit uid/taxnr und
-// deutscher Storno-Grund auf das englische Modell (wie test/belege-fixture.ts).
+// deutscher Storno-Grund und deutsche Layout-Optionen auf das englische
+// Modell (wie test/belege-fixture.ts).
 const GRUND = { fehleingabe: 'input_error', kunde_storniert: 'customer_cancelled', falsche_zahlart: 'wrong_payment_method', doppelt_erfasst: 'duplicate', sonstiges: 'other' };
 function aufV3(fixture) {
   const { uid, taxnr, ...firma } = fixture.company;
   const company = { ...firma, ...(uid !== undefined ? { vatId: uid } : {}), ...(taxnr !== undefined ? { taxNumber: taxnr } : {}) };
   const grund = fixture.receipt.cancellationReason;
   const receipt = typeof grund === 'string' && grund in GRUND ? { ...fixture.receipt, cancellationReason: GRUND[grund] } : fixture.receipt;
-  return { ...fixture, company, receipt };
+  return { ...fixture, company, receipt, ...(fixture.options !== undefined ? { options: optionenAufV3(fixture.options) } : {}) };
+}
+function optionenAufV3(o) {
+  const aus = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (k === 'testKasse') aus.testCashregister = v;
+    else if (k === 'testSignatur') aus.testSignature = v;
+    else if (k === 'regelwerk') aus.ruleset = v;
+    else if (k === 'pruefangaben') aus.registrationInfo = v == null ? v : { cardRegisteredAt: v.karteRegistriertAm, cashregisterRegisteredAt: v.kasseRegistriertAm };
+    else aus[k] = v;
+  }
+  return aus;
 }
 
 export function zeilenFuer(roh) {
@@ -75,6 +87,6 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
   writeFileSync(new URL('../fixtures/erwartet/logo-probe.raster32.txt', import.meta.url), breit);
   writeFileSync(new URL('../fixtures/erwartet/logo-probe-hoch.raster32.txt', import.meta.url), hoch);
   const sha = (text) => createHash('sha256').update(text).digest('hex');
-  writeFileSync(new URL('../fixtures/manifest.json', import.meta.url), JSON.stringify({ regelwerk: AKTUELLES_REGELWERK, belege: manifest, logoProbe: { raster32: sha(breit), hoch32: sha(hoch) } }, null, 2) + '\n');
+  writeFileSync(new URL('../fixtures/manifest.json', import.meta.url), JSON.stringify({ regelwerk: CURRENT_LAYOUT_RULESET, belege: manifest, logoProbe: { raster32: sha(breit), hoch32: sha(hoch) } }, null, 2) + '\n');
   console.log(`${Object.keys(manifest).length} Golden-Belege erneuert`);
 }

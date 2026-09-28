@@ -14,9 +14,12 @@ import {
   listMyReceipts,
   paymentsExpectedCents,
   cardRefundReference,
+  receiptLayoutFromResult,
+  type ReceiptWithCompany,
   type SellReceiptOptions,
   type TipOptions,
 } from '../src/client/receipts.js';
+import { buildReceiptLayout, escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
 import { isKasseneckApiError, isKasseneckValidationError, isOutcomeUnknown } from '../src/client/errors.js';
 import { createTransport, DEFAULT_BASE_URL, KASSE_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
@@ -514,6 +517,58 @@ test('ReceiptWithCompany.layout traegt die /v3-Form: ruleset und tone', async ()
   assert.deepEqual(layout, fall.response.data.layout);
   const toene = Object.values(VOKABULAR.catalogs.LAYOUT_TON);
   for (const z of layout.lines) if (z.kind === 'banner') assert.ok(toene.includes(z.tone), z.tone);
+});
+
+/** Alle Faelle mit `data.layout`, die das Paket als ReceiptWithCompany liest (Verkauf, Beleg lesen). */
+async function mitLayout(liste: Fall[]): Promise<{ fall: Fall; ergebnis: ReceiptWithCompany }[]> {
+  const aus: { fall: Fall; ergebnis: ReceiptWithCompany }[] = [];
+  for (const fall of liste) {
+    if (fall.response.data?.layout == null) continue;
+    const { rufen } = wegFuer(fall);
+    if (fall.endpoint === 'getReceipt') aus.push({ fall, ergebnis: await getReceiptWithCompany(rufen, fall.params.receiptId) });
+    else if (fall.params.receiptType === 'standard') aus.push({ fall, ergebnis: await sellReceiptWithCompany(rufen, verkaufAus(fall.params)) });
+  }
+  return aus;
+}
+
+test('Server-Layout ist ein ReceiptLayout: druckbar ohne Umweg, identisch mit der Antwort', async () => {
+  const faelle = await mitLayout([...BELEGE, ...KASSE_BELEGE]);
+  assert.ok(faelle.length >= 14, `nur ${faelle.length} Faelle`);
+  for (const { fall, ergebnis } of faelle) {
+    const layout: ReceiptLayout | null = ergebnis.layout;
+    assert.deepEqual(layout, fall.response.data.layout, fall.name);
+    assert.equal(receiptLayoutFromResult(ergebnis), ergebnis.layout, fall.name);
+    // Zeichnen und drucken nehmen es direkt.
+    assert.ok(escPosLayoutBytes(layout!).length > 0);
+  }
+});
+
+/**
+ * Wer das Layout selbst baut (Antwort ohne `data.layout`), setzt es mit den
+ * englischen Optionen aus derselben Antwort und bekommt im Kanal `app` Zeile
+ * fuer Zeile, was der Server baut: Testrahmen, Pruefangaben, Kartenblock.
+ */
+test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Server-Layout', async () => {
+  const faelle = await mitLayout(KASSE_BELEGE);
+  assert.ok(faelle.length >= 7);
+  let mitPruefangaben = 0;
+  for (const { fall, ergebnis } of faelle) {
+    const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
+    const selbst = buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo });
+    assert.deepEqual(selbst, fall.response.data.layout, fall.name);
+    // Ohne Server-Layout baut der Helfer genau das.
+    assert.deepEqual(receiptLayoutFromResult({ ...ergebnis, layout: null }, { paperSize: 'mm80' }), selbst, fall.name);
+    if (registrationInfo != null) mitPruefangaben += 1;
+  }
+  assert.ok(mitPruefangaben >= 1, 'kein Nullbeleg mit Registrierdaten dabei');
+});
+
+test('Kanal api: das Server-Layout traegt den Kartenblock, den der Beleg ohne Anbieterdaten nicht hat', async () => {
+  const { ergebnis } = (await mitLayout(BELEGE)).find(({ fall }) => fall.name === 'sale_card_with_tip')!;
+  const text = (l: ReceiptLayout) => JSON.stringify(l.lines);
+  assert.ok(text(receiptLayoutFromResult(ergebnis)).includes('Sumup Beleg'));
+  const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
+  assert.ok(!text(buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo })).includes('Sumup Beleg'));
 });
 
 // --- Karten-Storno: Kennung der Originalzahlung ---------------------------------------

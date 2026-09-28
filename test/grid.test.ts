@@ -62,7 +62,7 @@ test('rechte Spalte buendig am rechten Rand -- der Preis endet exakt ueber dem E
 });
 
 test('mindestens ein Leerzeichen zwischen Spalten, auch wenn die linke Spalte voll ist', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
     { kind: 'columns', columns: [{ text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', width: 7, align: 'left' }, { text: '1,00 A', width: 5, align: 'right' }] },
   ] };
   const g = renderReceiptGrid(layout);
@@ -73,8 +73,8 @@ test('mindestens ein Leerzeichen zwischen Spalten, auch wenn die linke Spalte vo
 });
 
 test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
-    { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', ton: 'warnung' },
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
+    { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', tone: 'warning' },
     { kind: 'text', text: 'Umsatzsteuerbefreit – Kleinunternehmer gemäß § 6 Abs. 1 Z 27 UStG.', align: 'center', bold: false },
     { kind: 'columns', columns: [{ text: '4  x Semmel je 0,79', width: 7, align: 'left' }, { text: '3,16 B', width: 5, align: 'right' }] },
     { kind: 'text', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEF', align: 'left', bold: false },
@@ -88,7 +88,7 @@ test('wortweiser Umbruch in Text, Aufdruck und Spalten; ueberlanges Wort hart', 
 });
 
 test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die anderen Spalten leer sind; geschuetztes Leerzeichen haelt "je 0,79" zusammen; ueberlange Woerter brechen am Bindestrich', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
     // Artikelname laenger als die Spalte: Rest ueber die volle Breite statt in der schmalen Spalte
     { kind: 'columns', columns: [{ text: '2  x Hausgemachte Bio-Dinkelvollkornsemmel mit Kürbiskernen je\u00a01,49', width: 7, align: 'left' }, { text: '2,98 B', width: 5, align: 'right' }] },
     // beide Spalten lang: bleibt im Raster (kein Fliessen, sonst verschoebe sich die rechte)
@@ -115,8 +115,8 @@ test('58 mm: Folgezeilen einer Spalte laufen ueber die volle Breite, wenn die an
 });
 
 test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR traegt die Nutzlast, Leerraum als Leerzeilen', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [
-    { kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' },
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [
+    { kind: 'banner', text: 'STORNOBELEG', tone: 'receipt_type' },
     { kind: 'text', text: 'Fett', align: 'center', bold: true },
     { kind: 'space', lines: 2 },
     { kind: 'qr', data: QR },
@@ -124,7 +124,7 @@ test('Stile und Sonderzeilen: Aufdruck als Rahmen aus drei Rasterzeilen, QR trae
   const g = renderReceiptGrid(layout);
   // Rahmen oben, Text, Rahmen unten -- jede Ausgabe setzt ihn damit zeichengleich.
   for (const i of [0, 1, 2]) {
-    assert.equal(g.lines[i]!.kind, 'banner'); assert.equal(g.lines[i]!.bold, true); assert.equal(g.lines[i]!.ton, 'belegart');
+    assert.equal(g.lines[i]!.kind, 'banner'); assert.equal(g.lines[i]!.bold, true); assert.equal(g.lines[i]!.tone, 'receipt_type');
   }
   assert.equal(g.lines[0]!.text, '='.repeat(32));
   assert.equal(g.lines[1]!.text, ' '.repeat(10) + 'STORNOBELEG' + ' '.repeat(11));
@@ -169,7 +169,7 @@ test('Golden: grid32/grid48 der Fixtures stimmen zeichengenau', () => {
 });
 
 test('ESC/POS: Aufdruck ohne doppelte Hoehe -- genau die drei Rasterzeilen fett', () => {
-  const layout: ReceiptLayout = { paperSize: 'mm58', regelwerk: 2, lines: [{ kind: 'banner', text: 'STORNOBELEG', ton: 'belegart' }] };
+  const layout: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [{ kind: 'banner', text: 'STORNOBELEG', tone: 'receipt_type' }] };
   const text = Array.from(escPosLayoutBytes(layout, { cut: false }), (b) => String.fromCharCode(b)).join('');
   assert.equal((text.match(new RegExp('='.repeat(32), 'g')) ?? []).length, 2);
   assert.ok(text.includes('STORNOBELEG'));
