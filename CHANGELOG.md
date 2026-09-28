@@ -23,9 +23,11 @@ on.
 
 #### The 0.x line
 
-0.x keeps talking to `/v1` and gets fixes only. It is published under the npm
-dist-tag `v0` (`npm install @kreiseck/kasseneck-api@v0`); `latest` is 1.x.
-Nothing forces an upgrade as long as `/v1` is served.
+0.x keeps talking to `/v1` and gets fixes only. Before 1.0.0 becomes
+`latest`, the last 0.x release is to be tagged with the npm dist-tag `v0`, so
+that `npm install @kreiseck/kasseneck-api@v0` keeps installing it; until then,
+pin the 0.x version you use (`@kreiseck/kasseneck-api@^0.31.0`). Nothing forces
+an upgrade as long as `/v1` is served.
 
 #### Wire: `/v3` only
 
@@ -46,8 +48,7 @@ Nothing forces an upgrade as long as `/v1` is served.
   switches to `posBaseUrl: '/api/v3'`. Every base must end in `/v3` once
   trailing slashes are removed; `/v1` or a bare `/api` throws a
   `KasseneckValidationError` when the client is created. Reason: a 1.x client
-  must never speak `/v1` by accident. (Pre-release builds of 1.0 called the
-  option `kasseBaseUrl`; 0.x had no such option.)
+  must never speak `/v1` by accident.
 - **Marker, fail closed.** Requests to a Kasseneck base carry
   `Kasseneck-Api-Version: v3` and `Kasseneck-Client: kasseneck-api/<version>`
   (new option `clientHeader` for apps that name themselves). Each response is

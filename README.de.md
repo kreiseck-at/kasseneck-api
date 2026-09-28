@@ -37,7 +37,7 @@ const result = await api.sellReceiptWithCompany({
 });
 
 // Das Layout des Servers (`layout`, 80 mm) gewinnt; nur ohne entsteht es aus derselben Antwort (`fallbackPaperSize`, Vorgabe mm58).
-// Die Druckbreite waehlt der Druckweg.
+// Die Druckbreite wählt der Druckweg.
 const layout = receiptLayoutFromResult(result);
 const bytes = escPosLayoutBytes(layout, { paperSize: 'mm58' });   // für den Bondrucker
 ```

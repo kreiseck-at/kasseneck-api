@@ -1155,8 +1155,23 @@ invoice anyway.
 `onSite`:
 
 ```ts
-payment: { method: 'card', onSite: true }   // terminal at the point of sale
-payment: { method: 'card' }                 // card payment in the online shop
+// Terminal at the point of sale: a cash sale.
+await invoices.issueInvoice({
+  idempotencyKey: `counter-${orderNumber}`,
+  customerId: customer.id,
+  priceMode: 'gross', serviceStart: '2026-09-16',
+  items: [{ description: 'Coffee beans 1 kg', quantity: 1, unitPriceCents: 2490, vatRate: 10, unit: 'piece' }],
+  payment: { method: 'card', onSite: true },
+});
+
+// Card payment in the online shop: not a cash sale, so no onSite.
+await invoices.issueInvoice({
+  idempotencyKey: `shop-${orderNumber}`,
+  customerId: customer.id,
+  priceMode: 'gross', serviceStart: '2026-09-16',
+  items: [{ description: 'Coffee beans 1 kg', quantity: 1, unitPriceCents: 2490, vatRate: 10, unit: 'piece' }],
+  payment: { method: 'card', reference: payment.id },
+});
 ```
 
 For those cases the response's `notice` list contains `cash_receipt_required`:
