@@ -40,6 +40,11 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
  * [PAYMENT_ERROR_CODES]. `cancellation_outcome_unknown` heisst: der Storno
  * ist moeglicherweise gebucht (`outcome: 'unknown'`). Nie wiederholen,
  * sondern das Original nachlesen (`getReceipt`, `cancellations[]`).
+ *
+ * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
+ * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
+ * `errorCodes.edge` (`not_found`, `dialect_mismatch`, `response_translation_failed`
+ * ...). Ein Code ausserhalb bleibt ueber `KasseneckApiError.code` lesbar.
  */
 export const CANCELLATION_ERROR_CODES = Object.freeze([
   'receipt_not_found',                      // Original fehlt oder gehoert nicht zu dieser Kasse
@@ -61,6 +66,28 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'cancellation_refund_reference_required', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
   'cancellation_refund_reference_unknown',  // refundOf nennt keine Zahlung des Originals
   'cancellation_outcome_unknown',           // Ausgang unklar: nachlesen, nie wiederholen
+  // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
+  'account_not_found',
+  'admin_required',
+  'cashregister_not_found',
+  'cashregister_token_invalid',
+  'cashregister_token_missing',
+  'dialect_mismatch',
+  'internal_translation_error',
+  'live_not_enabled',
+  'method_not_allowed',
+  'mfa_required',
+  'not_found',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
+  'response_translation_failed',
+  'session_expired',
+  'session_other_cashregister',
+  'unauthorized',
+  'user_disabled',
+  'user_verification_failed',
+  'validation',
 ] as const);
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];

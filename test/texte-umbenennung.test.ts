@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler } from '../src/kasse/texte.js';
-import { RECEIPT_EMAIL_ERROR_CODES } from '../src/models/index.js';
+import { RECEIPT_EMAIL_SEND_ERROR_CODES } from '../src/models/index.js';
 import { INVOICE_TEXTS } from '../src/rechnung/texte.js';
 
 /*
@@ -103,12 +103,12 @@ test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schlue
   assert.deepEqual(NEU_KASSE.stornoZahlungFehler, STORNO_ZAHLUNG_FEHLER);
 });
 
-test('Belegmail: BELEG_MAIL_FEHLER kennt genau die Codes aus errorCodes.receiptEmail (und RECEIPT_EMAIL_ERROR_CODES)', () => {
+test('Belegmail: BELEG_MAIL_FEHLER kennt genau die Codes aus errorCodes.receiptEmail (und RECEIPT_EMAIL_SEND_ERROR_CODES)', () => {
   // Kommt ein Code dazu, faellt er hier auf, statt am Tresen still den
   // allgemeinen Satz zu zeigen.
   const codes = VOKABULAR.errorCodes.receiptEmail as string[];
   assert.deepEqual(Object.keys(BELEG_MAIL_FEHLER).sort(), [...codes].sort());
-  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES].sort(), [...codes].sort());
+  assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES].sort(), [...codes].sort());
   for (const code of codes) assert.equal(belegMailFehler(code), BELEG_MAIL_FEHLER[code as keyof typeof BELEG_MAIL_FEHLER], code);
 });
 

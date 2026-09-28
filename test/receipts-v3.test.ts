@@ -31,6 +31,7 @@ import {
   CANCELLATION_STATUSES,
   PAYMENT_ERROR_CODES,
   RECEIPT_EMAIL_ERROR_CODES,
+  RECEIPT_EMAIL_SEND_ERROR_CODES,
   RECEIPT_EMAIL_VIAS,
   RECEIPT_ERROR_CODES,
   isCancellationErrorCode,
@@ -476,11 +477,35 @@ test('listMyReceipts: Parameter cashregisterId, cancellationStatus und revenue e
 
 test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   const codes = VOKABULAR.errorCodes;
-  assert.deepEqual([...CANCELLATION_ERROR_CODES], codes.cancellation);
-  assert.deepEqual([...PAYMENT_ERROR_CODES], codes.payments);
-  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], codes.receiptEmail);
+  // Jede Liste: die Codes des Endpunkts, dahinter (sortiert, ohne Doppel) die
+  // der Anmeldung und des Rands: errorCodes.auth ohne die sieben des
+  // Partner-Zugangs (partner-auth.FEHLER) und errorCodes.edge.
+  const partnerZugang = new Set(['partner_locked', 'scope_missing', 'rate_limited', 'not_a_partner',
+    'partner_membership_missing', 'partner_owner_only', 'partner_account_not_allowed']);
+  const randUndAnmeldung = [...new Set([...(codes.auth as string[]).filter((c) => !partnerZugang.has(c)), ...codes.edge])].sort();
+  const mitRand = (eigen: string[]) => [...eigen, ...randUndAnmeldung.filter((c) => !eigen.includes(c))];
+  assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand(codes.cancellation));
+  assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments));
+  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail));
+  assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES], codes.receiptEmail);
   const beleg = [...new Set([...codes.receiptMessagesByEndpoint.createReceipt, ...codes.receiptMessagesByEndpoint.getReceipt])].sort();
-  assert.deepEqual([...RECEIPT_ERROR_CODES].sort(), beleg);
+  assert.deepEqual([...RECEIPT_ERROR_CODES], mitRand(beleg));
+  for (const c of ['register_user_not_found', 'session_expired', 'dialect_mismatch', 'response_translation_failed', 'not_found']) {
+    for (const liste of [CANCELLATION_ERROR_CODES, PAYMENT_ERROR_CODES, RECEIPT_EMAIL_ERROR_CODES, RECEIPT_ERROR_CODES]) {
+      assert.ok((liste as readonly string[]).includes(c), c);
+    }
+  }
+  // Jeder Fehlercode, den ein Fall der Belegwelt im Vertrag zeigt, steht in einer Liste seines Endpunkts.
+  const listen: Record<string, readonly string[]> = {
+    createReceipt: [...RECEIPT_ERROR_CODES, ...PAYMENT_ERROR_CODES],
+    getReceipt: RECEIPT_ERROR_CODES,
+    cancelReceipt: [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES],
+    sendReceiptEmail: RECEIPT_EMAIL_ERROR_CODES,
+  };
+  for (const fall of [...BELEGE, ...KASSE_BELEGE, ...STORNO, ...BELEGMAIL]) {
+    if (fall.response.status !== 'error' || !listen[fall.endpoint]) continue;
+    assert.ok(listen[fall.endpoint]!.includes(fall.response.code), `${fall.endpoint}/${fall.name}: ${fall.response.code}`);
+  }
   assert.ok(RECEIPT_ERROR_CODES.includes('receipt_outcome_unknown'));
   assert.ok(CANCELLATION_ERROR_CODES.includes('cancellation_outcome_unknown'));
   assert.deepEqual(Object.keys(CANCELLATION_REASONS), Object.values(VOKABULAR.catalogs.STORNO_GRUND));

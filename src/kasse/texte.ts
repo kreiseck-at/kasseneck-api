@@ -18,7 +18,7 @@
  * Schluessel frueher wie hiess, steht in `fixtures/texte-umbenennung.json`.
  */
 
-import type { ReceiptEmailErrorCode } from '../models/receipt-email.js';
+import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 
 export type Seite = 'web' | 'app';
 
@@ -328,7 +328,7 @@ export type Fehlerart = (typeof FEHLERREGELN)[number]['art'];
  * deren Werte durch `KasseSettings.aus`. Fehlercodes haben dort nichts
  * verloren; sie stehen in `fixtures/kasse-texte.json`.
  *
- * Die Codes sind die von `/v3` (`RECEIPT_EMAIL_ERROR_CODES`); unter `/v1` hiessen
+ * Die Codes sind die von `/v3` (`RECEIPT_EMAIL_SEND_ERROR_CODES`; Anmelde- und Rand-Codes fallen auf den Ersatzsatz); unter `/v1` hiessen
  * sie `adresse_ungueltig`, `zu_oft`, `versand_fehlgeschlagen`, `beleg_nicht_gefunden`.
  */
 export const BELEG_MAIL_FEHLER = {
@@ -336,7 +336,7 @@ export const BELEG_MAIL_FEHLER = {
   too_many_requests: 'receipt.mail_too_often',
   send_failed: 'receipt.mail_failed',
   receipt_not_found: 'receipt.mail_not_found',
-} as const satisfies Record<ReceiptEmailErrorCode, MeldungsSchluessel>;
+} as const satisfies Record<ReceiptEmailSendErrorCode, MeldungsSchluessel>;
 
 export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
 

@@ -5,6 +5,11 @@
  *
  * `receipt_outcome_unknown` heisst: der Beleg ist moeglicherweise signiert
  * (`outcome: 'unknown'`). Nie wiederholen, sondern die Belegliste nachlesen.
+ *
+ * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
+ * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
+ * `errorCodes.edge` (`not_found`, `dialect_mismatch`, `response_translation_failed`
+ * ...). Ein Code ausserhalb bleibt ueber `KasseneckApiError.code` lesbar.
  */
 export const RECEIPT_ERROR_CODES = Object.freeze([
   'cancellation_reference_unavailable',
@@ -26,6 +31,28 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'tip_not_allowed',
   'tip_recipient_unknown',
   'validation',
+  // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
+  'account_not_found',
+  'admin_required',
+  'cashregister_not_assigned',
+  'cashregister_not_found',
+  'cashregister_token_invalid',
+  'cashregister_token_missing',
+  'dialect_mismatch',
+  'internal_translation_error',
+  'live_not_enabled',
+  'method_not_allowed',
+  'mfa_required',
+  'not_found',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
+  'response_translation_failed',
+  'session_expired',
+  'session_other_cashregister',
+  'unauthorized',
+  'user_disabled',
+  'user_verification_failed',
 ] as const);
 
 export type ReceiptErrorCode = (typeof RECEIPT_ERROR_CODES)[number];

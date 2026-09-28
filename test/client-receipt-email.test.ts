@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sendReceiptEmail } from '../src/client/receipts.js';
 import { createKasseneckApi } from '../src/client/api.js';
-import { RECEIPT_EMAIL_ERROR_CODES, isReceiptEmailErrorCode } from '../src/models/index.js';
+import { RECEIPT_EMAIL_ERROR_CODES, RECEIPT_EMAIL_SEND_ERROR_CODES, isReceiptEmailErrorCode } from '../src/models/index.js';
 import { AUFRUFE } from '../src/client/aufrufe.js';
 import {
   isKasseneckApiError,
@@ -263,9 +263,12 @@ test('8) eine Antwort, die kein JSON ist, ist ein HTTP-Fehler', async () => {
 
 test('9) der Fehlercode-Katalog ist der des /v3-Vokabulars (errorCodes.receiptEmail)', () => {
   assert.deepEqual(
-    [...RECEIPT_EMAIL_ERROR_CODES],
+    [...RECEIPT_EMAIL_SEND_ERROR_CODES],
     ['invalid_address', 'receipt_not_found', 'too_many_requests', 'send_failed'],
   );
+  // Die Versandcodes zuerst, dahinter die der Anmeldung und des Rands.
+  assert.deepEqual(RECEIPT_EMAIL_ERROR_CODES.slice(0, 4), [...RECEIPT_EMAIL_SEND_ERROR_CODES]);
+  assert.equal(isReceiptEmailErrorCode('register_user_not_found'), true);
   assert.equal(isReceiptEmailErrorCode('too_many_requests'), true);
   assert.equal(isReceiptEmailErrorCode('zu_oft'), false);
   assert.equal(isReceiptEmailErrorCode('storno_fehlgeschlagen'), false);

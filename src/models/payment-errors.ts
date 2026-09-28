@@ -11,6 +11,11 @@
  * `details.expectedCents` (siehe [paymentsExpectedCents]). Der Fehler
  * verbraucht keine Belegnummer; das Paket wiederholt trotzdem nie selbst,
  * denn eine Kartenzahlung ist schon belastet.
+ *
+ * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
+ * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
+ * `errorCodes.edge` (`not_found`, `dialect_mismatch`, `response_translation_failed`
+ * ...). Ein Code ausserhalb bleibt ueber `KasseneckApiError.code` lesbar.
  */
 export const PAYMENT_ERROR_CODES = Object.freeze([
   'payments_invalid',             // payments ist keine Liste oder hat mehr als 20 Eintraege
@@ -31,6 +36,29 @@ export const PAYMENT_ERROR_CODES = Object.freeze([
   'payment_refund_not_allowed',   // refundOf ausserhalb eines Stornos oder kein String
   'payment_tip_invalid',          // tipCents keine Ganzzahl, <= 0, > amountCents oder nicht am Verkauf
   'tip_conflict',                 // tip und payments[].tipCents zugleich
+  // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
+  'account_not_found',
+  'admin_required',
+  'cashregister_not_assigned',
+  'cashregister_not_found',
+  'cashregister_token_invalid',
+  'cashregister_token_missing',
+  'dialect_mismatch',
+  'internal_translation_error',
+  'live_not_enabled',
+  'method_not_allowed',
+  'mfa_required',
+  'not_found',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
+  'response_translation_failed',
+  'session_expired',
+  'session_other_cashregister',
+  'unauthorized',
+  'user_disabled',
+  'user_verification_failed',
+  'validation',
 ] as const);
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[number];

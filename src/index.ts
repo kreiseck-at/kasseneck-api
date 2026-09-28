@@ -62,6 +62,8 @@ export {
   type ReceiptEmailErrorCode,
   type ReceiptEmailVia,
   RECEIPT_EMAIL_ERROR_CODES,
+  RECEIPT_EMAIL_SEND_ERROR_CODES,
+  type ReceiptEmailSendErrorCode,
   RECEIPT_EMAIL_VIAS,
   isReceiptEmailErrorCode,
   type ReceiptErrorCode,

@@ -138,8 +138,8 @@ test('KeckPaymentMethod.mixed: keine Karte, Label wie paymentMethodToString im B
 
 // Quelle: errorCodes.payments im /v3-Vokabular (gleiche Reihenfolge wie
 // ZAHLUNGS_FEHLERCODES im Backend, klein geschrieben).
-test('PAYMENT_ERROR_CODES: exakt die /v3-Zahlungscodes, gleiche Reihenfolge', () => {
-  assert.deepEqual([...PAYMENT_ERROR_CODES], [
+test('PAYMENT_ERROR_CODES: vorn exakt die /v3-Zahlungscodes, gleiche Reihenfolge (dahinter Anmeldung und Rand)', () => {
+  assert.deepEqual(PAYMENT_ERROR_CODES.slice(0, 18), [
     'payments_invalid',
     'payment_method_invalid',
     'payment_amount_invalid',
