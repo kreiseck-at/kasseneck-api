@@ -302,6 +302,8 @@ function hinweisePruefen(d: Json, pfad: string): void {
 }
 
 test('Feldmengen: jede Sicht der Vertragsfaelle traegt genau die Felder ihres Typs, keines mehr, keines weniger', () => {
+  // Die Schleife ueberspringt Fehlerfaelle; ohne Erfolgsfall pruefte sie still nichts.
+  assert.ok(FAELLE.filter((f) => f.response.status === 'success').length >= 5, 'zu wenige Erfolgsfaelle im Vertrag');
   for (const fall of FAELLE) {
     if (fall.response.status !== 'success') continue;
     const d = fall.response.data as Json;

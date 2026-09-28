@@ -55,8 +55,18 @@ const fall = (endpunkt: string, name: string): Fall => {
   assert.ok(f, `${endpunkt}/${name} fehlt im Vertrag`);
   return f;
 };
-const erfolge = (endpunkt: string) => faelle(endpunkt).filter((f) => f.response.status === 'success' && !('$body' in f.params));
-const fehler = (endpunkt: string) => faelle(endpunkt).filter((f) => f.response.status === 'error');
+/**
+ * Eine gefilterte Fallliste ist nie leer: benennt ein neuer Export
+ * `response.status` um oder streicht die Faelle eines Endpunkts, fielen die
+ * Schleifen sonst still durch und prueften nichts.
+ */
+function nichtLeer<T>(liste: T[], was: string): T[] {
+  assert.ok(liste.length > 0, `${was}: keine Faelle im Vertrag`);
+  return liste;
+}
+const erfolge = (endpunkt: string) =>
+  nichtLeer(faelle(endpunkt).filter((f) => f.response.status === 'success' && !('$body' in f.params)), `${endpunkt} (Erfolg)`);
+const fehler = (endpunkt: string) => nichtLeer(faelle(endpunkt).filter((f) => f.response.status === 'error'), `${endpunkt} (Fehler)`);
 
 function antwortAus(f: Fall): HttpResponseLike {
   const rumpf = JSON.stringify(f.response);
@@ -291,7 +301,7 @@ test('Drucker: listMyPrinters, getPrintJob englisch; createPrintJob sendet wie d
   }
   assert.deepEqual([...kasse.PRINT_JOB_STATUSES], Object.values(VOKABULAR.catalogs.DRUCKJOB));
   assert.deepEqual([...kasse.PRINT_JOB_SOURCES], Object.values(VOKABULAR.catalogs.DRUCK_QUELLE));
-  for (const f of erfolge('createPrintJob').filter((x) => !x.params.logo)) {
+  for (const f of nichtLeer(erfolge('createPrintJob').filter((x) => !x.params.logo), 'createPrintJob ohne Logo')) {
     const { rufen, aufrufe } = kassenweg(f);
     const job = await createPrintJob(rufen, {
       printerId: f.params.printerId, layout: f.params.layout as ReceiptLayout,

@@ -163,7 +163,18 @@ async function fehlerVon(p: Promise<unknown>): Promise<unknown> {
   assert.fail('Fehler erwartet');
 }
 
-const umsatzFaelle = (liste: Fall[]) => liste.filter((f) => f.endpoint === 'createReceipt' && f.response.status === 'success');
+/**
+ * Eine gefilterte Fallliste ist nie leer: benennt ein neuer Export
+ * `response.status` um oder streicht die Faelle eines Endpunkts, fielen die
+ * Schleifen sonst still durch und prueften nichts.
+ */
+function nichtLeer<T>(liste: T[], was: string): T[] {
+  assert.ok(liste.length > 0, `${was}: keine Faelle im Vertrag`);
+  return liste;
+}
+
+const umsatzFaelle = (liste: Fall[]) =>
+  nichtLeer(liste.filter((f) => f.endpoint === 'createReceipt' && f.response.status === 'success'), 'createReceipt (Erfolg)');
 
 // --- createReceipt ------------------------------------------------------------
 
@@ -374,7 +385,7 @@ test('receipt_outcome_unknown und cancellation_outcome_unknown: Ausgang unklar, 
 });
 
 for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) {
-  for (const fall of liste.filter((f) => f.response.status === 'error' && ['error_payments_sum_mismatch', 'error_receipt_not_found'].includes(f.name))) {
+  for (const fall of nichtLeer(liste.filter((f) => f.response.status === 'error' && ['error_payments_sum_mismatch', 'error_receipt_not_found'].includes(f.name)), `${kanal}: Fehlerfaelle`)) {
     test(`Fehler ${kanal}/${fall.name}: Code klein, Meldung deutsch unveraendert`, async () => {
       const { rufen } = wegFuer(fall);
       const fehler = await fehlerVon(
@@ -391,7 +402,7 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
 // --- getReceipt ---------------------------------------------------------------
 
 for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) {
-  for (const fall of liste.filter((f) => f.endpoint === 'getReceipt' && f.response.status === 'success')) {
+  for (const fall of nichtLeer(liste.filter((f) => f.endpoint === 'getReceipt' && f.response.status === 'success'), `${kanal}: getReceipt (Erfolg)`)) {
     test(`getReceipt ${kanal}/${fall.name}: englische Felder, Anbieterdaten je Kanal`, async () => {
       const { rufen, aufrufe, kasse } = wegFuer(fall);
       const { receipt, company, headerVersionId, registrationInfo } = await getReceiptWithCompany(rufen, fall.params.receiptId);
@@ -448,7 +459,7 @@ test('Karten-Storno: die Kennung der Originalzahlung liest nur der Kassenweg, de
 
 // --- cancelReceipt ------------------------------------------------------------
 
-for (const fall of STORNO) {
+for (const fall of nichtLeer(STORNO, 'cancelReceipt')) {
   test(`cancelReceipt ${fall.channel}/${fall.name}`, async () => {
     const { rufen, aufrufe, kasse } = wegFuer(fall);
     const p = fall.params;
@@ -496,7 +507,7 @@ test('cancelReceipt: paymentMethod und Kartenfelder am Storno gehen nicht hinaus
 
 // --- sendReceiptEmail ---------------------------------------------------------
 
-for (const fall of BELEGMAIL) {
+for (const fall of nichtLeer(BELEGMAIL, 'sendReceiptEmail')) {
   test(`sendReceiptEmail ${fall.name}`, async () => {
     const { rufen, aufrufe, kasse } = wegFuer(fall);
     const p = fall.params;
