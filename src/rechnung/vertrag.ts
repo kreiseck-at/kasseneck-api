@@ -118,7 +118,7 @@ export type TaxScheme = (typeof TAX_SCHEMES)[number];
  * kein `domesticReverseCharge`: die Bedingungen sind je Fall verschieden, und
  * keine davon laesst sich aus Betrag und Land erraten.
  *
- * `thresholdCents` ist das Entgelt, ab dem der Fall greift — maßgeblich ist das
+ * `thresholdCents` ist das Entgelt, ab dem der Fall greift – maßgeblich ist das
  * **in der Rechnung ausgewiesene** Entgelt, nicht der Einzelpreis; ein
  * einheitlicher Liefervorgang darf dafuer nicht auf mehrere Rechnungen
  * aufgeteilt werden (UStR Rz 2605d).
@@ -232,7 +232,7 @@ export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 /**
  * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
  * wird das Kuerzel in der Sprache der Rechnung (`INVOICE_TEXTS`,
- * `unit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
+ * `unit_symbol.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
  * (`INVOICE_UNIT_CODES`). Ohne Angabe gilt `piece`.
  */
 export const INVOICE_UNITS = [

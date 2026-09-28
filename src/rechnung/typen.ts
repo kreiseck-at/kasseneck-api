@@ -10,6 +10,7 @@ import type {
   CreditNoteReason,
   CustomerType,
   DocType,
+  EInvoiceFormat,
   EInvoiceMissingCode,
   InvoiceLanguage,
   InvoiceNoticeCode,
@@ -307,6 +308,20 @@ export interface InvoiceItem {
   discountPct: number;
 }
 
+/**
+ * Eine gebuchte Zahlung in `getInvoice`. Bei Altbestand kann jede Angabe ausser
+ * dem Betrag fehlen und kommt dann als `null`. Das Datum heisst hier `date`
+ * (in `recordInvoicePayment.payment` dagegen `paidAt`), beides ist Draht.
+ */
+export interface InvoiceDetailPayment {
+  id: string | null;
+  amountCents: number;
+  date: string | null;
+  method: InvoicePaymentMethod | null;
+  /** Zahlungskennung des Fremdsystems, wie bei `recordInvoicePayment` gesetzt. */
+  reference: string | null;
+}
+
 export interface InvoiceDetail extends Invoice {
   items: InvoiceItem[];
   customer: InvoiceRecipient | null;
@@ -320,7 +335,8 @@ export interface InvoiceDetail extends Invoice {
   serviceEnd: string | null;
   paymentTermDays: number | null;
   orderReference: string | null;
-  payments: { amountCents: number; date: string; method: string }[];
+  /** Gebuchte Zahlungen. Heisst das Datum hier `date`, in `recordInvoicePayment` `paidAt`. */
+  payments: InvoiceDetailPayment[];
   paidCents: number;
   openCents: number;
   overdue: boolean;
@@ -405,6 +421,17 @@ export interface CreditNoteResult {
   /** Brutto, das nach dieser Gutschrift noch gutgeschrieben werden kann. */
   remainingCents: number;
   replayed: boolean;
+}
+
+/**
+ * Die E-Rechnung, wie der Server sie schickt. `filename` ist unter `/v3`
+ * `invoice-<Nummer>.xml` und wird nie selbst gebaut: so heisst die Datei
+ * ueberall gleich (Panel, Mail, API).
+ */
+export interface InvoiceXml {
+  xml: string;
+  format: EInvoiceFormat;
+  filename: string;
 }
 
 // ---- Freigabe und Einrichtung -----------------------------------------------

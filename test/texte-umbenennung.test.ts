@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER } from '../src/kasse/texte.js';
+import { BELEG_MAIL_FEHLER, BESCHRIFTUNGEN, FEHLERREGELN, MELDUNGEN, STORNO_ZAHLUNG_FEHLER, belegMailFehler } from '../src/kasse/texte.js';
+import { RECEIPT_EMAIL_ERROR_CODES } from '../src/models/index.js';
 import { INVOICE_TEXTS } from '../src/rechnung/texte.js';
 
 /*
@@ -29,7 +30,9 @@ const NEU_KASSE = lies('fixtures/kasse-texte.json');
 const NEU_RECHNUNG = lies('fixtures/rechnung-texte.json');
 const VOKABULAR = lies('fixtures/v3/v3-vokabular.json');
 
-const SCHREIBWEISE = /^[a-z][A-Za-z]*(?:_[a-z]+)*(?:\.[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)+$/;
+/** Eine Schreibweise fuer beide Kataloge: klein mit Unterstrich, Laendercodes (`country.AT`) ausgenommen. */
+const TEIL = '(?:[a-z][a-z0-9]*(?:_[a-z0-9]+)*|[A-Z]{2})';
+const SCHREIBWEISE = new RegExp(`^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:\\.${TEIL})+$`);
 const UMLAUT = /[äöüÄÖÜß]/;
 
 /** Jeder alte Schluessel genau einmal, keiner dazu, neue eindeutig und englisch geschrieben. */
@@ -62,7 +65,7 @@ test('Umbenennung: Tabelle deckt jeden alten Schluessel genau einmal, die neuen 
 
 test('Umbenennung: das Beispiel aus dem Nachtrag', () => {
   assert.equal(TABELLE.kasse.meldungen['storno.ergebnis_unklar'], 'cancellation.outcome_unknown');
-  assert.equal(TABELLE.rechnung['steuer.igLieferung.titel'], 'tax.intraCommunitySupply.title');
+  assert.equal(TABELLE.rechnung['steuer.igLieferung.titel'], 'tax.intra_community_supply.title');
 });
 
 test('Umbenennung: Kassentexte byte-gleich unter neuem Schluessel (Datei und Quelle)', () => {
@@ -98,4 +101,20 @@ test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schlue
   assert.deepEqual(NEU_KASSE.fehlerregeln, FEHLERREGELN);
   assert.deepEqual(NEU_KASSE.belegMailFehler, BELEG_MAIL_FEHLER);
   assert.deepEqual(NEU_KASSE.stornoZahlungFehler, STORNO_ZAHLUNG_FEHLER);
+});
+
+test('Belegmail: BELEG_MAIL_FEHLER kennt genau die Codes aus errorCodes.receiptEmail (und RECEIPT_EMAIL_ERROR_CODES)', () => {
+  // Kommt ein Code dazu, faellt er hier auf, statt am Tresen still den
+  // allgemeinen Satz zu zeigen.
+  const codes = VOKABULAR.errorCodes.receiptEmail as string[];
+  assert.deepEqual(Object.keys(BELEG_MAIL_FEHLER).sort(), [...codes].sort());
+  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES].sort(), [...codes].sort());
+  for (const code of codes) assert.equal(belegMailFehler(code), BELEG_MAIL_FEHLER[code as keyof typeof BELEG_MAIL_FEHLER], code);
+});
+
+test('Umbenennung: der Erzeuger gibt die eingecheckte Tabelle byte-gleich wieder (nie von Hand pflegen)', async () => {
+  const pfad = new URL('../../scripts/texte-umbenennung.mjs', import.meta.url).href;
+  const erzeuger = (await import(pfad)) as { umbenennungsDatei: () => string };
+  const eingecheckt = readFileSync(new URL('../../fixtures/texte-umbenennung.json', import.meta.url), 'utf8');
+  assert.equal(erzeuger.umbenennungsDatei(), eingecheckt, 'fixtures/texte-umbenennung.json weicht vom Erzeuger ab: npm run fixtures:texte-umbenennung');
 });

@@ -40,6 +40,7 @@ import type {
   InvoiceListQuery,
   InvoicePage,
   InvoiceSetupStatus,
+  InvoiceXml,
   IssueInvoiceRequest,
   IssueResult,
   PreviewResult,
@@ -79,7 +80,8 @@ export interface InvoiceApi {
   // Dateien
   /** Mit `language` ungleich der Rechnungssprache: gekennzeichnete Uebersetzungskopie. */
   getInvoicePdf(invoiceId: string, optionen?: { language?: InvoiceLanguage }): Promise<Uint8Array>;
-  getInvoiceXml(invoiceId: string, format?: EInvoiceFormat): Promise<string>;
+  /** `{ xml, format, filename }` wie gesendet; `filename` ist `invoice-<Nummer>.xml`. */
+  getInvoiceXml(invoiceId: string, format?: EInvoiceFormat): Promise<InvoiceXml>;
 
   // Freigabe und Einrichtung
   /** Darf dieses Konto ausstellen, und was fehlt noch? Laeuft auch ohne Freigabe. */

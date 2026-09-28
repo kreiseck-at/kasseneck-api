@@ -128,12 +128,38 @@ test('getInvoicePdf: liefert die Bytes des PDF', async () => {
   assert.equal(new TextDecoder().decode(bytes.slice(0, 4)), '%PDF');
 });
 
-test('getInvoiceXml: XML kommt als Text im Umschlag, Standardformat ubl', async () => {
-  const { fetch, anfragen } = attrappe(antwort(erfolg({ xml: '<Invoice/>', format: 'ubl', filename: 'rechnung-2026-0042.xml' })));
+// Form der /v3-Antwort: das Backend antwortet `{ xml, format, filename }`
+// (invoice-api-endpoints.js), der Rand benennt den Namen unter /v3 auf
+// `invoice-<Nummer>.xml` um (Vokabular: getInvoiceXml.ergaenze). Der Export hat
+// dazu keinen Fall, darum hier nach der Doku (docs/api/rechnungen.md).
+test('getInvoiceXml: liefert xml, format und filename wie gesendet, Standardformat ubl', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ xml: '<Invoice/>', format: 'ubl', filename: 'invoice-2026-0042.xml' })));
   const api = createInvoiceApi({ apiKey: API_KEY, fetch });
-  const xml = await api.getInvoiceXml('inv1');
+  const ergebnis = await api.getInvoiceXml('inv1');
   assert.deepEqual(params(anfragen[0]!), { invoiceId: 'inv1', format: 'ubl' });
-  assert.equal(xml, '<Invoice/>');
+  assert.deepEqual(ergebnis, { xml: '<Invoice/>', format: 'ubl', filename: 'invoice-2026-0042.xml' });
+});
+
+test('getInvoiceXml: cii geht mit, der Name kommt vom Server und wird nie selbst gebaut', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ xml: '<rsm:CrossIndustryInvoice/>', format: 'cii', filename: 'invoice-RE-7.xml' })));
+  const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+  const ergebnis = await api.getInvoiceXml('inv1', 'cii');
+  assert.equal(params(anfragen[0]!)['format'], 'cii');
+  assert.equal(ergebnis.format, 'cii');
+  assert.equal(ergebnis.filename, 'invoice-RE-7.xml');
+});
+
+test('getInvoiceXml: fehlt xml, format oder filename, ist das ein Antwortfehler', async () => {
+  for (const daten of [
+    { format: 'ubl', filename: 'invoice-1.xml' },
+    { xml: '<Invoice/>', filename: 'invoice-1.xml' },
+    { xml: '<Invoice/>', format: 'ubl' },
+    { xml: '<Invoice/>', format: 'pdf', filename: 'invoice-1.xml' },
+  ]) {
+    const { fetch } = attrappe(antwort(erfolg(daten)));
+    const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+    await assert.rejects(api.getInvoiceXml('inv1'), (e: unknown) => e instanceof KasseneckValidationError, JSON.stringify(daten));
+  }
 });
 
 // ---- Fehler -----------------------------------------------------------------

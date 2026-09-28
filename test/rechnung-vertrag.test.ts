@@ -283,7 +283,7 @@ test('Vertrag: jeder Reverse-Charge-Grund nennt Stelle, Schwelle und Aufdruck', 
     assert.match(eintrag.legalBasis, /§|BGBl/, `${g} ohne Fundstelle`);
     assert.ok(eintrag.thresholdCents === null || eintrag.thresholdCents > 0, g);
     for (const sprache of INVOICE_LANGUAGES) {
-      const text = INVOICE_TEXTS[sprache][`tax.rcReason.${g}` as InvoiceTextKey];
+      const text = INVOICE_TEXTS[sprache][`tax.reverse_charge_reason.${g}` as InvoiceTextKey];
       assert.ok(text && text.length > 0, `${sprache}: Aufdruck fuer ${g} fehlt`);
       assert.match(text, /§|BGBl/, `${sprache}.${g}: der Aufdruck traegt den Hinweis und braucht die Stelle`);
     }

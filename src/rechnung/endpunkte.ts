@@ -19,7 +19,7 @@
 
 import type { InternerBinaerTransport, InternerTransport, Aufruf } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import type { EInvoiceFormat, InvoiceLanguage } from './vertrag.js';
+import { EINVOICE_FORMATS, type EInvoiceFormat, type InvoiceLanguage } from './vertrag.js';
 import type {
   Brand,
   CancelInvoiceRequest,
@@ -39,6 +39,7 @@ import type {
   InvoicePreview,
   InvoiceSetupGap,
   InvoiceSetupStatus,
+  InvoiceXml,
   IssueInvoiceRequest,
   IssueResult,
   PreviewResult,
@@ -277,19 +278,28 @@ export async function listBrands(rufen: InternerTransport): Promise<Brand[]> {
 }
 
 /**
- * Die E-Rechnung als XML-Text. Sie kommt im gewohnten Umschlag (`data.xml`)
- * und nicht als rohe Datei: so bleibt ein fachlicher Fehler
- * (`einvoice_incomplete` mit `missing[]`) ein gewoehnlicher Fehler.
+ * Die E-Rechnung samt Format und Dateiname, genau wie der Server sie schickt.
+ * Sie kommt im gewohnten Umschlag (`data.xml`) und nicht als rohe Datei: so
+ * bleibt ein fachlicher Fehler (`einvoice_incomplete` mit `missing[]`) ein
+ * gewoehnlicher Fehler. Den Dateinamen nicht selbst bauen, sondern
+ * `filename` nehmen (`invoice-<Nummer>.xml`).
  */
 export async function getInvoiceXml(
   rufen: InternerTransport,
   invoiceId: string,
   format: EInvoiceFormat = 'ubl',
-): Promise<string> {
-  const daten = await rufen('getInvoiceXml', { invoiceId, format });
-  const xml = objekt(daten)['xml'];
+): Promise<InvoiceXml> {
+  const daten = objekt(await rufen('getInvoiceXml', { invoiceId, format }));
+  const { xml, filename } = daten;
+  const gesendet = daten['format'];
   if (typeof xml !== 'string' || !xml) {
     throw new KasseneckValidationError('getInvoiceXml', 'Antwort ohne xml', 'response');
   }
-  return xml;
+  if (typeof gesendet !== 'string' || !(EINVOICE_FORMATS as readonly string[]).includes(gesendet)) {
+    throw new KasseneckValidationError('getInvoiceXml', 'Antwort ohne gueltiges format', 'response');
+  }
+  if (typeof filename !== 'string' || !filename) {
+    throw new KasseneckValidationError('getInvoiceXml', 'Antwort ohne filename', 'response');
+  }
+  return { xml, format: gesendet as EInvoiceFormat, filename };
 }

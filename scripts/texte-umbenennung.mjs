@@ -9,8 +9,9 @@
 // sind; das prueft `test/texte-umbenennung.test.ts` gegen den eingefrorenen
 // Stand in `test/fixtures/texte-vor-1.0/`.
 //
-// Schreibweise wie bisher je Katalog: Kasse `bereich.name_mit_unterstrich`,
-// Rechnung `bereich.teil.teil` mit Binnenmajuskel.
+// Eine Schreibweise fuer beide Kataloge: jeder Teil klein mit Unterstrich
+// (`bereich.name_mit_unterstrich`), einzige Ausnahme sind Laendercodes
+// (`country.AT`). Der Erzeuger prueft das an jedem neuen Schluessel.
 //
 // Aufruf:
 //   node scripts/texte-umbenennung.mjs            Tabelle schreiben
@@ -19,6 +20,7 @@
 //                                                 in den Dateien durch den neuen
 //                                                 ersetzen (einmalig beim Umstieg)
 import { readFileSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const lies = (pfad) => JSON.parse(readFileSync(new URL(pfad, import.meta.url), 'utf8'));
 const alt = {
@@ -82,7 +84,8 @@ const GANZ_KASSE = {
   bar_zurueckgeben: 'return_cash',
   drucker_nicht_erreichbar: 'printer_unreachable',
   karte_vorhalten: 'present_card',
-  karten_gutschreiben: 'credit_cards',
+  karten_gutschreiben: 'refund_cards',
+  kein_weg_drucker: 'no_printer_for_channel',
   karte_zurueckbuchen: 'reverse_card',
   keine: 'none',
   keine_verbindung: 'no_connection',
@@ -294,7 +297,8 @@ function kasseSchluessel(schluessel) {
 /**
  * Codes, die schon Englisch sind und so bleiben muessen, weil ein Aufrufer den
  * Schluessel aus ihnen zusammensetzt: Einheiten (`INVOICE_UNITS`),
- * Reverse-Charge-Gruende, Gutschrift-Gruende, Zahlungsarten, Laender.
+ * Reverse-Charge-Gruende, Gutschrift-Gruende, Zahlungsarten, Laender. Dazu
+ * Woerter, die schon englisch und klein sind.
  */
 const BLEIBT_RECHNUNG = new Set([
   'bag', 'bottle', 'box', 'can', 'carton', 'centimetre', 'cubic_metre', 'day', 'device', 'dozen', 'flat_rate',
@@ -308,71 +312,77 @@ const BLEIBT_RECHNUNG = new Set([
   'cash', 'transfer', 'card', 'online',
   'AT', 'DE', 'CH', 'IT', 'LI',
   'pdf', 'einvoice', 'meta', 'text', 'iban', 'bic', 'qr', 'status', 'link', 'register', 'pos',
-  'reverseCharge', 'outsideScope', 'domestic',
 ]);
 
+/**
+ * Teile der Rechnungsschluessel. Steuertexte tragen den Steuerfall in
+ * Schreibweise der Schluessel (`intra_community_supply` zu `intraCommunitySupply`).
+ */
 const TEIL_RECHNUNG = {
   am: 'date',
-  ausfuhr: 'exportThirdCountry',
+  ausfuhr: 'export_third_country',
   befreiung: 'exemption',
   beschreibung: 'description',
   betrag: 'amount',
-  betragBrutto: 'amountGross',
-  betragNetto: 'amountNet',
+  betragBrutto: 'amount_gross',
+  betragNetto: 'amount_net',
   bezahlt: 'paid',
   bezeichnung: 'label',
   bezug: 'reference',
-  darinUst: 'includedVat',
+  darinUst: 'included_vat',
   datum: 'date',
-  einheit: 'unit',
-  einheitName: 'unitName',
+  domestic: 'domestic_reverse_charge',
+  einheit: 'unit_symbol',
+  einheitName: 'unit_name',
   einleitung: 'intro',
-  einzelBrutto: 'unitGross',
-  einzelNetto: 'unitNet',
-  einzugAm: 'collectionDate',
+  einzelBrutto: 'unit_gross',
+  einzelNetto: 'unit_net',
+  einzugAm: 'collection_date',
   empfaenger: 'recipient',
   erstattung: 'refund',
-  faelligkeit: 'dueDate',
+  faelligkeit: 'due_date',
   fuss: 'footer',
-  gesamt: 'grandTotal',
+  gesamt: 'grand_total',
   grund: 'reason',
-  gutschrift: 'creditNote',
+  gutschrift: 'credit_note',
   hinweis: 'note',
-  hinweisBis: 'noteUntil',
-  igLieferung: 'intraCommunitySupply',
-  kleinunternehmer: 'smallBusiness',
+  hinweisBis: 'note_until',
+  igLieferung: 'intra_community_supply',
+  kleinunternehmer: 'small_business',
   konto: 'account',
   kontakt: 'contact',
   kopie: 'copy',
   land: 'country',
-  lastschrift: 'directDebit',
-  leistungszeitraum: 'servicePeriod',
-  mandatVom: 'mandateDate',
-  mandatsreferenz: 'mandateReference',
+  lastschrift: 'direct_debit',
+  leistungszeitraum: 'service_period',
+  mandatVom: 'mandate_date',
+  mandatsreferenz: 'mandate_reference',
   menge: 'quantity',
   nummer: 'number',
+  outsideScope: 'outside_scope',
   passwort: 'password',
   pille: 'badge',
   position: 'item',
   rabatt: 'discount',
-  rcGrund: 'rcReason',
+  rcGrund: 'reverse_charge_reason',
   rechnung: 'invoice',
+  reverseCharge: 'reverse_charge',
   seite: 'page',
-  sitz: 'registeredOffice',
+  sitz: 'registered_office',
   steuer: 'tax',
   summe: 'totals',
   tabelle: 'table',
   titel: 'title',
-  uid: 'vatId',
-  uidZeile: 'vatIdLine',
+  uid: 'vat_id',
+  uidZeile: 'vat_id_line',
   umsatzsteuer: 'vat',
   ust: 'vat',
-  verwendungszweck: 'paymentReference',
+  verwendungszweck: 'payment_reference',
   vom: 'dated',
   warnung: 'warning',
-  zahlbarBis: 'payableUntil',
+  zahlbarBis: 'payable_until',
   zahlung: 'payment',
-  zahlungsart: 'paymentMethod',
+  zahlungsart: 'payment_method',
   zwischensumme: 'subtotal',
 };
 
@@ -392,6 +402,11 @@ function tabelle(schluessel, uebersetze, katalog) {
   const vergeben = new Map();
   for (const alterSchluessel of schluessel) {
     const neu = uebersetze(alterSchluessel);
+    for (const teil of neu.split('.')) {
+      if (!/^(?:[a-z][a-z0-9]*(?:_[a-z0-9]+)*|[A-Z]{2})$/.test(teil)) {
+        throw new Error(`${katalog}: ${neu} verlaesst die Schreibweise (${teil})`);
+      }
+    }
     if (vergeben.has(neu)) {
       throw new Error(`${katalog}: ${alterSchluessel} und ${vergeben.get(neu)} ergaeben beide ${neu}`);
     }
@@ -401,26 +416,36 @@ function tabelle(schluessel, uebersetze, katalog) {
   return raus;
 }
 
-const umbenennung = {
-  _hinweis:
-    'Alte (0.x) und neue (1.0) Schluessel der Textkataloge. Erzeugt von scripts/texte-umbenennung.mjs, nicht von Hand pflegen. Die Werte bleiben byte-gleich.',
-  kasse: {
-    meldungen: tabelle(Object.keys(alt.kasse.meldungen), kasseSchluessel, 'Kasse/Meldungen'),
-    beschriftungen: tabelle(Object.keys(alt.kasse.beschriftungen), kasseSchluessel, 'Kasse/Beschriftungen'),
-  },
-  rechnung: tabelle(Object.keys(alt.rechnung.texte.de), rechnungSchluessel, 'Rechnung'),
-};
+/** Die Tabelle alt -> neu, ohne zu schreiben (auch fuer den Frischewaechter im Test). */
+export function umbenennungsTabelle() {
+  return {
+    _hinweis:
+      'Alte (0.x) und neue (1.0) Schluessel der Textkataloge. Erzeugt von scripts/texte-umbenennung.mjs, nicht von Hand pflegen. Die Werte bleiben byte-gleich.',
+    kasse: {
+      meldungen: tabelle(Object.keys(alt.kasse.meldungen), kasseSchluessel, 'Kasse/Meldungen'),
+      beschriftungen: tabelle(Object.keys(alt.kasse.beschriftungen), kasseSchluessel, 'Kasse/Beschriftungen'),
+    },
+    rechnung: tabelle(Object.keys(alt.rechnung.texte.de), rechnungSchluessel, 'Rechnung'),
+  };
+}
 
-writeFileSync(new URL('../fixtures/texte-umbenennung.json', import.meta.url), JSON.stringify(umbenennung, null, 2) + '\n');
-console.log('Umbenennung geschrieben:',
-  Object.keys(umbenennung.kasse.meldungen).length, 'Meldungen,',
-  Object.keys(umbenennung.kasse.beschriftungen).length, 'Beschriftungen,',
-  Object.keys(umbenennung.rechnung).length, 'Rechnungstexte');
+/** Die Datei, wie sie eingecheckt ist: Einrueckung 2, Zeilenende am Schluss. */
+export function umbenennungsDatei() {
+  return JSON.stringify(umbenennungsTabelle(), null, 2) + '\n';
+}
 
-// ---- Quelltexte umschreiben (einmalig) -------------------------------------------
+// ---- Aufruf von der Kommandozeile ------------------------------------------------
 
-const dateien = process.argv.slice(2);
-if (dateien.length) {
+function schreiben(dateien) {
+  const umbenennung = umbenennungsTabelle();
+  writeFileSync(new URL('../fixtures/texte-umbenennung.json', import.meta.url), umbenennungsDatei());
+  console.log('Umbenennung geschrieben:',
+    Object.keys(umbenennung.kasse.meldungen).length, 'Meldungen,',
+    Object.keys(umbenennung.kasse.beschriftungen).length, 'Beschriftungen,',
+    Object.keys(umbenennung.rechnung).length, 'Rechnungstexte');
+
+  // Quelltexte umschreiben (einmalig beim Umstieg): jeder alte Schluessel in
+  // Anfuehrungszeichen wird durch den neuen ersetzt.
   const alles = { ...umbenennung.kasse.meldungen, ...umbenennung.kasse.beschriftungen, ...umbenennung.rechnung };
   for (const datei of dateien) {
     const vorher = readFileSync(datei, 'utf8');
@@ -434,4 +459,8 @@ if (dateien.length) {
     writeFileSync(datei, nachher);
     console.log(datei, ersetzt, 'ersetzt');
   }
+}
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  schreiben(process.argv.slice(2));
 }

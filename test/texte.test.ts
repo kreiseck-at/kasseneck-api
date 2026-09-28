@@ -353,7 +353,7 @@ test('ein offener Storno-Ausgang warnt vor dem zweiten Stornieren', () => {
 });
 
 test('Storno getrennt bezahlter Belege: Karten gehen erst nach dem gebuchten Storno von Hand zurueck', () => {
-  const liste = MELDUNGEN['cancellation.credit_cards'];
+  const liste = MELDUNGEN['cancellation.refund_cards'];
   // Der Satz steht ueber einer Liste mit Betrag je Karte -- er selbst bleibt
   // ohne Platzhalter und passt fuer eine wie fuer mehrere Karten.
   assert.equal(liste.platzhalter, undefined);

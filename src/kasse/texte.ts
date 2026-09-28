@@ -18,6 +18,8 @@
  * Schluessel frueher wie hiess, steht in `fixtures/texte-umbenennung.json`.
  */
 
+import type { ReceiptEmailErrorCode } from '../models/receipt-email.js';
+
 export type Seite = 'web' | 'app';
 
 export interface Meldung {
@@ -92,7 +94,7 @@ const MELDUNGEN_ROH = {
   'card_payment.not_completed': { text: 'Die Kartenzahlung ist nicht zustande gekommen.' },
   'card_payment.not_started': { text: 'Kartenzahlung nicht gestartet: {grund}', platzhalter: ['grund'] },
   'card_payment.unknown': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
-  // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden — liegt sie vor, gilt dieser Satz statt card_payment.unknown.
+  // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden – liegt sie vor, gilt dieser Satz statt card_payment.unknown.
   'card_payment.unknown_with_id': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {kennung}.', platzhalter: ['kennung'] },
   'card_payment.waiting_for_terminal': { text: 'Bitte am Terminal fortfahren …' },
   // Das Kartenfenster des Terminals ist abgelaufen: es bricht selbst ab, die
@@ -156,7 +158,7 @@ const MELDUNGEN_ROH = {
   // Terminal zurueck, und zwar erst NACH dem gebuchten Storno -- vorher
   // fliesst kein Geld. Darunter steht die Liste der Karten zum Abhaken; der
   // Satz passt fuer eine oder mehrere Karten, mit oder ohne Anbindung.
-  'cancellation.credit_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken.' },
+  'cancellation.refund_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken.' },
   // Wie cancellation.outcome_unknown, nur enthielt die Rueckgabe Karten: bevor
   // klar ist, ob das Storno steht, darf keine Gutschrift laufen -- sonst geht
   // Geld zurueck ohne Storno-Beleg.
@@ -234,7 +236,7 @@ const MELDUNGEN_ROH = {
   'print.job_expired': { text: 'Drucker hat den Beleg nicht abgeholt (abgelaufen).', nur: ['web'] },
   'print.no_printer_found': { text: 'Kein Drucker gefunden – ist er eingeschaltet und im selben Netz wie dieser Rechner?', nur: ['web'] },
   'print.chrome_only': { text: '{weg}-Druck geht nur in Chrome oder Edge (Windows, Mac, Android) – nicht in Safari und nicht am iPad.', platzhalter: ['weg'], nur: ['web'] },
-  'print.no_channel_printer': { text: 'Kein {weg}-Drucker verbunden – „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.', platzhalter: ['weg'], nur: ['web'] },
+  'print.no_printer_for_channel': { text: 'Kein {weg}-Drucker verbunden – „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.', platzhalter: ['weg'], nur: ['web'] },
   // Der Drucker-Wizard: suchen, verbinden, Testdruck, QR-Probe, erst dann
   // speichern. Derselbe Ablauf in beiden Kassen — deshalb hat kein Satz ein
   // `nur`, obwohl der Weg zum Drucker verschieden ist (Bluetooth in der App,
@@ -334,7 +336,7 @@ export const BELEG_MAIL_FEHLER = {
   too_many_requests: 'receipt.mail_too_often',
   send_failed: 'receipt.mail_failed',
   receipt_not_found: 'receipt.mail_not_found',
-} as const satisfies Record<string, MeldungsSchluessel>;
+} as const satisfies Record<ReceiptEmailErrorCode, MeldungsSchluessel>;
 
 export type BelegMailFehlercode = keyof typeof BELEG_MAIL_FEHLER;
 

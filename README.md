@@ -809,7 +809,7 @@ const { invoice, replayed } = await invoices.issueInvoice({
 
 // 3. Fetch the files.
 const pdf = await invoices.getInvoicePdf(invoice.id);      // Uint8Array, with Factur-X
-const xml = await invoices.getInvoiceXml(invoice.id, 'ubl'); // Peppol UBL as text
+const { xml, filename } = await invoices.getInvoiceXml(invoice.id, 'ubl'); // Peppol UBL, filename invoice-<number>.xml
 
 // 4. Correct, only by credit note.
 await invoices.createCreditNote({

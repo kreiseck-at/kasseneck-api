@@ -29,12 +29,12 @@ export function invoiceKeyAuth(options: InvoiceKeyAuthOptions): KasseneckAuth {
   }
   if (/^pk_(live|test)_/i.test(schluessel)) {
     throw new KasseneckAuthError(
-      'invoiceKeyAuth: das ist ein Partner-Schluessel (pk_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
+      'invoiceKeyAuth: das ist ein Partner-Schluessel (pk_…); die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
     );
   }
   if (/^cb_(live|test)_/i.test(schluessel)) {
     throw new KasseneckAuthError(
-      'invoiceKeyAuth: das ist ein Kassen-Token (cb_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
+      'invoiceKeyAuth: das ist ein Kassen-Token (cb_…); die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
     );
   }
   // Pro Aufruf ein frisches Objekt, wie bei den anderen Anmeldungen.

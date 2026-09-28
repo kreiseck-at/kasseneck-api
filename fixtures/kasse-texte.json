@@ -315,7 +315,7 @@
     "cancellation.sum_mismatch": {
       "text": "Die Rückgaben ergeben nicht den Betrag des Stornos – bitte die Beträge prüfen."
     },
-    "cancellation.credit_cards": {
+    "cancellation.refund_cards": {
       "text": "Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken."
     },
     "cancellation.outcome_unknown_cards": {
@@ -507,7 +507,7 @@
         "web"
       ]
     },
-    "print.no_channel_printer": {
+    "print.no_printer_for_channel": {
       "text": "Kein {weg}-Drucker verbunden – „{weg}-Drucker verbinden“ und den Drucker im Dialog wählen.",
       "platzhalter": [
         "weg"
