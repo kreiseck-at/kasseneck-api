@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Unbekannte Zahlungsart",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Unbekannte Zahlungsart",
+  "request": {
     "idempotencyKey": "bsp-zahlungsart",
     "taxScheme": "normal",
     "priceMode": "net",
@@ -18,9 +18,11 @@
       "method": "bitcoin"
     }
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
-    "fields": ["payment.method"]
+    "fields": [
+      "payment.method"
+    ]
   }
 }

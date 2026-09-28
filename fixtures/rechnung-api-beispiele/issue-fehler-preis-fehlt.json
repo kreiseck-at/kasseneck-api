@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Kein Preis: der Feldpfad zeigt auf unitPriceCents, den gewohnten Pflichtfehler.",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Kein Preis: der Feldpfad zeigt auf unitPriceCents, den gewohnten Pflichtfehler.",
+  "request": {
     "idempotencyKey": "bsp-mikro-3",
     "customerId": "kunde_beispiel",
     "priceMode": "net",
@@ -14,7 +14,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
     "fields": [

@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Kasseneck Rechnungs-API",
-  "version": 1,
-  "paket": "1.0.0-dev",
-  "aufrufe": {
+  "version": 2,
+  "package": "1.0.0-dev",
+  "endpoints": {
     "createCustomer": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "customer": {
@@ -107,7 +107,7 @@
       }
     },
     "getCustomer": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "customerId": {
@@ -123,7 +123,7 @@
         },
         "additionalProperties": false
       },
-      "genauEins": [
+      "exactlyOne": [
         [
           "customerId",
           "externalId"
@@ -131,7 +131,7 @@
       ]
     },
     "updateCustomer": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "customerId": {
@@ -229,7 +229,7 @@
       }
     },
     "searchCustomers": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "externalId": {
@@ -262,7 +262,7 @@
         },
         "additionalProperties": false
       },
-      "mindestensEins": [
+      "atLeastOne": [
         [
           "externalId",
           "vatId",
@@ -272,7 +272,7 @@
       ]
     },
     "issueInvoice": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "idempotencyKey": {
@@ -290,7 +290,7 @@
               "normal",
               "smallBusiness",
               "reverseCharge",
-              "igLieferung",
+              "intraCommunitySupply",
               "exportThirdCountry",
               "domesticReverseCharge",
               "oss",
@@ -554,7 +554,7 @@
       }
     },
     "cancelInvoice": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "idempotencyKey": {
@@ -590,7 +590,7 @@
       }
     },
     "createCreditNote": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "idempotencyKey": {
@@ -753,7 +753,7 @@
       }
     },
     "getInvoice": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "invoiceId": {
@@ -769,7 +769,7 @@
         },
         "additionalProperties": false
       },
-      "genauEins": [
+      "exactlyOne": [
         [
           "invoiceId",
           "number"
@@ -777,7 +777,7 @@
       ]
     },
     "listInvoices": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "from": {
@@ -803,8 +803,8 @@
           },
           "docType": {
             "enum": [
-              "RE",
-              "GU"
+              "invoice",
+              "credit_note"
             ]
           },
           "customerId": {
@@ -827,7 +827,7 @@
       }
     },
     "getInvoicePdf": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "invoiceId": {
@@ -849,7 +849,7 @@
       }
     },
     "getInvoiceXml": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "invoiceId": {
@@ -871,21 +871,21 @@
       }
     },
     "getInvoiceSetupStatus": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {},
         "additionalProperties": false
       }
     },
     "listBrands": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {},
         "additionalProperties": false
       }
     },
     "recordInvoicePayment": {
-      "anfrage": {
+      "request": {
         "type": "object",
         "properties": {
           "idempotencyKey": {
@@ -965,7 +965,7 @@
     "einvoice_unavailable",
     "amount_too_large"
   ],
-  "gruende": [
+  "creditNoteReasons": [
     "cancellation",
     "price_reduction",
     "return",

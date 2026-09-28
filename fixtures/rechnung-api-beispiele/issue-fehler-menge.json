@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Menge null",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Menge null",
+  "request": {
     "idempotencyKey": "bsp-10",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -16,7 +16,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
     "fields": [

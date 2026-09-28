@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Zeilenrabatt, gerundet wie auf dem PDF",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Zeilenrabatt, gerundet wie auf dem PDF",
+  "request": {
     "idempotencyKey": "bsp-3",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -17,7 +17,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 2697,

@@ -1,14 +1,14 @@
 {
-  "aufruf": "recordInvoicePayment",
-  "beschreibung": "Ueberweisung trifft spaeter ein",
-  "anfrage": {
+  "endpoint": "recordInvoicePayment",
+  "description": "Ueberweisung trifft spaeter ein",
+  "request": {
     "idempotencyKey": "bsp-zahlung-1",
     "invoiceId": "rechnung_beispiel",
     "method": "transfer",
     "amountCents": 12000,
     "paidAt": "2026-09-20"
   },
-  "erwartet": {
+  "expected": {
     "ok": true
   }
 }

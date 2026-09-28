@@ -780,9 +780,9 @@ For shops, accounting and industry software: issue **invoices** (*Rechnung*,
 and can only be corrected by a credit note. The key belongs on a **server**.
 
 ```ts
-import { createRechnungApi, istRechnungFehler } from '@kreiseck/kasseneck-api/rechnung';
+import { createInvoiceApi, isInvoiceError } from '@kreiseck/kasseneck-api/rechnung';
 
-const invoices = createRechnungApi({ apiKey: process.env.KASSENECK_API_KEY! });
+const invoices = createInvoiceApi({ apiKey: process.env.KASSENECK_API_KEY! });
 
 // 1. Create the customer once; externalId is your own customer number.
 let customer;
@@ -793,7 +793,7 @@ try {
     externalId: 'shop-4711',
   });
 } catch (error) {
-  if (!istRechnungFehler(error, 'customer_exists')) throw error;
+  if (!isInvoiceError(error, 'customer_exists')) throw error;
   customer = await invoices.getCustomer({ externalId: 'shop-4711' });
 }
 
@@ -861,13 +861,13 @@ const copy = await invoices.getInvoicePdf(invoice.id, { language: 'de' });
 The translated copy carries the same number, is marked on every page as a
 translation that is not an invoice of its own ("Übersetzung – keine eigene
 Rechnung"), and has no embedded e-invoice. The texts of both languages ship as
-`RECHNUNG_TEXTE` and `fixtures/rechnung-texte.json`.
+`INVOICE_TEXTS` and `fixtures/rechnung-texte.json`.
 
 **Units are keys, not free text.** `items[].unit` takes a value from
 `INVOICE_UNITS` (`piece`, `hour`, `day`, `flat_rate`, `kilogram`,
 `square_metre`, …; default `piece`). The printed abbreviation follows the
 invoice language (`Stk` or `pcs`), and the e-invoice carries the UN/ECE code
-from `RECHNUNG_EINHEITEN_CODES` (`C62`, `HUR`, …). Free text such as `"Std"` is
+from `INVOICE_UNIT_CODES` (`C62`, `HUR`, …). Free text such as `"Std"` is
 a `validation` error on field `items[0].unit`.
 
 **Already paid?** If you take the payment online and invoice afterwards, pass
@@ -919,8 +919,8 @@ you then get the invoice that was already issued (`replayed: true`). The same
 key with different data gives `idempotency_conflict`.
 
 Validation errors arrive as `validation` with field paths
-(`rechnungFeldFehler(error)` → `[{ field: 'items[0].vatRate', message }]`).
-The contract itself ships as data (`RECHNUNG_ANFRAGEN`) and as a JSON Schema at
+(`invoiceFieldErrors(error)` → `[{ field: 'items[0].vatRate', message }]`).
+The contract itself ships as data (`INVOICE_REQUESTS`) and as a JSON Schema at
 `@kreiseck/kasseneck-api/fixtures/rechnung-api.schema.json`; the backend
 validates against exactly this file.
 
@@ -971,7 +971,7 @@ per rate is the agreed price: net = round(gross × 100 / (100 + rate)),
 VAT = gross − net. In **net mode** the VAT per rate is rounded from the net
 sum. Rounding is commercial (half a cent rounds away from zero). Totals are
 positive for credit notes too; the sign is in the document type
-(`docType: 'GU'`). Test cases: `fixtures/rechnung-rechnen.json`,
+(`docType: 'credit_note'`). Test cases: `fixtures/rechnung-rechnen.json`,
 `fixtures/rechnung-rechnen-zufall.json`, `fixtures/position-aus-euro.json`.
 
 **`rechnungSummen` is deprecated.** The older helper in `…/rechnung` works on

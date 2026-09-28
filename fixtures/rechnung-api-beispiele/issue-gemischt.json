@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Zwei Steuersätze auf einer Rechnung",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Zwei Steuersätze auf einer Rechnung",
+  "request": {
     "idempotencyKey": "bsp-4",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -22,7 +22,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 15000,

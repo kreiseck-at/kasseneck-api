@@ -466,12 +466,38 @@
       "company"
     ],
     "docTypes": [
-      "RE",
-      "GU"
+      "invoice",
+      "credit_note"
     ],
     "einvoiceFormats": [
       "ubl",
       "cii"
+    ],
+    "einvoiceMissingCodes": [
+      "name",
+      "street",
+      "zip",
+      "city",
+      "country",
+      "vat_id",
+      "order_reference",
+      "order_reference_format"
+    ],
+    "invoiceEndpoints": [
+      "createCustomer",
+      "getCustomer",
+      "updateCustomer",
+      "searchCustomers",
+      "issueInvoice",
+      "cancelInvoice",
+      "createCreditNote",
+      "getInvoice",
+      "listInvoices",
+      "getInvoicePdf",
+      "getInvoiceXml",
+      "getInvoiceSetupStatus",
+      "listBrands",
+      "recordInvoicePayment"
     ],
     "invoiceErrorCodes": [
       "validation",
@@ -595,26 +621,10 @@
       "net",
       "gross"
     ],
-    "rechnungAufrufe": [
-      "createCustomer",
-      "getCustomer",
-      "updateCustomer",
-      "searchCustomers",
-      "issueInvoice",
-      "cancelInvoice",
-      "createCreditNote",
-      "getInvoice",
-      "listInvoices",
-      "getInvoicePdf",
-      "getInvoiceXml",
-      "getInvoiceSetupStatus",
-      "listBrands",
-      "recordInvoicePayment"
-    ],
     "steuerfreieFaelle": [
       "smallBusiness",
       "reverseCharge",
-      "igLieferung",
+      "intraCommunitySupply",
       "exportThirdCountry",
       "domesticReverseCharge",
       "outsideScope"
@@ -623,7 +633,7 @@
       "normal",
       "smallBusiness",
       "reverseCharge",
-      "igLieferung",
+      "intraCommunitySupply",
       "exportThirdCountry",
       "domesticReverseCharge",
       "oss",
@@ -634,6 +644,14 @@
       10,
       13,
       20
+    ],
+    "writeOffReasonCodes": [
+      "uncollectible",
+      "time_barred",
+      "waived",
+      "disputed",
+      "settled_externally",
+      "other"
     ]
   }
 }

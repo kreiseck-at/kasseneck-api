@@ -13,30 +13,30 @@ import { INVOICE_ERROR_CODES, type InvoiceErrorCode } from './vertrag.js';
 const BEKANNT: ReadonlySet<string> = new Set(INVOICE_ERROR_CODES);
 
 /** Der Fehlercode eines geworfenen Fehlers — `undefined`, wenn es keiner der Rechnungs-API ist. */
-export function rechnungFehlerCode(error: unknown): InvoiceErrorCode | undefined {
+export function invoiceErrorCode(error: unknown): InvoiceErrorCode | undefined {
   if (!(error instanceof KasseneckApiError)) return undefined;
   const code = error.code;
   return code !== undefined && BEKANNT.has(code) ? (code as InvoiceErrorCode) : undefined;
 }
 
-/** Kurzform fuer `catch (e) { if (istRechnungFehler(e, 'customer_exists')) … }`. */
-export function istRechnungFehler(error: unknown, code: InvoiceErrorCode): boolean {
-  return rechnungFehlerCode(error) === code;
+/** Kurzform fuer `catch (e) { if (isInvoiceError(e, 'customer_exists')) … }`. */
+export function isInvoiceError(error: unknown, code: InvoiceErrorCode): boolean {
+  return invoiceErrorCode(error) === code;
 }
 
 /** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */
-export interface RechnungFeldFehler {
+export interface InvoiceFieldError {
   /** Feldpfad in der gesendeten Anfrage, z. B. `items[2].vatRate` oder `customer.vatId`. */
   field: string;
   message: string;
 }
 
 /** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
-export function rechnungFeldFehler(error: unknown): RechnungFeldFehler[] {
+export function invoiceFieldErrors(error: unknown): InvoiceFieldError[] {
   if (!(error instanceof KasseneckApiError)) return [];
   const roh = error.details['errors'];
   if (!Array.isArray(roh)) return [];
-  const raus: RechnungFeldFehler[] = [];
+  const raus: InvoiceFieldError[] = [];
   for (const eintrag of roh) {
     if (eintrag === null || typeof eintrag !== 'object') continue;
     const { field, message } = eintrag as { field?: unknown; message?: unknown };

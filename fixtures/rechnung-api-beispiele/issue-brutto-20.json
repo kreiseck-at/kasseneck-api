@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Bruttopreis: der Server rechnet die USt heraus",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Bruttopreis: der Server rechnet die USt heraus",
+  "request": {
     "idempotencyKey": "bsp-2",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -16,7 +16,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 1000,

@@ -18,9 +18,9 @@
  * Nummer, Summen — ist bewusst **nicht** setzbar.
  */
 
-export const RECHNUNG_VERTRAG_VERSION = 1;
+export const INVOICE_CONTRACT_VERSION = 2;
 
-export const RECHNUNG_AUFRUFE = [
+export const INVOICE_ENDPOINTS = [
   'createCustomer',
   'getCustomer',
   'updateCustomer',
@@ -36,7 +36,7 @@ export const RECHNUNG_AUFRUFE = [
   'listBrands',
   'recordInvoicePayment',
 ] as const;
-export type RechnungAufruf = (typeof RECHNUNG_AUFRUFE)[number];
+export type InvoiceEndpoint = (typeof INVOICE_ENDPOINTS)[number];
 
 /**
  * Stabile Fehlercodes. Das Fremdsystem verzweigt am Code, der Text darf sich
@@ -89,12 +89,13 @@ export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
  * Der Steuerfall einer Rechnung. Er wird vom Server **abgeleitet** (Kundenland,
  * Kundenart, UID, Ware oder Leistung); eine mitgeschickte Angabe muss dazu
  * passen, sonst `tax_scheme_mismatch`. Neue Faelle stehen hinten, damit
- * gespeicherte Reihenfolgen gueltig bleiben.
+ * gespeicherte Reihenfolgen gueltig bleiben. Unter `/v1` hiess `intraCommunitySupply` noch
+ * `igLieferung`; unter `/v3` weist der Server den alten Namen mit `validation` ab.
  *
  * - `normal`                oesterreichische Umsatzsteuer
  * - `smallBusiness`         Kleinunternehmer (§ 6 Abs. 1 Z 27 UStG)
  * - `reverseCharge`         Leistung an ein Unternehmen in der EU (Art. 196 MwSt-RL)
- * - `igLieferung`           Ware an ein Unternehmen in der EU (Art. 6 Abs. 1 UStG)
+ * - `intraCommunitySupply`  Ware an ein Unternehmen in der EU (Art. 6 Abs. 1 UStG)
  * - `exportThirdCountry`    Ware ins Drittland (§ 6 Abs. 1 Z 1 UStG)
  * - `domesticReverseCharge` Uebergang der Steuerschuld im Inland, Grund aus `REVERSE_CHARGE_REASONS`
  * - `oss`                   B2C in der EU ueber den One-Stop-Shop, Satz des Ziellandes
@@ -104,7 +105,7 @@ export const TAX_SCHEMES = [
   'normal',
   'smallBusiness',
   'reverseCharge',
-  'igLieferung',
+  'intraCommunitySupply',
   'exportThirdCountry',
   'domesticReverseCharge',
   'oss',
@@ -117,23 +118,23 @@ export type TaxScheme = (typeof TAX_SCHEMES)[number];
  * kein `domesticReverseCharge`: die Bedingungen sind je Fall verschieden, und
  * keine davon laesst sich aus Betrag und Land erraten.
  *
- * `schwelleCents` ist das Entgelt, ab dem der Fall greift — maßgeblich ist das
+ * `thresholdCents` ist das Entgelt, ab dem der Fall greift — maßgeblich ist das
  * **in der Rechnung ausgewiesene** Entgelt, nicht der Einzelpreis; ein
  * einheitlicher Liefervorgang darf dafuer nicht auf mehrere Rechnungen
  * aufgeteilt werden (UStR Rz 2605d).
  */
 export const REVERSE_CHARGE_REASONS = Object.freeze({
-  construction: { stelle: '§ 19 Abs. 1a UStG', schwelleCents: null },
-  scrap: { stelle: 'Schrott-UStV, BGBl. II Nr. 129/2007', schwelleCents: null },
-  mobile_devices: { stelle: '§ 19 Abs. 1e lit. b UStG', schwelleCents: 500_000 },
-  it_devices: { stelle: '§ 2 Z 1 UStBBKV, BGBl. II Nr. 369/2013', schwelleCents: 500_000 },
-  metals: { stelle: '§ 2 Z 4 UStBBKV', schwelleCents: null },
-  emission_certificates: { stelle: '§ 19 Abs. 1e lit. a UStG', schwelleCents: null },
-  gas_electricity: { stelle: '§ 2 Z 2 UStBBKV', schwelleCents: null },
-  energy_certificates: { stelle: '§ 2 Z 3 UStBBKV', schwelleCents: null },
-  investment_gold: { stelle: '§ 2 Z 5 UStBBKV', schwelleCents: null },
-  security_transfer: { stelle: '§ 19 Abs. 1b UStG', schwelleCents: null },
-  foreign_supplier: { stelle: '§ 19 Abs. 1 zweiter Satz UStG', schwelleCents: null },
+  construction: { legalBasis: '§ 19 Abs. 1a UStG', thresholdCents: null },
+  scrap: { legalBasis: 'Schrott-UStV, BGBl. II Nr. 129/2007', thresholdCents: null },
+  mobile_devices: { legalBasis: '§ 19 Abs. 1e lit. b UStG', thresholdCents: 500_000 },
+  it_devices: { legalBasis: '§ 2 Z 1 UStBBKV, BGBl. II Nr. 369/2013', thresholdCents: 500_000 },
+  metals: { legalBasis: '§ 2 Z 4 UStBBKV', thresholdCents: null },
+  emission_certificates: { legalBasis: '§ 19 Abs. 1e lit. a UStG', thresholdCents: null },
+  gas_electricity: { legalBasis: '§ 2 Z 2 UStBBKV', thresholdCents: null },
+  energy_certificates: { legalBasis: '§ 2 Z 3 UStBBKV', thresholdCents: null },
+  investment_gold: { legalBasis: '§ 2 Z 5 UStBBKV', thresholdCents: null },
+  security_transfer: { legalBasis: '§ 19 Abs. 1b UStG', thresholdCents: null },
+  foreign_supplier: { legalBasis: '§ 19 Abs. 1 zweiter Satz UStG', thresholdCents: null },
 });
 export type ReverseChargeReason = keyof typeof REVERSE_CHARGE_REASONS;
 
@@ -153,11 +154,44 @@ export type CustomerType = (typeof CUSTOMER_TYPES)[number];
 export const INVOICE_LIST_STATUS = ['final', 'paid', 'cancelled', 'open', 'overdue'] as const;
 export type InvoiceListStatus = (typeof INVOICE_LIST_STATUS)[number];
 
-export const DOC_TYPES = ['RE', 'GU'] as const;
+/**
+ * Belegart: Rechnung oder Gutschrift (unter `/v1` `RE` bzw. `GU`). Das Vorzeichen
+ * steht in der Belegart, nie im Betrag.
+ */
+export const DOC_TYPES = ['invoice', 'credit_note'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
 export const EINVOICE_FORMATS = ['ubl', 'cii'] as const;
 export type EInvoiceFormat = (typeof EINVOICE_FORMATS)[number];
+
+/**
+ * Was einer EN-16931-konformen E-Rechnung fehlt: `einvoice.missing` jeder
+ * Rechnungssicht und `data.missing` bei `einvoice_incomplete` bzw.
+ * `invoice_requirements_missing`. Unter `/v1` standen hier deutsche Woerter
+ * (`Straße`, `PLZ`, …).
+ */
+export const EINVOICE_MISSING_CODES = [
+  'name',
+  'street',
+  'zip',
+  'city',
+  'country',
+  'vat_id',
+  'order_reference',
+  'order_reference_format',
+] as const;
+export type EInvoiceMissingCode = (typeof EINVOICE_MISSING_CODES)[number];
+
+/** Warum eine Rechnung abgeschrieben wurde (`writeOffReasonCode` in `getInvoice`). */
+export const WRITE_OFF_REASON_CODES = [
+  'uncollectible',
+  'time_barred',
+  'waived',
+  'disputed',
+  'settled_externally',
+  'other',
+] as const;
+export type WriteOffReasonCode = (typeof WRITE_OFF_REASON_CODES)[number];
 
 /**
  * Sprachen einer Rechnung. Die Sprache wird beim Festschreiben eingefroren;
@@ -197,9 +231,9 @@ export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 
 /**
  * Einheiten einer Position. Die API nimmt nur diese Schluessel an; gedruckt
- * wird das Kuerzel in der Sprache der Rechnung (`RECHNUNG_TEXTE`,
+ * wird das Kuerzel in der Sprache der Rechnung (`INVOICE_TEXTS`,
  * `einheit.<schluessel>`), die E-Rechnung fuehrt den UN/ECE-Code
- * (`RECHNUNG_EINHEITEN_CODES`). Ohne Angabe gilt `piece`.
+ * (`INVOICE_UNIT_CODES`). Ohne Angabe gilt `piece`.
  */
 export const INVOICE_UNITS = [
   'piece',
@@ -260,7 +294,7 @@ export type InvoiceUnit = (typeof INVOICE_UNITS)[number];
  * Laufmeter; Lizenz, Benutzer, Geraet als Stueck). Die Validatoren der
  * E-Rechnung pruefen jeden Code im Backend (Beispiel `api-einheiten`).
  */
-export const RECHNUNG_EINHEITEN_CODES: Readonly<Record<InvoiceUnit, string>> = Object.freeze({
+export const INVOICE_UNIT_CODES: Readonly<Record<InvoiceUnit, string>> = Object.freeze({
   piece: 'C62',
   pair: 'PR',
   set: 'SET',
@@ -341,16 +375,16 @@ export const INVOICE_SETUP_REQUIREMENTS = [
 export type InvoiceSetupRequirement = (typeof INVOICE_SETUP_REQUIREMENTS)[number];
 
 /** Formate, die der Server mit `@kreiseck/validator` bzw. einem Muster prueft. */
-export type Format = 'email' | 'phone' | 'vatId' | 'country' | 'date' | 'shortCode';
+export type FieldFormat = 'email' | 'phone' | 'vatId' | 'country' | 'date' | 'shortCode';
 
-export type Feld =
-  | { typ: 'string'; pflicht: boolean; min?: number; max: number; format?: Format }
-  | { typ: 'integer'; pflicht: boolean; min: number; max: number }
-  | { typ: 'number'; pflicht: boolean; min: number; max: number; nachkomma: number; exklusivMin?: boolean }
-  | { typ: 'boolean'; pflicht: boolean }
-  | { typ: 'enum'; pflicht: boolean; werte: readonly (string | number)[] }
+export type Field =
+  | { type: 'string'; required: boolean; min?: number; max: number; format?: FieldFormat }
+  | { type: 'integer'; required: boolean; min: number; max: number }
+  | { type: 'number'; required: boolean; min: number; max: number; decimals: number; exclusiveMin?: boolean }
+  | { type: 'boolean'; required: boolean }
+  | { type: 'enum'; required: boolean; values: readonly (string | number)[] }
   | {
-    typ: 'object'; pflicht: boolean; felder: Readonly<Record<string, Feld>>;
+    type: 'object'; required: boolean; fields: Readonly<Record<string, Field>>;
     /**
      * Feldgruppen, von denen GENAU EINE gesetzt sein muss (§ 9.1). Jede Gruppe
      * ist eine Liste von Feldnamen; im JSON Schema wird daraus
@@ -361,23 +395,23 @@ export type Feld =
      * liesse sich das nicht ausdruecken, und als zwei optionale waere eine
      * Position ohne Preis gueltig.
      */
-    genauEins?: readonly (readonly string[])[];
+    exactlyOne?: readonly (readonly string[])[];
   }
-  | { typ: 'list'; pflicht: boolean; min: number; max: number; eintrag: Feld }
-  | { typ: 'map'; pflicht: boolean; maxSchluessel: number; schluesselMuster: string; wertMax: number };
+  | { type: 'list'; required: boolean; min: number; max: number; item: Field }
+  | { type: 'map'; required: boolean; maxKeys: number; keyPattern: string; valueMax: number };
 
-const text = (max: number, pflicht = false, extra: { min?: number; format?: Format } = {}): Feld =>
-  ({ typ: 'string', pflicht, max, ...(pflicht && extra.min === undefined ? { min: 1 } : {}), ...extra });
-const idempotencyKey = (pflicht: boolean): Feld => ({ typ: 'string', pflicht, min: 1, max: 120 });
-const id: Feld = { typ: 'string', pflicht: false, min: 1, max: 128 };
-const idPflicht: Feld = { typ: 'string', pflicht: true, min: 1, max: 128 };
-const datum = (pflicht = false): Feld => ({ typ: 'string', pflicht, min: 10, max: 10, format: 'date' });
-const limit: Feld = { typ: 'integer', pflicht: false, min: 1, max: 100 };
-const cursor: Feld = { typ: 'string', pflicht: false, min: 1, max: 500 };
+const text = (max: number, required = false, extra: { min?: number; format?: FieldFormat } = {}): Field =>
+  ({ type: 'string', required, max, ...(required && extra.min === undefined ? { min: 1 } : {}), ...extra });
+const idempotencyKey = (required: boolean): Field => ({ type: 'string', required, min: 1, max: 120 });
+const id: Field = { type: 'string', required: false, min: 1, max: 128 };
+const idPflicht: Field = { type: 'string', required: true, min: 1, max: 128 };
+const datum = (required = false): Field => ({ type: 'string', required, min: 10, max: 10, format: 'date' });
+const limit: Field = { type: 'integer', required: false, min: 1, max: 100 };
+const cursor: Field = { type: 'string', required: false, min: 1, max: 500 };
 
 /** Kunde, wie das Fremdsystem ihn schickt. `vatId` ist die UID-Nummer. */
-export const KUNDE_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
-  type: { typ: 'enum', pflicht: true, werte: CUSTOMER_TYPES },
+export const CUSTOMER_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
+  type: { type: 'enum', required: true, values: CUSTOMER_TYPES },
   name: text(200, true),
   legalForm: text(40),
   email: text(254, false, { format: 'email' }),
@@ -389,16 +423,16 @@ export const KUNDE_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   country: text(2, true, { min: 2, format: 'country' }),
   vatId: text(20, false, { format: 'vatId' }),
   shortCode: text(8, false, { format: 'shortCode' }),
-  isAuthority: { typ: 'boolean', pflicht: false },
+  isAuthority: { type: 'boolean', required: false },
   note: text(1000),
-  externalId: { typ: 'string', pflicht: false, min: 1, max: 120 },
+  externalId: { type: 'string', required: false, min: 1, max: 120 },
   /** Sprache der Rechnungen an diesen Kunden; fehlt = `de`. */
-  language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
+  language: { type: 'enum', required: false, values: INVOICE_LANGUAGES },
 });
 
 /** Beim Aendern ist jedes Kundenfeld optional. */
-const KUNDE_PATCH: Readonly<Record<string, Feld>> = Object.freeze(
-  Object.fromEntries(Object.entries(KUNDE_FELDER).map(([name, feld]) => [name, { ...feld, pflicht: false }])),
+const CUSTOMER_PATCH: Readonly<Record<string, Field>> = Object.freeze(
+  Object.fromEntries(Object.entries(CUSTOMER_FIELDS).map(([name, feld]) => [name, { ...feld, required: false }])),
 );
 
 /**
@@ -411,35 +445,35 @@ const KUNDE_PATCH: Readonly<Record<string, Feld>> = Object.freeze(
  * unterhalb eines Cents (Verbrauchsabrechnung, Stueckpreise im Zehntelcent),
  * die bisher gerundet eingereicht werden mussten.
  */
-export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
+export const ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
   description: text(300, true),
   subtitle: text(1000),
-  quantity: { typ: 'number', pflicht: true, min: 0, exklusivMin: true, max: 1_000_000_000, nachkomma: 3 },
+  quantity: { type: 'number', required: true, min: 0, exclusiveMin: true, max: 1_000_000_000, decimals: 3 },
   /** Einheit aus `INVOICE_UNITS`; ohne Angabe `piece`. */
-  unit: { typ: 'enum', pflicht: false, werte: INVOICE_UNITS },
+  unit: { type: 'enum', required: false, values: INVOICE_UNITS },
   /** Ware oder Leistung; ohne Angabe `goods`. Entscheidet ueber den Steuerfall. */
-  kind: { typ: 'enum', pflicht: false, werte: ITEM_KINDS },
+  kind: { type: 'enum', required: false, values: ITEM_KINDS },
   /** Einzelpreis in ganzen Cent. Alternative zu `unitPriceMicros`. */
-  unitPriceCents: { typ: 'integer', pflicht: false, min: 0, max: 100_000_000 },
+  unitPriceCents: { type: 'integer', required: false, min: 0, max: 100_000_000 },
   /** Einzelpreis in Mikro-Euro (10⁻⁶ €). Alternative zu `unitPriceCents`. */
-  unitPriceMicros: { typ: 'integer', pflicht: false, min: 0, max: 1_000_000_000_000 },
-  vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
-  discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
+  unitPriceMicros: { type: 'integer', required: false, min: 0, max: 1_000_000_000_000 },
+  vatRate: { type: 'enum', required: true, values: VAT_RATES },
+  discountPct: { type: 'number', required: false, min: 0, max: 100, decimals: 2 },
 });
 
 /** Genau einer der beiden Preise je Position (§ 9.1). */
-export const POSITION_PREIS_GENAU_EINS: readonly (readonly string[])[] = Object.freeze([
+export const ITEM_PRICE_EXACTLY_ONE: readonly (readonly string[])[] = Object.freeze([
   Object.freeze(['unitPriceCents']),
   Object.freeze(['unitPriceMicros']),
 ]);
 
-const positionen: Feld = {
-  typ: 'list',
-  pflicht: true,
+const positionen: Field = {
+  type: 'list',
+  required: true,
   min: 1,
   max: 500,
-  eintrag: {
-    typ: 'object', pflicht: true, felder: POSITION_FELDER, genauEins: POSITION_PREIS_GENAU_EINS,
+  item: {
+    type: 'object', required: true, fields: ITEM_FIELDS, exactlyOne: ITEM_PRICE_EXACTLY_ONE,
   },
 };
 
@@ -450,9 +484,9 @@ const positionen: Feld = {
  * aber **nicht gedruckt**: die Rechnung wird aufbewahrt und vervielfaeltigt,
  * und dem Empfaenger nuetzt sie nichts.
  */
-export const PAYMENT_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
-  method: { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS },
-  amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
+export const PAYMENT_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
+  method: { type: 'enum', required: true, values: INVOICE_PAYMENT_METHODS },
+  amountCents: { type: 'integer', required: false, min: 1, max: 100_000_000 },
   paidAt: datum(),
   reference: text(100),
   /**
@@ -460,24 +494,24 @@ export const PAYMENT_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
    * Zahlung per App am Tresen). Dann ist sie ein Barumsatz. Zu `transfer` passt
    * das nicht — eine Ueberweisung erfolgt nie vor Ort — und wird abgewiesen.
    */
-  onSite: { typ: 'boolean', pflicht: false },
+  onSite: { type: 'boolean', required: false },
 });
 
-export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<string, Feld>>>> = Object.freeze({
+export const INVOICE_REQUESTS: Readonly<Record<InvoiceEndpoint, Readonly<Record<string, Field>>>> = Object.freeze({
   createCustomer: {
-    customer: { typ: 'object', pflicht: true, felder: KUNDE_FELDER },
+    customer: { type: 'object', required: true, fields: CUSTOMER_FIELDS },
     idempotencyKey: idempotencyKey(false),
   },
   getCustomer: {
     customerId: id,
-    externalId: { typ: 'string', pflicht: false, min: 1, max: 120 },
+    externalId: { type: 'string', required: false, min: 1, max: 120 },
   },
   updateCustomer: {
     customerId: idPflicht,
-    customer: { typ: 'object', pflicht: true, felder: KUNDE_PATCH },
+    customer: { type: 'object', required: true, fields: CUSTOMER_PATCH },
   },
   searchCustomers: {
-    externalId: { typ: 'string', pflicht: false, min: 1, max: 120 },
+    externalId: { type: 'string', required: false, min: 1, max: 120 },
     vatId: text(20),
     email: text(254),
     name: text(200),
@@ -492,23 +526,23 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
      * muss passen (`tax_scheme_mismatch`) — so faellt eine falsche Zuordnung
      * im Fremdsystem auf, statt eine falsche Rechnung zu erzeugen.
      */
-    taxScheme: { typ: 'enum', pflicht: false, werte: TAX_SCHEMES },
+    taxScheme: { type: 'enum', required: false, values: TAX_SCHEMES },
     /** Pflicht bei `domesticReverseCharge`, sonst nicht erlaubt. */
-    reverseChargeReason: { typ: 'enum', pflicht: false, werte: Object.keys(REVERSE_CHARGE_REASONS) },
-    priceMode: { typ: 'enum', pflicht: true, werte: PRICE_MODES },
+    reverseChargeReason: { type: 'enum', required: false, values: Object.keys(REVERSE_CHARGE_REASONS) },
+    priceMode: { type: 'enum', required: true, values: PRICE_MODES },
     serviceStart: datum(true),
     serviceEnd: datum(),
-    paymentTermDays: { typ: 'integer', pflicht: false, min: 0, max: 365 },
+    paymentTermDays: { type: 'integer', required: false, min: 0, max: 365 },
     orderReference: text(200),
     intro: text(2000),
     note: text(2000),
     paymentReference: text(140),
-    girocode: { typ: 'boolean', pflicht: false },
-    tracking: { typ: 'boolean', pflicht: false },
+    girocode: { type: 'boolean', required: false },
+    tracking: { type: 'boolean', required: false },
     items: positionen,
-    metadata: { typ: 'map', pflicht: false, maxSchluessel: 20, schluesselMuster: '^[a-zA-Z0-9_]{1,40}$', wertMax: 500 },
+    metadata: { type: 'map', required: false, maxKeys: 20, keyPattern: '^[a-zA-Z0-9_]{1,40}$', valueMax: 500 },
     /** Sprache dieser Rechnung; sonst die des Kunden, sonst `de`. */
-    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
+    language: { type: 'enum', required: false, values: INVOICE_LANGUAGES },
     /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
     brandId: id,
     /**
@@ -516,36 +550,36 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
      * Festschreiben. Sonst gaebe es einen Moment, in dem die Rechnung offen ist
      * und ein sofort geholtes PDF Zahlungsinformationen traegt.
      */
-    payment: { typ: 'object', pflicht: false, felder: PAYMENT_FELDER },
+    payment: { type: 'object', required: false, fields: PAYMENT_FIELDS },
     /**
      * Probelauf: alles pruefen und rechnen wie beim Ausstellen, aber nichts
      * festschreiben — keine Nummer, kein Dokument, keine Zahlung, kein
      * Idempotenz-Eintrag. Die Antwort traegt `preview` statt `invoice`.
      */
-    dryRun: { typ: 'boolean', pflicht: false },
+    dryRun: { type: 'boolean', required: false },
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),
     invoiceId: idPflicht,
-    reason: { typ: 'enum', pflicht: true, werte: CREDIT_NOTE_REASONS },
+    reason: { type: 'enum', required: true, values: CREDIT_NOTE_REASONS },
     note: text(2000),
   },
   createCreditNote: {
     idempotencyKey: idempotencyKey(true),
     invoiceId: idPflicht,
-    reason: { typ: 'enum', pflicht: true, werte: CREDIT_NOTE_REASONS },
+    reason: { type: 'enum', required: true, values: CREDIT_NOTE_REASONS },
     note: text(2000),
     items: positionen,
   },
   getInvoice: {
     invoiceId: id,
-    number: { typ: 'string', pflicht: false, min: 1, max: 100 },
+    number: { type: 'string', required: false, min: 1, max: 100 },
   },
   listInvoices: {
     from: datum(),
     to: datum(),
-    status: { typ: 'enum', pflicht: false, werte: INVOICE_LIST_STATUS },
-    docType: { typ: 'enum', pflicht: false, werte: DOC_TYPES },
+    status: { type: 'enum', required: false, values: INVOICE_LIST_STATUS },
+    docType: { type: 'enum', required: false, values: DOC_TYPES },
     customerId: id,
     limit,
     cursor,
@@ -553,32 +587,32 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
   getInvoicePdf: {
     invoiceId: idPflicht,
     /** Andere Sprache als die der Rechnung: gekennzeichnete Uebersetzungskopie, keine eigene Rechnung. */
-    language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
+    language: { type: 'enum', required: false, values: INVOICE_LANGUAGES },
   },
   getInvoiceXml: {
     invoiceId: idPflicht,
-    format: { typ: 'enum', pflicht: false, werte: EINVOICE_FORMATS },
+    format: { type: 'enum', required: false, values: EINVOICE_FORMATS },
   },
   getInvoiceSetupStatus: {},
   listBrands: {},
   recordInvoicePayment: {
     idempotencyKey: idempotencyKey(true),
     invoiceId: idPflicht,
-    method: { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS },
-    amountCents: { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 },
+    method: { type: 'enum', required: true, values: INVOICE_PAYMENT_METHODS },
+    amountCents: { type: 'integer', required: false, min: 1, max: 100_000_000 },
     paidAt: datum(),
     reference: text(100),
-    onSite: { typ: 'boolean', pflicht: false },
+    onSite: { type: 'boolean', required: false },
   },
 });
 
 /** Genau eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */
-export const RECHNUNG_GENAU_EINS: Readonly<Partial<Record<RechnungAufruf, readonly (readonly string[])[]>>> = Object.freeze({
+export const INVOICE_EXACTLY_ONE: Readonly<Partial<Record<InvoiceEndpoint, readonly (readonly string[])[]>>> = Object.freeze({
   getCustomer: [['customerId', 'externalId']],
   getInvoice: [['invoiceId', 'number']],
 });
 
 /** Mindestens eines dieser Felder muss gesetzt sein (je Aufruf, je Gruppe). */
-export const RECHNUNG_MINDESTENS_EINS: Readonly<Partial<Record<RechnungAufruf, readonly (readonly string[])[]>>> = Object.freeze({
+export const INVOICE_AT_LEAST_ONE: Readonly<Partial<Record<InvoiceEndpoint, readonly (readonly string[])[]>>> = Object.freeze({
   searchCustomers: [['externalId', 'vatId', 'email', 'name']],
 });

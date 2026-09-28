@@ -227,9 +227,9 @@ const DE = {
   'einheitName.pallet': 'Palette',
 } as const;
 
-export type RechnungTextSchluessel = keyof typeof DE;
+export type InvoiceTextKey = keyof typeof DE;
 
-const EN: Readonly<Record<RechnungTextSchluessel, string>> = {
+const EN: Readonly<Record<InvoiceTextKey, string>> = {
   'pdf.titel.rechnung': 'INVOICE',
   'pdf.titel.gutschrift': 'CREDIT NOTE',
   'pdf.pille.bezahlt': 'PAID',
@@ -434,17 +434,17 @@ const EN: Readonly<Record<RechnungTextSchluessel, string>> = {
   'einheitName.pallet': 'pallet',
 };
 
-export const RECHNUNG_TEXTE: Readonly<Record<InvoiceLanguage, Readonly<Record<RechnungTextSchluessel, string>>>> =
+export const INVOICE_TEXTS: Readonly<Record<InvoiceLanguage, Readonly<Record<InvoiceTextKey, string>>>> =
   Object.freeze({ de: Object.freeze({ ...DE }), en: Object.freeze({ ...EN }) });
 
 /** Ein Text der gewaehlten Sprache mit eingesetzten Werten; ein fehlender Wert ist ein Programmierfehler. */
-export function rechnungText(
+export function invoiceText(
   sprache: InvoiceLanguage,
-  schluessel: RechnungTextSchluessel,
+  schluessel: InvoiceTextKey,
   werte: Readonly<Record<string, string | number>> = {},
 ): string {
-  return RECHNUNG_TEXTE[sprache][schluessel].replace(/\{([a-zA-Z]+)\}/g, (_voll, name: string) => {
-    if (!(name in werte)) throw new Error(`rechnungText ${schluessel}: Wert {${name}} fehlt`);
+  return INVOICE_TEXTS[sprache][schluessel].replace(/\{([a-zA-Z]+)\}/g, (_voll, name: string) => {
+    if (!(name in werte)) throw new Error(`invoiceText ${schluessel}: Wert {${name}} fehlt`);
     return String(werte[name]);
   });
 }

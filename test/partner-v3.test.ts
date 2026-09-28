@@ -8,7 +8,7 @@ import { parseWebhookEvent, type ContractAcceptedEventData } from '../src/partne
 import type { Betrieb } from '../src/partner/typen.js';
 import { PARTNER_FEHLER_CODES, partnerFehlerRat } from '../src/partner/fehler.js';
 import { DEFAULT_BASE_URL, apiKeyAuth, createKasseneckApi } from '../src/index.js';
-import { createRechnungApi } from '../src/rechnung/api.js';
+import { createInvoiceApi } from '../src/rechnung/api.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
 /*
@@ -87,7 +87,7 @@ test('v3: Belege und Rechnungen gehen wie der Partner-Teil an /v3', async () => 
   };
   const kasse = createKasseneckApi({ auth: apiKeyAuth({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', cashregisterToken: 'cb_live_ABCDEFGHIJKLMNOPQRSTUVWX' }), fetch: holen });
   await kasse.zeroReceipt().catch(() => undefined);
-  const rechnung = createRechnungApi({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', fetch: holen });
+  const rechnung = createInvoiceApi({ apiKey: 'kr_live_ABCDEFGHIJKLMNOPQRSTUVWX', fetch: holen });
   await rechnung.listInvoices().catch(() => undefined);
   assert.equal(urls.length, 2);
   for (const url of urls) assert.ok(url.startsWith('https://api.kasseneck.at/v3/'), url);

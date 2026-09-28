@@ -1,8 +1,8 @@
 {
-  "aufruf": "getInvoiceSetupStatus",
-  "beschreibung": "Einrichtung abfragen, ohne Parameter",
-  "anfrage": {},
-  "erwartet": {
+  "endpoint": "getInvoiceSetupStatus",
+  "description": "Einrichtung abfragen, ohne Parameter",
+  "request": {},
+  "expected": {
     "ok": true
   }
 }

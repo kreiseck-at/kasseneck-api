@@ -17,24 +17,24 @@
 import type { KasseneckAuth } from '../client/auth.js';
 import { KasseneckAuthError } from '../client/errors.js';
 
-export interface RechnungKeyAuthOptions {
+export interface InvoiceKeyAuthOptions {
   /** `api_key` des Kontos, z. B. `kr_live_…` oder `kr_test_…`. */
   apiKey: string;
 }
 
-export function rechnungKeyAuth(options: RechnungKeyAuthOptions): KasseneckAuth {
+export function invoiceKeyAuth(options: InvoiceKeyAuthOptions): KasseneckAuth {
   const schluessel = typeof options?.apiKey === 'string' ? options.apiKey.trim() : '';
   if (!schluessel) {
-    throw new KasseneckAuthError('rechnungKeyAuth: apiKey fehlt');
+    throw new KasseneckAuthError('invoiceKeyAuth: apiKey fehlt');
   }
   if (/^pk_(live|test)_/i.test(schluessel)) {
     throw new KasseneckAuthError(
-      'rechnungKeyAuth: das ist ein Partner-Schluessel (pk_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
+      'invoiceKeyAuth: das ist ein Partner-Schluessel (pk_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
     );
   }
   if (/^cb_(live|test)_/i.test(schluessel)) {
     throw new KasseneckAuthError(
-      'rechnungKeyAuth: das ist ein Kassen-Token (cb_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
+      'invoiceKeyAuth: das ist ein Kassen-Token (cb_…) — die Rechnungs-API nimmt den api_key des Kontos (kr_…)',
     );
   }
   // Pro Aufruf ein frisches Objekt, wie bei den anderen Anmeldungen.

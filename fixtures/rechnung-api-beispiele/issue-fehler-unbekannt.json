@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Die Nummer vergibt der Server",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Die Nummer vergibt der Server",
+  "request": {
     "idempotencyKey": "bsp-8",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -17,7 +17,7 @@
     ],
     "number": "2026-0001"
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
     "fields": [

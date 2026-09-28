@@ -6,7 +6,7 @@
     "zeile": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
     "net": "Netto = rund(Σ Zeilen); USt = rund(Σ Zeilen × Satz ÷ 10000); Brutto = Netto + USt",
     "gross": "Brutto B = rund(Σ Zeilen); Netto = rund(B × 10000 ÷ (10000 + Satz)); USt = B − Netto",
-    "steuerfrei": "smallBusiness, reverseCharge, igLieferung, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
+    "steuerfrei": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
     "rundung": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
     "zeilen": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent"
   },
@@ -1076,9 +1076,9 @@
       }
     },
     {
-      "name": "Zufall 051: 4 Position(en), gross, igLieferung",
+      "name": "Zufall 051: 4 Position(en), gross, intraCommunitySupply",
       "priceMode": "gross",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 835564766, "quantityMilli": -318794, "vatRateBp": 1900, "discountBp": 2787},
         {"unitPriceMicros": 2453330989, "quantityMilli": -356670, "vatRateBp": 7897, "discountBp": 2162},
@@ -1120,9 +1120,9 @@
       }
     },
     {
-      "name": "Zufall 053: 1 Position(en), gross, igLieferung",
+      "name": "Zufall 053: 1 Position(en), gross, intraCommunitySupply",
       "priceMode": "gross",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 261549272645, "quantityMilli": -167519, "vatRateBp": 490}
       ],
@@ -1139,9 +1139,9 @@
       }
     },
     {
-      "name": "Zufall 054: 3 Position(en), gross, igLieferung",
+      "name": "Zufall 054: 3 Position(en), gross, intraCommunitySupply",
       "priceMode": "gross",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 4217958465, "quantityMilli": -35069, "vatRateBp": 490},
         {"unitPriceMicros": 1891244080, "quantityMilli": -254135, "vatRateBp": 490},
@@ -2893,9 +2893,9 @@
       }
     },
     {
-      "name": "Zufall 157: 2 Position(en), net, igLieferung",
+      "name": "Zufall 157: 2 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 3196698860, "quantityMilli": -61224, "vatRateBp": 490, "discountBp": 358},
         {"unitPriceMicros": 794594310, "quantityMilli": 148213, "vatRateBp": 1000, "discountBp": 6273}
@@ -3309,9 +3309,9 @@
       }
     },
     {
-      "name": "Zufall 182: 3 Position(en), net, igLieferung",
+      "name": "Zufall 182: 3 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 1390939822, "quantityMilli": -41837, "vatRateBp": 1000, "discountBp": 3184},
         {"unitPriceMicros": 1087625287, "quantityMilli": 204072, "vatRateBp": 1990, "discountBp": 17},
@@ -4581,9 +4581,9 @@
       }
     },
     {
-      "name": "Zufall 255: 2 Position(en), net, igLieferung",
+      "name": "Zufall 255: 2 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 1688350716, "quantityMilli": 104059, "vatRateBp": 490, "discountBp": 8072},
         {"unitPriceMicros": 3045638683, "quantityMilli": 398082, "vatRateBp": 1000, "discountBp": 9038}
@@ -5420,9 +5420,9 @@
       }
     },
     {
-      "name": "Zufall 299: 3 Position(en), net, igLieferung",
+      "name": "Zufall 299: 3 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 2026751743, "quantityMilli": 20484, "vatRateBp": 490},
         {"unitPriceMicros": 4982108544, "quantityMilli": 121908, "vatRateBp": 1000},
@@ -6323,9 +6323,9 @@
       }
     },
     {
-      "name": "Zufall 343: 2 Position(en), net, igLieferung",
+      "name": "Zufall 343: 2 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 426670715889, "quantityMilli": 37559, "vatRateBp": 1900, "discountBp": 8640},
         {"unitPriceMicros": 399534477, "quantityMilli": 209884, "vatRateBp": 490}
@@ -6386,9 +6386,9 @@
       }
     },
     {
-      "name": "Zufall 346: 1 Position(en), net, igLieferung",
+      "name": "Zufall 346: 1 Position(en), net, intraCommunitySupply",
       "priceMode": "net",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 3862902897, "quantityMilli": -48323, "vatRateBp": 1300}
       ],
@@ -6462,9 +6462,9 @@
       }
     },
     {
-      "name": "Zufall 350: 5 Position(en), gross, igLieferung",
+      "name": "Zufall 350: 5 Position(en), gross, intraCommunitySupply",
       "priceMode": "gross",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "positionen": [
         {"unitPriceMicros": 2815652037, "quantityMilli": -78396, "vatRateBp": 6783, "discountBp": 2025},
         {"unitPriceMicros": 1996249679, "quantityMilli": -317610, "vatRateBp": 1900, "discountBp": 4917},

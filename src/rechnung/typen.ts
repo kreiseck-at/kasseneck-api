@@ -10,6 +10,7 @@ import type {
   CreditNoteReason,
   CustomerType,
   DocType,
+  EInvoiceMissingCode,
   InvoiceLanguage,
   InvoiceNoticeCode,
   ItemKind,
@@ -21,6 +22,7 @@ import type {
   PriceMode,
   TaxScheme,
   VatRatePercent,
+  WriteOffReasonCode,
 } from './vertrag.js';
 
 // ---- Kunden -----------------------------------------------------------------
@@ -215,7 +217,7 @@ export interface CreditNoteRequest extends CancelInvoiceRequest {
 
 /**
  * Summen einer Rechnung in Cent, **immer positiv** — auch bei einer Gutschrift
- * (`docType: 'GU'`); das Vorzeichen steht im Belegtyp, nicht im Betrag.
+ * (`docType: 'credit_note'`); das Vorzeichen steht im Belegtyp, nicht im Betrag.
  * Gerechnet wird je Satz wie in [rechnungSummen].
  */
 export interface InvoiceTotals {
@@ -236,7 +238,8 @@ export interface InvoiceRateTotals {
 export interface EInvoiceStatus {
   level: string;
   formats: string[];
-  missing: string[];
+  /** Was einer E-Rechnung fehlt, als Code aus `EINVOICE_MISSING_CODES`. */
+  missing: EInvoiceMissingCode[];
 }
 
 export interface Invoice {
@@ -322,7 +325,7 @@ export interface InvoiceDetail extends Invoice {
   openCents: number;
   overdue: boolean;
   writtenOff: boolean;
-  writeOffReasonCode: string | null;
+  writeOffReasonCode: WriteOffReasonCode | null;
   related: { invoiceId: string; number: string | null } | null;
   creditNotes: { id: string; number: string; grossCents: number }[];
   source: string | null;
@@ -365,7 +368,7 @@ export interface IssueResult {
  * denselben Fehlercodes.
  */
 export interface InvoicePreview {
-  docType: 'RE';
+  docType: 'invoice';
   /** Heutiger Wiener Tag — der Tag, den eine sofort ausgestellte Rechnung truege. */
   invoiceDate: string;
   dueDate: string | null;

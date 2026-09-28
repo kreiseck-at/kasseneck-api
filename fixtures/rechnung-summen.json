@@ -4,7 +4,7 @@
     "zeile": "Einzelpreis × Menge × (1 − Rabatt/100), ungerundet",
     "net": "Netto = round(Σ Zeilen); USt = round(Σ Zeilen × Satz/100); Brutto = Netto + USt",
     "gross": "Brutto B = round(Σ Zeilen); Netto = round(B × 100 / (100 + Satz)); USt = B − Netto",
-    "steuerfrei": "smallBusiness, reverseCharge, igLieferung, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
+    "steuerfrei": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
     "rundung": "kaufmaennisch, halber Cent vom Nullpunkt weg; je Satz, dann summiert"
   },
   "faelle": [
@@ -97,7 +97,7 @@
     {
       "name": "Brutto, aber steuerfrei (ig. Lieferung): alles zu 0 %",
       "priceMode": "gross",
-      "taxScheme": "igLieferung",
+      "taxScheme": "intraCommunitySupply",
       "items": [
         { "quantity": 1, "unitPriceCents": 1479, "vatRate": 20 },
         { "quantity": 1, "unitPriceCents": 1500, "vatRate": 0 }

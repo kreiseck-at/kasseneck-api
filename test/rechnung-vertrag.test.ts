@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AUFRUFE } from '../src/client/aufrufe.js';
-import { RECHNUNG_TEXTE, type RechnungTextSchluessel } from '../src/rechnung/texte.js';
+import { INVOICE_TEXTS, type InvoiceTextKey } from '../src/rechnung/texte.js';
 import {
   CREDIT_NOTE_REASONS,
   INVOICE_ERROR_CODES,
@@ -13,15 +13,15 @@ import {
   REVERSE_CHARGE_REASONS,
   TAX_SCHEMES,
   INVOICE_UNITS,
-  PAYMENT_FELDER,
-  KUNDE_FELDER,
-  RECHNUNG_EINHEITEN_CODES,
-  POSITION_FELDER,
-  POSITION_PREIS_GENAU_EINS,
-  RECHNUNG_ANFRAGEN,
-  RECHNUNG_AUFRUFE,
-  RECHNUNG_VERTRAG_VERSION,
-  type Feld,
+  PAYMENT_FIELDS,
+  CUSTOMER_FIELDS,
+  INVOICE_UNIT_CODES,
+  ITEM_FIELDS,
+  ITEM_PRICE_EXACTLY_ONE,
+  INVOICE_REQUESTS,
+  INVOICE_ENDPOINTS,
+  INVOICE_CONTRACT_VERSION,
+  type Field,
 } from '../src/rechnung/vertrag.js';
 
 // Woerter, die nach aussen nichts verloren haben: die Schnittstelle spricht
@@ -30,36 +30,36 @@ import {
 const DEUTSCH = ['kunde', 'rechnung', 'betrag', 'grund', 'notiz', 'menge', 'preis', 'datum', 'steuer'];
 
 /** Alle Feldpfade einer Anfrage, rekursiv — Listen als `name[]`. */
-function pfade(felder: Record<string, Feld>, vorsilbe = ''): string[] {
+function pfade(felder: Record<string, Field>, vorsilbe = ''): string[] {
   const raus: string[] = [];
   for (const [name, feld] of Object.entries(felder)) {
     const pfad = vorsilbe + name;
     raus.push(pfad);
-    if (feld.typ === 'object') raus.push(...pfade(feld.felder, pfad + '.'));
-    if (feld.typ === 'list' && feld.eintrag.typ === 'object') raus.push(...pfade(feld.eintrag.felder, pfad + '[].'));
+    if (feld.type === 'object') raus.push(...pfade(feld.fields, pfad + '.'));
+    if (feld.type === 'list' && feld.item.type === 'object') raus.push(...pfade(feld.item.fields, pfad + '[].'));
   }
   return raus;
 }
 
-test('Vertrag: Version 1', () => {
-  assert.equal(RECHNUNG_VERTRAG_VERSION, 1);
+test('Vertrag: Version 2 (englische Werte und Schluessel ab 1.0)', () => {
+  assert.equal(INVOICE_CONTRACT_VERSION, 2);
 });
 
 test('Vertrag: jeder Aufruf hat eine Anfragebeschreibung und keine darueber hinaus', () => {
-  assert.deepEqual(Object.keys(RECHNUNG_ANFRAGEN).sort(), [...RECHNUNG_AUFRUFE].sort());
+  assert.deepEqual(Object.keys(INVOICE_REQUESTS).sort(), [...INVOICE_ENDPOINTS].sort());
 });
 
 test('Vertrag: Positionen von Rechnung und Gutschrift sind dieselbe Beschreibung', () => {
   for (const aufruf of ['issueInvoice', 'createCreditNote'] as const) {
-    const items = RECHNUNG_ANFRAGEN[aufruf]['items'];
-    assert.ok(items && items.typ === 'list', `${aufruf}.items fehlt`);
-    assert.equal(items.eintrag.typ, 'object');
-    assert.equal(items.eintrag.typ === 'object' ? items.eintrag.felder : null, POSITION_FELDER);
+    const items = INVOICE_REQUESTS[aufruf]['items'];
+    assert.ok(items && items.type === 'list', `${aufruf}.items fehlt`);
+    assert.equal(items.item.type, 'object');
+    assert.equal(items.item.type === 'object' ? items.item.fields : null, ITEM_FIELDS);
   }
 });
 
 test('Vertrag: kein Feldname ist deutsch', () => {
-  for (const [aufruf, felder] of Object.entries(RECHNUNG_ANFRAGEN)) {
+  for (const [aufruf, felder] of Object.entries(INVOICE_REQUESTS)) {
     for (const pfad of pfade(felder)) {
       const klein = pfad.toLowerCase();
       assert.ok(!/[äöüß]/.test(klein), `${aufruf}: ${pfad} enthaelt Umlaute`);
@@ -77,9 +77,9 @@ test('Vertrag: Fehlercodes und Gruende sind eindeutige Bezeichner', () => {
 
 test('Vertrag: Betraege sind ganze Zahlen, nie Kommazahlen', () => {
   for (const name of ['unitPriceCents', 'unitPriceMicros'] as const) {
-    const preis = POSITION_FELDER[name];
-    assert.ok(preis && preis.typ === 'integer', `${name} muss ganzzahlig sein`);
-    assert.equal(preis.typ === 'integer' ? preis.min : undefined, 0, `${name}.min`);
+    const preis = ITEM_FIELDS[name];
+    assert.ok(preis && preis.type === 'integer', `${name} muss ganzzahlig sein`);
+    assert.equal(preis.type === 'integer' ? preis.min : undefined, 0, `${name}.min`);
   }
 });
 
@@ -88,10 +88,10 @@ test('Vertrag: Betraege sind ganze Zahlen, nie Kommazahlen', () => {
 // Preis gueltig -- darum sind beide optional UND in der Genau-eins-Regel.
 test('Vertrag: der Preis einer Position ist Cent ODER Mikro-Euro', () => {
   for (const name of ['unitPriceCents', 'unitPriceMicros'] as const) {
-    assert.equal(POSITION_FELDER[name]?.pflicht, false, `${name} darf nicht Pflicht sein`);
+    assert.equal(ITEM_FIELDS[name]?.required, false, `${name} darf nicht Pflicht sein`);
   }
   assert.deepEqual(
-    POSITION_PREIS_GENAU_EINS.map((g) => [...g]),
+    ITEM_PRICE_EXACTLY_ONE.map((g) => [...g]),
     [['unitPriceCents'], ['unitPriceMicros']],
   );
 });
@@ -100,31 +100,31 @@ test('Vertrag: der Preis einer Position ist Cent ODER Mikro-Euro', () => {
 // sind beide 10.000.000,00 €. Eine andere Obergrenze waere eine stille
 // Bereichsaenderung je nachdem, welches Feld ein Kunde benutzt.
 test('Vertrag: beide Preisfelder decken denselben Betragsbereich', () => {
-  const cents = POSITION_FELDER['unitPriceCents'];
-  const micros = POSITION_FELDER['unitPriceMicros'];
-  assert.ok(cents?.typ === 'integer' && micros?.typ === 'integer');
-  if (cents.typ !== 'integer' || micros.typ !== 'integer') return;
+  const cents = ITEM_FIELDS['unitPriceCents'];
+  const micros = ITEM_FIELDS['unitPriceMicros'];
+  assert.ok(cents?.type === 'integer' && micros?.type === 'integer');
+  if (cents.type !== 'integer' || micros.type !== 'integer') return;
   assert.equal(micros.max, cents.max * 10_000);
 });
 
 test('Vertrag: die Menge reicht bis 10^9 (passend zu quantityMilli)', () => {
-  const menge = POSITION_FELDER['quantity'];
-  assert.ok(menge?.typ === 'number');
-  if (menge.typ !== 'number') return;
+  const menge = ITEM_FIELDS['quantity'];
+  assert.ok(menge?.type === 'number');
+  if (menge.type !== 'number') return;
   assert.equal(menge.max, 1_000_000_000);
-  assert.equal(menge.nachkomma, 3);
+  assert.equal(menge.decimals, 3);
 });
 
 test('Vertrag: idempotencyKey ist Pflicht bei allem, was eine Rechnung erzeugt', () => {
   for (const aufruf of ['issueInvoice', 'cancelInvoice', 'createCreditNote'] as const) {
-    const key = RECHNUNG_ANFRAGEN[aufruf]['idempotencyKey'];
-    assert.ok(key && key.pflicht, `${aufruf}.idempotencyKey muss Pflicht sein`);
+    const key = INVOICE_REQUESTS[aufruf]['idempotencyKey'];
+    assert.ok(key && key.required, `${aufruf}.idempotencyKey muss Pflicht sein`);
   }
 });
 
 test('Vertrag: jeder Rechnungs-Aufruf steht in der Aufrufliste des Pakets', () => {
   const bekannt = new Set<string>(AUFRUFE);
-  for (const aufruf of RECHNUNG_AUFRUFE) assert.ok(bekannt.has(aufruf), `${aufruf} fehlt in AUFRUFE`);
+  for (const aufruf of INVOICE_ENDPOINTS) assert.ok(bekannt.has(aufruf), `${aufruf} fehlt in AUFRUFE`);
 });
 
 // ---- Schema-Datei (erzeugt von scripts/rechnung-vertrag.mjs) ----------------
@@ -157,17 +157,17 @@ function offeneObjekte(knoten: SchemaKnoten, pfad: string): string[] {
 test('Schema: Datei existiert, nennt die Paketversion und genau die Aufrufe des Vertrags', () => {
   const s = JSON.parse(readFileSync(schemaDatei, 'utf8'));
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
-  assert.equal(s.paket, pkg.version, veraltet);
-  assert.equal(s.version, RECHNUNG_VERTRAG_VERSION, veraltet);
-  assert.deepEqual(Object.keys(s.aufrufe), [...RECHNUNG_AUFRUFE], veraltet);
+  assert.equal(s.package, pkg.version, veraltet);
+  assert.equal(s.version, INVOICE_CONTRACT_VERSION, veraltet);
+  assert.deepEqual(Object.keys(s.endpoints), [...INVOICE_ENDPOINTS], veraltet);
   assert.deepEqual(s.codes, [...INVOICE_ERROR_CODES], veraltet);
-  assert.deepEqual(s.gruende, [...CREDIT_NOTE_REASONS], veraltet);
+  assert.deepEqual(s.creditNoteReasons, [...CREDIT_NOTE_REASONS], veraltet);
 });
 
 test('Schema: jede Objektebene weist unbekannte Felder ab', () => {
   const s = JSON.parse(readFileSync(schemaDatei, 'utf8'));
-  for (const [aufruf, eintrag] of Object.entries(s.aufrufe as Record<string, { anfrage: SchemaKnoten }>)) {
-    assert.deepEqual(offeneObjekte(eintrag.anfrage, ''), [], `${aufruf}: offene Objektebene`);
+  for (const [aufruf, eintrag] of Object.entries(s.endpoints as Record<string, { request: SchemaKnoten }>)) {
+    assert.deepEqual(offeneObjekte(eintrag.request, ''), [], `${aufruf}: offene Objektebene`);
   }
 });
 
@@ -179,34 +179,34 @@ test('Schema: Feldpfade stimmen mit vertrag.ts ueberein (Erzeuger nicht vergesse
     if (kind.type === 'array' && kind.items?.type === 'object') return [pfad, ...ausSchema(kind.items, pfad + '[].')];
     return [pfad];
   });
-  for (const aufruf of RECHNUNG_AUFRUFE) {
-    assert.deepEqual(ausSchema(s.aufrufe[aufruf].anfrage), pfade(RECHNUNG_ANFRAGEN[aufruf]), `${veraltet} (${aufruf})`);
+  for (const aufruf of INVOICE_ENDPOINTS) {
+    assert.deepEqual(ausSchema(s.endpoints[aufruf].request), pfade(INVOICE_REQUESTS[aufruf]), `${veraltet} (${aufruf})`);
   }
 });
 
 test('Beispiele: jede Datei nennt einen bekannten Aufruf und eine vollstaendige Erwartung', () => {
   const dateien = readdirSync(beispielOrdner).filter((d) => d.endsWith('.json')).sort();
   assert.ok(dateien.length >= 12, 'zu wenige Beispiele — dann prueft das Backend kaum etwas');
-  const bekannt = new Set<string>(RECHNUNG_AUFRUFE);
+  const bekannt = new Set<string>(INVOICE_ENDPOINTS);
   const codes = new Set<string>(INVOICE_ERROR_CODES);
   let gute = 0;
   let schlechte = 0;
   for (const datei of dateien) {
     const b = JSON.parse(readFileSync(new URL(datei, beispielOrdner), 'utf8'));
-    assert.ok(bekannt.has(b.aufruf), `${datei}: unbekannter Aufruf ${b.aufruf}`);
-    assert.equal(typeof b.anfrage, 'object', `${datei}: anfrage fehlt`);
-    if (b.erwartet.ok === true) gute += 1;
+    assert.ok(bekannt.has(b.endpoint), `${datei}: unbekannter Aufruf ${b.endpoint}`);
+    assert.equal(typeof b.request, 'object', `${datei}: request fehlt`);
+    if (b.expected.ok === true) gute += 1;
     else {
       schlechte += 1;
-      assert.ok(codes.has(b.erwartet.code), `${datei}: unbekannter Code ${b.erwartet.code}`);
-      assert.ok(Array.isArray(b.erwartet.fields) && b.erwartet.fields.length > 0, `${datei}: fields fehlt`);
+      assert.ok(codes.has(b.expected.code), `${datei}: unbekannter Code ${b.expected.code}`);
+      assert.ok(Array.isArray(b.expected.fields) && b.expected.fields.length > 0, `${datei}: fields fehlt`);
     }
   }
   assert.ok(gute > 0 && schlechte > 0, 'Beispiele brauchen gueltige UND ungueltige Anfragen');
 });
 
 test('Vertrag: Rechnungsdatum, Nummer und Status sind nicht setzbar', () => {
-  const felder = pfade(RECHNUNG_ANFRAGEN.issueInvoice);
+  const felder = pfade(INVOICE_REQUESTS.issueInvoice);
   for (const verboten of ['invoiceDate', 'number', 'status', 'docType', 'totals']) {
     assert.ok(!felder.includes(verboten), `issueInvoice darf ${verboten} nicht annehmen`);
   }
@@ -219,11 +219,11 @@ test('Vertrag: Sprachen de und en, Deutsch zuerst', () => {
 });
 
 test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Sprache fuer die PDF-Kopie', () => {
-  assert.deepEqual(KUNDE_FELDER['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
-  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
-  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['brandId'], { typ: 'string', pflicht: false, min: 1, max: 128 });
-  assert.deepEqual(RECHNUNG_ANFRAGEN.getInvoicePdf['language'], { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES });
-  assert.deepEqual(RECHNUNG_ANFRAGEN.listBrands, {});
+  assert.deepEqual(CUSTOMER_FIELDS['language'], { type: 'enum', required: false, values: INVOICE_LANGUAGES });
+  assert.deepEqual(INVOICE_REQUESTS.issueInvoice['language'], { type: 'enum', required: false, values: INVOICE_LANGUAGES });
+  assert.deepEqual(INVOICE_REQUESTS.issueInvoice['brandId'], { type: 'string', required: false, min: 1, max: 128 });
+  assert.deepEqual(INVOICE_REQUESTS.getInvoicePdf['language'], { type: 'enum', required: false, values: INVOICE_LANGUAGES });
+  assert.deepEqual(INVOICE_REQUESTS.listBrands, {});
 });
 
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
@@ -239,40 +239,40 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
 });
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
-  assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('listBrands'));
+  assert.ok((INVOICE_ENDPOINTS as readonly string[]).includes('listBrands'));
   assert.ok((AUFRUFE as readonly string[]).includes('listBrands'));
 });
 
 test('Vertrag: recordInvoicePayment ist Aufruf der Rechnungs-API und des Clients', () => {
-  assert.ok((RECHNUNG_AUFRUFE as readonly string[]).includes('recordInvoicePayment'));
+  assert.ok((INVOICE_ENDPOINTS as readonly string[]).includes('recordInvoicePayment'));
   assert.ok((AUFRUFE as readonly string[]).includes('recordInvoicePayment'));
 });
 
 test('Vertrag: Zahlung nimmt nur bekannte Arten, der Betrag ist optional und ganzzahlig', () => {
   assert.deepEqual([...INVOICE_PAYMENT_METHODS], ['transfer', 'card', 'online', 'cash']);
-  const felder = RECHNUNG_ANFRAGEN.recordInvoicePayment;
-  assert.deepEqual(felder['method'], { typ: 'enum', pflicht: true, werte: INVOICE_PAYMENT_METHODS });
+  const felder = INVOICE_REQUESTS.recordInvoicePayment;
+  assert.deepEqual(felder['method'], { type: 'enum', required: true, values: INVOICE_PAYMENT_METHODS });
   // Ohne Betrag gilt das volle Brutto; 0 Cent waere keine Zahlung.
-  assert.deepEqual(felder['amountCents'], { typ: 'integer', pflicht: false, min: 1, max: 100_000_000 });
-  assert.equal(felder['idempotencyKey']?.pflicht, true, 'ohne Schluessel bucht eine Wiederholung zweimal');
-  assert.equal(felder['invoiceId']?.pflicht, true);
+  assert.deepEqual(felder['amountCents'], { type: 'integer', required: false, min: 1, max: 100_000_000 });
+  assert.equal(felder['idempotencyKey']?.required, true, 'ohne Schluessel bucht eine Wiederholung zweimal');
+  assert.equal(felder['invoiceId']?.required, true);
   // Am Ausstellen haengt derselbe Block, damit es nur eine Form gibt.
-  assert.deepEqual(Object.keys(PAYMENT_FELDER), ['method', 'amountCents', 'paidAt', 'reference', 'onSite']);
-  const zahlung = RECHNUNG_ANFRAGEN.issueInvoice['payment'];
-  assert.equal(zahlung?.typ, 'object');
-  assert.equal(zahlung?.typ === 'object' ? zahlung.felder : null, PAYMENT_FELDER);
+  assert.deepEqual(Object.keys(PAYMENT_FIELDS), ['method', 'amountCents', 'paidAt', 'reference', 'onSite']);
+  const zahlung = INVOICE_REQUESTS.issueInvoice['payment'];
+  assert.equal(zahlung?.type, 'object');
+  assert.equal(zahlung?.type === 'object' ? zahlung.fields : null, PAYMENT_FIELDS);
 });
 
 test('Vertrag: der Steuerfall ist optional, der Grund gehoert zum Inlands-RC', () => {
   // Der Server leitet ab; eine Angabe wird geprueft. Pflicht waere ein
   // Rueckschritt: dann muesste das Fremdsystem den Fall wieder selbst kennen.
-  assert.equal(RECHNUNG_ANFRAGEN.issueInvoice['taxScheme']?.pflicht, false);
-  assert.equal(RECHNUNG_ANFRAGEN.issueInvoice['reverseChargeReason']?.pflicht, false);
+  assert.equal(INVOICE_REQUESTS.issueInvoice['taxScheme']?.required, false);
+  assert.equal(INVOICE_REQUESTS.issueInvoice['reverseChargeReason']?.required, false);
   assert.ok((TAX_SCHEMES as readonly string[]).includes('domesticReverseCharge'));
   assert.ok((TAX_SCHEMES as readonly string[]).includes('oss'));
   assert.ok((TAX_SCHEMES as readonly string[]).includes('outsideScope'));
   // Neue Faelle stehen hinten — gespeicherte Reihenfolgen bleiben gueltig.
-  assert.deepEqual(TAX_SCHEMES.slice(0, 5), ['normal', 'smallBusiness', 'reverseCharge', 'igLieferung', 'exportThirdCountry']);
+  assert.deepEqual(TAX_SCHEMES.slice(0, 5), ['normal', 'smallBusiness', 'reverseCharge', 'intraCommunitySupply', 'exportThirdCountry']);
 });
 
 test('Vertrag: jeder Reverse-Charge-Grund nennt Stelle, Schwelle und Aufdruck', () => {
@@ -280,17 +280,17 @@ test('Vertrag: jeder Reverse-Charge-Grund nennt Stelle, Schwelle und Aufdruck', 
   assert.ok(gruende.length >= 11);
   for (const g of gruende) {
     const eintrag = REVERSE_CHARGE_REASONS[g];
-    assert.match(eintrag.stelle, /§|BGBl/, `${g} ohne Fundstelle`);
-    assert.ok(eintrag.schwelleCents === null || eintrag.schwelleCents > 0, g);
+    assert.match(eintrag.legalBasis, /§|BGBl/, `${g} ohne Fundstelle`);
+    assert.ok(eintrag.thresholdCents === null || eintrag.thresholdCents > 0, g);
     for (const sprache of INVOICE_LANGUAGES) {
-      const text = RECHNUNG_TEXTE[sprache][`steuer.rcGrund.${g}` as RechnungTextSchluessel];
+      const text = INVOICE_TEXTS[sprache][`steuer.rcGrund.${g}` as InvoiceTextKey];
       assert.ok(text && text.length > 0, `${sprache}: Aufdruck fuer ${g} fehlt`);
       assert.match(text, /§|BGBl/, `${sprache}.${g}: der Aufdruck traegt den Hinweis und braucht die Stelle`);
     }
   }
   // Die beiden Geraete-Faelle tragen dieselbe Schwelle von 5.000 Euro.
-  assert.equal(REVERSE_CHARGE_REASONS.mobile_devices.schwelleCents, 500_000);
-  assert.equal(REVERSE_CHARGE_REASONS.it_devices.schwelleCents, 500_000);
+  assert.equal(REVERSE_CHARGE_REASONS.mobile_devices.thresholdCents, 500_000);
+  assert.equal(REVERSE_CHARGE_REASONS.it_devices.thresholdCents, 500_000);
 });
 
 test('Vertrag: Hinweise sind keine Fehler und tragen eigene Codes', () => {
@@ -304,8 +304,8 @@ test('Vertrag: Einheiten sind Schluessel mit UN/ECE-Code, die Position nimmt nur
   assert.ok(INVOICE_UNITS.length >= 45, 'der Katalog soll abdecken, was Betriebe abrechnen');
   assert.equal(new Set(INVOICE_UNITS).size, INVOICE_UNITS.length);
   for (const einheit of INVOICE_UNITS) assert.match(einheit, /^[a-z]+(_[a-z]+)*$/);
-  assert.deepEqual(Object.keys(RECHNUNG_EINHEITEN_CODES), [...INVOICE_UNITS]);
-  for (const [einheit, code] of Object.entries(RECHNUNG_EINHEITEN_CODES)) assert.match(code, /^[A-Z0-9]{2,3}$/, einheit);
+  assert.deepEqual(Object.keys(INVOICE_UNIT_CODES), [...INVOICE_UNITS]);
+  for (const [einheit, code] of Object.entries(INVOICE_UNIT_CODES)) assert.match(code, /^[A-Z0-9]{2,3}$/, einheit);
   assert.equal(INVOICE_UNITS[0], 'piece');
-  assert.deepEqual(POSITION_FELDER['unit'], { typ: 'enum', pflicht: false, werte: INVOICE_UNITS });
+  assert.deepEqual(ITEM_FIELDS['unit'], { type: 'enum', required: false, values: INVOICE_UNITS });
 });

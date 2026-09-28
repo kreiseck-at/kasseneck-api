@@ -1,15 +1,17 @@
 {
-  "aufruf": "recordInvoicePayment",
-  "beschreibung": "Ueberweisung kann nicht vor Ort erfolgen",
-  "anfrage": {
+  "endpoint": "recordInvoicePayment",
+  "description": "Ueberweisung kann nicht vor Ort erfolgen",
+  "request": {
     "idempotencyKey": "bsp-vor-ort",
     "invoiceId": "rechnung_beispiel",
     "method": "transfer",
     "onSite": true
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
-    "fields": ["onSite"]
+    "fields": [
+      "onSite"
+    ]
   }
 }

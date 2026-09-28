@@ -1,8 +1,8 @@
 {
-  "aufruf": "listBrands",
-  "beschreibung": "Marken ohne Parameter",
-  "anfrage": {},
-  "erwartet": {
+  "endpoint": "listBrands",
+  "description": "Marken ohne Parameter",
+  "request": {},
+  "expected": {
     "ok": true
   }
 }

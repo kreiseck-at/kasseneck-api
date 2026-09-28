@@ -1,10 +1,10 @@
 {
-  "aufruf": "getInvoiceSetupStatus",
-  "beschreibung": "Der Status kennt keine Parameter",
-  "anfrage": {
+  "endpoint": "getInvoiceSetupStatus",
+  "description": "Der Status kennt keine Parameter",
+  "request": {
     "environment": "live"
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
     "fields": [

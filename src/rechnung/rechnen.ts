@@ -31,7 +31,7 @@ export const BETRAG_GRENZE_CENTS = 99_999_999_999;
 export const STEUERFREIE_FAELLE: readonly TaxScheme[] = Object.freeze([
   'smallBusiness',
   'reverseCharge',
-  'igLieferung',
+  'intraCommunitySupply',
   'exportThirdCountry',
   'domesticReverseCharge',
   'outsideScope',

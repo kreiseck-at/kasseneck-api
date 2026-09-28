@@ -1,10 +1,10 @@
 {
-  "aufruf": "searchCustomers",
-  "beschreibung": "Suche ohne Suchbegriff",
-  "anfrage": {
+  "endpoint": "searchCustomers",
+  "description": "Suche ohne Suchbegriff",
+  "request": {
     "limit": 10
   },
-  "erwartet": {
+  "expected": {
     "ok": false,
     "code": "validation",
     "fields": [

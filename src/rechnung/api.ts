@@ -7,7 +7,7 @@
 
 import { createBinaryTransport, createTransport, type FetchLike } from '../client/transport.js';
 import type { InternerBinaerTransport, InternerTransport } from '../client/aufrufe.js';
-import { rechnungKeyAuth } from './auth.js';
+import { invoiceKeyAuth } from './auth.js';
 import {
   cancelInvoice,
   createCreditNote,
@@ -47,7 +47,7 @@ import type {
   RecordPaymentResult,
 } from './typen.js';
 
-export interface RechnungApiOptions {
+export interface InvoiceApiOptions {
   /** `api_key` des Kontos (`kr_live_…` / `kr_test_…`). Gehoert auf einen Server. */
   apiKey: string;
   /** Abweichende Basis-URL; Vorgabe `https://api.kasseneck.at/v3`. */
@@ -58,7 +58,7 @@ export interface RechnungApiOptions {
   fetch?: FetchLike;
 }
 
-export interface RechnungApi {
+export interface InvoiceApi {
   // Kunden
   createCustomer(customer: CustomerInput, optionen?: { idempotencyKey?: string }): Promise<Customer>;
   getCustomer(kennung: { customerId: string } | { externalId: string }): Promise<Customer>;
@@ -90,9 +90,9 @@ export interface RechnungApi {
   listBrands(): Promise<Brand[]>;
 }
 
-export function createRechnungApi(optionen: RechnungApiOptions): RechnungApi {
+export function createInvoiceApi(optionen: InvoiceApiOptions): InvoiceApi {
   const transportOptionen = {
-    auth: rechnungKeyAuth({ apiKey: optionen.apiKey }),
+    auth: invoiceKeyAuth({ apiKey: optionen.apiKey }),
     baseUrl: optionen.baseUrl,
     timeoutMs: optionen.timeoutMs,
     fetch: optionen.fetch,

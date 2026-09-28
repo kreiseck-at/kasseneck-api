@@ -1,7 +1,7 @@
 {
-  "aufruf": "createCreditNote",
-  "beschreibung": "Teilgutschrift als Preisnachlass",
-  "anfrage": {
+  "endpoint": "createCreditNote",
+  "description": "Teilgutschrift als Preisnachlass",
+  "request": {
     "idempotencyKey": "bsp-11",
     "invoiceId": "rechnung_beispiel",
     "reason": "price_reduction",
@@ -14,7 +14,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true
   }
 }

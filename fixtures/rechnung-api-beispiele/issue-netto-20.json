@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Zwei Positionen netto zu 20 %",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Zwei Positionen netto zu 20 %",
+  "request": {
     "idempotencyKey": "bsp-1",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -17,7 +17,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 10000,

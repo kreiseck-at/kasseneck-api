@@ -18,11 +18,11 @@ from fractions import Fraction
 from pathlib import Path
 
 STEUERFREI = {
-    "smallBusiness", "reverseCharge", "igLieferung",
+    "smallBusiness", "reverseCharge", "intraCommunitySupply",
     "exportThirdCountry", "domesticReverseCharge", "outsideScope",
 }
 TAX_SCHEMES = [
-    "normal", "smallBusiness", "reverseCharge", "igLieferung",
+    "normal", "smallBusiness", "reverseCharge", "intraCommunitySupply",
     "exportThirdCountry", "domesticReverseCharge", "oss", "outsideScope",
 ]
 GRENZE_CENTS = 99_999_999_999
@@ -269,7 +269,7 @@ REGEL = {
     "zeile": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
     "net": "Netto = rund(Σ Zeilen); USt = rund(Σ Zeilen × Satz ÷ 10000); Brutto = Netto + USt",
     "gross": "Brutto B = rund(Σ Zeilen); Netto = rund(B × 10000 ÷ (10000 + Satz)); USt = B − Netto",
-    "steuerfrei": "smallBusiness, reverseCharge, igLieferung, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
+    "steuerfrei": "smallBusiness, reverseCharge, intraCommunitySupply, exportThirdCountry, domesticReverseCharge, outsideScope: jede Zeile zu 0 %",
     "rundung": "kaufmännisch, halbe Einheit vom Nullpunkt weg, auf dem Bruch",
     "zeilen": "Startwert kaufmännisch gerundet, Rest nach exaktem Abstand, bei Gleichstand an die frühere Zeile; eine Zeile über 0 bekommt nie einen Cent",
 }

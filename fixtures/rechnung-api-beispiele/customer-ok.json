@@ -1,7 +1,7 @@
 {
-  "aufruf": "createCustomer",
-  "beschreibung": "Firmenkunde mit Kennung aus dem Shop",
-  "anfrage": {
+  "endpoint": "createCustomer",
+  "description": "Firmenkunde mit Kennung aus dem Shop",
+  "request": {
     "customer": {
       "type": "company",
       "name": "Café Muster GmbH",
@@ -14,7 +14,7 @@
       "externalId": "shop-4711"
     }
   },
-  "erwartet": {
+  "expected": {
     "ok": true
   }
 }

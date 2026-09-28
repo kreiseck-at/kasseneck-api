@@ -13,9 +13,9 @@ const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url
 const datei = {
   version: paket.version,
   sprachen: [...rechnung.INVOICE_LANGUAGES],
-  texte: rechnung.RECHNUNG_TEXTE,
-  einheiten: rechnung.RECHNUNG_EINHEITEN_CODES,
+  texte: rechnung.INVOICE_TEXTS,
+  einheiten: rechnung.INVOICE_UNIT_CODES,
 };
 
 writeFileSync(new URL('../fixtures/rechnung-texte.json', import.meta.url), JSON.stringify(datei, null, 2) + '\n');
-console.log('Rechnungstexte geschrieben:', Object.keys(rechnung.RECHNUNG_TEXTE.de).length, 'Schluessel,', datei.sprachen.join('/'));
+console.log('Rechnungstexte geschrieben:', Object.keys(rechnung.INVOICE_TEXTS.de).length, 'Schluessel,', datei.sprachen.join('/'));

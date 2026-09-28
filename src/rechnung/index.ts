@@ -11,15 +11,15 @@
  * Benutzung des Clients.
  */
 
-export { createRechnungApi, type RechnungApi, type RechnungApiOptions } from './api.js';
+export { createInvoiceApi, type InvoiceApi, type InvoiceApiOptions } from './api.js';
 
-export { rechnungKeyAuth, type RechnungKeyAuthOptions } from './auth.js';
+export { invoiceKeyAuth, type InvoiceKeyAuthOptions } from './auth.js';
 
 export {
-  istRechnungFehler,
-  rechnungFehlerCode,
-  rechnungFeldFehler,
-  type RechnungFeldFehler,
+  isInvoiceError,
+  invoiceErrorCode,
+  invoiceFieldErrors,
+  type InvoiceFieldError,
 } from './fehler.js';
 
 export {
@@ -73,7 +73,7 @@ export type {
   RecordPaymentResult,
 } from './typen.js';
 
-export { RECHNUNG_TEXTE, rechnungText, type RechnungTextSchluessel } from './texte.js';
+export { INVOICE_TEXTS, invoiceText, type InvoiceTextKey } from './texte.js';
 
 export { rechnungSummen, STEUERFREIE_FAELLE, type SummenPosition } from './summen.js';
 
@@ -98,8 +98,8 @@ export {
 } from './rechnen.js';
 
 export {
-  RECHNUNG_VERTRAG_VERSION,
-  RECHNUNG_AUFRUFE,
+  INVOICE_CONTRACT_VERSION,
+  INVOICE_ENDPOINTS,
   INVOICE_ERROR_CODES,
   CREDIT_NOTE_REASONS,
   TAX_SCHEMES,
@@ -109,21 +109,23 @@ export {
   INVOICE_LIST_STATUS,
   DOC_TYPES,
   EINVOICE_FORMATS,
+  EINVOICE_MISSING_CODES,
+  WRITE_OFF_REASON_CODES,
   INVOICE_LANGUAGES,
   INVOICE_PAYMENT_METHODS,
   ITEM_KINDS,
   REVERSE_CHARGE_REASONS,
   INVOICE_NOTICE_CODES,
   INVOICE_UNITS,
-  RECHNUNG_EINHEITEN_CODES,
+  INVOICE_UNIT_CODES,
   INVOICE_SETUP_REQUIREMENTS,
-  KUNDE_FELDER,
-  POSITION_FELDER,
-  POSITION_PREIS_GENAU_EINS,
-  RECHNUNG_ANFRAGEN,
-  RECHNUNG_GENAU_EINS,
-  RECHNUNG_MINDESTENS_EINS,
-  type RechnungAufruf,
+  CUSTOMER_FIELDS,
+  ITEM_FIELDS,
+  ITEM_PRICE_EXACTLY_ONE,
+  INVOICE_REQUESTS,
+  INVOICE_EXACTLY_ONE,
+  INVOICE_AT_LEAST_ONE,
+  type InvoiceEndpoint,
   type InvoiceErrorCode,
   type CreditNoteReason,
   type TaxScheme,
@@ -133,6 +135,8 @@ export {
   type InvoiceListStatus,
   type DocType,
   type EInvoiceFormat,
+  type EInvoiceMissingCode,
+  type WriteOffReasonCode,
   type InvoiceLanguage,
   type InvoicePaymentMethod,
   type ItemKind,
@@ -140,6 +144,6 @@ export {
   type InvoiceNoticeCode,
   type InvoiceUnit,
   type InvoiceSetupRequirement,
-  type Format,
-  type Feld,
+  type FieldFormat,
+  type Field,
 } from './vertrag.js';

@@ -2,7 +2,7 @@
  * Die Aufrufe der Rechnungs-API — Kunden, Rechnungen, Gutschriften, Dateien.
  *
  * Jede Funktion nimmt den Transport als ersten Parameter und ist einzeln
- * importierbar; die Fassade [createRechnungApi] bindet ihn nur einmal.
+ * importierbar; die Fassade [createInvoiceApi] bindet ihn nur einmal.
  *
  * **Geprueft wird hier nichts Fachliches.** Die Anfrage geht unveraendert an
  * das Backend, das sie gegen denselben Vertrag prueft (`vertrag.ts`) und einen

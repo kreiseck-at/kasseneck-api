@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Englische Rechnung mit gewählter Marke",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Englische Rechnung mit gewählter Marke",
+  "request": {
     "idempotencyKey": "bsp-en-1",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -19,7 +19,7 @@
       }
     ]
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 10000,

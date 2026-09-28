@@ -1,7 +1,7 @@
 {
-  "aufruf": "issueInvoice",
-  "beschreibung": "Shop kassiert per Karte, Rechnung entsteht bezahlt",
-  "anfrage": {
+  "endpoint": "issueInvoice",
+  "description": "Shop kassiert per Karte, Rechnung entsteht bezahlt",
+  "request": {
     "idempotencyKey": "bsp-bezahlt",
     "customerId": "kunde_beispiel",
     "taxScheme": "normal",
@@ -21,7 +21,7 @@
       "reference": "pi_3QbeispielXYZ"
     }
   },
-  "erwartet": {
+  "expected": {
     "ok": true,
     "totals": {
       "netCents": 10000,
