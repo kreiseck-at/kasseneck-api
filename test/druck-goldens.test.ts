@@ -24,6 +24,7 @@ import { druckAusgaben, sha } from './druck-ausgaben.js';
 const goldens = JSON.parse(readFileSync(new URL('../../test/fixtures/druck-goldens.json', import.meta.url), 'utf8')) as {
   belege: Record<string, Record<string, string>>;
   server: Record<string, Record<string, string>>;
+  ruleset1: Record<string, Record<string, string>>;
 };
 const wurzel = new URL('../../fixtures/', import.meta.url);
 
@@ -71,4 +72,24 @@ for (const datei of ['belege', 'kasse-belege']) {
 test('Druck-Goldens: alle Server-Layouts aus dem Vertrag sind aufgenommen', () => {
   assert.equal(serverFaelle, Object.keys(goldens.server).length);
   assert.ok(serverFaelle >= 20);
+});
+
+// Regelwerk 1 (Altbelege; der Nullbeleg traegt „Betrag: 0,00 €“ statt der
+// Prüfangaben). Aufgenommen am Stand 4d71203 mit der Option `regelwerk: 1`;
+// hier geht dieselbe 0.x-Option durch den Lader und wird zu `ruleset: 1`.
+for (const name of Object.keys(goldens.ruleset1)) {
+  test(`Druck-Golden Regelwerk 1 ${name}: byte-gleich`, () => {
+    const roh = JSON.parse(readFileSync(new URL(`belege/${name}.json`, wurzel), 'utf8')) as Fixture;
+    const f = belegFixtureAufV3({ ...roh, options: { ...(roh.options ?? {}), regelwerk: 1 } as BuildReceiptLayoutOptions });
+    const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
+    const layout = buildReceiptLayout(receipt, f.company, f.options ?? {});
+    assert.equal(layout.ruleset, 1);
+    vergleiche(`Regelwerk 1 ${name}`, layout, goldens.ruleset1[name]);
+  });
+}
+
+test('Druck-Goldens Regelwerk 1: Nullbelege und Vollbelege dabei', () => {
+  const namen1 = Object.keys(goldens.ruleset1);
+  assert.ok(namen1.filter((n) => n.startsWith('null-')).length >= 3);
+  assert.ok(namen1.includes('verkauf-bar') && namen1.includes('signaturausfall-verkauf'));
 });

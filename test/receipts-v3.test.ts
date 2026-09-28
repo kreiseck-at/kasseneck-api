@@ -557,10 +557,25 @@ test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Serv
     const selbst = buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo });
     assert.deepEqual(selbst, fall.response.data.layout, fall.name);
     // Ohne Server-Layout baut der Helfer genau das.
-    assert.deepEqual(receiptLayoutFromResult({ ...ergebnis, layout: null }, { paperSize: 'mm80' }), selbst, fall.name);
+    assert.deepEqual(receiptLayoutFromResult({ ...ergebnis, layout: null }, { fallbackPaperSize: 'mm80' }), selbst, fall.name);
     if (registrationInfo != null) mitPruefangaben += 1;
   }
   assert.ok(mitPruefangaben >= 1, 'kein Nullbeleg mit Registrierdaten dabei');
+});
+
+test('receiptLayoutFromResult: Server-Layout gewinnt, fallbackPaperSize gilt nur ohne, Vorgabe mm58 wie 0.x', async () => {
+  const { ergebnis } = (await mitLayout(KASSE_BELEGE))[0]!;
+  assert.equal(ergebnis.layout!.paperSize, 'mm80');
+  // Mit Server-Layout: dessen Breite, auch wenn eine andere Rueckfallbreite genannt ist.
+  assert.equal(receiptLayoutFromResult(ergebnis, { fallbackPaperSize: 'mm58' }), ergebnis.layout);
+  // Ohne: Vorgabe mm58, sonst die genannte Breite.
+  const ohne = { ...ergebnis, layout: null };
+  assert.equal(receiptLayoutFromResult(ohne).paperSize, 'mm58');
+  assert.equal(receiptLayoutFromResult(ohne, { fallbackPaperSize: 'mm80' }).paperSize, 'mm80');
+  const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
+  assert.deepEqual(receiptLayoutFromResult(ohne), buildReceiptLayout(receipt, company, { paperSize: 'mm58', testCashregister, testSignature, registrationInfo }));
+  // Die alte Form `paperSize` klingt nach Druckbreite und wird darum abgewiesen, nie still uebergangen.
+  assert.throws(() => receiptLayoutFromResult(ergebnis, { paperSize: 'mm58' } as never), (e: unknown) => isKasseneckValidationError(e) && /paperSize/.test(e.message));
 });
 
 test('Kanal api: das Server-Layout traegt den Kartenblock, den der Beleg ohne Anbieterdaten nicht hat', async () => {

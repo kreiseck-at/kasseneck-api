@@ -36,7 +36,8 @@ const result = await api.sellReceiptWithCompany({
   payments: [{ method: KeckPaymentMethod.cash, amountCents: receiptDueCents(items, [], 'standard') }],
 });
 
-// Das Layout des Servers (`layout`, 80 mm); fehlt es, entsteht es aus derselben Antwort.
+// Das Layout des Servers (`layout`, 80 mm) gewinnt; nur ohne entsteht es aus derselben Antwort (`fallbackPaperSize`, Vorgabe mm58).
+// Die Druckbreite waehlt der Druckweg.
 const layout = receiptLayoutFromResult(result);
 const bytes = escPosLayoutBytes(layout, { paperSize: 'mm58' });   // für den Bondrucker
 ```

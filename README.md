@@ -94,8 +94,10 @@ const result = await api.sellReceiptWithCompany({
 });
 
 // Layout: a plain data model (lines, alignment, columns, QR code). The server
-// sends it as `layout` (80 mm); without it, receiptLayoutFromResult builds it
-// from the same response, test banners ("not a valid receipt") included.
+// sends it as `layout` (80 mm), and it always wins; only without it does
+// receiptLayoutFromResult build one from the same response (test banners
+// included) in `fallbackPaperSize` (default 'mm58'). The print width is chosen
+// by the print path (`paperSize` below), never by this helper.
 const layout = receiptLayoutFromResult(result);
 
 // Character grid: exactly 32 (58 mm) or 48 (80 mm) characters per line.
@@ -324,7 +326,11 @@ rule set, so an old receipt looks the way it did when it was issued.
 is a `ReceiptLayout` (`ruleset`, banner lines with `tone: 'receipt_type' |
 'warning'`) and goes unchanged to `escPosLayoutBytes`, `eposPrintXml`,
 `belegBlatt` and the React views; `receiptLayoutFromResult(result)` returns
-it. On the public channel only this layout carries the card block, because
+it whenever it is there. Only without it does the helper build the layout,
+in `fallbackPaperSize` (default `mm58`, as in 0.x). The server layout is
+always 80 mm: on 58 mm paper choose the width at the print path
+(`escPosLayoutBytes(layout, { paperSize: 'mm58' })`, `zeichen: 32`); the VAT
+table then keeps the columns of the 80 mm grid. On the public channel only this layout carries the card block, because
 the receipt itself comes without provider data. If you build the layout
 yourself, pass the options from the same response:
 

@@ -218,18 +218,25 @@ export interface ReceiptWithCompany {
 /**
  * Das Zeilenmodell zum Drucken und Anzeigen eines Belegs aus einer Antwort.
  *
- * Liefert der Server `data.layout`, gilt genau dieses: im oeffentlichen Kanal
- * traegt nur es den Kartenblock (der Beleg selbst kommt dort ohne
- * Anbieterdaten), und Bildschirm, Bon und PDF zeigen so denselben Beleg.
- * Fehlt es, wird das Layout hier gebaut, mit den Angaben derselben Antwort
- * (`testCashregister`, `testSignature`, `registrationInfo`); `paperSize`
- * gilt nur fuer diesen Fall (Vorgabe `mm80` wie am Server). Die Papierbreite
- * beim Drucken waehlt der Druckweg (`paperSize`/`zeichen` dort).
+ * **Ein Server-Layout gewinnt immer.** Liefert der Server `data.layout`, gilt
+ * genau dieses, in seiner Breite (80 mm): im oeffentlichen Kanal traegt nur
+ * es den Kartenblock (der Beleg selbst kommt dort ohne Anbieterdaten), und
+ * Bildschirm, Bon und PDF zeigen so denselben Beleg. Fehlt es, wird das
+ * Layout hier gebaut, mit den Angaben derselben Antwort (`testCashregister`,
+ * `testSignature`, `registrationInfo`) und in `fallbackPaperSize` (Vorgabe
+ * `mm58` wie in 0.x). Die Druckbreite waehlt allein der Druckweg
+ * (`paperSize` bei `escPosLayoutBytes`, `zeichen` bei ePOS und Blatt), nie
+ * dieser Helfer.
  */
-export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { paperSize?: PosPaperSize } = {}): ReceiptLayout {
+export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { fallbackPaperSize?: PosPaperSize } = {}): ReceiptLayout {
+  for (const name of Object.keys(options)) {
+    if (name !== 'fallbackPaperSize') {
+      throw new KasseneckValidationError('receiptLayoutFromResult', `Unbekannte Option "${name}" (die Druckbreite waehlt der Druckweg)`, 'request');
+    }
+  }
   if (result.layout != null) return result.layout;
   return buildReceiptLayout(result.receipt, result.company, {
-    paperSize: options.paperSize ?? 'mm80',
+    paperSize: options.fallbackPaperSize ?? 'mm58',
     testCashregister: result.testCashregister,
     testSignature: result.testSignature,
     registrationInfo: result.registrationInfo,
