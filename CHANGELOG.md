@@ -147,6 +147,21 @@ an upgrade as long as `/v1` is served.
   again. `setMyRegisterDeviceSettings` takes `shortcuts` only as the whole map
   of known actions (as `posSettingsChanges` produces it): the server checks
   keys bound twice only within the map it receives.
+- **Money calls: an error envelope is not a rejection (1.0.0-rc.4).** On
+  `hobexPayApi`, `hobexRefundApi` and `stripeCaptureIntent` an error envelope
+  without a code is `outcome: 'unknown'`, and so is every code outside the
+  23 rejection codes, all raised before the provider is called: the
+  sign-in codes (`errorCodes.auth` without the seven of the partner
+  access), the edge codes `validation`, `not_found` and
+  `internal_translation_error`, the gates `module_inactive` and
+  `not_permitted`, and `route_missing`. `dialect_mismatch` and `response_translation_failed` (also
+  with `handled: false`) stay `'unknown'` there. rc.2 and rc.3 read an
+  envelope without a code as `'rejected'`, and the README called a retry
+  after `'rejected'` safe. Reason: the Hobex and Stripe handlers also answer
+  with a plain error message after the provider was called ("Error hobex
+  details", "Fehler beim Capturing"), so the card may be charged, the refund
+  paid or the payment captured. Same list as in the Dart twin
+  `kasseneck_api`.
 - **Strict validation before sending.** The 0.x payment fields
   (`paymentMethod`, `paymentMethodFromServer`, `creditCardProvider`,
   `cardPaymentId`, `cardPaymentData`) throw, also from plain JavaScript.
