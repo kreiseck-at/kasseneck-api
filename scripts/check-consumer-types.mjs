@@ -40,6 +40,7 @@ import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters, setMyKasseSettings, POS_SHORTCUT_ACTIONS, type PosSettings } from '@kreiseck/kasseneck-api/kasse';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { rechnungRechnen } from '@kreiseck/kasseneck-api/rechnung/rechnen';
+import { fromStoredReceipt, fromStoredReceiptWithCompany, fromStoredCompany, fromStoredPosSettings, fromStoredArticle, type StoredDocument } from '@kreiseck/kasseneck-api/stored';
 import type { KasseneckTransport } from '@kreiseck/kasseneck-api';
 
 export const api = createKasseneckApi({
@@ -73,6 +74,13 @@ export const summen = rechnungRechnen(
   [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
   { priceMode: 'gross' },
 );
+// ./stored: gespeicherte Dokumente als dieselben Modelle wie am Draht.
+export const gespeichert: string = fromStoredReceipt({ receiptId: 'K-1' }).receiptId;
+declare const kopf: StoredDocument;
+export const mitFirma = fromStoredReceiptWithCompany({}, { headerVersion: kopf }).layout;
+export const firma: string = fromStoredCompany({}).companyName;
+export const thema: string = fromStoredPosSettings({ betrieb: { stil: 'nacht' } }).business.theme;
+export const kachel: boolean = fromStoredArticle('a1', {}).visible;
 // Und ein Aufruf, den dieses Paket NICHT umhuellt: KasseneckTransport nimmt
 // weiterhin jeden Aufrufnamen entgegen. Ohne diese Zeile faellt es niemandem
 // auf, wenn die paketinterne Verengung nach aussen durchschlaegt — und ein

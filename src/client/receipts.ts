@@ -1015,8 +1015,11 @@ function antwortfehler(functionName: string, grund: string): KasseneckValidation
  * models/receipt.ts), und die bestehenden Aufrufe sollen ihre Zusage behalten.
  * Wer beides braucht, nimmt [belegMitFirmaAusHuelle] ueber die
  * `…WithCompany`-Varianten.
+ *
+ * Paketintern exportiert, damit `./stored` gespeicherte Belege mit demselben
+ * Leser liest; nicht Teil der Paketoberflaeche.
  */
-function belegAusHuelle(daten: unknown, functionName: string): Receipt {
+export function belegAusHuelle(daten: unknown, functionName: string): Receipt {
   const huelle = daten as { receipt?: unknown } | null | undefined;
   if (huelle == null || typeof huelle !== 'object' || huelle.receipt == null) {
     throw antwortfehler(functionName, 'Antwort enthaelt keinen Beleg (data.receipt fehlt)');
@@ -1045,8 +1048,9 @@ function belegAusHuelle(daten: unknown, functionName: string): Receipt {
  * fehlt er, ist die Antwort unbrauchbar. Die Firmendaten duerfen dagegen
  * luecken haben — ein Kundendokument ohne gepflegte Fusszeile ist kein Grund,
  * einen ausgestellten Beleg nicht anzuzeigen (siehe models/receipt-company.ts).
+ * Paketintern exportiert wie [belegAusHuelle].
  */
-function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
+export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWithCompany {
   const receipt = belegAusHuelle(daten, functionName);
   const d = (daten ?? {}) as {
     testCashregister?: unknown;

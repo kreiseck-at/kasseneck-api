@@ -132,6 +132,16 @@
         "default": "./dist/cjs/partner/index.js"
       }
     },
+    "./stored": {
+      "import": {
+        "types": "./dist/esm/stored/index.d.ts",
+        "default": "./dist/esm/stored/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/stored/index.d.ts",
+        "default": "./dist/cjs/stored/index.js"
+      }
+    },
     "./rechnung": {
       "import": {
         "types": "./dist/esm/rechnung/index.d.ts",
@@ -183,7 +193,8 @@
     "fixtures:hobex-hps-codes": "npm run build && node scripts/hobex-hps-codes.mjs",
     "fixtures:texte": "npm run build && node scripts/texte.mjs",
     "fixtures:texte-umbenennung": "node scripts/texte-umbenennung.mjs",
-    "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/rechnung-rechnen-zufall.json"
+    "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/rechnung-rechnen-zufall.json",
+    "fixtures:stored": "node scripts/stored-vokabular.mjs"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

@@ -189,6 +189,7 @@ adapter:
 | `…/register` | Sign-in for the browser register: pair and unpair a device, list its users and sessions, sign in by PIN, renew and end the session. |
 | `…/kasse` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, tip recipients, the register's message catalogue. |
 | `…/partner` | Partner API (`/v3`, English): create businesses, FinanzOnline link, signature, cash registers, credentials, webhooks with signature verification. **Belongs on a server.** |
+| `…/stored` | Stored Firestore documents (inner form, German) as the same English models the `/v3` wire returns: receipts with company and layout, register settings, articles. For clients that read Firestore directly, such as the admin panel. |
 | `…/rechnung` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
 | `…/rechnung/rechnen` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
 | `…/react` | Thin React adapter that renders a receipt layout or a receipt sheet. Needs React. |
