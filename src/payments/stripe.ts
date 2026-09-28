@@ -133,7 +133,9 @@ export async function createStripeLink(
  * Pflichtparameter.
  *
  * **Nie wiederholen.** Bei `isOutcomeUnknown(e)` (Netz, Zeitlimit, HTTP 5xx,
- * unlesbare Antwort) kann der Einzug gelaufen sein: den Stand nachlesen.
+ * unlesbare Antwort, Fehlerhuelle ohne Code oder mit einem Code ausserhalb
+ * der Ablehnungscodes, README `outcome`) kann der Einzug gelaufen sein: den Stand
+ * nachlesen.
  */
 export async function stripeCaptureIntent(
   transport: InternerTransport,

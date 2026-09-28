@@ -85,8 +85,9 @@ export interface HobexTransactionIdOptions {
  * nicht.
  *
  * **Nie wiederholen.** Bei `isOutcomeUnknown(e)` (Netz, Zeitlimit, HTTP 5xx,
- * unlesbare Antwort) kann die Karte belastet sein: den Stand ueber die
- * Transaktionskennung nachlesen, nicht ein zweites Mal belasten.
+ * unlesbare Antwort, Fehlerhuelle ohne Code oder mit einem Code ausserhalb
+ * der Ablehnungscodes, README `outcome`) kann die Karte belastet sein: den Stand
+ * ueber die Transaktionskennung nachlesen, nicht ein zweites Mal belasten.
  */
 export async function hobexPay(transport: InternerTransport, options: HobexPayOptions): Promise<HobexReceipt> {
   const params = zahlungsNutzlast(ENDPUNKT_PAY, options);
@@ -112,8 +113,10 @@ export async function hobexPay(transport: InternerTransport, options: HobexPayOp
  * Wahrheitswert waere hier also immer `true` — eine Luege ueber den
  * Informationsgehalt, an der ein Aufrufer ein `if` aufhaengt, das nie greift.
  * Misserfolg kommt als geworfener Fehler: eine Fehlerhuelle als
- * [KasseneckApiError] mit Code, Netz, Zeitlimit, HTTP 5xx und eine unlesbare
- * Erfolgsantwort mit `outcome: 'unknown'` (die Erstattung kann gelaufen sein).
+ * [KasseneckApiError], `'rejected'` nur mit einem der Ablehnungscodes
+ * (README `outcome`); ohne Code oder mit anderem Code, bei Netz,
+ * Zeitlimit, HTTP 5xx und unlesbarer Erfolgsantwort `outcome: 'unknown'`
+ * (die Erstattung kann gelaufen sein).
  * Ein `false` an dieser Stelle luede zum zweiten Versuch ein, also zur
  * doppelten Erstattung. **Nie wiederholen**, sondern den Stand nachlesen.
  *

@@ -427,10 +427,9 @@ silently. For a layout option of 0.x the message names its English successor.
 ### `outcome: 'unknown'`: never retry, look it up
 
 `KasseneckApiError`, `KasseneckHttpError` and `KasseneckNetworkError` carry
-`outcome`. `'rejected'` means no operation with an effect is left open: no
-receipt was signed, nothing went to FinanzOnline and no money moved, so
-retrying the same request does not create a second receipt or charge (whether
-it helps depends on the code). `'unknown'` means the operation **may have been carried out**, for
+`outcome`. `'rejected'` means the server turned the request down; whether
+anything else is safe to do depends on the code, and on the money calls it
+is only set for the codes listed below. `'unknown'` means the operation **may have been carried out**, for
 `createReceipt` a signed receipt in the chain. Then never send it again: read
 the result back (`getReceipt`, `listMyReceipts`, the original of a
 cancellation) and continue from there. `isOutcomeUnknown(error)` covers all
@@ -448,13 +447,39 @@ three classes. The outcome is unknown for:
   5xx, and HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
   non-JSON (also `text/html`) or status-less body (`KasseneckHttpError`,
   `reason` `empty-body`, `not-json` or `missing-status`). HTML without the
-  marker stays `route_missing` with `'rejected'`: no function saw the call.
+  marker stays `route_missing` with `'rejected'`: no function saw the call;
+- on the money calls: every error envelope **without a code**, and every
+  code that is not one of the rejection codes below. The Hobex and Stripe
+  handlers also answer with a plain error message after the provider was
+  called, so an envelope alone does not prove that nothing happened.
+
+On the money calls (`hobexPayApi`, `hobexRefundApi`, `stripeCaptureIntent`)
+`outcome` is `'rejected'` only for codes that are produced before the
+provider is called, taken from the `/v3` contract (`errorCodes`):
+
+- the sign-in codes (`errorCodes.auth` without the seven of the partner
+  access, which never applies to these calls), raised before the handler
+  goes on: `method_not_allowed`, `validation` (a required field is missing
+  or has the wrong type), `cashregister_token_missing`,
+  `cashregister_token_invalid`, `cashregister_not_found`,
+  `account_not_found`, `live_not_enabled`, `unauthorized`, `mfa_required`,
+  `user_verification_failed`, `admin_required`, `register_user_not_allowed`,
+  `register_user_no_business`, `register_user_not_found`, `user_disabled`,
+  `session_expired`, `cashregister_not_assigned`,
+  `session_other_cashregister`;
+- the edge codes that stop the call before the handler (`errorCodes.edge`):
+  `validation` (unknown fields), `not_found`, `internal_translation_error`;
+- the module and permission gates: `module_inactive`, `not_permitted`;
+- `route_missing` (set by the package: no function saw the call).
+
+`dialect_mismatch` and `response_translation_failed` (also with
+`handled: false`) stay `'unknown'` there: the handler may have run.
 
 On the money calls an unknown outcome means the card may have been charged,
 the refund may have gone through, the payment may have been captured. A
-rejection of `hobexRefund` throws a `KasseneckApiError` with its `code`; it
-never returns `false`, because a `false` on an unclear outcome invites a
-second refund.
+failed `hobexRefund` throws a `KasseneckApiError`; it never returns `false`,
+because a `false` on an unclear outcome invites a second refund. Even a
+`'rejected'` is no invitation to resend blindly: fix the cause first.
 
 **Never retry these six calls, and never put a retrying layer under the
 package.** A `fetch` passed in `options.fetch` (or a proxy or service worker in

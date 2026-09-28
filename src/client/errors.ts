@@ -223,7 +223,83 @@ const AUSGANG_UNKLAR_CODES: ReadonlySet<string> = new Set([
   'response_unreadable',
 ]);
 
-function ausgangAusCode(code: string | undefined, details: Record<string, unknown>): ErrorOutcome {
+/**
+ * Aufrufe, die Geld bewegen: `hobexPayApi` belastet eine Karte,
+ * `hobexRefundApi` erstattet, `stripeCaptureIntent` zieht eine vorgemerkte
+ * Zahlung ein. Ihre Handler antworten auch NACH dem Anbieteraufruf mit einer
+ * Fehlerhuelle ohne Code ("Error hobex details", "Fehler beim Capturing");
+ * dort gilt darum umgekehrt: Ausgang unklar, ausser der Code belegt, dass der
+ * Anbieter nie gerufen wurde.
+ */
+const GELDWEGE: ReadonlySet<string> = new Set(['hobexPayApi', 'hobexRefundApi', 'stripeCaptureIntent']);
+
+/**
+ * Codes, die auf einem Geldweg `outcome: 'rejected'` ergeben; jeder andere
+ * Code und eine Huelle ohne Code sind dort `'unknown'`. Aufgenommen ist nur,
+ * was entsteht, bevor das Backend den Zahlungsanbieter anspricht (Vertrag
+ * v3, `errorCodes`; dieselbe Liste wie `paymentCallRejectedCodes` im
+ * Dart-Zwilling):
+ *
+ * - `errorCodes.auth` ohne die sieben des Partner-Zugangs (18 Codes):
+ *   Anmeldung und Pruefung in `checkRequest` laufen vor jeder Zeile des
+ *   Handlers; `validation` heisst dort Pflichtfeld fehlt oder falscher Typ.
+ *   Der Partner-Zugang trifft diese `api_key`-Aufrufe mit Kassen-Token nie.
+ * - aus `errorCodes.edge`: `not_found` (unbekannter Endpunkt, HTTP 404) und
+ *   `internal_translation_error` (die Anfrage liess sich nicht uebersetzen,
+ *   es wurde nichts ausgefuehrt); `validation` des Rands (unbekannte Felder,
+ *   Rumpf ohne Objekt) steht schon oben.
+ * - `module_inactive` und `not_permitted`: das Modul- bzw. Rechte-Tor steht
+ *   ebenfalls vor dem Anbieter.
+ * - `route_missing` (vergibt das Paket): HTML ohne `/v3`-Kennzeichen, keine
+ *   Function hat den Aufruf gesehen.
+ *
+ * Nicht darin: `dialect_mismatch` (das Paket vergibt ihn auch, wenn ein Rand
+ * ohne `/v3` geantwortet hat, dessen Handler gelaufen sein kann) und
+ * `response_translation_failed` (der Handler lief; auch `handled: false`
+ * heisst nur, dass seine Antwort ein Fehler war, und der kann hinter dem
+ * Anbieteraufruf entstanden sein). Der Sammelfang der Handler ("Error hobex
+ * details", "Fehler beim Capturing") antwortet ohne Code.
+ */
+export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
+  // errorCodes.auth ohne Partner-Zugang
+  'method_not_allowed',
+  'validation',
+  'cashregister_token_missing',
+  'cashregister_token_invalid',
+  'cashregister_not_found',
+  'account_not_found',
+  'live_not_enabled',
+  'unauthorized',
+  'mfa_required',
+  'user_verification_failed',
+  'admin_required',
+  'register_user_not_allowed',
+  'register_user_no_business',
+  'register_user_not_found',
+  'user_disabled',
+  'session_expired',
+  'cashregister_not_assigned',
+  'session_other_cashregister',
+  // errorCodes.edge vor dem Handler (validation steht oben)
+  'not_found',
+  'internal_translation_error',
+  // Modul- und Rechte-Tor
+  'module_inactive',
+  'not_permitted',
+  // vom Paket vergeben
+  'route_missing',
+]);
+const GELDWEG_ABGELEHNT: ReadonlySet<string> = new Set(PAYMENT_CALL_REJECTED_CODES);
+
+function ausgangAusCode(
+  functionName: string,
+  code: string | undefined,
+  details: Record<string, unknown>,
+): ErrorOutcome {
+  // `functionName` kann den Vorgang tragen (`financeWebService/<method>`).
+  if (GELDWEGE.has(functionName.split('/')[0]!)) {
+    return code !== undefined && GELDWEG_ABGELEHNT.has(code) ? 'rejected' : 'unknown';
+  }
   if (code === undefined) return 'rejected';
   if (AUSGANG_UNKLAR_CODES.has(code)) return 'unknown';
   if (code === 'response_translation_failed' && details['handled'] !== false) return 'unknown';
@@ -267,7 +343,10 @@ export class KasseneckApiError extends Error {
    * `cancellation_outcome_unknown`, `response_unreadable` (Erfolg gemeldet,
    * Antwort eines Aufrufs mit Wirkung aber unlesbar) und
    * `response_translation_failed` (ausser mit `details.handled === false`);
-   * sonst `'rejected'`. Bei `'unknown'` nie wiederholen, sondern nachlesen.
+   * sonst `'rejected'`. Auf den Geldwegen (`hobexPayApi`, `hobexRefundApi`,
+   * `stripeCaptureIntent`) umgekehrt: `'rejected'` nur mit einem Code aus
+   * [PAYMENT_CALL_REJECTED_CODES], ohne Code und mit jedem anderen Code
+   * `'unknown'`. Bei `'unknown'` nie wiederholen, sondern nachlesen.
    */
   readonly outcome: ErrorOutcome;
 
@@ -280,7 +359,7 @@ export class KasseneckApiError extends Error {
     // den Details. So bleibt die Klasse fuer beide Ablageorte dieselbe.
     const kandidat = code !== undefined ? code : details['code'];
     this.code = typeof kandidat === 'string' && BEZEICHNER.test(kandidat) ? kandidat : undefined;
-    this.outcome = ausgangAusCode(this.code, details);
+    this.outcome = ausgangAusCode(functionName, this.code, details);
   }
 }
 

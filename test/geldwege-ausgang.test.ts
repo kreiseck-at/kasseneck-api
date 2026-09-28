@@ -1,4 +1,6 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { stripeCaptureIntent, createStripeLink } from '../src/payments/stripe.js';
 import { hobexPay, hobexRefund } from '../src/payments/hobex.js';
@@ -10,6 +12,7 @@ import {
   KasseneckHttpError,
   KasseneckNetworkError,
   isOutcomeUnknown,
+  PAYMENT_CALL_REJECTED_CODES,
 } from '../src/client/errors.js';
 import { StripeLinkMode, VatRate } from '../src/enums/index.js';
 
@@ -207,4 +210,113 @@ test('Gegenprobe: createStripeLink bewegt kein Geld und bleibt bei 5xx und Netzf
   );
   assert.ok(en instanceof KasseneckNetworkError);
   assert.equal(en.outcome, 'rejected');
+});
+
+/*
+ * Fehlerhuelle auf einem Geldweg (Zwilling von kasseneck_api 10.0.0-rc.2):
+ * Die drei Handler antworten nach dem Anbieteraufruf mit Huellen OHNE Code
+ * ("Error hobex details", "Fehler beim Capturing: ..."). Belastung,
+ * Erstattung bzw. Einzug koennen dann schon gelaufen sein. `rejected` gilt
+ * darum nur fuer Codes, die belegen, dass der Anbieter nie gerufen wurde.
+ */
+
+const fixtureV3 = (): { errorCodes: { auth: string[]; edge: string[] } } =>
+  JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url)), 'utf8'));
+
+test('Geldwege: Fehlerhuelle ohne Code ist outcome unknown (Geld kann bewegt sein)', async () => {
+  for (const [name, aufruf] of GELDWEGE) {
+    for (const huelle of [
+      { status: 'error', message: 'Error hobex details 2' },
+      { status: 'error', message: 'Fehler beim Capturing: Your card was declined.', data: null },
+      { status: 'error', message: 'x', data: { field: 'amount' } },
+      { status: 'error', message: 'x', code: 'Kein Bezeichner mit Leerzeichen' },
+    ]) {
+      const e = await fehler(aufruf(async () => antwort(JSON.stringify(huelle))));
+      assert.ok(e instanceof KasseneckApiError, `${name}: ${String(e)}`);
+      assert.equal(e.code, undefined, name);
+      assert.equal(e.outcome, 'unknown', `${name} ${JSON.stringify(huelle)}`);
+      assert.ok(isOutcomeUnknown(e), name);
+    }
+  }
+});
+
+test('Geldwege: nur die Ablehnungscodes sind rejected, jeder andere Code unknown', async () => {
+  for (const [name, aufruf] of GELDWEGE) {
+    for (const code of PAYMENT_CALL_REJECTED_CODES) {
+      const e = await fehler(aufruf(async () => antwort(JSON.stringify({ status: 'error', message: 'x', code }))));
+      assert.ok(e instanceof KasseneckApiError, `${name} ${code}`);
+      assert.equal(e.outcome, 'rejected', `${name} ${code}`);
+      // Auch unter data.code (zweiter Ablageort).
+      const e2 = await fehler(aufruf(async () => antwort(JSON.stringify({ status: 'error', message: 'x', data: { code } }))));
+      assert.ok(e2 instanceof KasseneckApiError, `${name} data.code ${code}`);
+      assert.equal(e2.outcome, 'rejected', `${name} data.code ${code}`);
+    }
+    for (const [code, data] of [
+      ['payment_amount_invalid', {}],
+      ['rate_limited', {}],
+      ['partner_locked', {}],
+      ['server_error', {}],
+      ['provider_declined', {}],
+      ['response_translation_failed', { handled: false }],
+      ['response_translation_failed', { handled: true }],
+    ] as const) {
+      const e = await fehler(aufruf(async () => antwort(JSON.stringify({ status: 'error', message: 'x', code, data }))));
+      assert.ok(e instanceof KasseneckApiError, `${name} ${code}`);
+      assert.equal(e.outcome, 'unknown', `${name} ${code} ${JSON.stringify(data)}`);
+    }
+  }
+});
+
+// Die sieben Codes des Partner-Zugangs; er trifft die Geldwege (api_key mit
+// Kassen-Token) nie. Dieselbe Abgrenzung wie bei RECEIPT_ERROR_CODES.
+const PARTNER_ZUGANG = [
+  'partner_locked',
+  'scope_missing',
+  'rate_limited',
+  'not_a_partner',
+  'partner_membership_missing',
+  'partner_owner_only',
+  'partner_account_not_allowed',
+];
+
+test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler + Tore + route_missing (Vertrag v3)', () => {
+  const { auth, edge } = fixtureV3().errorCodes;
+  for (const c of PARTNER_ZUGANG) assert.ok(auth.includes(c), `${c} steht nicht mehr in errorCodes.auth`);
+  const erwartet = new Set([
+    ...auth.filter((c) => !PARTNER_ZUGANG.includes(c)),
+    ...edge.filter((c) => c !== 'dialect_mismatch' && c !== 'response_translation_failed'),
+    'module_inactive',
+    'not_permitted',
+    'route_missing',
+  ]);
+  assert.equal(erwartet.size, 23);
+  assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
+  assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
+});
+
+test('Geldwege ueber die Fassade: Erstattung mit Huelle ohne Code ist outcome unknown', async () => {
+  const api = createKasseneckApi({
+    auth: apiKeyAuth({ apiKey: 'kr_test_SCHLUESSEL', cashregisterToken: 'cb_test_TOKEN' }),
+    fetch: async () => antwort(JSON.stringify({ status: 'error', message: 'Error hobex details:' })),
+  });
+  const e = await fehler(api.hobexRefund({ transactionId: 'tx-1', amountCents: 1234 }));
+  assert.ok(e instanceof KasseneckApiError);
+  assert.ok(isOutcomeUnknown(e), 'Erstattung ohne Code: kann gelaufen sein');
+});
+
+test('Gegenprobe: createStripeLink bleibt bei Huelle ohne Code oder mit fremdem Code rejected', async () => {
+  const link = (holen: FetchLike) =>
+    createStripeLink(weg(holen), {
+      items: [{ name: 'Semmel', quantity: 1, vat: VatRate.vat10, priceCents: 120 }],
+      createReceiptAfterPayment: false,
+      mode: StripeLinkMode.payment,
+    });
+  for (const huelle of [
+    { status: 'error', message: 'Fehler bei Stripe-Session: x' },
+    { status: 'error', message: 'x', code: 'payment_amount_invalid' },
+  ]) {
+    const e = await fehler(link(async () => antwort(JSON.stringify(huelle))));
+    assert.ok(e instanceof KasseneckApiError);
+    assert.equal(e.outcome, 'rejected', JSON.stringify(huelle));
+  }
 });
