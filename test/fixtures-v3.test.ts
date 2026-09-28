@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deutschIn } from './deutsch.js';
+import { deutschIn, teile } from './deutsch.js';
 import { CANCELLATION_REASONS } from '../src/models/index.js';
 
 /**
@@ -36,26 +37,63 @@ const AUSGENOMMEN: Record<string, string> = {
 };
 
 /**
- * Werte unter diesen Schluesseln werden nicht geprueft (der Schluessel selbst
- * schon). Muster gilt fuer den Schluessel des Werts; ein Wert in einer Liste
- * gehoert zum Schluessel der Liste.
+ * Werte an genau diesen Stellen werden nicht geprueft; Schluessel immer.
+ * `pfad` ist der Pfad des Werts (`calls.pos[]` fuer einen Eintrag der Liste
+ * `calls.pos`), gebunden an eine Datei. Jede Ausnahme muss einen Fund
+ * verhindern, sonst streicht sie der Test.
  */
-const AUSNAHMEN_WERT: Array<{ schluessel: RegExp; datei?: string; grund: string }> = [
-  { schluessel: /^(public|pos)$/, datei: 'surface.json', grund: 'Namen der Backend-Functions (URL-Pfad) unter /v3 und /api/v3, wie das Backend sie fuehrt (v3-vokabular.json endpoints; getKasseSettings, setMyKasseLogo ...)' },
-  { schluessel: /^reason$/, datei: 'invoice-api-examples/credit-error-reason.json', grund: 'absichtlich ungueltiger Grund ("storno"): das Beispiel zeigt, dass der Server ihn mit validation abweist' },
-  { schluessel: /^(text|name)$/, grund: 'Menschentext (gedruckter Text, Beschreibung eines Falls) und freie Eingabe (Artikelname); maschinenlesbar ist code/kind' },
-  { schluessel: /Id$|Key$/, grund: 'Kennung (vom Anleger gewaehlt oder erzeugt, etwa idempotencyKey "bsp-12"), kein Wort' },
+const AUSNAHMEN_WERT: Array<{ datei: string; pfad: RegExp; grund: string }> = [
+  { datei: 'surface.json', pfad: /^(calls|routes)\.(public|pos)\[\]$/, grund: 'Namen der Backend-Functions (URL-Pfad) unter /v3 und /api/v3, wie das Backend sie fuehrt (v3-vokabular.json endpoints; getKasseSettings, setMyKasseLogo ...)' },
+  { datei: 'invoice-api-examples/credit-error-reason.json', pfad: /^request\.reason$/, grund: 'absichtlich ungueltiger Grund ("storno"): das Beispiel zeigt, dass der Server ihn mit validation abweist' },
+  { datei: 'pos-texts.json', pfad: /^(messages|labels)\..+\.text$/, grund: 'Text fuer den Kassier ("Kein", "Bar"); die Texte bleiben deutsch' },
+  { datei: 'invoice-calc-random.json', pfad: /^cases\[\]\.name$/, grund: 'Name eines Pruffalls fuer Menschen (etwa "steuerfrei" als Pflichtklasse)' },
 ];
 
+/** Kopf erzeugter Dateien: der Schluessel wird geprueft, sein Wert (Hinweistext, Dateinamen des Backends) nicht. */
+const KOPF = new Set(['_note', '_source']);
+
 /** Katalogwerte und Schluesselteile der inneren Form (0.x, /v1), die am Draht nicht mehr vorkommen duerfen. */
-const DEUTSCH_WERTE = new Set(`
+const DEUTSCH_VON_HAND = `
 aktiv an art aus auswahl bar beides betrag betrieb bild breite druck drucker eigen einheit ersatz extern fehleingabe fragen
 geraet gesamt immer kasse kassen keiner keins klartext kunde_storniert links mitte nacht netz nie oben papier pruefangaben
 rechts regelwerk seite sonst sonstiges stil storniert taxnr testkasse testsignatur unerwartet verhalten vollbild zeitablauf
 doppelt erfasst falsche zahlart eigener_text schluessel storno grund
 beschreibung regel faelle erwartet positionen eingabe gemessen ergaenzt dokumentiert gruende zeitraum quelle erhalten kennzeichen
-hoch rundung steuerfrei hinweis
-`.split(/\s+/).filter(Boolean));
+hoch rundung steuerfrei hinweis gutschein teilweise verkauf karte kunde trinkgeld
+`.split(/\s+/).filter(Boolean);
+
+/**
+ * Alles, was 1.0 umbenannt hat, darf nicht zurueckkommen: jeder alte Name aus
+ * fixtures/renames-1.0.json (structure, values, placeholders, Katalog-
+ * schluessel, Dateinamen), zerlegt in Teilwoerter. Ein Teilwort, das auch in
+ * einem neuen Namen vorkommt (`logo` aus `logoAn`), bleibt erlaubt.
+ */
+function ausDerTabelle(): string[] {
+  const t = JSON.parse(readFileSync(join(fixtures, 'renames-1.0.json'), 'utf8')) as Record<string, any>;
+  const paare: Array<[string, string]> = [];
+  const karte = (m: Record<string, string>): void => { for (const [a, n] of Object.entries(m)) if (a !== n) paare.push([a, n]); };
+  for (const ebenen of Object.values(t.structure as Record<string, Record<string, Record<string, string>>>)) Object.values(ebenen).forEach(karte);
+  for (const orte of Object.values(t.values as Record<string, Record<string, Record<string, string>>>)) Object.values(orte).forEach(karte);
+  karte(t.placeholders);
+  karte(t.texts.pos.messages); karte(t.texts.pos.labels); karte(t.texts.invoice);
+  karte(t.files);
+  // Teile alter Namen, die zugleich gewoehnliche englische Teilwoerter sind
+  // (receiptType `standard`, JSON-Schema `minLength`, Kennung `uid` ...).
+  const englisch = new Set(['am', 'bt', 'devid', 'es', 'im', 'min', 're', 'rc', 'standard', 'uid']);
+  const neueTeile = new Set([...paare.flatMap(([, n]) => teile(n)), ...englisch]);
+  const aus = new Set<string>();
+  for (const [a] of paare) {
+    for (const teil of teile(a)) if (!neueTeile.has(teil) && !/^\d+$/.test(teil) && teil.length > 1) aus.add(teil);
+  }
+  return [...aus];
+}
+
+/** Umbenannte Namen (alt != neu), fuer die Rot-Probe. */
+export const ALTE_PLATZHALTER: string[] = Object.entries(JSON.parse(readFileSync(join(fixtures, 'renames-1.0.json'), 'utf8')).placeholders as Record<string, string>)
+  .filter(([a, n]) => a !== n).map(([a]) => a);
+
+const DEUTSCH_WERTE = new Set([...DEUTSCH_VON_HAND, ...ausDerTabelle()]);
+const ALTE_PLATZHALTER_MENGE = new Set(ALTE_PLATZHALTER);
 
 function deutsch(text: string): string | null {
   // Ganze Werte wie `kunde_storniert` stehen als Ganzes in der Liste.
@@ -67,31 +105,38 @@ const MASCHINENWERT = /^[a-z][a-z0-9]*(?:[_.-][a-z0-9]+)*$|^[a-z]+(?:[A-Z][a-z0-
 
 const benutzteAusnahmen = new Set<object>();
 
-/** Fundstellen in einem Dokument (Pfad: Schluessel). */
-export function deutscheStellen(wert: Json, datei = '', pfad = '', werteFrei = false, ohne: object | null = null): string[] {
+/** Fundstellen in einem Dokument (Pfad: Schluessel). `ohne`: diese Ausnahme gilt nicht (Notwendigkeit). */
+export function deutscheStellen(wert: Json, datei = '', pfad = '', ohne: object | null = null): string[] {
   const aus: string[] = [];
   if (Array.isArray(wert)) {
-    wert.forEach((w) => aus.push(...deutscheStellen(w, datei, `${pfad}[]`, werteFrei, ohne)));
+    wert.forEach((w) => aus.push(...deutscheStellen(w, datei, `${pfad}[]`, ohne)));
     return aus;
   }
   if (wert !== null && typeof wert === 'object') {
     for (const [k, v] of Object.entries(wert)) {
       const hier = pfad ? `${pfad}.${k}` : k;
-      // `_hinweis`/`_quelle`: Kopf der erzeugten Dateien, wie im Backend-Export.
-      if (k.startsWith('_') && pfad === '') continue;
       if (k === '$schema') continue;
       const grund = deutsch(k);
       if (grund) aus.push(`${hier} (Schluessel: ${grund})`);
-      const ausnahme = AUSNAHMEN_WERT.find((a) => a !== ohne && a.schluessel.test(k) && (a.datei === undefined || a.datei === datei));
-      if (ausnahme) benutzteAusnahmen.add(ausnahme);
-      // Darunter bleiben die Schluessel geprueft, nur die Werte sind frei.
-      aus.push(...deutscheStellen(v, datei, hier, werteFrei || ausnahme !== undefined, ohne));
+      if (pfad === '' && KOPF.has(k)) continue;
+      aus.push(...deutscheStellen(v, datei, hier, ohne));
     }
     return aus;
   }
-  if (!werteFrei && typeof wert === 'string' && MASCHINENWERT.test(wert)) {
+  // Ein alter Platzhalter faellt ueberall auf: als Eintrag einer
+  // placeholders-Liste und als `{name}` in einem Text (auch einem, der sonst
+  // als Menschentext frei ist).
+  if (typeof wert === 'string') {
+    if (/\.placeholders\[\]$/.test(pfad) && ALTE_PLATZHALTER_MENGE.has(wert)) aus.push(`${pfad} = "${wert}" (alter Platzhalter)`);
+    for (const m of wert.matchAll(/\{([a-zA-Z]+)\}/g)) if (ALTE_PLATZHALTER_MENGE.has(m[1]!)) aus.push(`${pfad}: {${m[1]}} (alter Platzhalter)`);
+  }
+  // Pruefsummen (sha256 hex) sind keine Woerter.
+  if (typeof wert === 'string' && MASCHINENWERT.test(wert) && !/^[0-9a-f]{32,}$/.test(wert)) {
     const grund = deutsch(wert);
-    if (grund) aus.push(`${pfad || '(Wurzel)'} = "${wert}" (${grund})`);
+    if (!grund) return aus;
+    const ausnahme = AUSNAHMEN_WERT.find((a) => a !== ohne && a.datei === datei && a.pfad.test(pfad));
+    if (ausnahme) benutzteAusnahmen.add(ausnahme);
+    else aus.push(`${pfad || '(Wurzel)'} = "${wert}" (${grund})`);
   }
   return aus;
 }
@@ -125,7 +170,7 @@ test('Fixtures: jede Datei ist Draht, innen (unter stored/) oder begruendet ausg
   for (const muster of Object.keys(AUSGENOMMEN)) {
     assert.ok(alleDateien().some((d) => ausnahmeFuer(d) === AUSGENOMMEN[muster]), `tote Ausnahme: ${muster}`);
   }
-  // Draht ist JSON (die Klartext-Raster unter erwartet/ sind gedruckte Ausgabe, kein Draht).
+  // Draht ist JSON (die Klartext-Raster unter expected/ sind gedruckte Ausgabe, kein Draht).
   const nichtJson = DRAHT.filter((d) => !d.endsWith('.json') && !/^expected\/.*\.txt$/.test(d));
   assert.deepEqual(nichtJson, [], 'unbekannte Dateiart unter fixtures/');
   assert.ok(DRAHT.length > 200, `zu wenige Draht-Dateien gefunden: ${DRAHT.length}`);
@@ -139,9 +184,9 @@ test('Fixtures: kein deutsches Wort in den Draht-Fixtures (Schluessel und Maschi
   assert.deepEqual(treffer, []);
   // Keine tote Ausnahme: jede greift in mindestens einer Draht-Datei, und
   // ohne sie faende der Waechter etwas (sonst ist sie ueberfluessig).
-  assert.deepEqual(AUSNAHMEN_WERT.filter((a) => !benutzteAusnahmen.has(a)).map((a) => String(a.schluessel)), []);
-  const unnoetig = AUSNAHMEN_WERT.filter((a) => DRAHT.filter((d) => d.endsWith('.json')).every((d) => deutscheStellen(lies(d), d, '', false, a).length === 0));
-  assert.deepEqual(unnoetig.map((a) => String(a.schluessel)), [], 'Ausnahme ohne Fund: streichen');
+  assert.deepEqual(AUSNAHMEN_WERT.filter((a) => !benutzteAusnahmen.has(a)).map((a) => String(a.pfad)), []);
+  const unnoetig = AUSNAHMEN_WERT.filter((a) => DRAHT.filter((d) => d.endsWith('.json')).every((d) => deutscheStellen(lies(d), d, '', a).length === 0));
+  assert.deepEqual(unnoetig.map((a) => String(a.pfad)), [], 'Ausnahme ohne Fund: streichen');
 });
 
 test('Fixtures: der Waechter erkennt die alten Namen (Rot-Probe)', () => {
@@ -162,8 +207,27 @@ test('Fixtures: der Waechter erkennt die alten Namen (Rot-Probe)', () => {
   // Ausnahmen gelten fuer Werte, nie fuer Schluessel.
   assert.notDeepEqual(deutscheStellen({ text: { beleg: 1 } }), []);
   // Dateigebundene Ausnahmen gelten nur in ihrer Datei.
-  assert.notDeepEqual(deutscheStellen({ reason: 'storno' }, 'invoice-api-examples/credit-ok.json'), []);
-  assert.deepEqual(deutscheStellen({ reason: 'storno' }, 'invoice-api-examples/credit-error-reason.json'), []);
+  assert.notDeepEqual(deutscheStellen({ request: { reason: 'storno' } }, 'invoice-api-examples/credit-ok.json'), []);
+  assert.deepEqual(deutscheStellen({ request: { reason: 'storno' } }, 'invoice-api-examples/credit-error-reason.json'), []);
+  // Ausnahmen sind an den Pfad gebunden: der Abschnitt pos in surface.json ist nicht frei.
+  assert.deepEqual(deutscheStellen({ calls: { pos: ['getKasseSettings'] } }, 'surface.json'), []);
+  assert.notDeepEqual(deutscheStellen({ pos: { posErrorCodes: ['kasse_fehlt'], printJobStatuses: ['rechnung'] } }, 'surface.json'), []);
+  assert.notDeepEqual(deutscheStellen({ baseUrls: { pos: 'kasse' } }, 'surface.json'), []);
+  // Nur _note und _source sind Kopf; ein anderer `_`-Schluessel wird geprueft.
+  assert.notDeepEqual(deutscheStellen({ _irgendwas: { fehler: 'storno' } }), []);
+  assert.deepEqual(deutscheStellen({ _source: { 'beleg-toepfe.js': 'x' } }), []);
+  // Jeder alte Platzhalter, als Liste und im Text-Kontext der Platzhalter.
+  assert.ok(ALTE_PLATZHALTER.length >= 20, `nur ${ALTE_PLATZHALTER.length} alte Platzhalter`);
+  for (const p of ALTE_PLATZHALTER) {
+    assert.notDeepEqual(deutscheStellen({ messages: { 'x.y': { text: 'T', placeholders: [p] } } }, 'pos-texts.json'), [], p);
+    assert.notDeepEqual(deutscheStellen({ messages: { 'x.y': { text: `Am {${p}}.` } } }, 'pos-texts.json'), [], `{${p}}`);
+  }
+  // Was 1.0 umbenannt hat, faellt als Schluessel und als Wert auf.
+  for (const alt of ['sprachen', 'texte', 'einheiten', 'werte', 'rechte', 'tastenAktionen', 'logoProbe', 'autoAbMin', 'kachelstil', 'kartenanbieter', 'kassierenModus',
+    'ladeAuto', 'schnitt', 'schrift', 'tgModus', 'wasserzeichen', 'zeichensatz', 'menge', 'webhookUmschlagFelder', 'kunde', 'gutschein', 'trinkgeld', 'karte', 'datum', 'nummer']) {
+    assert.notDeepEqual(deutscheStellen({ [alt]: 1 }), [], `Schluessel ${alt}`);
+  }
+  for (const alt of ['karte', 'gutschein', 'trinkgeld', 'verkauf', 'voll', 'teilweise', 'karte-neu']) assert.notDeepEqual(deutscheStellen({ kind: alt }), [], `Wert ${alt}`);
   // Menschentext und Englisch bleiben still.
   assert.deepEqual(deutscheStellen({ text: 'Keine Verbindung', placeholders: ['amount'], receipt: { cancellationReason: 'input_error', items: [{ name: 'Semmel' }] } }), []);
   // Platzhalter sind seit 1.0 englisch und keine Ausnahme mehr.
@@ -209,4 +273,18 @@ test('Fixtures: fixtures/v3 ist byte-gleich mit dem Export des Backends (KASSENE
   gehe(quelle);
   assert.deepEqual(hier, dort);
   for (const d of hier) assert.ok(readFileSync(join(fixtures, 'v3', d)).equals(readFileSync(join(quelle, d))), `fixtures/v3/${d} weicht vom Backend ab`);
+});
+
+test('Fixtures: receipt-due-generated.json stammt vom Backend-Stand in KASSENECK_BACKEND (_source)', (t) => {
+  const backend = process.env['KASSENECK_BACKEND'];
+  if (!backend) {
+    t.skip('KASSENECK_BACKEND fehlt; vor der Veroeffentlichung mit frischem keck main laufen lassen');
+    return;
+  }
+  const quelle = (lies('receipt-due-generated.json') as { _source: Record<string, string> })._source;
+  assert.deepEqual(Object.keys(quelle).sort(), ['beleg-toepfe.js', 'tip-core.js', 'vat-buckets.js', 'zahlungen-core.js']);
+  for (const [datei, hash] of Object.entries(quelle)) {
+    const ist: string = createHash('sha256').update(readFileSync(join(backend, 'functions', 'gemeinsam', datei))).digest('hex');
+    assert.equal(ist, hash, `${datei}: Backend weicht ab, KASSENECK_BACKEND=... node scripts/v3-zahlbetrag-generieren.mjs`);
+  }
 });

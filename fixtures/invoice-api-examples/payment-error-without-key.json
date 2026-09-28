@@ -2,7 +2,7 @@
   "endpoint": "recordInvoicePayment",
   "description": "Ohne Idempotenz-Schluessel — eine Wiederholung wuerde zweimal buchen",
   "request": {
-    "invoiceId": "rechnung_beispiel",
+    "invoiceId": "invoice_example",
     "method": "transfer",
     "amountCents": 12000
   },

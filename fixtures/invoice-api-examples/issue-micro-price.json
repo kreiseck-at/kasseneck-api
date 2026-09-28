@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Preis unter einem Cent: 3.500.000 x 0,000004 EUR = 14,00 EUR netto. In ganzen Cent waere der Einzelpreis 0 und die Rechnung leer.",
   "request": {
-    "idempotencyKey": "bsp-mikro-1",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-micro-1",
+    "customerId": "customer_example",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-14",

@@ -2,7 +2,7 @@
   "endpoint": "issueInvoice",
   "description": "Unbekannte Zahlungsart",
   "request": {
-    "idempotencyKey": "bsp-zahlungsart",
+    "idempotencyKey": "ex-payment-method",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-16",

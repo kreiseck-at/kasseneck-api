@@ -39,6 +39,9 @@ const NEU_FAELLE = lies('fixtures/pos-message-cases.json');
 const VOKABULAR = lies('fixtures/v3/v3-vokabular.json');
 const STRUKTUR = TABELLE.structure as Record<string, Record<string, Record<string, string>>>;
 const K = STRUKTUR['pos-texts.json']!;
+const WERTE = TABELLE.values as Record<string, Record<string, Record<string, string>>>;
+const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
+const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
 const PLATZ = TABELLE.placeholders as Record<string, string>;
 const MELDUNGEN = TABELLE.texts.pos.messages as Record<string, string>;
 const BESCHRIFTUNGEN = TABELLE.texts.pos.labels as Record<string, string>;
@@ -167,7 +170,7 @@ test('Platzhalter: die Probe faellt auf (ein Zeichen anders, Platzhalter vertaus
 
 test('Umbenennung: pos-message-cases.json ist der 0.x-Stand, nur umbenannt', () => {
   const F = STRUKTUR['pos-message-cases.json']!;
-  const art = K['kind']!;
+  const art = ART;
   const soll = umbenannt({ ...ALT_FAELLE, faelle: (ALT_FAELLE.faelle as Json[]).map((fall) => {
     const neu = umbenannt(fall, F['case']!);
     neu.error = umbenannt({ ...fall.fehler, art: art[fall.fehler.art] }, F['error']!);
@@ -184,8 +187,8 @@ test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schlue
     ERROR_RULES,
     (ALT_KASSE.fehlerregeln as Json[]).map((r) => umbenannt({
       ...r,
-      art: K['kind']![r.art],
-      ...('verhalten' in r ? { verhalten: K['behavior']![r.verhalten] } : {}),
+      art: ART[r.art],
+      ...('verhalten' in r ? { verhalten: VERHALTEN[r.verhalten] } : {}),
       ...('schluessel' in r ? { schluessel: MELDUNGEN[r.schluessel] } : {}),
     }, K['errorRule']!)),
   );
@@ -227,15 +230,86 @@ function alleDateien(): string[] {
   return aus;
 }
 
-test('Dateien: jede Datei vor 1.0 hat genau einen neuen Pfad, und jede Datei heute kommt aus genau einer', () => {
-  const vorher = readFileSync(join(wurzel, 'test/fixtures/vor-1.0/fixtures-dateien.txt'), 'utf8').split('\n').filter(Boolean);
-  const files = TABELLE.files as Record<string, string>;
-  assert.deepEqual(Object.keys(files), vorher);
-  assert.deepEqual([...Object.values(files)].sort(), alleDateien().sort());
-  for (const neu of Object.values(files)) assert.ok(existsSync(join(wurzel, 'fixtures', neu)), neu);
-  assert.equal(files['belege/storno-voll.json'], 'receipts/cancellation-full.json');
-  assert.equal(files['erwartet/storno-voll.blatt48.json'], 'expected/cancellation-full.sheet48.json');
-  assert.equal(files['rechnung-summen.json'], 'invoice-totals.json');
+/** Eingefrorener Bestand der 0.x-Linie (0.31.0): Dateien und Schluessel je JSON-Datei. */
+const BESTAND = lies('test/fixtures/vor-1.0/fixtures-0.x.json') as { version: string; dateien: string[]; schluesselMengen: string[][]; schluesselJeDatei: Record<string, number> };
+const FILES = TABELLE.files as Record<string, string>;
+/** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
+const NEU_SEIT_1_0 = ['receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
+
+const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
+const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));
+function schluessel(o: unknown, s = new Set<string>()): Set<string> {
+  if (Array.isArray(o)) o.forEach((x) => schluessel(x, s));
+  else if (o !== null && typeof o === 'object') for (const [k, v] of Object.entries(o)) { s.add(k); schluessel(v, s); }
+  return s;
+}
+
+/** Was die Tabelle fuer eine Datei in 1.0 als alten Namen nennt. */
+function gedeckt(neu: string): Set<string> {
+  const aus = new Set<string>([
+    ...gruppen(neu, STRUKTUR).flatMap((g) => Object.values(STRUKTUR[g]!).flatMap((m) => Object.keys(m))),
+    ...gruppen(neu, TABELLE.removed).flatMap((g) => Object.keys(TABELLE.removed[g])),
+    ...(TABELLE.shapes as Array<{ file: string; before: string }>).filter((f) => glob(f.file).test(neu)).map((f) => f.before.split(' ')[0]!),
+  ]);
+  if (neu === 'pos-texts.json') for (const k of [...Object.keys(MELDUNGEN), ...Object.keys(BESCHRIFTUNGEN)]) aus.add(k);
+  if (neu === 'invoice-texts.json') for (const k of Object.keys(RECHNUNG)) aus.add(k);
+  // Im Manifest sind die Schluessel die Namen der Golden-Belege (files: belege/<alt>.json).
+  if (neu === 'manifest.json') for (const f of Object.keys(FILES)) if (f.startsWith('belege/')) aus.add(f.slice('belege/'.length, -'.json'.length));
+  return aus;
+}
+
+/** Jeder Schluessel einer 0.x-Datei, den die 1.0-Datei nicht mehr traegt und die Tabelle nicht nennt. */
+function ungenannt(bestand: typeof BESTAND, files: Record<string, string>, lese: (neu: string) => unknown): string[] {
+  const aus: string[] = [];
+  for (const [alt, idx] of Object.entries(bestand.schluesselJeDatei)) {
+    const neu = files[alt]!;
+    const heute = schluessel(lese(neu));
+    const bekannt = gedeckt(neu);
+    for (const k of bestand.schluesselMengen[idx]!) if (!heute.has(k) && !bekannt.has(k)) aus.push(`${alt} -> ${neu}: ${k}`);
+  }
+  return aus;
+}
+
+test('Dateien: jede Datei der 0.x-Linie hat genau einen neuen Pfad, der existiert', () => {
+  assert.equal(BESTAND.version, '0.31.0');
+  assert.deepEqual(Object.keys(FILES), BESTAND.dateien);
+  assert.equal(new Set(Object.values(FILES)).size, Object.values(FILES).length, 'zwei alte Dateien auf demselben neuen Pfad');
+  for (const neu of Object.values(FILES)) assert.ok(existsSync(join(wurzel, 'fixtures', neu)), neu);
+  assert.equal(FILES['belege/storno-voll.json'], 'receipts/cancellation-full.json');
+  assert.equal(FILES['erwartet/storno-voll.blatt48.json'], 'expected/cancellation-full.sheet48.json');
+  assert.equal(FILES['rechnung-summen.json'], 'invoice-totals.json');
+});
+
+test('Dateien: jede Datei heute kommt aus der 0.x-Linie, ist neu seit 1.0 oder liegt im Backend-Export (v3/)', () => {
+  const ziele = new Set(Object.values(FILES));
+  const fremd = alleDateien().filter((d) => !ziele.has(d) && !NEU_SEIT_1_0.includes(d) && !d.startsWith('v3/'));
+  assert.deepEqual(fremd, [], 'neue Datei unter fixtures/: umbenannt -> files, neu -> NEU_SEIT_1_0');
+  for (const d of NEU_SEIT_1_0) assert.ok(existsSync(join(wurzel, 'fixtures', d)), `tote Zeile in NEU_SEIT_1_0: ${d}`);
+});
+
+test('Tabelle: jeder Schluessel der 0.x-Linie, den es in 1.0 nicht mehr gibt, steht in der Tabelle', () => {
+  assert.deepEqual(ungenannt(BESTAND, FILES, (neu) => lies(`fixtures/${neu}`)), []);
+});
+
+test('Tabelle: jeder alte Name in structure kam in 0.x auch vor (keine erfundene Umbenennung)', () => {
+  const je: Record<string, Set<string>> = {};
+  for (const [alt, idx] of Object.entries(BESTAND.schluesselJeDatei)) {
+    for (const g of gruppen(FILES[alt]!, STRUKTUR)) for (const k of BESTAND.schluesselMengen[idx]!) (je[g] ??= new Set()).add(k);
+  }
+  const erfunden: string[] = [];
+  for (const [g, ebenen] of Object.entries(STRUKTUR)) {
+    for (const [ebene, m] of Object.entries(ebenen)) for (const alt of Object.keys(m)) if (!je[g]?.has(alt)) erfunden.push(`${g}/${ebene}: ${alt}`);
+  }
+  assert.deepEqual(erfunden, []);
+});
+
+test('Tabelle: die Pruefung faellt auf einen ungenannten Schluessel (Rot-Probe)', () => {
+  const idx = BESTAND.schluesselMengen.length;
+  const probe = { ...BESTAND, schluesselMengen: [...BESTAND.schluesselMengen, ['zeitraumNeu', 'version']], schluesselJeDatei: { 'hobex-hps-codes.json': idx } };
+  assert.deepEqual(ungenannt(probe, FILES, (neu) => lies(`fixtures/${neu}`)), ['hobex-hps-codes.json -> hobex-hps-codes.json: zeitraumNeu']);
+  // Ein Schluessel, den structure nennt, ist gedeckt.
+  const gedeckte = { ...probe, schluesselMengen: [...BESTAND.schluesselMengen, ['gemessenAn']] };
+  assert.deepEqual(ungenannt(gedeckte, FILES, (neu) => lies(`fixtures/${neu}`)), []);
 });
 
 test('Dateien: die Zuordnung bricht bei unbekanntem Pfad oder Schluessel laut ab (Rot-Probe)', async () => {

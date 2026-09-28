@@ -1,5 +1,5 @@
 {
-  "description": "Prüffälle des Umwandlers positionAusEuro (Euro-Position → Ganzzahl-Form). Preis in Millionstel Euro, Menge in Tausendstel, Rabatt und Satz in Hundertstel-Prozent. Umgewandelt wird über den kürzesten Dezimaltext der Zahl, nie per Gleitkomma-Multiplikation — Gleitkomma-Rauschen wie 0,30000000000000004 muss abgelehnt werden.",
+  "description": "Prüffälle des Umwandlers itemFromEuro (Euro-Position → Ganzzahl-Form). Preis in Millionstel Euro, Menge in Tausendstel, Rabatt und Satz in Hundertstel-Prozent. Umgewandelt wird über den kürzesten Dezimaltext der Zahl, nie per Gleitkomma-Multiplikation — Gleitkomma-Rauschen wie 0,30000000000000004 muss abgelehnt werden.",
   "rule": "Fehlende Menge und fehlender Satz gelten als 0 (so rechnet der Server ab). Ein fehlender Preis ist nie 0, sondern ein Grund (not_a_number). Ein Minus am Preis wandert an die Menge.",
   "cases": [
     {

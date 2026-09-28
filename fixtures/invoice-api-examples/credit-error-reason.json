@@ -2,8 +2,8 @@
   "endpoint": "createCreditNote",
   "description": "Unbekannter Grund",
   "request": {
-    "idempotencyKey": "bsp-12",
-    "invoiceId": "rechnung_beispiel",
+    "idempotencyKey": "ex-12",
+    "invoiceId": "invoice_example",
     "reason": "storno",
     "items": [
       {

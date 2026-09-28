@@ -2,7 +2,7 @@
   "endpoint": "getCustomer",
   "description": "Genau eine Kennung angeben",
   "request": {
-    "customerId": "kunde_beispiel",
+    "customerId": "customer_example",
     "externalId": "shop-4711"
   },
   "expected": {

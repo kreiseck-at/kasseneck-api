@@ -1,5 +1,5 @@
 {
-  "description": "Prüffälle des Ganzzahl-Rechenkerns (rechnungRechnen). Von Hand gerechnet, nicht erzeugt: npm, Server, Dart-Zwilling und Panel müssen jeden Fall genau treffen. Preise in Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in Hundertstel-Prozent, Beträge in Cent.",
+  "description": "Prüffälle des Ganzzahl-Rechenkerns (calculateInvoice). Von Hand gerechnet, nicht erzeugt: npm, Server, Dart-Zwilling und Panel müssen jeden Fall genau treffen. Preise in Millionstel Euro, Mengen in Tausendstel, Rabatt und Satz in Hundertstel-Prozent, Beträge in Cent.",
   "rule": {
     "line": "Preis × Menge × (10000 − Rabatt) ÷ 10^11 Cent, exakt als Bruch",
     "net": "Netto = rund(Σ Zeilen); USt = rund(Σ Zeilen × Satz ÷ 10000); Brutto = Netto + USt",

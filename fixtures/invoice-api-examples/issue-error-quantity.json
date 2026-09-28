@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Menge null",
   "request": {
-    "idempotencyKey": "bsp-10",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-10",
+    "customerId": "customer_example",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-14",

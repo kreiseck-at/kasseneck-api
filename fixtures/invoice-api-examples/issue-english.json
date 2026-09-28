@@ -2,13 +2,13 @@
   "endpoint": "issueInvoice",
   "description": "Englische Rechnung mit gewählter Marke",
   "request": {
-    "idempotencyKey": "bsp-en-1",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-en-1",
+    "customerId": "customer_example",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-15",
     "language": "en",
-    "brandId": "marke_beispiel",
+    "brandId": "brand_example",
     "items": [
       {
         "description": "Consulting",

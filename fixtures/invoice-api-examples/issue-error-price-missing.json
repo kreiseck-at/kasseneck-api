@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Kein Preis: der Feldpfad zeigt auf unitPriceCents, den gewohnten Pflichtfehler.",
   "request": {
-    "idempotencyKey": "bsp-mikro-3",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-micro-3",
+    "customerId": "customer_example",
     "priceMode": "net",
     "serviceStart": "2026-09-14",
     "items": [

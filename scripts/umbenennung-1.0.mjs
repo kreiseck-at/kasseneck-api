@@ -486,9 +486,10 @@ function platzhalter() {
 
 // ---- Dateien -------------------------------------------------------------------
 //
-// Jede Datei unter fixtures/ vor 1.0 (eingefroren in
-// test/fixtures/vor-1.0/fixtures-dateien.txt) bekommt genau einen neuen Pfad.
-// Ein Pfad, den die Listen nicht kennen, bricht ab.
+// Jede Datei unter fixtures/ der 0.x-Linie (eingefroren in
+// test/fixtures/vor-1.0/fixtures-0.x.json, Stand 0.31.0) bekommt genau einen
+// neuen Pfad. Ein Pfad, den die Listen nicht kennen, bricht ab. Dateien, die
+// erst mit 1.0 kamen, stehen nicht hier.
 
 const DATEIEN = {
   'hobex-hps-codes.json': 'hobex-hps-codes.json',
@@ -503,9 +504,6 @@ const DATEIEN = {
   'rechnung-rechnen.json': 'invoice-calc.json',
   'rechnung-summen.json': 'invoice-totals.json',
   'rechnung-texte.json': 'invoice-texts.json',
-  'stored/kasse-settings-standard.json': 'stored/pos-settings-defaults.json',
-  'texte-umbenennung.json': 'renames-1.0.json',
-  'v3-zahlbetrag-generiert.json': 'receipt-due-generated.json',
 };
 
 /** Namen der Golden-Belege (fixtures/belege -> fixtures/receipts, ebenso unter erwartet/). */
@@ -609,7 +607,6 @@ function nachschlagen(liste, schluessel, wo) {
 
 /** Neuer Pfad (relativ zu fixtures/) eines Pfads vor 1.0; unbekannt bricht ab. */
 export function neuerPfad(pfad) {
-  if (pfad.startsWith('v3/')) return pfad; // Export des Backends, unveraendert
   if (pfad in DATEIEN) return DATEIEN[pfad];
   let m = /^belege\/([^/]+)\.json$/.exec(pfad);
   if (m) return `receipts/${nachschlagen(BELEGE, m[1], pfad)}.json`;
@@ -626,14 +623,13 @@ export function neuerPfad(pfad) {
 }
 
 function dateien() {
-  const liste = readFileSync(new URL('../test/fixtures/vor-1.0/fixtures-dateien.txt', import.meta.url), 'utf8').split('\n').filter(Boolean);
+  const liste = lies('../test/fixtures/vor-1.0/fixtures-0.x.json').dateien;
   const raus = {};
   const vergeben = new Map();
   for (const pfad of liste) {
     const neu = neuerPfad(pfad);
     if (vergeben.has(neu)) throw new Error(`${pfad} und ${vergeben.get(neu)} ergaeben beide ${neu}`);
-    // Schreibweise klein mit Bindestrich; der Backend-Export (v3/) bleibt, wie er ist.
-    if (!neu.startsWith('v3/')) for (const teil of neu.split('/')) if (!/^[a-z0-9][a-z0-9.-]*$/.test(teil)) throw new Error(`${neu}: Schreibweise`);
+    for (const teil of neu.split('/')) if (!/^[a-z0-9][a-z0-9.-]*$/.test(teil)) throw new Error(`${neu}: Schreibweise`);
     vergeben.set(neu, pfad);
     raus[pfad] = neu;
   }
@@ -646,22 +642,61 @@ function dateien() {
   return raus;
 }
 
-// ---- Struktur der Vertragsdateien -------------------------------------------------
+// ---- Struktur, Werte, Formen ----------------------------------------------------
 //
-// Seit 1.0 sind auch die Strukturschluessel englisch. Je (neue) Datei und
-// Ebene: jeder alte Schluessel genau einmal, auch die, die bleiben. Die
-// Ebenen der Pruefgeruest-Dateien fuellt der Umzug (`--umziehen`) streng:
-// ein Schluessel ohne Eintrag bricht ab.
+// `structure`: reine Umbenennungen von Schluesseln, je (neue) Datei bzw.
+// Dateigruppe und Ebene; jede Ebene nennt jeden alten Schluessel, auch die,
+// die bleiben. `values`: umbenannte Maschinenwerte (Enums, Codes). `shapes`:
+// wo sich die Form aendert (Liste wird Objekt, Abschnitt aufgeteilt).
+// `removed`: Schluessel, die es in 1.0 nicht mehr gibt, mit Grund.
+// test/umbenennung-1.0.test.ts haelt das gegen den eingefrorenen Bestand
+// von 0.31.0 (test/fixtures/vor-1.0/fixtures-0.x.json): jeder Schluessel, der
+// dort steht und in 1.0 fehlt, steht hier.
+//
+// Die Einstellungen der Kasse sind in 0.x die gespeicherte (innere) Form;
+// ihre Namen und Werte kommen aus dem Vertrags-Export des Backends
+// (fixtures/v3/v3-vokabular.json: Schema getKasseSettings, Kataloge
+// KASSE_BETRIEB_WERTE/KASSE_GERAET_WERTE), nicht aus einer Zweitliste hier.
+
+const VOKABULAR = lies('../fixtures/v3/v3-vokabular.json');
+const BESTAND_0X = lies('../test/fixtures/vor-1.0/fixtures-0.x.json');
+/** Alle Schluessel, die eine Datei der 0.x-Linie trug (eingefrorener Bestand). */
+const SCHLUESSEL_0X = (datei) => new Set(BESTAND_0X.schluesselMengen[BESTAND_0X.schluesselJeDatei[datei]]);
+
+/** Eine Ebene des Einstellungs-Schemas: innen -> aussen (Unterobjekte unter ihrem `__`-Namen). */
+function schemaEbene(knoten) {
+  return Object.fromEntries(Object.entries(knoten).filter(([k]) => k !== '__').map(([aussen, innen]) => [typeof innen === 'string' ? innen : innen.__, aussen]));
+}
+const SCHEMA = VOKABULAR.schemas.getKasseSettings.data;
+const EINSTELLUNGEN = {
+  file: { [SCHEMA.business.__]: 'business', [SCHEMA.device.__]: 'device' },
+  business: schemaEbene(SCHEMA.business),
+  device: schemaEbene(SCHEMA.device),
+  shortcuts: schemaEbene(SCHEMA.device.shortcuts),
+};
+/** Werte der Einstellungen je (neuem) Feldnamen: innen -> aussen. */
+const EINSTELLUNGS_WERTE = Object.fromEntries(Object.entries(VOKABULAR.catalogs)
+  .filter(([name]) => /^KASSE_(BETRIEB|GERAET)_WERTE\./.test(name))
+  .map(([name, werte]) => [name.split('.')[1], werte]));
 
 const RECHNUNG_REGEL = { zeile: 'line', net: 'net', gross: 'gross', steuerfrei: 'taxExempt', rundung: 'rounding' };
+const STEUERFALL = { igLieferung: 'intraCommunitySupply' };
 
 const STRUKTUR = {
   'pos-texts.json': {
     file: { version: 'version', meldungen: 'messages', fehlerregeln: 'errorRules', belegMailFehler: 'receiptEmailErrors', stornoZahlungFehler: 'cancellationPaymentErrors', beschriftungen: 'labels' },
     entry: { text: 'text', platzhalter: 'placeholders', nur: 'only' },
     errorRule: { art: 'kind', verhalten: 'behavior', schluessel: 'key' },
-    kind: { api: 'api', klartext: 'plain_text', zeitablauf: 'timeout', netz: 'network', unerwartet: 'unexpected', sonst: 'other' },
-    behavior: { server_text: 'server_text', eigener_text: 'own_text', ersatz: 'fallback' },
+    // Schluessel sind Fehlercodes des Backends: unter /v3 englisch (v3-vokabular errorCodes).
+    receiptEmailErrors: { adresse_ungueltig: 'invalid_address', zu_oft: 'too_many_requests', versand_fehlgeschlagen: 'send_failed', beleg_nicht_gefunden: 'receipt_not_found' },
+    cancellationPaymentErrors: {
+      STORNO_PAYMENTS_REQUIRED: 'cancellation_payments_required',
+      STORNO_REFUND_EXCEEDS_PAYMENT: 'cancellation_refund_exceeds_payment',
+      STORNO_REFUND_REFERENCE_REQUIRED: 'cancellation_refund_reference_required',
+      STORNO_REFUND_REFERENCE_UNKNOWN: 'cancellation_refund_reference_unknown',
+      PAYMENTS_SUM_MISMATCH: 'payments_sum_mismatch',
+      STORNO_OUTCOME_UNKNOWN: 'cancellation_outcome_unknown',
+    },
   },
   'invoice-texts.json': {
     file: { version: 'version', sprachen: 'languages', texte: 'texts', einheiten: 'units' },
@@ -672,10 +707,17 @@ const STRUKTUR = {
     error: { art: 'kind', serverMessage: 'serverMessage', text: 'text', status: 'status' },
     expected: { schluessel: 'key', werte: 'values' },
   },
+  'pos-settings-defaults.json': EINSTELLUNGEN,
   'surface.json': {
-    // `aufrufe` ist seit 1.0 je Weg geteilt: calls.public (/v3) und
-    // calls.pos (/api/v3); neu sind baseUrls und routes.
-    file: { version: 'version', aufrufe: 'calls', enums: 'enums', rechte: 'registerPerms', tastenAktionen: 'posShortcutActions', partner: 'partner', rechnung: 'invoice' },
+    file: { version: 'version', enums: 'enums', rechte: 'registerPerms', tastenAktionen: 'posShortcutActions', partner: 'partner', rechnung: 'invoice' },
+    // Schluessel = Feld der Einstellungen, innen -> aussen wie oben; nur
+    // die Felder, die 0.x dort als Enum fuehrte.
+    enums: Object.fromEntries(Object.entries({ ...EINSTELLUNGEN.business, ...EINSTELLUNGEN.device }).filter(([innen]) => SCHLUESSEL_0X('oberflaeche.json').has(innen))),
+    partner: {
+      betriebFelder: 'businessFields', partnerEnvs: 'partnerEnvs', partnerFehlerCodes: 'partnerErrorCodes', partnerPortalFehlerCodes: 'partnerPortalErrorCodes',
+      partnerWebhookEvents: 'partnerWebhookEvents', webhookRetryPlanSec: 'webhookRetryPlanSec', webhookUmschlagFelder: 'webhookEnvelopeFields',
+    },
+    invoice: { rechnungAufrufe: 'invoiceEndpoints', steuerfreieFaelle: 'zeroRatedTaxSchemes' },
   },
   'manifest.json': {
     file: { regelwerk: 'ruleset', belege: 'receipts', logoProbe: 'logoSample' },
@@ -684,9 +726,17 @@ const STRUKTUR = {
   },
   'receipts/*.json': {
     company: { uid: 'vatId', taxnr: 'taxNumber' },
-    options: { testKasse: 'testCashregister', testSignatur: 'testSignature', pruefangaben: 'registrationInfo', regelwerk: 'ruleset' },
+    options: { testKasse: 'testCashregister', testSignatur: 'testSignature', pruefangaben: 'registrationInfo' },
     registrationInfo: { karteRegistriertAm: 'cardRegisteredAt', kasseRegistriertAm: 'cashregisterRegisteredAt' },
-    cancellationReason: { fehleingabe: 'input_error', kunde_storniert: 'customer_cancelled', falsche_zahlart: 'wrong_payment_method', doppelt_erfasst: 'duplicate', sonstiges: 'other' },
+  },
+  'expected/*.lines.json': {
+    layout: { regelwerk: 'ruleset' },
+    line: { ton: 'tone' },
+  },
+  'expected/*.sheet*.json': {
+    sheet: { zeichen: 'charsPerLine', bloecke: 'blocks' },
+    block: { art: 'kind', breiteAnteil: 'widthFraction', hoeheZeilen: 'heightLines', fett: 'bold', leer: 'blank', nutzlast: 'payload' },
+    size: { breite: 'width', hoehe: 'height' },
   },
   'hobex-hps-codes.json': {
     file: { version: 'version', gemessenAn: 'measuredOn', ergaenztAn: 'supplementedOn', dokumentiert: 'documented', codes: 'codes', gruende: 'reasons', terminalBusyHttpStatus: 'terminalBusyHttpStatus' },
@@ -696,6 +746,7 @@ const STRUKTUR = {
   'item-from-euro.json': {
     file: { beschreibung: 'description', regel: 'rule', faelle: 'cases' },
     case: { name: 'name', item: 'item', erwartet: 'expected' },
+    expected: { position: 'item', feld: 'field', grund: 'reason' },
   },
   'invoice-calc.json': {
     file: { beschreibung: 'description', regel: 'rule', faelle: 'cases' },
@@ -712,10 +763,77 @@ const STRUKTUR = {
     rule: RECHNUNG_REGEL,
     case: { name: 'name', priceMode: 'priceMode', taxScheme: 'taxScheme', items: 'items', erwartet: 'expected' },
   },
-  'receipt-due-generated.json': {
-    file: { _hinweis: '_note', _quelle: '_source', seed: 'seed', cases: 'cases' },
+  'invoice-api-examples/*.json': {
+    file: { aufruf: 'endpoint', beschreibung: 'description', anfrage: 'request', erwartet: 'expected' },
+  },
+  'invoice-api.schema.json': {
+    file: { $schema: '$schema', title: 'title', version: 'version', paket: 'package', aufrufe: 'endpoints', codes: 'codes', gruende: 'creditNoteReasons' },
+    endpoint: { anfrage: 'request', genauEins: 'exactlyOne', mindestensEins: 'atLeastOne' },
   },
 };
+
+/** Umbenannte Maschinenwerte: Datei(gruppe) -> Ort -> alt -> neu. */
+const WERTE = {
+  'pos-texts.json': {
+    'errorRules[].kind': { api: 'api', klartext: 'plain_text', zeitablauf: 'timeout', netz: 'network', unerwartet: 'unexpected', sonst: 'other' },
+    'errorRules[].behavior': { server_text: 'server_text', eigener_text: 'own_text', ersatz: 'fallback' },
+  },
+  'pos-message-cases.json': {
+    'cases[].error.kind': { api: 'api', klartext: 'plain_text', zeitablauf: 'timeout', netz: 'network', unerwartet: 'unexpected', sonst: 'other' },
+  },
+  'pos-settings-defaults.json': Object.fromEntries(Object.entries(EINSTELLUNGS_WERTE).map(([feld, w]) => [`*.${feld}`, w])),
+  'surface.json': {
+    ...Object.fromEntries(Object.entries(EINSTELLUNGS_WERTE).map(([feld, w]) => [`enums.${feld}[]`, w])),
+    'posShortcutActions[]': EINSTELLUNGEN.shortcuts,
+    'invoice.docTypes[]': { RE: 'invoice', GU: 'credit_note' },
+    'invoice.taxSchemes[]': STEUERFALL,
+    'invoice.zeroRatedTaxSchemes[]': STEUERFALL,
+  },
+  'receipts/*.json': {
+    'receipt.cancellationReason': { fehleingabe: 'input_error', kunde_storniert: 'customer_cancelled', falsche_zahlart: 'wrong_payment_method', doppelt_erfasst: 'duplicate', sonstiges: 'other' },
+  },
+  'expected/*.lines.json': {
+    'lines[].tone': VOKABULAR.catalogs.LAYOUT_TON,
+  },
+  'expected/*.sheet*.json': {
+    'blocks[].kind': { zeile: 'line', marke: 'brandMark' },
+  },
+  'item-from-euro.json': {
+    'cases[].expected.reason': { kein_zahlwert: 'not_a_number', nachkommastellen: 'too_many_decimals', ausserhalb: 'out_of_range' },
+  },
+  'invoice-calc.json': { 'cases[].taxScheme': STEUERFALL },
+  'invoice-calc-random.json': { 'cases[].taxScheme': STEUERFALL },
+  'invoice-totals.json': { 'cases[].taxScheme': STEUERFALL },
+  // Beispiel-Kennungen (frei gewaehlt, seit 1.0 englisch).
+  'invoice-api-examples/*.json': {
+    'request.idempotencyKey': Object.fromEntries([...Array.from({ length: 12 }, (_, i) => [`bsp-${i + 1}`, `ex-${i + 1}`]),
+      ['bsp-bezahlt', 'ex-paid'], ['bsp-einheit', 'ex-unit'], ['bsp-en-1', 'ex-en-1'], ['bsp-en-2', 'ex-en-2'], ['bsp-mikro-1', 'ex-micro-1'], ['bsp-mikro-2', 'ex-micro-2'],
+      ['bsp-mikro-3', 'ex-micro-3'], ['bsp-vor-ort', 'ex-on-site'], ['bsp-zahlung-1', 'ex-payment-1'], ['bsp-zahlungsart', 'ex-payment-method']]),
+    'request.customerId': { kunde_beispiel: 'customer_example' },
+    'request.invoiceId': { rechnung_beispiel: 'invoice_example' },
+    'request.brandId': { marke_beispiel: 'brand_example' },
+    'request.payment.reference': { pi_3QbeispielXYZ: 'pi_3QexampleXYZ' },
+  },
+  'invoice-api.schema.json': { 'endpoints.*.request.properties.taxScheme.enum[]': STEUERFALL, 'endpoints.*.request.properties.docType.enum[]': { RE: 'invoice', GU: 'credit_note' } },
+};
+
+/** Formwechsel: nicht nur ein anderer Name. */
+const FORMEN = [
+  {
+    file: 'surface.json', before: 'aufrufe', after: 'calls.public, calls.pos, routes.public, routes.pos, baseUrls',
+    description: 'Die eine Aufrufliste ist je Weg geteilt: calls.public (api.kasseneck.at/v3) und calls.pos (kasse.kasseneck.at/api/v3) nennen die Aufrufe des Pakets, '
+      + 'routes.public/routes.pos alle Endpunkte des Backends je Weg, baseUrls die zwei Basisadressen. Die sechs Beleg-Aufrufe stehen in beiden calls-Listen.',
+  },
+  {
+    file: 'pos-texts.json', before: 'receiptEmailErrors (Codes von /v1)', after: 'receiptEmailErrors (Codes von /v3)',
+    description: 'Die Schluessel sind die Fehlercodes des Backends; unter /v3 heissen sie englisch (Zuordnung in structure).',
+  },
+];
+
+/** Schluessel ohne Nachfolger in 1.0. */
+const ENTFERNT = {};
+
+// ---- Umzug (einmalig, erledigt) --------------------------------------------------
 
 /**
  * Wo in einer Pruefgeruest-Datei vor 1.0 welche Ebene gilt (Pfad mit `[]`
@@ -730,7 +848,6 @@ const UMZUG = {
   'rechnung-rechnen-zufall.json': { '': 'file', regel: 'rule', 'faelle[]': 'case', 'faelle[].positionen[]': 'frei', 'faelle[].erwartet': 'frei' },
   'rechnung-summen.json': { '': 'file', regel: 'rule', 'faelle[]': 'case', 'faelle[].items[]': 'frei', 'faelle[].erwartet': 'frei' },
   'manifest.json': { '': 'file', belege: 'belegnamen', 'belege.*': 'receipt', logoProbe: 'logoSample' },
-  'v3-zahlbetrag-generiert.json': { '': 'file', _quelle: 'frei', 'cases[]': 'frei' },
 };
 
 /**
@@ -763,8 +880,8 @@ function struktur() {
   const eintraege = [...Object.values(alt.kasse.meldungen), ...Object.values(alt.kasse.beschriftungen)];
   deckt('pos-texts.json/entry', k.entry, eintraege.flatMap((e) => Object.keys(e)));
   deckt('pos-texts.json/errorRule', k.errorRule, alt.kasse.fehlerregeln.flatMap((r) => Object.keys(r)));
-  deckt('pos-texts.json/kind', k.kind, alt.kasse.fehlerregeln.map((r) => r.art));
-  deckt('pos-texts.json/behavior', k.behavior, alt.kasse.fehlerregeln.filter((r) => 'verhalten' in r).map((r) => r.verhalten));
+  deckt('pos-texts.json/errorRules[].kind', WERTE['pos-texts.json']['errorRules[].kind'], alt.kasse.fehlerregeln.map((r) => r.art));
+  deckt('pos-texts.json/errorRules[].behavior', WERTE['pos-texts.json']['errorRules[].behavior'], alt.kasse.fehlerregeln.filter((r) => 'verhalten' in r).map((r) => r.verhalten));
   deckt('invoice-texts.json', STRUKTUR['invoice-texts.json'].file, Object.keys(alt.rechnung));
   const f = STRUKTUR['pos-message-cases.json'];
   deckt('pos-message-cases.json', f.file, Object.keys(alt.faelle));
@@ -774,7 +891,7 @@ function struktur() {
   for (const [name, zuordnung] of Object.entries(STRUKTUR).flatMap(([d, z]) => Object.entries(z).map(([t, m]) => [`${d}/${t}`, m]))) {
     const neu = Object.values(zuordnung);
     if (new Set(neu).size !== neu.length) throw new Error(`${name}: ein neuer Name ist doppelt vergeben`);
-    for (const n of neu) if (!/^_?[a-z][A-Za-z0-9_]*$/.test(n)) throw new Error(`${name}: ${n}`);
+    for (const n of neu) if (!/^[_$]?[a-z][A-Za-z0-9_]*$/.test(n)) throw new Error(`${name}: ${n}`);
   }
   for (const [datei, orte] of Object.entries(UMZUG)) {
     if (!(datei in DATEIEN)) throw new Error(`UMZUG: ${datei} steht nicht in DATEIEN`);
@@ -791,7 +908,9 @@ function struktur() {
 export function umbenennungsTabelle() {
   return {
     _note:
-      'Renames from 0.x to 1.0 of the fixture contract: file paths, text catalog keys, placeholders and structural keys. '
+      'Everything in the fixture contract that is different in 1.0 compared with 0.x (0.30.0/0.31.0): file paths (files), '
+      + 'text catalog keys (texts), placeholders (placeholders), renamed keys (structure), renamed machine values (values), '
+      + 'shape changes (shapes) and keys without successor (removed). Files that are new in 1.0 are not listed. '
       + 'Generated by scripts/umbenennung-1.0.mjs, never edit by hand. Rendered texts stay byte-identical.',
     files: dateien(),
     texts: {
@@ -803,6 +922,9 @@ export function umbenennungsTabelle() {
     },
     placeholders: platzhalter(),
     structure: struktur(),
+    values: WERTE,
+    shapes: FORMEN,
+    removed: ENTFERNT,
   };
 }
 

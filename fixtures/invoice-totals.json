@@ -1,5 +1,5 @@
 {
-  "description": "Prueffaelle fuer die Summen einer Rechnung. Von Hand gerechnet, nicht erzeugt: rechnungSummen (npm), der Dart-Zwilling und der Server (summenJeSatz) muessen jeden Fall genau so treffen. Betraege in Cent, Positionen in der Form der Rechnungs-API.",
+  "description": "Prueffaelle fuer die Summen einer Rechnung. Von Hand gerechnet, nicht erzeugt: computeInvoiceTotals (npm), der Dart-Zwilling und der Server (summenJeSatz) muessen jeden Fall genau so treffen. Betraege in Cent, Positionen in der Form der Rechnungs-API.",
   "rule": {
     "line": "Einzelpreis × Menge × (1 − Rabatt/100), ungerundet",
     "net": "Netto = round(Σ Zeilen); USt = round(Σ Zeilen × Satz/100); Brutto = Netto + USt",

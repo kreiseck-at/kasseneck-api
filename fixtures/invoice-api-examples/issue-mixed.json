@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Zwei Steuersätze auf einer Rechnung",
   "request": {
-    "idempotencyKey": "bsp-4",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-4",
+    "customerId": "customer_example",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-14",

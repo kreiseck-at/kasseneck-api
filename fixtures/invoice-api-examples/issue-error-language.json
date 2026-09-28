@@ -2,7 +2,7 @@
   "endpoint": "issueInvoice",
   "description": "Unbekannte Sprache",
   "request": {
-    "idempotencyKey": "bsp-en-2",
+    "idempotencyKey": "ex-en-2",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-15",

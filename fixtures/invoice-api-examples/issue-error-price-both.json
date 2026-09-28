@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Beide Preisfelder gesetzt: genau eines ist erlaubt. Der Feldpfad zeigt auf das zuletzt hinzugekommene.",
   "request": {
-    "idempotencyKey": "bsp-mikro-2",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-micro-2",
+    "customerId": "customer_example",
     "priceMode": "net",
     "serviceStart": "2026-09-14",
     "items": [

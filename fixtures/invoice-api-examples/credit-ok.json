@@ -2,8 +2,8 @@
   "endpoint": "createCreditNote",
   "description": "Teilgutschrift als Preisnachlass",
   "request": {
-    "idempotencyKey": "bsp-11",
-    "invoiceId": "rechnung_beispiel",
+    "idempotencyKey": "ex-11",
+    "invoiceId": "invoice_example",
     "reason": "price_reduction",
     "items": [
       {

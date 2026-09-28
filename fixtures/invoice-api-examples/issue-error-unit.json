@@ -2,7 +2,7 @@
   "endpoint": "issueInvoice",
   "description": "Einheit als freier Text statt Schlüssel",
   "request": {
-    "idempotencyKey": "bsp-einheit",
+    "idempotencyKey": "ex-unit",
     "taxScheme": "normal",
     "priceMode": "net",
     "serviceStart": "2026-09-15",

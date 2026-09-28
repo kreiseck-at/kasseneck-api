@@ -7,7 +7,7 @@ import { logoRasterSize, type LogoDimensions } from './blatt.js';
  * dem Logo gibt.
  *
  * Die Rechnung ist Vertrag und hat einen Dart-Zwilling (Golden
- * `erwartet/logo-probe.raster32.txt`): Flaechenmittel je Druckpunkt,
+ * `expected/logo-sample.raster32.txt`): Flaechenmittel je Druckpunkt,
  * Durchsichtiges auf Papierweiss, Helligkeit nach BT.601, Floyd-Steinberg mit
  * Schwelle 128. Die Reihenfolge der Rechenschritte nicht aendern -- beide
  * Sprachen rechnen mit IEEE-Doubles und kommen nur so auf dieselben Punkte.

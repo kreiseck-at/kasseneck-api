@@ -2,8 +2,8 @@
   "endpoint": "issueInvoice",
   "description": "Bruttopreis: der Server rechnet die USt heraus",
   "request": {
-    "idempotencyKey": "bsp-2",
-    "customerId": "kunde_beispiel",
+    "idempotencyKey": "ex-2",
+    "customerId": "customer_example",
     "taxScheme": "normal",
     "priceMode": "gross",
     "serviceStart": "2026-09-14",
