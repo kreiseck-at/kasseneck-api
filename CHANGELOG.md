@@ -130,7 +130,12 @@ an upgrade as long as `/v1` is served.
   the start receipt under `onboarding.start_receipt_created`/`_transmitted`
   (`_at`) as `/v3` sends it; rc.1 and rc.2 read the internal
   `startbeleg_*` names and reported every register as having no start
-  receipt (`CashregisterOnboardingPayload` changes accordingly).
+  receipt (`CashregisterOnboardingPayload` changes accordingly). The fields
+  of `CashregisterOnboarding` are English now as well: `startbelegCreated`
+  is `startReceiptCreated`, `startbelegTransmitted` is
+  `startReceiptTransmitted`, `startbelegCreatedAt` is `startReceiptCreatedAt`,
+  `startbelegTransmittedAt` is `startReceiptTransmittedAt`; the German-name
+  guard no longer exempts `startbeleg`.
   `sendReceiptEmail` reads its success reply leniently: without `to` it
   returns the address you sent, without `at` it returns `at: null`
   (`SendReceiptEmailResult.at` is `string | null`); throwing there would

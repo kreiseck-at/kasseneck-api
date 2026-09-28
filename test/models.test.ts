@@ -425,10 +425,10 @@ test('Kasse: liest die woertliche Antwort von listMyCashregisters (Kassen-Benutz
   assert.equal(kasse.token, undefined, 'ein null-Token darf keine Zeichenkette werden');
   assert.deepEqual(kasse.onboarding, {
     cashboxRegistered: true,
-    startbelegCreated: true,
-    startbelegTransmitted: false,
+    startReceiptCreated: true,
+    startReceiptTransmitted: false,
     cashboxRegisteredAt: new Date('2026-01-05T09:05:00.000Z'),
-    startbelegCreatedAt: new Date('2026-01-05T09:06:00.000Z'),
+    startReceiptCreatedAt: new Date('2026-01-05T09:06:00.000Z'),
   });
 });
 
@@ -442,8 +442,8 @@ test('Kasse: ein fehlender Zeitstempel wird nicht still zur Epoche', () => {
   assert.equal(kasse.token, undefined);
   assert.deepEqual(kasse.onboarding, {
     cashboxRegistered: false,
-    startbelegCreated: false,
-    startbelegTransmitted: false,
+    startReceiptCreated: false,
+    startReceiptTransmitted: false,
   });
 });
 

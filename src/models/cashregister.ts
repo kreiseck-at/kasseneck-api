@@ -48,11 +48,11 @@ export interface Cashregister {
  */
 export interface CashregisterOnboarding {
   cashboxRegistered: boolean;
-  startbelegCreated: boolean;
-  startbelegTransmitted: boolean;
+  startReceiptCreated: boolean;
+  startReceiptTransmitted: boolean;
   cashboxRegisteredAt?: Date;
-  startbelegCreatedAt?: Date;
-  startbelegTransmittedAt?: Date;
+  startReceiptCreatedAt?: Date;
+  startReceiptTransmittedAt?: Date;
 }
 
 /** Nutzlast-Form, die dieses Paket liest — die Feldnamen von `listMyCashregisters`. */
@@ -97,11 +97,11 @@ export function fromCashregisterPayload(payload: CashregisterPayload, id: string
     ...(payload.signature_id ? { signatureId: payload.signature_id } : {}),
     onboarding: {
       cashboxRegistered: ob.cashbox_registered === true,
-      startbelegCreated: ob.start_receipt_created === true,
-      startbelegTransmitted: ob.start_receipt_transmitted === true,
+      startReceiptCreated: ob.start_receipt_created === true,
+      startReceiptTransmitted: ob.start_receipt_transmitted === true,
       ...zeitfeld('cashboxRegisteredAt', ob.cashbox_registered_at),
-      ...zeitfeld('startbelegCreatedAt', ob.start_receipt_created_at),
-      ...zeitfeld('startbelegTransmittedAt', ob.start_receipt_transmitted_at),
+      ...zeitfeld('startReceiptCreatedAt', ob.start_receipt_created_at),
+      ...zeitfeld('startReceiptTransmittedAt', ob.start_receipt_transmitted_at),
     },
   };
 }

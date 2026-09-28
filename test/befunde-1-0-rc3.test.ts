@@ -109,8 +109,8 @@ test('B1: listMyCashregisters liest die Inbetriebnahme unter start_receipt_* (Ve
       const ob = kassen[i]!.onboarding;
       assert.equal(kassen[i]!.id, r.id, f.case);
       assert.equal(ob.cashboxRegistered, r.onboarding.cashbox_registered === true, `${f.case}/${r.id}`);
-      assert.equal(ob.startbelegCreated, r.onboarding.start_receipt_created === true, `${f.case}/${r.id}: Startbeleg erzeugt`);
-      assert.equal(ob.startbelegTransmitted, r.onboarding.start_receipt_transmitted === true, `${f.case}/${r.id}: Startbeleg uebermittelt`);
+      assert.equal(ob.startReceiptCreated, r.onboarding.start_receipt_created === true, `${f.case}/${r.id}: Startbeleg erzeugt`);
+      assert.equal(ob.startReceiptTransmitted, r.onboarding.start_receipt_transmitted === true, `${f.case}/${r.id}: Startbeleg uebermittelt`);
     });
   }
   // Mindestens eine Kasse des Vertrags hat den Startbeleg: sonst waere die
@@ -123,8 +123,8 @@ test('B1: die Zeitpunkte der Inbetriebnahme kommen aus start_receipt_*_at', () =
   r.onboarding.start_receipt_created_at = '2026-01-02T09:05:00.000Z';
   r.onboarding.start_receipt_transmitted_at = '2026-01-02T09:06:00.000Z';
   const k = fromCashregisterPayload(r as CashregisterPayload, 'x');
-  assert.equal(k.onboarding.startbelegCreatedAt?.toISOString(), '2026-01-02T09:05:00.000Z');
-  assert.equal(k.onboarding.startbelegTransmittedAt?.toISOString(), '2026-01-02T09:06:00.000Z');
+  assert.equal(k.onboarding.startReceiptCreatedAt?.toISOString(), '2026-01-02T09:05:00.000Z');
+  assert.equal(k.onboarding.startReceiptTransmittedAt?.toISOString(), '2026-01-02T09:06:00.000Z');
 });
 
 test('B1: fromCashregisterPayload liest nur Schluessel, die der Vertrag sendet', () => {

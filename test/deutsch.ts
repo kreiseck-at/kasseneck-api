@@ -30,11 +30,10 @@ export const UMLAUT = /[äöüÄÖÜß]/;
 
 /**
  * Feste Begriffe aus BMF/RKSV, die deutsch bleiben, obwohl ein Stamm oben sie
- * trifft. Teilwort -> Grund.
+ * trifft. Teilwort -> Grund. Leer: auch der Startbeleg heisst an der
+ * Oberflaeche und am Draht /v3 englisch (`startReceipt`, `start_receipt_*`).
  */
-export const FACHBEGRIFFE: Record<string, string> = {
-  startbeleg: 'RKSV-Begriff Startbeleg (§ 6 Abs. 4 RKSV), so auch in FinanzOnline und am Draht (/v3 behaelt ihn)',
-};
+export const FACHBEGRIFFE: Record<string, string> = {};
 
 /** Teilwoerter eines Bezeichners: camelCase, GROSS_SCHRIFT, Ziffern, Pfadtrenner. */
 export function teile(name: string): string[] {

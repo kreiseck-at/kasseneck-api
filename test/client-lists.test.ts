@@ -195,7 +195,7 @@ test('listMyCashregisters: liest die Kassen samt Inbetriebnahme-Stand', async ()
   assert.equal(kassen[0]?.createTime?.toISOString(), '2026-01-05T09:00:00.000Z');
   assert.equal(kassen[0]?.signatureId, 'sig-42');
   assert.equal(kassen[0]?.token, undefined, 'fuer Kassen-Benutzer sendet das Backend null');
-  assert.equal(kassen[0]?.onboarding.startbelegTransmitted, true);
+  assert.equal(kassen[0]?.onboarding.startReceiptTransmitted, true);
 
   // Zweite Kasse: alles null — und daraus wird nichts erfunden.
   assert.equal(kassen[1]?.id, 'kasse-2');
