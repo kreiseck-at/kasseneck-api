@@ -1,5 +1,5 @@
 import { type HobexReceipt, type HobexReceiptPayload, fromHobexReceiptPayload } from '../models/index.js';
-import { KasseneckValidationError } from '../client/errors.js';
+import { KasseneckValidationError, signiertGelesen } from '../client/errors.js';
 import type { InternerTransport } from '../client/aufrufe.js';
 import { toViennaWallClock } from '../vienna-time.js';
 import { centsToEuro } from '../money.js';
@@ -83,6 +83,10 @@ export interface HobexTransactionIdOptions {
  *
  * **Der Endpunkt heisst `hobexPayApi`** — mit Suffix; ohne ihn gibt es ihn
  * nicht.
+ *
+ * **Nie wiederholen.** Bei `isOutcomeUnknown(e)` (Netz, Zeitlimit, HTTP 5xx,
+ * unlesbare Antwort) kann die Karte belastet sein: den Stand ueber die
+ * Transaktionskennung nachlesen, nicht ein zweites Mal belasten.
  */
 export async function hobexPay(transport: InternerTransport, options: HobexPayOptions): Promise<HobexReceipt> {
   const params = zahlungsNutzlast(ENDPUNKT_PAY, options);
@@ -90,7 +94,11 @@ export async function hobexPay(transport: InternerTransport, options: HobexPayOp
   // geht sie als null raus, nicht gar nicht. Der Transport wirft nur
   // `undefined` weg, `null` bleibt erhalten — genau diese Unterscheidung.
   params['reference'] = options.reference ?? null;
-  return belegAusNutzlast(await transport(ENDPUNKT_PAY, params));
+  const daten = await transport(ENDPUNKT_PAY, params);
+  // Erfolg gemeldet heisst: die Karte ist belastet. Ist der Beleg dann
+  // unlesbar, bleibt der Ausgang unklar (`response_unreadable`), damit keine
+  // App ein zweites Mal belastet.
+  return signiertGelesen(ENDPUNKT_PAY, () => belegAusNutzlast(daten));
 }
 
 /**
@@ -103,7 +111,11 @@ export async function hobexPay(transport: InternerTransport, options: HobexPayOp
  * schon im Transport, sobald der Status nicht ausdruecklich Erfolg ist. Ein
  * Wahrheitswert waere hier also immer `true` — eine Luege ueber den
  * Informationsgehalt, an der ein Aufrufer ein `if` aufhaengt, das nie greift.
- * Misserfolg kommt als geworfener Fehler.
+ * Misserfolg kommt als geworfener Fehler: eine Fehlerhuelle als
+ * [KasseneckApiError] mit Code, Netz, Zeitlimit, HTTP 5xx und eine unlesbare
+ * Erfolgsantwort mit `outcome: 'unknown'` (die Erstattung kann gelaufen sein).
+ * Ein `false` an dieser Stelle luede zum zweiten Versuch ein, also zur
+ * doppelten Erstattung. **Nie wiederholen**, sondern den Stand nachlesen.
  *
  * **Der Endpunkt heisst `hobexRefundApi`** — mit Suffix.
  */

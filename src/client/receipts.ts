@@ -36,7 +36,7 @@ import {
 } from '../models/index.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
-import { KasseneckApiError, KasseneckValidationError, isKasseneckApiError } from './errors.js';
+import { KasseneckApiError, KasseneckValidationError, isKasseneckApiError, signiertGelesen } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../receipt/layout.js';
 import type { PosPaperSize } from '../printing/escpos.js';
@@ -1008,29 +1008,6 @@ function kartenanbieter(wert: string): string {
 /** Fehler in der Eingabe des Aufrufers — es geht keine Anfrage raus. */
 function eingabefehler(grund: string): KasseneckValidationError {
   return new KasseneckValidationError('createReceipt', grund, 'request');
-}
-
-/**
- * Liest die Erfolgsantwort eines **signierenden** Aufrufs. Scheitert das
- * Lesen (fehlender Beleg, fehlender Bezug, unbrauchbares Feld oder ein
- * Laufzeitfehler beim Umwandeln), hat der Server trotzdem Erfolg gemeldet:
- * der Beleg ist signiert und im DEP. Das darf nie als gewoehnlicher Fehler
- * enden, sonst kassiert die Kasse ein zweites Mal. Darum wird daraus
- * `KasseneckApiError` mit Code `response_unreadable` und `outcome: 'unknown'`.
- * Der Grund stammt vom Paket; aus der Antwort selbst wird nichts uebernommen.
- */
-function signiertGelesen<T>(functionName: string, lesen: () => T): T {
-  try {
-    return lesen();
-  } catch (ursache) {
-    const grund = ursache instanceof KasseneckValidationError ? ursache.reason : 'Antwort nicht lesbar';
-    throw new KasseneckApiError(
-      functionName,
-      `Erfolg gemeldet, Antwort aber unlesbar (${grund}). Der Vorgang kann ausgefuehrt sein: nicht wiederholen, sondern nachlesen.`,
-      {},
-      'response_unreadable',
-    );
-  }
 }
 
 /** Die Antwort meldete Erfolg, trug aber nicht, was der Aufruf zusagt. */

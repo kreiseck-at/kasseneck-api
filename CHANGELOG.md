@@ -104,13 +104,28 @@ an upgrade as long as `/v1` is served.
   means the operation may have happened: `dialect_mismatch`,
   `receipt_outcome_unknown`, `cancellation_outcome_unknown`,
   `response_translation_failed` (unless `details.handled === false`),
-  `response_unreadable` (a signing call reported success but the response
-  lacks the receipt, the reference or the remaining quantities), and on
-  `createReceipt`, `cancelReceipt` and `financeWebService` a network error,
-  timeout or HTTP 5xx after sending as well as HTTP 200 with the `/v3` marker
-  but an empty, non-JSON or status-less body. Never retry those; read the
-  result back. Reason: a retried receipt is a second signed receipt in the
-  chain.
+  `response_unreadable` (a signing or money call reported success but the
+  response lacks the receipt, the reference, the remaining quantities, the
+  Hobex receipt or the captured payment intent), and on `createReceipt`,
+  `cancelReceipt`, `financeWebService`, `hobexPayApi`, `hobexRefundApi` and
+  `stripeCaptureIntent` a network error, timeout or HTTP 5xx after sending as
+  well as HTTP 200 with the `/v3` marker but an empty, non-JSON (also HTML) or
+  status-less body. Never retry those; read the result back. Reason: a
+  retried receipt is a second signed receipt in the chain.
+- **Money calls have an unknown outcome too (1.0.0-rc.2).** `hobexPay`,
+  `hobexRefund` and `stripeCaptureIntent` joined the calls above. In rc.1 a
+  timeout, network error or HTTP 5xx on them was `'rejected'`, and a success
+  reply without a readable Hobex receipt or payment intent was a
+  `KasseneckValidationError` (`scope: 'response'`); now both are `'unknown'`
+  (the latter as `KasseneckApiError` `response_unreadable`), and HTML with the
+  `/v3` marker is `not-json` with `'unknown'` instead of `route_missing`. An
+  error envelope throws a `KasseneckApiError` with its `code`; `hobexRefund`
+  never returns `false`. **Callers must never retry these calls, and must not
+  pass a `fetch` that retries by itself or wrap the package's requests in a
+  retrying layer** (proxy, service worker, HTTP client with a retry policy).
+  Reason: an app that read `'rejected'` could charge or refund a card twice;
+  a silent resend below the package does the same without any error. Same
+  change as in the Dart twin `kasseneck_api` (no `RetryClient`).
 - **Strict validation before sending.** The 0.x payment fields
   (`paymentMethod`, `paymentMethodFromServer`, `creditCardProvider`,
   `cardPaymentId`, `cardPaymentData`) throw, also from plain JavaScript.
