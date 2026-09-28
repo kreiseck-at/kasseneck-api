@@ -11,26 +11,47 @@ import { KasseneckApiError } from '../client/errors.js';
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).
+ * Dazu kommen die Codes, die der Rand auf jedem Kassen-Endpunkt erzeugen kann:
+ * die Anmelde- und Pruefcodes (`errorCodes.auth` ohne die sieben des
+ * Partner-Zugangs, z. B. `register_user_not_found`, wenn der Chef einen
+ * angemeldeten Benutzer loescht) und die des Rands selbst (`errorCodes.edge`:
+ * `validation`, `not_found`, `internal_translation_error`, `dialect_mismatch`,
+ * `response_translation_failed`). Ein Code, der in keiner Liste steht, bleibt
+ * ueber `KasseneckApiError.code` lesbar; die Kasse braucht dafuer einen
+ * Rueckfallzweig.
  */
 export const POS_ERROR_CODES = Object.freeze([
+  'account_not_found',
+  'admin_required',
   'cashregister_not_assigned',
+  'cashregister_not_found',
+  'cashregister_token_invalid',
   'cashregister_token_missing',
   'device_not_found',
+  'dialect_mismatch',
+  'internal_translation_error',
   'live_not_enabled',
   'logo_invalid',
   'logo_invalid_type',
   'logo_too_large',
   'method_not_allowed',
+  'mfa_required',
   'module_inactive',
+  'not_found',
   'not_permitted',
   'print_job_not_found',
   'print_layout_failed',
   'printer_not_found',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
+  'response_translation_failed',
   'session_expired',
   'session_other_cashregister',
   'unauthorized',
   'user_disabled',
-  'validation',
+  'user_verification_failed',
+  'validation'
 ] as const);
 export type PosErrorCode = typeof POS_ERROR_CODES[number];
 

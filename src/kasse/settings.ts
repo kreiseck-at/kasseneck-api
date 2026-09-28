@@ -123,13 +123,21 @@ export type PosDoneScreenSeconds = typeof DONE_SCREEN_SECONDS[number];
 /** Schalter-Landkarte: Steuersaetze / Trinkgeldstufen (Schluessel = Wert als Text, z. B. `'4.9'`). */
 export type PosToggleMap = Record<string, boolean>;
 
+/**
+ * Ein Feld mit Wertemenge, offen fuer Werte, die dieses Paket (noch) nicht
+ * kennt. Kommt vom Server ein neuer Wert (etwa `theme: 'sepia'`), bleibt er im
+ * Modell stehen und geht bei einem Teil-Schreiben nie verloren (der Server
+ * mischt); [unknownPosSettingValues] zeigt, welche Felder das betrifft.
+ */
+export type PosOpen<T extends string | number> = T | (T extends string ? (string & {}) : (number & {}));
+
 export interface PosBusinessSettings {
-  logoText: string; logoEnabled: boolean; logoSize: PosLogoSize; watermark: PosWatermark; color: string;
-  theme: PosTheme; fontSize: PosFontSize; settingsFontSize: PosSettingsFontSize; tileStyle: PosTileStyle; clock: boolean;
+  logoText: string; logoEnabled: boolean; logoSize: PosOpen<PosLogoSize>; watermark: PosOpen<PosWatermark>; color: string;
+  theme: PosOpen<PosTheme>; fontSize: PosOpen<PosFontSize>; settingsFontSize: PosOpen<PosSettingsFontSize>; tileStyle: PosOpen<PosTileStyle>; clock: boolean;
   lockScreen: boolean;
   /** Fotos der Mitarbeiter am Anmeldebildschirm zeigen. */
   staffPhotos: boolean;
-  autoLogoutMinutes: PosAutoLogoutMinutes; logoutAfterSale: boolean;
+  autoLogoutMinutes: PosOpen<PosAutoLogoutMinutes>; logoutAfterSale: boolean;
   /** Schnelles Entsperren mit gemerkter PIN (lokal, Server-Login laeuft nach); aus = streng, jeder Login wartet. */
   fastLogin: boolean;
   showPrices: boolean; showVat: boolean; emoji: boolean; categoryColors: boolean; customAmountAllowed: boolean;
@@ -138,36 +146,36 @@ export interface PosBusinessSettings {
    * (Nachtrag §11.7.2): das Backend verlangt mindestens einen Satz an und
    * liest vor dem Pruefen nicht nach.
    */
-  vatRates: PosToggleMap; quantity: PosQuantity; note: boolean; search: boolean; discount: PosDiscount;
+  vatRates: PosToggleMap; quantity: PosOpen<PosQuantity>; note: boolean; search: boolean; discount: PosOpen<PosDiscount>;
   /** Bild-Logo (Download-URL aus dem Kasse-Upload); '' = Kuerzel verwenden. */
   logoImage: string;
   /** Seite des Wasserzeichens; ALT: abgeloest von watermarkX, bleibt fuers Mischen alter Staende. */
-  watermarkSide: PosWatermarkSide;
+  watermarkSide: PosOpen<PosWatermarkSide>;
   /** Horizontale Lage der Wasserzeichen-MITTE in Prozent (-25 bis 125, darf ueber den Rand hinaus). */
   watermarkX: number;
   /** Vertikale Lage der Wasserzeichen-Mitte in Prozent (-25 bis 125). */
   watermarkY: number;
   /** Deckkraft des Wasserzeichens in Prozent, bewusst Stufen, kein Schieberegler. */
-  watermarkStrength: PosWatermarkStrength;
+  watermarkStrength: PosOpen<PosWatermarkStrength>;
   /** Groesse des Bild-Logos am BELEG (Ansicht, PDF, Kopfzeile). */
-  logoScale: PosLogoScale;
+  logoScale: PosOpen<PosLogoScale>;
   /** Groesse des Wasserzeichens, getrennt vom Beleg-Logo. */
-  watermarkScale: PosWatermarkScale;
-  payCash: boolean; payCard: boolean; cardProvider: PosCardProvider; tip: boolean; tipMode: PosTipMode; tipSteps: PosToggleMap;
+  watermarkScale: PosOpen<PosWatermarkScale>;
+  payCash: boolean; payCard: boolean; cardProvider: PosOpen<PosCardProvider>; tip: boolean; tipMode: PosOpen<PosTipMode>; tipSteps: PosToggleMap;
   /** Trinkgeld-Feinheit (App); kein Leser in der Web-Kasse, der Name ist Vertrag. */
   tipSplit: boolean;
   /** Rueckgeld-Rechner. */
   change: boolean;
   /** „Bar passend": schliesst den Betrag ohne Eintippen bar ab. */
   exactCash: boolean;
-  checkoutMode: PosCheckoutMode;
+  checkoutMode: PosOpen<PosCheckoutMode>;
   /** Getrennt zahlen: dritter Knopf neben Bar und Karte, ein Beleg mit mehreren Zahlungen. */
   paySplit: boolean;
   /** Trinkgeld-Chips in Prozent (eine Nachkommastelle, max 5, eindeutig, Reihenfolge des Chefs). */
   tipChips: number[];
   /** Rabatt-Chips in Prozent, dieselben Regeln wie tipChips, vom Chef einstellbar. */
   discountChips: number[];
-  receiptOutput: PosReceiptOutput; doneScreenSeconds: PosDoneScreenSeconds;
+  receiptOutput: PosOpen<PosReceiptOutput>; doneScreenSeconds: PosOpen<PosDoneScreenSeconds>;
   /** Glas-Optik: Kacheln und Korb leicht durchscheinend (Wasserzeichen schimmert). */
   glass: boolean;
   /** Hilfetexte in den Chef-Einstellungen anzeigen. */
@@ -207,10 +215,10 @@ export const POS_SHORTCUT_DEFAULTS: Readonly<PosShortcutMap> = Object.freeze({
 });
 
 export interface PosDeviceSettings {
-  layout: PosLayout; categoryPosition: PosCategoryPosition; extraColumns: number; tileHeight: PosTileHeight; touch: boolean;
+  layout: PosOpen<PosLayout>; categoryPosition: PosOpen<PosCategoryPosition>; extraColumns: number; tileHeight: PosOpen<PosTileHeight>; touch: boolean;
   /** Tastenbelegung dieses Geraets (Vorgabe POS_SHORTCUT_DEFAULTS, je Aktion mischbar). */
   shortcuts: PosShortcutMap;
-  printerEnabled: boolean; printerType: PosPrinterType; printerIp: string; printerPort: number; printerBluetoothId: string;
+  printerEnabled: boolean; printerType: PosOpen<PosPrinterType>; printerIp: string; printerPort: number; printerBluetoothId: string;
   /** Klartextname des gemerkten Druckers; sonst stuende dort eine nackte Bluetooth-Adresse. */
   printerName: string;
   /** Kennung des Netzwerk-Druckers (Server Direct Print) aus `listMyPrinters`; '' = keiner gewaehlt. */
@@ -219,13 +227,13 @@ export interface PosDeviceSettings {
   printerDeviceId: string;
   /** Kennung des Druckers im lokalen Kasseneck-Connect-Agenten, bei `printerType 'connect'`. */
   connectPrinterId: string;
-  paperSize: PosPaperSize; codePage: PosCodePage; cut: PosCut;
+  paperSize: PosOpen<PosPaperSize>; codePage: PosOpen<PosCodePage>; cut: PosOpen<PosCut>;
   /** Befehl fuer den Signatur-QR auf dem Bon; 'auto' = unbestimmt, der Drucker-Wizard probiert beide aus. */
-  qrMode: PosQrMode;
-  drawerEnabled: boolean; drawerAutoOpen: PosDrawerAutoOpen;
-  terminalIp: string; terminalPort: number; terminalVia: PosTerminalVia;
+  qrMode: PosOpen<PosQrMode>;
+  drawerEnabled: boolean; drawerAutoOpen: PosOpen<PosDrawerAutoOpen>;
+  terminalIp: string; terminalPort: number; terminalVia: PosOpen<PosTerminalVia>;
   /** Art des Terminals ('none' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern payCard an). */
-  terminalType: PosTerminalType;
+  terminalType: PosOpen<PosTerminalType>;
   /** Tastenmarken (die kleinen Kuerzel an den Knoepfen) anzeigen. */
   shortcutHints: boolean;
   /** Terminal-ID aus dem Hobex-Vertrag (ohne fuehrende Null); noetig fuer Diagnose und Zahlung. */
@@ -286,48 +294,148 @@ export const POS_DEVICE_VALUES: Readonly<Partial<Record<keyof PosDeviceSettings,
   terminalVia: TERMINAL_VIA, terminalType: TERMINAL_TYPE,
 });
 
+/** Eigene Eigenschaft, nie eine geerbte (`toString`, `constructor`, `__proto__`). */
+const eigen = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+
+/**
+ * Werte der inneren Form (0.x, deutsch), die unter einem Feldnamen stehen
+ * koennten, den auch die Drahtform traegt. Wichtig sind `layout` und
+ * `terminalVia` (innen und aussen gleich benannt); die Tabelle fuehrt aber jeden
+ * Katalog, damit ein zwischengespeicherter Mischstand nie einen deutschen Wert
+ * ins englische Modell traegt. Ein Test haelt sie deckungsgleich mit den
+ * Katalogen des Vokabulars (innere Werte ohne die gleichlautenden).
+ */
+const ALTWERTE_0X: Readonly<Record<string, readonly (string | number)[]>> = Object.freeze({
+  watermark: ['aus', 'anmeldung', 'ueberall'],
+  theme: ['klar', 'nacht', 'kontrast'],
+  tileStyle: ['streifen', 'voll'],
+  quantity: ['aus'],
+  discount: ['aus', 'an'],
+  cardProvider: ['keiner', 'extern'],
+  tipMode: ['betrag', 'gesamt', 'beides'],
+  checkoutMode: ['seite'],
+  receiptOutput: ['druck', 'mail', 'fragen'],
+  watermarkSide: ['links', 'mitte', 'rechts'],
+  layout: ['rechts', 'links', 'vollbild'],
+  categoryPosition: ['oben', 'links'],
+  printerType: ['netz', 'bt'],
+  drawerAutoOpen: ['bar', 'immer', 'nie'],
+  terminalVia: ['direkt'],
+  terminalType: ['keins'],
+});
+
+/** Tasten-Aktionen der inneren Form (0.x). */
+const ALTAKTIONEN_0X: ReadonlySet<string> = new Set([
+  'kassieren', 'abschliessen', 'abbrechen', 'frei', 'bar', 'karte', 'passend', 'belege', 'letzteZurueck',
+  'einstellungen', 'abmelden', 'trinkgeld', 'vollbild', 'gegebenLeeren', 'korbLeeren', 'getrennt',
+]);
+
+/** Nur fuer den Test: die beiden Tabellen der inneren Form. */
+export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALTAKTIONEN_0X] });
+
 /**
  * Standard + gespeichert. Landkarten (`vatRates`, `tipSteps`, `shortcuts`)
  * werden je Schluessel gemischt, damit neue Saetze beim Altbestand ankommen;
- * unbekannte Schluessel bleiben draussen (die Wahrheit ueber Gueltigkeit hat
- * der Server).
+ * Schluessel, die der Standard nicht fuehrt, bleiben draussen.
  *
- * Fuer die beiden Standards dieses Pakets ([POS_BUSINESS_DEFAULTS],
- * [POS_DEVICE_DEFAULTS]) gilt zusaetzlich die Wertemenge je Feld: ein Wert
- * ausserhalb ([POS_BUSINESS_VALUES], [POS_DEVICE_VALUES]) faellt auf den
- * Standard zurueck, und `shortcuts` nimmt nur bekannte Aktionen an. Das ist
- * der Schutz fuer einen zwischengespeicherten 0.x-Stand: einige Felder heissen
- * innen und aussen gleich (`layout`, `terminalVia`), ihr alter Wert
- * (`'rechts'`, `'direkt'`) kaeme sonst unbemerkt ins englische Modell. Ein
- * Stand in der inneren Form ergibt so die Standardwerte, nie einen Absturz
- * und nie einen deutschen Wert. Wie der Server beim Lesen (Nachtrag §11.7.2).
+ * **Immer** (unabhaengig davon, welches Standard-Objekt uebergeben wird, auch
+ * eine Kopie oder das einer zweiten Paketkopie) faellt ein Wert der inneren
+ * Form 0.x auf den Standard zurueck (`layout: 'rechts'`, `terminalVia:
+ * 'direkt'`), und deutsche Tasten-Aktionen (`kassieren`) kommen nicht in die
+ * Tastenkarte. Ein unbekannter **englischer** Wert (`theme: 'sepia'`) bleibt
+ * dagegen stehen: er kann ein neuer Wert des Servers sein.
  */
-export function mergePosSettings<T extends object>(
-  standard: Readonly<T>,
-  gespeichert: Partial<T> | null | undefined,
-  values?: Readonly<Record<string, readonly (string | number)[] | undefined>>,
-): T {
+export function mergePosSettings<T extends object>(standard: Readonly<T>, gespeichert: Partial<T> | null | undefined): T {
   const out = JSON.parse(JSON.stringify(standard)) as Record<string, unknown>;
-  const mengen = values
-    ?? ((standard as object) === POS_BUSINESS_DEFAULTS ? POS_BUSINESS_VALUES
-      : (standard as object) === POS_DEVICE_DEFAULTS ? POS_DEVICE_VALUES : undefined);
-  const nurAktionen = (standard as object) === POS_DEVICE_DEFAULTS;
   if (gespeichert && typeof gespeichert === 'object') {
-    for (const [key, wert] of Object.entries(gespeichert as Record<string, unknown>)) {
-      if (!(key in out)) continue;
+    for (const key of Object.keys(gespeichert)) {
+      if (!eigen(out, key)) continue;
+      const wert = (gespeichert as Record<string, unknown>)[key];
       const alt = out[key];
       if (alt && typeof alt === 'object' && !Array.isArray(alt) && wert && typeof wert === 'object' && !Array.isArray(wert)) {
-        const neu = { ...(wert as Record<string, unknown>) };
-        if (nurAktionen && key === 'shortcuts') {
-          for (const aktion of Object.keys(neu)) if (!(aktion in (alt as object))) delete neu[aktion];
+        const neu: Record<string, unknown> = {};
+        for (const k of Object.keys(wert)) {
+          if (key === 'shortcuts' && ALTAKTIONEN_0X.has(k)) continue;
+          if (k === '__proto__') continue;
+          neu[k] = (wert as Record<string, unknown>)[k];
         }
         out[key] = { ...(alt as Record<string, unknown>), ...neu };
       } else if (wert !== undefined) {
-        const erlaubt = (mengen as Record<string, readonly (string | number)[] | undefined> | undefined)?.[key];
-        if (erlaubt && !erlaubt.includes(wert as string | number)) continue;
+        const alte = eigen(ALTWERTE_0X, key) ? ALTWERTE_0X[key] : undefined;
+        if (alte && alte.includes(wert as string | number)) continue;
         out[key] = wert;
       }
     }
   }
   return out as T;
+}
+
+/**
+ * Einen gespeicherten oder zwischengespeicherten Stand `{business, device}`
+ * lesen: gemischt mit den Standardwerten, ohne Werte und Tasten-Aktionen der
+ * inneren Form 0.x (siehe [mergePosSettings]). Der Weg fuer jeden Stand, den
+ * ein Verbraucher selbst abgelegt hat; ein Stand in der inneren Form ergibt
+ * die Standardwerte, nie einen deutschen Wert und nie einen Absturz.
+ */
+export function sanitizePosSettings(stored: unknown): PosSettings {
+  const roh = stored !== null && typeof stored === 'object' ? (stored as Record<string, unknown>) : {};
+  const teil = (k: string): Record<string, unknown> | null => {
+    const w = eigen(roh, k) ? roh[k] : undefined;
+    return w !== null && typeof w === 'object' && !Array.isArray(w) ? (w as Record<string, unknown>) : null;
+  };
+  return {
+    business: mergePosSettings(POS_BUSINESS_DEFAULTS, teil('business') as Partial<PosBusinessSettings> | null),
+    device: mergePosSettings(POS_DEVICE_DEFAULTS, teil('device') as Partial<PosDeviceSettings> | null),
+  };
+}
+
+/**
+ * Die Felder, deren Wert dieses Paket nicht kennt (neuer Wert des Servers),
+ * als Pfade (`business.theme`, `device.printerType`). Die Oberflaeche kann sie
+ * als „vom Server, hier nicht einstellbar" zeigen; sie bleiben erhalten, solange
+ * nur geaenderte Felder geschrieben werden ([posSettingsChanges]).
+ */
+export function unknownPosSettingValues(settings: PosSettings): string[] {
+  const raus: string[] = [];
+  const pruefe = (teil: 'business' | 'device', block: object, mengen: Readonly<Record<string, readonly (string | number)[] | undefined>>) => {
+    for (const k of Object.keys(mengen)) {
+      const erlaubt = mengen[k];
+      if (!erlaubt || !eigen(block, k)) continue;
+      if (!erlaubt.includes((block as Record<string, string | number>)[k]!)) raus.push(`${teil}.${k}`);
+    }
+  };
+  pruefe('business', settings.business, POS_BUSINESS_VALUES);
+  pruefe('device', settings.device, POS_DEVICE_VALUES);
+  return raus;
+}
+
+/**
+ * Was sich zwischen zwei Staenden eines Teils geaendert hat, als Nutzlast fuer
+ * `setMyKasseSettings` bzw. `setMyRegisterDeviceSettings`: **nur geaenderte
+ * Felder** (der Server mischt, ein nicht geaenderter, hier unbekannter Wert
+ * geht so nie verloren). `vatRates` geht bei einer Aenderung als ganze Karte
+ * (Nachtrag §11.7.2), `tipSteps` und `shortcuts` nur mit den geaenderten
+ * Eintraegen.
+ */
+export function posSettingsChanges<T extends object>(before: Readonly<T>, after: Readonly<T>): Partial<T> {
+  const raus: Record<string, unknown> = {};
+  const gleich = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  for (const k of Object.keys(after)) {
+    if (k === '__proto__') continue;
+    const neu = (after as Record<string, unknown>)[k];
+    const alt = eigen(before, k) ? (before as Record<string, unknown>)[k] : undefined;
+    if (gleich(alt, neu)) continue;
+    if (k !== 'vatRates' && neu && typeof neu === 'object' && !Array.isArray(neu) && alt && typeof alt === 'object' && !Array.isArray(alt)) {
+      const teil: Record<string, unknown> = {};
+      for (const e of Object.keys(neu)) {
+        if (e === '__proto__') continue;
+        const a = eigen(alt, e) ? (alt as Record<string, unknown>)[e] : undefined;
+        if (!gleich(a, (neu as Record<string, unknown>)[e])) teil[e] = (neu as Record<string, unknown>)[e];
+      }
+      if (Object.keys(teil).length) raus[k] = teil;
+      continue;
+    }
+    raus[k] = neu;
+  }
+  return raus as Partial<T>;
 }

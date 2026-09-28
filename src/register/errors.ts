@@ -14,15 +14,29 @@ import { KasseneckApiError } from '../client/errors.js';
  * Die Liste ist aus dem Vertrags-Export abgeleitet (Fehlerfaelle der acht
  * Anmelde-Endpunkte in `fixtures/v3/antworten/kasse.json` und die
  * Handler-Codes aus `v3-vokabular.json`); ein Test haelt sie deckungsgleich.
+ * Dazu kommen die Codes, die der Rand auf jedem Kassen-Endpunkt erzeugen kann:
+ * die Anmelde- und Pruefcodes (`errorCodes.auth` ohne die sieben des
+ * Partner-Zugangs, z. B. `register_user_not_found`, wenn der Chef einen
+ * angemeldeten Benutzer loescht) und die des Rands selbst (`errorCodes.edge`:
+ * `validation`, `not_found`, `internal_translation_error`, `dialect_mismatch`,
+ * `response_translation_failed`). Ein Code, der in keiner Liste steht, bleibt
+ * ueber `KasseneckApiError.code` lesbar; die Kasse braucht dafuer einen
+ * Rueckfallzweig.
  */
 export const REGISTER_ERROR_CODES = Object.freeze([
+  'account_not_found',
+  'admin_required',
   'cashregister_in_use',
   'cashregister_not_assigned',
   'cashregister_not_found',
+  'cashregister_token_invalid',
+  'cashregister_token_missing',
   'device_bound_elsewhere',
   'device_not_found',
   'device_not_paired',
   'device_takeover_required',
+  'dialect_mismatch',
+  'internal_translation_error',
   'licenses_exhausted',
   'live_not_enabled',
   'location_outside',
@@ -31,18 +45,26 @@ export const REGISTER_ERROR_CODES = Object.freeze([
   'login_mode_select_user',
   'login_unavailable',
   'method_not_allowed',
+  'mfa_required',
+  'not_found',
   'pairing_code_expired',
   'pairing_code_unknown',
   'pairing_code_used',
   'pairing_failed',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
   'register_user_only',
+  'response_translation_failed',
   'session_ended',
   'session_expired',
   'session_not_running',
+  'session_other_cashregister',
   'too_many_attempts',
   'unauthorized',
   'user_disabled',
-  'validation',
+  'user_verification_failed',
+  'validation'
 ] as const);
 export type RegisterErrorCode = typeof REGISTER_ERROR_CODES[number];
 

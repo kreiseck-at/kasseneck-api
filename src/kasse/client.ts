@@ -10,7 +10,14 @@ import {
  * Die Einstellungs-Aufrufe am Draht `/api/v3`: Parameter und Antwort heissen
  * `business`/`device`, Schluessel und Werte englisch (Nachtrag §11.7.2).
  *
- * Vor dem Senden prueft dieser Weg nur, was der Server sicher abweist: einen
+ * **Nur geaenderte Felder senden** ([posSettingsChanges]), nie den ganzen
+ * gemischten Block: der Server mischt tief, ein nicht geaenderter Wert, den
+ * dieses Paket nicht kennt (`theme: 'sepia'`), bleibt so am Server stehen.
+ * Gelesen wird er unveraendert ([unknownPosSettingValues] nennt ihn).
+ *
+ * Vor dem Senden prueft dieser Weg nur die gesendeten Felder (ein Feld mit
+ * `undefined` geht nicht hinaus und wird nicht geprueft), und nur, was der
+ * Server sicher abweist: einen
  * Schluessel, den es nicht gibt (auch einen deutschen aus 0.x wie `stil`),
  * einen Wert ausserhalb der Wertemenge des Feldes (`'nacht'`), eine
  * Steuersatz-Karte ohne einen Satz an und eine unbekannte Tasten-Aktion.
@@ -39,7 +46,7 @@ export function posSettingsFromWire(daten: { business?: unknown; device?: unknow
 export async function setMyKasseSettings(rufen: InternerTransport, business: Partial<PosBusinessSettings>): Promise<PosBusinessSettings> {
   const name = 'setMyKasseSettings';
   pruefeTeil(name, 'business', business, POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES);
-  const saetze = (business as Record<string, unknown>).vatRates;
+  const saetze = eigenerWert(business, 'vatRates');
   if (saetze !== undefined) {
     const karte = objekt(saetze);
     // Unter /v3 prueft der Server die uebergebene Karte fuer sich: ein
@@ -59,12 +66,13 @@ export async function setMyRegisterDeviceSettings(rufen: InternerTransport, devi
     throw new KasseneckValidationError(name, 'deviceId fehlt', 'request');
   }
   pruefeTeil(name, 'device', device, POS_DEVICE_DEFAULTS, POS_DEVICE_VALUES);
-  const tasten = (device as Record<string, unknown>).shortcuts;
+  const tasten = eigenerWert(device, 'shortcuts');
   if (tasten !== undefined) {
     const karte = objekt(tasten);
     if (!karte) throw new KasseneckValidationError(name, 'device.shortcuts: keine Tastenkarte', 'request');
     const aktionen: ReadonlySet<string> = new Set(POS_SHORTCUT_ACTIONS);
     for (const aktion of Object.keys(karte)) {
+      if (karte[aktion] === undefined) continue;
       if (!aktionen.has(aktion)) {
         throw new KasseneckValidationError(name, `device.shortcuts.${aktion}: unbekannte Aktion`, 'request');
       }
@@ -100,6 +108,11 @@ export async function setMyKasseLogo(rufen: InternerTransport, options: SetMyKas
   return bild;
 }
 
+/** Eigene Eigenschaft oder `undefined`, nie eine geerbte (`constructor`, `toString`). */
+function eigenerWert(block: object, k: string): unknown {
+  return Object.prototype.hasOwnProperty.call(block, k) ? (block as Record<string, unknown>)[k] : undefined;
+}
+
 function objekt(wert: unknown): Record<string, unknown> | null {
   return wert !== null && typeof wert === 'object' && !Array.isArray(wert) ? (wert as Record<string, unknown>) : null;
 }
@@ -112,15 +125,18 @@ function pruefeTeil(
   werte: Readonly<Record<string, readonly (string | number)[] | undefined>>,
 ): void {
   const karte = objekt(block);
-  if (!karte || Object.keys(karte).length === 0) {
+  // Ein Feld mit `undefined` sendet JSON gar nicht: es zaehlt weder als
+  // Einstellung noch wird es geprueft.
+  const gesendet = karte ? Object.entries(karte).filter(([, wert]) => wert !== undefined) : [];
+  if (gesendet.length === 0) {
     throw new KasseneckValidationError(name, `${teil}: keine Einstellungen uebergeben`, 'request');
   }
-  for (const [schluessel, wert] of Object.entries(karte)) {
-    if (!(schluessel in standard)) {
+  for (const [schluessel, wert] of gesendet) {
+    if (!Object.prototype.hasOwnProperty.call(standard, schluessel)) {
       throw new KasseneckValidationError(name, `${teil}.${schluessel}: unbekanntes Feld`, 'request');
     }
-    const erlaubt = werte[schluessel];
-    if (erlaubt && wert !== undefined && !erlaubt.includes(wert as string | number)) {
+    const erlaubt = Object.prototype.hasOwnProperty.call(werte, schluessel) ? werte[schluessel] : undefined;
+    if (erlaubt && !erlaubt.includes(wert as string | number)) {
       throw new KasseneckValidationError(name, `${teil}.${schluessel}: ungueltiger Wert`, 'request');
     }
   }

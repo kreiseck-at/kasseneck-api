@@ -29,11 +29,26 @@ export interface NetworkPrinter {
 
 /** Stand eines Druckjobs (Katalog `DRUCKJOB`). */
 export const PRINT_JOB_STATUSES = ['pending', 'sent', 'printed', 'failed', 'expired'] as const;
-export type PrintJobStatus = typeof PRINT_JOB_STATUSES[number];
+/**
+ * Stand eines Druckjobs; `'unknown'` = der Server nannte einen Stand, den dieses
+ * Paket nicht kennt (oder keinen). Er gilt als Ende der Abfrage (siehe
+ * [isPrintJobFinished]): nie als gedruckt, aber auch kein Abfragen bis zum
+ * Zeitlimit.
+ */
+export type PrintJobStatus = typeof PRINT_JOB_STATUSES[number] | 'unknown';
 
-/** Wer den Job anlegt (Katalog `DRUCK_QUELLE`): die Kasse oder das Panel. */
+/** Endet die Abfrage bei diesem Stand? `printed`, `failed`, `expired` und `unknown`. */
+export function isPrintJobFinished(status: PrintJobStatus): boolean {
+  return status === 'printed' || status === 'failed' || status === 'expired' || status === 'unknown';
+}
+
+/**
+ * Bekannte Werte fuer `source` (Katalog `DRUCK_QUELLE`): die Kasse oder das
+ * Panel. Der Server nimmt Freitext bis 40 Zeichen an und uebersetzt nur diese
+ * beiden.
+ */
 export const PRINT_JOB_SOURCES = ['pos', 'panel'] as const;
-export type PrintJobSource = typeof PRINT_JOB_SOURCES[number];
+export type PrintJobSource = typeof PRINT_JOB_SOURCES[number] | (string & {});
 
 export interface PrintJob {
   jobId: string;
@@ -48,12 +63,12 @@ const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isF
 const STATUS: ReadonlySet<string> = new Set(PRINT_JOB_STATUSES);
 
 /**
- * Stand eines Jobs aus der Antwort. Ein Wert ausserhalb des Katalogs laesst
- * das Backend unter `/v3` gar nicht hinaus; kommt trotzdem keiner, gilt
- * `pending` (der Job wird weiter abgefragt, nie als gedruckt gewertet).
+ * Stand eines Jobs aus der Antwort. Ein Wert ausserhalb des Katalogs (ein
+ * kuenftiger Endstand wie `cancelled`) oder gar keiner wird `'unknown'`:
+ * sichtbar, nie als gedruckt gewertet, und die Abfrage endet.
  */
 function status(v: unknown): PrintJobStatus {
-  return typeof v === 'string' && STATUS.has(v) ? (v as PrintJobStatus) : 'pending';
+  return typeof v === 'string' && STATUS.has(v) ? (v as PrintJobStatus) : 'unknown';
 }
 
 export async function listMyPrinters(rufen: InternerTransport): Promise<NetworkPrinter[]> {
@@ -99,6 +114,11 @@ export async function createPrintJob(rufen: InternerTransport, o: CreatePrintJob
   return { jobId: String(daten?.jobId ?? ''), status: status(daten?.status), result: null };
 }
 
+/**
+ * Stand eines Druckjobs abfragen. Der Aufrufer fragt, bis [isPrintJobFinished]
+ * wahr ist, und begrenzt die Abfrage trotzdem selbst (Anzahl oder Zeit): ein
+ * Drucker, der nie abholt, bleibt `pending`.
+ */
 export async function getPrintJob(rufen: InternerTransport, o: { printerId: string; jobId: string }): Promise<PrintJob> {
   const d = await rufen<Record<string, unknown>>('getPrintJob', { printerId: o.printerId, jobId: o.jobId });
   const e = d?.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>) : null;

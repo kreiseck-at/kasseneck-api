@@ -21,6 +21,7 @@ import { createTransport, KASSE_BASE_URL, type FetchLike, type HttpRequestInit, 
 import { registerUserAuth } from '../src/client/auth.js';
 import { isKasseneckApiError, isKasseneckValidationError, KasseneckApiError } from '../src/client/errors.js';
 import type { ReceiptLayout } from '../src/receipt/layout.js';
+import { _ALTFORM_0X } from '../src/kasse/settings.js';
 
 /*
  * Kasse und Anmeldung am Kassenweg `/api/v3` gegen den Vertrags-Export des
@@ -475,6 +476,12 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
       for (const f of fehler(e)) codes.add(f.response.code);
       for (const c of VOKABULAR.errorCodes.registerHandlersByEndpoint[e] ?? []) codes.add(c);
     }
+    // Was der Rand auf jedem Kassen-Endpunkt erzeugen kann: Anmelde-/Pruefcodes
+    // ohne die des Partner-Zugangs (partner-auth.FEHLER) und die Rand-Codes.
+    const partnerZugang = new Set(['partner_locked', 'scope_missing', 'rate_limited', 'not_a_partner',
+      'partner_membership_missing', 'partner_owner_only', 'partner_account_not_allowed']);
+    for (const c of VOKABULAR.errorCodes.auth as string[]) if (!partnerZugang.has(c)) codes.add(c);
+    for (const c of VOKABULAR.errorCodes.edge as string[]) codes.add(c);
     return [...codes].sort();
   };
   assert.deepEqual([...REGISTER_ERROR_CODES], ableiten(Object.keys(ANMELDE_AUFRUFE)));
@@ -482,6 +489,13 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     'listMyArticleGroups', 'listMyArticles', 'getKasseSettings', 'setMyKasseSettings', 'setMyKasseLogo',
     'setMyRegisterDeviceSettings', 'listMyPrinters', 'createPrintJob', 'getPrintJob', 'listMyTipRecipients',
   ]));
+  for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation']) {
+    assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);
+  }
+  // Der geloeschte Benutzer mitten in der Sitzung ist erkennbar.
+  const weg = new KasseneckApiError('listMyArticles', 'Kassen-Benutzer nicht gefunden.', {}, 'register_user_not_found');
+  assert.ok(isPosError(weg, 'register_user_not_found'));
+  assert.ok(isRegisterError(weg, 'register_user_not_found'));
 });
 
 // --- Gespeicherte Staende (B2) ------------------------------------------------------
@@ -513,4 +527,143 @@ test('Kein Geheimnis in den Fehlerdaten: deviceSecret und PIN bleiben draussen',
   const e = await wurf(ANMELDE_AUFRUFE.registerPinLogin!(holenFuer(f).holen));
   const text = JSON.stringify({ message: (e as Error).message, details: (e as KasseneckApiError).details });
   assert.equal(text.includes(GERAET.deviceSecret), false);
+});
+
+// --- Nachbesserung Review Aufgabe 7 ---------------------------------------------
+
+test('F1: ein unbekannter Wert des Servers bleibt beim Lesen stehen und geht beim Teil-Schreiben nicht verloren', async () => {
+  const basis = fall('getKasseSettings', 'owner');
+  const neu: Fall = JSON.parse(JSON.stringify(basis));
+  neu.response.data.business.theme = 'sepia';
+  neu.response.data.device.printerType = 'star';
+  const stand = await getKasseSettings(kassenweg(neu).rufen);
+  assert.equal(stand.business.theme, 'sepia');
+  assert.equal(stand.device.printerType, 'star');
+  assert.deepEqual(kasse.unknownPosSettingValues(stand), ['business.theme', 'device.printerType']);
+
+  // Ein anderes Feld aendern und schreiben: gesendet wird nur dieses Feld.
+  const geaendert = { ...stand.business, fontSize: 'L' as const };
+  const aenderung = kasse.posSettingsChanges(stand.business, geaendert);
+  assert.deepEqual(aenderung, { fontSize: 'L' });
+  const schreiben = fall('setMyKasseSettings', 'success_owner');
+  const weg = kassenweg(schreiben);
+  await setMyKasseSettings(weg.rufen, aenderung);
+  assert.deepEqual(weg.aufrufe[0]!.params.business, { fontSize: 'L' });
+  assert.equal('theme' in weg.aufrufe[0]!.params.business, false);
+
+  // Den ganzen Block zu senden, weist die Vorab-Pruefung laut ab statt 'sepia' still zu ersetzen.
+  const e = await wurf(setMyKasseSettings(kassenweg(schreiben).rufen, geaendert));
+  assert.ok(isKasseneckValidationError(e));
+  assert.match((e as Error).message, /business\.theme/);
+
+  // vatRates geht bei einer Aenderung als ganze Karte, Tasten nur mit dem geaenderten Eintrag.
+  const saetze = kasse.posSettingsChanges(stand.business, { ...stand.business, vatRates: { ...stand.business.vatRates, 19: true } });
+  assert.deepEqual(Object.keys(saetze), ['vatRates']);
+  assert.equal(Object.keys(saetze.vatRates!).length, Object.keys(stand.business.vatRates).length);
+  const taste = kasse.posSettingsChanges(stand.device, { ...stand.device, shortcuts: { ...stand.device.shortcuts, cash: ['Mod+X'] } });
+  assert.deepEqual(taste, { shortcuts: { cash: ['Mod+X'] } });
+});
+
+test('F2: der 0.x-Filter gilt immer, auch fuer eine Kopie der Standards', () => {
+  const kopie = structuredClone(POS_DEVICE_DEFAULTS) as PosDeviceSettings;
+  const g = mergePosSettings(kopie, { layout: 'rechts', terminalVia: 'direkt', shortcuts: { kassieren: ['F1'] } } as never);
+  assert.equal(g.layout, 'right');
+  assert.equal(g.terminalVia, 'direct');
+  assert.equal('kassieren' in g.shortcuts, false);
+  // Gegen einen eigenen Zustand gemischt (wie die Web-Kasse mitGeraet(alt, ...)).
+  const alt = { ...POS_DEVICE_DEFAULTS, printerType: 'bluetooth' as const };
+  assert.equal(mergePosSettings(alt, { layout: 'links' } as never).layout, 'right');
+  // sanitizePosSettings fuer einen selbst abgelegten Stand.
+  const s = kasse.sanitizePosSettings({ business: { theme: 'nacht', fontSize: 'L', stil: 'nacht' }, device: { layout: 'vollbild' } });
+  assert.equal(s.business.theme, 'clear');
+  assert.equal(s.business.fontSize, 'L');
+  assert.equal(s.device.layout, 'right');
+  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)) });
+  // Ein neuer englischer Wert ist kein Altwert und bleibt.
+  assert.equal(kasse.sanitizePosSettings({ business: { theme: 'sepia' } }).business.theme, 'sepia');
+});
+
+test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere Werte ohne die gleichlautenden)', () => {
+  const werte = VOKABULAR.schemas.getKasseSettings.werte as Record<string, { $catalog: string }>;
+  const erwartet: Record<string, string[]> = {};
+  for (const [pfad, { $catalog }] of Object.entries(werte)) {
+    const karte = VOKABULAR.catalogs[$catalog] as Record<string, string>;
+    const aussen = new Set(Object.values(karte));
+    const alt = Object.keys(karte).filter((innen) => !aussen.has(innen));
+    if (alt.length) erwartet[pfad.split('.')[1]!] = alt;
+  }
+  const tabelle = _ALTFORM_0X;
+  assert.deepEqual(Object.fromEntries(Object.entries(tabelle.werte).map(([k, v]) => [k, [...v]])), erwartet);
+  const tasten = VOKABULAR.schemas.getKasseSettings.data.device.shortcuts as Record<string, string>;
+  assert.deepEqual([...tabelle.aktionen].sort(), Object.entries(tasten).filter(([k]) => k !== '__').map(([, v]) => v).sort());
+});
+
+test('F2: doppelt geladenes Paket (CJS und ESM im selben Prozess) filtert ebenso', async (t) => {
+  const { createRequire } = await import('node:module');
+  const { existsSync } = await import('node:fs');
+  const cjsPfad = fileURLToPath(new URL('../../dist/cjs/kasse/index.js', import.meta.url));
+  const esmPfad = new URL('../../dist/esm/kasse/index.js', import.meta.url);
+  if (!existsSync(cjsPfad) || !existsSync(fileURLToPath(esmPfad))) {
+    t.skip('dist fehlt (npm run build)');
+    return;
+  }
+  const cjs = createRequire(import.meta.url)(cjsPfad) as typeof kasse;
+  const esm = (await import(esmPfad.href)) as typeof kasse;
+  assert.notEqual(cjs.POS_DEVICE_DEFAULTS, esm.POS_DEVICE_DEFAULTS);
+  const g = esm.mergePosSettings(cjs.POS_DEVICE_DEFAULTS, { layout: 'rechts', terminalVia: 'direkt' } as never);
+  assert.equal(g.layout, 'right');
+  assert.equal(g.terminalVia, 'direct');
+});
+
+test('F3: geerbte Namen (toString, constructor, __proto__) bringen nichts zum Absturz', async () => {
+  const boese = JSON.parse('{"toString":"y","constructor":1,"hasOwnProperty":2,"__proto__":{"x":1},"theme":"night"}');
+  const b = mergePosSettings(POS_BUSINESS_DEFAULTS, boese);
+  assert.equal(b.theme, 'night');
+  assert.equal(typeof b.toString, 'function');
+  assert.equal(Object.prototype.hasOwnProperty.call(b, 'constructor'), false);
+  assert.equal(Object.getPrototypeOf(b), Object.prototype);
+  const d = mergePosSettings(POS_DEVICE_DEFAULTS, JSON.parse('{"shortcuts":{"__proto__":{"x":1},"toString":["F2"]}}'));
+  assert.equal(Object.getPrototypeOf(d.shortcuts), Object.prototype);
+  const f = fall('setMyKasseSettings', 'success_manager');
+  for (const k of ['constructor', 'toString', '__proto__']) {
+    const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, JSON.parse(`{"${k}":1}`)));
+    assert.ok(isKasseneckValidationError(e), k);
+    assert.match((e as Error).message, new RegExp(`business\\.${k}`), k);
+  }
+  const e = await wurf(setMyRegisterDeviceSettings(kassenweg(f).rufen, 'dev_pin', JSON.parse('{"shortcuts":{"constructor":["F1"]}}')));
+  assert.ok(isKasseneckValidationError(e));
+  assert.deepEqual(kasse.posSettingsChanges(POS_BUSINESS_DEFAULTS, JSON.parse('{"__proto__":{"x":1}}')), {});
+  assert.equal(kasse.unknownPosSettingValues(kasse.sanitizePosSettings(JSON.parse('{"__proto__":{"business":1}}'))).length, 0);
+});
+
+test('F4: ein Feld mit undefined wird vorab weder geprueft noch gesendet', async () => {
+  const f = fall('setMyKasseSettings', 'success_manager');
+  const { rufen, aufrufe } = kassenweg(f);
+  await setMyKasseSettings(rufen, { stil: undefined, theme: 'night' } as unknown as Partial<PosBusinessSettings>);
+  assert.deepEqual(aufrufe[0]!.params.business, { theme: 'night' });
+  const e = await wurf(setMyKasseSettings(kassenweg(f).rufen, { stil: undefined } as unknown as Partial<PosBusinessSettings>));
+  assert.match((e as Error).message, /keine Einstellungen/);
+});
+
+test('F5: source nimmt Freitext wie der Server (success_owner: labor)', async () => {
+  const f = fall('createPrintJob', 'success_owner');
+  assert.equal(f.params.source, 'labor');
+  const { rufen, aufrufe } = kassenweg(f);
+  await createPrintJob(rufen, { printerId: f.params.printerId, layout: f.params.layout as ReceiptLayout, source: 'labor' });
+  assert.deepEqual(gesendet(aufrufe, 'createPrintJob', f), f.params);
+});
+
+test('F7: ein unbekannter Druckjob-Stand ist sichtbar unknown und beendet die Abfrage', async () => {
+  const basis = fall('getPrintJob', 'success_open');
+  const neu: Fall = JSON.parse(JSON.stringify(basis));
+  neu.response.data.status = 'cancelled';
+  const job = await getPrintJob(kassenweg(neu).rufen, { printerId: 'dr_theke', jobId: 'job2' });
+  assert.equal(job.status, 'unknown');
+  assert.equal(kasse.isPrintJobFinished(job.status), true);
+  assert.equal(kasse.isPrintJobFinished('pending'), false);
+  assert.equal(kasse.isPrintJobFinished('sent'), false);
+  assert.equal(kasse.isPrintJobFinished('printed'), true);
+  const ohne: Fall = JSON.parse(JSON.stringify(basis));
+  delete ohne.response.data.status;
+  assert.equal((await getPrintJob(kassenweg(ohne).rufen, { printerId: 'dr_theke', jobId: 'job2' })).status, 'unknown');
 });

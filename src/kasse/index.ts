@@ -17,6 +17,7 @@ export {
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
   THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
   LAYOUT, CATEGORY_POSITION, TILE_HEIGHT, PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, PAPER_SIZE,
@@ -43,7 +44,7 @@ export { verteileRabatt } from '../receipt/discount.js';
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
 export { cancelScopeOf, receiptsScopeOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
 export {
-  type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES,
+  type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES, isPrintJobFinished,
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
