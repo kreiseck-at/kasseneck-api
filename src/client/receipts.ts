@@ -635,6 +635,9 @@ export interface SendReceiptEmailResult {
   via: ReceiptEmailVia | null;
 }
 
+/** Felder von [SendReceiptEmailOptions]; jedes andere wirft vor dem Senden. */
+const MAIL_FELDER: readonly string[] = ['fullReceiptId', 'to', 'language'];
+
 /**
  * Schickt einen bereits ausgestellten Beleg als **Link auf die oeffentliche
  * Belegseite** an eine Adresse (Endpunkt `sendReceiptEmail`, Backend
@@ -655,21 +658,19 @@ export interface SendReceiptEmailResult {
  * **Kein Wiederholen ohne Zutun des Bedieners:** ein zweiter Versuch schickt
  * eine zweite Mail und zaehlt auf die Schleuse.
  */
-const MAIL_FELDER: readonly string[] = ['fullReceiptId', 'to', 'language'];
-
 export async function sendReceiptEmail(
   rufen: InternerTransport,
   options: SendReceiptEmailOptions,
 ): Promise<SendReceiptEmailResult> {
-  // Getrimmt, weil beides von Hand oder per Scanner ins Feld kommt und ein
-  // angehaengtes Leerzeichen sonst als ungueltige Adresse zurueckkaeme --
-  // nach einem Aufruf, der schon eine Zeile im Protokoll gekostet hat.
   // Ein unbekanntes Feld (etwa das alte `sprache`) ginge sonst still verloren,
   // und die Mail kaeme in der falschen Sprache.
   const fremd = Object.keys(options ?? {}).find((k) => !MAIL_FELDER.includes(k));
   if (fremd != null) {
     throw new KasseneckValidationError('sendReceiptEmail', `unbekanntes Feld "${fremd}"`, 'request');
   }
+  // Getrimmt, weil beides von Hand oder per Scanner ins Feld kommt und ein
+  // angehaengtes Leerzeichen sonst als ungueltige Adresse zurueckkaeme --
+  // nach einem Aufruf, der schon eine Zeile im Protokoll gekostet hat.
   const fullReceiptId = typeof options.fullReceiptId === 'string' ? options.fullReceiptId.trim() : '';
   const to = typeof options.to === 'string' ? options.to.trim() : '';
   if (fullReceiptId === '') {
@@ -948,21 +949,33 @@ export function cardRefundReference(receipt: Receipt, paymentId: string): string
 }
 
 /**
- * Karten-Rueckbuchung am Storno: eine Erstattung ueber einen Anbieter (nicht
- * `custom`) traegt ihre eigene Terminal-Kennung, und liegt das Original vor,
- * muss die erstattete Kartenzahlung dort ihre Kennung haben (sonst konnte das
- * Terminal nicht mit Bezug erstatten). Wirft vor dem Senden.
+ * Karten-Rueckbuchung am Storno, geprueft vor dem Senden:
+ * - Sie nennt ihren Anbieter (`provider`; `custom` fuer eine Erstattung
+ *   ohne angebundenes Terminal). Ganz ohne Anbieterfelder faellt sie.
+ * - Ueber einen Anbieter (nicht `custom`) braucht sie einen Bezug: ihre eigene
+ *   Terminal-Kennung (`providerPaymentId` der Erstattung) oder, liegt das
+ *   Original vor, die Kennung der erstatteten Kartenzahlung dort. Erst wenn
+ *   beides fehlt, wirft sie.
  */
 function pruefeKartenRueckbuchung(zahlungen: Record<string, unknown>[], original: Receipt | undefined): void {
   zahlungen.forEach((z, i) => {
     if (!KARTEN_ZAHLARTEN.has(String(z['method']))) return;
     const anbieter = z['provider'];
-    if (anbieter != null && anbieter !== CreditCardProvider.custom && z['providerPaymentId'] == null) {
-      throw new KasseneckValidationError('cancelReceipt', `Zahlung ${i + 1}: Karten-Rueckbuchung ohne providerPaymentId (Kennung der Erstattung am Terminal)`, 'request');
+    if (anbieter == null && z['providerPaymentId'] == null) {
+      throw new KasseneckValidationError(
+        'cancelReceipt',
+        `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Anbieter und ohne Kennung (provider angeben, custom fuer eine Erstattung ohne angebundenes Terminal)`,
+        'request',
+      );
     }
-    if (original == null || typeof z['refundOf'] !== 'string') return;
-    const orig = original.payments?.find((o) => o.id === z['refundOf']);
-    if (orig != null && orig.provider != null && orig.provider !== CreditCardProvider.custom) cardRefundReference(original, z['refundOf']);
+    if (anbieter === CreditCardProvider.custom || z['providerPaymentId'] != null) return;
+    const orig = original != null && typeof z['refundOf'] === 'string' ? original.payments?.find((o) => o.id === z['refundOf']) : undefined;
+    if (typeof orig?.providerPaymentId === 'string' && orig.providerPaymentId !== '') return;
+    throw new KasseneckValidationError(
+      'cancelReceipt',
+      `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Bezug: providerPaymentId der Erstattung am Terminal angeben (oder das Original ueber den Kassenweg lesen, dort traegt es die Kennung der Kartenzahlung)`,
+      'request',
+    );
   });
 }
 

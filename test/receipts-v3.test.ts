@@ -528,29 +528,43 @@ test('cardRefundReference: Kassenweg liefert die Kennung, der oeffentliche Weg w
   assert.throws(() => cardRefundReference(ohne, 'p9'), (e: unknown) => isKasseneckValidationError(e) && /p9/.test(e.reason));
 });
 
-test('Karten-Storno mit dem Beleg vom oeffentlichen Weg: Fehler vor dem Senden, im Kassenweg geht er hinaus', async () => {
+test('Karten-Storno: Bezug aus der Erstattung oder dem Original, erst ohne beides ein Fehler vor dem Senden', async () => {
   const storno = (kanal: string) => STORNO.find((f) => f.channel === kanal && f.name === 'cancel_full_card_refund')!;
+  const original = async (liste: Fall[]) => getReceipt(wegFuer(liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!).rufen, 'KECK-1-ID-2');
   const zahlung = { method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'sumup' as const, providerPaymentId: 'rf-1', providerData: { refund: 'ok' } };
+  const ohneKennung = { method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'sumup' as const };
+
+  // Eigene Kennung der Erstattung: geht hinaus, auch mit dem Original vom oeffentlichen Weg.
   for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) {
-    const original = await getReceipt(wegFuer(liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!).rufen, 'KECK-1-ID-2');
     const weg = wegFuer(storno(kanal));
-    const aufruf = cancelReceipt(weg.rufen, { receipt: original, reason: 'input_error', payments: [zahlung] });
-    if (kanal === 'api') {
-      const fehler = await fehlerVon(aufruf);
-      assert.ok(isKasseneckValidationError(fehler));
-      assert.match(fehler.reason, /Kassenweg/);
-      assert.equal(weg.aufrufe.length, 0);
-    } else {
-      await aufruf;
-      assert.deepEqual(gesendet(weg.aufrufe, storno(kanal), weg.kasse), storno(kanal).params);
-    }
+    await cancelReceipt(weg.rufen, { receipt: await original(liste), reason: 'input_error', payments: [zahlung] });
+    assert.deepEqual(gesendet(weg.aufrufe, storno(kanal), weg.kasse), storno(kanal).params, kanal);
   }
-  // Die Erstattung selbst braucht ihre Terminal-Kennung (ausser beim eigenen Terminal, custom).
-  const weg = wegFuer(storno('api'));
-  const ohneKennung = await fehlerVon(cancelReceipt(weg.rufen, { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2', reason: 'input_error', payments: [{ ...zahlung, providerPaymentId: undefined }] }));
-  assert.ok(isKasseneckValidationError(ohneKennung));
-  assert.match(ohneKennung.reason, /providerPaymentId/);
-  assert.equal(weg.aufrufe.length, 0);
+
+  // Ohne eigene Kennung: das Original vom Kassenweg traegt tx-4711 und liefert den Bezug.
+  const app = wegFuer(storno('app'));
+  await cancelReceipt(app.rufen, { receipt: await original(KASSE_BELEGE), reason: 'input_error', payments: [ohneKennung] });
+  assert.equal(app.aufrufe.length, 1);
+
+  // Ohne eigene Kennung und mit dem Original vom oeffentlichen Weg (oder ganz ohne Original): kein Bezug.
+  for (const mitOriginal of [true, false]) {
+    const weg = wegFuer(storno('api'));
+    const bezug = mitOriginal ? { receipt: await original(BELEGE) } : { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2' };
+    const fehler = await fehlerVon(cancelReceipt(weg.rufen, { ...bezug, reason: 'input_error', payments: [ohneKennung] }));
+    assert.ok(isKasseneckValidationError(fehler));
+    assert.match(fehler.reason, /ohne Bezug: providerPaymentId der Erstattung/);
+    assert.equal(weg.aufrufe.length, 0, 'fetch darf nicht aufgerufen werden');
+  }
+
+  // Ganz ohne Anbieterfelder (N1): Fehler, kein fetch; mit custom (ohne Terminal) geht sie hinaus.
+  const leer = wegFuer(storno('api'));
+  const fehler = await fehlerVon(cancelReceipt(leer.rufen, { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2', reason: 'input_error', payments: [{ method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1' }] }));
+  assert.ok(isKasseneckValidationError(fehler));
+  assert.match(fehler.reason, /ohne Anbieter und ohne Kennung/);
+  assert.equal(leer.aufrufe.length, 0, 'fetch darf nicht aufgerufen werden');
+  const eigen = wegFuer(storno('api'));
+  await cancelReceipt(eigen.rufen, { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2', reason: 'input_error', payments: [{ method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'custom' }] });
+  assert.equal(eigen.aufrufe.length, 1);
 });
 
 // --- getReportV2 --------------------------------------------------------------------

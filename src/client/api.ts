@@ -79,9 +79,9 @@ export interface KasseneckApi {
   listMyReceipts(options: ListMyReceiptsOptions): Promise<ReceiptList>;
   /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
   listMyCashregisters(): Promise<Cashregister[]>;
-  /** Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
   /** Rohdaten eines Zeitraums: Belege und Firmendaten (`getReportV2`). */
   getReportV2(options: ReportV2Options): Promise<ReportV2>;
+  /** Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
   downloadDailyReport(date: Date): Promise<Uint8Array>;
   /** Monatsbericht als PDF (Endpunkt `downloadReport`). */
   downloadMonthlyReport(reportMonth: ReportMonth): Promise<Uint8Array>;
