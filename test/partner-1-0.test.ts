@@ -240,12 +240,16 @@ test('1.0: die Nutzlasten der uebersetzten Ereignisse passen auf ihre Typen', ()
 
   const sig = e['signature.failed'] as unknown as P.SignatureFailedEventData;
   assert.deepEqual(Object.keys(sig).sort(), ['code', 'companyName', 'customerId', 'message', 'rc', 'requestId']);
-  assert.equal(sig.code, 'finanzonline_error');
-  assert.ok((partner.SIGNATURE_ERROR_CODES as readonly string[]).includes(sig.code));
+  // Live immer signature_failed (signatur-endpoints feuert nur so); die
+  // Ursache steht am Antrag, nicht im Ereignis.
+  assert.equal(sig.code, 'signature_failed');
+  assert.ok(partner.isPartnerErrorCode(sig.code));
 
   const kasse = e['cashregister.failed'] as unknown as P.CashregisterFailedEventData;
   assert.deepEqual(Object.keys(kasse).sort(), ['cashregisterId', 'code', 'companyName', 'customerId', 'env', 'message', 'rc', 'step']);
-  assert.equal(kasse.code, 'contracts_pending');
+  // Nur signature_not_ready, fon_missing oder activation_failed; fehlende
+  // Vertraege feuern kein cashregister.failed.
+  assert.ok(['signature_not_ready', 'fon_missing', 'activation_failed'].includes(kasse.code), kasse.code);
   assert.ok(partner.isPartnerErrorCode(kasse.code));
 });
 

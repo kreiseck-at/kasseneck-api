@@ -652,14 +652,14 @@ instead of `/v1`, and `/v3` rejects the German values of `/v1` with
 | event `source` | `einrichten`, `prozess`, `partner_vollmacht`, `admin_papier`, `papier_upload` | `setup_link`, `process_link`, `partner_power_of_attorney`, `admin_paper`, `paper_upload` |
 
 Field names in this client that were German are English now as well:
-`CustomerSignatureStatus.signatur` is `signature` (plus `signatures[]`), a request's
+`SignaturStand.signatur` is `signature` (plus `signatures[]`), a request's
 `art` is `kind`, history `von`/`nach` are `from`/`to`,
 `WebhookTestResult.ereignis` is `event`, a delivery's
 `letzterVersuchAt`/`naechsterVersuchAt` are `lastAttemptAt`/`nextAttemptAt`,
 and `requestCustomerSignature(id, { kind })` replaces `{ art }`. A webhook
 now shows `apiVersion` and `lastDelivery { at, status, statusCode }`. The
-types `Rechtsform`, `Bundesland` and `KontaktRolle` were deprecated aliases
-of `LegalForm`, `AustrianState` and `ContactRole` and are gone in 1.0.
+types `Rechtsform`, `Bundesland` and `KontaktRolle` remain as deprecated
+aliases of `LegalForm`, `AustrianState` and `ContactRole`.
 
 **Webhook payloads have a language of their own.** A webhook created through
 `/v1` keeps sending German payloads (`apiVersion: 'v1'`), whatever path you
@@ -674,7 +674,7 @@ Webhook signature verification is unchanged.
 ### Migrating from 0.28.x
 
 0.29.0 is a breaking change for `./partner` only, and only for
-`PARTNER_ERROR_CODES`: three codes that the server still sent in their
+`PARTNER_FEHLER_CODES`: three codes that the server still sent in their
 German `/v1` spelling under 0.28.0 now come through English, matching every
 other value on `/v3`.
 
@@ -684,23 +684,25 @@ other value on `/v3`.
 | `kennung_fehlt` | `tax_number_missing` |
 | `vertrag_offen` | `contracts_pending` |
 
-`partnerErrorAdvice()` and `isPartnerError()` follow: look up the new,
+`partnerFehlerRat()` and `istPartnerFehler()` follow: look up the new,
 English key. A build that still checks the old German string will no longer
 match, silently, so this is worth a search across your codebase.
 
 Two codes that never reached this package's own error handling
 (`kein_partnerbetrieb`, `request_not_found`, both admin-only and outside the
-backend's public catalog) are gone from `PARTNER_ERROR_CODES`. If you were
+backend's public catalog) are gone from `PARTNER_FEHLER_CODES`. If you were
 checking for them, that check was already dead code: the server never sent
 them to a partner call.
 
-`PARTNER_ERROR_CODES` also gained nine codes for `reportCustomerContract`
+`PARTNER_FEHLER_CODES` also gained nine codes for `reportCustomerContract`
 (`kind_not_allowed`, `mode_not_allowed`, `power_of_attorney_missing`,
 `not_found`, `no_version`, `not_required`, `unknown_version`, `text_changed`,
-`already_accepted`), each with a `partnerErrorAdvice()` sentence. Since 1.0 this package also
-exposes the endpoint (`reportCustomerContract`).
+`already_accepted`), each with a `partnerFehlerRat()` sentence. This package
+still does not expose that endpoint; the codes are here for completeness (a
+catalog page, or code that reads the raw error yourself), not because a call
+of this client can produce them.
 
-The signature error type `SignatureRequest.error.code` /
+The signature error type `SignaturAntrag.error.code` /
 `CustomerSignature.error.code` is now `SignatureErrorCode`
 (`customer_not_found` | `incomplete` | `finanzonline_error` | any other
 string), a documented union instead of a bare `string | null`.

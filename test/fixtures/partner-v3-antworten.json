@@ -1,5 +1,5 @@
 {
-  "_quelle": "scripts/partner-v3-antworten.cjs: echte Sichten des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Stand keck a9607ec. Nicht von Hand pflegen.",
+  "_quelle": "scripts/partner-v3-antworten.cjs: echte Sichten und Ereignis-Beispiele des Backends (partner-core.js, signatur-core.js) durch den /v3-Rand (api-vokabular-v3.js), Rohdaten nachgebaut und per Waechter gegen den Backend-Quelltext geprueft (--nachgebaut), Stand keck a9607ec. Nicht von Hand pflegen.",
   "createPartnerCustomer": {
     "status": "success",
     "message": "",
@@ -270,7 +270,7 @@
               "from": "requested",
               "to": "failed",
               "at": 1788052010643,
-              "reason": null
+              "reason": "finanzonline"
             }
           ]
         }
@@ -618,21 +618,21 @@
     },
     "signature.failed": {
       "customerId": "cust_1",
-      "companyName": "Baeckerei Jobst e.U.",
-      "requestId": "req_2",
-      "code": "finanzonline_error",
+      "companyName": "Beispiel Handel GmbH",
+      "requestId": "sig_beispiel0000",
+      "code": "signature_failed",
       "rc": "B13",
-      "message": "FinanzOnline hat die Anmeldung der Signatureinheit abgelehnt."
+      "message": "FinanzOnline hat die Registrierung abgelehnt."
     },
     "cashregister.failed": {
       "customerId": "cust_1",
-      "companyName": "Baeckerei Jobst e.U.",
-      "cashregisterId": "kasse_1",
-      "step": "register_cashregister",
-      "code": "contracts_pending",
+      "companyName": "Beispiel Handel GmbH",
+      "cashregisterId": "KECK-1",
+      "step": "signature",
+      "code": "signature_not_ready",
       "rc": null,
-      "message": "Der Betrieb hat seine Verträge mit Kasseneck noch nicht bestätigt — die Kasse kann erst danach in Betrieb gehen.",
-      "env": "live"
+      "message": "Die Signaturkarte ist noch nicht bereit.",
+      "env": "test"
     }
   }
 }

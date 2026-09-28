@@ -8,13 +8,11 @@
 
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
-import type { PartnerErrorCode } from './fehler.js';
 import type {
   CashregisterActivationStep,
   ContractKind,
   ContractSource,
   PartnerEnv,
-  SignatureErrorCode,
 } from './typen.js';
 import {
   verifyWebhookSignature,
@@ -127,17 +125,17 @@ export interface ContractAcceptedEventData {
 }
 
 /**
- * Nutzlast von `signature.failed` in der Sprache `v3`. `code` ist derselbe
- * englische Code wie an `error.code` des Antrags bzw. wie in einer
- * Fehlerantwort (`finanzonline_error`, `signature_failed` …); ein Webhook mit
- * `apiVersion: 'v1'` schickt ihn deutsch. `message` ist ein Text fuer
- * Menschen.
+ * Nutzlast von `signature.failed` in der Sprache `v3`. `code` ist immer
+ * `signature_failed` (FinanzOnline hat die Registrierung abgelehnt, `rc`
+ * nennt den Rueckgabecode); die Ursache im Einzelnen steht am Antrag
+ * (`getCustomerSignatureStatus`, `requests[].error.code`, siehe
+ * [SIGNATURE_ERROR_CODES]). `message` ist ein Text fuer Menschen.
  */
 export interface SignatureFailedEventData {
   customerId: string;
   companyName: string;
   requestId: string;
-  code: SignatureErrorCode | PartnerErrorCode;
+  code: 'signature_failed' | (string & {});
   /** Rueckgabecode von FinanzOnline, falls es einen gab. */
   rc: string | null;
   message: string;
@@ -145,15 +143,18 @@ export interface SignatureFailedEventData {
 
 /**
  * Nutzlast von `cashregister.failed` in der Sprache `v3`: an welchem Schritt
- * die Inbetriebnahme stehen blieb und mit welchem Code (`contracts_pending`,
- * `fon_missing`, `activation_failed` …), englisch wie in einer Fehlerantwort.
+ * die Inbetriebnahme stehen blieb und mit welchem Code. Der Server feuert das
+ * Ereignis mit `signature_not_ready`, `fon_missing` oder `activation_failed`.
+ * Fehlende Vertraege (`contracts_pending`) loesen **kein** Ereignis aus: das
+ * meldet `activateCashregister` als Fehler, die Freigabe melden
+ * `customer.avv_accepted` und `customer.terms_accepted`.
  */
 export interface CashregisterFailedEventData {
   customerId: string;
   companyName: string;
   cashregisterId: string;
   step: CashregisterActivationStep | null;
-  code: PartnerErrorCode | (string & {});
+  code: 'signature_not_ready' | 'fon_missing' | 'activation_failed' | (string & {});
   /** Rueckgabecode von FinanzOnline, falls es einen gab. */
   rc: string | null;
   message: string;
