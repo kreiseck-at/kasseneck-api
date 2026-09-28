@@ -407,7 +407,8 @@ Every group has the same helpers: `is…ErrorCode(value)`, `…ErrorCode(error)`
 (the code if the group knows it), `is…Error(error, code?)` (a type guard; without
 `code` it asks whether the error belongs to the group) and
 `…FieldErrors(error)` for the fields of a `validation` error
-(`receiptFieldErrors`, `registerFieldErrors`, `posFieldErrors`,
+(`receiptFieldErrors`, `cancellationFieldErrors`, `paymentFieldErrors`,
+`receiptEmailFieldErrors`, `registerFieldErrors`, `posFieldErrors`,
 `invoiceFieldErrors`, `partnerFieldErrors`). Each list holds the group's own
 codes, then the sign-in and edge codes that can reach the same call, then the
 codes the package sets itself (`CLIENT_ERROR_CODES`: `route_missing`, and
@@ -442,8 +443,9 @@ three classes. The outcome is unknown for:
 - on the signing calls `createReceipt`, `cancelReceipt` and
   `financeWebService`: a network error or timeout after sending began, HTTP
   5xx, and HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
-  non-JSON or status-less body (`KasseneckHttpError`, `reason` `empty-body`,
-  `not-json` or `missing-status`).
+  non-JSON (also `text/html`) or status-less body (`KasseneckHttpError`,
+  `reason` `empty-body`, `not-json` or `missing-status`). HTML without the
+  marker stays `route_missing` with `'rejected'`: no function saw the call.
 
 `outcome` only covers signing. After a network error on `issueInvoice` an
 invoice may still have been issued; retry it with the same `idempotencyKey`.

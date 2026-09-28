@@ -587,3 +587,28 @@ test('v3: HTTP 200 ohne Kennzeichen bleibt dialect_mismatch, der Rumpf wird nich
   assert.equal((e as KasseneckApiError).code, 'dialect_mismatch');
   assert.equal(a.gelesen, 0);
 });
+
+test('v3: HTTP 200 mit Kennzeichen und text/html: signierende Aufrufe unknown, ohne Kennzeichen route_missing rejected', async () => {
+  for (const name of ['createReceipt', 'cancelReceipt', 'financeWebService']) {
+    for (const auth of [schluessel(), kassenBenutzer()]) {
+      const mit = antwort('<html>umgeschrieben</html>', { contentType: 'text/html; charset=utf-8' });
+      const e = await fehler(createTransport({ auth, fetch: async () => mit })(name, {}));
+      assert.ok(e instanceof KasseneckHttpError, `${name}: ${String(e)}`);
+      assert.equal(e.reason, 'not-json', name);
+      assert.equal(e.outcome, 'unknown', name);
+      assert.ok(isOutcomeUnknown(e), name);
+      assert.equal(mit.gelesen, 0, `${name}: Rumpf ungelesen`);
+
+      const ohne = antwort('<html>SPA</html>', { kennzeichen: null, contentType: 'text/html' });
+      const e2 = await fehler(createTransport({ auth, fetch: async () => ohne })(name, {}));
+      assert.ok(e2 instanceof KasseneckApiError, name);
+      assert.equal(e2.code, 'route_missing', name);
+      assert.equal(e2.outcome, 'rejected', name);
+    }
+  }
+  // Nicht signierende Aufrufe bleiben auch mit Kennzeichen route_missing.
+  const mit = antwort('<html></html>', { contentType: 'text/html' });
+  const e3 = await fehler(createTransport({ auth: schluessel(), fetch: async () => mit })('getReceipt', {}));
+  assert.equal((e3 as KasseneckApiError).code, 'route_missing');
+  assert.equal((e3 as KasseneckApiError).outcome, 'rejected');
+});

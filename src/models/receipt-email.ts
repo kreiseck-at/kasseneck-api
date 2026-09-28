@@ -1,5 +1,5 @@
 import { KasseneckApiError } from '../client/errors.js';
-import { bekannterCode } from '../client/fehlercodes.js';
+import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
 
 /** Die Codes des Versands selbst (`errorCodes.receiptEmail`); jeder hat einen Satz im Textkatalog. */
 export const RECEIPT_EMAIL_SEND_ERROR_CODES = Object.freeze([
@@ -77,3 +77,14 @@ export function isReceiptEmailError(error: unknown, code?: ReceiptEmailErrorCode
 export const RECEIPT_EMAIL_VIAS = Object.freeze(['own', 'platform', 'platform_fallback'] as const);
 
 export type ReceiptEmailVia = (typeof RECEIPT_EMAIL_VIAS)[number];
+
+/** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort von `sendReceiptEmail`. */
+export interface ReceiptEmailFieldError {
+  field: string;
+  message: string;
+}
+
+/** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
+export function receiptEmailFieldErrors(error: unknown): ReceiptEmailFieldError[] {
+  return feldfehlerVon(error);
+}

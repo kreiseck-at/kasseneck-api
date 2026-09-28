@@ -1,5 +1,5 @@
 import { KasseneckApiError } from '../client/errors.js';
-import { bekannterCode } from '../client/fehlercodes.js';
+import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
 import type { Receipt } from './receipt.js';
 
 /**
@@ -195,4 +195,15 @@ export function remainingQuantities(receipt: Receipt, nowMs: number = Date.now()
     }
   }
   return rest;
+}
+
+/** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort von `cancelReceipt`. */
+export interface CancellationFieldError {
+  field: string;
+  message: string;
+}
+
+/** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
+export function cancellationFieldErrors(error: unknown): CancellationFieldError[] {
+  return feldfehlerVon(error);
 }

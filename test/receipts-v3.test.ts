@@ -46,6 +46,9 @@ import {
   paymentErrorCode,
   isReceiptEmailError,
   receiptEmailErrorCode,
+  cancellationFieldErrors,
+  paymentFieldErrors,
+  receiptEmailFieldErrors,
   type ReceiptPaymentInput,
   type VoucherPayload,
 } from '../src/models/index.js';
@@ -807,6 +810,8 @@ test('Fehlerhelfer der Belegwelt: dieselbe Form wie Kasse, Anmeldung, Rechnung u
     assert.equal(istFehler(new Error('x')), false);
   }
   const feld = new KasseneckApiError('createReceipt', 'x', { errors: [{ field: 'payments.0.amountCents', message: 'm' }, { field: 1 }] }, 'validation');
-  assert.deepEqual(receiptFieldErrors(feld), [{ field: 'payments.0.amountCents', message: 'm' }]);
-  assert.deepEqual(receiptFieldErrors(new Error('x')), []);
+  for (const felder of [receiptFieldErrors, cancellationFieldErrors, paymentFieldErrors, receiptEmailFieldErrors]) {
+    assert.deepEqual(felder(feld), [{ field: 'payments.0.amountCents', message: 'm' }]);
+    assert.deepEqual(felder(new Error('x')), []);
+  }
 });

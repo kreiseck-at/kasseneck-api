@@ -1,5 +1,5 @@
 import { KasseneckApiError } from '../client/errors.js';
-import { bekannterCode } from '../client/fehlercodes.js';
+import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
 
 /**
  * Mehrere Zahlungen je Beleg: Fehlercodes unter `/v3` (Vokabular
@@ -88,4 +88,15 @@ export function paymentErrorCode(error: unknown): PaymentErrorCode | undefined {
 export function isPaymentError(error: unknown, code?: PaymentErrorCode): error is KasseneckApiError {
   const gefunden = paymentErrorCode(error);
   return gefunden !== undefined && (code === undefined || gefunden === code);
+}
+
+/** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort von `payments[]`. */
+export interface PaymentFieldError {
+  field: string;
+  message: string;
+}
+
+/** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
+export function paymentFieldErrors(error: unknown): PaymentFieldError[] {
+  return feldfehlerVon(error);
 }

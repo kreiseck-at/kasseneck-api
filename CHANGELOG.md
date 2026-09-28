@@ -159,7 +159,8 @@ an upgrade as long as `/v1` is served.
   `is…ErrorCode(value)`, `…ErrorCode(error)`, `is…Error(error, code?)` (a type
   guard, code optional) and `…FieldErrors(error)`; new are `isReceiptError`,
   `isCancellationError`, `isPaymentError`, `isReceiptEmailError`,
-  `isInvoiceErrorCode`, `receiptFieldErrors` and `registerFieldErrors`, and
+  `isInvoiceErrorCode`, `receiptFieldErrors`, `cancellationFieldErrors`,
+  `paymentFieldErrors`, `receiptEmailFieldErrors` and `registerFieldErrors`, and
   `isInvoiceError` takes the code as optional.
 - **Partner.** `partnerErrorAdvice` (was `partnerFehlerRat`) always returns a
   sentence, with a fallback for unknown codes; `isPartnerError` accepts

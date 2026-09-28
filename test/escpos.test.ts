@@ -1136,7 +1136,8 @@ test('Bauwerkzeug: der Waechter verlangt sideEffects false und meldet Seiteneffe
       writeFileSync(join(ordner, datei), '');
     }
     writeFileSync(join(ordner, 'dist/cjs/package.json'), JSON.stringify({ type: 'commonjs' }));
-    const rein = "import { a } from './a.js';\nexport const LISTE = Object.freeze(['x']);\nexport function f() { globalThis.y = 1; }\n'use client';\n";
+    const rein = "import { a } from './a.js';\nexport const LISTE = Object.freeze(['x']);\nexport function f() { globalThis.y = 1; }\n'use client';\n"
+      + "export const LOKAL = (() => { const o = {}; let n = 0; o.x = 1; n += 1; for (let i = 0; i < 2; i++) o[i] = i; return o; })();\n";
     writeFileSync(join(ordner, 'dist/esm/printing/index.js'), rein);
     paket(false);
     assert.equal(lauf().ok, true, 'ein Bau ohne Seiteneffekte muss durchgehen');
@@ -1151,6 +1152,9 @@ test('Bauwerkzeug: der Waechter verlangt sideEffects false und meldet Seiteneffe
       ["import './polyfill.js';", /nackter Import/],
       ["import stil from './stil.css';", /CSS-Import/],
       ['export class K { static n = 1; }', /statischer Initialisierung/],
+      ['export const q = (() => { globalThis.k = 1; return 2; })();', /Zuweisung in sofort aufgerufener Funktion/],
+      ['export const r = (function () { a.x += 1; return 2; }());', /Zuweisung in sofort aufgerufener Funktion/],
+      ['export const t = (() => { delete globalThis.k; return 2; })();', /delete in sofort aufgerufener Funktion/],
     ] as const) {
       writeFileSync(join(ordner, 'dist/esm/printing/index.js'), `${rein}${zusatz}\n`);
       const { ok, text } = lauf();

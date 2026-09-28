@@ -416,6 +416,13 @@ function createCore(options: TransportOptions) {
       // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
       // bedient, keine Function hat ihn gesehen (Nachtrag §5.4, R15).
       if (inhaltstyp !== undefined && /^\s*text\/html\b/i.test(inhaltstyp)) {
+        // Mit Kennzeichen hat der `/v3`-Rand den Aufruf gesehen (etwa ein
+        // Proxy, der nur den Inhaltstyp umschreibt). Bei einem signierenden
+        // Aufruf kann der Beleg dann entstanden sein: unlesbarer Rumpf,
+        // Ausgang unklar, statt `route_missing`.
+        if (SIGNIERENDE_AUFRUFE.has(functionName) && traegtKennzeichen(antwort)) {
+          throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'not-json', 'unknown');
+        }
         throw new KasseneckApiError(
           fehlerName,
           'Route fehlt: die Antwort ist eine HTML-Seite statt des Backends',

@@ -305,8 +305,8 @@ export class KasseneckHttpError extends Error {
   /**
    * `'unknown'` auf einem signierenden Aufruf (`createReceipt`,
    * `cancelReceipt`, `financeWebService`) bei HTTP 5xx und bei HTTP 200 mit
-   * Kennzeichen, aber unlesbarem Rumpf (`empty-body`, `not-json`,
-   * `missing-status`): der Handler kann gelaufen sein, nie wiederholen,
+   * Kennzeichen, aber unlesbarem Rumpf (`empty-body`, `not-json` auch bei
+   * `text/html`, `missing-status`): der Handler kann gelaufen sein, nie wiederholen,
    * sondern nachlesen. Sonst `'rejected'` (auch 4xx).
    */
   readonly outcome: ErrorOutcome;

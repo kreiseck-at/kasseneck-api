@@ -37,6 +37,8 @@ export {
   isCancellationErrorCode,
   cancellationErrorCode,
   isCancellationError,
+  cancellationFieldErrors,
+  type CancellationFieldError,
   remainingQuantities,
 } from './cancellation.js';
 export {
@@ -46,7 +48,7 @@ export {
   fromReceiptPaymentPayload,
   toReceiptPaymentPayload,
 } from './receipt-payment.js';
-export { type PaymentErrorCode, PAYMENT_ERROR_CODES, isPaymentErrorCode, paymentErrorCode, isPaymentError } from './payment-errors.js';
+export { type PaymentErrorCode, PAYMENT_ERROR_CODES, isPaymentErrorCode, paymentErrorCode, isPaymentError, paymentFieldErrors, type PaymentFieldError } from './payment-errors.js';
 export {
   type ReceiptEmailErrorCode,
   type ReceiptEmailVia,
@@ -57,6 +59,8 @@ export {
   isReceiptEmailErrorCode,
   receiptEmailErrorCode,
   isReceiptEmailError,
+  receiptEmailFieldErrors,
+  type ReceiptEmailFieldError,
 } from './receipt-email.js';
 export {
   type ReceiptErrorCode,

@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { deutschIn } from './deutsch.js';
+import { deutschIn, teile } from './deutsch.js';
 
 /**
  * Waechter: die oeffentliche Oberflaeche von 1.0 ist englisch.
@@ -233,6 +233,45 @@ const PARAMETER_WOERTER: ReadonlySet<string> = new Set([
   'ursache', 'vorgabe', 'weiteres', 'wert', 'werte', 'zeitpunkt', 'zwoelftel', 'binaer', 'anzahl', 'positionen', 'zertifikat',
 ]);
 
+/**
+ * Positivliste: jedes Teilwort eines oeffentlichen Parameternamens ist ein
+ * englisches Wort aus dieser Liste oder ein Kuerzel aus [PARAMETER_KUERZEL].
+ * Ein unbekanntes Teilwort laesst den Test fallen, auch wenn es in keiner
+ * Sperrliste steht (`menge`, `kunde`, `wochentag`). Wer einen neuen,
+ * englischen Namen einfuehrt, traegt sein Teilwort hier ein.
+ */
+const PARAMETER_ENGLISCH: ReadonlySet<string> = new Set(`
+after alternate before binary block body budget business bytes cashregister cause cents certificate chars client code
+columns company connect content count customer data date details device dimensions discount email endpoint error event
+extra fallback fetch field fields font format function grid header height image index inner instant interface interval
+invoice item items key label language layout logo matrix max message month months mode module name now number options
+out outcome paper patch payload payment price query rate raw reason receipt report request result scheme scope search
+secret serial server session setting settings shortcuts size standard status step stored stripe styles surface table
+target tax terminal text timed timeout transport twelfths type unit value values version voucher vouchers wanted webhook
+width
+`.split(/\s+/).filter(Boolean));
+
+/** Kuerzel und Fachbegriffe in Parameternamen: Teilwort -> Grund. */
+const PARAMETER_KUERZEL: Record<string, string> = {
+  a: 'Einzelbuchstabe (Vergleichsfunktion a/b)', b: 'Einzelbuchstabe (Vergleichsfunktion a/b)', c: 'Einzelbuchstabe (Zeichen/Code in kurzen Helfern)',
+  d: 'Einzelbuchstabe (Datum/Daten in kurzen Helfern)', n: 'Einzelbuchstabe (Anzahl)', o: 'Einzelbuchstabe (Optionen)',
+  p: 'Einzelbuchstabe (Parameter)', w: 'Einzelbuchstabe (Breite)', bp: 'Basispunkte (rateBp)', ms: 'Millisekunden',
+  px: 'Pixel', qr: 'QR-Code', rgba: 'Farbkanaele RGBA', rm: 'Rundungsmodus (rm) wie im Rechenkern', devid: 'Geraetekennung von WebUSB/HPS',
+  fn: 'Funktion (fetchFn)', hex: 'hexadezimal', http: 'HTTP', id: 'Kennung', ip: 'IP-Adresse', xml: 'XML', url: 'URL',
+  res: 'Antwort (res) wie in Node/Express', init: 'RequestInit wie in fetch', dev: 'USB-Geraet (WebUSB)', doc: 'Dokument',
+  ref: 'Referenz', perms: 'Rechte (permissions)', micros: 'Millionstel (unitPriceMicros)', params: 'Parameter (params)',
+};
+
+/** Warum ein Parametername nicht zugelassen ist, oder `null`. */
+function parameterNichtEnglisch(name: string): string | null {
+  const deutsch = deutschIn(name, PARAMETER_WOERTER);
+  if (deutsch) return deutsch;
+  for (const t of teile(name)) {
+    if (!PARAMETER_ENGLISCH.has(t) && !(t in PARAMETER_KUERZEL)) return `Teilwort "${t}" nicht in der Positivliste`;
+  }
+  return null;
+}
+
 /** Parameternamen, die trotz deutschem Teilwort bleiben. `<d.ts>:<Deklaration>(<Parameter>)` -> Grund. */
 const AUSNAHMEN_PARAMETER: Record<string, string> = {};
 
@@ -337,7 +376,7 @@ test('Parameternamen: kein Parameter einer exportierten Funktion, Methode oder K
   assert.ok(gefunden.some((g) => g.wo.startsWith('invoice/api.d.ts:InvoiceApi.')), 'Methoden der Rechnungs-Fassade nicht erreicht');
   const deutsch = new Set<string>();
   for (const { name, wo } of gefunden) {
-    const grund = deutschIn(name, PARAMETER_WOERTER);
+    const grund = parameterNichtEnglisch(name);
     if (!grund) continue;
     if (wo in AUSNAHMEN_PARAMETER) continue;
     deutsch.add(`${wo} (${grund})`);
@@ -347,4 +386,19 @@ test('Parameternamen: kein Parameter einer exportierten Funktion, Methode oder K
 
 test('Parameternamen: die Ausnahmen tragen einen Grund', () => {
   for (const [k, grund] of Object.entries(AUSNAHMEN_PARAMETER)) assert.ok(grund.length > 20, `${k}: Grund fehlt`);
+});
+
+test('Parameternamen: die Positivliste faengt deutsche Namen, die in keiner Sperrliste stehen', () => {
+  // Rot-Probe des Nachreviews: zwoelf deutsche Parameter, von denen die
+  // Sperrliste allein nur zwei erkannte.
+  for (const name of ['betragCents', 'fehlerText', 'menge', 'kunde', 'ziel', 'eingabe', 'artikel', 'datum', 'liste', 'bestellung', 'quelle', 'wochentag']) {
+    assert.ok(parameterNichtEnglisch(name), `nicht erkannt: ${name}`);
+  }
+  for (const name of ['transport', 'options', 'unitPriceMicros', 'certificateSerialHex', 'pxWidth', 'fetchFn', 'rateBp']) {
+    assert.equal(parameterNichtEnglisch(name), null, name);
+  }
+});
+
+test('Parameternamen: jedes Kuerzel hat einen Grund', () => {
+  for (const [k, grund] of Object.entries(PARAMETER_KUERZEL)) assert.ok(grund.length >= 3, `${k}: Grund fehlt`);
 });

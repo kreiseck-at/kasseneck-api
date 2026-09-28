@@ -401,8 +401,13 @@ test('alle vier Aufrufe melden dieselbe Stoerung als denselben Fehler der Union'
   // Zusage nur scheinbar zu erfuellen.
   for (const [name, aufruf] of alleAufrufe) {
     for (const [stoerung, holen, erwartet] of stoerungen) {
+      // financeWebService zaehlt zu den signierenden Aufrufen: HTML mit
+      // Kennzeichen v3 hat der Rand gesehen, darum unlesbarer Rumpf mit
+      // unklarem Ausgang statt route_missing.
+      const finanzOnline = name === 'getCashboxStatus' || name === 'getSignatureStatus';
+      const soll = finanzOnline && stoerung === 'HTML statt Antwort' ? 'Http:not-json' : erwartet;
       await assert.rejects(aufruf(holen), (fehler: unknown) => {
-        assert.equal(kennung(fehler), erwartet, `${name} / ${stoerung}`);
+        assert.equal(kennung(fehler), soll, `${name} / ${stoerung}`);
         return true;
       });
     }

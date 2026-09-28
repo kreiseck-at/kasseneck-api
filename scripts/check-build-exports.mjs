@@ -153,9 +153,12 @@ for (const [alt, neu] of Object.entries(ENTFERNT_IN_1_0)) {
  * statische Initialisierung und Konstanten. In deren Initialisierern (ohne
  * Funktionsruempfe) darf nichts zugewiesen, geloescht oder hochgezaehlt
  * werden. Verboten sind nackte Importe (`import './x.js'`), CSS-Importe und
- * jede andere Anweisung. Aufrufe in Initialisierern bleiben erlaubt: es sind
- * modul-lokale Bausteine (`Object.freeze`, `new Set`, Katalog-Helfer); was sie
- * tun, sieht ein Review, nicht diese Pruefung.
+ * jede andere Anweisung. Sofort aufgerufene Funktionen (`(() => { … })()`)
+ * werden in ihren Rumpf verfolgt: dort ist jede Zuweisung, jedes delete und
+ * jeder Zaehler an etwas verboten, das nicht lokal in der IIFE deklariert
+ * ist. Grenze: Aufrufe benannter Funktionen bleiben erlaubt und werden nicht
+ * verfolgt; es sind modul-lokale Bausteine (`Object.freeze`, `new Set`,
+ * Katalog-Helfer), was sie tun, sieht ein Review, nicht diese Pruefung.
  */
 if (paket.sideEffects !== false) fehler.push('package.json: "sideEffects": false fehlt');
 const seiteneffekte = [];
@@ -166,14 +169,52 @@ function lesen(verzeichnis) {
     else if (pfad.endsWith('.js')) modulPruefen(pfad);
   }
 }
+/** Eine sofort aufgerufene Funktion (`(() => { … })()`): ihr Rumpf laeuft beim Import. */
+function sofortAufgerufen(knoten) {
+  if (!ts.isCallExpression(knoten)) return undefined;
+  let ziel = knoten.expression;
+  while (ts.isParenthesizedExpression(ziel)) ziel = ziel.expression;
+  return ts.isFunctionExpression(ziel) || ts.isArrowFunction(ziel) ? ziel : undefined;
+}
 function veraendert(knoten, aus) {
+  const sofort = sofortAufgerufen(knoten);
+  if (sofort) {
+    // Den Rumpf mitpruefen, aber nur Zuweisungen an etwas ausserhalb: lokale
+    // Variablen der IIFE (`let x; x = …`) aendern nichts ausser ihr selbst.
+    const lokal = new Set();
+    const sammeln = (k) => {
+      if ((ts.isVariableDeclaration(k) || ts.isParameter(k)) && ts.isIdentifier(k.name)) lokal.add(k.name.text);
+      if (!ts.isFunctionLike(k) || k === sofort) ts.forEachChild(k, sammeln);
+    };
+    sammeln(sofort);
+    rumpfPruefen(sofort.body, lokal, aus);
+    for (const a of knoten.arguments) veraendert(a, aus);
+    return;
+  }
   if (ts.isFunctionLike(knoten) || ts.isClassLike(knoten)) return;
   const op = ts.isBinaryExpression(knoten) ? knoten.operatorToken.kind : undefined;
   if (op !== undefined && op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment) aus.push('Zuweisung');
   if (ts.isDeleteExpression(knoten)) aus.push('delete');
   if (ts.isPostfixUnaryExpression(knoten)) aus.push('Zaehler');
+  // Aufrufe anderer Funktionen bleiben erlaubt (siehe oben); nur sofort
+  // aufgerufene Funktionen werden oben in ihren Rumpf verfolgt.
   if (ts.isPrefixUnaryExpression(knoten) && (knoten.operator === ts.SyntaxKind.PlusPlusToken || knoten.operator === ts.SyntaxKind.MinusMinusToken)) aus.push('Zaehler');
   ts.forEachChild(knoten, (k) => veraendert(k, aus));
+}
+/** Rumpf einer IIFE: Zuweisung an ein nicht lokales Ziel, delete und Zaehler an Fremdem melden. */
+function rumpfPruefen(knoten, lokal, aus) {
+  if (sofortAufgerufen(knoten)) { veraendert(knoten, aus); return; }
+  if (ts.isFunctionLike(knoten) || ts.isClassLike(knoten)) return;
+  const wurzelName = (z) => {
+    while (ts.isPropertyAccessExpression(z) || ts.isElementAccessExpression(z) || ts.isParenthesizedExpression(z)) z = z.expression;
+    return ts.isIdentifier(z) ? z.text : undefined;
+  };
+  const fremd = (z) => { const n = wurzelName(z); return n === undefined || !lokal.has(n); };
+  const op = ts.isBinaryExpression(knoten) ? knoten.operatorToken.kind : undefined;
+  if (op !== undefined && op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment && fremd(knoten.left)) aus.push('Zuweisung in sofort aufgerufener Funktion');
+  if (ts.isDeleteExpression(knoten) && fremd(knoten.expression)) aus.push('delete in sofort aufgerufener Funktion');
+  if ((ts.isPostfixUnaryExpression(knoten) || (ts.isPrefixUnaryExpression(knoten) && (knoten.operator === ts.SyntaxKind.PlusPlusToken || knoten.operator === ts.SyntaxKind.MinusMinusToken))) && fremd(knoten.operand)) aus.push('Zaehler in sofort aufgerufener Funktion');
+  ts.forEachChild(knoten, (k) => rumpfPruefen(k, lokal, aus));
 }
 function modulPruefen(pfad) {
   const datei = ts.createSourceFile(pfad, readFileSync(pfad, 'utf8'), ts.ScriptTarget.ES2022, true);
