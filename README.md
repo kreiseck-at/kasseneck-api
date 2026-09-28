@@ -36,6 +36,7 @@ models, same enum values, checked against each other in tests.
 - [What a fiscal cash register in Austria must do](#what-a-fiscal-cash-register-in-austria-must-do)
 - [Try it first, or use the ready-made register](#try-it-first-or-use-the-ready-made-register)
 - [Requirements and subpaths](#requirements-and-subpaths)
+- [Base URLs and the `/v3` marker](#base-urls-and-the-v3-marker)
 - [Authentication](#authentication)
 - [Amounts are integer cents](#amounts-are-integer-cents)
 - [Errors](#errors)
@@ -43,9 +44,12 @@ models, same enum values, checked against each other in tests.
 - [Cancellation (Storno)](#cancellation-storno)
 - [Sending a receipt by email](#sending-a-receipt-by-email)
 - [Receipt printing: QR code, logo, printers](#receipt-printing-qr-code-logo-printers)
+- [Register settings, articles and printers (`./pos`)](#register-settings-articles-and-printers-pos)
+- [Stored documents (`./stored`)](#stored-documents-stored)
 - [Card payments](#card-payments)
 - [Partner API (`./partner`)](#partner-api-partner)
 - [Invoice API (`./invoice`)](#invoice-api-invoice)
+- [Migrating from 0.x](#migrating-from-0x)
 - [Development](#development)
 - [Contract files for the twin packages](#contract-files-for-the-twin-packages)
 - [Glossary](#glossary)
@@ -119,6 +123,15 @@ discount vouchers, tips, value vouchers). If they do not match, the backend
 rejects the receipt with `payments_sum_mismatch` without using up a receipt
 number; `paymentsExpectedCents(error)` gives its amount. The package never
 retries on its own: a card payment has already been charged.
+
+The list may be empty only when the amount due is 0. The single
+`paymentMethod` of 0.x and the card fields beside it (`creditCardProvider`,
+`cardPaymentId`, `cardPaymentData`) are rejected before anything is sent.
+`receiptDueCents` needs `tipRecipient` (`'owner'` or `'staff'`, the role of the
+signed-in register user) as soon as a tip has no `recipients`: an owner's tip
+is turnover, spread over the VAT rates of the goods and discounted with them,
+while a staff tip goes untouched into the 0 % bucket. Only the register knows
+which one applies, so the helper never guesses.
 
 ## What a fiscal cash register in Austria must do
 
@@ -199,6 +212,58 @@ Every exported function carries its documentation as TSDoc in the shipped type
 declarations, so your editor shows it on hover. That is also the reference for
 the partner and invoice endpoints; this README shows how to use the client.
 
+## Base URLs and the `/v3` marker
+
+1.x speaks only the English API `/v3`. Every field name, every value your code
+branches on and every error code is English; texts for people (`message`,
+`serverMessage`, `nextSteps`, the printed receipt) stay German, as do the
+terms of the BMF and FinanzOnline.
+
+| Path | Default | Option | Used for |
+|---|---|---|---|
+| public | `https://api.kasseneck.at/v3` (`DEFAULT_BASE_URL`) | `baseUrl` | receipts with `apiKeyAuth`, reports, payments, FinanzOnline, invoice and partner API |
+| register (POS) | `https://kasse.kasseneck.at/api/v3` (`POS_BASE_URL`) | `posBaseUrl` | pairing, sign-in, settings, articles, printers; with `registerUserAuth` also receipts, cancellation and receipt email |
+| same origin | `/api/v3` | `posBaseUrl: '/api/v3'` | the browser register served from `kasse.kasseneck.at` itself |
+
+The package picks the path per call; `PUBLIC_CALLS` and `POS_CALLS` list which
+call goes where. A base of your own (a proxy, the emulator) must end in `/v3`
+once trailing slashes are removed, otherwise creating the client throws a
+`KasseneckValidationError` right away. There is no `/v1` and no bare `/api` in
+the 1.x line.
+
+```ts
+import { createKasseneckApi, registerUserAuth } from '@kreiseck/kasseneck-api';
+
+// Browser register on kasse.kasseneck.at: same origin, no CORS involved.
+const pos = createKasseneckApi({
+  auth: registerUserAuth({ getIdToken, getSessionId, cashregisterId: 'kasse-1' }),
+  posBaseUrl: '/api/v3',
+  clientHeader: 'kasse-web/2026.09.28', // optional; default kasseneck-api/<version>
+});
+```
+
+**The marker, fail closed.** Each request to a Kasseneck base (the two hosts
+above over https, or a relative path) carries `Kasseneck-Api-Version: v3` and
+`Kasseneck-Client`. Each response is checked **before** its body is read:
+
+- HTTP 200 with `text/html` is the hosting fallback page; the call never
+  arrived: `KasseneckApiError` with `code: 'route_missing'`.
+- A response without `Kasseneck-Api-Version: v3` came from an edge that does
+  not speak `/v3`: `code: 'dialect_mismatch'` with `outcome: 'unknown'`
+  (behind an old edge a receipt may have been signed). See [Errors](#errors).
+- HTTP 404 with the marker and an error envelope is how `/v3` answers an
+  unknown endpoint: `code: 'not_found'`.
+
+The package never falls back to another version. A mismatch is an error, not
+a reason to try `/v1`.
+
+**Browser on another origin.** A browser that calls `https://api.kasseneck.at/v3`
+from a foreign origin sends a CORS preflight that asks for the two headers
+above. Until the backend allows them in the `/v3` preflight, set
+`omitKasseneckHeaders: true` on such a client. Only the request headers are
+dropped; the response check stays. The browser register on its own origin
+(`/api/v3`) and any Node process need nothing of this.
+
 ## Authentication
 
 The client takes an **exchangeable authentication**: an object that supplies
@@ -230,8 +295,8 @@ const register = registerUserAuth({
 
 Six calls run **without any identity**, because they are how an identity comes
 into being or how a device manages itself. They live in `…/register` and take
-**no authentication**, only the connection settings (base URL, timeout,
-`fetch`):
+**no authentication**, only the connection settings (`posBaseUrl`, timeout,
+`fetch`); they always go to the register path:
 
 | Call | Proof instead of authentication |
 |---|---|
@@ -246,6 +311,28 @@ import { pairRegisterDevice, registerUserLogin } from '@kreiseck/kasseneck-api/r
 
 const paired = await pairRegisterDevice({ code: 'K7NPQR34', label: 'Bar' });
 const session = await registerUserLogin({ ...paired, userId: 'ru-1', pin: '1234' });
+```
+
+`paired` carries `companyName`, `cashregisterLabel` and `testEnvironment`. A
+device record stored under 0.x (device id and secret) keeps working: the calls
+only send the device credentials, no new pairing is needed.
+
+Sign-in errors carry a code from `REGISTER_ERROR_CODES`. Decide with
+`isRegisterError(error, code)`; seconds to wait, the name of the device that
+holds a session and the like come from `registerErrorDetails(error)`
+(`deviceLabel`, `takeoverAllowed`, `retryAfterSec`, `distanceM`,
+`pairedDevices`, `licenses`), never from the message text:
+
+```ts
+import { isRegisterError, registerErrorDetails, registerPinLogin } from '@kreiseck/kasseneck-api/register';
+
+try {
+  await registerPinLogin({ ...paired, pin });
+} catch (error) {
+  if (isRegisterError(error, 'too_many_attempts')) {
+    showWait(registerErrorDetails(error).retryAfterSec);
+  } else throw error;
+}
 ```
 
 With `session.customToken` the app signs in to the sign-in service; the
@@ -283,7 +370,7 @@ For the same reason a receipt line's `quantity` is a **whole number**. A
 fractional one is rejected before anything is sent.
 
 The invoice API has its own units: unit prices in cents or micro-euros,
-quantities with up to three decimals. See [Invoice API](#invoice-api-rechnung).
+quantities with up to three decimals. See [Invoice API](#invoice-api-invoice).
 
 ## Errors
 
@@ -293,18 +380,67 @@ a type guard:
 
 | Class | Guard | Meaning |
 |---|---|---|
-| `KasseneckApiError` | `isKasseneckApiError` | The backend received the request and rejected it (locked register, missing module, invalid parameter). Retrying does not help. Carries `code` (where the endpoint defines one), `serverMessage` (German display text) and `details`. |
-| `KasseneckHttpError` | `isKasseneckHttpError` | The response was not a usable envelope: HTTP 404/500, empty body, HTML instead of JSON. `reason` tells the cases apart. |
-| `KasseneckNetworkError` | `isKasseneckNetworkError` | No response at all: network down, DNS, aborted connection or timeout (`timedOut`). |
+| `KasseneckApiError` | `isKasseneckApiError` | The backend answered with an error envelope (locked register, missing module, invalid parameter), or the package refused the response (`route_missing`, `dialect_mismatch`). Carries `code`, `outcome`, `serverMessage` (German display text) and `details`. |
+| `KasseneckHttpError` | `isKasseneckHttpError` | The response was not a usable envelope: HTTP 404/500 without envelope, empty body, text instead of JSON. `reason` tells the cases apart; `outcome` as below. |
+| `KasseneckNetworkError` | `isKasseneckNetworkError` | No response at all: network down, DNS, aborted connection or timeout (`timedOut`). `outcome` as below. |
 | `KasseneckAuthError` | `isKasseneckAuthError` | The request was never sent because authentication failed (missing credentials, or the token or session provider threw). |
 | `KasseneckValidationError` | `isKasseneckValidationError` | Wrong shape. `scope: 'request'`: your input breaks a rule the package knows before sending. `scope: 'response'`: the backend reported success but the payload lacked what the call promises. |
 
 **None of them ever contains a secret**: no key, no token, neither the sent nor
 the received body.
 
-**Decide on the code, not the text.** Where an endpoint has a catalogue of
-error codes (cancellation, receipt email, partner and invoice API), branch on
-`error.code`. The German `serverMessage` is for display and may change.
+**Decide on the code, not the text.** Every code is English, lower case,
+`snake_case`, and every endpoint group ships its catalogue with a guard:
+
+| Catalogue | Guard | Where |
+|---|---|---|
+| `RECEIPT_ERROR_CODES` | `isReceiptErrorCode` | `createReceipt`, `getReceipt` |
+| `CANCELLATION_ERROR_CODES` | `isCancellationErrorCode` | `cancelReceipt` |
+| `PAYMENT_ERROR_CODES` | `isPaymentErrorCode` | `payments[]` of a sale or cancellation |
+| `RECEIPT_EMAIL_ERROR_CODES` | `isReceiptEmailErrorCode` | `sendReceiptEmail` |
+| `REGISTER_ERROR_CODES` | `isRegisterError` (`…/register`) | pairing and sign-in |
+| `POS_ERROR_CODES` | `isPosError` (`…/pos`) | settings, articles, printers, tip recipients |
+| `PARTNER_ERROR_CODES` | `isPartnerError` (`…/partner`) | partner API |
+| invoice codes | `isInvoiceError` (`…/invoice`) | invoice API |
+
+The receipt, register and POS catalogues list the endpoint's own codes first,
+then the sign-in and edge codes that can reach the same call. The German `serverMessage` is for display
+and may change; `validation` errors name their fields in `details`
+(`posFieldErrors`, `invoiceFieldErrors`, `partnerFieldErrors`).
+
+Validation is strict: the 0.x ways of paying (`paymentMethod` and its card
+fields), unknown keys in tips, layout options, register settings and the
+receipt email, and values outside a settings field's value list throw a
+`KasseneckValidationError` before anything is sent, instead of being dropped
+silently. For a layout option of 0.x the message names its English successor.
+
+### `outcome: 'unknown'`: never retry, look it up
+
+`KasseneckApiError`, `KasseneckHttpError` and `KasseneckNetworkError` carry
+`outcome`. `'rejected'` means nothing happened; retrying the same request does
+not help. `'unknown'` means the operation **may have been carried out**, for
+`createReceipt` a signed receipt in the chain. Then never send it again: read
+the result back (`getReceipt`, `listMyReceipts`, the original of a
+cancellation) and continue from there. `isOutcomeUnknown(error)` covers all
+three classes. The outcome is unknown for:
+
+- `dialect_mismatch`, `receipt_outcome_unknown`, `cancellation_outcome_unknown`;
+- `response_translation_failed`, unless `details.handled === false`;
+- a network error or timeout after sending began, and HTTP 5xx, on the
+  signing calls `createReceipt`, `cancelReceipt` and `financeWebService`.
+
+```ts
+import { isOutcomeUnknown, paymentsExpectedCents } from '@kreiseck/kasseneck-api';
+
+try {
+  await api.sellReceipt({ items, payments });
+} catch (error) {
+  if (isOutcomeUnknown(error)) return reloadReceiptsAndAsk(); // never sell again blindly
+  const expected = paymentsExpectedCents(error);            // payments_sum_mismatch
+  if (expected !== undefined) return askAgain(expected);
+  throw error;
+}
+```
 
 ## Receipts
 
@@ -312,8 +448,17 @@ The facade from `createKasseneckApi` offers `sellReceipt` and
 `sellReceiptWithCompany`, `zeroReceipt` for a zero receipt (*Nullbeleg*),
 `getReceipt` and `getReceiptWithCompany`, `listMyReceipts`, `cancelReceipt`,
 `sendReceiptEmail`, the report downloads, the FinanzOnline status queries
-(`getCashboxStatus`, `getSignatureStatus`) and the Stripe and Hobex cloud
+(`getCashboxStatus`, `getSignatureStatus`), `getReportV2({ start, end })` for
+the raw receipts and company data of a period, and the Stripe and Hobex cloud
 payments.
+
+The models are English throughout: the company has `taxNumber` and `vatId`, a
+receipt `headerVersionId`, `layoutRuleset` and `registrationInfo`, a receipt
+in the list `cancellationStatus` (`none`, `partial`, `full`, or `'unknown'` for
+a value this version does not know: then offer no cancellation). The same
+rule holds for print job states and register settings: a value the package
+does not know is shown as `'unknown'` or kept as sent, never mapped onto a
+known one.
 
 **Layout rule sets.** `buildReceiptLayout` sets receipts according to a
 numbered rule set. Without the `ruleset` option the current one applies
@@ -535,6 +680,87 @@ Chromium-based browsers), **Epson ePOS over HTTP** (`eposDirectPrint` in
 raw TCP sockets are up to your application. PDF generation is not part of the
 package.
 
+## Register settings, articles and printers (`./pos`)
+
+The calls of the tile register run on the register path and take a transport
+from `createTransport` with the same options as `createKasseneckApi`.
+Settings come as `{ business, device }` with English keys and values
+(`theme: 'night'`, `receiptOutput: 'ask'`, `shortcuts.checkout`), merged with
+the defaults `POS_BUSINESS_DEFAULTS` and `POS_DEVICE_DEFAULTS`.
+
+**Send only what changed.** The server merges deeply, so a write carries only
+the changed fields. `posSettingsChanges(before, after)` computes them; it sends
+`vatRates` and `shortcuts` as whole maps, which is what the server expects:
+
+```ts
+import { createTransport, registerUserAuth } from '@kreiseck/kasseneck-api';
+import { getPosSettings, setMyPosSettings, posSettingsChanges, isPosError, posFieldErrors } from '@kreiseck/kasseneck-api/pos';
+
+const transport = createTransport({ auth: registerUserAuth({ getIdToken, getSessionId, cashregisterId }), posBaseUrl: '/api/v3' });
+
+const before = await getPosSettings(transport);
+const after = { ...before.business, theme: 'night' as const, fontSize: 'L' as const };
+try {
+  await setMyPosSettings(transport, posSettingsChanges(before.business, after));
+} catch (error) {
+  if (isPosError(error, 'validation')) showFieldErrors(posFieldErrors(error)); // [{ field: 'business.color', message }]
+  else throw error;
+}
+```
+
+Never send back the whole merged block. A value the server knows and this
+version does not (`theme: 'sepia'`) is read and kept as it is;
+`unknownPosSettingValues(settings)` names such paths, so the interface can show
+them as not editable. Left unchanged, such a value is not sent and stays on the
+server; inside a whole block it would be rejected before sending. The same
+check rejects unknown keys (also the German keys of 0.x such as `stil`),
+values outside a field's list, a `vatRates` map without any rate switched on,
+unknown shortcut actions and a key bound twice (`posShortcutConflict`).
+Per-device settings go through `setMyRegisterDeviceSettings(transport, deviceId,
+changes)`.
+
+A state you stored yourself (for example settings cached in `localStorage`)
+goes through `sanitizePosSettings` or `mergePosSettings` first: both drop the
+German values of 0.x, so an old cache falls back to the defaults instead of
+sending a German value.
+
+The rest of `…/pos`: `listMyArticles` and `listMyArticleGroups` for the tiles
+(`visible`, `quantityRule: 'piece' | 'decimal'`, `askQuantity`,
+`maxQuantity`), `listMyPrinters`, `createPrintJob` and `getPrintJob` for
+network printers (poll until `isPrintJobFinished(job)`; an unknown state is
+`'unknown'` and ends the polling), `listMyTipRecipients`, `setMyPosLogo`, and
+the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
+`labelText`). Text keys are English (`cancellation.outcome_unknown`,
+`split.add_payment`), and so are the placeholders:
+`messageText('checkout.locked', { reason })`. The rendered German texts are
+the same as in 0.x.
+
+## Stored documents (`./stored`)
+
+For clients that read Firestore directly, such as the admin panel. Stored
+documents keep the internal German form; `…/stored` turns them into the same
+English models the `/v3` wire returns, following the server's own rules
+(layout rule set, logo size, `TESTKASSE` banner, the settings merge):
+
+```ts
+import { fromStoredReceiptWithCompany, fromStoredPosSettings, invalidStoredPosSettings } from '@kreiseck/kasseneck-api/stored';
+
+// The header version the receipt names (receipt.headerVersionId), plus the account document.
+const result = fromStoredReceiptWithCompany(receiptDoc, {
+  headerVersion: { id: headerDoc.id, data: headerDoc.data() },
+  account: accountDoc.data(),
+});
+receiptLayoutFromResult(result); // the same layout getReceiptWithCompany returns
+
+const settings = fromStoredPosSettings({ betrieb, geraet }); // stored register settings
+invalidStoredPosSettings({ betrieb, geraet });               // paths the server would drop
+```
+
+`fromStoredReceipt`, `fromStoredCompany` and `fromStoredArticle` complete the
+set. A broken document throws a `KasseneckValidationError`. There is no
+reader for stored invoices: the server computes the invoice view, so read it
+with `getInvoice` and `listInvoices`.
+
 ## Card payments
 
 `…/payments` covers three ways to take card payments from a browser or a Node
@@ -589,12 +815,13 @@ The partner key (`pk_live_…`) belongs on a **server**. It can create
 businesses and, with the extra scope `credentials:read`, fetch their secrets.
 
 This subpath talks to the English Partner API **`/v3`**
-(`PARTNER_BASE_URL`, `https://api.kasseneck.at/v3`): every field name and
-every value your code branches on is English, including every error code
-(`PARTNER_ERROR_CODES`). Texts for humans (`message`, `note`, `statusText`,
-`nextSteps`) stay German. Everything else in this package (receipts,
-invoices, the register, printing, payments) still uses `/v1`
-(`DEFAULT_BASE_URL`) until those endpoints have a `/v3` of their own.
+(`PARTNER_BASE_URL`, `https://api.kasseneck.at/v3`) like the rest of the
+package: every field name and every value your code branches on is English,
+including every error code (`PARTNER_ERROR_CODES`, and
+`PARTNER_REQUEST_ERROR_CODES` for rejected keys and scopes). Texts for humans
+(`message`, `note`, `statusText`, `nextSteps`) stay German.
+`partner.errorAdvice(code)` always returns a sentence, with a general fallback
+for a code this version does not know.
 
 ```ts
 import { createPartnerApi, isPartnerError } from '@kreiseck/kasseneck-api/partner';
@@ -630,6 +857,15 @@ try {
   }
 }
 ```
+
+`reportCustomerContract` reports a contract the business accepted through
+the partner (terms of use or data processing agreement, with the text version
+and its hash).
+
+The two migration notes below are history from the 0.x line and use the names
+of their time (`PARTNER_FEHLER_CODES`, `partnerFehlerRat`, the aliases
+`Rechtsform`, `Bundesland`, `KontaktRolle`). For the move to 1.0 see
+[Migrating from 0.x](#migrating-from-0x).
 
 ### Migrating from 0.27.x
 
@@ -984,6 +1220,36 @@ but € 23.49 with the core and on the invoice. It stays unchanged for existing
 callers; use `calculateInvoice` or `previewInvoice` in new code. Test cases for
 the old formula: `fixtures/invoice-totals.json`.
 
+## Migrating from 0.x
+
+1.0 is one breaking step: the wire, the exported names and the contract files
+all become English at once. The full list is in the
+[CHANGELOG](https://github.com/kreiseck-at/kasseneck-api/blob/main/CHANGELOG.md#100);
+the fixture renames are machine-readable in `fixtures/renames-1.0.json`. The
+short version:
+
+- **Wire.** Only `/v3`: `api.kasseneck.at/v3` and `kasse.kasseneck.at/api/v3`.
+  A `baseUrl` ending in `/v1` or `/api` throws. `baseUrl` now covers public
+  calls only; whoever passed it to pairing, sign-in or register calls (the
+  browser register used `/api`) switches to `posBaseUrl: '/api/v3'`.
+- **Payments.** `payments[]` is mandatory; `paymentMethod`,
+  `createCancelReceipt` and cancelling through `createReceipt` are gone.
+  `receiptDueCents` needs `tipRecipient` for a tip without recipients.
+- **Outcome.** Check `isOutcomeUnknown(error)` before any retry of a sale or
+  cancellation.
+- **Names.** German export names are English (`KASSE_BASE_URL` is
+  `POS_BASE_URL`, `mergeKasseSettings` is `mergePosSettings`,
+  `rechnungRechnen` is `calculateInvoice`, …), and so are field names, values
+  and error codes. There are no aliases.
+- **Subpaths.** `./kasse` is `./pos`, `./rechnung` is `./invoice`,
+  `./rechnung/rechnen` is `./invoice/calc`; `./stored` is new.
+- **Texts.** Catalogue keys and placeholders are English
+  (`storno.ergebnis_unklar` is `cancellation.outcome_unknown`, `{betrag}` is
+  `{amount}`); every rendered text is byte for byte the same.
+
+0.x stays on `/v1` and gets fixes only, published under the npm dist-tag `v0`
+(`npm install @kreiseck/kasseneck-api@v0`).
+
 ## Development
 
 ```bash
@@ -1004,18 +1270,20 @@ address returns the HTML fallback page instead of the function, and no mock
 sees that.
 
 The check needs **no credentials**. A call without authentication answers,
-when there is a function behind it, with
-`{"status":"error","message":"Ungültiger Request: Authorization key erwartet."}`.
-That is the proof: the call was accepted and authentication was checked. An
-HTML page or a 404 proves that there is no function. That is why the script
-looks for a `status` field and not for success.
+when there is a function behind it, with an error envelope (`status` field)
+and the header `Kasseneck-Api-Version: v3`. That is the proof: the call was
+accepted and authentication was checked. An HTML page, a 404 or a missing
+marker proves that there is no `/v3` function. That is why the script looks
+for the envelope and the marker, not for success. Each call is asked at the
+address the transport really picks for it: public calls at
+`api.kasseneck.at/v3`, register-only calls at `kasse.kasseneck.at/api/v3`.
 
 It is deliberately outside `npm test` because it needs the network. Without a
-network it says so and exits with 0. Calls that deliberately have no rewrite
-under `/v1` (the register path via `kasse.kasseneck.at/api`, the calls with an
-ID token) are listed with a reason in `scripts/erreichbarkeit-ausnahmen.json`.
-If an exception becomes reachable, the check fails; otherwise the list would
-never shrink.
+network it says so and exits with 0. CI runs the local part on every push;
+the network part runs daily. A call that deliberately has no function would be
+listed with a reason in `scripts/erreichbarkeit-ausnahmen.json`; since 1.0 that
+list is empty. If an exception becomes reachable, the check fails; otherwise
+the list would never shrink.
 
 ## Contract files for the twin packages
 
@@ -1027,12 +1295,15 @@ in machine form what both sides agreed on, among them:
 |---|---|---|
 | `pos-settings-defaults.json` | field names and defaults of the register settings as sent on `/api/v3` (`business`, `device`), derived from the backend contract in `fixtures/v3/` | `npm run fixtures:kasse` |
 | `stored/pos-settings-defaults.json` | the same defaults in the stored (internal, German) form (`betrieb`, `geraet`) | `npm run fixtures:kasse` |
-| `surface.json` | call names, settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, key actions, partner lists | `npm run fixtures:oberflaeche` |
+| `surface.json` | base URLs (`baseUrls.public`, `baseUrls.pos`), the calls per path (`calls`, and the backend's `routes`), settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, shortcut actions, partner and invoice lists | `npm run fixtures:oberflaeche` |
 | `hobex-hps-codes.json` | measured HPS result codes, their meaning and whether they settle an outcome (the contract behind `isConclusive`) | `npm run fixtures:hobex-hps-codes` |
 | `pos-texts.json` | the register's message catalogue | `npm run fixtures:texte` |
 | `invoice-texts.json` | invoice texts in both languages | `npm run fixtures:rechnungstexte` |
 | `invoice-api.schema.json` | JSON Schema of the invoice API | `npm run fixtures:rechnung` |
-| `renames-1.0.json` | what is renamed from 0.x to 1.0: fixture paths, text catalogue keys, placeholders, structural keys; rendered texts are unchanged | `npm run fixtures:umbenennung` |
+| `pos-message-cases.json` | error cases and the message each one must show in both registers | by hand |
+| `receipt-due-generated.json` | 1206 amounts due computed by the backend's own code, the reference for `receiptDueCents` | `node scripts/v3-zahlbetrag-generieren.mjs` |
+| `v3/` | the backend's `/v3` contract (vocabulary, response cases, stored cases, amounts due), copied byte for byte | `node scripts/v3-vertrag-holen.mjs` |
+| `renames-1.0.json` | everything in these files that changed from 0.x to 1.0: paths (`files`), text catalogue keys (`texts`), placeholders, structural keys (`structure`), machine values (`values`), shape changes (`shapes`); rendered texts are unchanged | `npm run fixtures:umbenennung` |
 
 They are generated and never edited by hand. CI regenerates the register
 settings and `surface.json` and fails if they differ from the committed

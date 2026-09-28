@@ -12,6 +12,7 @@ import * as rechnung from '../src/invoice/index.js';
 import * as calculateInvoice from '../src/invoice/calc.js';
 import * as react from '../src/react/index.js';
 import * as kasse from '../src/pos/index.js';
+import * as stored from '../src/stored/index.js';
 
 /**
  * Das README ist die einzige Erklaerung, die ein Verbraucher vor 69
@@ -48,6 +49,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/invoice/calc': calculateInvoice,
   '@kreiseck/kasseneck-api/react': react,
   '@kreiseck/kasseneck-api/pos': kasse,
+  '@kreiseck/kasseneck-api/stored': stored,
 };
 
 function pruefeImporte(text: string, datei: string, mindestens: number): void {
