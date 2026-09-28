@@ -409,11 +409,11 @@ test('Kasse: liest die woertliche Antwort von listMyCashregisters (Kassen-Benutz
     token: null,
     onboarding: {
       cashbox_registered: true,
-      startbeleg_created: true,
-      startbeleg_transmitted: false,
+      start_receipt_created: true,
+      start_receipt_transmitted: false,
       cashbox_registered_at: '2026-01-05T09:05:00.000Z',
-      startbeleg_created_at: '2026-01-05T09:06:00.000Z',
-      startbeleg_transmitted_at: null,
+      start_receipt_created_at: '2026-01-05T09:06:00.000Z',
+      start_receipt_transmitted_at: null,
     },
   };
   const kasse = fromCashregisterPayload(payload, 'ignoriert');

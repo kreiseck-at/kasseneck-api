@@ -1,4 +1,5 @@
 import type { InternerTransport } from '../client/aufrufe.js';
+import { KasseneckValidationError } from '../client/errors.js';
 import type { ReceiptLayout } from '../receipt/layout.js';
 import { rasterRowsBase64 } from '../printing/index.js';
 import type { PrintLogo } from '../receipt/layout-escpos.js';
@@ -71,9 +72,28 @@ function status(v: unknown): PrintJobStatus {
   return typeof v === 'string' && STATUS.has(v) ? (v as PrintJobStatus) : 'unknown';
 }
 
+/**
+ * Die Kennung eines Jobs aus der Antwort. Ohne sie kann niemand den Job
+ * abfragen; ein leerer Text waere ein angeblich angelegter Job, und der
+ * Kassier druckte ein zweites Mal.
+ */
+function jobKennung(name: 'createPrintJob' | 'getPrintJob', d: Record<string, unknown> | null | undefined): string {
+  const id = d?.jobId;
+  if (typeof id !== 'string' || id === '') {
+    throw new KasseneckValidationError(name, 'Antwort enthaelt keine Kennung (data.jobId fehlt)', 'response');
+  }
+  return id;
+}
+
 export async function listMyPrinters(transport: InternerTransport): Promise<NetworkPrinter[]> {
   const daten = await transport<{ printers?: unknown[] }>('listMyPrinters', {});
-  return (Array.isArray(daten?.printers) ? daten.printers : []).map((r) => {
+  const liste = daten?.printers;
+  if (!Array.isArray(liste)) {
+    // Keine Liste ist etwas anderes als eine leere Liste: „noch kein Drucker“
+    // darf nicht aussehen wie „Antwort kaputt“.
+    throw new KasseneckValidationError('listMyPrinters', 'Antwort enthaelt keine Liste (data.printers fehlt)', 'response');
+  }
+  return liste.map((r) => {
     const d = (r ?? {}) as Record<string, unknown>;
     const e = d.lastResult && typeof d.lastResult === 'object' ? (d.lastResult as Record<string, unknown>) : null;
     return {
@@ -115,7 +135,7 @@ export async function createPrintJob(transport: InternerTransport, o: CreatePrin
   }
   if (o.brandMark === true) params.brand = true;
   const daten = await transport<{ jobId?: unknown; status?: unknown }>('createPrintJob', params);
-  return { jobId: String(daten?.jobId ?? ''), status: status(daten?.status), result: null };
+  return { jobId: jobKennung('createPrintJob', daten), status: status(daten?.status), result: null };
 }
 
 /**
@@ -127,7 +147,7 @@ export async function getPrintJob(transport: InternerTransport, o: { printerId: 
   const d = await transport<Record<string, unknown>>('getPrintJob', { printerId: o.printerId, jobId: o.jobId });
   const e = d?.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>) : null;
   return {
-    jobId: String(d?.jobId ?? o.jobId), status: status(d?.status),
+    jobId: jobKennung('getPrintJob', d), status: status(d?.status),
     createdAt: zahl(d?.createdAt), sentAt: zahl(d?.sentAt),
     result: e ? { success: e.success === true, code: text(e.code), status: text(e.status), at: zahl(e.at) ?? undefined } : null,
   };

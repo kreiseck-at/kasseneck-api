@@ -639,10 +639,17 @@ export interface SendReceiptEmailOptions {
 
 /** Was der Versand bestaetigt (Backend: beleg-mail-endpoints.js). */
 export interface SendReceiptEmailResult {
-  /** Adresse in der Form, in der das Backend sie protokolliert hat (getrimmt, klein). */
+  /**
+   * Adresse in der Form, in der das Backend sie protokolliert hat (getrimmt,
+   * klein). Nennt die Antwort keine, die gesendete (getrimmte) Adresse.
+   */
   to: string;
-  /** Zeitpunkt des Versands, ISO mit Wiener Zonenoffset (`2026-09-11T14:05:00+02:00`). */
-  at: string;
+  /**
+   * Zeitpunkt des Versands, ISO mit Wiener Zonenoffset
+   * (`2026-09-11T14:05:00+02:00`). `null`, wenn die Antwort keinen nennt: der
+   * Versand ist trotzdem bestaetigt.
+   */
+  at: string | null;
   /**
    * Versandweg: `own` (Postfach des Betriebs), `platform` oder
    * `platform_fallback` ([RECEIPT_EMAIL_VIAS]). `null`, wenn die Antwort ihn
@@ -705,14 +712,17 @@ export async function sendReceiptEmail(
   if (options.language !== undefined && options.language !== '') params.language = options.language;
 
   const daten = await transport<{ to?: unknown; at?: unknown; via?: unknown }>('sendReceiptEmail', params);
-  if (typeof daten?.to !== 'string' || daten.to === '') {
-    throw antwortfehler('sendReceiptEmail', 'Antwort nennt keine Empfaengeradresse (data.to fehlt)');
-  }
-  if (typeof daten.at !== 'string' || daten.at === '') {
-    throw antwortfehler('sendReceiptEmail', 'Antwort nennt keinen Zeitpunkt (data.at fehlt)');
-  }
-  const via = (RECEIPT_EMAIL_VIAS as readonly unknown[]).includes(daten.via) ? (daten.via as ReceiptEmailVia) : null;
-  return { to: daten.to, at: daten.at, via };
+  // Nachsichtig gelesen (wie der Dart-Zwilling): eine Erfolgsantwort heisst,
+  // die Mail ist schon verschickt. Ein Fehler wegen eines fehlenden
+  // Antwortfelds luede zum zweiten Versand ein; also zurueck, was da ist.
+  const gemeldet = daten?.to;
+  const zeit = daten?.at;
+  const via = (RECEIPT_EMAIL_VIAS as readonly unknown[]).includes(daten?.via) ? (daten!.via as ReceiptEmailVia) : null;
+  return {
+    to: typeof gemeldet === 'string' && gemeldet.trim() !== '' ? gemeldet : to,
+    at: typeof zeit === 'string' && zeit !== '' ? zeit : null,
+    via,
+  };
 }
 
 /**
