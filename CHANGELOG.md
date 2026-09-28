@@ -126,6 +126,27 @@ an upgrade as long as `/v1` is served.
   Reason: an app that read `'rejected'` could charge or refund a card twice;
   a silent resend below the package does the same without any error. Same
   change as in the Dart twin `kasseneck_api` (no `RetryClient`).
+- **Findings of the Dart twin (1.0.0-rc.3).** `listMyCashregisters` reads
+  the start receipt under `onboarding.start_receipt_created`/`_transmitted`
+  (`_at`) as `/v3` sends it; rc.1 and rc.2 read the internal
+  `startbeleg_*` names and reported every register as having no start
+  receipt (`CashregisterOnboardingPayload` changes accordingly). The fields
+  of `CashregisterOnboarding` are English now as well: `startbelegCreated`
+  is `startReceiptCreated`, `startbelegTransmitted` is
+  `startReceiptTransmitted`, `startbelegCreatedAt` is `startReceiptCreatedAt`,
+  `startbelegTransmittedAt` is `startReceiptTransmittedAt`; the German-name
+  guard no longer exempts `startbeleg`.
+  `sendReceiptEmail` reads its success reply leniently: without `to` it
+  returns the address you sent, without `at` it returns `at: null`
+  (`SendReceiptEmailResult.at` is `string | null`); throwing there would
+  invite a second email. `listMyPrinters` without `data.printers` and
+  `createPrintJob`/`getPrintJob` without `data.jobId` throw a
+  `KasseneckValidationError` (`scope: 'response'`) instead of returning an
+  empty list or an empty id: "no printer yet" must not look like a broken
+  reply, and a job without an id cannot be polled, so the cashier would print
+  again. `setMyRegisterDeviceSettings` takes `shortcuts` only as the whole map
+  of known actions (as `posSettingsChanges` produces it): the server checks
+  keys bound twice only within the map it receives.
 - **Strict validation before sending.** The 0.x payment fields
   (`paymentMethod`, `paymentMethodFromServer`, `creditCardProvider`,
   `cardPaymentId`, `cardPaymentData`) throw, also from plain JavaScript.
@@ -252,7 +273,7 @@ texts are English: `storno.ergebnis_unklar` is `cancellation.outcome_unknown`,
 `tax.intra_community_supply.title`. Every part is lower case with underscores,
 only country codes stay upper case (`country.AT`). Placeholders are English
 too: `{betrag}` is `{amount}`, `{grund}` is `{reason}`, `{sekunden}` is
-`{seconds}`, `{uid}` is `{vatId}`, and so on for 23 of 30 names; pass the
+`{seconds}`, `{uid}` is `{vatId}`, and so on for 25 of 30 names; pass the
 values under the new names (`messageText('checkout.locked', { reason })`). An
 old name throws as a missing value. `ERROR_RULES` entries use
 `kind`/`behavior`/`key` with the kinds `api`, `plain_text`, `timeout`,

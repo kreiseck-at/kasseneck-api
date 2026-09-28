@@ -615,9 +615,13 @@ const confirmation = await api.sendReceiptEmail({
   language: 'de',                        // optional; the backend currently only uses 'de'
 });
 confirmation.to;   // address as the backend logged it (trimmed, lower case)
-confirmation.at;   // time, ISO with Vienna offset
+confirmation.at;   // time, ISO with Vienna offset, or null
 confirmation.via;  // 'own' | 'platform' | 'platform_fallback' | null
 ```
+
+A success response means the email has gone out. If it lacks `to` or `at`,
+the call still succeeds: `to` falls back to the address you sent and `at` is
+`null`. Throwing there would invite sending the email a second time.
 
 The email contains a **link to the public receipt page**, not a PDF
 attachment: the receipt page uses the same line model as screen and printed

@@ -72,11 +72,11 @@ const KASSEN_ANTWORT = {
       token: null,
       onboarding: {
         cashbox_registered: true,
-        startbeleg_created: true,
-        startbeleg_transmitted: true,
+        start_receipt_created: true,
+        start_receipt_transmitted: true,
         cashbox_registered_at: '2026-01-05T09:05:00.000Z',
-        startbeleg_created_at: '2026-01-05T09:06:00.000Z',
-        startbeleg_transmitted_at: '2026-01-05T09:07:00.000Z',
+        start_receipt_created_at: '2026-01-05T09:06:00.000Z',
+        start_receipt_transmitted_at: '2026-01-05T09:07:00.000Z',
       },
     },
     {
@@ -88,11 +88,11 @@ const KASSEN_ANTWORT = {
       token: null,
       onboarding: {
         cashbox_registered: false,
-        startbeleg_created: false,
-        startbeleg_transmitted: false,
+        start_receipt_created: false,
+        start_receipt_transmitted: false,
         cashbox_registered_at: null,
-        startbeleg_created_at: null,
-        startbeleg_transmitted_at: null,
+        start_receipt_created_at: null,
+        start_receipt_transmitted_at: null,
       },
     },
   ],
@@ -195,7 +195,7 @@ test('listMyCashregisters: liest die Kassen samt Inbetriebnahme-Stand', async ()
   assert.equal(kassen[0]?.createTime?.toISOString(), '2026-01-05T09:00:00.000Z');
   assert.equal(kassen[0]?.signatureId, 'sig-42');
   assert.equal(kassen[0]?.token, undefined, 'fuer Kassen-Benutzer sendet das Backend null');
-  assert.equal(kassen[0]?.onboarding.startbelegTransmitted, true);
+  assert.equal(kassen[0]?.onboarding.startReceiptTransmitted, true);
 
   // Zweite Kasse: alles null — und daraus wird nichts erfunden.
   assert.equal(kassen[1]?.id, 'kasse-2');

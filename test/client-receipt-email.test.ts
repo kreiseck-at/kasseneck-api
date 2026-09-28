@@ -36,7 +36,8 @@ import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
  * - `language` immer gesendet (`?? 'de'`) -> 1, 2 und 3 rot.
  * - ohne Vorpruefung -> 5 rot (es ging eine Anfrage hinaus).
  * - Fehler des Transports umgehuellt statt durchgereicht -> 6, 6b und 8 rot.
- * - Antwort ungeprueft durchgereicht -> 7 und 7b rot.
+ * - `to`/`at` der Antwort ungeprueft durchgereicht -> 7 und 7b rot; ein
+ *   Wurf bei fehlendem `to`/`at` -> 7 rot (Befund rc.3).
  * - `send_failed` aus dem Katalog entfernt -> 9 rot.
  * - fehlt der Aufruf in ALL_CALLS, ist er schon ein Compilerfehler
  *   (InternerTransport kennt nur bekannte Namen); 9b haelt ihn zusaetzlich im
@@ -223,18 +224,16 @@ test('6b) ein fachlicher Fehler ohne Code bleibt ohne Code (Auth-/Parameterfehle
   );
 });
 
-test('7) eine Antwort ohne die zugesagten Felder ist ein Antwortfehler, kein halbes Ergebnis', async () => {
-  for (const daten of [{}, { at: '2026-09-11T14:05:00+02:00' }, { to: 'gast@example.at' }, { to: 42, at: 7 }]) {
+test('7) eine Erfolgsantwort ohne to/at ist kein Fehler: die Mail ist verschickt, zurueck kommt, was da ist', async () => {
+  // Ein Wurf luede zum zweiten Versand ein (und zaehlte auf die Schleuse).
+  for (const [daten, soll] of [
+    [{}, { to: 'gast@example.at', at: null, via: null }],
+    [{ at: '2026-09-11T14:05:00+02:00' }, { to: 'gast@example.at', at: '2026-09-11T14:05:00+02:00', via: null }],
+    [{ to: 'gast@example.at' }, { to: 'gast@example.at', at: null, via: null }],
+    [{ to: 42, at: 7 }, { to: 'gast@example.at', at: null, via: null }],
+  ] as const) {
     const { rufen } = apiSchluesselWeg(erfolg(daten));
-    await assert.rejects(
-      () => sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' }),
-      (fehler: unknown) => {
-        assert.ok(isKasseneckValidationError(fehler));
-        assert.equal(fehler.scope, 'response');
-        assert.equal(fehler.functionName, 'sendReceiptEmail');
-        return true;
-      },
-    );
+    assert.deepEqual(await sendReceiptEmail(rufen, { fullReceiptId: VOLL_ID, to: 'gast@example.at' }), soll);
   }
 });
 

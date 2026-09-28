@@ -24,7 +24,7 @@ import { deutschIn, teile } from './deutsch.js';
  * zurueckbringt, faellt sofort auf.
  *
  * Ausnahmen nur mit Grund (`AUSNAHMEN_*`). Feste Begriffe von BMF/RKSV
- * (`rksv`, `dep`, `zda`, `fon`, `startbeleg`, …) stehen gar nicht erst in
+ * (`rksv`, `dep`, `zda`, `fon`, …) stehen gar nicht erst in
  * der Sperrliste: sie sind Fachbegriffe, keine Uebersetzungsluecke.
  */
 

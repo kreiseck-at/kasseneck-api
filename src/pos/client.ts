@@ -59,7 +59,12 @@ export async function setMyPosSettings(transport: InternerTransport, business: P
   return mergePosSettings(POS_BUSINESS_DEFAULTS, objekt(daten?.business) as Partial<PosBusinessSettings> | null);
 }
 
-/** Geraete-Einstellungen schreiben (Recht `layout`); liefert den gemischten Stand. */
+/**
+ * Geraete-Einstellungen schreiben (Recht `layout`); liefert den gemischten
+ * Stand. `shortcuts` nur als ganze Karte aller bekannten Aktionen
+ * ([posSettingsChanges] liefert sie bei jeder Tastenaenderung), sonst wirft
+ * der Aufruf vor dem Senden.
+ */
 export async function setMyRegisterDeviceSettings(transport: InternerTransport, deviceId: string, device: Partial<PosDeviceSettings>): Promise<PosDeviceSettings> {
   const name = 'setMyRegisterDeviceSettings';
   if (typeof deviceId !== 'string' || deviceId.trim() === '') {
@@ -77,8 +82,15 @@ export async function setMyRegisterDeviceSettings(transport: InternerTransport, 
         throw new KasseneckValidationError(name, `device.shortcuts.${aktion}: unbekannte Aktion`, 'request');
       }
     }
-    // Doppelbelegung innerhalb der gesendeten Karte; posSettingsChanges sendet
-    // bei jeder Tastenaenderung die ganze Karte, so ist das die ganze Belegung.
+    // Nur die ganze Karte: der Server prueft Doppelbelegungen nur in der
+    // gesendeten Karte, eine halbe (`{cash: ['Mod+K']}`) liesse eine
+    // Doppelbelegung mit einer gespeicherten Taste durch. posSettingsChanges
+    // liefert bei jeder Tastenaenderung die ganze Karte.
+    const fehlt = POS_SHORTCUT_ACTIONS.filter((a) => karte[a] === undefined);
+    if (fehlt.length > 0) {
+      throw new KasseneckValidationError(name, `device.shortcuts: ganze Karte senden (posSettingsChanges), es fehlen ${fehlt.join(', ')}`, 'request');
+    }
+    // Doppelbelegung in der ganzen Karte, also in der ganzen Belegung.
     const konflikt = posShortcutConflict(karte as Record<string, readonly string[] | undefined>);
     if (konflikt) {
       throw new KasseneckValidationError(name, `device.shortcuts.${konflikt.action}: Taste ${konflikt.key} schon belegt (${konflikt.heldBy})`, 'request');

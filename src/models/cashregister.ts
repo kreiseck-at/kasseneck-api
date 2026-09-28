@@ -48,11 +48,11 @@ export interface Cashregister {
  */
 export interface CashregisterOnboarding {
   cashboxRegistered: boolean;
-  startbelegCreated: boolean;
-  startbelegTransmitted: boolean;
+  startReceiptCreated: boolean;
+  startReceiptTransmitted: boolean;
   cashboxRegisteredAt?: Date;
-  startbelegCreatedAt?: Date;
-  startbelegTransmittedAt?: Date;
+  startReceiptCreatedAt?: Date;
+  startReceiptTransmittedAt?: Date;
 }
 
 /** Nutzlast-Form, die dieses Paket liest — die Feldnamen von `listMyCashregisters`. */
@@ -66,13 +66,19 @@ export interface CashregisterPayload {
   onboarding?: CashregisterOnboardingPayload | null;
 }
 
+/**
+ * `onboarding` am Draht `/v3` (fixtures/v3/antworten/kasse.json): der
+ * Startbeleg heisst dort `start_receipt_*`. Die inneren Namen
+ * `startbeleg_*` sendet nur `/v1`; wer sie hier laese, meldete jede Kasse
+ * als „Startbeleg fehlt“.
+ */
 export interface CashregisterOnboardingPayload {
   cashbox_registered?: boolean | null;
-  startbeleg_created?: boolean | null;
-  startbeleg_transmitted?: boolean | null;
+  start_receipt_created?: boolean | null;
+  start_receipt_transmitted?: boolean | null;
   cashbox_registered_at?: string | null;
-  startbeleg_created_at?: string | null;
-  startbeleg_transmitted_at?: string | null;
+  start_receipt_created_at?: string | null;
+  start_receipt_transmitted_at?: string | null;
 }
 
 /**
@@ -91,11 +97,11 @@ export function fromCashregisterPayload(payload: CashregisterPayload, id: string
     ...(payload.signature_id ? { signatureId: payload.signature_id } : {}),
     onboarding: {
       cashboxRegistered: ob.cashbox_registered === true,
-      startbelegCreated: ob.startbeleg_created === true,
-      startbelegTransmitted: ob.startbeleg_transmitted === true,
+      startReceiptCreated: ob.start_receipt_created === true,
+      startReceiptTransmitted: ob.start_receipt_transmitted === true,
       ...zeitfeld('cashboxRegisteredAt', ob.cashbox_registered_at),
-      ...zeitfeld('startbelegCreatedAt', ob.startbeleg_created_at),
-      ...zeitfeld('startbelegTransmittedAt', ob.startbeleg_transmitted_at),
+      ...zeitfeld('startReceiptCreatedAt', ob.start_receipt_created_at),
+      ...zeitfeld('startReceiptTransmittedAt', ob.start_receipt_transmitted_at),
     },
   };
 }
