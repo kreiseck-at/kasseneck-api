@@ -13,6 +13,7 @@ import {
   sendReceiptEmail,
   listMyReceipts,
   paymentsExpectedCents,
+  cardRefundReference,
   type SellReceiptOptions,
   type TipOptions,
 } from '../src/client/receipts.js';
@@ -37,6 +38,7 @@ import {
 } from '../src/models/index.js';
 import { KeckPaymentMethod } from '../src/enums/index.js';
 import { receiptDueCents } from '../src/receipt/due.js';
+import { getReportV2 } from '../src/client/reports.js';
 import * as wurzel from '../src/index.js';
 
 /*
@@ -194,8 +196,9 @@ test('Zahlbetrag-Zwilling: jede angenommene Zahlungsliste ist genau receiptDueCe
     if (fall.params.receiptType !== 'standard') continue;
     const o = verkaufAus(fall.params);
     const summe = o.payments.reduce((s, z) => s + z.amountCents, 0);
-    const tip = o.tip == null ? undefined : typeof o.tip === 'number' ? o.tip : { cents: o.tip.cents };
-    assert.equal(receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip }), summe, fall.name);
+    const tip = o.tip == null ? undefined : typeof o.tip === 'number' ? o.tip : o.tip.cents;
+    // Die Vertragswelt verkauft ueber einen Geraete-Schluessel: Personal-Trinkgeld.
+    assert.equal(receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip, payments: o.payments, tipRecipient: 'staff' }), summe, fall.name);
   }
 });
 
@@ -226,6 +229,8 @@ test('payments_required und payment_method_not_supported: das Paket sendet so et
     const roh = { items: verkaufAus({ ...fall.params, payments: [] }).items, ...(fall.params.paymentMethod ? { paymentMethod: fall.params.paymentMethod } : {}) };
     const fehler = await fehlerVon(sellReceipt(rufen, roh as unknown as SellReceiptOptions));
     assert.ok(isKasseneckValidationError(fehler), name);
+    // Der Grund, nicht nur die Fehlerart: payments fehlt bzw. paymentMethod gibt es nicht mehr.
+    assert.match(fehler.reason, name === 'error_payments_required' ? /^payments fehlt/ : /^paymentMethod gibt es unter \/v3 nicht mehr/, name);
     assert.equal(aufrufe.length, 0, name);
   }
 });
@@ -427,9 +432,11 @@ for (const fall of BELEGMAIL) {
     const { rufen, aufrufe, kasse } = wegFuer(fall);
     const p = fall.params;
     if (fall.name === 'error_german_parameter') {
-      // `sprache` ist kein Feld mehr; ein Aufrufer ohne Typen schickt es trotzdem nicht.
-      await sendReceiptEmail(rufen, { fullReceiptId: p.fullReceiptId, to: p.to, sprache: 'de' } as never).catch(() => undefined);
-      assert.equal('sprache' in gesendet(aufrufe, fall, kasse), false);
+      // `sprache` ist kein Feld mehr: ein Aufrufer ohne Typen bekommt einen Fehler, nichts geht hinaus.
+      const fehler = await fehlerVon(sendReceiptEmail(rufen, { fullReceiptId: p.fullReceiptId, to: p.to, sprache: 'de' } as never));
+      assert.ok(isKasseneckValidationError(fehler));
+      assert.match(fehler.reason, /sprache/);
+      assert.equal(aufrufe.length, 0);
       return;
     }
     const aufruf = sendReceiptEmail(rufen, { fullReceiptId: p.fullReceiptId, to: p.to, ...(p.language ? { language: p.language } : {}) });
@@ -490,4 +497,102 @@ test('jeder Code in den Antworten ist in einem Katalog des Pakets', () => {
     const code = fall.response.code;
     if (code != null && code !== 'validation') assert.ok(alle.has(code), `${fall.name}: ${code}`);
   }
+});
+
+// --- Server-Layout (englische Form, nur durchgereicht) -------------------------------
+
+test('ReceiptWithCompany.layout traegt die /v3-Form: ruleset und tone', async () => {
+  const fall = BELEGE.find((f) => f.name === 'sale_card_with_tip')!;
+  const { rufen } = wegFuer(fall);
+  const { layout } = await sellReceiptWithCompany(rufen, verkaufAus(fall.params));
+  assert.ok(layout != null);
+  assert.equal(layout.ruleset, fall.response.data.layout.ruleset);
+  assert.equal('regelwerk' in layout, false);
+  const banner = layout.lines.find((z) => z.kind === 'banner');
+  assert.ok(banner != null && banner.kind === 'banner');
+  assert.equal(banner.tone, 'warning');
+  assert.deepEqual(layout, fall.response.data.layout);
+  const toene = Object.values(VOKABULAR.catalogs.LAYOUT_TON);
+  for (const z of layout.lines) if (z.kind === 'banner') assert.ok(toene.includes(z.tone), z.tone);
+});
+
+// --- Karten-Storno: Kennung der Originalzahlung ---------------------------------------
+
+test('cardRefundReference: Kassenweg liefert die Kennung, der oeffentliche Weg wirft', async () => {
+  const lesen = (liste: Fall[]) => liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!;
+  const kasse = wegFuer(lesen(KASSE_BELEGE));
+  assert.equal(cardRefundReference(await getReceipt(kasse.rufen, 'KECK-1-ID-2'), 'p1'), 'tx-4711');
+  const oeffentlich = wegFuer(lesen(BELEGE));
+  const ohne = await getReceipt(oeffentlich.rufen, 'KECK-1-ID-2');
+  assert.throws(() => cardRefundReference(ohne, 'p1'), (e: unknown) => isKasseneckValidationError(e) && /Kassenweg/.test(e.reason));
+  assert.throws(() => cardRefundReference(ohne, 'p9'), (e: unknown) => isKasseneckValidationError(e) && /p9/.test(e.reason));
+});
+
+test('Karten-Storno mit dem Beleg vom oeffentlichen Weg: Fehler vor dem Senden, im Kassenweg geht er hinaus', async () => {
+  const storno = (kanal: string) => STORNO.find((f) => f.channel === kanal && f.name === 'cancel_full_card_refund')!;
+  const zahlung = { method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'sumup' as const, providerPaymentId: 'rf-1', providerData: { refund: 'ok' } };
+  for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) {
+    const original = await getReceipt(wegFuer(liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!).rufen, 'KECK-1-ID-2');
+    const weg = wegFuer(storno(kanal));
+    const aufruf = cancelReceipt(weg.rufen, { receipt: original, reason: 'input_error', payments: [zahlung] });
+    if (kanal === 'api') {
+      const fehler = await fehlerVon(aufruf);
+      assert.ok(isKasseneckValidationError(fehler));
+      assert.match(fehler.reason, /Kassenweg/);
+      assert.equal(weg.aufrufe.length, 0);
+    } else {
+      await aufruf;
+      assert.deepEqual(gesendet(weg.aufrufe, storno(kanal), weg.kasse), storno(kanal).params);
+    }
+  }
+  // Die Erstattung selbst braucht ihre Terminal-Kennung (ausser beim eigenen Terminal, custom).
+  const weg = wegFuer(storno('api'));
+  const ohneKennung = await fehlerVon(cancelReceipt(weg.rufen, { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2', reason: 'input_error', payments: [{ ...zahlung, providerPaymentId: undefined }] }));
+  assert.ok(isKasseneckValidationError(ohneKennung));
+  assert.match(ohneKennung.reason, /providerPaymentId/);
+  assert.equal(weg.aufrufe.length, 0);
+});
+
+// --- getReportV2 --------------------------------------------------------------------
+
+test('getReportV2: Zeitraum hinaus, Belege und Firmendaten englisch zurueck', async () => {
+  const fall = BELEGE.find((f) => f.name === 'report')!;
+  const { rufen, aufrufe, kasse } = wegFuer(fall);
+  const bericht = await getReportV2(rufen, { start: fall.params.start, end: fall.params.end });
+  assert.deepEqual(gesendet(aufrufe, fall, kasse), fall.params);
+  const daten = fall.response.data;
+  assert.equal(bericht.receipts.length, daten.receipts.length);
+  bericht.receipts.forEach((b, i) => {
+    const roh = daten.receipts[i];
+    assert.equal(b.receiptId, roh.receiptId);
+    assert.equal(b.headerVersionId, roh.headerVersionId);
+    assert.equal(b.layoutRuleset, roh.layoutRuleset);
+    assert.deepEqual(b.registrationInfo ?? null, roh.registrationInfo ?? null);
+    assert.equal(b.cancellationReason, roh.cancellationReason ?? undefined);
+    if (roh.cancellationReason != null) assert.ok(Object.values(VOKABULAR.catalogs.STORNO_GRUND).includes(roh.cancellationReason));
+    roh.items.forEach((p: Json, j: number) => assert.equal(b.items[j]!.receivedImmediately, p.kind === 'tip' ? p.receivedImmediately : undefined));
+  });
+  const m = daten.metadata;
+  assert.equal(bericht.metadata.label, m.label);
+  assert.equal(bericht.metadata.taxNumber, m.taxNumber);
+  assert.equal(bericht.metadata.vatId, m.vatId);
+  assert.equal(bericht.metadata.companyName, m.company);
+  // Das Vokabular benennt genau diese Felder um; kein deutscher Name bleibt.
+  const umbenannt = Object.keys(VOKABULAR.schemas.getReportV2.data.metadata).filter((k) => k !== '__');
+  assert.deepEqual(umbenannt.sort(), ['taxNumber', 'vatId']);
+  for (const k of umbenannt) assert.ok(k in m, k);
+  assert.ok(bericht.receipts.some((b) => b.items.some((p) => p.receivedImmediately !== undefined)));
+});
+
+test('getReportV2: unbrauchbarer Zeitraum geht nicht hinaus, unbrauchbare Antwort ist ein Antwortfehler', async () => {
+  const fall = BELEGE.find((f) => f.name === 'report')!;
+  for (const o of [{ start: 'gestern', end: '2026-09-30' }, { start: '2026-09-30', end: '2026-09-01' }]) {
+    const { rufen, aufrufe } = wegFuer(fall);
+    assert.ok(isKasseneckValidationError(await fehlerVon(getReportV2(rufen, o))));
+    assert.equal(aufrufe.length, 0);
+  }
+  const kaputt: Fall = { ...fall, response: { status: 'success', message: '', data: { receipts: [] } } };
+  const fehler = await fehlerVon(getReportV2(wegFuer(kaputt).rufen, { start: '2026-09-01', end: '2026-09-30' }));
+  assert.ok(isKasseneckValidationError(fehler));
+  assert.equal(fehler.scope, 'response');
 });

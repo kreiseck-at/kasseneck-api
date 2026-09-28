@@ -197,7 +197,12 @@ test('fromReceiptSummaryPayload ohne die neuen Felder bleibt wie bisher', () => 
   const s = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash' });
   assert.deepEqual(s.items, []);
   assert.equal(s.operator, undefined);
-  assert.equal(s.cancellationStatus, 'none');
+  assert.equal(s.cancellationStatus, undefined);
+  // Ein unbekannter oder alter Wert kommt sichtbar an, nie still als 'none'.
+  for (const roh of ['voll', 'refunded']) {
+    const u = fromReceiptSummaryPayload({ receiptId: 'r', receiptType: 'standard', timeStamp: 't', total: 1, paymentMethod: 'cash', cancellationStatus: roh });
+    assert.equal(u.cancellationStatus, 'unknown', roh);
+  }
 });
 
 test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit Fragen; g/ml ganz mit Fragen), gespeicherte Angabe schlaegt', () => {

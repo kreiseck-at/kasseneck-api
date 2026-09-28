@@ -38,7 +38,8 @@ import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckValidationError, isKasseneckApiError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
-import type { ReceiptLayout } from '../receipt/layout.js';
+import type { LayoutLine, LayoutBannerLine, LayoutRegelwerk } from '../receipt/layout.js';
+import type { PosPaperSize } from '../printing/escpos.js';
 import type { LogoStufe } from '../receipt/blatt.js';
 
 /**
@@ -179,6 +180,28 @@ export interface CancelReceiptResult {
   remaining: number[];
 }
 
+/** Hervorgehobene Zeile im Server-Layout unter `/v3` (Katalog `LAYOUT_TON`). */
+export interface ServerLayoutBannerLine {
+  kind: 'banner';
+  text: string;
+  /** `warning` fuer Testkasse/Testsignatur (kein gueltiger Beleg), sonst `receipt_type`. */
+  tone: 'receipt_type' | 'warning';
+}
+
+/** Zeile des Server-Layouts: wie [LayoutLine], das Banner mit englischem `tone`. */
+export type ServerLayoutLine = Exclude<LayoutLine, LayoutBannerLine> | ServerLayoutBannerLine;
+
+/**
+ * Zeilenmodell, wie der Server es unter `/v3` in `data.layout` liefert
+ * (`ruleset`, `lines[].tone`). Es wird unveraendert durchgereicht; das
+ * Zeichnen aus dieser Form kommt mit der Layout-Umstellung (Aufgabe 4).
+ */
+export interface ServerReceiptLayout {
+  lines: ServerLayoutLine[];
+  paperSize: PosPaperSize;
+  ruleset: LayoutRegelwerk;
+}
+
 /**
  * Beleg **und** die Firmen-/Druckdaten derselben Antwort — das Ergebnis der
  * `…WithCompany`-Varianten. Das Backend liefert beides in einem Aufruf
@@ -196,7 +219,7 @@ export interface ReceiptWithCompany {
   /** Kennung der Kopf-Version; null bei Altbeleg ohne Zuordnung. */
   headerVersionId: string | null;
   /** Vom Backend gebautes Zeilenmodell (Regelwerk des Belegs); null, wenn nicht mitgeliefert. */
-  layout: ReceiptLayout | null;
+  layout: ServerReceiptLayout | null;
   /**
    * Registrierdaten fuer den Block „Prüfangaben“ (Nullbelege, Regelwerk 2),
    * fuer Clients, die das Layout selbst bauen; null bei anderen Belegen.
@@ -366,6 +389,7 @@ export async function cancelReceipt(rufen: InternerTransport, options: CancelRec
   }
   // `payments: null` gilt wie im Backend als nicht angegeben.
   const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt') : undefined;
+  if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
   if (options.note !== undefined && options.note !== '') params.note = options.note;
@@ -631,6 +655,8 @@ export interface SendReceiptEmailResult {
  * **Kein Wiederholen ohne Zutun des Bedieners:** ein zweiter Versuch schickt
  * eine zweite Mail und zaehlt auf die Schleuse.
  */
+const MAIL_FELDER: readonly string[] = ['fullReceiptId', 'to', 'language'];
+
 export async function sendReceiptEmail(
   rufen: InternerTransport,
   options: SendReceiptEmailOptions,
@@ -638,6 +664,12 @@ export async function sendReceiptEmail(
   // Getrimmt, weil beides von Hand oder per Scanner ins Feld kommt und ein
   // angehaengtes Leerzeichen sonst als ungueltige Adresse zurueckkaeme --
   // nach einem Aufruf, der schon eine Zeile im Protokoll gekostet hat.
+  // Ein unbekanntes Feld (etwa das alte `sprache`) ginge sonst still verloren,
+  // und die Mail kaeme in der falschen Sprache.
+  const fremd = Object.keys(options ?? {}).find((k) => !MAIL_FELDER.includes(k));
+  if (fremd != null) {
+    throw new KasseneckValidationError('sendReceiptEmail', `unbekanntes Feld "${fremd}"`, 'request');
+  }
   const fullReceiptId = typeof options.fullReceiptId === 'string' ? options.fullReceiptId.trim() : '';
   const to = typeof options.to === 'string' ? options.to.trim() : '';
   if (fullReceiptId === '') {
@@ -886,6 +918,54 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string)
   });
 }
 
+/** Zahlarten mit Kartenterminal (Backend: KARTEN_ZAHLARTEN). */
+const KARTEN_ZAHLARTEN = new Set(['creditCard', 'uberCard', 'boltCard']);
+
+/**
+ * Kennung der Originalzahlung fuer die Rueckbuchung am Terminal (Hobex
+ * `originalTransactionId`, SumUp-Transaktion, ...): `providerPaymentId` der
+ * Zahlung `paymentId` des Originals. Die liefert nur der Kassenweg (Kanal
+ * `app`, `registerUserAuth`); am oeffentlichen Weg fehlt sie, und dann wirft
+ * dieser Aufruf, statt `undefined` an ein Terminal weiterzugeben.
+ */
+export function cardRefundReference(receipt: Receipt, paymentId: string): string {
+  const zahlung = receipt.payments?.find((z) => z.id === paymentId);
+  if (zahlung == null) {
+    throw new KasseneckValidationError('cancelReceipt', `Zahlung "${paymentId}" gibt es am Beleg nicht`, 'request');
+  }
+  const methode = typeof zahlung.method === 'object' ? zahlung.method.value : zahlung.method;
+  if (!KARTEN_ZAHLARTEN.has(methode)) {
+    throw new KasseneckValidationError('cancelReceipt', `Zahlung "${paymentId}" ist keine Kartenzahlung`, 'request');
+  }
+  if (typeof zahlung.providerPaymentId !== 'string' || zahlung.providerPaymentId === '') {
+    throw new KasseneckValidationError(
+      'cancelReceipt',
+      `Kennung der Kartenzahlung "${paymentId}" fehlt: sie kommt nur ueber den Kassenweg (registerUserAuth, kasse.kasseneck.at/api/v3), nicht ueber den oeffentlichen Weg`,
+      'request',
+    );
+  }
+  return zahlung.providerPaymentId;
+}
+
+/**
+ * Karten-Rueckbuchung am Storno: eine Erstattung ueber einen Anbieter (nicht
+ * `custom`) traegt ihre eigene Terminal-Kennung, und liegt das Original vor,
+ * muss die erstattete Kartenzahlung dort ihre Kennung haben (sonst konnte das
+ * Terminal nicht mit Bezug erstatten). Wirft vor dem Senden.
+ */
+function pruefeKartenRueckbuchung(zahlungen: Record<string, unknown>[], original: Receipt | undefined): void {
+  zahlungen.forEach((z, i) => {
+    if (!KARTEN_ZAHLARTEN.has(String(z['method']))) return;
+    const anbieter = z['provider'];
+    if (anbieter != null && anbieter !== CreditCardProvider.custom && z['providerPaymentId'] == null) {
+      throw new KasseneckValidationError('cancelReceipt', `Zahlung ${i + 1}: Karten-Rueckbuchung ohne providerPaymentId (Kennung der Erstattung am Terminal)`, 'request');
+    }
+    if (original == null || typeof z['refundOf'] !== 'string') return;
+    const orig = original.payments?.find((o) => o.id === z['refundOf']);
+    if (orig != null && orig.provider != null && orig.provider !== CreditCardProvider.custom) cardRefundReference(original, z['refundOf']);
+  });
+}
+
 /** Kartenanbieter pruefen — er stammt vom Aufrufer, nicht aus Serverdaten. */
 function kartenanbieter(wert: string): string {
   if (!Object.prototype.hasOwnProperty.call(CreditCardProvider, wert)) {
@@ -952,7 +1032,7 @@ function belegMitFirmaAusHuelle(daten: unknown, functionName: string): ReceiptWi
     registrationInfo?: unknown;
     logo_scale?: unknown;
   };
-  const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
+  const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ServerReceiptLayout) : null;
   const angaben = d.registrationInfo && typeof d.registrationInfo === 'object' ? readRegistrationInfo(d.registrationInfo as Record<string, unknown>) : null;
   return {
     receipt,

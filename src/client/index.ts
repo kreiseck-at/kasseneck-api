@@ -60,6 +60,10 @@ export {
   sellReceipt,
   sellReceiptWithCompany,
   paymentsExpectedCents,
+  cardRefundReference,
+  type ServerReceiptLayout,
+  type ServerLayoutLine,
+  type ServerLayoutBannerLine,
   cancelReceipt,
   type CancelReceiptResult,
   zeroReceipt,
@@ -79,7 +83,7 @@ export {
 
 export { listMyCashregisters } from './cashregisters.js';
 
-export { downloadDailyReport, downloadMonthlyReport } from './reports.js';
+export { downloadDailyReport, downloadMonthlyReport, getReportV2, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 
 export {
   type CashboxStatus,

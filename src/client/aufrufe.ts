@@ -46,6 +46,7 @@ export const AUFRUFE = [
   'getPartnerInfo',
   'getPrintJob',
   'getReceipt',
+  'getReportV2',
   'hobexPayApi',
   'hobexRefundApi',
   'issueInvoice',

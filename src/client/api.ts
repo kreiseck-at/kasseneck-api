@@ -7,7 +7,7 @@ import {
 } from '../payments/stripe.js';
 import { hobexPay, hobexRefund, type HobexPayOptions, type HobexRefundOptions } from '../payments/hobex.js';
 import { createTransport, createBinaryTransport, type TransportOptions } from './transport.js';
-import { downloadDailyReport, downloadMonthlyReport } from './reports.js';
+import { downloadDailyReport, downloadMonthlyReport, getReportV2, type ReportV2, type ReportV2Options } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
 import {
   sellReceipt,
@@ -80,6 +80,8 @@ export interface KasseneckApi {
   /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
   listMyCashregisters(): Promise<Cashregister[]>;
   /** Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
+  /** Rohdaten eines Zeitraums: Belege und Firmendaten (`getReportV2`). */
+  getReportV2(options: ReportV2Options): Promise<ReportV2>;
   downloadDailyReport(date: Date): Promise<Uint8Array>;
   /** Monatsbericht als PDF (Endpunkt `downloadReport`). */
   downloadMonthlyReport(reportMonth: ReportMonth): Promise<Uint8Array>;
@@ -118,6 +120,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     listMyReceipts: (o) => listMyReceipts(rufen, o),
     sendReceiptEmail: (o) => sendReceiptEmail(rufen, o),
     listMyCashregisters: () => listMyCashregisters(rufen),
+    getReportV2: (o) => getReportV2(rufen, o),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
     getCashboxStatus: () => getCashboxStatus(rufen),

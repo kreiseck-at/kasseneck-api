@@ -81,8 +81,9 @@ const items = [
 // With its own payment method or recipients: { cents, paymentMethod, recipients }.
 const tip = 100;
 
-// The payments must add up to exactly this amount (whole cents).
-const dueCents = receiptDueCents(items, [], 'standard', { tip }); // 1130
+// The payments must add up to exactly this amount (whole cents). Who gets a
+// tip without recipients is the logged-in register user: 'owner' or 'staff'.
+const dueCents = receiptDueCents(items, [], 'standard', { tip, tipRecipient: 'staff' }); // 1130
 
 // Sell, and get the company data for the receipt header in the same call.
 const { receipt, company, testCashregister, testSignature } = await api.sellReceiptWithCompany({

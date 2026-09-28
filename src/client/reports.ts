@@ -1,7 +1,15 @@
-import type { ReportMonth } from '../models/index.js';
+import {
+  type Receipt,
+  type ReceiptCompany,
+  type ReceiptCompanyPayload,
+  type ReceiptPayloadRead,
+  type ReportMonth,
+  fromReceiptCompanyPayload,
+  fromReceiptPayload,
+} from '../models/index.js';
 import { toViennaWallClock } from '../vienna-time.js';
 import { KasseneckValidationError } from './errors.js';
-import type { InternerBinaerTransport } from './aufrufe.js';
+import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
 
 /**
  * Bericht-Downloads — Zwilling von `downloadDailyReport`/`downloadMonthlyReport`
@@ -69,6 +77,56 @@ export async function downloadMonthlyReport(
     throw eingabefehler('downloadReport', `Berichtsmonat: year muss eine ganze Zahl sein, war "${year}"`);
   }
   return rufen('downloadReport', { month, year });
+}
+
+/** Zeitfenster von [getReportV2]: Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel, `end` ausschliesslich. */
+export interface ReportV2Options {
+  start: string;
+  end: string;
+}
+
+/** Firmendaten des Berichts: die Beleg-Firmendaten plus die Bezeichnung der Kasse. */
+export interface ReportV2Metadata extends ReceiptCompany {
+  /** Bezeichnung der Kasse; leer, wenn keine gepflegt ist. */
+  label: string;
+}
+
+export interface ReportV2 {
+  /** Alle Belege der angemeldeten Kasse mit `start <= timeStamp < end`. */
+  receipts: Receipt[];
+  metadata: ReportV2Metadata;
+}
+
+/**
+ * Rohdaten eines Zeitraums (`getReportV2`): alle Belege der Kasse und die
+ * Firmendaten fuer Kopf und Fuss. Der Server vergleicht die Zeitstempel als
+ * Text (`start <= timeStamp < end`), darum Wiener Wanduhr im Serverformat.
+ * Nur ueber den API-Schluessel-Weg (Kasse aus dem `cashregister-token`).
+ */
+export async function getReportV2(rufen: InternerTransport, options: ReportV2Options): Promise<ReportV2> {
+  for (const feld of ['start', 'end'] as const) {
+    const wert = options?.[feld];
+    if (typeof wert !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(wert)) {
+      throw eingabefehler('getReportV2', `${feld} muss mit YYYY-MM-DD beginnen, war "${String(wert)}"`);
+    }
+  }
+  if (options.start >= options.end) {
+    throw eingabefehler('getReportV2', 'end muss nach start liegen (end ist ausschliesslich)');
+  }
+  const daten = await rufen<{ receipts?: unknown; metadata?: unknown }>('getReportV2', { start: options.start, end: options.end });
+  const liste = daten?.receipts;
+  if (!Array.isArray(liste) || liste.some((b) => b == null || typeof b !== 'object' || Array.isArray(b))) {
+    throw new KasseneckValidationError('getReportV2', 'Antwort enthaelt keine Belegliste (data.receipts fehlt)', 'response');
+  }
+  const meta = daten.metadata;
+  if (meta == null || typeof meta !== 'object' || Array.isArray(meta)) {
+    throw new KasseneckValidationError('getReportV2', 'Antwort enthaelt keine Firmendaten (data.metadata fehlt)', 'response');
+  }
+  const label = (meta as { label?: unknown }).label;
+  return {
+    receipts: liste.map((b) => fromReceiptPayload(b as ReceiptPayloadRead)),
+    metadata: { ...fromReceiptCompanyPayload(meta as ReceiptCompanyPayload), label: typeof label === 'string' ? label : '' },
+  };
 }
 
 /** Fehler in der Eingabe des Aufrufers — es geht keine Anfrage raus. */

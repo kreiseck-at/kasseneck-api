@@ -70,6 +70,7 @@ export { type MarkeRasterDaten, MARKE_RASTER, MARKE_PFADE } from './marke-daten.
 export { markeBild } from './marke.js';
 export {
   type ReceiptDueTip,
+  type ReceiptDueTipRecipient,
   type ReceiptDueOptions,
   type ReceiptDueBuckets,
   type ReceiptDueBreakdown,

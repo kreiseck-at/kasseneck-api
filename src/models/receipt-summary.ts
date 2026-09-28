@@ -1,7 +1,7 @@
 import { KeckPaymentMethod, ReceiptType } from '../enums/index.js';
 import { euroToCents } from '../money.js';
 import { readEnumKey } from './enum-payload.js';
-import type { CancellationStatus } from './cancellation.js';
+import { type CancellationStatus, CANCELLATION_STATUSES } from './cancellation.js';
 import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload } from './receipt-payment.js';
 
 /**
@@ -58,8 +58,13 @@ export interface ReceiptSummary {
   /** Nur am Storno-Beleg: das Original. */
   cancellationOf?: { receiptId: string | null; timeStamp?: string };
   cancellationReason?: string;
-  /** Storno-Stand des Originals: `none`, `partial` oder `full`. */
-  cancellationStatus: CancellationStatus;
+  /**
+   * Storno-Stand des Originals: `none`, `partial` oder `full`. Ein Wert, den
+   * dieses Paket nicht kennt, kommt sichtbar als `'unknown'` an, nie still als
+   * `none`: die Kasse bietet dann keinen Storno an, bis sie den Beleg einzeln
+   * liest. Fehlt das Feld in der Antwort, fehlt es auch hier.
+   */
+  cancellationStatus?: CancellationStatus | 'unknown';
   /** Nur am Nullbeleg, nur fuer Kassen-Benutzer: Anlass (monthly, annual, annual_replacement, outage_end, final, manual). */
   zeroKind?: ZeroKind;
   /**
@@ -111,8 +116,14 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
       ...(typeof payload.cancellationOf.timeStamp === 'string' && payload.cancellationOf.timeStamp ? { timeStamp: payload.cancellationOf.timeStamp } : {}),
     } } : {}),
     ...(payload.cancellationReason ? { cancellationReason: payload.cancellationReason } : {}),
-    cancellationStatus: payload.cancellationStatus === 'partial' || payload.cancellationStatus === 'full' ? payload.cancellationStatus : 'none',
+    ...(payload.cancellationStatus == null
+      ? {}
+      : { cancellationStatus: isCancellationStatus(payload.cancellationStatus) ? payload.cancellationStatus : ('unknown' as const) }),
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
   };
+}
+
+function isCancellationStatus(wert: unknown): wert is CancellationStatus {
+  return typeof wert === 'string' && (CANCELLATION_STATUSES as readonly string[]).includes(wert);
 }
