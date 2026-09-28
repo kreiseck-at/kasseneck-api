@@ -579,7 +579,6 @@ test('Aufrufer-Pruefungen werfen KasseneckValidationError, nicht nacktes Error',
 test('unbrauchbare Antwortformen werfen KasseneckValidationError mit scope response', async () => {
   const faelle: Array<{ daten: unknown; aufruf: (r: KasseneckTransport) => Promise<unknown>; name: string }> = [
     { daten: { uid: 'ATU1' }, aufruf: (r) => getReceipt(r, 'r-1'), name: 'getReceipt' },
-    { daten: { uid: 'ATU1' }, aufruf: (r) => sellReceipt(r, { payments: BAR, items: [KAFFEE] }), name: 'createReceipt' },
     { daten: {}, aufruf: (r) => generateFullReceiptId(r, 'r-1'), name: 'generateFullReceiptId' },
     { daten: { nichts: true }, aufruf: (r) => getFirstReceiptDate(r), name: 'getFirstReceiptDate' },
   ];
@@ -594,6 +593,14 @@ test('unbrauchbare Antwortformen werfen KasseneckValidationError mit scope respo
     assert.equal(fehler.scope, 'response');
     assert.equal(fehler.functionName, fall.name);
   }
+  // Ein signierender Aufruf dagegen: Erfolg gemeldet heisst, der Beleg kann
+  // signiert sein. Die unbrauchbare Antwort ist darum ein Ausgang-unklar-Fehler.
+  const { rufen } = apiSchluesselWeg({ uid: 'ATU1' });
+  const signiert = await sellReceipt(rufen, { payments: BAR, items: [KAFFEE] }).then(() => null, (e: unknown) => e);
+  assert.ok(isKasseneckApiError(signiert), String(signiert));
+  assert.equal(signiert.code, 'response_unreadable');
+  assert.equal(signiert.outcome, 'unknown');
+  assert.equal(signiert.functionName, 'createReceipt');
 });
 
 test('kein Geheimnis wandert in einen Fehler der Beleg-Endpunkte', async () => {

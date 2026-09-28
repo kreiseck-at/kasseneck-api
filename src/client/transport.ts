@@ -9,6 +9,7 @@ import {
   KasseneckValidationError,
   causeDigest,
   fehlerDetails,
+  type ErrorOutcome,
 } from './errors.js';
 
 /**
@@ -231,6 +232,12 @@ type Auswertung<R, T> = (
    * einem gesendeten Geheimnis ueberlappt, ueberlebt das Sieb nicht.
    */
   geheimnisse: readonly string[],
+  /**
+   * Ausgang, wenn der Rumpf trotz HTTP 200 und Kennzeichen unlesbar ist
+   * (leer, kein JSON, ohne Statusfeld). Bei einem signierenden Aufruf kann
+   * der Handler gelaufen sein: dann `'unknown'`.
+   */
+  unlesbar: ErrorOutcome,
 ) => T;
 
 export function createTransport(options: TransportOptions): KasseneckTransport {
@@ -432,7 +439,11 @@ function createCore(options: TransportOptions) {
         throw netzfehler(ursache);
       }
 
-      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse);
+      // Ab hier kam HTTP 200 mit Kennzeichen: der `/v3`-Rand hat den Aufruf
+      // gesehen. Ist der Rumpf dann unlesbar (gekuerzt von einem Proxy,
+      // abgebrochene Verbindung), kann ein signierender Handler gelaufen sein.
+      const unlesbar: ErrorOutcome = SIGNIERENDE_AUFRUFE.has(functionName) ? 'unknown' : 'rejected';
+      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse, unlesbar);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);
@@ -566,9 +577,10 @@ function jsonAuswerten<T>(
   statusCode: number,
   inhaltstyp: string | undefined,
   geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
 ): T {
   if (!text.trim()) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body', unlesbar);
   }
   let roh: unknown;
   try {
@@ -576,11 +588,11 @@ function jsonAuswerten<T>(
   } catch {
     // Typischer Fall: der Aufruf landete mangels Rewrite auf der HTML-Seite
     // der Single-Page-App — HTTP 200, aber kein JSON.
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json', unlesbar);
   }
   const huelle = alsHuelle(roh);
   if (huelle === null) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status', unlesbar);
   }
   if (huelle.status === 'success') {
     return huelle.data as T;
@@ -609,9 +621,10 @@ function pdfAuswerten(
   statusCode: number,
   inhaltstyp: string | undefined,
   geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
 ): Uint8Array {
   if (bytes.length === 0) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'empty-body', unlesbar);
   }
   if (istPdf(bytes)) {
     return bytes;
@@ -626,11 +639,11 @@ function pdfAuswerten(
   try {
     roh = JSON.parse(new TextDecoder('utf-8').decode(bytes));
   } catch {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'not-json', unlesbar);
   }
   const huelle = alsHuelle(roh);
   if (huelle === null) {
-    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status');
+    throw new KasseneckHttpError(functionName, statusCode, inhaltstyp, 'missing-status', unlesbar);
   }
   if (huelle.status === 'success') {
     // Erfolg gemeldet, aber kein PDF geliefert: die Antwort traegt nicht, was

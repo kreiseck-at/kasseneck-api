@@ -175,7 +175,7 @@ test('Fehlercode: am Code entscheiden, die Nutzlast bleibt lesbar', async () => 
     assert.ok(e instanceof KasseneckApiError);
     assert.equal(invoiceErrorCode(e), 'credit_exceeds_invoice');
     assert.ok(isInvoiceError(e, 'credit_exceeds_invoice'));
-    assert.ok(!isInvoiceError(e, 'validation'));
+    assert.equal(isInvoiceError(e, 'validation'), false);
     assert.deepEqual(e.details['remainingCents'], { total: 6000 });
   }
 });

@@ -545,9 +545,45 @@ test('v3: HTTP 5xx auf signierenden Aufrufen ist outcome unknown, 4xx und andere
   const a = antwort('', { status: 502, kennzeichen: null });
   const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })('financeWebService', {}, { method: 'status_cashbox' }));
   assert.equal((e as KasseneckHttpError).outcome, 'unknown');
-  // Andere HTTP-Fehler (leer, kein JSON) bleiben rejected.
+});
+
+test('v3: HTTP 200 mit Kennzeichen, aber unlesbarem Rumpf: signierende Aufrufe unknown, uebrige rejected', async () => {
+  const rumpfe: [string, string][] = [
+    ['', 'empty-body'],
+    ['   ', 'empty-body'],
+    ['{"status":"succ', 'not-json'],
+    ['<kein json>', 'not-json'],
+    [JSON.stringify({ data: { receipt: {} } }), 'missing-status'],
+    ['[]', 'missing-status'],
+  ];
+  const aufrufe: [string, 'unknown' | 'rejected', { method: string } | undefined][] = [
+    ['createReceipt', 'unknown', undefined],
+    ['cancelReceipt', 'unknown', undefined],
+    ['financeWebService', 'unknown', { method: 'status_cashbox' }],
+    ['getReceipt', 'rejected', undefined],
+    ['sendReceiptEmail', 'rejected', undefined],
+    ['issueInvoice', 'rejected', undefined],
+  ];
+  for (const [rumpf, grund] of rumpfe) {
+    for (const [name, erwartet, zusatz] of aufrufe) {
+      const a = antwort(rumpf);
+      const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })(name, {}, zusatz));
+      assert.ok(e instanceof KasseneckHttpError, `${name} ${JSON.stringify(rumpf)}: ${String(e)}`);
+      assert.equal(e.statusCode, 200);
+      assert.equal(e.reason, grund, `${name} ${JSON.stringify(rumpf)}`);
+      assert.equal(e.outcome, erwartet, `${name} ${JSON.stringify(rumpf)}`);
+      assert.equal(isOutcomeUnknown(e), erwartet === 'unknown');
+    }
+  }
+  // Auch mit dem Kassen-Benutzer (Kassenweg, Kanal app) bleibt es unklar.
   const leer = antwort('');
-  const e2 = await fehler(createTransport({ auth: schluessel(), fetch: async () => leer })('createReceipt', {}));
-  assert.ok(e2 instanceof KasseneckHttpError && e2.reason === 'empty-body');
-  assert.equal(e2.outcome, 'rejected');
+  const ek = await fehler(createTransport({ auth: kassenBenutzer(), fetch: async () => leer })('createReceipt', {}));
+  assert.equal((ek as KasseneckHttpError).outcome, 'unknown');
+});
+
+test('v3: HTTP 200 ohne Kennzeichen bleibt dialect_mismatch, der Rumpf wird nicht gelesen', async () => {
+  const a = antwort('', { kennzeichen: null });
+  const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => a })('createReceipt', {}));
+  assert.equal((e as KasseneckApiError).code, 'dialect_mismatch');
+  assert.equal(a.gelesen, 0);
 });

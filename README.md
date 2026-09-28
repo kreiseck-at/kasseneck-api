@@ -380,11 +380,11 @@ a type guard:
 
 | Class | Guard | Meaning |
 |---|---|---|
-| `KasseneckApiError` | `isKasseneckApiError` | The backend answered with an error envelope (locked register, missing module, invalid parameter), or the package refused the response (`route_missing`, `dialect_mismatch`). Carries `code`, `outcome`, `serverMessage` (German display text) and `details`. |
+| `KasseneckApiError` | `isKasseneckApiError` | The backend answered with an error envelope (locked register, missing module, invalid parameter), or the package refused the response (`route_missing`, `dialect_mismatch`, `response_unreadable`). Carries `code`, `outcome`, `serverMessage` (German display text) and `details`. |
 | `KasseneckHttpError` | `isKasseneckHttpError` | The response was not a usable envelope: HTTP 404/500 without envelope, empty body, text instead of JSON. `reason` tells the cases apart; `outcome` as below. |
 | `KasseneckNetworkError` | `isKasseneckNetworkError` | No response at all: network down, DNS, aborted connection or timeout (`timedOut`). `outcome` as below. |
 | `KasseneckAuthError` | `isKasseneckAuthError` | The request was never sent because authentication failed (missing credentials, or the token or session provider threw). |
-| `KasseneckValidationError` | `isKasseneckValidationError` | Wrong shape. `scope: 'request'`: your input breaks a rule the package knows before sending. `scope: 'response'`: the backend reported success but the payload lacked what the call promises. |
+| `KasseneckValidationError` | `isKasseneckValidationError` | Wrong shape. `scope: 'request'`: your input breaks a rule the package knows before sending. `scope: 'response'`: the backend reported success but the payload of a non-signing call lacked what it promises (on `createReceipt` and `cancelReceipt` that is `response_unreadable` instead). |
 
 **None of them ever contains a secret**: no key, no token, neither the sent nor
 the received body.
@@ -394,19 +394,28 @@ the received body.
 
 | Catalogue | Guard | Where |
 |---|---|---|
-| `RECEIPT_ERROR_CODES` | `isReceiptErrorCode` | `createReceipt`, `getReceipt` |
-| `CANCELLATION_ERROR_CODES` | `isCancellationErrorCode` | `cancelReceipt` |
-| `PAYMENT_ERROR_CODES` | `isPaymentErrorCode` | `payments[]` of a sale or cancellation |
-| `RECEIPT_EMAIL_ERROR_CODES` | `isReceiptEmailErrorCode` | `sendReceiptEmail` |
+| `RECEIPT_ERROR_CODES` | `isReceiptError` | `createReceipt`, `getReceipt` |
+| `CANCELLATION_ERROR_CODES` | `isCancellationError` | `cancelReceipt` |
+| `PAYMENT_ERROR_CODES` | `isPaymentError` | `payments[]` of a sale or cancellation |
+| `RECEIPT_EMAIL_ERROR_CODES` | `isReceiptEmailError` | `sendReceiptEmail` |
 | `REGISTER_ERROR_CODES` | `isRegisterError` (`…/register`) | pairing and sign-in |
 | `POS_ERROR_CODES` | `isPosError` (`…/pos`) | settings, articles, printers, tip recipients |
-| `PARTNER_ERROR_CODES` | `isPartnerError` (`…/partner`) | partner API |
-| invoice codes | `isInvoiceError` (`…/invoice`) | invoice API |
+| `PARTNER_ERROR_CODES` + `PARTNER_REQUEST_ERROR_CODES` | `isPartnerError` (`…/partner`) | partner API |
+| `INVOICE_ERROR_CODES` + `INVOICE_REQUEST_ERROR_CODES` | `isInvoiceError` (`…/invoice`) | invoice API |
 
-The receipt, register and POS catalogues list the endpoint's own codes first,
-then the sign-in and edge codes that can reach the same call. The German `serverMessage` is for display
-and may change; `validation` errors name their fields in `details`
-(`posFieldErrors`, `invoiceFieldErrors`, `partnerFieldErrors`).
+Every group has the same helpers: `is…ErrorCode(value)`, `…ErrorCode(error)`
+(the code if the group knows it), `is…Error(error, code?)` (a type guard; without
+`code` it asks whether the error belongs to the group) and
+`…FieldErrors(error)` for the fields of a `validation` error
+(`receiptFieldErrors`, `registerFieldErrors`, `posFieldErrors`,
+`invoiceFieldErrors`, `partnerFieldErrors`). Each list holds the group's own
+codes, then the sign-in and edge codes that can reach the same call, then the
+codes the package sets itself (`CLIENT_ERROR_CODES`: `route_missing`, and
+`response_unreadable` on receipts and cancellations). A sale can fail with a
+code from `RECEIPT_ERROR_CODES` or `PAYMENT_ERROR_CODES`, a cancellation with
+one from `CANCELLATION_ERROR_CODES` or `PAYMENT_ERROR_CODES`. The invoice and
+partner catalogues stay exactly the server's; their `…_REQUEST_ERROR_CODES`
+add the rest. The German `serverMessage` is for display and may change.
 
 Validation is strict: the 0.x ways of paying (`paymentMethod` and its card
 fields), unknown keys in tips, layout options, register settings and the
@@ -417,8 +426,9 @@ silently. For a layout option of 0.x the message names its English successor.
 ### `outcome: 'unknown'`: never retry, look it up
 
 `KasseneckApiError`, `KasseneckHttpError` and `KasseneckNetworkError` carry
-`outcome`. `'rejected'` means nothing happened; retrying the same request does
-not help. `'unknown'` means the operation **may have been carried out**, for
+`outcome`. `'rejected'` means no signing operation is left open: no receipt was
+signed and nothing went to FinanzOnline, so retrying the same request does not
+create a second receipt (whether it helps depends on the code). `'unknown'` means the operation **may have been carried out**, for
 `createReceipt` a signed receipt in the chain. Then never send it again: read
 the result back (`getReceipt`, `listMyReceipts`, the original of a
 cancellation) and continue from there. `isOutcomeUnknown(error)` covers all
@@ -426,8 +436,17 @@ three classes. The outcome is unknown for:
 
 - `dialect_mismatch`, `receipt_outcome_unknown`, `cancellation_outcome_unknown`;
 - `response_translation_failed`, unless `details.handled === false`;
-- a network error or timeout after sending began, and HTTP 5xx, on the
-  signing calls `createReceipt`, `cancelReceipt` and `financeWebService`.
+- `response_unreadable`: a signing call reported success, but the response
+  lacks what the call promises (no receipt, no reference, no remaining
+  quantities);
+- on the signing calls `createReceipt`, `cancelReceipt` and
+  `financeWebService`: a network error or timeout after sending began, HTTP
+  5xx, and HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
+  non-JSON or status-less body (`KasseneckHttpError`, `reason` `empty-body`,
+  `not-json` or `missing-status`).
+
+`outcome` only covers signing. After a network error on `issueInvoice` an
+invoice may still have been issued; retry it with the same `idempotencyKey`.
 
 ```ts
 import { isOutcomeUnknown, paymentsExpectedCents } from '@kreiseck/kasseneck-api';

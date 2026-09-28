@@ -479,14 +479,15 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     }
     // Was Anmeldung und Rand auf jedem Kassen-Endpunkt erzeugen koennen (test/kassenweg-codes.ts).
     for (const c of randUndAnmeldung()) codes.add(c);
-    return [...codes].sort();
+    // Zuletzt der Code, den das Paket selbst vergibt (HTML statt Backend).
+    return [...[...codes].sort(), 'route_missing'];
   };
   assert.deepEqual([...REGISTER_ERROR_CODES], ableiten(Object.keys(ANMELDE_AUFRUFE)));
   assert.deepEqual([...POS_ERROR_CODES], ableiten([
     'listMyArticleGroups', 'listMyArticles', 'getKasseSettings', 'setMyKasseSettings', 'setMyKasseLogo',
     'setMyRegisterDeviceSettings', 'listMyPrinters', 'createPrintJob', 'getPrintJob', 'listMyTipRecipients',
   ]));
-  for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation']) {
+  for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);
   }
   // Der geloeschte Benutzer mitten in der Sitzung ist erkennbar.

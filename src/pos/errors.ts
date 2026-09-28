@@ -51,7 +51,9 @@ export const POS_ERROR_CODES = Object.freeze([
   'unauthorized',
   'user_disabled',
   'user_verification_failed',
-  'validation'
+  'validation',
+  // Code des Pakets (CLIENT_ERROR_CODES): HTML statt Backend, der Aufruf kam nie an
+  'route_missing',
 ] as const);
 export type PosErrorCode = typeof POS_ERROR_CODES[number];
 

@@ -867,6 +867,7 @@ test('der Unterpfad ./register exportiert genau die acht Aufrufe, die Fehlerhelf
       'pairRegisterDevice',
       'registerErrorCode',
       'registerErrorDetails',
+      'registerFieldErrors',
       'registerPinLogin',
       'registerUserLogin',
       'renewRegisterSession',

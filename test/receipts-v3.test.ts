@@ -20,7 +20,7 @@ import {
   type TipOptions,
 } from '../src/client/receipts.js';
 import { buildReceiptLayout, escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
-import { isKasseneckApiError, isKasseneckValidationError, isOutcomeUnknown } from '../src/client/errors.js';
+import { CLIENT_ERROR_CODES, KasseneckApiError, isKasseneckApiError, isKasseneckValidationError, isOutcomeUnknown } from '../src/client/errors.js';
 import { createTransport, DEFAULT_BASE_URL, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
@@ -37,6 +37,15 @@ import {
   isCancellationErrorCode,
   isPaymentErrorCode,
   isReceiptErrorCode,
+  isReceiptError,
+  receiptErrorCode,
+  receiptFieldErrors,
+  isCancellationError,
+  cancellationErrorCode,
+  isPaymentError,
+  paymentErrorCode,
+  isReceiptEmailError,
+  receiptEmailErrorCode,
   type ReceiptPaymentInput,
   type VoucherPayload,
 } from '../src/models/index.js';
@@ -284,6 +293,61 @@ test('payments_sum_mismatch: expectedCents liegt offen, nie ein zweiter Versuch'
   assert.equal(paymentsExpectedCents(new Error('x')), undefined);
 });
 
+test('Erfolg gemeldet, Antwort unlesbar: createReceipt/cancelReceipt werfen response_unreadable mit Ausgang unklar', async () => {
+  const verkauf = BELEGE.find((f) => f.name === 'sale_cash_tendered')!;
+  const storno = (rufen: any) => cancelReceipt(rufen, { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2', reason: 'input_error' });
+  const beleg = { receiptId: 'KECK-1-ID-3', items: [], payments: [] };
+  const faelle: Array<[string, string, unknown, (rufen: any) => Promise<unknown>]> = [
+    ['createReceipt', 'ohne receipt', {}, (rufen) => sellReceipt(rufen, verkaufAus(verkauf.params))],
+    ['createReceipt', 'data null', null, (rufen) => sellReceipt(rufen, verkaufAus(verkauf.params))],
+    ['createReceipt', 'receipt ist Text', { receipt: 'x' }, (rufen) => sellReceiptWithCompany(rufen, verkaufAus(verkauf.params))],
+    ['createReceipt', 'items kein Array', { receipt: { ...beleg, items: 'x' } }, (rufen) => sellReceipt(rufen, verkaufAus(verkauf.params))],
+    ['createReceipt', 'Nullbeleg ohne receipt', {}, (rufen) => zeroReceipt(rufen)],
+    ['cancelReceipt', 'ohne receipt', { cancellationOf: { receiptId: 'KECK-1-ID-2' }, remaining: [0] }, storno],
+    ['cancelReceipt', 'ohne cancellationOf', { receipt: beleg, remaining: [0] }, storno],
+    ['cancelReceipt', 'ohne remaining', { receipt: beleg, cancellationOf: { receiptId: 'KECK-1-ID-2' } }, storno],
+    ['cancelReceipt', 'remaining mit Bruch', { receipt: beleg, cancellationOf: { receiptId: 'KECK-1-ID-2' }, remaining: [0.5] }, storno],
+  ];
+  for (const [endpoint, name, data, aufruf] of faelle) {
+    const fall: Fall = {
+      name,
+      endpoint,
+      path: `/v3/${endpoint}`,
+      params: {},
+      httpStatus: 200,
+      headers: { 'Kasseneck-Api-Version': 'v3' },
+      response: { status: 'success', message: '', data },
+    };
+    const { rufen, aufrufe } = wegFuer(fall);
+    const fehler = await fehlerVon(aufruf(rufen));
+    assert.ok(isKasseneckApiError(fehler), `${endpoint} ${name}: ${String(fehler)}`);
+    assert.equal(fehler.code, 'response_unreadable', `${endpoint} ${name}`);
+    assert.equal(fehler.outcome, 'unknown', `${endpoint} ${name}`);
+    assert.ok(isOutcomeUnknown(fehler));
+    assert.equal(fehler.functionName, endpoint);
+    assert.match(fehler.message, /nicht wiederholen, sondern nachlesen/);
+    assert.ok(isReceiptErrorCode('response_unreadable') || isCancellationErrorCode('response_unreadable'));
+    assert.equal(aufrufe.length, 1, `${endpoint} ${name}: nie wiederholt`);
+  }
+});
+
+test('Lesender Aufruf mit unlesbarer Erfolgsantwort bleibt Formfehler (getReceipt): nichts ist offen', async () => {
+  const fall: Fall = {
+    name: 'getReceipt_ohne_receipt',
+    endpoint: 'getReceipt',
+    path: '/v3/getReceipt',
+    params: {},
+    httpStatus: 200,
+    headers: { 'Kasseneck-Api-Version': 'v3' },
+    response: { status: 'success', message: '', data: {} },
+  };
+  const { rufen } = wegFuer(fall);
+  const fehler = await fehlerVon(getReceipt(rufen, 'KECK-1-ID-2'));
+  assert.ok(isKasseneckValidationError(fehler));
+  assert.equal(fehler.scope, 'response');
+  assert.equal(isOutcomeUnknown(fehler), false);
+});
+
 test('receipt_outcome_unknown und cancellation_outcome_unknown: Ausgang unklar, genau ein Aufruf', async () => {
   const faelle: Array<[string, string, (rufen: any) => Promise<unknown>]> = [
     ['createReceipt', 'receipt_outcome_unknown', (rufen) => sellReceipt(rufen, verkaufAus(BELEGE.find((f) => f.name === 'sale_cash_tendered')!.params))],
@@ -481,15 +545,19 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   // Jede Liste: die Codes des Endpunkts, dahinter (sortiert, ohne Doppel) die
   // der Anmeldung und des Rands: errorCodes.auth ohne die sieben des
   // Partner-Zugangs und errorCodes.edge (test/kassenweg-codes.ts).
+  // Zuletzt die Codes des Pakets: route_missing ueberall, response_unreadable
+  // nur an den signierenden Aufrufen (createReceipt, cancelReceipt).
   const rand = randUndAnmeldung();
-  const mitRand = (eigen: string[]) => [...eigen, ...rand.filter((c) => !eigen.includes(c))];
-  assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand(codes.cancellation));
-  assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments));
-  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail));
+  const mitRand = (eigen: string[], paket: readonly string[]) => [...eigen, ...rand.filter((c) => !eigen.includes(c)), ...paket];
+  const signierend = ['route_missing', 'response_unreadable'];
+  assert.deepEqual([...CLIENT_ERROR_CODES], signierend);
+  assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand(codes.cancellation, signierend));
+  assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments, ['route_missing']));
+  assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail, ['route_missing']));
   assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES], codes.receiptEmail);
   const beleg = [...new Set([...codes.receiptMessagesByEndpoint.createReceipt, ...codes.receiptMessagesByEndpoint.getReceipt])].sort();
-  assert.deepEqual([...RECEIPT_ERROR_CODES], mitRand(beleg));
-  for (const c of ['register_user_not_found', 'session_expired', 'dialect_mismatch', 'response_translation_failed', 'not_found']) {
+  assert.deepEqual([...RECEIPT_ERROR_CODES], mitRand(beleg, signierend));
+  for (const c of ['register_user_not_found', 'session_expired', 'dialect_mismatch', 'response_translation_failed', 'not_found', 'route_missing']) {
     for (const liste of [CANCELLATION_ERROR_CODES, PAYMENT_ERROR_CODES, RECEIPT_EMAIL_ERROR_CODES, RECEIPT_ERROR_CODES]) {
       assert.ok((liste as readonly string[]).includes(c), c);
     }
@@ -510,9 +578,10 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   assert.deepEqual(Object.keys(CANCELLATION_REASONS), Object.values(VOKABULAR.catalogs.STORNO_GRUND));
   assert.deepEqual([...CANCELLATION_STATUSES], Object.values(VOKABULAR.catalogs.STORNO_STAND));
   assert.deepEqual([...RECEIPT_EMAIL_VIAS], Object.values(VOKABULAR.catalogs.MAILWEG));
-  // Jeder Code ist ein /v3-Code: klein, kein alter deutscher oder grosser.
+  // Jeder Code ist ein /v3-Code (klein, kein alter deutscher oder grosser)
+  // oder einer, den das Paket selbst vergibt.
   for (const code of [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES]) {
-    assert.ok(codes.all.includes(code), code);
+    assert.ok(codes.all.includes(code) || (CLIENT_ERROR_CODES as readonly string[]).includes(code), code);
   }
   assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), false);
   assert.equal(isCancellationErrorCode('bereits_storniert'), false);
@@ -703,4 +772,30 @@ test('getReportV2: unbrauchbarer Zeitraum geht nicht hinaus, unbrauchbare Antwor
   const fehler = await fehlerVon(getReportV2(wegFuer(kaputt).rufen, { start: '2026-09-01', end: '2026-09-30' }));
   assert.ok(isKasseneckValidationError(fehler));
   assert.equal(fehler.scope, 'response');
+});
+
+test('Fehlerhelfer der Belegwelt: dieselbe Form wie Kasse, Anmeldung, Rechnung und Partner', () => {
+  const faelle: Array<[string, (e: unknown, c?: any) => boolean, (e: unknown) => string | undefined, readonly string[]]> = [
+    ['signing_failed', isReceiptError, receiptErrorCode, RECEIPT_ERROR_CODES],
+    ['already_cancelled', isCancellationError, cancellationErrorCode, CANCELLATION_ERROR_CODES],
+    ['payments_sum_mismatch', isPaymentError, paymentErrorCode, PAYMENT_ERROR_CODES],
+    ['too_many_requests', isReceiptEmailError, receiptEmailErrorCode, RECEIPT_EMAIL_ERROR_CODES],
+  ];
+  for (const [code, istFehler, codeVon, liste] of faelle) {
+    assert.ok(liste.length > 0);
+    const e = new KasseneckApiError('createReceipt', 'x', {}, code);
+    assert.equal(codeVon(e), code);
+    assert.ok(istFehler(e), code);
+    assert.ok(istFehler(e, code), code);
+    assert.equal(istFehler(e, 'validation'), false, code);
+    // route_missing steht in jeder Liste; ein unbekannter Code in keiner.
+    assert.ok(istFehler(new KasseneckApiError('createReceipt', 'x', {}, 'route_missing'), 'route_missing'), code);
+    const fremd = new KasseneckApiError('createReceipt', 'x', {}, 'brand_new_code_2027');
+    assert.equal(codeVon(fremd), undefined);
+    assert.equal(istFehler(fremd), false);
+    assert.equal(istFehler(new Error('x')), false);
+  }
+  const feld = new KasseneckApiError('createReceipt', 'x', { errors: [{ field: 'payments.0.amountCents', message: 'm' }, { field: 1 }] }, 'validation');
+  assert.deepEqual(receiptFieldErrors(feld), [{ field: 'payments.0.amountCents', message: 'm' }]);
+  assert.deepEqual(receiptFieldErrors(new Error('x')), []);
 });

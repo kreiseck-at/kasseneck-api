@@ -75,6 +75,40 @@ export const INVOICE_ERROR_CODES = [
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
+/**
+ * Codes, die Anmeldung und Rand auf jedem Rechnungsaufruf erzeugen koennen,
+ * soweit sie nicht schon in [INVOICE_ERROR_CODES] stehen: `errorCodes.auth`
+ * ohne die sieben des Partner-Zugangs, `errorCodes.edge` (sortiert) und
+ * zuletzt `route_missing` (Code des Pakets). [INVOICE_ERROR_CODES] bleibt
+ * genau der Katalog des Servers (das Backend vergleicht ihn mit dem Schema);
+ * die Helfer in `./invoice` erkennen beide Listen.
+ */
+export const INVOICE_REQUEST_ERROR_CODES = [
+  'account_not_found',
+  'admin_required',
+  'cashregister_not_assigned',
+  'cashregister_not_found',
+  'cashregister_token_invalid',
+  'cashregister_token_missing',
+  'dialect_mismatch',
+  'internal_translation_error',
+  'live_not_enabled',
+  'method_not_allowed',
+  'mfa_required',
+  'not_found',
+  'register_user_no_business',
+  'register_user_not_allowed',
+  'register_user_not_found',
+  'response_translation_failed',
+  'session_expired',
+  'session_other_cashregister',
+  'unauthorized',
+  'user_disabled',
+  'user_verification_failed',
+  'route_missing',
+] as const;
+export type InvoiceRequestErrorCode = (typeof INVOICE_REQUEST_ERROR_CODES)[number];
+
 /** Gruende einer Gutschrift. Der Server druckt den deutschen Anzeigetext. */
 export const CREDIT_NOTE_REASONS = [
   'cancellation',

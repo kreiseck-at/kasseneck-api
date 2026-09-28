@@ -102,10 +102,14 @@ Nothing forces an upgrade as long as `/v1` is served.
   (`ErrorOutcome`), and `isOutcomeUnknown(error)` covers all three. Unknown
   means the operation may have happened: `dialect_mismatch`,
   `receipt_outcome_unknown`, `cancellation_outcome_unknown`,
-  `response_translation_failed` (unless `details.handled === false`), and a
-  network error, timeout or HTTP 5xx after sending on `createReceipt`,
-  `cancelReceipt` and `financeWebService`. Never retry those; read the result
-  back. Reason: a retried receipt is a second signed receipt in the chain.
+  `response_translation_failed` (unless `details.handled === false`),
+  `response_unreadable` (a signing call reported success but the response
+  lacks the receipt, the reference or the remaining quantities), and on
+  `createReceipt`, `cancelReceipt` and `financeWebService` a network error,
+  timeout or HTTP 5xx after sending as well as HTTP 200 with the `/v3` marker
+  but an empty, non-JSON or status-less body. Never retry those; read the
+  result back. Reason: a retried receipt is a second signed receipt in the
+  chain.
 - **Strict validation before sending.** The 0.x payment fields
   (`paymentMethod`, `paymentMethodFromServer`, `creditCardProvider`,
   `cardPaymentId`, `cardPaymentData`) throw, also from plain JavaScript.
@@ -135,12 +139,27 @@ Nothing forces an upgrade as long as `/v1` is served.
   response carries one and only builds one otherwise (default `mm58`, as in
   0.x). Print width is chosen by the print path. Reason: on the public
   channel only the server's layout carries the card block.
-- **Error catalogues are complete per endpoint.** `RECEIPT_ERROR_CODES` (new),
-  `CANCELLATION_ERROR_CODES`, `PAYMENT_ERROR_CODES`,
-  `RECEIPT_EMAIL_ERROR_CODES`, `REGISTER_ERROR_CODES` (new) and
-  `POS_ERROR_CODES` (new) list the endpoint's codes followed by the sign-in
-  and edge codes that can reach it, so the derived types are wider.
+- **Error catalogues per endpoint group, one shape everywhere.**
+  `RECEIPT_ERROR_CODES` (new), `CANCELLATION_ERROR_CODES`,
+  `PAYMENT_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`, `REGISTER_ERROR_CODES`
+  (new) and `POS_ERROR_CODES` (new) list the group's own codes, then the
+  sign-in and edge codes that can reach it, then the codes the package sets
+  itself (`CLIENT_ERROR_CODES`: `route_missing` everywhere,
+  `response_unreadable` for receipts and cancellations), so the derived types
+  are wider. The `payments[]` codes of a sale or cancellation
+  (`payments_sum_mismatch`, `payment_method_not_supported`, …) are in
+  `PAYMENT_ERROR_CODES`: a sale can answer with a code from
+  `RECEIPT_ERROR_CODES` or `PAYMENT_ERROR_CODES`, a cancellation with one from
+  `CANCELLATION_ERROR_CODES` or `PAYMENT_ERROR_CODES`.
   `RECEIPT_EMAIL_SEND_ERROR_CODES` holds the four sending codes.
+  `INVOICE_ERROR_CODES` and `PARTNER_ERROR_CODES` stay the server's catalogues;
+  `INVOICE_REQUEST_ERROR_CODES` (new) and `PARTNER_REQUEST_ERROR_CODES` add
+  the sign-in, edge and package codes. Every group offers
+  `is…ErrorCode(value)`, `…ErrorCode(error)`, `is…Error(error, code?)` (a type
+  guard, code optional) and `…FieldErrors(error)`; new are `isReceiptError`,
+  `isCancellationError`, `isPaymentError`, `isReceiptEmailError`,
+  `isInvoiceErrorCode`, `receiptFieldErrors` and `registerFieldErrors`, and
+  `isInvoiceError` takes the code as optional.
 - **Partner.** `partnerErrorAdvice` (was `partnerFehlerRat`) always returns a
   sentence, with a fallback for unknown codes; `isPartnerError` accepts
   unknown codes. `reportCustomerContract` is offered now.

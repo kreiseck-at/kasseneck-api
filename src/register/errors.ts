@@ -1,4 +1,5 @@
 import { KasseneckApiError } from '../client/errors.js';
+import { feldfehlerVon } from '../client/fehlercodes.js';
 
 /**
  * Fehler der Kassen-Anmeldung (Kopplung, Benutzerliste, PIN-Anmeldung,
@@ -64,7 +65,9 @@ export const REGISTER_ERROR_CODES = Object.freeze([
   'unauthorized',
   'user_disabled',
   'user_verification_failed',
-  'validation'
+  'validation',
+  // Code des Pakets (CLIENT_ERROR_CODES): HTML statt Backend, der Aufruf kam nie an
+  'route_missing',
 ] as const);
 export type RegisterErrorCode = typeof REGISTER_ERROR_CODES[number];
 
@@ -119,4 +122,16 @@ export function registerErrorDetails(error: unknown): RegisterErrorDetails {
     pairedDevices: zahl(d['pairedDevices']),
     licenses: zahl(d['licenses']),
   };
+}
+
+/** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */
+export interface RegisterFieldError {
+  /** Feldpfad in der gesendeten Anfrage, z. B. `pairingCode` oder `pin`. */
+  field: string;
+  message: string;
+}
+
+/** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
+export function registerFieldErrors(error: unknown): RegisterFieldError[] {
+  return feldfehlerVon(error);
 }

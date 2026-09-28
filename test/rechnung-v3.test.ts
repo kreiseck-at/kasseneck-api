@@ -32,8 +32,14 @@ import {
   type IssueResult,
   type PreviewResult,
   type RecordPaymentResult,
+  INVOICE_REQUEST_ERROR_CODES,
+  isInvoiceErrorCode,
+  isInvoiceError,
+  invoiceFieldErrors,
+  type InvoiceApiErrorCode,
 } from '../src/invoice/index.js';
 import { KasseneckApiError } from '../src/client/errors.js';
+import { randUndAnmeldung } from './kassenweg-codes.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
 /*
@@ -373,4 +379,27 @@ test('getInvoice: gebuchte Zahlungen mit id und reference, fehlende Angaben als 
   const monat = (z: InvoiceDetailPayment): string | null => (z.date === null ? null : z.date.slice(0, 7));
   assert.deepEqual(detail.payments.map(monat), ['2026-09', null]);
   assert.deepEqual(detail.related, { invoiceId: 'auto0', number: null });
+});
+
+// --- Fehlerhelfer: dieselbe Form wie Kasse, Anmeldung, Belege und Partner -------
+
+test('INVOICE_REQUEST_ERROR_CODES: Anmeldung und Rand aus dem Vertrag, dahinter route_missing; Helfer erkennen beide Listen', () => {
+  const katalog = VOKABULAR.errorCodes.invoice as string[];
+  assert.deepEqual([...INVOICE_REQUEST_ERROR_CODES], [...randUndAnmeldung().filter((c) => !katalog.includes(c)), 'route_missing']);
+  for (const c of ['dialect_mismatch', 'response_translation_failed', 'internal_translation_error', 'not_found', 'method_not_allowed', 'route_missing']) {
+    assert.ok(isInvoiceErrorCode(c), c);
+    const e = new KasseneckApiError('issueInvoice', 'x', {}, c);
+    assert.equal(invoiceErrorCode(e), c);
+    assert.ok(isInvoiceError(e, c as InvoiceApiErrorCode), c);
+    assert.ok(isInvoiceError(e), c);
+  }
+  assert.equal(isInvoiceErrorCode('customer_exists'), true);
+  assert.equal(isInvoiceErrorCode('brand_new_code_2027'), false);
+  assert.equal(isInvoiceError(new KasseneckApiError('issueInvoice', 'x', {}, 'brand_new_code_2027')), false);
+  assert.equal(isInvoiceError(new Error('x')), false);
+  // Typwaechter: danach ist `details` ohne Umwandlung lesbar.
+  const e: unknown = new KasseneckApiError('issueInvoice', 'x', { errors: [{ field: 'items[0].vatRate', message: 'm' }] }, 'validation');
+  if (isInvoiceError(e, 'validation')) assert.ok(Array.isArray(e.details['errors']));
+  else assert.fail('validation nicht erkannt');
+  assert.deepEqual(invoiceFieldErrors(e), [{ field: 'items[0].vatRate', message: 'm' }]);
 });

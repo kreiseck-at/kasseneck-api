@@ -1,3 +1,6 @@
+import { KasseneckApiError } from '../client/errors.js';
+import { bekannterCode } from '../client/fehlercodes.js';
+
 /**
  * Mehrere Zahlungen je Beleg: Fehlercodes unter `/v3` (Vokabular
  * `errorCodes.payments`, gleiche Codes, gleiche Reihenfolge).
@@ -15,7 +18,8 @@
  * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
  * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
  * `errorCodes.edge` (`not_found`, `dialect_mismatch`, `response_translation_failed`
- * ...). Ein Code ausserhalb bleibt ueber `KasseneckApiError.code` lesbar.
+ * ...) und zuletzt `route_missing` (Code des Pakets). Ein Code ausserhalb
+ * bleibt ueber `KasseneckApiError.code` lesbar.
  */
 export const PAYMENT_ERROR_CODES = Object.freeze([
   'payments_invalid',             // payments ist keine Liste oder hat mehr als 20 Eintraege
@@ -59,6 +63,8 @@ export const PAYMENT_ERROR_CODES = Object.freeze([
   'user_disabled',
   'user_verification_failed',
   'validation',
+  // Code des Pakets (CLIENT_ERROR_CODES; response_unreadable nur an signierenden Aufrufen)
+  'route_missing',
 ] as const);
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[number];
@@ -66,4 +72,20 @@ export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[number];
 /** Erkennt einen Code aus [PAYMENT_ERROR_CODES], exakt (klein, wie unter `/v3`). */
 export function isPaymentErrorCode(value: unknown): value is PaymentErrorCode {
   return typeof value === 'string' && (PAYMENT_ERROR_CODES as readonly string[]).includes(value);
+}
+
+const PAYMENT_BEKANNT: ReadonlySet<string> = new Set(PAYMENT_ERROR_CODES);
+
+/** Der Code eines geworfenen Fehlers, wenn er in [PAYMENT_ERROR_CODES] steht; sonst `undefined`. */
+export function paymentErrorCode(error: unknown): PaymentErrorCode | undefined {
+  return bekannterCode<PaymentErrorCode>(error, PAYMENT_BEKANNT);
+}
+
+/**
+ * Kurzform fuer `catch (e) { if (isPaymentError(e, 'payments_sum_mismatch')) … }`.
+ * Ohne `code`: traegt der Fehler ueberhaupt einen Code aus [PAYMENT_ERROR_CODES]?
+ */
+export function isPaymentError(error: unknown, code?: PaymentErrorCode): error is KasseneckApiError {
+  const gefunden = paymentErrorCode(error);
+  return gefunden !== undefined && (code === undefined || gefunden === code);
 }

@@ -17,8 +17,10 @@ export { invoiceKeyAuth, type InvoiceKeyAuthOptions } from './auth.js';
 
 export {
   isInvoiceError,
+  isInvoiceErrorCode,
   invoiceErrorCode,
   invoiceFieldErrors,
+  type InvoiceApiErrorCode,
   type InvoiceFieldError,
 } from './fehler.js';
 
@@ -103,6 +105,7 @@ export {
   INVOICE_CONTRACT_VERSION,
   INVOICE_ENDPOINTS,
   INVOICE_ERROR_CODES,
+  INVOICE_REQUEST_ERROR_CODES,
   CREDIT_NOTE_REASONS,
   TAX_SCHEMES,
   PRICE_MODES,
@@ -129,6 +132,7 @@ export {
   INVOICE_AT_LEAST_ONE,
   type InvoiceEndpoint,
   type InvoiceErrorCode,
+  type InvoiceRequestErrorCode,
   type CreditNoteReason,
   type TaxScheme,
   type PriceMode,

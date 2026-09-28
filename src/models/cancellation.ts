@@ -1,3 +1,5 @@
+import { KasseneckApiError } from '../client/errors.js';
+import { bekannterCode } from '../client/fehlercodes.js';
 import type { Receipt } from './receipt.js';
 
 /**
@@ -44,7 +46,10 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
  * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
  * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
  * `errorCodes.edge` (`not_found`, `dialect_mismatch`, `response_translation_failed`
- * ...). Ein Code ausserhalb bleibt ueber `KasseneckApiError.code` lesbar.
+ * ...), zuletzt die Codes des Pakets (`route_missing`, `response_unreadable`).
+ * Die Zahlungscodes (`payment_method_not_supported` ...) stehen in
+ * [PAYMENT_ERROR_CODES]. Ein Code ausserhalb bleibt ueber
+ * `KasseneckApiError.code` lesbar.
  */
 export const CANCELLATION_ERROR_CODES = Object.freeze([
   'receipt_not_found',                      // Original fehlt oder gehoert nicht zu dieser Kasse
@@ -88,12 +93,31 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'user_disabled',
   'user_verification_failed',
   'validation',
+  // Codes des Pakets (CLIENT_ERROR_CODES)
+  'route_missing',
+  'response_unreadable',
 ] as const);
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];
 
 export function isCancellationErrorCode(value: unknown): value is CancellationErrorCode {
   return typeof value === 'string' && (CANCELLATION_ERROR_CODES as readonly string[]).includes(value);
+}
+
+const CANCELLATION_BEKANNT: ReadonlySet<string> = new Set(CANCELLATION_ERROR_CODES);
+
+/** Der Code eines geworfenen Fehlers, wenn er in [CANCELLATION_ERROR_CODES] steht; sonst `undefined`. */
+export function cancellationErrorCode(error: unknown): CancellationErrorCode | undefined {
+  return bekannterCode<CancellationErrorCode>(error, CANCELLATION_BEKANNT);
+}
+
+/**
+ * Kurzform fuer `catch (e) { if (isCancellationError(e, 'already_cancelled')) … }`.
+ * Ohne `code`: traegt der Fehler ueberhaupt einen Code aus [CANCELLATION_ERROR_CODES]?
+ */
+export function isCancellationError(error: unknown, code?: CancellationErrorCode): error is KasseneckApiError {
+  const gefunden = cancellationErrorCode(error);
+  return gefunden !== undefined && (code === undefined || gefunden === code);
 }
 
 /** Stornostand eines Belegs in der Belegliste (Katalog `STORNO_STAND`). */

@@ -99,6 +99,8 @@ export {
   type RegisterErrorCode,
   isRegisterErrorCode,
   registerErrorCode,
+  registerFieldErrors,
+  type RegisterFieldError,
   isRegisterError,
   type RegisterErrorDetails,
   registerErrorDetails,

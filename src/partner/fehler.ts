@@ -138,9 +138,21 @@ export const PARTNER_PORTAL_ERROR_CODES = [
  * Partner-Aufrufen setzt (Partner-Doku, Abschnitt Fehlercodes; im
  * Vertrags-Export unter `errorCodes.auth`). Unter `/v1` kamen diese Fehler
  * ohne Code. `validation` und `rate_limited` stehen schon in
- * [PARTNER_ERROR_CODES].
+ * [PARTNER_ERROR_CODES]. Dahinter die Codes des Rands (`errorCodes.edge`,
+ * soweit nicht schon im Katalog; `not_found` und `validation` stehen dort)
+ * und `route_missing`, den das Paket selbst vergibt.
  */
-export const PARTNER_REQUEST_ERROR_CODES = ['method_not_allowed', 'unauthorized', 'partner_locked', 'scope_missing'] as const;
+export const PARTNER_REQUEST_ERROR_CODES = [
+  'method_not_allowed',
+  'unauthorized',
+  'partner_locked',
+  'scope_missing',
+  // Rand (errorCodes.edge, soweit nicht im Katalog) und Code des Pakets
+  'internal_translation_error',
+  'dialect_mismatch',
+  'response_translation_failed',
+  'route_missing',
+] as const;
 
 export type PartnerErrorCode = typeof PARTNER_ERROR_CODES[number];
 export type PartnerPortalErrorCode = typeof PARTNER_PORTAL_ERROR_CODES[number];
@@ -153,14 +165,18 @@ function enthaelt(liste: readonly string[], wert: unknown): boolean {
   return typeof wert === 'string' && liste.includes(wert);
 }
 
-/** `true` fuer einen Code aus [PARTNER_ERROR_CODES]; alles andere, auch Unsinn, ist `false`. */
-export function isPartnerErrorCode(wert: unknown): wert is PartnerErrorCode {
-  return enthaelt(PARTNER_ERROR_CODES, wert);
+/**
+ * `true` fuer einen Code, den ein Partner-Aufruf liefern kann: aus
+ * [PARTNER_ERROR_CODES] (Katalog) oder [PARTNER_REQUEST_ERROR_CODES]
+ * (Anmeldung, Rand, Paket). Alles andere, auch Unsinn, ist `false`.
+ */
+export function isPartnerErrorCode(value: unknown): value is PartnerErrorCode | PartnerRequestErrorCode {
+  return enthaelt(PARTNER_ERROR_CODES, value) || enthaelt(PARTNER_REQUEST_ERROR_CODES, value);
 }
 
 /** `true` fuer einen Code aus [PARTNER_PORTAL_ERROR_CODES]; alles andere ist `false`. */
-export function isPartnerPortalErrorCode(wert: unknown): wert is PartnerPortalErrorCode {
-  return enthaelt(PARTNER_PORTAL_ERROR_CODES, wert);
+export function isPartnerPortalErrorCode(value: unknown): value is PartnerPortalErrorCode {
+  return enthaelt(PARTNER_PORTAL_ERROR_CODES, value);
 }
 
 /**
@@ -240,6 +256,14 @@ const RAT: Record<PartnerCode, string> = {
   partner_locked: 'Das Partner-Konto ist gesperrt. Kasseneck fragen (hello@kasseneck.at).',
   scope_missing:
     'Dem Schluessel fehlt eine Berechtigung, die dieser Aufruf braucht (data.scope). Einen Schluessel mit dieser Berechtigung erzeugen.',
+  internal_translation_error:
+    'Der Server konnte die Anfrage nicht in seine innere Form uebersetzen. Nichts wurde ausgefuehrt; hello@kasseneck.at mit Aufruf und Zeitpunkt melden.',
+  dialect_mismatch:
+    'Die Antwort kam nicht vom /v3-Rand (Kennzeichen fehlt), der Ausgang ist unklar. Nicht blind wiederholen: den Stand mit getPartnerCustomer bzw. listCustomerCashregisters nachlesen.',
+  response_translation_failed:
+    'Der Server konnte seine Antwort nicht uebersetzen. Mit details.handled === false lief nichts; sonst kann der Aufruf ausgefuehrt sein, dann den Stand nachlesen statt wiederholen.',
+  route_missing:
+    'Statt des Backends kam eine HTML-Seite: die Basisadresse stimmt nicht (PARTNER_BASE_URL bzw. eigener Proxy). Der Aufruf kam nie an.',
 
   // -- Partner-Portal -------------------------------------------------------
   app_locked:
@@ -281,10 +305,14 @@ export function partnerErrorCode(error: unknown): string | undefined {
 
 /**
  * Kurzform fuer `catch (e) { if (isPartnerError(e, 'signature_missing')) … }`.
- * Nimmt auch Codes, die dieses Paket (noch) nicht kennt.
+ * Mit `code` nimmt sie auch Codes, die dieses Paket (noch) nicht kennt.
+ * Ohne `code`: traegt der Fehler einen Code, den ein Partner-Aufruf liefern
+ * kann ([isPartnerErrorCode])?
  */
-export function isPartnerError(error: unknown, code: PartnerCode | (string & {})): boolean {
-  return partnerErrorCode(error) === code;
+export function isPartnerError(error: unknown, code?: PartnerCode | (string & {})): error is KasseneckApiError {
+  const gefunden = partnerErrorCode(error);
+  if (gefunden === undefined) return false;
+  return code === undefined ? isPartnerErrorCode(gefunden) : gefunden === code;
 }
 
 /** Ein Feldfehler aus `data.errors[]` einer `validation`-Antwort. */

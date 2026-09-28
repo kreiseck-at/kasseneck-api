@@ -377,7 +377,8 @@
     "unauthorized",
     "user_disabled",
     "user_verification_failed",
-    "validation"
+    "validation",
+    "route_missing"
   ],
   "posShortcutActions": [
     "checkout",
@@ -429,7 +430,8 @@
       "unauthorized",
       "user_disabled",
       "user_verification_failed",
-      "validation"
+      "validation",
+      "route_missing"
     ],
     "printJobSources": [
       "pos",
@@ -587,7 +589,11 @@
       "method_not_allowed",
       "unauthorized",
       "partner_locked",
-      "scope_missing"
+      "scope_missing",
+      "internal_translation_error",
+      "dialect_mismatch",
+      "response_translation_failed",
+      "route_missing"
     ],
     "partnerWebhookEvents": [
       "customer.created",
@@ -741,6 +747,30 @@
       "card",
       "online",
       "cash"
+    ],
+    "invoiceRequestErrorCodes": [
+      "account_not_found",
+      "admin_required",
+      "cashregister_not_assigned",
+      "cashregister_not_found",
+      "cashregister_token_invalid",
+      "cashregister_token_missing",
+      "dialect_mismatch",
+      "internal_translation_error",
+      "live_not_enabled",
+      "method_not_allowed",
+      "mfa_required",
+      "not_found",
+      "register_user_no_business",
+      "register_user_not_allowed",
+      "register_user_not_found",
+      "response_translation_failed",
+      "session_expired",
+      "session_other_cashregister",
+      "unauthorized",
+      "user_disabled",
+      "user_verification_failed",
+      "route_missing"
     ],
     "invoiceSetupRequirements": [
       "module_active",

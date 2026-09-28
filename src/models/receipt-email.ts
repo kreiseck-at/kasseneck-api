@@ -1,3 +1,6 @@
+import { KasseneckApiError } from '../client/errors.js';
+import { bekannterCode } from '../client/fehlercodes.js';
+
 /** Die Codes des Versands selbst (`errorCodes.receiptEmail`); jeder hat einen Satz im Textkatalog. */
 export const RECEIPT_EMAIL_SEND_ERROR_CODES = Object.freeze([
   'invalid_address',   // Empfaengeradresse unbrauchbar (Pruefung im Backend)
@@ -14,6 +17,7 @@ export type ReceiptEmailSendErrorCode = (typeof RECEIPT_EMAIL_SEND_ERROR_CODES)[
  * ohne die sieben des Partner-Zugangs und `errorCodes.edge` (`not_found`,
  * `dialect_mismatch`, `response_translation_failed` ...). Das Paket reicht sie
  * als [KasseneckApiError.code] durch; ein Code ausserhalb bleibt dort lesbar.
+ * Zuletzt `route_missing` (Code des Pakets).
  */
 export const RECEIPT_EMAIL_ERROR_CODES = Object.freeze([
   ...RECEIPT_EMAIL_SEND_ERROR_CODES,
@@ -40,12 +44,30 @@ export const RECEIPT_EMAIL_ERROR_CODES = Object.freeze([
   'user_disabled',
   'user_verification_failed',
   'validation',
+  // Code des Pakets (CLIENT_ERROR_CODES; response_unreadable nur an signierenden Aufrufen)
+  'route_missing',
 ] as const);
 
 export type ReceiptEmailErrorCode = (typeof RECEIPT_EMAIL_ERROR_CODES)[number];
 
 export function isReceiptEmailErrorCode(value: unknown): value is ReceiptEmailErrorCode {
   return typeof value === 'string' && (RECEIPT_EMAIL_ERROR_CODES as readonly string[]).includes(value);
+}
+
+const RECEIPTEMAIL_BEKANNT: ReadonlySet<string> = new Set(RECEIPT_EMAIL_ERROR_CODES);
+
+/** Der Code eines geworfenen Fehlers, wenn er in [RECEIPT_EMAIL_ERROR_CODES] steht; sonst `undefined`. */
+export function receiptEmailErrorCode(error: unknown): ReceiptEmailErrorCode | undefined {
+  return bekannterCode<ReceiptEmailErrorCode>(error, RECEIPTEMAIL_BEKANNT);
+}
+
+/**
+ * Kurzform fuer `catch (e) { if (isReceiptEmailError(e, 'too_many_requests')) … }`.
+ * Ohne `code`: traegt der Fehler ueberhaupt einen Code aus [RECEIPT_EMAIL_ERROR_CODES]?
+ */
+export function isReceiptEmailError(error: unknown, code?: ReceiptEmailErrorCode): error is KasseneckApiError {
+  const gefunden = receiptEmailErrorCode(error);
+  return gefunden !== undefined && (code === undefined || gefunden === code);
 }
 
 /**

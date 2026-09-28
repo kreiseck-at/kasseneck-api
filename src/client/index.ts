@@ -42,6 +42,8 @@ export {
   type HttpFailureReason,
   type CauseDigest,
   type ErrorOutcome,
+  CLIENT_ERROR_CODES,
+  type ClientErrorCode,
   isKasseneckApiError,
   isKasseneckAuthError,
   isKasseneckHttpError,

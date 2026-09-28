@@ -150,12 +150,22 @@ test('1.0: PARTNER_ERROR_CODES ist errorCodes.partner des Vertrags, Code fuer Co
 });
 
 test('1.0: die Anmelde- und Anfragecodes der Partner-Doku stehen im Vertrag und tragen einen Satz', () => {
-  assert.deepEqual([...partner.PARTNER_REQUEST_ERROR_CODES], ['method_not_allowed', 'unauthorized', 'partner_locked', 'scope_missing']);
+  // Anmeldung und Anfrage, dahinter der Rand (errorCodes.edge ohne die, die
+  // der Katalog schon fuehrt) und route_missing, den das Paket vergibt.
+  const anmeldung = ['method_not_allowed', 'unauthorized', 'partner_locked', 'scope_missing'];
+  const rand = ((vokabular.errorCodes as unknown as { edge: string[] }).edge).filter((c) => !vokabular.errorCodes.partner.includes(c));
+  assert.deepEqual([...partner.PARTNER_REQUEST_ERROR_CODES], [...anmeldung, ...rand, 'route_missing']);
   for (const code of partner.PARTNER_REQUEST_ERROR_CODES) {
-    assert.ok(vokabular.errorCodes.auth.includes(code), `${code} fehlt in errorCodes.auth`);
+    if (anmeldung.includes(code)) assert.ok(vokabular.errorCodes.auth.includes(code), `${code} fehlt in errorCodes.auth`);
     assert.ok(partner.partnerErrorAdvice(code).length > 20, code);
-    assert.equal(partner.isPartnerErrorCode(code), false, `${code} gehoert nicht zu errorCodes.partner`);
+    assert.equal(vokabular.errorCodes.partner.includes(code), false, `${code} steht schon im Katalog`);
+    // Die Erkenner nehmen Katalog und Anfragecodes gleich.
+    assert.equal(partner.isPartnerErrorCode(code), true, code);
   }
+  const e = new KasseneckApiError('getPartnerInfo', 'x', {}, 'dialect_mismatch');
+  assert.ok(partner.isPartnerError(e));
+  assert.ok(partner.isPartnerError(e, 'dialect_mismatch'));
+  assert.equal(partner.isPartnerError(new KasseneckApiError('getPartnerInfo', 'x', {}, 'brand_new_code_2027')), false);
 });
 
 /**
