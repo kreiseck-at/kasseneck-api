@@ -1283,8 +1283,8 @@ short version:
   (`storno.ergebnis_unklar` is `cancellation.outcome_unknown`, `{betrag}` is
   `{amount}`); every rendered text is byte for byte the same.
 
-0.x stays on `/v1` and gets fixes only, published under the npm dist-tag `v0`
-(`npm install @kreiseck/kasseneck-api@v0`).
+0.x stays on `/v1` and gets fixes only, published under the npm dist-tag `legacy`
+(`npm install @kreiseck/kasseneck-api@legacy`).
 
 ## Development
 

@@ -24,8 +24,8 @@ on.
 #### The 0.x line
 
 0.x keeps talking to `/v1` and gets fixes only. Before 1.0.0 becomes
-`latest`, the last 0.x release is to be tagged with the npm dist-tag `v0`, so
-that `npm install @kreiseck/kasseneck-api@v0` keeps installing it; until then,
+`latest`, the last 0.x release is to be tagged with the npm dist-tag `legacy`, so
+that `npm install @kreiseck/kasseneck-api@legacy` keeps installing it; until then,
 pin the 0.x version you use (`@kreiseck/kasseneck-api@^0.31.0`). Nothing forces
 an upgrade as long as `/v1` is served.
 
