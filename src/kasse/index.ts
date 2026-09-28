@@ -40,6 +40,7 @@ export { listMyTipRecipients } from './trinkgeld.js';
 export {
   MELDUNGEN, FEHLERREGELN, meldung, meldungGiltFuer,
   BELEG_MAIL_FEHLER, belegMailFehler,
+  STORNO_ZAHLUNG_FEHLER, stornoZahlungFehler, BESCHRIFTUNGEN, beschriftung,
   type Meldung, type MeldungsSchluessel, type Fehlerart, type Seite,
-  type BelegMailFehlercode,
+  type BelegMailFehlercode, type StornoZahlungFehlercode, type BeschriftungsSchluessel,
 } from './texte.js';

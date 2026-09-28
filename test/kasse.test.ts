@@ -214,6 +214,12 @@ test('Mengenregel: Vorgabe je Einheit (Stk ganz ohne Fragen; kg/l/m dezimal mit 
   assert.equal(fromKasseArtikelPayload({ id: 'x', name: 'x', mengenregel: 'halb' }).mengenregel, null);
 });
 
+test('Kassieren: Vorgabe im Korb-Panel -- die Kacheln bleiben stehen (seit 0.31.0)', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.kassierenModus, 'panel');
+  // Ein gespeichertes 'seite' bleibt beim Mischen erhalten.
+  assert.equal(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { kassierenModus: 'seite' }).kassierenModus, 'seite');
+});
+
 test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
   assert.equal(KASSE_BETRIEB_STANDARD.kartenanbieter, 'keiner');
   assert.equal(KASSE_BETRIEB_STANDARD.zahlKarte, false);
@@ -349,7 +355,7 @@ test('Enums gibt es zur Laufzeit — Verbraucher koennen pruefen statt zu raten'
   assert.deepEqual([...DRUCKER_ART], ['sdp', 'netz', 'bt', 'usb', 'connect']);
   assert.deepEqual([...TERMINAL_VIA], ['direkt', 'connect']);
   assert.deepEqual([...TERMINAL_ART], ['keins', 'hps']);
-  assert.equal(TASTEN_AKTIONEN.length, 15);
+  assert.equal(TASTEN_AKTIONEN.length, 16);
 });
 
 test('GP Tom ist ein Kartenanbieter — sonst verwirft der Backend-Validator die Einstellung', () => {
@@ -391,4 +397,19 @@ test('owner ist nur bei echtem true wahr', async () => {
   const rufen = (async () => ({ recipients: [{ registerUserId: 'a', name: 'A', owner: 'ja' }] })) as never;
   const [erster] = await listMyTipRecipients(rufen);
   assert.equal(erster!.owner, false);
+});
+
+// --- Getrennt zahlen -----------------------------------------------------------
+// Standard aus: fuer Betriebe ohne Bedarf aendert sich nichts. Die Tasten-Aktion
+// gibt es, aber ohne Vorgabe – eine unerprobte Taste faengt sonst der Browser ab.
+test('zahlGetrennt ist aus, die Aktion getrennt hat keine Vorgabe-Taste', () => {
+  assert.equal(KASSE_BETRIEB_STANDARD.zahlGetrennt, false);
+  assert.ok(TASTEN_AKTIONEN.includes('getrennt'));
+  assert.deepEqual(KASSE_TASTEN_STANDARD.getrennt, []);
+  assert.equal(mergeKasseSettings(KASSE_BETRIEB_STANDARD, { zahlGetrennt: true }).zahlGetrennt, true);
+  const g = mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: { ...KASSE_TASTEN_STANDARD, getrennt: ['Mod+I'] } });
+  assert.deepEqual(g.tasten.getrennt, ['Mod+I']);
+  // Ein Altgeraet ohne die Aktion bekommt sie beim Mischen dazu.
+  const { getrennt: _weg, ...alt } = KASSE_TASTEN_STANDARD;
+  assert.deepEqual(mergeKasseSettings(KASSE_GERAET_STANDARD, { tasten: alt as typeof KASSE_TASTEN_STANDARD }).tasten.getrennt, []);
 });

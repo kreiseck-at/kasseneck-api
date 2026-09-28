@@ -27,7 +27,7 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
 
 /**
  * Stabile Fehlercodes von `cancelReceipt` — Zwilling von
- * `functions/storno-core.js` STORNO_FEHLERCODES. Das Backend legt sie bei
+ * `functions/gemeinsam/storno-core.js` STORNO_FEHLERCODES. Das Backend legt sie bei
  * jedem fachlichen Fehler als `code` neben die Meldung; das Paket reicht sie
  * als [KasseneckApiError.code] durch. **Entscheide am Code, nie am Text** —
  * die deutsche Meldung darf sich aendern, der Code nicht.
@@ -35,9 +35,12 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
  * Nur Auth-/Parameterfehler (Sitzung abgelaufen, Pflichtfeld fehlt) kommen
  * ohne Code; dort bleibt `code` undefined.
  *
- * Die vier `STORNO_…`-Codes am Ende gehoeren zur Rueckzahlung je Zahlung
- * (mehrere Zahlungen je Beleg); Formfehler an `payments` selbst melden die
- * Codes aus [PAYMENT_ERROR_CODES].
+ * Die vier `STORNO_PAYMENTS_…`/`STORNO_REFUND_…`-Codes gehoeren zur
+ * Rueckzahlung je Zahlung (mehrere Zahlungen je Beleg); Formfehler an
+ * `payments` selbst melden die Codes aus [PAYMENT_ERROR_CODES].
+ * `STORNO_OUTCOME_UNKNOWN` heisst: der Storno-Beleg kann schon signiert sein,
+ * die Reservierung bleibt offen – nicht erneut stornieren, die Belegliste
+ * nach ein paar Minuten neu laden (unter `/v3`: `cancellation_outcome_unknown`).
  *
  * Die Werte hier sind die von `/v1` und intern. Unter `/v3` heissen die
  * Storno-Codes nach dem /v3-Vokabular anders (`already_cancelled`,
@@ -65,6 +68,7 @@ export const CANCELLATION_ERROR_CODES = [
   'STORNO_REFUND_EXCEEDS_PAYMENT',    // Rueckzahlungen auf eine Zahlung uebersteigen deren Rest
   'STORNO_REFUND_REFERENCE_REQUIRED', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
   'STORNO_REFUND_REFERENCE_UNKNOWN',  // refundOf nennt keine Zahlung des Originals
+  'STORNO_OUTCOME_UNKNOWN',           // Ausgang offen: Storno-Beleg evtl. schon signiert, nicht wiederholen
 ] as const;
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];
@@ -112,6 +116,16 @@ export interface Cancellation {
    * nichts gewaehrt (Altbestand vor dieser Regel) — der naechste Storno holt nach.
    */
   promoAdjustmentCents?: Record<string, number>;
+  /**
+   * Rueckzahlung je Zahlung, die DIESER Storno-Eintrag auf eine Zahlung des
+   * Originals verbucht hat (`refundOf`) -- Zahlungs-ID auf positive Cent,
+   * Zwilling von `functions/gemeinsam/storno-core.js` `refundedByPayment`.
+   * Ueber alle Eintraege darf je Zahlung nie mehr zurueck, als bezahlt wurde
+   * (siehe dort `restJeZahlung`). Ein Eintrag ohne das Feld (vor dieser Regel
+   * oder ohne Zahlungsmodell gebucht) zaehlt dabei 0 je Zahlung. Auch am
+   * `pending`-Eintrag vorhanden, sobald reserviert wird.
+   */
+  refundedByPayment?: Record<string, number>;
 }
 
 /** Ab wann eine liegengebliebene Reservierung nicht mehr zaehlt (wie im Backend). */

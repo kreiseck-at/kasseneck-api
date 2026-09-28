@@ -50,7 +50,8 @@
     "tgSplit": true,
     "rueckgeld": true,
     "schnellbar": false,
-    "kassierenModus": "seite",
+    "kassierenModus": "panel",
+    "zahlGetrennt": false,
     "logoBild": "",
     "wzSeite": "mitte",
     "wzPos": 50,
@@ -120,7 +121,8 @@
       ],
       "korbLeeren": [
         "Mod+C"
-      ]
+      ],
+      "getrennt": []
     },
     "druckerAn": false,
     "druckerArt": "sdp",
