@@ -42,7 +42,9 @@ Findings from moving the web register onto 1.0.
   `errorCodeRules`, `errorOutcomeRules` and `callsWithEffect` next to
   `errorRules`. `pos-message-cases.json` is at version 2: a case may carry
   `error.code` (`api`) or `error.outcome` (`timeout`, `network`); the cases
-  without them are byte for byte those of rc.4.
+  without them are byte for byte those of rc.4. Reason: until 0.31 an HTML
+  answer was an HTTP error and showed `server.unexpected`; under 1.0 it is an
+  API error, and the register showed "Route fehlt: …" to the cashier.
 - **Timeout and network error on a call with an effect never invite a
   retry.** New `ERROR_OUTCOME_RULES`: with outcome `unknown`, `timeout` and
   `network` show `network.outcome_unknown` ("Der Server hat nicht
@@ -53,9 +55,9 @@ Findings from moving the web register onto 1.0.
   call in `CALLS_WITH_EFFECT` (the six with an unknown outcome, plus
   `createPrintJob` and `sendReceiptEmail`); fetch fails the same way before
   and after the request left, so the package cannot tell. Every other call
-  keeps the rc.4 sentence ("… und erneut versuchen."). Reason: until 0.31 an HTML answer was an HTTP error and showed
-  `server.unexpected`; under 1.0 it is an API error, and the register showed
-  "Route fehlt: …" to the cashier.
+  keeps the rc.4 sentence ("… und erneut versuchen."). Reason: after a
+  timeout the receipt, the card payment or the print job may already exist;
+  a retry could book or print it twice.
 - **New labels:** `register.device_unnamed` ("Kasse", a device without a
   name, `deviceLabel: null`), `login.locked_seconds` (`{seconds}` left of the
   PIN lock), `split.remaining_with_rounding` (`{amount}`, `{cents}` with its
