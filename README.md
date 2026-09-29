@@ -133,6 +133,12 @@ is turnover, spread over the VAT rates of the goods and discounted with them,
 while a staff tip goes untouched into the 0 % bucket. Only the register knows
 which one applies, so the helper never guesses.
 
+Input the amount cannot be computed from (a tip with an amount but no goods,
+a tip on a null receipt, a missing `tipRecipient` …) throws a
+`ReceiptDueError` with `code: 'receipt_due_unavailable'`, the cause in
+`reason` (`RECEIPT_DUE_ERROR_REASONS`) and `outcome: 'rejected'`: nothing has
+been sent. Tell the cashier before the card terminal is started.
+
 ## What a fiscal cash register in Austria must do
 
 The obligation to use a fiscal cash register and to issue receipts is set out
@@ -803,6 +809,16 @@ the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
 `messageText('checkout.locked', { reason })`. The rendered German texts are
 the same as in 0.x.
 
+`ERROR_RULES` says which text a failed call shows, the same in both
+registers; `findErrorRule(kind, code)` picks the first rule that matches the
+error's kind and, where a rule lists `codes`, its code. The edge codes
+`route_missing`, `dialect_mismatch`, `not_found`,
+`internal_translation_error` and `response_translation_failed` show a plain
+German sentence (`server.connection_disturbed`, for `dialect_mismatch`
+`server.connection_disturbed_reload`) instead of the package's technical
+sentence, which stays in `error.message` for the log. A call with an effect
+whose outcome is unknown (`isOutcomeUnknown`) gets its own warning first.
+
 ## Stored documents (`./stored`)
 
 For clients that read Firestore directly, such as the admin panel. Stored
@@ -825,7 +841,18 @@ invalidStoredPosSettings({ betrieb, geraet });               // paths the server
 ```
 
 `fromStoredReceipt`, `fromStoredCompany` and `fromStoredArticle` complete the
-set. A broken document throws a `KasseneckValidationError`. There is no
+set. A broken document throws a `KasseneckValidationError`. `fromStoredReceipt`
+also takes a receipt that already carries the English 1.0 values (for example
+a fixture with `cancellationReason: 'customer_cancelled'`) and leaves them
+as they are; the package keeps it that way.
+
+The receipt layout and the print logo have an internal form as well: the
+backend under `/api` and the 0.x browser cache use `regelwerk` for `ruleset`,
+banner lines with `ton` (`belegart`, `warnung`) for `tone` (`receipt_type`,
+`warning`), and a print logo with `stufe`, `pxBreite`, `pxHoehe`, `breite`,
+`hoehe`, `zeilen`. `fromStoredLayout` reads either form (`null` when there is
+no layout), `toStoredLayout` writes the internal one, and
+`fromStoredPrintLogo`/`toStoredPrintLogo` do the same for a `PrintLogo`. There is no
 reader for stored invoices: the server computes the invoice view, so read it
 with `getInvoice` and `listInvoices`.
 
@@ -1390,6 +1417,7 @@ in machine form what both sides agreed on, among them:
 | `invoice-api.schema.json` | JSON Schema of the invoice API | `npm run fixtures:rechnung` |
 | `pos-message-cases.json` | error cases and the message each one must show in both registers | by hand |
 | `receipt-due-generated.json` | 1206 amounts due computed by the backend's own code, the reference for `receiptDueCents` | `node scripts/v3-zahlbetrag-generieren.mjs` |
+| `receipt-due-errors.json` | input the amount due cannot be computed from, with the `reason` of the `ReceiptDueError` each one throws | by hand |
 | `v3/` | the backend's `/v3` contract (vocabulary, response cases, stored cases, amounts due), copied byte for byte | `node scripts/v3-vertrag-holen.mjs` |
 | `renames-1.0.json` | everything in these files that changed from 0.x to 1.0: paths (`files`), text catalogue keys (`texts`), placeholders, structural keys (`structure`), machine values (`values`), shape changes (`shapes`); rendered texts are unchanged | `npm run fixtures:umbenennung` |
 
@@ -1397,9 +1425,10 @@ They are generated and never edited by hand. CI regenerates the register
 settings and `surface.json` and fails if they differ from the committed
 files; the test suite checks the others against the code.
 
-`surface.json`, `hobex-hps-codes.json`, `pos-texts.json` and
-`invoice-texts.json` carry the package version. **After every `npm version`,
-regenerate them and commit them along**, otherwise the tests fail.
+`surface.json`, `hobex-hps-codes.json`, `pos-texts.json`,
+`invoice-texts.json` and `invoice-api.schema.json` carry the package version.
+**After every `npm version`, regenerate them and commit them along**,
+otherwise the tests fail (`test/versionen.test.ts`).
 
 ### And the other direction
 

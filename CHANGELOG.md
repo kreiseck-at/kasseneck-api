@@ -19,6 +19,49 @@ bytes of every golden receipt.
 This entry is written in English, like the developer documentation from here
 on.
 
+### 1.0.0-rc.5
+
+Findings from moving the web register onto 1.0.
+
+- **Plain text for edge codes on the register screen.** `ERROR_RULES` now
+  starts with two rules that carry `codes`: `route_missing`, `not_found`,
+  `internal_translation_error` and `response_translation_failed` show
+  `server.connection_disturbed`, `dialect_mismatch` shows
+  `server.connection_disturbed_reload` (reload the page). The technical
+  sentence of the package or the edge stays in `error.message`. New
+  `findErrorRule(kind, code)` picks the rule; a register that looks the rule
+  up by `kind` alone now gets the first `api` rule and must switch.
+  `pos-message-cases.json` is at version 2: an `api` case may carry
+  `error.code`. Reason: until 0.31 an HTML answer was an HTTP error and showed
+  `server.unexpected`; under 1.0 it is an API error, and the register showed
+  "Route fehlt: …" to the cashier.
+- **New labels:** `register.device_unnamed` ("Kasse", a device without a
+  name, `deviceLabel: null`), `login.locked_seconds` (`{seconds}` left of the
+  PIN lock), `split.remaining_with_rounding` (`{amount}`, `{cents}` with its
+  sign: the last round of a split payment takes the rounding cent). Reason:
+  the web register had to write these words itself.
+- **`receiptDueCents` throws `ReceiptDueError`, not `RangeError`.** Code
+  `receipt_due_unavailable`, the cause in `reason` (`RECEIPT_DUE_ERROR_REASONS`,
+  e.g. `tip_without_goods` for a tip with an amount but no goods, also for a
+  staff tip), `outcome: 'rejected'`, guard `isReceiptDueError`. The cases are
+  in `fixtures/receipt-due-errors.json`. Every computed amount is unchanged
+  (the 1206 generated cases). Reason: a `RangeError` without a code could not
+  be told apart from a bug, and the register must say "not sent" before it
+  starts the card terminal.
+- **`./stored`: `fromStoredLayout`, `toStoredLayout`, `fromStoredPrintLogo`,
+  `toStoredPrintLogo`.** The internal form of the receipt layout (`regelwerk`,
+  banner `ton` `belegart`/`warnung`) and of the print logo (`stufe`,
+  `pxBreite`, `pxHoehe`, `breite`, `hoehe`, `zeilen`) to 1.0 and back, checked
+  against all 40 golden layouts as 0.31.0 wrote them. Reason: the web register
+  cache, the panel and the lab each carried their own copy.
+- **`fromStoredReceipt` leaves English 1.0 values as they are** (a fixture
+  receipt with `cancellationReason: 'customer_cancelled'`). It did so
+  already; now it is promised and tested.
+- **Contract versions:** a test holds the version in `surface.json`,
+  `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and
+  `invoice-api.schema.json` (and `PACKAGE_VERSION`, `package-lock.json`, this
+  file) to `package.json`.
+
 ### Migrating from 0.x
 
 #### The 0.x line
