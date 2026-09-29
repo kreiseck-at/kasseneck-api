@@ -809,9 +809,12 @@ the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
 `messageText('checkout.locked', { reason })`. The rendered German texts are
 the same as in 0.x.
 
-`ERROR_RULES` says which text a failed call shows, the same in both
-registers; `findErrorRule(kind, code)` picks the first rule that matches the
-error's kind and, where a rule lists `codes`, its code. The edge codes
+`ERROR_RULES` says which text a failed call shows, one rule per kind, the
+same in both registers. `ERROR_CODE_RULES` (per `error.code`) and
+`ERROR_OUTCOME_RULES` (per outcome) refine it; `findErrorRule(kind, { code,
+outcome: messageOutcome(error) })` applies all three in that order. A timeout
+or network error on a call with an effect (`CALLS_WITH_EFFECT`) shows
+`network.outcome_unknown`, which never suggests a retry. The edge codes
 show a plain German sentence instead of the package's technical sentence,
 which stays in `error.message` for the log: `route_missing`, `not_found` and
 `internal_translation_error` (nothing happened on the server)
@@ -852,8 +855,10 @@ The receipt layout and the print logo have an internal form as well: the
 backend under `/api` and the 0.x browser cache use `regelwerk` for `ruleset`,
 banner lines with `ton` (`belegart`, `warnung`) for `tone` (`receipt_type`,
 `warning`), and a print logo with `stufe`, `pxBreite`, `pxHoehe`, `breite`,
-`hoehe`, `zeilen`. `fromStoredLayout` reads either form (`null` when there is
-no layout), `toStoredLayout` writes the internal one, and
+`hoehe`, `zeilen`. `fromStoredLayout` reads either form and keeps the key
+order (`null` for anything short of a whole layout: no or empty `lines`, a
+line that is not an object, no `paperSize`; `receiptLayoutFromResult` then
+rebuilds it), `toStoredLayout` writes the internal one, and
 `fromStoredPrintLogo`/`toStoredPrintLogo` do the same for a `PrintLogo`. There is no
 reader for stored invoices: the server computes the invoice view, so read it
 with `getInvoice` and `listInvoices`.

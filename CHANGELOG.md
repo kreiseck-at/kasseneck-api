@@ -23,8 +23,10 @@ on.
 
 Findings from moving the web register onto 1.0.
 
-- **Plain text for edge codes on the register screen.** `ERROR_RULES` now
-  starts with two rules that carry `codes`. `route_missing`, `not_found` and
+- **Plain text for edge codes on the register screen.** `ERROR_RULES` is
+  unchanged (one rule per kind, as in rc.4), so a register that looks a rule
+  up by `kind` alone keeps showing the same sentence. New
+  `ERROR_CODE_RULES` refine it per code. `route_missing`, `not_found` and
   `internal_translation_error` (nothing happened on the server) show
   `server.connection_disturbed` ("Die Verbindung zum Kassenserver ist
   gestört. Bitte kurz warten und erneut versuchen."). `dialect_mismatch`,
@@ -34,11 +36,24 @@ Findings from moving the web register onto 1.0.
   der letzte Vorgang schon gebucht ist."), which never invites a retry; a
   test holds every code the package treats as outcome-unknown to that. Both
   sentences fit both registers (no page, no browser). The technical
-  sentence of the package or the edge stays in `error.message`. New
-  `findErrorRule(kind, code)` picks the rule; a register that looks the rule
-  up by `kind` alone now gets the first `api` rule and must switch.
-  `pos-message-cases.json` is at version 2: an `api` case may carry
-  `error.code`. Reason: until 0.31 an HTML answer was an HTTP error and showed
+  sentence of the package or the edge stays in `error.message`.
+  `findErrorRule(kind, { code, outcome })` applies the code rules, then the
+  outcome rules, then `ERROR_RULES`. `pos-texts.json` carries
+  `errorCodeRules`, `errorOutcomeRules` and `callsWithEffect` next to
+  `errorRules`. `pos-message-cases.json` is at version 2: a case may carry
+  `error.code` (`api`) or `error.outcome` (`timeout`, `network`); the cases
+  without them are byte for byte those of rc.4.
+- **Timeout and network error on a call with an effect never invite a
+  retry.** New `ERROR_OUTCOME_RULES`: with outcome `unknown`, `timeout` and
+  `network` show `network.outcome_unknown` ("Der Server hat nicht
+  geantwortet, der Vorgang kann trotzdem gebucht sein. Bitte vor einem neuen
+  Versuch prüfen, ob der letzte Vorgang schon gebucht ist."). New
+  `messageOutcome(error)` gives the outcome for the sentence: `unknown` when
+  `isOutcomeUnknown` says so, and after a timeout or network error on any
+  call in `CALLS_WITH_EFFECT` (the six with an unknown outcome, plus
+  `createPrintJob` and `sendReceiptEmail`); fetch fails the same way before
+  and after the request left, so the package cannot tell. Every other call
+  keeps the rc.4 sentence ("… und erneut versuchen."). Reason: until 0.31 an HTML answer was an HTTP error and showed
   `server.unexpected`; under 1.0 it is an API error, and the register showed
   "Route fehlt: …" to the cashier.
 - **New labels:** `register.device_unnamed` ("Kasse", a device without a
@@ -58,7 +73,11 @@ Findings from moving the web register onto 1.0.
   `toStoredPrintLogo`.** The internal form of the receipt layout (`regelwerk`,
   banner `ton` `belegart`/`warnung`) and of the print logo (`stufe`,
   `pxBreite`, `pxHoehe`, `breite`, `hoehe`, `zeilen`) to 1.0 and back, checked
-  against all 40 golden layouts as 0.31.0 wrote them. Reason: the web register
+  against all 40 golden layouts as 0.31.0 wrote them, byte for byte including
+  the key order. `fromStoredLayout` returns `null` for anything short of a
+  whole layout (no or empty `lines`, a line that is not an object, no
+  `paperSize`), so the caller rebuilds it with the `TESTKASSE` banner.
+  Reason: the web register
   cache, the panel and the lab each carried their own copy.
 - **`fromStoredReceipt` leaves English 1.0 values as they are** (a fixture
   receipt with `cancellationReason: 'customer_cancelled'`). It did so
