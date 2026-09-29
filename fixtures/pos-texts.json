@@ -7,6 +7,9 @@
     "network.timeout": {
       "text": "Der Server antwortet nicht. Bitte die Internetverbindung prüfen und erneut versuchen."
     },
+    "network.outcome_unknown": {
+      "text": "Der Server hat nicht geantwortet, der Vorgang kann trotzdem gebucht sein. Bitte vor einem neuen Versuch prüfen, ob der letzte Vorgang schon gebucht ist."
+    },
     "server.unexpected": {
       "text": "Der Server hat unerwartet geantwortet (HTTP {status}). Bitte den Support verständigen.",
       "placeholders": [
@@ -664,24 +667,6 @@
   "errorRules": [
     {
       "kind": "api",
-      "codes": [
-        "dialect_mismatch",
-        "response_translation_failed",
-        "response_unreadable"
-      ],
-      "key": "server.response_unreadable"
-    },
-    {
-      "kind": "api",
-      "codes": [
-        "route_missing",
-        "not_found",
-        "internal_translation_error"
-      ],
-      "key": "server.connection_disturbed"
-    },
-    {
-      "kind": "api",
       "behavior": "server_text"
     },
     {
@@ -704,6 +689,48 @@
       "kind": "other",
       "behavior": "fallback"
     }
+  ],
+  "errorCodeRules": [
+    {
+      "kind": "api",
+      "codes": [
+        "dialect_mismatch",
+        "response_translation_failed",
+        "response_unreadable"
+      ],
+      "key": "server.response_unreadable"
+    },
+    {
+      "kind": "api",
+      "codes": [
+        "route_missing",
+        "not_found",
+        "internal_translation_error"
+      ],
+      "key": "server.connection_disturbed"
+    }
+  ],
+  "errorOutcomeRules": [
+    {
+      "kind": "timeout",
+      "outcome": "unknown",
+      "key": "network.outcome_unknown"
+    },
+    {
+      "kind": "network",
+      "outcome": "unknown",
+      "key": "network.outcome_unknown"
+    }
+  ],
+  "callsWithEffect": [
+    "createReceipt",
+    "cancelReceipt",
+    "financeWebService",
+    "hobexPayApi",
+    "hobexRefundApi",
+    "stripeCaptureIntent",
+    "createPrintJob",
+    "sendReceiptEmail"
   ],
   "receiptEmailErrors": {
     "invalid_address": "receipt.mail_address_invalid",

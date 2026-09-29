@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo } from '../src/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo } from '../src/pos/texte.js';
 import type { MessageKey } from '../src/pos/texte.js';
 import { CANCELLATION_ERROR_CODES } from '../src/models/cancellation.js';
 import { readFileSync } from 'node:fs';
@@ -62,17 +62,31 @@ test('messageAppliesTo folgt only', () => {
 
 test('die Fehlerregeln enden mit other und nennen nur bekannte Schluessel', () => {
   assert.equal(ERROR_RULES.at(-1)?.kind, 'other');
-  for (const regel of ERROR_RULES) {
+  for (const regel of [...ERROR_RULES, ...ERROR_CODE_RULES, ...ERROR_OUTCOME_RULES]) {
     if ('key' in regel) assert.ok(regel.key in MESSAGES, regel.key);
   }
-  assert.deepEqual(ERROR_RULES.map((r) => r.kind), ['api', 'api', 'api', 'plain_text', 'timeout', 'network', 'unexpected', 'other']);
-  // Regeln mit Codes stehen vor der allgemeinen Regel ihrer Art, sonst griffen sie nie.
-  for (const [i, regel] of ERROR_RULES.entries()) {
-    if (!('codes' in regel)) continue;
-    const allgemein = ERROR_RULES.findIndex((r) => r.kind === regel.kind && !('codes' in r));
-    assert.ok(i < allgemein, `Regel ${i} (${regel.codes.join(', ')}) steht hinter der allgemeinen Regel`);
-  }
+  // Genau eine Regel je Art: die Verfeinerungen stehen in eigenen Listen.
+  assert.deepEqual(ERROR_RULES.map((r) => r.kind), ['api', 'plain_text', 'timeout', 'network', 'unexpected', 'other']);
   assert.deepEqual(ERROR_RULES.filter((r) => 'behavior' in r).map((r) => 'behavior' in r && r.behavior), ['server_text', 'own_text', 'fallback']);
+  const arten = new Set<string>(ERROR_RULES.map((r) => r.kind));
+  for (const r of [...ERROR_CODE_RULES, ...ERROR_OUTCOME_RULES]) assert.ok(arten.has(r.kind), r.kind);
+});
+
+test('ERROR_RULES ist der Stand von rc.4: wer nur nach kind sucht, zeigt denselben Satz wie vorher', () => {
+  // Gepinnt, woertlich wie in 1.0.0-rc.4 (fixtures/pos-texts.json errorRules).
+  assert.deepEqual(ERROR_RULES, [
+    { kind: 'api', behavior: 'server_text' },
+    { kind: 'plain_text', behavior: 'own_text' },
+    { kind: 'timeout', key: 'network.timeout' },
+    { kind: 'network', key: 'network.no_connection' },
+    { kind: 'unexpected', key: 'server.unexpected' },
+    { kind: 'other', behavior: 'fallback' },
+  ]);
+  // Ein Leser alter Art (ERROR_RULES.find nach kind) bekommt fuer einen
+  // Backend-Fehler weiter den Satz des Backends, nie einen Rand-Satz.
+  assert.deepEqual(ERROR_RULES.find((r) => r.kind === 'api'), { kind: 'api', behavior: 'server_text' });
+  assert.equal(messageText('network.timeout'), 'Der Server antwortet nicht. Bitte die Internetverbindung prüfen und erneut versuchen.');
+  assert.equal(messageText('network.no_connection'), 'Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen.');
 });
 
 test('kein Satz steht zweimal im Katalog', () => {
@@ -460,7 +474,7 @@ test('das X an einer Meldung nennt die Meldung, die es ausblendet', () => {
 test('Rand-Codes zeigen dem Kassier einen Menschentext, nie den technischen Satz', () => {
   const rand = ['route_missing', 'dialect_mismatch', 'not_found', 'internal_translation_error', 'response_translation_failed', 'response_unreadable'];
   for (const code of rand) {
-    const regel = findErrorRule('api', code);
+    const regel = findErrorRule('api', { code });
     assert.ok('key' in regel, code);
     const text = messageText(regel.key);
     assert.match(text, /Kassenserver/, code);
@@ -468,51 +482,90 @@ test('Rand-Codes zeigen dem Kassier einen Menschentext, nie den technischen Satz
   }
   // Am Server geschah nichts: neuer Versuch erlaubt.
   for (const code of ['route_missing', 'not_found', 'internal_translation_error']) {
-    assert.equal(findErrorRule('api', code), ERROR_RULES.find((r) => 'key' in r && r.key === 'server.connection_disturbed'), code);
+    assert.equal(findErrorRule('api', { code }), ERROR_CODE_RULES.find((r) => r.key === 'server.connection_disturbed'), code);
   }
-  // Jeder andere Code und ein Fehler ohne Code: der Satz des Backends.
-  for (const code of ['session_expired', 'validation', undefined, null]) {
-    assert.deepEqual(findErrorRule('api', code), { kind: 'api', behavior: 'server_text' }, String(code));
+  // Jeder andere Code und ein Fehler ohne Code: der Satz des Backends, auch bei unklarem Ausgang.
+  for (const code of ['session_expired', 'validation', 'receipt_outcome_unknown', undefined, null]) {
+    assert.deepEqual(findErrorRule('api', { code }), { kind: 'api', behavior: 'server_text' }, String(code));
+    assert.deepEqual(findErrorRule('api', { code, outcome: 'unknown' }), { kind: 'api', behavior: 'server_text' }, String(code));
   }
   // Ein Code an einer anderen Art aendert nichts.
-  assert.deepEqual(findErrorRule('network', 'route_missing'), { kind: 'network', key: 'network.no_connection' });
+  assert.deepEqual(findErrorRule('network', { code: 'route_missing' }), { kind: 'network', key: 'network.no_connection' });
+  // Ausgang: nur timeout und network kennen eine Ausgangs-Regel.
+  assert.deepEqual(findErrorRule('timeout', { outcome: 'unknown' }), { kind: 'timeout', outcome: 'unknown', key: 'network.outcome_unknown' });
+  assert.deepEqual(findErrorRule('timeout', { outcome: 'rejected' }), { kind: 'timeout', key: 'network.timeout' });
+  assert.deepEqual(findErrorRule('network'), { kind: 'network', key: 'network.no_connection' });
 });
+
+/** Woran ein Satz eine Seite, einen Browser oder die App meint (Muster aus dem Review, M2). */
+const NENNT_EINE_SEITE = /seite|browser|\bapp\b|neu laden|tab\b|fenster/i;
 
 test('die gemeinsamen Regeln passen fuer beide Kassen: kein Satz nennt eine Seite, jeder gilt auf beiden Seiten', () => {
-  for (const regel of ERROR_RULES) {
+  for (const regel of [...ERROR_RULES, ...ERROR_CODE_RULES, ...ERROR_OUTCOME_RULES]) {
     if (!('key' in regel)) continue;
-    assert.doesNotMatch(MESSAGES[regel.key].text, /Seite|Browser|App\b/, regel.key);
+    assert.doesNotMatch(MESSAGES[regel.key].text, NENNT_EINE_SEITE, regel.key);
     assert.equal(MESSAGES[regel.key].only, undefined, regel.key);
+  }
+  // Das Muster faengt, was es fangen soll (auch klein und zusammengesetzt).
+  for (const probe of ['Bitte die Webseite neu laden.', 'Im BROWSER.', 'Die App neu starten.', 'Den Tab schliessen.', 'Fenster neu öffnen.']) {
+    assert.match(probe, NENNT_EINE_SEITE, probe);
   }
 });
 
-/** Woran ein Satz das Wiederholen empfiehlt. */
-const RAET_ZUM_WIEDERHOLEN = /erneut versuchen|nochmal|noch einmal/i;
+/** Woran ein Satz das Wiederholen empfiehlt (Muster aus dem Review, M2). */
+const RAET_ZUM_WIEDERHOLEN = /erneut|nochmal|noch einmal|wiederhol|neu senden/i;
 
-test('Ausgang unklar: kein Code, den das Paket als unklar fuehrt, bekommt einen Satz, der zum Wiederholen raet', () => {
+test('Ausgang unklar: kein Code, der auf irgendeinem Aufruf mit Wirkung unklar ist, bekommt einen eigenen Satz, der zum Wiederholen raet', () => {
+  for (const probe of ['Bitte erneut senden.', 'Nochmal versuchen.', 'Noch einmal drücken.', 'Bitte wiederholen.', 'Neu senden.']) {
+    assert.match(probe, RAET_ZUM_WIEDERHOLEN, probe);
+  }
   // Alle Codes, die ein KasseneckApiError tragen kann: der Vertrag (errorCodes.all)
-  // und die des Pakets. Ob unklar, entscheidet der Fehler selbst (outcome).
+  // und die des Pakets. Ob unklar, entscheidet der Fehler selbst (outcome), je
+  // Aufruf: auf den Geldwegen ist jeder Code ausserhalb der Abgelehnt-Liste unklar.
   const vokabular = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url)), 'utf8')) as { errorCodes: { all: string[] } };
   const codes = [...new Set([...vokabular.errorCodes.all, ...CLIENT_ERROR_CODES, 'dialect_mismatch'])];
-  const unklar = codes.filter((c) => new KasseneckApiError('createReceipt', 'x', {}, c).outcome === 'unknown');
-  assert.ok(unklar.includes('dialect_mismatch') && unklar.includes('response_translation_failed') && unklar.includes('response_unreadable'), unklar.join(', '));
-  const ohneEigenenSatz: string[] = [];
-  for (const code of unklar) {
-    const regel = findErrorRule('api', code);
-    if (!('key' in regel)) { ohneEigenenSatz.push(code); continue; }
-    assert.doesNotMatch(messageText(regel.key), RAET_ZUM_WIEDERHOLEN, `${code} -> ${regel.key}`);
+  const unklarAuf = (call: string, code: string) => new KasseneckApiError(call, 'x', {}, code).outcome === 'unknown';
+  assert.ok(CALLS_WITH_EFFECT.includes('hobexPayApi') && CALLS_WITH_EFFECT.includes('createReceipt'));
+  let geprueft = 0;
+  for (const code of codes) {
+    const aufrufe = CALLS_WITH_EFFECT.filter((c) => unklarAuf(c, code));
+    if (aufrufe.length === 0) continue;
+    const regel = findErrorRule('api', { code, outcome: 'unknown' });
+    // Entweder der Satz des Backends (vom Server, nicht aus diesem Katalog) oder ein eigener ohne Rat zum Wiederholen.
+    if ('key' in regel) {
+      assert.doesNotMatch(messageText(regel.key), RAET_ZUM_WIEDERHOLEN, `${code} (${aufrufe.join(', ')}) -> ${regel.key}`);
+      geprueft++;
+    } else {
+      assert.equal(regel.kind === 'api' && 'behavior' in regel && regel.behavior, 'server_text', code);
+    }
   }
-  // Diese beiden traegt das Backend mit eigenem Satz, und der Vorgang hat
-  // seinen eigenen Katalogsatz (cancellation.outcome_unknown bzw. der
-  // Abschluss der Kasse); jeder weitere unklare Code braucht eine Regel.
+  assert.ok(geprueft >= 3, `nur ${geprueft} eigene Saetze geprueft`);
+  // Jede Code-Regel mit Rat zum Wiederholen gilt nur fuer Codes, die auf KEINEM Aufruf mit Wirkung unklar sind.
+  for (const regel of ERROR_CODE_RULES) {
+    if (!RAET_ZUM_WIEDERHOLEN.test(messageText(regel.key))) continue;
+    for (const code of regel.codes) {
+      assert.deepEqual(CALLS_WITH_EFFECT.filter((c) => unklarAuf(c, code)), [], `${code} ist unklar, ${regel.key} raet aber zum Wiederholen`);
+    }
+  }
+  // Auf createReceipt tragen nur diese beiden unklaren Codes den Satz des
+  // Backends (der Vorgang hat seinen eigenen Katalogsatz); jeder weitere
+  // unklare Code braucht eine Regel.
+  const ohneEigenenSatz = codes.filter((c) => unklarAuf('createReceipt', c) && !('key' in findErrorRule('api', { code: c, outcome: 'unknown' })));
   assert.deepEqual(ohneEigenenSatz.sort(), ['cancellation_outcome_unknown', 'receipt_outcome_unknown']);
-  // Und jeder Satz einer Regel mit Codes, deren Ausgang unklar ist, ebenso.
-  for (const regel of ERROR_RULES) {
-    if (!('codes' in regel) || !('key' in regel)) continue;
-    if (regel.codes.some((c: string) => unklar.includes(c))) assert.doesNotMatch(messageText(regel.key), RAET_ZUM_WIEDERHOLEN, regel.key);
-  }
   // Der Satz fuer den sicheren Fall raet dagegen ausdruecklich zum neuen Versuch.
   assert.match(messageText('server.connection_disturbed'), RAET_ZUM_WIEDERHOLEN);
+});
+
+test('Frist und Netzfehler: unklarer Ausgang raet nie zum Wiederholen, sonst der Satz von rc.4', () => {
+  for (const kind of ['timeout', 'network'] as const) {
+    const unklar = findErrorRule(kind, { outcome: 'unknown' });
+    assert.ok('key' in unklar);
+    assert.doesNotMatch(messageText(unklar.key), RAET_ZUM_WIEDERHOLEN, kind);
+    assert.doesNotMatch(messageText(unklar.key), NENNT_EINE_SEITE, kind);
+    for (const outcome of ['rejected', undefined, null] as const) {
+      assert.deepEqual(findErrorRule(kind, { outcome }), ERROR_RULES.find((r) => r.kind === kind), `${kind} ${String(outcome)}`);
+    }
+  }
 });
 
 test('neue Beschriftungen: Geraet ohne Namen, Restzeit der PIN-Sperre, letzte Runde mit Rundung', () => {

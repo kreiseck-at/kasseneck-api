@@ -52,9 +52,9 @@ export { listMyTipRecipients } from './trinkgeld.js';
 
 // Was die Kasse selbst sagt: ein Katalog fuer Browser-Kasse und App.
 export {
-  MESSAGES, ERROR_RULES, findErrorRule, messageText, messageAppliesTo,
+  MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
   CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, LABELS, labelText,
-  type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type Surface,
+  type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';

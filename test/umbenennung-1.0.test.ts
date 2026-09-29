@@ -48,10 +48,12 @@ const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
  * 0.x-Stand, nur umbenannt.
  */
 const NACH_1_0 = {
-  messages: ['server.connection_disturbed', 'server.response_unreadable'],
+  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding'],
-  // Faelle mit `code` (seit Version 2 der Datei): die Regeln der Rand-Codes.
+  // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
+  // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules.
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
@@ -146,7 +148,8 @@ function kasseGerendert(name: string, alt: Json, tabelle: Record<string, string>
 }
 
 test('Platzhalter: jeder Kassentext ergibt alt und neu gefuellt denselben Satz (Datei und Quelle)', () => {
-  assert.deepEqual(Object.keys(NEU_KASSE), Object.keys(ALT_KASSE).map((s) => K['file']![s]), 'Kasse: Dateischluessel nicht wie in der Tabelle');
+  assert.deepEqual(Object.keys(NEU_KASSE).filter((k) => !NACH_1_0.fileKeys.includes(k)), Object.keys(ALT_KASSE).map((s) => K['file']![s]), 'Kasse: Dateischluessel nicht wie in der Tabelle');
+  assert.deepEqual(Object.keys(NEU_KASSE).filter((k) => NACH_1_0.fileKeys.includes(k)), NACH_1_0.fileKeys);
   const m = kasseGerendert('Meldungen', ALT_KASSE.meldungen, MELDUNGEN, NEU_KASSE.messages, (s, w) => messageText(s as MessageKey, w));
   const l = kasseGerendert('Beschriftungen', ALT_KASSE.beschriftungen, BESCHRIFTUNGEN, NEU_KASSE.labels, (s, w) => labelText(s as LabelKey, w));
   assert.deepEqual(Object.keys(ohne(NEU_KASSE.messages, NACH_1_0.messages)), Object.keys(ALT_KASSE.meldungen).map((s) => MELDUNGEN[s]));
@@ -197,16 +200,16 @@ test('Umbenennung: pos-message-cases.json ist der 0.x-Stand, nur umbenannt', () 
   }) }, F['file']!);
   // Seit Version 2 tragen Faelle der Art api einen `code`; die ohne Code sind der 0.x-Stand.
   assert.equal(NEU_FAELLE.version, NACH_1_0.caseVersion);
-  const alteFaelle = (NEU_FAELLE.cases as Json[]).filter((f) => f.error.code === undefined);
+  const alteFaelle = (NEU_FAELLE.cases as Json[]).filter((f) => f.error.code === undefined && f.error.outcome === undefined);
   assert.deepEqual({ ...NEU_FAELLE, version: soll.version, cases: alteFaelle }, soll);
   assert.ok((NEU_FAELLE.cases as Json[]).every((f) => f.error.code === undefined || f.error.kind === 'api'));
+  assert.ok((NEU_FAELLE.cases as Json[]).every((f) => f.error.outcome === undefined || ['timeout', 'network'].includes(f.error.kind)));
 });
 
 test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schluessel', () => {
-  // Die Regeln mit `codes` kamen nach 1.0 (Rand-Codes); die uebrigen sind der 0.x-Stand.
-  assert.deepEqual(ERROR_RULES.filter((r) => 'codes' in r).map((r) => 'key' in r && r.key), ['server.response_unreadable', 'server.connection_disturbed']);
+  // ERROR_RULES ist der 0.x-Stand, nur umbenannt; die Verfeinerungen nach 1.0 stehen eigens.
   assert.deepEqual(
-    ERROR_RULES.filter((r) => !('codes' in r)),
+    ERROR_RULES,
     (ALT_KASSE.fehlerregeln as Json[]).map((r) => umbenannt({
       ...r,
       art: ART[r.art],

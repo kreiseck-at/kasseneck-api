@@ -626,7 +626,7 @@ test('v3: route_missing und dialect_mismatch zeigen dem Kassier einen Menschente
     assert.ok(e instanceof KasseneckApiError, f.code);
     assert.equal(e.code, f.code);
     assert.match(e.message, f.technisch, f.code);
-    const regel = findErrorRule('api', e.code);
+    const regel = findErrorRule('api', { code: e.code });
     assert.ok('key' in regel && regel.key === f.schirm, f.code);
     assert.doesNotMatch(messageText(regel.key), f.technisch, f.code);
   }

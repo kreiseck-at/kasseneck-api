@@ -399,6 +399,16 @@
     "splitPayment"
   ],
   "pos": {
+    "callsWithEffect": [
+      "createReceipt",
+      "cancelReceipt",
+      "financeWebService",
+      "hobexPayApi",
+      "hobexRefundApi",
+      "stripeCaptureIntent",
+      "createPrintJob",
+      "sendReceiptEmail"
+    ],
     "posErrorCodes": [
       "account_not_found",
       "admin_required",

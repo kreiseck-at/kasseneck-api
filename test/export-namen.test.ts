@@ -242,7 +242,7 @@ const PARAMETER_WOERTER: ReadonlySet<string> = new Set([
  */
 const PARAMETER_ENGLISCH: ReadonlySet<string> = new Set(`
 after alternate before binary block body budget business bytes cashregister cause cents certificate chars client code
-columns company connect content count customer data date details device dimensions discount email endpoint error event
+columns company connect content count customer data date detail details device dimensions discount email endpoint error event
 extra fallback fetch field fields font format function grid header height image index inner instant interface interval
 invoice item items key kind label language layout logo matrix max message month months mode module name now number options
 out outcome paper patch payload payment price query rate raw reason receipt report request result scheme scope search
