@@ -29,43 +29,61 @@ const TON_NACH_1_0: Readonly<Record<string, string>> = { belegart: 'receipt_type
 const TON_NACH_INNEN: Readonly<Record<string, string>> = { receipt_type: 'belegart', warning: 'warnung' };
 
 /**
+ * Ein Objekt mit umbenannten Schluesseln, an derselben Stelle: die
+ * Reihenfolge bleibt, damit ein gespeicherter Eintrag byte-gleich
+ * zurueckkommt (Hash- und Cache-Vergleiche). `werte` ersetzt den Wert eines
+ * (alten) Schluessels.
+ */
+function umbenannt(o: Objekt, namen: Readonly<Record<string, string>>, werte: Readonly<Record<string, (w: unknown) => unknown>> = {}): Objekt {
+  const raus: Objekt = {};
+  for (const [k, w] of Object.entries(o)) {
+    const neu = namen[k] ?? k;
+    // Traegt die Eingabe beide Namen, gewinnt der schon neue.
+    if (neu !== k && Object.prototype.hasOwnProperty.call(o, neu)) continue;
+    raus[neu] = werte[k] ? werte[k]!(w) : w;
+  }
+  return raus;
+}
+
+const tonNach = (tabelle: Readonly<Record<string, string>>) => (w: unknown) => (typeof w === 'string' ? tabelle[w] ?? w : w);
+
+/**
  * Ein Zeilenmodell in der inneren Form (0.x-Zwischenspeicher, Antwort unter
  * `/api`) als [ReceiptLayout]. Nimmt auch die Form 1.0 an und laesst sie
- * unveraendert; so liest eine Funktion alte und neue Eintraege. Kein
- * Zeilenmodell (fehlt, kein Objekt, keine `lines`) -> `null`: ein
- * unlesbarer Eintrag im Zwischenspeicher soll den Beleg nicht mitreissen.
+ * unveraendert; so liest eine Funktion alte und neue Eintraege. Die
+ * Reihenfolge der Schluessel bleibt.
+ *
+ * `null`, wenn es kein ganzes Zeilenmodell ist: fehlt, kein Objekt, keine
+ * oder leere `lines`, eine Zeile, die kein Objekt ist, oder kein `paperSize`.
+ * Dann baut der Aufrufer neu (`receiptLayoutFromResult` aus Beleg, Firma und
+ * `testCashregister`/`testSignature`), und TESTKASSE und die Warnzeilen
+ * stehen wieder da. Ein halb lesbares Zeilenmodell gewaenne sonst immer.
  */
 export function fromStoredLayout(stored: unknown): ReceiptLayout | null {
-  if (!istObjekt(stored) || !Array.isArray(stored.lines)) return null;
-  const { regelwerk, ...rest } = stored;
-  const lines = (stored.lines as unknown[]).map((z) => {
-    if (!istObjekt(z)) return z;
-    const { ton, ...zeile } = z;
-    if (zeile.tone === undefined && typeof ton === 'string') zeile.tone = TON_NACH_1_0[ton] ?? ton;
-    return zeile;
-  });
-  const ruleset = rest.ruleset ?? regelwerk;
-  return { ...rest, lines, ...(ruleset !== undefined ? { ruleset: ruleset as LayoutRuleset } : {}) } as unknown as ReceiptLayout;
+  if (!istObjekt(stored) || !Array.isArray(stored.lines) || stored.lines.length === 0) return null;
+  if (!stored.lines.every(istObjekt)) return null;
+  if (typeof stored.paperSize !== 'string' || stored.paperSize === '') return null;
+  return umbenannt(stored, { regelwerk: 'ruleset' }, {
+    lines: (zeilen) => (zeilen as Objekt[]).map((z) => umbenannt(z, { ton: 'tone' }, { ton: tonNach(TON_NACH_1_0) })),
+  }) as unknown as ReceiptLayout;
 }
 
 /**
  * Ein [ReceiptLayout] in der inneren Form, fuer einen Aufruf unter `/api`
- * (`createPrintJob`, `renderBelegPdfAdmin`) oder einen Leser der 0.x-Form.
- * Ohne diese Uebersetzung liest das Backend den Ton nicht, und der Rahmen
- * der Warnzeilen (TESTKASSE, Sicherheitseinrichtung ausgefallen) und des
- * Belegart-Aufdrucks fiele am Bon und im PDF weg.
+ * (`createPrintJob`, `renderBelegPdfAdmin`) oder einen Leser der 0.x-Form,
+ * in der Reihenfolge der Schluessel wie 0.31 (`lines`, `paperSize`,
+ * `regelwerk`, sofern die Eingabe sie so hat). Ohne diese Uebersetzung liest
+ * das Backend den Ton nicht, und der Rahmen der Warnzeilen (TESTKASSE,
+ * Sicherheitseinrichtung ausgefallen) und des Belegart-Aufdrucks fiele am
+ * Bon und im PDF weg.
  */
 export function toStoredLayout(layout: ReceiptLayout): Record<string, unknown> {
   if (!istObjekt(layout) || !Array.isArray((layout as unknown as Objekt).lines)) {
     throw new KasseneckValidationError('toStoredLayout', 'layout ohne lines', 'request');
   }
-  const { ruleset, lines, ...rest } = layout as unknown as Objekt & { lines: unknown[] };
-  const zeilen = lines.map((z) => {
-    if (!istObjekt(z)) return z;
-    const { tone, ...zeile } = z;
-    return typeof tone === 'string' ? { ...zeile, ton: TON_NACH_INNEN[tone] ?? tone } : zeile;
+  return umbenannt(layout as unknown as Objekt, { ruleset: 'regelwerk' }, {
+    lines: (zeilen) => (zeilen as unknown[]).map((z) => (istObjekt(z) ? umbenannt(z, { tone: 'ton' }, { tone: tonNach(TON_NACH_INNEN) }) : z)),
   });
-  return { ...rest, ...(ruleset !== undefined ? { regelwerk: ruleset } : {}), lines: zeilen };
 }
 
 /**

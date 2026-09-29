@@ -8,6 +8,9 @@ import { createPrintJob } from '../src/pos/drucker.js';
 import type { ReceiptLayout } from '../src/receipt/layout.js';
 import type { PrintLogo } from '../src/receipt/layout-escpos.js';
 import { KasseneckValidationError } from '../src/client/errors.js';
+import { fromStoredReceipt } from '../src/stored/index.js';
+import { receiptLayoutFromResult, type ReceiptWithCompany } from '../src/client/receipts.js';
+import type { ReceiptCompany } from '../src/models/receipt-company.js';
 
 /*
  * Zeilenmodell innere Form (0.31, `/api`) <-> Form 1.0, gegen echte
@@ -28,9 +31,11 @@ test('Golden-Paare: es sind die 40 Zeilenmodelle von 0.31.0, jedes mit einem heu
   assert.deepEqual([...toene].sort(), ['belegart', 'warnung']);
 });
 
-test('fromStoredLayout: jedes 0.31-Zeilenmodell ergibt genau das heutige Golden', () => {
+test('fromStoredLayout: jedes 0.31-Zeilenmodell ergibt genau das heutige Golden, byte-gleich', () => {
   for (const p of alt.pairs) {
-    assert.deepEqual(fromStoredLayout(p.layout), lies(`fixtures/${p.after}`), p.after);
+    const neu = lies(`fixtures/${p.after}`);
+    assert.deepEqual(fromStoredLayout(p.layout), neu, p.after);
+    assert.equal(JSON.stringify(fromStoredLayout(p.layout)), JSON.stringify(neu), `${p.after} (Reihenfolge)`);
   }
 });
 
@@ -38,6 +43,9 @@ test('toStoredLayout: jedes heutige Golden ergibt genau die 0.31-Ausgabe, und zu
   for (const p of alt.pairs) {
     const neu = lies(`fixtures/${p.after}`) as ReceiptLayout;
     assert.deepEqual(toStoredLayout(neu), p.layout, p.after);
+    // Byte-gleich wie 0.31, auch die Reihenfolge der Schluessel (Hash- und Cache-Vergleiche).
+    assert.equal(JSON.stringify(toStoredLayout(neu)), JSON.stringify(p.layout), `${p.after} (Reihenfolge)`);
+    assert.equal(JSON.stringify(toStoredLayout(fromStoredLayout(p.layout)!)), JSON.stringify(p.layout), `${p.before} (Rundlauf, Reihenfolge)`);
     assert.deepEqual(fromStoredLayout(toStoredLayout(neu)), neu, p.after);
     assert.deepEqual(toStoredLayout(fromStoredLayout(p.layout)!), p.layout, p.before);
   }
@@ -46,11 +54,21 @@ test('toStoredLayout: jedes heutige Golden ergibt genau die 0.31-Ausgabe, und zu
 test('fromStoredLayout: die Form 1.0 geht unveraendert durch, Unlesbares wird null', () => {
   const neu = lies(`fixtures/${alt.pairs[0]!.after}`);
   assert.deepEqual(fromStoredLayout(neu), neu);
-  for (const roh of [null, undefined, 'x', 42, [], {}, { lines: 'x' }]) assert.equal(fromStoredLayout(roh), null, JSON.stringify(roh));
+  const zeile = { kind: 'text', text: 'X', align: 'left', bold: false };
+  for (const roh of [
+    null, undefined, 'x', 42, [], {}, { lines: 'x' },
+    // halb lesbar: leere Zeilen, eine Zeile kein Objekt, kein paperSize
+    { lines: [], paperSize: 'mm80', regelwerk: 2 },
+    { lines: [zeile, 'kaputt'], paperSize: 'mm80', regelwerk: 2 },
+    { lines: [zeile, null], paperSize: 'mm80', regelwerk: 2 },
+    { lines: [zeile], regelwerk: 2 },
+    { lines: [zeile], paperSize: '', regelwerk: 2 },
+  ]) assert.equal(fromStoredLayout(roh), null, JSON.stringify(roh));
   // Ein unbekannter Ton geht woertlich durch, in beide Richtungen.
   const fremd = { lines: [{ kind: 'banner', text: 'X', ton: 'neu' }], paperSize: 'mm80', regelwerk: 2 };
   assert.deepEqual(fromStoredLayout(fremd), { lines: [{ kind: 'banner', text: 'X', tone: 'neu' }], paperSize: 'mm80', ruleset: 2 });
   assert.deepEqual(toStoredLayout(fromStoredLayout(fremd)!), fremd);
+  assert.equal(JSON.stringify(toStoredLayout(fromStoredLayout(fremd)!)), JSON.stringify(fremd));
   // Die Eingabe bleibt unberuehrt.
   const vorher = JSON.stringify(alt.pairs[0]!.layout);
   fromStoredLayout(alt.pairs[0]!.layout);
@@ -109,5 +127,23 @@ test('Drucklogo: unpassende innere Form wirft KasseneckValidationError', () => {
 test('./stored exportiert die vier Funktionen', () => {
   for (const n of ['fromStoredLayout', 'toStoredLayout', 'fromStoredPrintLogo', 'toStoredPrintLogo']) {
     assert.equal(typeof (stored as Record<string, unknown>)[n], 'function', n);
+  }
+});
+
+test('halb lesbares Zeilenmodell: der Aufrufer baut neu, TESTKASSE steht wieder da', () => {
+  const f = lies('fixtures/receipts/test-cashregister-sale.json') as { receipt: Record<string, unknown>; company: ReceiptCompany; options: { paperSize: 'mm80'; testCashregister: boolean } };
+  const golden = lies('fixtures/expected/test-cashregister-sale.lines.json') as ReceiptLayout;
+  const banner = (l: ReceiptLayout) => l.lines.filter((z) => z.kind === 'banner' && z.tone === 'warning').map((z) => 'text' in z && z.text);
+  assert.ok(banner(golden).some((t) => typeof t === 'string' && t.startsWith('TESTKASSE')), 'Golden ohne TESTKASSE');
+  const ohneBanner = toStoredLayout({ ...golden, lines: golden.lines.filter((z) => z.kind !== 'banner') });
+  for (const kaputt of [{ ...ohneBanner, lines: [] }, { ...ohneBanner, lines: [...(ohneBanner.lines as unknown[]), 'x'] }, { ...ohneBanner, paperSize: undefined }]) {
+    const ergebnis: ReceiptWithCompany = {
+      receipt: fromStoredReceipt(f.receipt), company: f.company, testCashregister: true, testSignature: false,
+      headerVersionId: null, layout: fromStoredLayout(kaputt), registrationInfo: null, logoScale: 'M',
+    };
+    assert.equal(ergebnis.layout, null);
+    const neu = receiptLayoutFromResult(ergebnis, { fallbackPaperSize: f.options.paperSize });
+    assert.deepEqual(neu, golden);
+    assert.deepEqual(banner(neu), banner(golden));
   }
 });
