@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { receiptDueCents, receiptDueBreakdown, type ReceiptDueOptions } from '../src/receipt/due.js';
+import { receiptDueCents, receiptDueBreakdown, ReceiptDueError, RECEIPT_DUE_ERROR_REASONS, isReceiptDueError, type ReceiptDueOptions } from '../src/receipt/due.js';
+import { isOutcomeUnknown } from '../src/client/errors.js';
 import * as wurzel from '../src/index.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
 import { VatRate } from '../src/enums/index.js';
@@ -119,20 +120,67 @@ test('Belegtyp als Enum-Eintrag wie als Text; Null- und Startbeleg sind 0', () =
   assert.equal(receiptDueCents([], [], wurzel.ReceiptType.zero), 0);
 });
 
-test('Unbrauchbare Eingaben werfen statt still falsch zu rechnen', () => {
+test('Unbrauchbare Eingaben werfen ReceiptDueError mit festem Code statt still falsch zu rechnen', () => {
   const gut = { name: 'A', quantity: 1, priceCents: 100, vat: VatRate.vat20 };
-  assert.throws(() => receiptDueCents([{ ...gut, priceCents: 1.5 }], [], 'standard'), RangeError);
-  assert.throws(() => receiptDueCents([{ ...gut, quantity: Number.NaN }], [], 'standard'), RangeError);
-  assert.throws(() => receiptDueCents([gut], [{ action: 'redeem', type: 'value', valueCents: 0.5 }], 'standard'), RangeError);
-  assert.throws(() => receiptDueCents([gut], [], 'rechnung'), RangeError);
-  assert.throws(() => receiptDueCents([gut], [], 'zero', { tip: 100, tipRecipient: 'staff' }), RangeError);
-  // Trinkgeld ohne Ware hat keine Basis (Backend: FEHLER_KEINE_WARE).
-  assert.throws(() => receiptDueCents([], [], 'standard', { tip: 100, tipRecipient: 'owner' }), RangeError);
+  const wirft = (f: () => unknown, reason: string, text?: RegExp) => assert.throws(f, (e: unknown) => {
+    assert.ok(e instanceof ReceiptDueError, String(e));
+    assert.ok(!(e instanceof RangeError), 'kein RangeError mehr');
+    assert.equal(e.code, 'receipt_due_unavailable');
+    assert.equal(e.reason, reason);
+    assert.equal(e.outcome, 'rejected');
+    assert.equal(isOutcomeUnknown(e), false);
+    assert.ok(isReceiptDueError(e));
+    if (text) assert.match(e.message, text);
+    return true;
+  });
+  wirft(() => receiptDueCents([{ ...gut, priceCents: 1.5 }], [], 'standard'), 'invalid_item');
+  wirft(() => receiptDueCents([{ ...gut, quantity: Number.NaN }], [], 'standard'), 'invalid_item');
+  wirft(() => receiptDueCents([gut], [{ action: 'redeem', type: 'value', valueCents: 0.5 }], 'standard'), 'invalid_voucher');
+  wirft(() => receiptDueCents([gut], [], 'rechnung'), 'unknown_receipt_type');
+  wirft(() => receiptDueCents([gut], [], 'zero', { tip: 100, tipRecipient: 'staff' }), 'tip_not_allowed');
+  // Trinkgeld ohne Ware hat keine Basis (Backend: FEHLER_KEINE_WARE), fuer Inhaber wie Personal.
+  wirft(() => receiptDueCents([], [], 'standard', { tip: 100, tipRecipient: 'owner' }), 'tip_without_goods');
+  wirft(() => receiptDueCents([], [], 'standard', { tip: 100, tipRecipient: 'staff' }), 'tip_without_goods');
   // Wer das Trinkgeld bekommt, entscheidet der Server am angemeldeten Benutzer: ohne Angabe kein Raten.
-  assert.throws(() => receiptDueCents([gut], [], 'standard', { tip: 100 }), /tipRecipient/);
-  assert.throws(() => receiptDueCents([gut], [], 'standard', { payments: [{ method: 'cash', tipCents: 10 }] }), /tipRecipient/);
+  wirft(() => receiptDueCents([gut], [], 'standard', { tip: 100 }), 'tip_recipient_missing', /tipRecipient/);
+  wirft(() => receiptDueCents([gut], [], 'standard', { payments: [{ method: 'cash', tipCents: 10 }] }), 'tip_recipient_missing', /tipRecipient/);
   // tip und payments[].tipCents zugleich weist der Server ab (tip_conflict).
-  assert.throws(() => receiptDueCents([gut], [], 'standard', { tip: 10, tipRecipient: 'staff', payments: [{ method: 'cash', tipCents: 10 }] }), /tip_conflict/);
+  wirft(() => receiptDueCents([gut], [], 'standard', { tip: 10, tipRecipient: 'staff', payments: [{ method: 'cash', tipCents: 10 }] }), 'tip_conflict', /tip_conflict/);
+});
+
+// --- Nicht rechenbare Faelle (fixtures/receipt-due-errors.json, auch fuer Dart) ------
+
+interface FehlerFall {
+  name: string;
+  input: {
+    receiptType: string;
+    items: Array<{ name: string; quantity: number; priceCents: number; vatRate?: number }>;
+    vouchers: Array<{ action: string; type: string; valueCents: number }>;
+    tip?: ReceiptDueOptions['tip'];
+    payments?: ReceiptDueOptions['payments'];
+    tipRecipient?: ReceiptDueOptions['tipRecipient'];
+  };
+  expected: { reason: string };
+}
+const fehlerDatei = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/receipt-due-errors.json', import.meta.url)), 'utf8')) as {
+  version: number; code: string; reasons: string[]; cases: FehlerFall[];
+};
+
+test('Fehlerfaelle: jeder wirft ReceiptDueError mit seinem reason, jeder reason hat einen Fall', () => {
+  assert.equal(fehlerDatei.code, 'receipt_due_unavailable');
+  assert.deepEqual(fehlerDatei.reasons, [...RECEIPT_DUE_ERROR_REASONS]);
+  for (const f of fehlerDatei.cases) {
+    const items = f.input.items.map((p) => ({ name: p.name, quantity: p.quantity, priceCents: p.priceCents, vat: p.vatRate as number }));
+    assert.throws(
+      () => receiptDueCents(items, f.input.vouchers, f.input.receiptType, { tip: f.input.tip, payments: f.input.payments, tipRecipient: f.input.tipRecipient }),
+      (e: unknown) => e instanceof ReceiptDueError && e.code === fehlerDatei.code && e.reason === f.expected.reason,
+      f.name,
+    );
+  }
+  const gedeckt = new Set(fehlerDatei.cases.map((f) => f.expected.reason));
+  assert.deepEqual(RECEIPT_DUE_ERROR_REASONS.filter((r) => !gedeckt.has(r)), []);
+  // Trinkgeld ohne Ware ist der Fall, an dem die Kasse haengt: mehrere Wege dorthin.
+  assert.ok(fehlerDatei.cases.filter((f) => f.expected.reason === 'tip_without_goods').length >= 3);
 });
 
 test('Paketwurzel und ./receipt exportieren den Zwilling', async () => {
@@ -182,7 +230,11 @@ test('Generierte Faelle: jeder stimmt exakt mit dem Backend ueberein', () => {
   const abweichend: string[] = [];
   for (const f of generiert.cases) {
     if ('error' in f.expected) {
-      if (!(() => { try { genRechnen(f); return false; } catch { return true; } })()) abweichend.push(`${f.name}: Fehler erwartet`);
+      // Der Backend-Satz „mindestens eine Position mit Betrag“ ist tip_without_goods.
+      const reason = /mindestens eine Position mit Betrag/.test(f.expected.error) ? 'tip_without_goods' : undefined;
+      if (!(() => { try { genRechnen(f); return false; } catch (e) { return e instanceof ReceiptDueError && (reason === undefined || e.reason === reason); } })()) {
+        abweichend.push(`${f.name}: ReceiptDueError ${reason ?? ''} erwartet`);
+      }
       continue;
     }
     let ist: unknown;

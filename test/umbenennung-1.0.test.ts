@@ -256,7 +256,7 @@ function alleDateien(): string[] {
 const BESTAND = lies('test/fixtures/vor-1.0/fixtures-0.x.json') as { version: string; dateien: string[]; schluesselMengen: string[][]; schluesselJeDatei: Record<string, number> };
 const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
-const NEU_SEIT_1_0 = ['receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
+const NEU_SEIT_1_0 = ['receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));
