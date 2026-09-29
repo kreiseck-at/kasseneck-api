@@ -34,6 +34,10 @@ import type { Voucher } from '../models/voucher.js';
  * rabattiert). Das weiss nur die Kasse; darum ist `tipRecipient` Pflicht,
  * sobald Trinkgeld ohne `recipients` vorkommt. Ohne angemeldeten Benutzer
  * (Geraete-Schluessel) gilt `'staff'`.
+ *
+ * **Nicht rechenbar:** jede unbrauchbare Eingabe wirft [ReceiptDueError]
+ * (`code: 'receipt_due_unavailable'`, `reason` im Einzelnen), nie still eine
+ * falsche Zahl. Dann ist nichts gesendet.
  */
 
 /** Wer das Trinkgeld ohne `recipients` bekommt (Kennzeichen des angemeldeten Kassen-Benutzers). */
@@ -76,6 +80,54 @@ export interface ReceiptDueBreakdown {
   bucketsCents: ReceiptDueBuckets | null;
 }
 
+/**
+ * Warum sich der Zahlbetrag nicht rechnen laesst. Fest wie ein Backend-Code;
+ * dieselbe Liste im Dart-Zwilling und in `fixtures/receipt-due-errors.json`.
+ */
+export const RECEIPT_DUE_ERROR_REASONS = Object.freeze([
+  'unknown_receipt_type',
+  'tip_not_allowed',
+  'invalid_item',
+  'invalid_voucher',
+  'invalid_tip',
+  'unknown_payment_method',
+  'tip_conflict',
+  'tip_recipient_missing',
+  'tip_without_goods',
+] as const);
+export type ReceiptDueErrorReason = (typeof RECEIPT_DUE_ERROR_REASONS)[number];
+
+/**
+ * Der Zahlbetrag laesst sich aus dieser Eingabe nicht rechnen, etwa
+ * Trinkgeld mit Betrag ohne Ware (`reason: 'tip_without_goods'`).
+ *
+ * Eindeutig **nicht gesendet**: die Rechnung laeuft ganz im Paket, vor jedem
+ * Aufruf. `outcome` ist darum immer `'rejected'`; nichts ist geschehen, keine
+ * Belegnummer verbraucht, keine Karte belastet. Die Kasse sagt das dem
+ * Kassier, bevor sie ein Terminal anspricht. Entscheiden am `code` bzw.
+ * `reason`, nie an `message` (die ist fuers Protokoll).
+ *
+ * Bis 1.0.0-rc.4 warf die Rechnung hier einen `RangeError` ohne Code.
+ */
+export class ReceiptDueError extends Error {
+  readonly name = 'ReceiptDueError';
+  /** Stabiler Code fuer jede Ursache. */
+  readonly code = 'receipt_due_unavailable' as const;
+  /** Die Ursache im Einzelnen. */
+  readonly reason: ReceiptDueErrorReason;
+  /** Immer `'rejected'`: es ging nichts hinaus. */
+  readonly outcome = 'rejected' as const;
+
+  constructor(reason: ReceiptDueErrorReason, message: string) {
+    super(`Zahlbetrag: ${message}`);
+    this.reason = reason;
+  }
+}
+
+export function isReceiptDueError(error: unknown): error is ReceiptDueError {
+  return error instanceof ReceiptDueError;
+}
+
 type BelegArt = ReceiptType | ReceiptTypeKey | string;
 
 /** Position in der inneren Form des Backends (`beleg-toepfe.interneForm`). */
@@ -111,7 +163,7 @@ export function receiptDueBreakdown(
   const art = belegArt(receiptType);
   const trinkgelder = trinkgeldAuftraege(options);
   if (trinkgelder.length > 0 && !TRINKGELD_ERLAUBT.has(art)) {
-    throw new RangeError(`Zahlbetrag: Trinkgeld gibt es nur bei standard und training, nicht bei "${art}".`);
+    throw new ReceiptDueError('tip_not_allowed', `Trinkgeld gibt es nur bei standard und training, nicht bei "${art}".`);
   }
   if (!UMSATZ.has(art)) {
     return { dueCents: 0, counterDeltaCents: 0, valueVoucherFlowCents: 0, bucketsCents: null };
@@ -143,7 +195,7 @@ export function receiptDueBreakdown(
 function belegArt(wert: BelegArt): string {
   const text = typeof wert === 'object' && wert !== null ? wert.value : wert;
   if (typeof text !== 'string' || !Object.prototype.hasOwnProperty.call(ReceiptType, text)) {
-    throw new RangeError(`Zahlbetrag: unbekannter Belegtyp "${String(text)}".`);
+    throw new ReceiptDueError('unknown_receipt_type', `unbekannter Belegtyp "${String(text)}".`);
   }
   return text;
 }
@@ -156,15 +208,15 @@ function euroToCent(euro: number): number {
 /** Position in die innere Form: Einzelpreis `Math.round(cents) / 100` wie `interneForm`. */
 function innen(item: ReceiptItem, i: number): Innen {
   const satz = typeof item.vat === 'number' ? item.vat : item.vat?.rate;
-  if (typeof satz !== 'number' || !Number.isFinite(satz)) throw new RangeError(`Zahlbetrag: Position ${i + 1} ohne Steuersatz.`);
-  if (!Number.isSafeInteger(item.priceCents)) throw new RangeError(`Zahlbetrag: Position ${i + 1} hat keinen ganzen Cent-Preis.`);
-  if (typeof item.quantity !== 'number' || !Number.isFinite(item.quantity)) throw new RangeError(`Zahlbetrag: Position ${i + 1} hat keine gueltige Menge.`);
+  if (typeof satz !== 'number' || !Number.isFinite(satz)) throw new ReceiptDueError('invalid_item', `Position ${i + 1} ohne Steuersatz.`);
+  if (!Number.isSafeInteger(item.priceCents)) throw new ReceiptDueError('invalid_item', `Position ${i + 1} hat keinen ganzen Cent-Preis.`);
+  if (typeof item.quantity !== 'number' || !Number.isFinite(item.quantity)) throw new ReceiptDueError('invalid_item', `Position ${i + 1} hat keine gueltige Menge.`);
   const tip = item.kind === 'tip' ? (item.recipient?.owner === true ? 'owner' : 'staff') : null;
   return { amount: item.quantity, priceOne: Math.round(item.priceCents) / 100, vat: satz, tip };
 }
 
 function gutscheinInnen(v: Voucher, i: number): Gutschein {
-  if (!Number.isSafeInteger(v.valueCents)) throw new RangeError(`Zahlbetrag: Gutschein ${i + 1} hat keinen ganzen Cent-Wert.`);
+  if (!Number.isSafeInteger(v.valueCents)) throw new ReceiptDueError('invalid_voucher', `Gutschein ${i + 1} hat keinen ganzen Cent-Wert.`);
   return { action: String(v.action), type: String(v.type), value: Math.round(v.valueCents as number) / 100 };
 }
 
@@ -177,7 +229,7 @@ function trinkgeldAuftraege(options: ReceiptDueOptions): Auftrag[] {
   const raus: Auftrag[] = [];
   const tipCents = (options.payments ?? []).some((z) => z != null && z.tipCents !== undefined);
   if (options.tip != null && tipCents) {
-    throw new RangeError('Zahlbetrag: tip und payments[].tipCents gehen nicht zugleich (tip_conflict).');
+    throw new ReceiptDueError('tip_conflict', 'tip und payments[].tipCents gehen nicht zugleich (tip_conflict).');
   }
   if (options.tip != null) {
     const tip = options.tip;
@@ -185,13 +237,13 @@ function trinkgeldAuftraege(options: ReceiptDueOptions): Auftrag[] {
     pruefeCent(cents, 'Trinkgeld');
     const recipients = typeof tip === 'number' ? undefined : tip.recipients;
     if (recipients != null) {
-      if (recipients.length === 0) throw new RangeError('Zahlbetrag: recipients darf nicht leer sein.');
+      if (recipients.length === 0) throw new ReceiptDueError('invalid_tip', 'recipients darf nicht leer sein.');
       for (const r of recipients) {
         pruefeCent(r.cents, 'Trinkgeld-Anteil');
-        if (typeof r.owner !== 'boolean') throw new RangeError('Zahlbetrag: recipients[].owner muss true oder false sein.');
+        if (typeof r.owner !== 'boolean') throw new ReceiptDueError('invalid_tip', 'recipients[].owner muss true oder false sein.');
       }
       if (recipients.reduce((s, r) => s + r.cents, 0) !== cents) {
-        throw new RangeError('Zahlbetrag: die Anteile des Trinkgelds ergeben nicht den Betrag.');
+        throw new ReceiptDueError('invalid_tip', 'die Anteile des Trinkgelds ergeben nicht den Betrag.');
       }
       raus.push({ empfaenger: recipients.map((r) => ({ cents: r.cents, owner: r.owner })) });
     } else {
@@ -204,7 +256,7 @@ function trinkgeldAuftraege(options: ReceiptDueOptions): Auftrag[] {
     if (z == null || z.tipCents === undefined) continue;
     pruefeCent(z.tipCents, 'tipCents');
     const methode = typeof z.method === 'object' && z.method !== null ? z.method.value : z.method;
-    if (typeof methode !== 'string' || !ZAHLARTEN.has(methode)) throw new RangeError(`Zahlbetrag: unbekannte Zahlart "${String(methode)}".`);
+    if (typeof methode !== 'string' || !ZAHLARTEN.has(methode)) throw new ReceiptDueError('unknown_payment_method', `unbekannte Zahlart "${String(methode)}".`);
     je.set(methode, (je.get(methode) ?? 0) + z.tipCents);
   }
   for (const cents of je.values()) raus.push({ empfaenger: [{ cents, owner: null }] });
@@ -213,7 +265,7 @@ function trinkgeldAuftraege(options: ReceiptDueOptions): Auftrag[] {
 
 function pruefeCent(wert: unknown, was: string): void {
   if (typeof wert !== 'number' || !Number.isInteger(wert) || wert <= 0) {
-    throw new RangeError(`Zahlbetrag: ${was} muss eine ganze Zahl in Cent > 0 sein.`);
+    throw new ReceiptDueError('invalid_tip', `${was} muss eine ganze Zahl in Cent > 0 sein.`);
   }
 }
 
@@ -221,13 +273,13 @@ function pruefeCent(wert: unknown, was: string): void {
 function trinkgeldPositionen(auftrag: Auftrag, positionen: readonly Innen[], standard: ReceiptDueTipRecipient | undefined): Innen[] {
   const basis = warenCentsJeSatz(positionen);
   const summe = Object.values(basis).reduce((s, c) => s + c, 0);
-  if (summe <= 0) throw new RangeError('Zahlbetrag: Trinkgeld braucht mindestens eine Position mit Betrag.');
+  if (summe <= 0) throw new ReceiptDueError('tip_without_goods', 'Trinkgeld braucht mindestens eine Position mit Betrag.');
   const raus: Innen[] = [];
   for (const e of auftrag.empfaenger) {
     let owner = e.owner;
     if (owner == null) {
       if (standard !== 'owner' && standard !== 'staff') {
-        throw new RangeError("Zahlbetrag: tipRecipient fehlt ('owner' oder 'staff', wie der angemeldete Kassen-Benutzer).");
+        throw new ReceiptDueError('tip_recipient_missing', "tipRecipient fehlt ('owner' oder 'staff', wie der angemeldete Kassen-Benutzer).");
       }
       owner = standard === 'owner';
     }
@@ -236,7 +288,7 @@ function trinkgeldPositionen(auftrag: Auftrag, positionen: readonly Innen[], sta
       continue;
     }
     const teile = splitOwnerTip(e.cents, basis);
-    if (teile.length === 0) throw new RangeError('Zahlbetrag: Inhaber-Trinkgeld braucht mindestens eine Position mit Betrag.');
+    if (teile.length === 0) throw new ReceiptDueError('tip_without_goods', 'Inhaber-Trinkgeld braucht mindestens eine Position mit Betrag.');
     for (const teil of teile) {
       if (teil.cents !== 0) raus.push({ amount: 1, priceOne: teil.cents / 100, vat: teil.vat, tip: 'owner' });
     }

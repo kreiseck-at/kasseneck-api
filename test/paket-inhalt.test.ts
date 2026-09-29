@@ -79,6 +79,7 @@ const ABNEHMER: Record<string, string> = {
   'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
   'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
   'receipt-due-generated.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',
+  'receipt-due-errors.json': 'nicht rechenbare Zahlbetrag-Eingaben (ReceiptDueError, code receipt_due_unavailable, reason je Fall): Dart-Zwilling receiptDueCents; kasseneck-web apps/kasse (Absage vor dem Terminal)',
 };
 
 test('Paket: jeder Eintrag unter fixtures/ hat einen Abnehmer ausserhalb des Pakets', () => {

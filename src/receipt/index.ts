@@ -74,6 +74,10 @@ export {
   type ReceiptDueOptions,
   type ReceiptDueBuckets,
   type ReceiptDueBreakdown,
+  type ReceiptDueErrorReason,
   receiptDueCents,
   receiptDueBreakdown,
+  ReceiptDueError,
+  RECEIPT_DUE_ERROR_REASONS,
+  isReceiptDueError,
 } from './due.js';

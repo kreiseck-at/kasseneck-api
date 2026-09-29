@@ -109,6 +109,6 @@
   "zwilling": {
     "src/stored/draht.ts": "7da3e5d5805eb54347fc197769049d565a7536be03463d4f363a2570c2f68e45",
     "src/stored/einstellungen.ts": "45fc7b702455f49a44f9872fe24d892772fbb72a7bcfef8671e2e7fd43772fed",
-    "src/stored/index.ts": "474e6a7025e83a92f911f0eb146b512f30a4227619407739b771e99fd557dce6"
+    "src/stored/index.ts": "87c8b5bf79e34c779359278a03aa9a157673d6521381ceb859d6d87fa421ef47"
   }
 }

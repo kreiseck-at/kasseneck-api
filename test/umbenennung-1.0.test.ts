@@ -41,6 +41,21 @@ const STRUKTUR = TABELLE.structure as Record<string, Record<string, Record<strin
 const K = STRUKTUR['pos-texts.json']!;
 const WERTE = TABELLE.values as Record<string, Record<string, Record<string, string>>>;
 const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
+
+/**
+ * Nach dem Umstieg dazugekommen (1.0.0-rc.5, Befunde aus dem Web-Umstieg):
+ * ohne 0.x-Vorgaenger, darum in keiner Umbenennung. Alles andere bleibt der
+ * 0.x-Stand, nur umbenannt.
+ */
+const NACH_1_0 = {
+  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable'],
+  labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding'],
+  // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
+  caseVersion: 2,
+  // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules.
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect'],
+};
+const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
 const PLATZ = TABELLE.placeholders as Record<string, string>;
 const MELDUNGEN = TABELLE.texts.pos.messages as Record<string, string>;
@@ -133,14 +148,18 @@ function kasseGerendert(name: string, alt: Json, tabelle: Record<string, string>
 }
 
 test('Platzhalter: jeder Kassentext ergibt alt und neu gefuellt denselben Satz (Datei und Quelle)', () => {
-  assert.deepEqual(Object.keys(NEU_KASSE), Object.keys(ALT_KASSE).map((s) => K['file']![s]), 'Kasse: Dateischluessel nicht wie in der Tabelle');
+  assert.deepEqual(Object.keys(NEU_KASSE).filter((k) => !NACH_1_0.fileKeys.includes(k)), Object.keys(ALT_KASSE).map((s) => K['file']![s]), 'Kasse: Dateischluessel nicht wie in der Tabelle');
+  assert.deepEqual(Object.keys(NEU_KASSE).filter((k) => NACH_1_0.fileKeys.includes(k)), NACH_1_0.fileKeys);
   const m = kasseGerendert('Meldungen', ALT_KASSE.meldungen, MELDUNGEN, NEU_KASSE.messages, (s, w) => messageText(s as MessageKey, w));
   const l = kasseGerendert('Beschriftungen', ALT_KASSE.beschriftungen, BESCHRIFTUNGEN, NEU_KASSE.labels, (s, w) => labelText(s as LabelKey, w));
-  assert.deepEqual(Object.keys(NEU_KASSE.messages), Object.keys(ALT_KASSE.meldungen).map((s) => MELDUNGEN[s]));
-  assert.deepEqual(Object.keys(NEU_KASSE.labels), Object.keys(ALT_KASSE.beschriftungen).map((s) => BESCHRIFTUNGEN[s]));
+  assert.deepEqual(Object.keys(ohne(NEU_KASSE.messages, NACH_1_0.messages)), Object.keys(ALT_KASSE.meldungen).map((s) => MELDUNGEN[s]));
+  assert.deepEqual(Object.keys(ohne(NEU_KASSE.labels, NACH_1_0.labels)), Object.keys(ALT_KASSE.beschriftungen).map((s) => BESCHRIFTUNGEN[s]));
   assert.deepEqual(Object.keys(MESSAGES), Object.keys(NEU_KASSE.messages));
   assert.deepEqual(Object.keys(LABELS), Object.keys(NEU_KASSE.labels));
-  assert.equal(m + l, Object.keys(MESSAGES).length + Object.keys(LABELS).length);
+  // Was nach 1.0 dazukam, steht wirklich im Katalog und traegt keinen alten Namen.
+  for (const k of NACH_1_0.messages) assert.ok(k in MESSAGES && !Object.values(MELDUNGEN).includes(k), k);
+  for (const k of NACH_1_0.labels) assert.ok(k in LABELS && !Object.values(BESCHRIFTUNGEN).includes(k), k);
+  assert.equal(m + l + NACH_1_0.messages.length + NACH_1_0.labels.length, Object.keys(MESSAGES).length + Object.keys(LABELS).length);
 });
 
 test('Platzhalter: jeder Rechnungstext ergibt alt und neu gefuellt denselben Satz, in jeder Sprache', () => {
@@ -179,10 +198,16 @@ test('Umbenennung: pos-message-cases.json ist der 0.x-Stand, nur umbenannt', () 
     neu.name = String(fall.name).replace(/^[a-z]+(?=:)/, (a: string) => art[a] ?? a);
     return neu;
   }) }, F['file']!);
-  assert.deepEqual(NEU_FAELLE, soll);
+  // Seit Version 2 tragen Faelle der Art api einen `code`; die ohne Code sind der 0.x-Stand.
+  assert.equal(NEU_FAELLE.version, NACH_1_0.caseVersion);
+  const alteFaelle = (NEU_FAELLE.cases as Json[]).filter((f) => f.error.code === undefined && f.error.outcome === undefined);
+  assert.deepEqual({ ...NEU_FAELLE, version: soll.version, cases: alteFaelle }, soll);
+  assert.ok((NEU_FAELLE.cases as Json[]).every((f) => f.error.code === undefined || f.error.kind === 'api'));
+  assert.ok((NEU_FAELLE.cases as Json[]).every((f) => f.error.outcome === undefined || ['timeout', 'network'].includes(f.error.kind)));
 });
 
 test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schluessel', () => {
+  // ERROR_RULES ist der 0.x-Stand, nur umbenannt; die Verfeinerungen nach 1.0 stehen eigens.
   assert.deepEqual(
     ERROR_RULES,
     (ALT_KASSE.fehlerregeln as Json[]).map((r) => umbenannt({
@@ -234,7 +259,7 @@ function alleDateien(): string[] {
 const BESTAND = lies('test/fixtures/vor-1.0/fixtures-0.x.json') as { version: string; dateien: string[]; schluesselMengen: string[][]; schluesselJeDatei: Record<string, number> };
 const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
-const NEU_SEIT_1_0 = ['receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
+const NEU_SEIT_1_0 = ['receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

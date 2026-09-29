@@ -19,6 +19,79 @@ bytes of every golden receipt.
 This entry is written in English, like the developer documentation from here
 on.
 
+### 1.0.0-rc.5
+
+Findings from moving the web register onto 1.0.
+
+- **Plain text for edge codes on the register screen.** `ERROR_RULES` is
+  unchanged (one rule per kind, as in rc.4), so a register that looks a rule
+  up by `kind` alone keeps showing the same sentence. New
+  `ERROR_CODE_RULES` refine it per code. `route_missing`, `not_found` and
+  `internal_translation_error` (nothing happened on the server) show
+  `server.connection_disturbed` ("Die Verbindung zum Kassenserver ist
+  gestört. Bitte kurz warten und erneut versuchen."). `dialect_mismatch`,
+  `response_translation_failed` and `response_unreadable` (outcome unknown)
+  show `server.response_unreadable` ("Die Antwort des Kassenservers war nicht
+  lesbar. Bitte die Kasse neu öffnen und vor einem neuen Versuch prüfen, ob
+  der letzte Vorgang schon gebucht ist."), which never invites a retry; a
+  test holds every code the package treats as outcome-unknown to that. Both
+  sentences fit both registers (no page, no browser). The technical
+  sentence of the package or the edge stays in `error.message`.
+  `findErrorRule(kind, { code, outcome })` applies the code rules, then the
+  outcome rules, then `ERROR_RULES`. `pos-texts.json` carries
+  `errorCodeRules`, `errorOutcomeRules` and `callsWithEffect` next to
+  `errorRules`. `pos-message-cases.json` is at version 2: a case may carry
+  `error.code` (`api`) or `error.outcome` (`timeout`, `network`); the cases
+  without them are byte for byte those of rc.4. Reason: until 0.31 an HTML
+  answer was an HTTP error and showed `server.unexpected`; under 1.0 it is an
+  API error, and the register showed "Route fehlt: …" to the cashier.
+- **Timeout and network error on a call with an effect never invite a
+  retry.** New `ERROR_OUTCOME_RULES`: with outcome `unknown`, `timeout` and
+  `network` show `network.outcome_unknown` ("Der Server hat nicht
+  geantwortet, der Vorgang kann trotzdem gebucht sein. Bitte vor einem neuen
+  Versuch prüfen, ob der letzte Vorgang schon gebucht ist."). New
+  `messageOutcome(error)` gives the outcome for the sentence: `unknown` when
+  `isOutcomeUnknown` says so, and after a timeout or network error on any
+  call in `CALLS_WITH_EFFECT` (the six with an unknown outcome, plus
+  `createPrintJob` and `sendReceiptEmail`); fetch fails the same way before
+  and after the request left, so the package cannot tell. Every other call
+  keeps the rc.4 sentence ("… und erneut versuchen."). Reason: after a
+  timeout the receipt, the card payment or the print job may already exist;
+  a retry could book or print it twice.
+- **New labels:** `register.device_unnamed` ("Kasse", a device without a
+  name, `deviceLabel: null`), `login.locked_seconds` (`{seconds}` left of the
+  PIN lock), `split.remaining_with_rounding` (`{amount}`, `{cents}` with its
+  sign: the last round of a split payment takes the rounding cent). Reason:
+  the web register had to write these words itself.
+- **`receiptDueCents` throws `ReceiptDueError`, not `RangeError`.** Code
+  `receipt_due_unavailable`, the cause in `reason` (`RECEIPT_DUE_ERROR_REASONS`,
+  e.g. `tip_without_goods` for a tip with an amount but no goods, also for a
+  staff tip), `outcome: 'rejected'`, guard `isReceiptDueError`. The cases are
+  in `fixtures/receipt-due-errors.json`. Every computed amount is unchanged
+  (the 1206 generated cases). Reason: a `RangeError` without a code could not
+  be told apart from a bug, and the register must say "not sent" before it
+  starts the card terminal.
+- **`./stored`: `fromStoredLayout`, `toStoredLayout`, `fromStoredPrintLogo`,
+  `toStoredPrintLogo`.** The internal form of the receipt layout (`regelwerk`,
+  banner `ton` `belegart`/`warnung`) and of the print logo (`stufe`,
+  `pxBreite`, `pxHoehe`, `breite`, `hoehe`, `zeilen`) to 1.0 and back, checked
+  against all 40 golden layouts as 0.31.0 wrote them, byte for byte including
+  the key order. `fromStoredLayout` returns `null` for anything short of a
+  whole layout (no or empty `lines`, a line that is not an object, no
+  `paperSize`), so the caller rebuilds it with the `TESTKASSE` banner.
+  Reason: the web register
+  cache, the panel and the lab each carried their own copy.
+- **`fromStoredReceipt` leaves English 1.0 values as they are** (a fixture
+  receipt with `cancellationReason: 'customer_cancelled'`). It did so
+  already; now it is promised and tested.
+- **`fixtures/v3` refreshed** from the backend (71af3bf). Only the input
+  fingerprints in `_quelle` change (the client-version check of 29.09);
+  no name, value or code.
+- **Contract versions:** a test holds the version in `surface.json`,
+  `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and
+  `invoice-api.schema.json` (and `PACKAGE_VERSION`, `package-lock.json`, this
+  file) to `package.json`.
+
 ### Migrating from 0.x
 
 #### The 0.x line

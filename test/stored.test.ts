@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -14,6 +14,7 @@ import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artike
 import { unknownPosSettingValues, POS_DEVICE_DEFAULTS } from '../src/pos/settings.js';
 import { buildReceiptLayout, CURRENT_LAYOUT_RULESET } from '../src/receipt/layout.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
+import { fromReceiptPayload } from '../src/models/index.js';
 
 /**
  * `./stored`: gespeicherte Firestore-Dokumente (innen, deutsch) ergeben
@@ -441,4 +442,29 @@ test('stored: Artikel verlieren unbekannte Felder und unbekannte Katalogwerte wi
   assert.equal(m.quantityRule, 'decimal');
   assert.equal(m.visible, false);
   assert.equal(m.sort, 0);
+});
+
+test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit 1.0.0-rc.5', () => {
+  // Jeder Storno-Grund, ob innen gespeichert oder schon englisch: dasselbe Modell.
+  const doc = belegDokument('KECK-1-ID-7');
+  for (const [innen, aussen] of Object.entries(KATALOGE.STORNO_GRUND!)) {
+    assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: innen }).cancellationReason, aussen, innen);
+    assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: aussen }).cancellationReason, aussen, aussen);
+  }
+  // Die 40 Golden-Belege in der Form 1.0 (fixtures/receipts/): dasselbe Modell
+  // wie ueber den Leser der Antwort, und daraus dasselbe Zeilenmodell wie das Golden.
+  const ordner = new URL('../../fixtures/receipts/', import.meta.url);
+  const namen = readdirSync(ordner).filter((n) => n.endsWith('.json'));
+  let geprueft = 0;
+  for (const name of namen) {
+    const f = JSON.parse(readFileSync(new URL(name, ordner), 'utf8')) as Json;
+    if (!f.receipt) continue;
+    const modell = stored.fromStoredReceipt(f.receipt);
+    const antwort = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') });
+    assert.deepEqual(modell, antwort, name);
+    const golden = JSON.parse(readFileSync(new URL(`../expected/${name.replace(/\.json$/, '.lines.json')}`, ordner), 'utf8'));
+    assert.deepEqual(buildReceiptLayout(modell, f.company, f.options ?? {}), golden, name);
+    geprueft++;
+  }
+  assert.equal(geprueft, 40);
 });

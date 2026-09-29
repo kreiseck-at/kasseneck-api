@@ -22,6 +22,7 @@
  */
 
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
+import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
 export type Surface = 'web' | 'app';
 
@@ -37,7 +38,19 @@ const MELDUNGEN_ROH = {
   // --- Transport -----------------------------------------------------------
   'network.no_connection': { text: 'Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen.' },
   'network.timeout': { text: 'Der Server antwortet nicht. Bitte die Internetverbindung prüfen und erneut versuchen.' },
+  // Frist oder Netzfehler auf einem Aufruf mit Wirkung (ERROR_OUTCOME_RULES):
+  // der Vorgang kann trotzdem gebucht sein, darum nie „erneut versuchen“.
+  'network.outcome_unknown': { text: 'Der Server hat nicht geantwortet, der Vorgang kann trotzdem gebucht sein. Bitte vor einem neuen Versuch prüfen, ob der letzte Vorgang schon gebucht ist.' },
   'server.unexpected': { text: 'Der Server hat unerwartet geantwortet (HTTP {status}). Bitte den Support verständigen.', placeholders: ['status'] },
+  // Rand-Codes, die ein Kassier nicht deuten kann (siehe ERROR_CODE_RULES): der
+  // technische Satz bleibt in `error.message`, auf den Schirm kommt dieser.
+  // Nur fuer Codes, bei denen der Server nichts ausgefuehrt hat: dann darf
+  // der Satz zum neuen Versuch raten.
+  'server.connection_disturbed': { text: 'Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten und erneut versuchen.' },
+  // Codes mit unklarem Ausgang (der Vorgang kann gebucht sein): nie zum
+  // Wiederholen raten, erst nachsehen. „Kasse neu öffnen“ passt fuer beide
+  // Seiten (Web: neu laden, App: neu starten).
+  'server.response_unreadable': { text: 'Die Antwort des Kassenservers war nicht lesbar. Bitte die Kasse neu öffnen und vor einem neuen Versuch prüfen, ob der letzte Vorgang schon gebucht ist.' },
 
   // --- Kopplung ------------------------------------------------------------
   'pairing.code_missing': { text: 'Bitte den Kopplungs-Code eingeben.' },
@@ -294,8 +307,8 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
 
 /**
  * In welcher Reihenfolge ein Fehler eingeordnet wird, auf beiden Seiten
- * dieselbe. Jede Regel nennt ihre Art (`kind`) und entweder ein Verhalten
- * (`behavior`) oder den Schluessel des Satzes (`key`). Die Arten:
+ * dieselbe. Genau eine Regel je Art (`kind`), mit einem Verhalten
+ * (`behavior`) oder dem Schluessel des Satzes (`key`). Die Arten:
  *   api        - HTTP 200, `status:'error'`: der Satz des Backends, woertlich
  *                (`server_text`)
  *   plain_text - schon fuer den Bildschirm geschrieben: sein eigener Text
@@ -308,6 +321,11 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
  *                (`fallback`)
  * Unter 0.x hiessen sie `klartext`, `zeitablauf`, `netz`, `unerwartet`,
  * `sonst` (Tabelle in `fixtures/renames-1.0.json`).
+ *
+ * Seit 1.0.0-rc.5 verfeinern [ERROR_CODE_RULES] und [ERROR_OUTCOME_RULES]
+ * diese Liste; sie stehen bewusst getrennt, damit ein Leser, der nur nach
+ * `kind` sucht, weiter genau den Satz von rc.4 zeigt. [findErrorRule] wendet
+ * alle drei in der richtigen Reihenfolge an.
  */
 export const ERROR_RULES = [
   { kind: 'api', behavior: 'server_text' },
@@ -319,6 +337,97 @@ export const ERROR_RULES = [
 ] as const;
 
 export type ErrorKind = (typeof ERROR_RULES)[number]['kind'];
+
+/**
+ * Regeln je Code (`error.code`), vor der Regel der Art: sie ersetzen den
+ * technischen Satz des Pakets bzw. des Rands durch einen Menschentext. Der
+ * technische Satz bleibt in `error.message` fuers Protokoll.
+ *   - `dialect_mismatch`, `response_translation_failed`, `response_unreadable`:
+ *     Ausgang unklar, der Vorgang kann gebucht sein; der Satz raet nie zum
+ *     Wiederholen, sondern zum Nachsehen.
+ *   - `route_missing`, `not_found`, `internal_translation_error`: am Server
+ *     geschah nichts, ein neuer Versuch ist sicher (auch auf den Geldwegen:
+ *     alle drei stehen in `PAYMENT_CALL_REJECTED_CODES`).
+ */
+export const ERROR_CODE_RULES = [
+  { kind: 'api', codes: ['dialect_mismatch', 'response_translation_failed', 'response_unreadable'], key: 'server.response_unreadable' },
+  { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error'], key: 'server.connection_disturbed' },
+] as const;
+
+/**
+ * Regeln je Ausgang, nach den Code-Regeln und vor der Regel der Art: eine
+ * Frist oder ein Netzfehler auf einem Aufruf mit Wirkung (Ausgang unklar,
+ * siehe [messageOutcome]) raet nie zum Wiederholen. Ein Netzfehler auf einem
+ * Aufruf ohne Wirkung behaelt den Satz von rc.4 („erneut versuchen“).
+ */
+export const ERROR_OUTCOME_RULES = [
+  { kind: 'timeout', outcome: 'unknown', key: 'network.outcome_unknown' },
+  { kind: 'network', outcome: 'unknown', key: 'network.outcome_unknown' },
+] as const;
+
+export type ErrorRule = (typeof ERROR_RULES)[number] | (typeof ERROR_CODE_RULES)[number] | (typeof ERROR_OUTCOME_RULES)[number];
+
+/** Was ueber einen Fehler bekannt ist, ausser seiner Art. */
+export interface ErrorRuleDetail {
+  /** `error.code` eines `KasseneckApiError`. */
+  code?: string | null;
+  /** Ausgang fuer den Satz, siehe [messageOutcome]. */
+  outcome?: ErrorOutcome | null;
+}
+
+/**
+ * Die Regel fuer einen Fehler: zuerst eine Code-Regel mit passender Art und
+ * passendem `code`, dann eine Ausgangs-Regel mit passender Art und
+ * passendem `outcome`, sonst die Regel der Art aus [ERROR_RULES]. Beide
+ * Kassen ordnen so ein.
+ */
+export function findErrorRule(kind: ErrorKind, detail: ErrorRuleDetail = {}): ErrorRule {
+  const { code, outcome } = detail;
+  if (code !== undefined && code !== null) {
+    const treffer = ERROR_CODE_RULES.find((r) => r.kind === kind && (r.codes as readonly string[]).includes(code));
+    if (treffer) return treffer;
+  }
+  if (outcome !== undefined && outcome !== null) {
+    const treffer = ERROR_OUTCOME_RULES.find((r) => r.kind === kind && r.outcome === outcome);
+    if (treffer) return treffer;
+  }
+  // Jede Art hat genau eine Regel; hierher kommt nur eine fremde Art nicht.
+  return ERROR_RULES.find((r) => r.kind === kind) ?? ERROR_RULES[ERROR_RULES.length - 1]!;
+}
+
+/**
+ * Kassen-Aufrufe mit Wirkung, die sich nach einem Netzfehler nicht gefahrlos
+ * wiederholen lassen: die sechs, deren Ausgang das Paket selbst als unklar
+ * fuehrt (Beleg, auch Null- und Startbeleg ueber `createReceipt`, Storno,
+ * FinanzOnline, die drei Geldwege), dazu der Druckjob (zweiter Bon) und die
+ * Belegmail (zweite Mail). Ob die Anfrage vor dem Abriss schon draussen war,
+ * sieht das Paket nicht (fetch wirft in beiden Faellen gleich); darum gilt
+ * hier immer der vorsichtige Satz.
+ */
+export const CALLS_WITH_EFFECT = Object.freeze([
+  'createReceipt',
+  'cancelReceipt',
+  'financeWebService',
+  'hobexPayApi',
+  'hobexRefundApi',
+  'stripeCaptureIntent',
+  'createPrintJob',
+  'sendReceiptEmail',
+] as const);
+const MIT_WIRKUNG: ReadonlySet<string> = new Set(CALLS_WITH_EFFECT);
+
+/**
+ * Der Ausgang, nach dem der Satz gewaehlt wird: `'unknown'`, wenn das Paket
+ * ihn als unklar fuehrt ([isOutcomeUnknown]) oder wenn eine Frist bzw. ein
+ * Netzfehler einen Aufruf aus [CALLS_WITH_EFFECT] traf; sonst der Ausgang
+ * des Fehlers (`'rejected'`) bzw. `undefined` fuer fremde Fehler.
+ */
+export function messageOutcome(error: unknown): ErrorOutcome | undefined {
+  if (isOutcomeUnknown(error)) return 'unknown';
+  if (error instanceof KasseneckNetworkError) return MIT_WIRKUNG.has(error.functionName.split('/')[0]!) ? 'unknown' : error.outcome;
+  if (error instanceof KasseneckApiError || error instanceof KasseneckHttpError) return error.outcome;
+  return undefined;
+}
 
 /**
  * Beleg per E-Mail senden: welcher `code` des Backends welchen Satz bekommt.
@@ -412,6 +521,10 @@ const BESCHRIFTUNGEN_ROH = {
 
   // --- Kopplung und Abmelden -----------------------------------------------
   'pairing.pair_again': { text: 'Neu koppeln' },
+  // Ein Geraet ohne Namen (`deviceLabel: null` unter /v3) in der Auswahl.
+  'register.device_unnamed': { text: 'Kasse' },
+  // Restzeit der PIN-Sperre unter dem Satz des Backends.
+  'login.locked_seconds': { text: 'Noch {seconds} s gesperrt', placeholders: ['seconds'] },
   'logout.question': { text: 'Wirklich abmelden?' },
   'logout.keep_working': { text: 'Weiter arbeiten' },
   'device.unpair': { text: 'Gerät entkoppeln' },
@@ -443,6 +556,9 @@ const BESCHRIFTUNGEN_ROH = {
   'split.payment': { text: 'Zahlung {n}', placeholders: ['n'] },
   'split.amount': { text: 'Betrag' },
   'split.remaining': { text: 'Rest' },
+  // Letzte Runde bei Getrennt zahlen: der Rest samt Rundungscent;
+  // `{cents}` traegt das Vorzeichen (`+1`, `−1`).
+  'split.remaining_with_rounding': { text: 'Rest inkl. Rundung {amount} ({cents} ct)', placeholders: ['amount', 'cents'] },
   'split.divide': { text: '÷ {n}', placeholders: ['n'] },
   'split.tip_basis': { text: '% von diesem Betrag' },
   'split.of_which_tip': { text: 'davon Trinkgeld {amount}', placeholders: ['amount'] },
