@@ -16,6 +16,10 @@ consumer migrates once. Rendered texts (messages, labels, printed receipts,
 invoice PDFs) are byte for byte the same as in 0.31.0, and so are the printed
 bytes of every golden receipt.
 
+Released as `latest` on 30.09.2026, identical in content to 1.0.0-rc.5. The
+web register (kasse.kasseneck.at) has run on rc.5 since 29.09.2026. 0.x stays
+available under the `legacy` tag and on the `release/0.x` branch.
+
 This entry is written in English, like the developer documentation from here
 on.
 
