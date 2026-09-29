@@ -40,10 +40,13 @@ const MELDUNGEN_ROH = {
   'server.unexpected': { text: 'Der Server hat unerwartet geantwortet (HTTP {status}). Bitte den Support verständigen.', placeholders: ['status'] },
   // Rand-Codes, die ein Kassier nicht deuten kann (siehe ERROR_RULES): der
   // technische Satz bleibt in `error.message`, auf den Schirm kommt dieser.
+  // Nur fuer Codes, bei denen der Server nichts ausgefuehrt hat: dann darf
+  // der Satz zum neuen Versuch raten.
   'server.connection_disturbed': { text: 'Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten und erneut versuchen.' },
-  // `dialect_mismatch`: meist ein halb ausgerollter Stand, den erst ein
-  // Neuladen der Seite aufloest.
-  'server.connection_disturbed_reload': { text: 'Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten, die Seite neu laden und erneut versuchen.' },
+  // Codes mit unklarem Ausgang (der Vorgang kann gebucht sein): nie zum
+  // Wiederholen raten, erst nachsehen. „Kasse neu öffnen“ passt fuer beide
+  // Seiten (Web: neu laden, App: neu starten).
+  'server.response_unreadable': { text: 'Die Antwort des Kassenservers war nicht lesbar. Bitte die Kasse neu öffnen und vor einem neuen Versuch prüfen, ob der letzte Vorgang schon gebucht ist.' },
 
   // --- Kopplung ------------------------------------------------------------
   'pairing.code_missing': { text: 'Bitte den Kopplungs-Code eingeben.' },
@@ -306,10 +309,13 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
  *                (`server_text`). Davor stehen Regeln mit `codes`: sie
  *                greifen nur bei einem dieser Codes (`error.code`) und
  *                ersetzen den technischen Satz des Pakets bzw. des Rands
- *                (`route_missing`, `dialect_mismatch`, `not_found`,
- *                `internal_translation_error`, `response_translation_failed`)
- *                durch einen Menschentext. Der technische Satz bleibt in
- *                `error.message` fuers Protokoll.
+ *                durch einen Menschentext: `route_missing`, `not_found`,
+ *                `internal_translation_error` (am Server geschah nichts,
+ *                ein neuer Versuch ist sicher) und `dialect_mismatch`,
+ *                `response_translation_failed`, `response_unreadable`
+ *                (Ausgang unklar: erst nachsehen, nie zum Wiederholen
+ *                raten). Der technische Satz bleibt in `error.message`
+ *                fuers Protokoll.
  *   plain_text - schon fuer den Bildschirm geschrieben: sein eigener Text
  *                (`own_text`)
  *   timeout    - die Frist lief ab, die Anfrage war draussen
@@ -322,8 +328,8 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
  * `sonst` (Tabelle in `fixtures/renames-1.0.json`).
  */
 export const ERROR_RULES = [
-  { kind: 'api', codes: ['dialect_mismatch'], key: 'server.connection_disturbed_reload' },
-  { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error', 'response_translation_failed'], key: 'server.connection_disturbed' },
+  { kind: 'api', codes: ['dialect_mismatch', 'response_translation_failed', 'response_unreadable'], key: 'server.response_unreadable' },
+  { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error'], key: 'server.connection_disturbed' },
   { kind: 'api', behavior: 'server_text' },
   { kind: 'plain_text', behavior: 'own_text' },
   { kind: 'timeout', key: 'network.timeout' },
@@ -341,10 +347,9 @@ export type ErrorRule = (typeof ERROR_RULES)[number];
  * Kassen ordnen so ein; wer nur nach `kind` sucht, trifft bei `api` die
  * Regel eines Rand-Codes und zeigt jedem Backend-Fehler den falschen Satz.
  *
- * Unklarer Ausgang geht vor: ein Aufruf mit Wirkung (Beleg, Storno), dessen
- * Fehler `isOutcomeUnknown` meldet (`dialect_mismatch`,
- * `response_translation_failed`), bekommt den Satz seines Vorgangs, der vor
- * dem zweiten Versuch warnt, nicht diesen.
+ * Unklarer Ausgang: die Rand-Codes mit `isOutcomeUnknown` bekommen einen
+ * Satz, der nie zum Wiederholen raet. Ein Vorgang mit eigenem Satz fuer den
+ * unklaren Ausgang (Beleg, Storno) nimmt trotzdem zuerst seinen eigenen.
  */
 export function findErrorRule(kind: ErrorKind, code?: string | null): ErrorRule {
   for (const regel of ERROR_RULES) {

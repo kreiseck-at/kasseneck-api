@@ -619,7 +619,7 @@ test('v3: route_missing und dialect_mismatch zeigen dem Kassier einen Menschente
   const ohne = erfolg({}, { kennzeichen: null });
   const faelle = [
     { a: html, code: 'route_missing', technisch: /Route fehlt/, schirm: 'server.connection_disturbed' },
-    { a: ohne, code: 'dialect_mismatch', technisch: /spricht nicht \/v3/, schirm: 'server.connection_disturbed_reload' },
+    { a: ohne, code: 'dialect_mismatch', technisch: /spricht nicht \/v3/, schirm: 'server.response_unreadable' },
   ] as const;
   for (const f of faelle) {
     const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => f.a })('getReceipt', {}));

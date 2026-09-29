@@ -48,7 +48,7 @@ const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
  * 0.x-Stand, nur umbenannt.
  */
 const NACH_1_0 = {
-  messages: ['server.connection_disturbed', 'server.connection_disturbed_reload'],
+  messages: ['server.connection_disturbed', 'server.response_unreadable'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding'],
   // Faelle mit `code` (seit Version 2 der Datei): die Regeln der Rand-Codes.
   caseVersion: 2,
@@ -204,7 +204,7 @@ test('Umbenennung: pos-message-cases.json ist der 0.x-Stand, nur umbenannt', () 
 
 test('Umbenennung: Fehlerregeln und Code-Zuordnungen zeigen auf die neuen Schluessel', () => {
   // Die Regeln mit `codes` kamen nach 1.0 (Rand-Codes); die uebrigen sind der 0.x-Stand.
-  assert.deepEqual(ERROR_RULES.filter((r) => 'codes' in r).map((r) => 'key' in r && r.key), ['server.connection_disturbed_reload', 'server.connection_disturbed']);
+  assert.deepEqual(ERROR_RULES.filter((r) => 'codes' in r).map((r) => 'key' in r && r.key), ['server.response_unreadable', 'server.connection_disturbed']);
   assert.deepEqual(
     ERROR_RULES.filter((r) => !('codes' in r)),
     (ALT_KASSE.fehlerregeln as Json[]).map((r) => umbenannt({

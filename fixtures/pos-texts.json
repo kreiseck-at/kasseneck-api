@@ -16,8 +16,8 @@
     "server.connection_disturbed": {
       "text": "Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten und erneut versuchen."
     },
-    "server.connection_disturbed_reload": {
-      "text": "Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten, die Seite neu laden und erneut versuchen."
+    "server.response_unreadable": {
+      "text": "Die Antwort des Kassenservers war nicht lesbar. Bitte die Kasse neu öffnen und vor einem neuen Versuch prüfen, ob der letzte Vorgang schon gebucht ist."
     },
     "pairing.code_missing": {
       "text": "Bitte den Kopplungs-Code eingeben."
@@ -665,17 +665,18 @@
     {
       "kind": "api",
       "codes": [
-        "dialect_mismatch"
+        "dialect_mismatch",
+        "response_translation_failed",
+        "response_unreadable"
       ],
-      "key": "server.connection_disturbed_reload"
+      "key": "server.response_unreadable"
     },
     {
       "kind": "api",
       "codes": [
         "route_missing",
         "not_found",
-        "internal_translation_error",
-        "response_translation_failed"
+        "internal_translation_error"
       ],
       "key": "server.connection_disturbed"
     },
