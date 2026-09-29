@@ -254,3 +254,7 @@ export function invalidStoredPosSettings(stored: { betrieb?: unknown; geraet?: u
 export function fromStoredArticle(id: string, stored: unknown): PosArticle {
   return fromPosArticlePayload(_storedArticleToWire(id, stored) as PosArticlePayload);
 }
+
+// ---- Zeilenmodell und Drucklogo ----------------------------------------------
+
+export { fromStoredLayout, toStoredLayout, fromStoredPrintLogo, toStoredPrintLogo } from './layout.js';
