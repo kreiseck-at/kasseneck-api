@@ -812,12 +812,14 @@ the same as in 0.x.
 `ERROR_RULES` says which text a failed call shows, the same in both
 registers; `findErrorRule(kind, code)` picks the first rule that matches the
 error's kind and, where a rule lists `codes`, its code. The edge codes
-`route_missing`, `dialect_mismatch`, `not_found`,
-`internal_translation_error` and `response_translation_failed` show a plain
-German sentence (`server.connection_disturbed`, for `dialect_mismatch`
-`server.connection_disturbed_reload`) instead of the package's technical
-sentence, which stays in `error.message` for the log. A call with an effect
-whose outcome is unknown (`isOutcomeUnknown`) gets its own warning first.
+show a plain German sentence instead of the package's technical sentence,
+which stays in `error.message` for the log: `route_missing`, `not_found` and
+`internal_translation_error` (nothing happened on the server)
+`server.connection_disturbed`, which suggests trying again;
+`dialect_mismatch`, `response_translation_failed` and `response_unreadable`
+(outcome unknown) `server.response_unreadable`, which asks to reopen the
+register and check whether the last operation was booked, and never
+suggests a retry.
 
 ## Stored documents (`./stored`)
 
