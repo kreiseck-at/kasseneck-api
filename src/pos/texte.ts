@@ -38,6 +38,12 @@ const MELDUNGEN_ROH = {
   'network.no_connection': { text: 'Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen.' },
   'network.timeout': { text: 'Der Server antwortet nicht. Bitte die Internetverbindung prüfen und erneut versuchen.' },
   'server.unexpected': { text: 'Der Server hat unerwartet geantwortet (HTTP {status}). Bitte den Support verständigen.', placeholders: ['status'] },
+  // Rand-Codes, die ein Kassier nicht deuten kann (siehe ERROR_RULES): der
+  // technische Satz bleibt in `error.message`, auf den Schirm kommt dieser.
+  'server.connection_disturbed': { text: 'Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten und erneut versuchen.' },
+  // `dialect_mismatch`: meist ein halb ausgerollter Stand, den erst ein
+  // Neuladen der Seite aufloest.
+  'server.connection_disturbed_reload': { text: 'Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten, die Seite neu laden und erneut versuchen.' },
 
   // --- Kopplung ------------------------------------------------------------
   'pairing.code_missing': { text: 'Bitte den Kopplungs-Code eingeben.' },
@@ -297,7 +303,13 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
  * dieselbe. Jede Regel nennt ihre Art (`kind`) und entweder ein Verhalten
  * (`behavior`) oder den Schluessel des Satzes (`key`). Die Arten:
  *   api        - HTTP 200, `status:'error'`: der Satz des Backends, woertlich
- *                (`server_text`)
+ *                (`server_text`). Davor stehen Regeln mit `codes`: sie
+ *                greifen nur bei einem dieser Codes (`error.code`) und
+ *                ersetzen den technischen Satz des Pakets bzw. des Rands
+ *                (`route_missing`, `dialect_mismatch`, `not_found`,
+ *                `internal_translation_error`, `response_translation_failed`)
+ *                durch einen Menschentext. Der technische Satz bleibt in
+ *                `error.message` fuers Protokoll.
  *   plain_text - schon fuer den Bildschirm geschrieben: sein eigener Text
  *                (`own_text`)
  *   timeout    - die Frist lief ab, die Anfrage war draussen
@@ -310,6 +322,8 @@ export const MESSAGES: Record<MessageKey, TextEntry> = MELDUNGEN_ROH;
  * `sonst` (Tabelle in `fixtures/renames-1.0.json`).
  */
 export const ERROR_RULES = [
+  { kind: 'api', codes: ['dialect_mismatch'], key: 'server.connection_disturbed_reload' },
+  { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error', 'response_translation_failed'], key: 'server.connection_disturbed' },
   { kind: 'api', behavior: 'server_text' },
   { kind: 'plain_text', behavior: 'own_text' },
   { kind: 'timeout', key: 'network.timeout' },
@@ -319,6 +333,28 @@ export const ERROR_RULES = [
 ] as const;
 
 export type ErrorKind = (typeof ERROR_RULES)[number]['kind'];
+export type ErrorRule = (typeof ERROR_RULES)[number];
+
+/**
+ * Die Regel fuer einen Fehler: die erste in [ERROR_RULES], deren Art passt
+ * und die entweder keine `codes` nennt oder den `code` des Fehlers. Beide
+ * Kassen ordnen so ein; wer nur nach `kind` sucht, trifft bei `api` die
+ * Regel eines Rand-Codes und zeigt jedem Backend-Fehler den falschen Satz.
+ *
+ * Unklarer Ausgang geht vor: ein Aufruf mit Wirkung (Beleg, Storno), dessen
+ * Fehler `isOutcomeUnknown` meldet (`dialect_mismatch`,
+ * `response_translation_failed`), bekommt den Satz seines Vorgangs, der vor
+ * dem zweiten Versuch warnt, nicht diesen.
+ */
+export function findErrorRule(kind: ErrorKind, code?: string | null): ErrorRule {
+  for (const regel of ERROR_RULES) {
+    if (regel.kind !== kind) continue;
+    if ('codes' in regel && (code === undefined || code === null || !(regel.codes as readonly string[]).includes(code))) continue;
+    return regel;
+  }
+  // Jede Art hat eine Regel ohne `codes`; hierher kommt nur eine fremde Art.
+  return ERROR_RULES[ERROR_RULES.length - 1]!;
+}
 
 /**
  * Beleg per E-Mail senden: welcher `code` des Backends welchen Satz bekommt.
@@ -412,6 +448,10 @@ const BESCHRIFTUNGEN_ROH = {
 
   // --- Kopplung und Abmelden -----------------------------------------------
   'pairing.pair_again': { text: 'Neu koppeln' },
+  // Ein Geraet ohne Namen (`deviceLabel: null` unter /v3) in der Auswahl.
+  'register.device_unnamed': { text: 'Kasse' },
+  // Restzeit der PIN-Sperre unter dem Satz des Backends.
+  'login.locked_seconds': { text: 'Noch {seconds} s gesperrt', placeholders: ['seconds'] },
   'logout.question': { text: 'Wirklich abmelden?' },
   'logout.keep_working': { text: 'Weiter arbeiten' },
   'device.unpair': { text: 'Gerät entkoppeln' },
@@ -443,6 +483,9 @@ const BESCHRIFTUNGEN_ROH = {
   'split.payment': { text: 'Zahlung {n}', placeholders: ['n'] },
   'split.amount': { text: 'Betrag' },
   'split.remaining': { text: 'Rest' },
+  // Letzte Runde bei Getrennt zahlen: der Rest samt Rundungscent;
+  // `{cents}` traegt das Vorzeichen (`+1`, `−1`).
+  'split.remaining_with_rounding': { text: 'Rest inkl. Rundung {amount} ({cents} ct)', placeholders: ['amount', 'cents'] },
   'split.divide': { text: '÷ {n}', placeholders: ['n'] },
   'split.tip_basis': { text: '% von diesem Betrag' },
   'split.of_which_tip': { text: 'davon Trinkgeld {amount}', placeholders: ['amount'] },

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo } from '../src/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo } from '../src/pos/texte.js';
 import type { MessageKey } from '../src/pos/texte.js';
 import { CANCELLATION_ERROR_CODES } from '../src/models/cancellation.js';
 import { PAYMENT_ERROR_CODES } from '../src/models/payment-errors.js';
@@ -62,7 +62,13 @@ test('die Fehlerregeln enden mit other und nennen nur bekannte Schluessel', () =
   for (const regel of ERROR_RULES) {
     if ('key' in regel) assert.ok(regel.key in MESSAGES, regel.key);
   }
-  assert.deepEqual(ERROR_RULES.map((r) => r.kind), ['api', 'plain_text', 'timeout', 'network', 'unexpected', 'other']);
+  assert.deepEqual(ERROR_RULES.map((r) => r.kind), ['api', 'api', 'api', 'plain_text', 'timeout', 'network', 'unexpected', 'other']);
+  // Regeln mit Codes stehen vor der allgemeinen Regel ihrer Art, sonst griffen sie nie.
+  for (const [i, regel] of ERROR_RULES.entries()) {
+    if (!('codes' in regel)) continue;
+    const allgemein = ERROR_RULES.findIndex((r) => r.kind === regel.kind && !('codes' in r));
+    assert.ok(i < allgemein, `Regel ${i} (${regel.codes.join(', ')}) steht hinter der allgemeinen Regel`);
+  }
   assert.deepEqual(ERROR_RULES.filter((r) => 'behavior' in r).map((r) => 'behavior' in r && r.behavior), ['server_text', 'own_text', 'fallback']);
 });
 
@@ -446,4 +452,31 @@ test('das X an einer Meldung nennt die Meldung, die es ausblendet', () => {
   assert.equal(labelText('message.dismiss_warning', { message: 'Unklar, ob …' }), 'Verstanden – Warnung ausblenden: Unklar, ob …');
   assert.throws(() => labelText('message.dismiss'), /\{message\}/);
   assert.throws(() => labelText('message.dismiss_warning'), /\{message\}/);
+});
+
+test('Rand-Codes zeigen dem Kassier einen Menschentext, nie den technischen Satz', () => {
+  const rand = ['route_missing', 'dialect_mismatch', 'not_found', 'internal_translation_error', 'response_translation_failed'];
+  for (const code of rand) {
+    const regel = findErrorRule('api', code);
+    assert.ok('key' in regel, code);
+    const text = messageText(regel.key);
+    assert.match(text, /Verbindung zum Kassenserver ist gestört/, code);
+    assert.doesNotMatch(text, /v3|HTML|Route|Kennzeichen|translation/i, code);
+  }
+  // Nur dialect_mismatch verlangt das Neuladen der Seite.
+  assert.deepEqual(rand.filter((c) => { const r = findErrorRule('api', c); return 'key' in r && /neu laden/.test(messageText(r.key)); }), ['dialect_mismatch']);
+  // Jeder andere Code und ein Fehler ohne Code: der Satz des Backends.
+  for (const code of ['session_expired', 'validation', undefined, null]) {
+    assert.deepEqual(findErrorRule('api', code), { kind: 'api', behavior: 'server_text' }, String(code));
+  }
+  // Ein Code an einer anderen Art aendert nichts.
+  assert.deepEqual(findErrorRule('network', 'route_missing'), { kind: 'network', key: 'network.no_connection' });
+});
+
+test('neue Beschriftungen: Geraet ohne Namen, Restzeit der PIN-Sperre, letzte Runde mit Rundung', () => {
+  assert.equal(labelText('register.device_unnamed'), 'Kasse');
+  assert.equal(labelText('login.locked_seconds', { seconds: 27 }), 'Noch 27 s gesperrt');
+  assert.equal(labelText('split.remaining_with_rounding', { amount: '19,99 €', cents: '−1' }), 'Rest inkl. Rundung 19,99 € (−1 ct)');
+  assert.throws(() => labelText('login.locked_seconds'), /\{seconds\}/);
+  assert.throws(() => labelText('split.remaining_with_rounding', { amount: '1,00 €' }), /\{cents\}/);
 });

@@ -22,6 +22,7 @@ import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import { pairRegisterDevice, listRegisterUsersForDevice } from '../src/register/index.js';
 import { PACKAGE_VERSION } from '../src/version.js';
+import { findErrorRule, messageText } from '../src/pos/texte.js';
 import { createHpsConnectClient } from '../src/payments/hobex-hps/index.js';
 import { eposDirectStatus } from '../src/receipt/epos.js';
 
@@ -611,4 +612,22 @@ test('v3: HTTP 200 mit Kennzeichen und text/html: signierende Aufrufe unknown, o
   const e3 = await fehler(createTransport({ auth: schluessel(), fetch: async () => mit })('getReceipt', {}));
   assert.equal((e3 as KasseneckApiError).code, 'route_missing');
   assert.equal((e3 as KasseneckApiError).outcome, 'rejected');
+});
+
+test('v3: route_missing und dialect_mismatch zeigen dem Kassier einen Menschentext, der technische Satz bleibt in message', async () => {
+  const html = antwort('<!doctype html>', { kennzeichen: null, contentType: 'text/html' });
+  const ohne = erfolg({}, { kennzeichen: null });
+  const faelle = [
+    { a: html, code: 'route_missing', technisch: /Route fehlt/, schirm: 'server.connection_disturbed' },
+    { a: ohne, code: 'dialect_mismatch', technisch: /spricht nicht \/v3/, schirm: 'server.connection_disturbed_reload' },
+  ] as const;
+  for (const f of faelle) {
+    const e = await fehler(createTransport({ auth: schluessel(), fetch: async () => f.a })('getReceipt', {}));
+    assert.ok(e instanceof KasseneckApiError, f.code);
+    assert.equal(e.code, f.code);
+    assert.match(e.message, f.technisch, f.code);
+    const regel = findErrorRule('api', e.code);
+    assert.ok('key' in regel && regel.key === f.schirm, f.code);
+    assert.doesNotMatch(messageText(regel.key), f.technisch, f.code);
+  }
 });

@@ -13,6 +13,12 @@
         "status"
       ]
     },
+    "server.connection_disturbed": {
+      "text": "Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten und erneut versuchen."
+    },
+    "server.connection_disturbed_reload": {
+      "text": "Die Verbindung zum Kassenserver ist gestört. Bitte kurz warten, die Seite neu laden und erneut versuchen."
+    },
     "pairing.code_missing": {
       "text": "Bitte den Kopplungs-Code eingeben."
     },
@@ -658,6 +664,23 @@
   "errorRules": [
     {
       "kind": "api",
+      "codes": [
+        "dialect_mismatch"
+      ],
+      "key": "server.connection_disturbed_reload"
+    },
+    {
+      "kind": "api",
+      "codes": [
+        "route_missing",
+        "not_found",
+        "internal_translation_error",
+        "response_translation_failed"
+      ],
+      "key": "server.connection_disturbed"
+    },
+    {
+      "kind": "api",
       "behavior": "server_text"
     },
     {
@@ -713,6 +736,15 @@
     },
     "pairing.pair_again": {
       "text": "Neu koppeln"
+    },
+    "register.device_unnamed": {
+      "text": "Kasse"
+    },
+    "login.locked_seconds": {
+      "text": "Noch {seconds} s gesperrt",
+      "placeholders": [
+        "seconds"
+      ]
     },
     "logout.question": {
       "text": "Wirklich abmelden?"
@@ -788,6 +820,13 @@
     },
     "split.remaining": {
       "text": "Rest"
+    },
+    "split.remaining_with_rounding": {
+      "text": "Rest inkl. Rundung {amount} ({cents} ct)",
+      "placeholders": [
+        "amount",
+        "cents"
+      ]
     },
     "split.divide": {
       "text": "÷ {n}",
