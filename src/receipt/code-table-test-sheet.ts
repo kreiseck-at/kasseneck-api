@@ -73,6 +73,9 @@ const BLATT_PUNKTE = CODE_TABLE_TEST_SHEET_CHARS * 12;
 const RAND_80 = (576 - BLATT_PUNKTE) / 2;
 
 const GS = 0x1d;
+const ESC = 0x1b;
+/** `ESC t` der Vorgabe ohne gewaehlte Tabelle (WPC1252). */
+const VORGABE_ESC_T = 16;
 
 /** Die Vorlage-Zeile als Rasterbild (384 x 24 Punkte), wie sie am Papier steht. */
 export function codeTableReferenceImage(): RasterImage {
@@ -196,6 +199,11 @@ export function codeTableTestSheetBytes(options: CodeTableTestSheetInput): Uint8
     escPosSetStyles(doc, { align: 'left', codeTable: tabelle.codeTable });
     doc.bytes.push(...encodeForCodeTable(block.text.slice(block.doubleSizeLead).trimEnd(), tabelle.codeTable), 0x0a);
   }
+  // Endzustand wie ohne Wahl: Tabelle 16 (WPC1252) und auf 80 mm Rand 0.
+  // Ein Druck danach ohne `ESC @` steht sonst in der Tabelle der letzten
+  // Testzeile und um den Rand verschoben.
+  doc.bytes.push(ESC, 0x74, VORGABE_ESC_T);
+  if (options.paper === 'mm80') doc.bytes.push(GS, 0x4c, 0, 0);
   escPosCut(doc, 'full');
   return escPosBytes(doc);
 }

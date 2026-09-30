@@ -164,9 +164,17 @@ test('Bytes: 58 mm ohne Rand, 80 mm mit dem 32-Spalten-Block mittig (GS L 96)', 
   assert.deepEqual(Array.from(b58.subarray(0, 10)), [ESC, 0x40, GS, 0x4c, 0, 0, ...bereich]);
   assert.deepEqual(Array.from(b80.subarray(0, 14)), [ESC, 0x40, GS, 0x4c, 0, 0, ...bereich, GS, 0x4c, 96, 0]);
   // Danach dieselben Bytes: nur der Rand unterscheidet die beiden Papiere.
-  assert.deepEqual(Array.from(b80.subarray(14)), Array.from(b58.subarray(10)));
+  assert.deepEqual(Array.from(b80.subarray(14, -12)), Array.from(b58.subarray(10, -8)));
   const titel = enthaelt(b58, ascii('ZEICHENSATZ-TEST'));
   assert.ok(titel > 0);
+});
+
+test('Bytes: am Ende Vorgabe-Tabelle (ESC t 16) und auf 80 mm Rand 0, dann der Schnitt', () => {
+  const schnitt = [LF, LF, LF, LF, LF, GS, 0x56, 0x30];
+  const b58 = Array.from(codeTableTestSheetBytes(EINGABE));
+  const b80 = Array.from(codeTableTestSheetBytes({ ...EINGABE, paper: 'mm80' }));
+  assert.deepEqual(b58.slice(-11), [ESC, 0x74, 16, ...schnitt]);
+  assert.deepEqual(b80.slice(-15), [ESC, 0x74, 16, GS, 0x4c, 0, 0, ...schnitt]);
 });
 
 test('Bytes und Zeilen: gemeinsame Prueffaelle mit dem Dart-Zwilling', () => {
