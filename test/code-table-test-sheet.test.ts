@@ -133,11 +133,14 @@ test('Bytes: Vorlage als GS v 0, jede Zeile FS . + ESC t n + Bytes der Tabelle, 
   let zuletzt = vorlage;
   for (const t of CODE_TABLES) {
     const zeile = zeilen.find((z) => z.startsWith(` ${t.number} | `))!;
-    const nummer = enthaelt(bytes, [GS, 0x21, 0x11, FS, 0x2e, ESC, 0x74, t.escT, 0x30 + t.number]);
-    assert.ok(nummer > zuletzt, `Nummer ${t.number} doppelt gross nach ESC t ${t.escT}`);
+    // Die Ziffer ist ASCII und braucht keine Umschaltung; je Zeile genau ein ESC t, vor ihren Bytes.
+    const nummer = enthaelt(bytes.subarray(zuletzt), [GS, 0x21, 0x11, FS, 0x2e, 0x30 + t.number]) + zuletzt;
+    assert.ok(nummer > zuletzt, `Nummer ${t.number} doppelt gross`);
     const rest = [FS, 0x2e, ESC, 0x74, t.escT, ...encodeForCodeTable(zeile.slice(2).trimEnd(), t.id), LF];
     const i = enthaelt(bytes, rest);
     assert.ok(i > nummer, `Zeile ${t.number}: Zeichen in Tabelle ${t.id}`);
+    const umschaltungen = Array.from(bytes.subarray(nummer, i + rest.length)).filter((b, j, a) => b === ESC && a[j + 1] === 0x74).length;
+    assert.equal(umschaltungen, 1, `Zeile ${t.number}: genau eine Umschaltung`);
     zuletzt = i;
   }
   // Das echte €-Byte, wo die Tabelle es hat (nicht EUR).

@@ -166,8 +166,8 @@ function blattBauen(options: CodeTableTestSheetInput): { blatt: CodeTableTestShe
 }
 
 /**
- * Das Testblatt als ESC/POS-Bytes. Jede Testzeile schaltet mit `FS .` +
- * `ESC t n` auf ihre Tabelle und traegt deren Bytes (`encodeForCodeTable`,
+ * Das Testblatt als ESC/POS-Bytes. Jede Testzeile schaltet nach ihrer
+ * Nummer einmal mit `FS .` + `ESC t n` auf ihre Tabelle und traegt deren Bytes (`encodeForCodeTable`,
  * also das echte €-Byte, wo die Tabelle es hat). Die Nummer steht doppelt
  * breit und hoch (`GS !`), die Vorlage als Rasterbild (`GS v 0`).
  */
@@ -194,8 +194,10 @@ export function codeTableTestSheetBytes(options: CodeTableTestSheetInput): Uint8
     const tabelle = blatt.rows[tabellen]!;
     tabellen += 1;
     const nummer = block.text.slice(0, block.doubleSizeLead).trim();
-    escPosSetStyles(doc, { align: 'left', bold: true, width: 2, height: 2, codeTable: tabelle.codeTable });
-    doc.bytes.push(...encodeForCodeTable(nummer, tabelle.codeTable));
+    // Die Ziffer ist ASCII und steht in jeder Tabelle gleich: keine Umschaltung
+    // davor, die Zeile schaltet genau einmal, vor ihren eigenen Bytes.
+    escPosSetStyles(doc, { align: 'left', bold: true, width: 2, height: 2 });
+    doc.bytes.push(...encodeForCodeTable(nummer, 'replacement'));
     escPosSetStyles(doc, { align: 'left', codeTable: tabelle.codeTable });
     doc.bytes.push(...encodeForCodeTable(block.text.slice(block.doubleSizeLead).trimEnd(), tabelle.codeTable), 0x0a);
   }
