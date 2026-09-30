@@ -4,6 +4,41 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.1.0
+
+Receipt printers that print umlauts and special characters correctly.
+Reason: `ESC t n` selects the character table, but the number n differs
+between manufacturers; many low-cost printers ignore `ESC t 16` or put
+another table there and print garbage instead of `ä`. The printer wizard
+now prints a test sheet, the user taps the first row that looks right, and
+the register keeps that choice per printer on the device.
+
+Additive, no breaking change. Without a chosen table every receipt is byte
+for byte the same as in 1.0.0 (all golden receipts unchanged).
+
+- **Code-table catalogue** (`./printing`): `CodeTableId`, `CodeTable`,
+  `CODE_TABLES` (six tables: `wpc1252` = `ESC t 16`, `pc858` = 19,
+  `pc850` = 2, `pc437` = 0, `iso8859_15` = 40, `replacement` = 0),
+  `codeTableById`, `codeTableFromSetting`, `encodeForCodeTable`. For
+  ä ö ü Ä Ö Ü ß € § ° every table answers with its own byte or, where the
+  table lacks the character, with replacement letters (`ae`, `EUR`, `Par.`,
+  `Grad`), never `?`. Shared contract with the Dart twin:
+  `fixtures/code-tables.json`.
+- **Test sheet** (`./receipt`): `codeTableTestSheet` (line model for the
+  screen, 32 columns) and `codeTableTestSheetBytes` (ESC/POS, centred on
+  80 mm), `codeTableReferenceImage`. Contract:
+  `fixtures/expected/code-table-test-sheet.*`. New texts in
+  `fixtures/pos-texts.json` (`codetable.*`).
+- **Receipts with a chosen table**: `escPosLayoutBytes(layout, { codeTable })`
+  accepts a `CodeTableId`. `€`, `§` and `°` go out as the table's real
+  byte where the table has them, otherwise as replacement letters. Missing
+  characters are replaced in the text before the columns are laid out, so
+  a character that becomes several letters never shifts a column.
+  `escPosPrintableText(text, codeTable?)` takes the same optional table;
+  without it (or with `null`/`CP1252`) it behaves as before.
+- **`CP437` and `§`**: on the old `CP437` name `§` now prints as `Par.`
+  (was `?`), with the columns measured after the replacement.
+
 ## 1.0.0
 
 The package speaks the English API `/v3` and nothing else, and its own
