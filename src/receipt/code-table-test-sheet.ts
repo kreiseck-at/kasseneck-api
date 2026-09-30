@@ -111,6 +111,15 @@ const zweistellig = (n: number): string => String(n).padStart(2, '0');
 
 /** Das Testblatt im Zeilenmodell des Beleg-Blatts -- dieselben Zeilen wie am Papier. */
 export function codeTableTestSheet(options: CodeTableTestSheetInput): CodeTableTestSheet {
+  return blattBauen(options).blatt;
+}
+
+/**
+ * Baut das Blatt und merkt sich dabei, welcher Block die Vorlage-Zeile ist.
+ * Die Bytes suchen sie nicht am Text (der ist `nurAscii` und kann sich
+ * aendern), sondern nehmen genau diese Stelle.
+ */
+function blattBauen(options: CodeTableTestSheetInput): { blatt: CodeTableTestSheet; vorlage: number } {
   const z = CODE_TABLE_TEST_SHEET_CHARS;
   const uhr = toViennaWallClock(options.time);
   const zeit = `${zweistellig(uhr.day)}.${zweistellig(uhr.month)}. ${zweistellig(uhr.hour)}:${zweistellig(uhr.minute)}`;
@@ -124,10 +133,10 @@ export function codeTableTestSheet(options: CodeTableTestSheetInput): CodeTableT
     ...zeilen(`${options.cashregisterLabel.trim()}  ${zeit}`, false, 'center'),
     doppelt,
     ...zeilen(labelText('codetable.reference')),
-    // Am Papier ein Bild (`codeTableReferenceImage`), am Bildschirm Text.
-    zeile(einzug + VORLAGE.join(' ')),
-    einfach,
   ];
+  // Am Papier ein Bild (`codeTableReferenceImage`), am Bildschirm Text.
+  const vorlage = bloecke.length;
+  bloecke.push(zeile(einzug + VORLAGE.join(' ')), einfach);
   const ersatz = CODE_TABLES.find((t) => t.id === 'replacement')!;
   for (const t of CODE_TABLES) {
     if (t === ersatz) continue;
@@ -144,9 +153,12 @@ export function codeTableTestSheet(options: CodeTableTestSheetInput): CodeTableT
   bloecke.push(doppelt);
 
   return {
-    charsPerLine: z,
-    blocks: bloecke,
-    rows: CODE_TABLES.map((t) => ({ number: t.number, codeTable: t.id, missing: t.missing })),
+    blatt: {
+      charsPerLine: z,
+      blocks: bloecke,
+      rows: CODE_TABLES.map((t) => ({ number: t.number, codeTable: t.id, missing: t.missing })),
+    },
+    vorlage,
   };
 }
 
@@ -157,13 +169,14 @@ export function codeTableTestSheet(options: CodeTableTestSheetInput): CodeTableT
  * breit und hoch (`GS !`), die Vorlage als Rasterbild (`GS v 0`).
  */
 export function codeTableTestSheetBytes(options: CodeTableTestSheetInput): Uint8Array {
-  const blatt = codeTableTestSheet(options);
+  const { blatt, vorlage: vorlageIndex } = blattBauen(options);
+  const vorlage = blatt.blocks[vorlageIndex];
+  if (vorlage === undefined || vorlage.kind !== 'line') throw new Error(`Testblatt: Vorlage-Zeile fehlt (Block ${vorlageIndex})`);
   // Das Dokument ist immer 58 mm: 32 Spalten, Druckbereich 384 Punkte.
   const doc = createEscPosDocument({ paperSize: 'mm58', codeTable: null });
   escPosReset(doc);
   if (options.paper === 'mm80') doc.bytes.push(GS, 0x4c, RAND_80 & 0xff, RAND_80 >> 8);
 
-  const vorlage = blatt.blocks[blatt.blocks.findIndex((b) => b.kind === 'line' && b.text.trim() === labelText('codetable.reference')) + 1];
   let tabellen = 0;
   for (const block of blatt.blocks) {
     if (block.kind !== 'line') continue;

@@ -146,6 +146,17 @@ test('Bytes: Vorlage als GS v 0, jede Zeile FS . + ESC t n + Bytes der Tabelle, 
   assert.ok(enthaelt(bytes, [0xdf, 0x20, 0xa4, 0x20, 0xa7]) > 0, 'iso8859_15: ß € §');
 });
 
+test('Bytes: das Rasterbild steht genau an der Stelle der Vorlage-Zeile, direkt nach ihrer Ueberschrift', () => {
+  const bytes = codeTableTestSheetBytes(EINGABE);
+  const ueberschrift = enthaelt(bytes, [...ascii(labelText('codetable.reference')), LF]);
+  assert.ok(ueberschrift > 0);
+  const danach = Array.from(bytes.subarray(ueberschrift + labelText('codetable.reference').length + 1, ueberschrift + labelText('codetable.reference').length + 1 + 5));
+  assert.deepEqual(danach, [FS, 0x2e, GS, 0x76, 0x30]);
+  // Genau ein Rasterbild, und die Vorlage steht nicht zusaetzlich als Text im Bytestrom.
+  assert.equal(enthaelt(bytes.subarray(enthaelt(bytes, [GS, 0x76, 0x30]) + 1), [GS, 0x76, 0x30]), -1);
+  assert.equal(enthaelt(bytes, [0xe4, 0x20, 0xf6, 0x20, 0xfc, 0x20, 0xc4, 0x20, 0xd6, 0x20, 0xdc, 0x20, 0xdf, 0x20, 0x80, 0x20, 0xa7, 0x20, 0xb0, LF]) , enthaelt(bytes, [ESC, 0x74, 16, 0x20, 0x7c, 0x20]) + 6);
+});
+
 test('Bytes: 58 mm ohne Rand, 80 mm mit dem 32-Spalten-Block mittig (GS L 96)', () => {
   const b58 = codeTableTestSheetBytes(EINGABE);
   const b80 = codeTableTestSheetBytes({ ...EINGABE, paper: 'mm80' });
