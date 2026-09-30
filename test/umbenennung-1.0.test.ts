@@ -259,7 +259,9 @@ function alleDateien(): string[] {
 const BESTAND = lies('test/fixtures/vor-1.0/fixtures-0.x.json') as { version: string; dateien: string[]; schluesselMengen: string[][]; schluesselJeDatei: Record<string, number> };
 const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
-const NEU_SEIT_1_0 = ['code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
+/** Bons je Code-Tabelle (1.1.0): die Faelle und je Fall und Tabelle eine Hex-Datei. */
+const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-table-receipts.json'), 'utf8')) as { tables: string[]; cases: Array<{ name: string }> };
+const NEU_SEIT_1_0 = ['code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stored/pos-settings-defaults.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

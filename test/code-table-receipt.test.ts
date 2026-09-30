@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { escPosPrintableText, CODE_TABLES, type CodeTableId } from '../src/printing/index.js';
-import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
+import { fromReceiptPayload } from '../src/models/index.js';
+import { buildReceiptLayout, escPosLayoutBytes, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
 
 /**
  * Bons mit gewaehlter Code-Tabelle: der Golden-Beleg `sale-cash` (80 mm)
@@ -132,4 +133,66 @@ test('escPosPrintableText: ohne Tabelle wie bisher, mit Tabelle bleibt € nur, 
   assert.equal(escPosPrintableText('5 € § ° ä', 'CP437'), '5 EUR Par. ° ä');
   assert.equal(escPosPrintableText('5 € § ° ä', 'replacement'), '5 EUR Par. Grad ae');
   assert.equal(escPosPrintableText('– „x“ … ™', 'pc858'), '- "x" ... TM');
+});
+
+/**
+ * Gemeinsame Prueffaelle mit dem Dart-Zwilling: `fixtures/code-table-receipts.json`
+ * nennt die Faelle, `fixtures/expected/code-table-receipt.<fall>.<tabelle>.hex`
+ * haelt die Bytes (erzeugt von `npm run fixtures:zeichensatz`).
+ */
+interface BonFall {
+  name: string;
+  receipt?: string;
+  input?: { company: Parameters<typeof buildReceiptLayout>[1]; receipt: Record<string, unknown> & { customerDetails: string[]; legalMessage: string[] }; options?: BuildReceiptLayoutOptions };
+}
+const BONS = JSON.parse(readFileSync(new URL('code-table-receipts.json', wurzel), 'utf8')) as { version: number; tables: CodeTableId[]; cases: BonFall[] };
+
+function bonLayout(fall: BonFall): ReceiptLayout {
+  const f = fall.input ?? (JSON.parse(readFileSync(new URL(`receipts/${fall.receipt}.json`, wurzel), 'utf8')) as NonNullable<BonFall['input']>);
+  const receipt = fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never);
+  return buildReceiptLayout(receipt, f.company, f.options ?? {});
+}
+const hexZeilen = (bytes: Uint8Array): string => {
+  const teile: string[] = [];
+  for (let i = 0; i < bytes.length; i += 32) teile.push(Buffer.from(bytes.subarray(i, i + 32)).toString('hex'));
+  return teile.join('\n') + '\n';
+};
+const hexDatei = (fall: string, tabelle: string): string =>
+  readFileSync(new URL(`expected/code-table-receipt.${fall}.${tabelle}.hex`, wurzel), 'utf8');
+
+test('Bons je Tabelle (Prueffall): alle sechs Tabellen, die verlangten Faelle', () => {
+  assert.deepEqual(BONS.tables, CODE_TABLES.map((t) => t.id));
+  const namen = BONS.cases.map((c) => c.name);
+  for (const pflicht of ['sale-cash', 'test-cashregister-sale', 'special-characters']) assert.ok(namen.includes(pflicht), pflicht);
+  const papiere = new Set(BONS.cases.map((c) => bonLayout(c).paperSize));
+  assert.deepEqual([...papiere].sort(), ['mm58', 'mm80']);
+  const sonder = JSON.stringify(BONS.cases.find((c) => c.name === 'special-characters')!.input);
+  for (const z of ['€', '§', '°', 'ä', 'ö', 'ü', 'Ö', 'ß']) assert.ok(sonder.includes(z), `special-characters ohne ${z}`);
+  assert.ok(bonLayout(BONS.cases.find((c) => c.name === 'test-cashregister-sale')!).lines.some((z) => z.kind === 'banner'), 'kein TESTKASSE-Banner');
+  const dateien = readdirSync(new URL('expected/', wurzel)).filter((d) => d.startsWith('code-table-receipt.')).sort();
+  const soll = BONS.cases.flatMap((c) => BONS.tables.map((t) => `code-table-receipt.${c.name}.${t}.hex`)).sort();
+  assert.deepEqual(dateien, soll, 'Hex-Dateien passen nicht zu den Faellen');
+});
+
+for (const fall of BONS.cases) {
+  test(`Bons je Tabelle (Prueffall) ${fall.name}: Bytes je Tabelle wie in der Hex-Datei`, () => {
+    const layout = bonLayout(fall);
+    for (const tabelle of BONS.tables) {
+      assert.equal(hexZeilen(escPosLayoutBytes(layout, { codeTable: tabelle })), hexDatei(fall.name, tabelle), `${fall.name}.${tabelle}`);
+    }
+  });
+}
+
+test('Bons je Tabelle (Prueffall): special-characters traegt die echten Bytes der Tabellen', () => {
+  const bytes = (t: CodeTableId): Uint8Array => Uint8Array.from(Buffer.from(hexDatei('special-characters', t).replace(/\n/g, ''), 'hex'));
+  const hat = (t: CodeTableId, folge: number[]): boolean => findeFolge(bytes(t), folge) >= 0;
+  assert.ok(hat('wpc1252', [...ascii('80'), 0xb0, ...ascii(' hei'), 0xdf]));
+  assert.ok(hat('wpc1252', [...ascii('19,90 '), 0x80]));
+  assert.ok(hat('pc858', [...ascii('19,90 '), 0xd5]));
+  assert.ok(hat('pc858', [...ascii('Pfand '), 0xf5]));
+  assert.ok(hat('iso8859_15', [...ascii('19,90 '), 0xa4]));
+  assert.ok(hat('pc850', ascii('19,90 EUR')));
+  assert.ok(hat('pc437', ascii('Pfand Par. 3')));
+  assert.ok(hat('replacement', ascii('Kuerbis Groesse XL')));
+  assert.ok(hat('replacement', ascii('Tee 80Grad')));
 });
