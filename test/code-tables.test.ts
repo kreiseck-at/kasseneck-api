@@ -76,7 +76,6 @@ test('Code-Tabellen: ein ganzer Satz wird Zeichen fuer Zeichen umgewandelt', () 
 test('Code-Tabellen: uebrige Zeichen ab 0x80 je Tabelle', () => {
   // Latin-1 wie bisher
   assert.equal(hex(encodeForCodeTable('é«»', 'wpc1252')), 'E9ABBB');
-  assert.equal(hex(encodeForCodeTable('é«»', 'iso8859_15')), 'E9ABBB');
   // PC850/PC858: westeuropaeische Akzente aus der Latin-1-Abbildung
   assert.equal(hex(encodeForCodeTable('éàçñÅÉøØ', 'pc850')), '828587A48F909B9D');
   assert.equal(hex(encodeForCodeTable('ñÅÉøØÐ', 'pc858')), 'A48F909B9DD1');
@@ -91,6 +90,43 @@ test('Code-Tabellen: uebrige Zeichen ab 0x80 je Tabelle', () => {
     assert.equal(hex(encodeForCodeTable('あ', t.id)), '3F', t.id);
     assert.equal(hex(encodeForCodeTable('x\u{1F600}y', t.id)), '783F79', `${t.id}: ein Zeichen ausserhalb der BMP ist ein Byte`);
   }
+});
+
+/**
+ * Wahrheit je Tabelle aus dem Dekoder der Laufzeit (WHATWG-Kodierungen, gegen
+ * Pythons `codecs` gegengeprueft): Byte -> Zeichen, umgedreht zu Zeichen -> Byte.
+ */
+function nachDekoder(kodierung: string, von: number, bis: number): Map<string, number> {
+  const dekoder = new TextDecoder(kodierung);
+  const karte = new Map<string, number>();
+  for (let b = von; b <= bis; b++) {
+    const zeichen = dekoder.decode(Uint8Array.of(b));
+    const cp = zeichen.codePointAt(0) as number;
+    if (cp >= 0x80 && cp < 0xa0) continue; // nicht belegte Stelle (C1-Steuerzeichen)
+    karte.set(zeichen, b);
+  }
+  return karte;
+}
+
+test('Code-Tabellen: iso8859_15 setzt jedes Zeichen der Tabelle auf sein Byte, fehlende ueber Ersatz', () => {
+  const iso = nachDekoder('iso-8859-15', 0xa0, 0xff);
+  // Alle Latin-1-Zeichen 0xA0-0xFF plus die acht neuen der 8859-15
+  const kandidaten = [...Array.from({ length: 0x60 }, (_, i) => String.fromCharCode(0xa0 + i)), 'Š', 'š', 'Ž', 'ž', 'Œ', 'œ', 'Ÿ', '€'];
+  for (const zeichen of kandidaten) {
+    const ist = hex(encodeForCodeTable(zeichen, 'iso8859_15'));
+    const byte = iso.get(zeichen);
+    if (byte !== undefined) {
+      assert.equal(ist, byte.toString(16).toUpperCase().padStart(2, '0'), `iso8859_15 ${zeichen}`);
+    } else if (zeichen === '´') {
+      assert.equal(ist, '27', 'Akut ueber die vorhandene Ersetzung');
+    } else {
+      assert.ok(!fixture.characters.includes(zeichen), `${zeichen} gehoert zu den zehn`);
+      assert.equal(ist, '3F', `iso8859_15 ${zeichen} fehlt in der Tabelle`);
+    }
+  }
+  assert.equal(hex(encodeForCodeTable('½¼¾¤¦¨¸', 'iso8859_15')), '3F3F3F3F3F3F3F');
+  assert.equal(hex(encodeForCodeTable('œŠšŽžŒŸ', 'iso8859_15')), 'BDA6A8B4B8BCBE');
+  assert.equal(hex(encodeForCodeTable('\u0080\u0085\u009f', 'iso8859_15')), '3F3F3F', 'C1-Steuerzeichen nie roh');
 });
 
 test('Code-Tabellen: codeTableFromSetting bildet die gespeicherte Einstellung ab', () => {

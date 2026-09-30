@@ -134,12 +134,26 @@ const PC850_AUS_LATIN1: ReadonlyMap<number, number> = new Map<number, number>([
 
 const FRAGEZEICHEN = 0x3f;
 
+/**
+ * ISO 8859-15 belegt acht Stellen anders als Latin-1: dort stehen € Š š Ž ž
+ * Œ œ Ÿ statt ¤ ¦ ¨ ´ ¸ ¼ ½ ¾. Die acht Latin-1-Zeichen fehlen der Tabelle
+ * (Ersetzung, sonst `?`), die neuen stehen hier mit ihrem Byte (€ setzen
+ * schon die zehn Zeichen). C1-Steuerzeichen (0x80-0x9F) gehen nie roh hinaus.
+ */
+const ISO8859_15_ANDERS: ReadonlySet<number> = new Set([0xa4, 0xa6, 0xa8, 0xb4, 0xb8, 0xbc, 0xbd, 0xbe]);
+const ISO8859_15_NEU: ReadonlyMap<number, number> = new Map<number, number>([
+  [0x0160, 0xa6], [0x0161, 0xa8], [0x017d, 0xb4], [0x017e, 0xb8], [0x0152, 0xbc], [0x0153, 0xbd], [0x0178, 0xbe],
+]);
+
 /** Byte fuer ein Zeichen ab 0x80, das nicht zu den zehn gehoert. */
 function uebrigesZeichen(codepunkt: number, id: CodeTableId): number {
   switch (id) {
     case 'wpc1252':
-    case 'iso8859_15':
       return codepunkt <= 0xff ? codepunkt : FRAGEZEICHEN;
+    case 'iso8859_15':
+      if (codepunkt < 0xa0) return FRAGEZEICHEN; // C1-Steuerzeichen
+      if (codepunkt <= 0xff) return ISO8859_15_ANDERS.has(codepunkt) ? FRAGEZEICHEN : codepunkt;
+      return ISO8859_15_NEU.get(codepunkt) ?? FRAGEZEICHEN;
     case 'pc437':
       return CP437_AUS_LATIN1.get(codepunkt) ?? FRAGEZEICHEN;
     case 'pc858':
