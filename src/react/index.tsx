@@ -226,6 +226,18 @@ export function ReceiptSheetLines({ sheet: blatt, logoUrl, renderQr, qrHidden: q
       {blatt.blocks.map((b, i) => {
         switch (b.kind) {
           case 'line':
+            if (b.doubleSizeLead !== undefined && b.doubleSizeLead > 0) {
+              // Wie am Papier (`GS !` doppelt): die Nummernzelle in doppelter
+              // Schrift, die Zeile zwei Zeilen hoch, der Rest auf der Grundlinie.
+              // `ch` im Span misst die doppelte Schrift, darum die halbe Zahl.
+              const n = b.doubleSizeLead;
+              return (
+                <div key={i} className="keck-blatt-zeile keck-blatt-zeile--gross" style={{ display: 'flex', alignItems: 'flex-end', whiteSpace: 'pre', height: '4ch', overflow: 'hidden', fontWeight: b.bold ? 'bold' : 'normal' }}>
+                  <span style={{ fontSize: '2em', width: `${n / 2}ch`, lineHeight: '2ch', fontWeight: 'bold', textAlign: 'center', flex: 'none' }}>{b.text.slice(0, n).trim()}</span>
+                  <span style={{ lineHeight: '2ch' }}>{b.text.slice(n)}</span>
+                </div>
+              );
+            }
             return (
               <div key={i} className="keck-blatt-zeile" style={{ whiteSpace: 'pre', height: '2ch', lineHeight: '2ch', overflow: 'hidden', fontWeight: b.bold ? 'bold' : 'normal' }}>
                 {b.text}

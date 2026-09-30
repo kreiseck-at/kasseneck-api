@@ -196,7 +196,9 @@
     "fixtures:umbenennung": "node scripts/umbenennung-1.0.mjs",
     "fixtures:rechnungzufall": "python3 scripts/rechnung-referenz.py --erzeuge --seed 20260918 --anzahl 400 --ziel fixtures/invoice-calc-random.json",
     "fixtures:stored": "node scripts/stored-vokabular.mjs",
-    "fixtures:stored-zwillinge": "node scripts/stored-zwillinge.mjs"
+    "fixtures:stored-zwillinge": "node scripts/stored-zwillinge.mjs",
+    "fixtures:zeichensatz": "npm run build && node scripts/zeichensatz-fixtures.mjs",
+    "fixtures:zeichensatz-vorlage": "python3 scripts/zeichensatz-vorlage.py"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

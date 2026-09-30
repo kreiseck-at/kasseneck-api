@@ -171,8 +171,8 @@ test('Fixtures: jede Datei ist Draht, innen (unter stored/) oder begruendet ausg
   for (const muster of Object.keys(AUSGENOMMEN)) {
     assert.ok(alleDateien().some((d) => ausnahmeFuer(d) === AUSGENOMMEN[muster]), `tote Ausnahme: ${muster}`);
   }
-  // Draht ist JSON (die Klartext-Raster unter expected/ sind gedruckte Ausgabe, kein Draht).
-  const nichtJson = DRAHT.filter((d) => !d.endsWith('.json') && !/^expected\/.*\.txt$/.test(d));
+  // Draht ist JSON (die Klartext-Raster und ESC/POS-Bytes in Hex unter expected/ sind gedruckte Ausgabe, kein Draht).
+  const nichtJson = DRAHT.filter((d) => !d.endsWith('.json') && !/^expected\/.*\.(txt|hex)$/.test(d));
   assert.deepEqual(nichtJson, [], 'unbekannte Dateiart unter fixtures/');
   assert.ok(DRAHT.length > 200, `zu wenige Draht-Dateien gefunden: ${DRAHT.length}`);
 });

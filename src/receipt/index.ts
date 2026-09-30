@@ -69,6 +69,15 @@ export { rasterizeLogo } from './bild.js';
 export { type BrandMarkRaster, BRAND_MARK_RASTERS, BRAND_MARK_PATHS } from './marke-daten.js';
 export { brandMarkImage } from './marke.js';
 export {
+  type CodeTableTestSheetInput,
+  type CodeTableTestSheetRow,
+  type CodeTableTestSheet,
+  CODE_TABLE_TEST_SHEET_CHARS,
+  codeTableTestSheet,
+  codeTableTestSheetBytes,
+  codeTableReferenceImage,
+} from './code-table-test-sheet.js';
+export {
   type ReceiptDueTip,
   type ReceiptDueTipRecipient,
   type ReceiptDueOptions,
