@@ -4,6 +4,38 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.1.1
+
+The code-table test sheet asks for the right row. Reason: a Bluetooth
+printer that only knows PC437 printed rows 2 and 3 with correct umlauts but
+wrong glyphs for `€` and `§` (`╒`, `⌡`), and row 4 correct with gaps for
+`€` and `§`. "The first row that looks exactly like above" confused users,
+and "the row with correct umlauts" would pick row 2. The rule now is: the
+row with no wrong character; a gap is fine; if several fit, the one with
+the fewest gaps; if none fits, 6.
+
+Additive, no breaking change; receipts are byte for byte the same (the 24
+`code-table-receipt.*.hex` files are unchanged).
+
+- **Test sheet** (`./receipt`): reference heading `codetable.reference` is
+  now "So sehen die Zeichen richtig aus" (32 columns; with a colon it would
+  wrap), the footer is the new rule: `codetable.instruction_title` (bold),
+  `codetable.instruction`, `codetable.instruction_none` ("Passt keine:
+  {number}.", the replacement row). As before, everything outside the test
+  rows prints with replacement letters (pure ASCII), so "Lücke" from the
+  catalogue stands as "Luecke" on the sheet, on paper and in the line model.
+  Rows, big numbers, margins and the end reset are unchanged. Contract:
+  `fixtures/expected/code-table-test-sheet.*`.
+- **Screen texts** (`fixtures/pos-texts.json`): `codetable.question` is now
+  "In welcher Zeile steht kein falsches Zeichen?"; new
+  `codetable.question_hint`, `codetable.preview_title`, `codetable.apply`,
+  `codetable.other_row`.
+- **Preview** (`./printing`): `codeTablePreviewText(table)` returns the
+  sample "Käsekrainer 3,50 €" / "Tee 80°" as it prints with that table
+  (lines joined by `\n`), e.g. `pc437` gives "Käsekrainer 3,50 EUR", so the
+  user sees the effect of a row before applying it. Shared contract with the
+  Dart twin: `fixtures/code-table-preview.json`.
+
 ## 1.1.0
 
 Receipt printers that print umlauts and special characters correctly.

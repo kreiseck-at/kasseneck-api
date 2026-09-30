@@ -67,6 +67,7 @@ export {
 } from './qr-groesse.js';
 
 export { escPosPrintableText } from './printable.js';
+export { codeTablePreviewText } from './code-table-preview.js';
 export {
   type UsbEndpointLike, type UsbAlternateLike, type UsbInterfaceLike, type UsbConfigurationLike,
   type UsbTransferOutResultLike, type UsbWriterLike, type UsbIdentityLike, type UsbDeviceLike,

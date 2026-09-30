@@ -5,8 +5,14 @@
  * Oben steht die Vorlage-Zeile als Rasterbild -- ein Bild druckt jeder
  * Drucker gleich, egal welche Tabelle er gerade hat. Darunter je Tabelle des
  * Katalogs eine Zeile mit ihrer Nummer (gross), umgeschaltet mit `ESC t n`
- * und mit den Bytes dieser Tabelle. Die erste Zeile, die aussieht wie die
- * Vorlage, ist die richtige; Zeile 6 (Ersatzbuchstaben) passt immer.
+ * und mit den Bytes dieser Tabelle. Richtig ist die Zeile ohne falsches
+ * Zeichen; eine Luecke (Zeichen fehlt der Tabelle) ist in Ordnung, bei
+ * mehreren die mit den wenigsten Luecken, sonst Zeile 6 (Ersatzbuchstaben).
+ * Nicht „die erste Zeile mit richtigen Umlauten“: ein Drucker mit nur PC437
+ * druckt Zeile 2 und 3 mit richtigen Umlauten, aber falschem € und §.
+ *
+ * Alles ausserhalb der Testzeilen steht mit Ersatzbuchstaben (reines ASCII),
+ * auch die Anleitung: „Lücke“ aus dem Katalog steht am Blatt als „Luecke“.
  *
  * Bildschirm und Papier zeigen dasselbe Blatt: `codeTableTestSheet` liefert
  * es im Zeilenmodell des Beleg-Blatts (`ReceiptSheet`), `codeTableTestSheetBytes`
@@ -152,7 +158,9 @@ function blattBauen(options: CodeTableTestSheetInput): { blatt: CodeTableTestShe
   for (const t of restErsatz) bloecke.push(zeile(einzug + t));
   bloecke.push(zeile(einzug + nurAscii(labelText('codetable.replacement_note'))));
   bloecke.push(doppelt);
+  bloecke.push(...zeilen(labelText('codetable.instruction_title'), true));
   bloecke.push(...zeilen(messageText('codetable.instruction')));
+  bloecke.push(...zeilen(messageText('codetable.instruction_none', { number: ersatz.number })));
   bloecke.push(doppelt);
 
   return {

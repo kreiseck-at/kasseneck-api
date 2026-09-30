@@ -61,7 +61,7 @@ test('Testblatt: Aufbau wie in der Spec abgenommen', () => {
     r('        ZEICHENSATZ-TEST'),
     r('   Kasse KECK-1  30.09. 14:05'),
     r('================================'),
-    r('So muss jede Zeile aussehen:'),
+    r('So sehen die Zeichen richtig aus'),
     r('     ä ö ü Ä Ö Ü ß € § °'),
     r('--------------------------------'),
     r(' 1 | ä ö ü Ä Ö Ü ß € § °'),
@@ -74,9 +74,12 @@ test('Testblatt: Aufbau wie in der Spec abgenommen', () => {
     r('     Par. Grad'),
     r('     (Ersatz, passt immer)'),
     r('================================'),
-    r('Die Nummer der ersten Zeile, die'),
-    r('genau wie oben aussieht, in der'),
-    r('Kasse antippen.'),
+    r('Welche Zeile nehmen?'),
+    r('Die Zeile, in der KEIN falsches'),
+    r('Zeichen steht. Eine Luecke ist'),
+    r('in Ordnung. Passen mehrere, die'),
+    r('mit den wenigsten Luecken.'),
+    r('Passt keine: 6.'),
     r('================================'),
   ]);
 });
@@ -86,7 +89,36 @@ test('Testblatt: Texte kommen aus dem Katalog', () => {
   assert.ok(texte.includes(labelText('codetable.title')));
   assert.ok(texte.includes(labelText('codetable.reference')));
   assert.ok(texte.includes(labelText('codetable.replacement_note')));
-  assert.equal(texte.slice(17, 20).join(' '), messageText('codetable.instruction'));
+  assert.equal(texte[17], labelText('codetable.instruction_title'));
+  // Am Papier Ersatzbuchstaben wie jeder Text ausserhalb der Testzeilen: „Lücke“ steht als „Luecke“.
+  assert.equal(texte.slice(18, 22).join(' '), messageText('codetable.instruction').replaceAll('ü', 'ue'));
+  assert.equal(texte[22], messageText('codetable.instruction_none', { number: 6 }));
+});
+
+test('Testblatt: die Regel waehlt die Zeile ohne falsches Zeichen, nicht die erste mit richtigen Umlauten', () => {
+  // Ein Drucker mit nur PC437 druckt Zeile 2 und 3 mit richtigen Umlauten,
+  // aber falschem € und § (╒, ⌡); Zeile 4 ist richtig, mit Luecken. Die
+  // Anleitung darf darum weder „erste Zeile“ noch „Umlaute richtig“ sagen.
+  const anleitung = messageText('codetable.instruction');
+  assert.match(anleitung, /KEIN falsches Zeichen/);
+  assert.match(anleitung, /Lücke ist in Ordnung/);
+  assert.match(anleitung, /wenigsten Lücken/);
+  assert.doesNotMatch(anleitung, /erste/i);
+  assert.equal(messageText('codetable.question'), 'In welcher Zeile steht kein falsches Zeichen?');
+  assert.equal(messageText('codetable.question_hint'), 'Lücken sind in Ordnung.');
+  assert.equal(labelText('codetable.preview_title'), 'So steht es dann am Bon:');
+  assert.equal(labelText('codetable.apply'), 'Übernehmen');
+  assert.equal(labelText('codetable.other_row'), 'Andere Zeile');
+  assert.equal(labelText('codetable.reference'), 'So sehen die Zeichen richtig aus');
+});
+
+test('Testblatt: ausserhalb der Testzeilen nur ASCII, jede Zeile hoechstens 32 Spalten', () => {
+  const blatt = codeTableTestSheet(EINGABE);
+  const vorlage = 5;
+  blatt.blocks.forEach((b, i) => {
+    if (b.kind !== 'line' || i === vorlage || b.doubleSizeLead !== undefined) return;
+    assert.match(b.text, /^[\x20-\x7e]*$/, JSON.stringify(b.text));
+  });
 });
 
 test('Testblatt: Nummern gross (doppelte Breite und Hoehe), je Zeile Tabelle und fehlende Zeichen', () => {

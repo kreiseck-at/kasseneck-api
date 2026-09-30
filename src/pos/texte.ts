@@ -270,9 +270,17 @@ const MELDUNGEN_ROH = {
   // damit niemand einen halb eingerichteten Drucker vermutet.
   'print.wizard_cancelled': { text: 'Nichts gespeichert.' },
   // Zeichensatz-Test im Drucker-Wizard: das Testblatt nennt die Anleitung,
-  // der Bildschirm stellt die Frage daneben.
-  'codetable.question': { text: 'Welche Zeile sieht auf dem Papier aus wie oben?' },
-  'codetable.instruction': { text: 'Die Nummer der ersten Zeile, die genau wie oben aussieht, in der Kasse antippen.' },
+  // der Bildschirm stellt die Frage daneben. Die Regel ist „kein falsches
+  // Zeichen“, nicht „erste Zeile“ und nicht „Umlaute richtig“: ein Drucker
+  // mit nur PC437 druckt Zeile 2 und 3 mit richtigen Umlauten, aber falschem
+  // € und § (╒, ⌡); richtig ist dort Zeile 4, mit Luecken fuer € und §.
+  // Am Papier steht „Lücke“ als „Luecke“ (Ersatzbuchstaben wie jeder Text
+  // ausserhalb der Testzeilen), am Bildschirm mit Umlaut.
+  'codetable.question': { text: 'In welcher Zeile steht kein falsches Zeichen?' },
+  'codetable.question_hint': { text: 'Lücken sind in Ordnung.' },
+  'codetable.instruction': { text: 'Die Zeile, in der KEIN falsches Zeichen steht. Eine Lücke ist in Ordnung. Passen mehrere, die mit den wenigsten Lücken.' },
+  // `{number}` ist die Ersatz-Zeile (6), die immer passt.
+  'codetable.instruction_none': { text: 'Passt keine: {number}.', placeholders: ['number'] },
   'bluetooth.off': { text: 'Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.', only: ['app'] },
   'bluetooth.permission_missing': { text: 'Bitte die Freigabe in den Geräte-Einstellungen erteilen.', only: ['app'] },
   'bluetooth.search_failed': { text: 'Die Suche ist fehlgeschlagen: {reason}', placeholders: ['reason'], only: ['app'] },
@@ -621,17 +629,25 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.difference': { text: 'Differenz' },
 
   // --- Zeichensatz-Test (Testblatt und Drucker & Lade) ----------------------
-  // Das Testblatt druckt diese Texte; sie bleiben reines ASCII bis auf die
-  // Knoepfe am Bildschirm. `{chars}` sind die fehlenden Zeichen einer Zeile
+  // Das Testblatt druckt diese Texte mit Ersatzbuchstaben (reines ASCII);
+  // die Knoepfe stehen nur am Bildschirm. `{chars}` sind die fehlenden Zeichen einer Zeile
   // („€“ bzw. „€ §“), `{number}` die gewaehlte Zeile (1-6).
   'codetable.title': { text: 'ZEICHENSATZ-TEST' },
-  'codetable.reference': { text: 'So muss jede Zeile aussehen:' },
+  // Genau 32 Spalten: mit Doppelpunkt waeren es 33, die Ueberschrift braeche um.
+  'codetable.reference': { text: 'So sehen die Zeichen richtig aus' },
   'codetable.replacement_note': { text: '(Ersatz, passt immer)' },
   'codetable.missing': { text: 'ohne {chars}', placeholders: ['chars'] },
   'codetable.print_again': { text: 'Nochmal drucken' },
   'codetable.not_checked': { text: 'Umlaute noch nicht geprüft' },
   'codetable.check': { text: 'Umlaute prüfen' },
   'codetable.current': { text: 'Zeichensatz: Nr. {number}', placeholders: ['number'] },
+  // Ueberschrift der Anleitung am Testblatt.
+  'codetable.instruction_title': { text: 'Welche Zeile nehmen?' },
+  // Nach der Wahl: das Beispiel so, wie es mit der Zeile am Bon steht
+  // (`codeTablePreviewText`), dann uebernehmen oder zurueck zur Frage.
+  'codetable.preview_title': { text: 'So steht es dann am Bon:' },
+  'codetable.apply': { text: 'Übernehmen' },
+  'codetable.other_row': { text: 'Andere Zeile' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
