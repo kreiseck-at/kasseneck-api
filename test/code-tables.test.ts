@@ -33,6 +33,9 @@ const fixture = JSON.parse(
   readFileSync(new URL('../../fixtures/code-tables.json', import.meta.url), 'utf8'),
 ) as Fixture;
 
+/** Was ZEICHEN_ERSATZ vor jeder Tabelle aus diesen Zeichen macht. */
+const ZEICHEN_ERSATZ_ERWARTET: Record<string, string> = { '’': '27', '´': '27', '•': '2A' };
+
 const hex = (bytes: Uint8Array): string =>
   Array.from(bytes, (b) => b.toString(16).toUpperCase().padStart(2, '0')).join('');
 
@@ -129,6 +132,21 @@ test('Code-Tabellen: iso8859_15 setzt jedes Zeichen der Tabelle auf sein Byte, f
   assert.equal(hex(encodeForCodeTable('\u0080\u0085\u009f', 'iso8859_15')), '3F3F3F', 'C1-Steuerzeichen nie roh');
 });
 
+test('Code-Tabellen: wpc1252 setzt die Windows-Zeichen 0x80-0x9F, C1-Steuerzeichen nie roh', () => {
+  const cp1252 = nachDekoder('windows-1252', 0x80, 0xff);
+  for (const [zeichen, byte] of cp1252) {
+    const ist = hex(encodeForCodeTable(zeichen, 'wpc1252'));
+    // ’ und • laufen vorher ueber ZEICHEN_ERSATZ (eine Antwort auf jedem Ausgabeweg), ´ ebenso.
+    const vorher = ZEICHEN_ERSATZ_ERWARTET[zeichen];
+    const soll = vorher ?? byte.toString(16).toUpperCase().padStart(2, '0');
+    assert.equal(ist, soll, `wpc1252 ${zeichen}`);
+  }
+  assert.equal(hex(encodeForCodeTable('„Kaffee“ – 2…', 'wpc1252')), '844B6166666565932096203285');
+  for (let cp = 0x80; cp < 0xa0; cp++) {
+    assert.equal(hex(encodeForCodeTable(String.fromCharCode(cp), 'wpc1252')), '3F', `U+${cp.toString(16)}`);
+  }
+});
+
 test('Code-Tabellen: codeTableFromSetting bildet die gespeicherte Einstellung ab', () => {
   assert.equal(codeTableFromSetting('cp437'), 'pc437');
   assert.equal(codeTableFromSetting('cp1252'), 'wpc1252');
@@ -147,6 +165,9 @@ test('Code-Tabellen: die alten Namen bleiben, wie sie waren', () => {
   assert.equal(hex(encodeEscPosText('äöüÄÖÜßé', 'CP437')), hex(encodeForCodeTable('äöüÄÖÜßé', 'pc437')));
   assert.throws(() => encodeEscPosText('5 €'), /€/);
   assert.throws(() => encodeEscPosText('5 €', 'CP437'), /€/);
+  // CP1252 gibt ein C1-Steuerzeichen wie bisher roh aus (byte-gleich), wpc1252 nicht.
+  assert.equal(hex(encodeEscPosText('\u0085')), '85');
+  assert.equal(hex(encodeForCodeTable('\u0085', 'wpc1252')), '3F');
   // Die neuen ids werfen nicht, sie wandeln um.
   assert.equal(hex(encodeEscPosText('5 €', 'pc858')), '3520D5');
 });

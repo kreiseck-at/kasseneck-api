@@ -246,9 +246,6 @@ const C_FEED_N = [ESC, 0x64] as const; // ESC d n
 const C_QR_HEADER = [GS, 0x28, 0x6b] as const; // GS ( k
 const ZEILENUMBRUCH = 0x0a;
 
-/** Die alten Namen und ihre Tabelle im Katalog. */
-const ALTE_NAMEN: Readonly<Record<'CP437' | 'CP1252', CodeTableId>> = { CP437: 'pc437', CP1252: 'wpc1252' };
-
 /**
  * Codepage-Nummern fuer `ESC t n`: die alten Namen aus capability_profile.dart
  * (CP437 = 0, CP1252 = 16), dazu jede Tabelle des Katalogs.
@@ -326,8 +323,10 @@ function latin1(text: string): Uint8Array {
  *
  * Die alten Namen `CP1252` und `CP437` bleiben streng: ein Zeichen ausserhalb
  * Latin-1 wird gemeldet statt verstuemmelt (vorher `escPosPrintableText`
- * anwenden). Ihre Bytes sind die von `wpc1252` bzw. `pc437`. Die Tabellen des
- * Katalogs wandeln dagegen jedes Zeichen um (Ersatzbuchstaben, sonst `?`).
+ * anwenden). `CP1252` gibt Latin-1 byte-gleich wie bisher aus (auch ein
+ * C1-Steuerzeichen roh, das `wpc1252` zu `?` macht); `CP437` hat die Bytes
+ * von `pc437`. Die Tabellen des Katalogs wandeln dagegen jedes Zeichen um
+ * (Ersatzbuchstaben, sonst `?`).
  */
 export function encodeEscPosText(text: string, codeTable: PosCodeTable = 'CP1252'): Uint8Array {
   if (codeTable === 'CP1252' || codeTable === 'CP437') {
@@ -335,8 +334,8 @@ export function encodeEscPosText(text: string, codeTable: PosCodeTable = 'CP1252
     for (const [von, nach] of ZEICHEN_ERSATZ) {
       aufbereitet = aufbereitet.split(von).join(nach);
     }
-    latin1(aufbereitet); // wirft ausserhalb Latin-1
-    return encodeForCodeTable(aufbereitet, ALTE_NAMEN[codeTable]);
+    const bytes = latin1(aufbereitet); // wirft ausserhalb Latin-1
+    return codeTable === 'CP1252' ? bytes : encodeForCodeTable(aufbereitet, 'pc437');
   }
   return encodeForCodeTable(text, codeTable);
 }
