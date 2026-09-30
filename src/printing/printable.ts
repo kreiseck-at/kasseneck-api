@@ -16,6 +16,9 @@
  * ERP-Uebernahme mit Gedankenstrich soll den Beleg nicht verhindern.
  */
 
+import { codeTableById, ersatzBuchstaben, type CodeTableId } from './code-tables.js';
+import type { PosCodeTable } from './escpos.js';
+
 /** Ersetzungen aus print_paper.dart, Schluessel sind Unicode-Codepunkte. */
 const ERSETZUNGEN: ReadonlyMap<number, string> = new Map([
   [0x2013, '-'], // – Halbgeviertstrich
@@ -68,11 +71,33 @@ function istEmojiOderNullbreite(codepunkt: number): boolean {
  * (Artikelstamm, ERP-Uebernahme, Kundenname). `•` wird hier zu `*`, und der
  * Erzeuger sagt dasselbe — auch wer diese Funktion weglaesst, bekommt also
  * dasselbe Zeichen (siehe ZEICHEN_ERSATZ in code-tables.ts).
+ *
+ * Mit `codeTable` wird der Text fuer genau diese Tabelle fertig gemacht:
+ * - eine Tabelle des Katalogs (`CodeTableId`): `€` bleibt stehen, wenn die
+ *   Tabelle es hat (der Drucker bekommt das echte Byte), sonst `EUR`; jedes
+ *   der zehn Zeichen, das der Tabelle fehlt (`§` auf pc437, alle Umlaute auf
+ *   `replacement` ...), wird schon hier zu seinen Ersatzbuchstaben. Danach
+ *   ist jedes Zeichen genau ein Byte, und Spalten, die am Text gerechnet
+ *   werden, stimmen auch am Papier.
+ * - `CP437` (alter Name): wie `pc437`, also `§` -> `Par.`.
+ * - ohne Angabe, `null` oder `CP1252`: genau wie bisher (Bons ohne gewaehlte
+ *   Tabelle bleiben byte-gleich).
  */
-export function escPosPrintableText(text: string): string {
+export function escPosPrintableText(text: string, codeTable?: PosCodeTable | null): string {
+  const tabelle = tabelleFuerErsatz(codeTable);
+  const fehlend = tabelle === null ? [] : codeTableById(tabelle).missing;
+  const echtesEuro = tabelle !== null && !fehlend.includes('€');
   let ergebnis = '';
   for (const zeichen of text) {
     const codepunkt = zeichen.codePointAt(0) as number;
+    if (fehlend.includes(zeichen)) {
+      ergebnis += ersatzBuchstaben(zeichen);
+      continue;
+    }
+    if (codepunkt === 0x20ac && echtesEuro) {
+      ergebnis += zeichen;
+      continue;
+    }
     const ersatz = ERSETZUNGEN.get(codepunkt);
     if (ersatz !== undefined) {
       ergebnis += ersatz;
@@ -85,4 +110,14 @@ export function escPosPrintableText(text: string): string {
     }
   }
   return ergebnis;
+}
+
+/**
+ * Tabelle, deren fehlende Zeichen schon am Text ersetzt werden. `null` heisst
+ * alter Weg ohne Aenderung (keine Wahl, `null`, `CP1252`).
+ */
+function tabelleFuerErsatz(codeTable: PosCodeTable | null | undefined): CodeTableId | null {
+  if (codeTable === undefined || codeTable === null || codeTable === 'CP1252') return null;
+  if (codeTable === 'CP437') return 'pc437';
+  return codeTable;
 }

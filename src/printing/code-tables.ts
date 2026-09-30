@@ -50,6 +50,16 @@ const BYTES_JE_TABELLE: Readonly<Record<CodeTableId, Readonly<Record<string, num
   replacement: {},
 };
 
+/**
+ * Ersatzbuchstaben fuer eines der zehn Zeichen (paketintern, fuer
+ * `escPosPrintableText` mit gewaehlter Tabelle).
+ */
+export function ersatzBuchstaben(zeichen: string): string {
+  const ersatz = ERSATZ_BUCHSTABEN[zeichen];
+  if (ersatz === undefined) throw new Error(`Kein Ersatz fuer ${zeichen}`);
+  return ersatz;
+}
+
 function tabelle(id: CodeTableId, number: CodeTable['number'], escT: number): CodeTable {
   const bytes = BYTES_JE_TABELLE[id];
   return Object.freeze({ id, number, escT, missing: Object.freeze(ZEHN_ZEICHEN.filter((z) => bytes[z] === undefined)) });

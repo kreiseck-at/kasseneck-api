@@ -101,7 +101,12 @@ export function blattFuerDruck(
 export interface EscPosLayoutOptions {
   /** Papierbreite; Vorgabe ist die des Layouts (dessen Spaltenbreiten daran haengen). */
   paperSize?: PosPaperSize;
-  /** Codepage des Druckers, Vorgabe `CP1252`; `null` laesst die des Geraets stehen. */
+  /**
+   * Codepage des Druckers, Vorgabe `CP1252`; `null` laesst die des Geraets
+   * stehen. Eine Tabelle des Katalogs (`CodeTableId`, im Drucker-Wizard
+   * gewaehlt) druckt `€`, `§`, `°` als echtes Byte, wo die Tabelle sie hat,
+   * sonst als Ersatzbuchstaben; ohne Wahl bleibt der Bon byte-gleich.
+   */
   codeTable?: PosCodeTable | null;
   /** Papierschnitt am Ende: `true` (voll), `'partial'` oder `false`. Vorgabe `true`. */
   cut?: boolean | PosCutMode;
@@ -147,17 +152,21 @@ export interface EscPosLayoutResult {
 /**
  * Druckbar gemachtes Layout: Texte durch [escPosPrintableText] (Codepage,
  * "EUR" statt "€", Striche), damit das Raster mit den Zeichen rechnet, die
- * wirklich aufs Papier gehen. Der QR-Inhalt bleibt unveraendert.
+ * wirklich aufs Papier gehen. Mit gewaehlter Tabelle bleibt "€", wo die
+ * Tabelle es hat, und fehlende Zeichen werden schon hier zu
+ * Ersatzbuchstaben: jedes Zeichen ist danach genau ein Byte. Der QR-Inhalt
+ * bleibt unveraendert.
  */
-function druckbaresLayout(layout: ReceiptLayout): ReceiptLayout {
+function druckbaresLayout(layout: ReceiptLayout, codeTable: PosCodeTable | null | undefined): ReceiptLayout {
+  const druckbar = (text: string): string => escPosPrintableText(text, codeTable);
   return {
     ...layout,
     lines: layout.lines.map((z) => {
       switch (z.kind) {
-        case 'text': return { ...z, text: escPosPrintableText(z.text) };
-        case 'banner': return { ...z, text: escPosPrintableText(z.text) };
-        case 'columns': return { ...z, columns: z.columns.map((c) => ({ ...c, text: escPosPrintableText(c.text) })) };
-        case 'rule': return { ...z, char: escPosPrintableText(z.char) || '-' };
+        case 'text': return { ...z, text: druckbar(z.text) };
+        case 'banner': return { ...z, text: druckbar(z.text) };
+        case 'columns': return { ...z, columns: z.columns.map((c) => ({ ...c, text: druckbar(c.text) })) };
+        case 'rule': return { ...z, char: druckbar(z.char) || '-' };
         default: return z;
       }
     }),
@@ -250,7 +259,7 @@ export function escPosLayoutResult(
 
   // `blattFuerDruck` prueft das Logo-Raster bereits VOR der Rueckgabe -- die
   // Schleife unten schreibt darum nie ein Byte auf ein falsch grosses Logo.
-  const blatt = blattFuerDruck(druckbaresLayout(layout), {
+  const blatt = blattFuerDruck(druckbaresLayout(layout, options.codeTable), {
     zeichen: CHARS_PER_PAPER_SIZE[paperSize],
     logo: options.logo,
     marke: options.brandMark,
