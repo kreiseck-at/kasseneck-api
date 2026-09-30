@@ -67,7 +67,7 @@ function istEmojiOderNullbreite(codepunkt: number): boolean {
  * Vor `escPosText`/`escPosRow` anwenden, wenn der Text aus fremder Hand kommt
  * (Artikelstamm, ERP-Uebernahme, Kundenname). `•` wird hier zu `*`, und der
  * Erzeuger sagt dasselbe — auch wer diese Funktion weglaesst, bekommt also
- * dasselbe Zeichen (siehe ZEICHEN_ERSATZ in escpos.ts).
+ * dasselbe Zeichen (siehe ZEICHEN_ERSATZ in code-tables.ts).
  */
 export function escPosPrintableText(text: string): string {
   let ergebnis = '';

@@ -43,6 +43,15 @@ export {
 } from './escpos.js';
 
 export {
+  type CodeTableId,
+  type CodeTable,
+  CODE_TABLES,
+  codeTableById,
+  codeTableFromSetting,
+  encodeForCodeTable,
+} from './code-tables.js';
+
+export {
   type QrModuleSize,
   type QrSizing,
   QR_MODULE_SIZE_CAP,
