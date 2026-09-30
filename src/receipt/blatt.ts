@@ -54,7 +54,21 @@ export interface LogoDimensions {
 }
 
 export type SheetBlock =
-  | { readonly kind: 'line'; readonly text: string; readonly bold: boolean; readonly blank: boolean }
+  | {
+      readonly kind: 'line';
+      readonly text: string;
+      readonly bold: boolean;
+      readonly blank: boolean;
+      /**
+       * Die ersten n Spalten sind EINE Zelle, deren Inhalt (ohne Leerraum)
+       * doppelt breit und doppelt hoch steht -- die Zeile ist dann zwei
+       * Zeilen hoch. Nur das Testblatt des Zeichensatzes setzt das (Nummern
+       * links); fehlt es, ist alles einfach gross. Ein Zeichner, der das Feld
+       * nicht kennt, zeigt die Zeile in einfacher Groesse, die Spalten
+       * bleiben dieselben.
+       */
+      readonly doubleSizeLead?: number;
+    }
   | { readonly kind: 'logo'; readonly widthFraction: number; readonly heightLines: number }
   | { readonly kind: 'qr'; readonly payload: string; readonly widthFraction: number }
   | { readonly kind: 'brandMark'; readonly width: number; readonly height: number };

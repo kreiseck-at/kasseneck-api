@@ -23,12 +23,21 @@
  * `ESC t 16` und bleiben in CP437; dann werden die Umlaute auf ihre
  * CP437-Plaetze umkodiert (ä = 0x84, ü = 0x81, ß = 0xE1, ...). Zeichen ohne
  * CP437-Platz werden zu `?` — weiterhin ein Byte je Zeichen.
+ * Weitere Tabellen (PC858, PC850, ISO 8859-15, reine Ersatzbuchstaben) und
+ * ihre `ESC t`-Nummern stehen im Katalog `code-tables.ts`.
  *
  * Nicht enthalten (bewusst): Bilddekodierung (PNG/JPEG liest die Huelle),
  * Capability-Profile einzelner Druckermodelle, Kassenlade, 1D-Barcodes.
  * Fertige einfarbige Rasterbilder (Logo) gehen ueber [escPosRasterImage].
  */
 
+import {
+  CODE_TABLES,
+  encodeForCodeTable,
+  encodeReplaced,
+  replaceKnownCharacters,
+  type CodeTableId,
+} from './code-tables.js';
 import {
   QR_PRINT_WIDTH_DOTS,
   QR_MIN_MODULE_DOTS,
@@ -52,8 +61,12 @@ export type PosFont = 'fontA' | 'fontB';
 /** Voller oder teilweiser Papierschnitt. */
 export type PosCutMode = 'full' | 'partial';
 
-/** Vom Drucker zu verwendende Codepage. */
-export type PosCodeTable = 'CP437' | 'CP1252';
+/**
+ * Vom Drucker zu verwendende Codepage: eine Tabelle des Katalogs
+ * (`CODE_TABLES`) oder einer der alten Namen. `CP1252` entspricht `wpc1252`,
+ * `CP437` entspricht `pc437`.
+ */
+export type PosCodeTable = 'CP437' | 'CP1252' | CodeTableId;
 
 /** Zeichenvergroesserung (1 = einfach, 2 = doppelt, ... bis 8). */
 export type PosTextSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -234,8 +247,15 @@ const C_FEED_N = [ESC, 0x64] as const; // ESC d n
 const C_QR_HEADER = [GS, 0x28, 0x6b] as const; // GS ( k
 const ZEILENUMBRUCH = 0x0a;
 
-/** Codepage-Nummern fuer `ESC t n` — aus capability_profile.dart. */
-const CODEPAGE_ID: Readonly<Record<PosCodeTable, number>> = { CP437: 0, CP1252: 16 };
+/**
+ * Codepage-Nummern fuer `ESC t n`: die alten Namen aus capability_profile.dart
+ * (CP437 = 0, CP1252 = 16), dazu jede Tabelle des Katalogs.
+ */
+const CODEPAGE_ID: Readonly<Record<PosCodeTable, number>> = {
+  CP437: 0,
+  CP1252: 16,
+  ...Object.fromEntries(CODE_TABLES.map((t) => [t.id, t.escT])),
+} as Record<PosCodeTable, number>;
 
 /** Korrekturstufen fuer GS ( k Funktion 169 — aus qrcode.dart. */
 const QR_KORREKTUR: Readonly<Record<QrCorrection, number>> = { L: 48, M: 49, Q: 50, H: 51 };
@@ -260,23 +280,6 @@ const ZEICHEN_JE_ZEILE: Readonly<Record<PosPaperSize, Readonly<Record<PosFont, n
   mm58: { fontA: 32, fontB: 42 },
   mm80: { fontA: 48, fontB: 64 },
 };
-
-/**
- * Zeichen, die das Vorbild vor dem Kodieren ersetzt (generator.dart `_encode`).
- *
- * **Eine bewusste Abweichung:** Fuer `•` sagt generator.dart `.`,
- * print_paper.dart (portiert als `escPosPrintableText`) dagegen `*`. In Darts
- * eigener Kette faellt das nie auf, weil print_paper vor dem Erzeuger ersetzt
- * und der Erzeuger den Punkt nie zu sehen bekommt — die gedruckte Antwort ist
- * dort also `*`. Ein Verbraucher dieses Pakets kann `escPosText` aber auch
- * direkt aufrufen, und dann duerfen nicht zwei Zeichen fuer dasselbe Zeichen
- * herauskommen. Deshalb gilt hier dieselbe Antwort wie dort.
- */
-const ZEICHEN_ERSATZ: ReadonlyArray<readonly [string, string]> = [
-  ['’', "'"], // typografisches Apostroph
-  ['´', "'"], // Akut
-  ['•', '*'], // Aufzaehlungspunkt (siehe Kommentar oben)
-];
 
 // ------------------------------------------------------------------ Helfer
 
@@ -315,39 +318,25 @@ function latin1(text: string): Uint8Array {
 }
 
 /**
- * Kodiert Text so, wie ihn der Drucker erwartet: ein Byte je Zeichen nach
- * Latin-1, vorher die vier Zeichenersetzungen des Vorbilds. Ein Umlaut wird
- * damit zu genau einem Byte — Voraussetzung dafuer, dass die Spaltenrechnung
- * stimmt.
+ * Kodiert Text so, wie ihn der Drucker erwartet: ein Byte je Zeichen in der
+ * gewaehlten Tabelle (`encodeForCodeTable`). Ein Umlaut wird damit zu genau
+ * einem Byte -- Voraussetzung dafuer, dass die Spaltenrechnung stimmt.
+ *
+ * Die alten Namen `CP1252` und `CP437` bleiben streng: ein Zeichen ausserhalb
+ * Latin-1 wird gemeldet statt verstuemmelt (vorher `escPosPrintableText`
+ * anwenden). `CP1252` gibt Latin-1 byte-gleich wie bisher aus (auch ein
+ * C1-Steuerzeichen roh, das `wpc1252` zu `?` macht); `CP437` hat die Bytes
+ * von `pc437`. Die Tabellen des Katalogs wandeln dagegen jedes Zeichen um
+ * (Ersatzbuchstaben, sonst `?`).
  */
 export function encodeEscPosText(text: string, codeTable: PosCodeTable = 'CP1252'): Uint8Array {
-  let aufbereitet = text;
-  for (const [von, nach] of ZEICHEN_ERSATZ) {
-    aufbereitet = aufbereitet.split(von).join(nach);
+  if (codeTable === 'CP1252' || codeTable === 'CP437') {
+    const aufbereitet = replaceKnownCharacters(text);
+    const bytes = latin1(aufbereitet); // wirft ausserhalb Latin-1
+    return codeTable === 'CP1252' ? bytes : encodeReplaced(aufbereitet, 'pc437');
   }
-  const bytes = latin1(aufbereitet);
-  if (codeTable !== 'CP437') return bytes;
-  for (let i = 0; i < bytes.length; i++) {
-    const b = bytes[i] ?? 0;
-    if (b >= 0x80) bytes[i] = CP437_AUS_LATIN1.get(b) ?? 0x3f;
-  }
-  return bytes;
+  return encodeForCodeTable(text, codeTable);
 }
-
-/**
- * Latin-1-Byte -> CP437-Byte fuer die Zeichen, die CP437 kennt (deutsche
- * Umlaute, ß, westeuropaeische Akzente, Waehrungs-/Sonderzeichen). Alles
- * andere ab 0x80 hat in CP437 keinen Platz und wird zu "?".
- */
-const CP437_AUS_LATIN1: ReadonlyMap<number, number> = new Map<number, number>([
-  [0xc7, 0x80], [0xfc, 0x81], [0xe9, 0x82], [0xe2, 0x83], [0xe4, 0x84], [0xe0, 0x85], [0xe5, 0x86], [0xe7, 0x87],
-  [0xea, 0x88], [0xeb, 0x89], [0xe8, 0x8a], [0xef, 0x8b], [0xee, 0x8c], [0xec, 0x8d], [0xc4, 0x8e], [0xc5, 0x8f],
-  [0xc9, 0x90], [0xe6, 0x91], [0xc6, 0x92], [0xf4, 0x93], [0xf6, 0x94], [0xf2, 0x95], [0xfb, 0x96], [0xf9, 0x97],
-  [0xff, 0x98], [0xd6, 0x99], [0xdc, 0x9a], [0xa2, 0x9b], [0xa3, 0x9c], [0xa5, 0x9d], [0xe1, 0xa0], [0xed, 0xa1],
-  [0xf3, 0xa2], [0xfa, 0xa3], [0xf1, 0xa4], [0xd1, 0xa5], [0xaa, 0xa6], [0xba, 0xa7], [0xbf, 0xa8], [0xac, 0xaa],
-  [0xbd, 0xab], [0xbc, 0xac], [0xa1, 0xad], [0xab, 0xae], [0xbb, 0xaf], [0xdf, 0xe1], [0xb5, 0xe6], [0xb1, 0xf1],
-  [0xf7, 0xf6], [0xb0, 0xf8], [0xb7, 0xfa], [0xb2, 0xfd], [0xa0, 0xff],
-]);
 
 /** Zeichen je Zeile fuer Papier und Schrift (`fontA`, wenn nichts gesetzt ist). */
 export function escPosMaxCharsPerLine(paperSize: PosPaperSize, font?: PosFont | null): number {

@@ -63,6 +63,8 @@ const ABNEHMER: Record<string, string> = {
   'receipts': 'Golden-Eingaben: Dart (Pruefsumme, Storno-Probe); kasseneck-web apps/admin/src/features/labor/fixtures.ts + druck.test.ts, apps/app/src/components/beleg-detail.test.tsx, apps/app/src/lib/beleg-kopf.test.ts, apps/kasse/src/test/golden-belege.test.tsx',
   'expected': 'Golden-Ausgaben (Zeilen, Raster, Blatt): Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/druck.test.ts + labor-core.test.ts, apps/app/src/components/beleg-render.test.tsx, apps/app/src/lib/beleg-kopf.test.ts',
   'manifest.json': 'Pruefsummen der Goldens: Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/fixtures.ts, apps/kasse/src/test/golden-belege.test.tsx',
+  'code-table-receipts.json': 'Bons je Code-Tabelle (Faelle; Bytes unter expected/code-table-receipt.*.hex): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
+  'code-tables.json': 'Katalog der Code-Tabellen (ESC t, Bytes je Zeichen): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'hobex-hps-codes.json': 'Terminal-Codes: Dart-Zwilling (hobex_hps_codes_vertrag_test)',
   'pos-message-cases.json': 'Fehlereinordnung der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh); kasseneck-web apps/kasse/src/test/meldung-faelle.test.ts',
   'pos-settings-defaults.json': 'Standardwerte der Kasseneinstellungen: Dart-Zwilling; Kassen-App (kasseneck-apps tool/vertrag.sh)',

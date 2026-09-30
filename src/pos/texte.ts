@@ -269,6 +269,10 @@ const MELDUNGEN_ROH = {
   // Abbrechen an jeder Stelle: nichts gespeichert. Der Satz sagt genau das,
   // damit niemand einen halb eingerichteten Drucker vermutet.
   'print.wizard_cancelled': { text: 'Nichts gespeichert.' },
+  // Zeichensatz-Test im Drucker-Wizard: das Testblatt nennt die Anleitung,
+  // der Bildschirm stellt die Frage daneben.
+  'codetable.question': { text: 'Welche Zeile sieht auf dem Papier aus wie oben?' },
+  'codetable.instruction': { text: 'Die Nummer der ersten Zeile, die genau wie oben aussieht, in der Kasse antippen.' },
   'bluetooth.off': { text: 'Bluetooth ist ausgeschaltet. Bitte einschalten und erneut suchen.', only: ['app'] },
   'bluetooth.permission_missing': { text: 'Bitte die Freigabe in den Geräte-Einstellungen erteilen.', only: ['app'] },
   'bluetooth.search_failed': { text: 'Die Suche ist fehlgeschlagen: {reason}', placeholders: ['reason'], only: ['app'] },
@@ -615,6 +619,19 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.all_cash': { text: 'Alles bar' },
   'cancellation.payment_remainder': { text: 'Rest {amount}', placeholders: ['amount'] },
   'cancellation.difference': { text: 'Differenz' },
+
+  // --- Zeichensatz-Test (Testblatt und Drucker & Lade) ----------------------
+  // Das Testblatt druckt diese Texte; sie bleiben reines ASCII bis auf die
+  // Knoepfe am Bildschirm. `{chars}` sind die fehlenden Zeichen einer Zeile
+  // („€“ bzw. „€ §“), `{number}` die gewaehlte Zeile (1-6).
+  'codetable.title': { text: 'ZEICHENSATZ-TEST' },
+  'codetable.reference': { text: 'So muss jede Zeile aussehen:' },
+  'codetable.replacement_note': { text: '(Ersatz, passt immer)' },
+  'codetable.missing': { text: 'ohne {chars}', placeholders: ['chars'] },
+  'codetable.print_again': { text: 'Nochmal drucken' },
+  'codetable.not_checked': { text: 'Umlaute noch nicht geprüft' },
+  'codetable.check': { text: 'Umlaute prüfen' },
+  'codetable.current': { text: 'Zeichensatz: Nr. {number}', placeholders: ['number'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

@@ -33,6 +33,7 @@ type Json = unknown;
 /** Datei (relativ zu fixtures/, `**` = alles darunter) -> Grund. */
 const AUSGENOMMEN: Record<string, string> = {
   'v3/**': 'Vertrags-Export des Backends, byte-gleich uebernommen (test/v3-vertrag.test.ts: _quelle). Bewacht an der Quelle: functions-kasse/test/unit/fixtures/v3-waechter.js ueber jede Antwort; v3-vokabular.json fuehrt die deutschen Namen der inneren Form als Uebersetzungstabelle',
+  'code-tables.json': 'Katalog der Code-Tabellen: die Schluessel unter bytes sind die gedruckten Zeichen selbst (ä, ß, € ...), kein Wort; ids und Feldnamen sind englisch (test/code-tables.test.ts prueft die Form)',
   'renames-1.0.json': 'Umstiegstabelle von 0.x auf 1.0: die alten, deutschen Schluessel sind ihr Inhalt',
 };
 
@@ -170,8 +171,8 @@ test('Fixtures: jede Datei ist Draht, innen (unter stored/) oder begruendet ausg
   for (const muster of Object.keys(AUSGENOMMEN)) {
     assert.ok(alleDateien().some((d) => ausnahmeFuer(d) === AUSGENOMMEN[muster]), `tote Ausnahme: ${muster}`);
   }
-  // Draht ist JSON (die Klartext-Raster unter expected/ sind gedruckte Ausgabe, kein Draht).
-  const nichtJson = DRAHT.filter((d) => !d.endsWith('.json') && !/^expected\/.*\.txt$/.test(d));
+  // Draht ist JSON (die Klartext-Raster und ESC/POS-Bytes in Hex unter expected/ sind gedruckte Ausgabe, kein Draht).
+  const nichtJson = DRAHT.filter((d) => !d.endsWith('.json') && !/^expected\/.*\.(txt|hex)$/.test(d));
   assert.deepEqual(nichtJson, [], 'unbekannte Dateiart unter fixtures/');
   assert.ok(DRAHT.length > 200, `zu wenige Draht-Dateien gefunden: ${DRAHT.length}`);
 });
