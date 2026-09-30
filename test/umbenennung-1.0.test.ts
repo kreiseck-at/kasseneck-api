@@ -48,8 +48,8 @@ const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
  * 0.x-Stand, nur umbenannt.
  */
 const NACH_1_0 = {
-  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable', 'codetable.question', 'codetable.instruction'],
-  labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current'],
+  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable', 'codetable.question', 'codetable.instruction', 'codetable.question_hint', 'codetable.instruction_none'],
+  labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules.
