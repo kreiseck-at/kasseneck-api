@@ -209,16 +209,22 @@ test('Code-Tabellen: Spaltenbreite -- € auf pc437 wird EUR, der Betrag bleibt 
   // Gegenprobe: mit einem Byte fuer € stuende der Betrag drei Punkte-Zeichen weiter rechts.
   assert.notDeepEqual(zeile('2,50 €'), zeile('2,50 E'));
 
-  // Eine volle 32er-Zeile: rechter Rand in Spalte 32.
-  const doc = createEscPosDocument({ codeTable: 'pc437' });
-  escPosReset(doc);
-  const links = 'Kaffee';
-  const rechts = '2,50 €';
-  const breite = 32 - links.length - encodeForCodeTable(rechts, 'pc437').length;
-  escPosText(doc, links + ' '.repeat(breite) + rechts);
-  const bytes = Array.from(escPosBytes(doc));
-  const ende = bytes.lastIndexOf(10);
-  const text = bytes.slice(bytes.lastIndexOf(0) + 1, ende);
-  assert.equal(text.length, 32);
-  assert.deepEqual(text.slice(-8), Array.from('2,50 EUR', (c) => c.charCodeAt(0)));
+  // Rechter Rand ueber die Spaltenrechnung des Pakets: der Betrag endet an
+  // derselben Stelle, egal ob er aus 8 Bytes (EUR) oder 6 Bytes besteht.
+  // 58 mm: 372 Punkte / 32 Zeichen = 11,625 Punkte je Zeichen; Spalte 12 endet
+  // bei 371 minus Spaltenabstand 5 = 366. Mit einem Byte fuer € laege das Ende
+  // drei Zeichen (rund 35 Punkte) daneben.
+  const rechterRand = (bytes: number[], betrag: string): number => {
+    const soll = Array.from(betrag, (c) => c.charCodeAt(0));
+    const ende = bytes.length - 1; // Zeilenumbruch
+    assert.equal(bytes[ende], 10);
+    assert.deepEqual(bytes.slice(ende - soll.length, ende), soll, 'Betrag steht zuletzt in der Zeile');
+    const esc = ende - soll.length - 4;
+    assert.deepEqual(bytes.slice(esc, esc + 2), [27, 36], 'ESC $ direkt vor dem Betrag');
+    const position = bytes[esc + 2]! + bytes[esc + 3]! * 256;
+    return position + soll.length * (372 / 32);
+  };
+  // ESC $ nimmt ganze Punkte; die Position ist gerundet, also hoechstens einen halben Punkt daneben.
+  assert.ok(Math.abs(rechterRand(zeile('2,50 €'), '2,50 EUR') - 366) <= 0.5);
+  assert.ok(Math.abs(rechterRand(zeile('2,50 E'), '2,50 E') - 366) <= 0.5);
 });
