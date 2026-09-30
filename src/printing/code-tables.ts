@@ -187,12 +187,26 @@ function uebrigesZeichen(codepunkt: number, id: CodeTableId): number {
  * Zeichen mehrere. Spalten darum immer an den fertigen Bytes messen.
  */
 export function encodeForCodeTable(text: string, table: CodeTableId): Uint8Array {
-  const bytesDerTabelle = BYTES_JE_TABELLE[table];
-  if (bytesDerTabelle === undefined) throw new Error(`Unbekannte Code-Tabelle: ${String(table)}`);
+  return encodeReplaced(replaceKnownCharacters(text), table);
+}
+
+/** Wendet `ZEICHEN_ERSATZ` an (paketintern, nicht exportiert ueber den Einstieg). */
+export function replaceKnownCharacters(text: string): string {
   let aufbereitet = text;
   for (const [von, nach] of ZEICHEN_ERSATZ) {
     aufbereitet = aufbereitet.split(von).join(nach);
   }
+  return aufbereitet;
+}
+
+/**
+ * Wie `encodeForCodeTable`, aber fuer Text, der `ZEICHEN_ERSATZ` schon hinter
+ * sich hat (paketintern: der alte Pfad in `encodeEscPosText` ersetzt vor der
+ * Latin-1-Pruefung und soll nicht zweimal ersetzen).
+ */
+export function encodeReplaced(aufbereitet: string, table: CodeTableId): Uint8Array {
+  const bytesDerTabelle = BYTES_JE_TABELLE[table];
+  if (bytesDerTabelle === undefined) throw new Error(`Unbekannte Code-Tabelle: ${String(table)}`);
   const bytes: number[] = [];
   for (const zeichen of aufbereitet) {
     const codepunkt = zeichen.codePointAt(0) as number;

@@ -33,8 +33,9 @@
 
 import {
   CODE_TABLES,
-  ZEICHEN_ERSATZ,
   encodeForCodeTable,
+  encodeReplaced,
+  replaceKnownCharacters,
   type CodeTableId,
 } from './code-tables.js';
 import {
@@ -330,12 +331,9 @@ function latin1(text: string): Uint8Array {
  */
 export function encodeEscPosText(text: string, codeTable: PosCodeTable = 'CP1252'): Uint8Array {
   if (codeTable === 'CP1252' || codeTable === 'CP437') {
-    let aufbereitet = text;
-    for (const [von, nach] of ZEICHEN_ERSATZ) {
-      aufbereitet = aufbereitet.split(von).join(nach);
-    }
+    const aufbereitet = replaceKnownCharacters(text);
     const bytes = latin1(aufbereitet); // wirft ausserhalb Latin-1
-    return codeTable === 'CP1252' ? bytes : encodeForCodeTable(aufbereitet, 'pc437');
+    return codeTable === 'CP1252' ? bytes : encodeReplaced(aufbereitet, 'pc437');
   }
   return encodeForCodeTable(text, codeTable);
 }
