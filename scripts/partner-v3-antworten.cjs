@@ -48,10 +48,10 @@ const aus = (name, data) => vok3.antwortNachAussen(name, ok(data));
 
 const T = 1788052010642;
 const konto = nach('konto', ['functions-partner/partner-core.js', 'functions-partner/gemeinsam/kunden-status-core.js', 'functions/gemeinsam/api-vokabular-v3.js'], {
-  company_name: 'Baeckerei Jobst e.U.', rechtsform: 'einzel', email: 'office@jobst.at', env: 'live', liveEnabled: true,
+  company_name: 'Baeckerei Kornblum e.U.', rechtsform: 'einzel', email: 'office@kornblum.at', env: 'live', liveEnabled: true,
   bundesland: 'wien', address: { street: 'Hauptstrasse', number: '12a', zip: '1010', city: 'Wien' },
   tax_details: { taxnr: '12-345/6789', uid: 'ATU12345675', is_small_business: false },
-  contacts: [{ name: 'Anna Jobst', email: 'anna@jobst.at', roles: ['geschaeftsfuehrung', 'kasse'] }],
+  contacts: [{ name: 'Anna Kornblum', email: 'anna@kornblum.at', roles: ['geschaeftsfuehrung', 'kasse'] }],
   onboarding: { status: 'signatur_bereit', statusAt: T },
   partner: { appId: 'a_1', angelegtAt: T - 1000, angelegtVia: 'api' },
   avv: { version: '1.0', bestaetigtAt: T },
@@ -133,7 +133,7 @@ const raus = {
   // Was der Rand aus den Parametern macht, die der Client sendet: kein Rest
   // unbekannter Namen, jeder Name kommt innen so an, wie der Handler ihn liest.
   reportCustomerContractParams: vok3.paramsNachInnen(vok3.innerName('reportCustomerContract'), {
-    customerId: 'cust_1', kind: 'avv', version: '1.0', textHash: 'a'.repeat(64), name: 'Anna Jobst', signerRole: 'Geschaeftsfuehrerin', acceptedAt: T,
+    customerId: 'cust_1', kind: 'avv', version: '1.0', textHash: 'a'.repeat(64), name: 'Anna Kornblum', signerRole: 'Geschaeftsfuehrerin', acceptedAt: T,
   }),
   // Fehlerantworten des Handlers, wie er sie baut, durch denselben Rand.
   reportCustomerContractFehler: {

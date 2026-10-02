@@ -272,7 +272,7 @@ const MELDUNG: P.ReportCustomerContractOptions = {
   kind: 'avv',
   version: '1.0',
   textHash: 'a'.repeat(64),
-  name: 'Anna Jobst',
+  name: 'Anna Kornblum',
   signerRole: 'Geschaeftsfuehrerin',
   acceptedAt: 1788052010642,
 };
