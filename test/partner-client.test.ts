@@ -111,13 +111,13 @@ test('Partner: die Umgebung steht im Schluessel und ist ohne Netz ablesbar', () 
 // ---------------------------------------------------------------------------
 
 const BETRIEB = {
-  companyName: 'Baeckerei Jobst e.U.',
+  companyName: 'Baeckerei Kornblum e.U.',
   legalForm: 'eu',
-  email: 'chef@jobst.at',
+  email: 'chef@kornblum.at',
   address: { street: 'Hauptstrasse', number: '12a', zip: '5020', city: 'Salzburg' },
   state: 'AT-5',
   taxDetails: { taxNumber: '12-345/6789', smallBusiness: false },
-  contacts: [{ name: 'Anna Jobst', email: 'anna@jobst.at' }],
+  contacts: [{ name: 'Anna Kornblum', email: 'anna@kornblum.at' }],
 } as const;
 
 test('Partner: createPartnerCustomer sendet appId, betrieb und den Idempotenzschluessel', async () => {
@@ -126,9 +126,9 @@ test('Partner: createPartnerCustomer sendet appId, betrieb und den Idempotenzsch
       customerId: 'cust_1',
       status: 'created',
       env: 'live',
-      companyName: 'Baeckerei Jobst e.U.',
+      companyName: 'Baeckerei Kornblum e.U.',
       appId: 'app_1',
-      access: { invited: true, sentTo: 'c***@jobst.at' },
+      access: { invited: true, sentTo: 'c***@kornblum.at' },
       nextSteps: ['FinanzOnline-Link senden'],
     }),
   );
@@ -258,8 +258,8 @@ test('Partner: checkPartnerCustomerEmail sagt nur ja oder nein', async () => {
   // Der Sinn ist der Zeitpunkt: ohne diese Frage faellt email_taken erst nach
   // einem ganzen ausgefuellten Formular auf.
   const { api, gesehen } = stelle(erfolg({ available: true }));
-  assert.equal(await api.checkPartnerCustomerEmail('  Neu@Jobst.at '), true);
-  assert.deepEqual(JSON.parse(String(gesehen[0]!.init.body)).params, { email: 'Neu@Jobst.at' });
+  assert.equal(await api.checkPartnerCustomerEmail('  Neu@Kornblum.at '), true);
+  assert.deepEqual(JSON.parse(String(gesehen[0]!.init.body)).params, { email: 'Neu@Kornblum.at' });
 
   // Alles ausser einem ausdruecklichen `true` heisst NICHT frei — im Zweifel
   // keine Zusage, sonst faehrt der Aufrufer in ein email_taken.
@@ -286,9 +286,9 @@ test('Partner: rotatePartnerWebhookSecret behaelt den Endpunkt und bringt ein ne
 });
 
 test('Partner: sendPartnerCustomerFonLink gibt den Empfaenger maskiert zurueck', async () => {
-  const { api } = stelle(erfolg({ customerId: 'cust_1', sentTo: 'c***@jobst.at', expiresAt: 123 }));
+  const { api } = stelle(erfolg({ customerId: 'cust_1', sentTo: 'c***@kornblum.at', expiresAt: 123 }));
   const r = await api.sendPartnerCustomerFonLink('cust_1');
-  assert.equal(r.sentTo, 'c***@jobst.at');
+  assert.equal(r.sentTo, 'c***@kornblum.at');
   assert.equal(r.expiresAt, 123);
 });
 

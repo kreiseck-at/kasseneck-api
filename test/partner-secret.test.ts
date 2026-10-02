@@ -69,7 +69,7 @@ test('Geheimnis: kein eigenes Feld traegt den Klartext', () => {
 test('Geheimnis: die Werte aus getCustomerCredentials sind gehuellt, nicht roh', async () => {
   const rufen: InternerTransport = (async () => ({
     customerId: 'cust_1',
-    companyName: 'Baeckerei Jobst',
+    companyName: 'Baeckerei Kornblum',
     env: 'live',
     apiKey: KLARTEXT,
     cashregisters: [{ cashregisterId: 'kasse_1', name: 'Theke', live: true, cashregisterToken: TOKEN }],

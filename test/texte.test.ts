@@ -189,8 +189,8 @@ test('der Teilen-Text traegt den Link und nennt Betrieb, Nummer und Betrag', () 
   // von manchen Huellen mitsamt dem Folgetext verlinkt oder abgeschnitten.
   assert.ok(eintrag.text.endsWith('{link}'), 'der Link steht nicht am Schluss');
   assert.equal(
-    messageText('receipt.share_text', { number: 'AT-1-2026-17', business: 'Bäckerei Jobst', amount: '4,20 €', link: 'https://beleg.kasseneck.at/abc' }),
-    'Beleg AT-1-2026-17 von Bäckerei Jobst über 4,20 €: https://beleg.kasseneck.at/abc',
+    messageText('receipt.share_text', { number: 'AT-1-2026-17', business: 'Bäckerei Kornblum', amount: '4,20 €', link: 'https://beleg.kasseneck.at/abc' }),
+    'Beleg AT-1-2026-17 von Bäckerei Kornblum über 4,20 €: https://beleg.kasseneck.at/abc',
   );
 });
 

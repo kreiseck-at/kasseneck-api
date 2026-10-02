@@ -7,7 +7,7 @@
       "customerId": "cust_1",
       "status": "created",
       "env": "live",
-      "companyName": "Baeckerei Jobst e.U.",
+      "companyName": "Baeckerei Kornblum e.U.",
       "appId": "a_1",
       "access": {
         "invited": false,
@@ -29,7 +29,7 @@
     "data": {
       "customer": {
         "customerId": "cust_1",
-        "companyName": "Baeckerei Jobst e.U.",
+        "companyName": "Baeckerei Kornblum e.U.",
         "status": "signature_ready",
         "statusAt": 1788052010642,
         "env": "live",
@@ -38,9 +38,9 @@
         "createdAt": 1788052009642,
         "createdVia": "api",
         "business": {
-          "companyName": "Baeckerei Jobst e.U.",
+          "companyName": "Baeckerei Kornblum e.U.",
           "legalForm": "sole_proprietor",
-          "email": "office@jobst.at",
+          "email": "office@kornblum.at",
           "address": {
             "street": "Hauptstrasse",
             "number": "12a",
@@ -62,15 +62,15 @@
           },
           "contacts": [
             {
-              "name": "Anna Jobst",
-              "email": "anna@jobst.at",
+              "name": "Anna Kornblum",
+              "email": "anna@kornblum.at",
               "roles": [
                 "management",
                 "pos"
               ]
             }
           ],
-          "billingEmail": "office@jobst.at",
+          "billingEmail": "office@kornblum.at",
           "taxAdvisor": null
         },
         "fon": {
@@ -102,7 +102,7 @@
       "customers": [
         {
           "customerId": "cust_1",
-          "companyName": "Baeckerei Jobst e.U.",
+          "companyName": "Baeckerei Kornblum e.U.",
           "status": "signature_ready",
           "appId": "a_1",
           "env": "live",
@@ -503,7 +503,7 @@
   "reportCustomerContractParams": {
     "version": "1.0",
     "textHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "name": "Anna Jobst",
+    "name": "Anna Kornblum",
     "kundeId": "cust_1",
     "art": "avv",
     "funktion": "Geschaeftsfuehrerin",
@@ -602,7 +602,7 @@
   "ereignisse": {
     "customer.terms_accepted": {
       "customerId": "cust_1",
-      "companyName": "Baeckerei Jobst e.U.",
+      "companyName": "Baeckerei Kornblum e.U.",
       "kind": "terms",
       "version": "1.0",
       "confirmedAt": 1788052010642,
@@ -610,7 +610,7 @@
     },
     "customer.avv_accepted": {
       "customerId": "cust_1",
-      "companyName": "Baeckerei Jobst e.U.",
+      "companyName": "Baeckerei Kornblum e.U.",
       "kind": "avv",
       "version": "1.0",
       "confirmedAt": 1788052010642,
