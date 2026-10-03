@@ -16,8 +16,10 @@ import {
   PAYMENT_FELDER,
   KUNDE_FELDER,
   RECHNUNG_EINHEITEN_CODES,
+  GUTSCHRIFT_POSITION_FELDER,
   POSITION_FELDER,
   POSITION_PREIS_GENAU_EINS,
+  RETURN_DISPOSITIONS,
   RECHNUNG_ANFRAGEN,
   RECHNUNG_AUFRUFE,
   RECHNUNG_VERTRAG_VERSION,
@@ -49,13 +51,25 @@ test('Vertrag: jeder Aufruf hat eine Anfragebeschreibung und keine darueber hina
   assert.deepEqual(Object.keys(RECHNUNG_ANFRAGEN).sort(), [...RECHNUNG_AUFRUFE].sort());
 });
 
-test('Vertrag: Positionen von Rechnung und Gutschrift sind dieselbe Beschreibung', () => {
-  for (const aufruf of ['issueInvoice', 'createCreditNote'] as const) {
-    const items = RECHNUNG_ANFRAGEN[aufruf]['items'];
-    assert.ok(items && items.typ === 'list', `${aufruf}.items fehlt`);
-    assert.equal(items.eintrag.typ, 'object');
-    assert.equal(items.eintrag.typ === 'object' ? items.eintrag.felder : null, POSITION_FELDER);
+test('Vertrag: Gutschrift-Positionen sind die Rechnungspositionen plus returnDisposition', () => {
+  const issue = RECHNUNG_ANFRAGEN.issueInvoice['items'];
+  const credit = RECHNUNG_ANFRAGEN.createCreditNote['items'];
+  assert.ok(issue && issue.typ === 'list' && issue.eintrag.typ === 'object');
+  assert.ok(credit && credit.typ === 'list' && credit.eintrag.typ === 'object');
+  assert.equal(issue.eintrag.felder, POSITION_FELDER);
+  assert.equal(credit.eintrag.felder, GUTSCHRIFT_POSITION_FELDER);
+  assert.deepEqual(GUTSCHRIFT_POSITION_FELDER, { ...POSITION_FELDER, returnDisposition: { typ: 'enum', pflicht: false, werte: RETURN_DISPOSITIONS } });
+  assert.equal('returnDisposition' in POSITION_FELDER, false);
+});
+
+test('Vertrag: Lagerfelder wie im Backend (Kennung 1-128, Rueckgabe-Katalog), alle optional', () => {
+  const kennung = { typ: 'string', pflicht: false, min: 1, max: 128 };
+  assert.deepEqual(POSITION_FELDER['articleId'], kennung);
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['stockLocationId'], kennung);
+  for (const aufruf of ['cancelInvoice', 'createCreditNote'] as const) {
+    assert.deepEqual(RECHNUNG_ANFRAGEN[aufruf]['returnDisposition'], { typ: 'enum', pflicht: false, werte: RETURN_DISPOSITIONS }, aufruf);
   }
+  assert.deepEqual([...RETURN_DISPOSITIONS], ['restock', 'defective', 'disposed']);
 });
 
 test('Vertrag: kein Feldname ist deutsch', () => {

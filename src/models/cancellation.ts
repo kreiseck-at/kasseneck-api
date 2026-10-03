@@ -69,6 +69,7 @@ export const CANCELLATION_ERROR_CODES = [
   'STORNO_REFUND_REFERENCE_REQUIRED', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
   'STORNO_REFUND_REFERENCE_UNKNOWN',  // refundOf nennt keine Zahlung des Originals
   'STORNO_OUTCOME_UNKNOWN',           // Ausgang offen: Storno-Beleg evtl. schon signiert, nicht wiederholen
+  'rueckgabe_ungueltig',              // Lager-Kern Stufe 2: Rueckgabe-Wahl nicht lager, defekt oder entsorgt
 ] as const;
 
 export type CancellationErrorCode = (typeof CANCELLATION_ERROR_CODES)[number];

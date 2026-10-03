@@ -530,6 +530,11 @@
       "listBrands",
       "recordInvoicePayment"
     ],
+    "returnDispositions": [
+      "restock",
+      "defective",
+      "disposed"
+    ],
     "steuerfreieFaelle": [
       "smallBusiness",
       "reverseCharge",

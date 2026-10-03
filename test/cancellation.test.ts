@@ -58,15 +58,17 @@ test('remainingQuantities: Belegmengen minus Stornos und frische Reservierungen,
 
 // Fehlercodes: dieselbe Liste wie functions/gemeinsam/storno-core.js STORNO_FEHLERCODES.
 // Die Kasse entscheidet am Code (KasseneckApiError.code), nie am Text.
-test('Fehlercode-Katalog: dieselben neunzehn Codes wie das Backend, als Liste und Waechter', () => {
+test('Fehlercode-Katalog: dieselben zwanzig Codes wie das Backend, als Liste und Waechter', () => {
   assert.deepEqual([...CANCELLATION_ERROR_CODES], [
     'beleg_nicht_gefunden', 'belegart_nicht_stornierbar', 'trainingsbeleg', 'bereits_storniert',
     'position_ungueltig', 'menge_ueber_rest', 'grund_unbekannt', 'anmerkung_zu_lang', 'items_ungueltig',
     'kasse_nicht_zugewiesen', 'keine_berechtigung', 'nur_eigene_belege', 'kasse_unvollstaendig',
     'storno_fehlgeschlagen',
     'STORNO_PAYMENTS_REQUIRED', 'STORNO_REFUND_EXCEEDS_PAYMENT', 'STORNO_REFUND_REFERENCE_REQUIRED',
-    'STORNO_REFUND_REFERENCE_UNKNOWN', 'STORNO_OUTCOME_UNKNOWN',
+    'STORNO_REFUND_REFERENCE_UNKNOWN', 'STORNO_OUTCOME_UNKNOWN', 'rueckgabe_ungueltig',
   ]);
+  assert.equal(isCancellationErrorCode('rueckgabe_ungueltig'), true);
+  assert.equal(isCancellationErrorCode('invalid_return_disposition'), false);
   assert.equal(isCancellationErrorCode('bereits_storniert'), true);
   assert.equal(isCancellationErrorCode('STORNO_REFUND_EXCEEDS_PAYMENT'), true);
   assert.equal(isCancellationErrorCode('Beleg ist bereits vollständig storniert.'), false);

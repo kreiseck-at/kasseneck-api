@@ -1,0 +1,23 @@
+{
+  "aufruf": "createCreditNote",
+  "beschreibung": "Rueckgabe: Vorgabe zurueck ins Lager, eine Position defekt",
+  "anfrage": {
+    "idempotencyKey": "bsp-14",
+    "invoiceId": "rechnung_beispiel",
+    "reason": "return",
+    "returnDisposition": "restock",
+    "items": [
+      {
+        "description": "Roggenbrot",
+        "quantity": 1,
+        "unitPriceCents": 450,
+        "vatRate": 10,
+        "articleId": "rye-bread",
+        "returnDisposition": "defective"
+      }
+    ]
+  },
+  "erwartet": {
+    "ok": true
+  }
+}
