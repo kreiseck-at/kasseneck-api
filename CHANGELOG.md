@@ -4,6 +4,21 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.32.0
+
+Vertragsgleichstand mit dem Backend für Lager-Kern Stufe 2. Das Backend vendort nur die 0.x-Linie und
+prüft daran seine Zwillingstests; darum kommen hier genau die Teile hinzu, die es dafür braucht – kein
+neuer Aufruf, kein neues Verhalten der Kasse. Die Kassen-Aufrufe des Lagers gibt es nur in 1.x (ab 1.2.0).
+
+- **Storno-Code `rueckgabe_ungueltig`** am Ende von `CANCELLATION_ERROR_CODES` (Zwilling von
+  `STORNO_FEHLERCODES`; unter `/v3` `invalid_return_disposition`). Grund: das Backend weist eine
+  Rückgabe-Wahl außerhalb von `lager|defekt|entsorgt` mit diesem Code ab, und die Kasse entscheidet am Code.
+- **Rechnungs-API:** `items[].articleId`, `stockLocationId` an `issueInvoice`, `returnDisposition`
+  (`restock|defective|disposed`) an `cancelInvoice` und `createCreditNote`, dort auch je Position
+  (`CreditNoteItemInput`, `GUTSCHRIFT_POSITION_FELDER`); Schema `fixtures/rechnung-api.schema.json` und
+  sechs Beispiele. Grund: das Backend nimmt die Felder seit Stufe 2 an und vergleicht sein Schema in beide
+  Richtungen mit dem vendorierten.
+
 ## 0.31.0
 
 Texte und Einstellung für „Getrennt zahlen" an der Kasse (ein Tisch zahlt in Teilen, ein Beleg mit
