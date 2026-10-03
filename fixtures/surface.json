@@ -437,6 +437,8 @@
       "dialect_mismatch",
       "internal_translation_error",
       "live_not_enabled",
+      "location_inactive",
+      "location_not_found",
       "logo_invalid",
       "logo_invalid_type",
       "logo_too_large",
@@ -452,6 +454,7 @@
       "register_user_not_allowed",
       "register_user_not_found",
       "response_translation_failed",
+      "server_error",
       "session_expired",
       "session_other_cashregister",
       "unauthorized",
@@ -474,6 +477,12 @@
     "quantityRules": [
       "piece",
       "decimal"
+    ],
+    "stockLocationTypes": [
+      "warehouse",
+      "store",
+      "vehicle",
+      "other"
     ]
   },
   "partner": {

@@ -2,12 +2,12 @@ import { KasseneckApiError } from '../client/errors.js';
 
 /**
  * Fehler der Kassen-Aufrufe um den Verkauf herum (Einstellungen, Logo,
- * Artikel, Drucker, Trinkgeld-Empfaenger) auswerten: am `code`, nie am Text.
+ * Artikel, Drucker, Trinkgeld-Empfaenger, Lager) auswerten: am `code`, nie am Text.
  * Belege, Storno und Belegmail haben eigene Listen (`RECEIPT_ERROR_CODES`,
  * `CANCELLATION_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`), die Anmeldung
  * `REGISTER_ERROR_CODES` im Unterpfad `./register`.
  *
- * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser zehn Endpunkte in
+ * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser dreizehn Endpunkte in
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).
@@ -32,6 +32,8 @@ export const POS_ERROR_CODES = Object.freeze([
   'dialect_mismatch',
   'internal_translation_error',
   'live_not_enabled',
+  'location_inactive',
+  'location_not_found',
   'logo_invalid',
   'logo_invalid_type',
   'logo_too_large',
@@ -47,6 +49,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'register_user_not_allowed',
   'register_user_not_found',
   'response_translation_failed',
+  'server_error',
   'session_expired',
   'session_other_cashregister',
   'unauthorized',

@@ -1,6 +1,7 @@
 /**
  * Kachel-Kasse: Einstellungen, Artikelgruppen/Artikel fuer Kacheln,
- * Rabattverteilung, Drucker, Trinkgeld-Empfaenger. Die Aufrufe heissen 1:1 wie
+ * Rabattverteilung, Drucker, Trinkgeld-Empfaenger, Lager (Standorte, Bestand,
+ * Standort der Kasse). Die Aufrufe heissen 1:1 wie
  * die Backend-Functions (die Rewrites-Waechter der Web-App leiten daraus ab)
  * und sprechen den Kassenweg `/api/v3` (Schluessel und Werte englisch).
  */
@@ -49,6 +50,12 @@ export {
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
+export {
+  STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
+  type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
+  type SetMyCashregisterStockLocationOptions, type CashregisterStockLocation,
+  listMyStockLocations, listMyStock, setMyCashregisterStockLocation,
+} from './lager.js';
 
 // Was die Kasse selbst sagt: ein Katalog fuer Browser-Kasse und App.
 export {

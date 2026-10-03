@@ -133,12 +133,16 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
   };
 }
 
-function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown) => T): T[] {
+/**
+ * Die Liste `data.<feld>` einer Antwort, jedes Element durch `lesen` (mit
+ * seinem Index fuer Fehlermeldungen). Paketintern: auch `lager.ts` liest so.
+ */
+export function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown, index: number) => T): T[] {
   const roh = (daten as Record<string, unknown> | null | undefined)?.[feld];
   if (!Array.isArray(roh)) {
     throw new KasseneckValidationError(name, `Antwort enthaelt keine Liste (data.${feld} fehlt)`, 'response');
   }
-  return roh.map((e) => lesen(typeof e === 'object' && e !== null ? e : {}));
+  return roh.map((e, i) => lesen(typeof e === 'object' && e !== null ? e : {}, i));
 }
 
 export async function listMyArticleGroups(transport: InternerTransport): Promise<ArticleGroup[]> {

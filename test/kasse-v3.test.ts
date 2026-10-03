@@ -9,6 +9,7 @@ import {
   POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_ERROR_CODES,
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo,
   listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients,
+  listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
   isPosError, posFieldErrors, mergePosSettings,
   type PosBusinessSettings, type PosDeviceSettings,
 } from '../src/pos/index.js';
@@ -340,6 +341,41 @@ test('listMyTipRecipients: Empfaenger wie im Fall', async () => {
   }
 });
 
+// --- Lager an der Kasse --------------------------------------------------------
+
+test('listMyStockLocations: Standorte wie im Fall, virtual nur am Hauptstandort', async () => {
+  for (const f of erfolge('listMyStockLocations')) {
+    const orte = await listMyStockLocations(kassenweg(f).rufen);
+    assert.deepEqual(orte, f.response.data.locations.map((l: Json) => ({ ...l, virtual: l.virtual === true })), f.case);
+  }
+  assert.deepEqual([...STOCK_LOCATION_TYPES], Object.values(VOKABULAR.catalogs.STANDORT_TYP));
+});
+
+test('listMyStock: Bestand wie im Fall, values nur mit Recht stockCosts, Filter wie gesendet', async () => {
+  for (const f of erfolge('listMyStock')) {
+    const { rufen, aufrufe } = kassenweg(f);
+    const liste = await listMyStock(rufen, f.params as { locationId?: string });
+    assert.deepEqual(gesendet(aufrufe, 'listMyStock', f), f.params, f.case);
+    assert.deepEqual(liste.stock, f.response.data.stock, f.case);
+    assert.deepEqual(liste.values, f.response.data.values ?? null, f.case);
+  }
+});
+
+test('setMyCashregisterStockLocation: sendet wie der Fall, leerer Standort heisst zurueckgesetzt', async () => {
+  for (const f of erfolge('setMyCashregisterStockLocation')) {
+    const { rufen, aufrufe } = kassenweg(f);
+    const ziel = f.params.stockLocationId === '' ? null : (f.params.stockLocationId as string);
+    const stand = await setMyCashregisterStockLocation(rufen, { cashregisterId: f.params.cashregisterId as string, stockLocationId: ziel });
+    assert.deepEqual(gesendet(aufrufe, 'setMyCashregisterStockLocation', f), f.params, f.case);
+    assert.deepEqual(stand, f.response.data, f.case);
+  }
+  // Ohne cashregisterId gilt die Kasse der Anmeldung (registerUserAuth: KASSE1).
+  const f = fall('setMyCashregisterStockLocation', 'success_manager');
+  const { rufen, aufrufe } = kassenweg(f);
+  await setMyCashregisterStockLocation(rufen, { stockLocationId: 'auto1' });
+  assert.deepEqual(aufrufe[0]!.params, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' });
+});
+
 // --- Anmeldung ------------------------------------------------------------------
 
 test('pairRegisterDevice: sendet wie der Fall, liest companyName, cashregisterLabel, testEnvironment', async () => {
@@ -469,6 +505,9 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
     createPrintJob: (r) => createPrintJob(r, { printerId: 'dr_theke', layout }),
     getPrintJob: (r) => getPrintJob(r, { printerId: 'dr_theke', jobId: 'job1' }),
     listMyTipRecipients: (r) => listMyTipRecipients(r),
+    listMyStockLocations: (r) => listMyStockLocations(r),
+    listMyStock: (r) => listMyStock(r),
+    setMyCashregisterStockLocation: (r) => setMyCashregisterStockLocation(r, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' }),
   };
   for (const [endpunkt, aufruf] of Object.entries(aufrufe)) {
     for (const f of fehler(endpunkt)) {
@@ -496,6 +535,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
   assert.deepEqual([...POS_ERROR_CODES], ableiten([
     'listMyArticleGroups', 'listMyArticles', 'getKasseSettings', 'setMyKasseSettings', 'setMyKasseLogo',
     'setMyRegisterDeviceSettings', 'listMyPrinters', 'createPrintJob', 'getPrintJob', 'listMyTipRecipients',
+    'listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation',
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);
