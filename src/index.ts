@@ -238,4 +238,5 @@ export {
   distributeDiscount,
   cancelScopeOf,
   receiptsScopeOf,
+  stockViewOf,
 } from './pos/index.js';

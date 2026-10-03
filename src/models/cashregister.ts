@@ -38,6 +38,8 @@ export interface Cashregister {
   token?: string;
   /** Zugeordnete Signatureinheit. */
   signatureId?: string;
+  /** Lager-Standort der Kasse (Lager-Kern Stufe 2); fehlt = Standard-Standort des Betriebs. */
+  stockLocationId?: string;
   onboarding: CashregisterOnboarding;
 }
 
@@ -62,6 +64,7 @@ export interface CashregisterPayload {
   description?: string | null;
   create_time?: string | null;
   signature_id?: string | null;
+  stockLocationId?: string | null;
   token?: string | null;
   onboarding?: CashregisterOnboardingPayload | null;
 }
@@ -95,6 +98,7 @@ export function fromCashregisterPayload(payload: CashregisterPayload, id: string
     ...zeitfeld('createTime', payload.create_time),
     ...(payload.token ? { token: payload.token } : {}),
     ...(payload.signature_id ? { signatureId: payload.signature_id } : {}),
+    ...(payload.stockLocationId ? { stockLocationId: payload.stockLocationId } : {}),
     onboarding: {
       cashboxRegistered: ob.cashbox_registered === true,
       startReceiptCreated: ob.start_receipt_created === true,

@@ -409,6 +409,16 @@ test('listRegisterUsersForDevice: englische Antwort, Einstellungen, Belegkopf, K
   assert.deepEqual(Object.values(VOKABULAR.catalogs.PIN_ZEICHEN), ['digits', 'alphanumeric']);
 });
 
+test('listRegisterUsersForDevice: der Standort der gebundenen Kasse reist mit, fehlt er, fehlt das Feld', async () => {
+  const basis = erfolge('listRegisterUsersForDevice')[0]!;
+  const d = basis.response.data;
+  const mit = { ...basis, response: { ...basis.response, data: { ...d, cashregister: { ...d.cashregister, stockLocationId: 'auto1' } } } };
+  const stand = await listRegisterUsersForDevice({ ...(mit.params as typeof GERAET), fetch: holenFuer(mit).holen });
+  assert.equal(stand.cashregister?.stockLocationId, 'auto1');
+  const ohne = await listRegisterUsersForDevice({ ...(basis.params as typeof GERAET), fetch: holenFuer(basis).holen });
+  assert.equal(ohne.cashregister !== undefined && 'stockLocationId' in ohne.cashregister, false);
+});
+
 test('listRegisterSessionsForDevice: own statt selbst, deviceLabel null statt „Kasse"', async () => {
   for (const f of erfolge('listRegisterSessionsForDevice')) {
     const { holen } = holenFuer(f);

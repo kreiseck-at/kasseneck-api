@@ -100,6 +100,12 @@ export interface PosArticle {
   askQuantity: boolean | null;
   /** Hoechstmenge je Beleg (bei kg/l/m auch Kommazahl); null = keine Grenze. */
   maxQuantity: number | null;
+  /**
+   * Standorte, an denen der Artikel gefuehrt wird (Lager-Kern Stufe 2, innen
+   * `standorte`); `null`, wenn der Artikel keine Angabe traegt. Wie die Kasse
+   * daraus Kacheln filtert, entscheidet die Oberflaeche.
+   */
+  stockLocationIds: string[] | null;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -113,6 +119,7 @@ export interface PosArticlePayload {
   groupId?: string | null; revenueGroupId?: string | null;
   tile?: { visible?: boolean | null; sort?: number | null } | null; active?: boolean | null;
   quantityRule?: string | null; askQuantity?: boolean | null; maxQuantity?: number | null;
+  stockLocationIds?: string[] | null;
 }
 
 export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
@@ -130,6 +137,9 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     quantityRule: p.quantityRule === 'piece' || p.quantityRule === 'decimal' ? p.quantityRule : null,
     askQuantity: typeof p.askQuantity === 'boolean' ? p.askQuantity : null,
     maxQuantity: typeof p.maxQuantity === 'number' && Number.isFinite(p.maxQuantity) && p.maxQuantity > 0 ? p.maxQuantity : null,
+    stockLocationIds: Array.isArray(p.stockLocationIds)
+      ? p.stockLocationIds.filter((s): s is string => typeof s === 'string' && s !== '')
+      : null,
   };
 }
 

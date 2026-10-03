@@ -349,7 +349,14 @@
     "receiptsScope",
     "drawer",
     "discount",
-    "tipAssign"
+    "tipAssign",
+    "stockView",
+    "stockCosts",
+    "stockMove",
+    "stockLoss",
+    "stocktakeCount",
+    "stocktakeClose",
+    "stockLocation"
   ],
   "registerErrorCodes": [
     "account_not_found",

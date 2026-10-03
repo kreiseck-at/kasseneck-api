@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
+  fromPosArticlePayload, stockViewOf,
 } from '../src/pos/index.js';
+import { fromCashregisterPayload } from '../src/models/index.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 
 /*
@@ -168,4 +170,25 @@ test('listMyStock: null als options ist ein Anfragefehler, kein TypeError', asyn
     (e) => isKasseneckValidationError(e) && e.scope === 'request' && /options/.test(e.reason),
   );
   assert.equal(a.aufrufe.length, 0);
+});
+
+test('Artikel: stockLocationIds nur Texte, fehlt -> null, leere Liste bleibt leer', () => {
+  assert.deepEqual(fromPosArticlePayload({ id: 'rye-bread', stockLocationIds: ['store-1', 7, '', 'van-1'] as never }).stockLocationIds, ['store-1', 'van-1']);
+  assert.deepEqual(fromPosArticlePayload({ id: 'rye-bread', stockLocationIds: [] }).stockLocationIds, []);
+  assert.equal(fromPosArticlePayload({ id: 'rye-bread' }).stockLocationIds, null);
+});
+
+test('Kasse: stockLocationId nur wenn gesetzt', () => {
+  assert.equal(fromCashregisterPayload({ id: 'K1', stockLocationId: 'van-1' }, 'K1').stockLocationId, 'van-1');
+  assert.equal('stockLocationId' in fromCashregisterPayload({ id: 'K1', stockLocationId: null }, 'K1'), false);
+  assert.equal('stockLocationId' in fromCashregisterPayload({ id: 'K1' }, 'K1'), false);
+});
+
+test('stockViewOf: fehlt das Recht, gilt es als erteilt – ein ausdrueckliches false sperrt', () => {
+  const basis = { sell: false, cancel: false, articles: false, layout: false, reports: false, takeover: false };
+  assert.equal(stockViewOf(basis), true);
+  assert.equal(stockViewOf({ ...basis, stockView: true }), true);
+  assert.equal(stockViewOf({ ...basis, stockView: false }), false);
+  assert.equal(stockViewOf(null), false);
+  assert.equal(stockViewOf(undefined), false);
 });
