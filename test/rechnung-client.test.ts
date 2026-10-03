@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createInvoiceApi } from '../src/invoice/api.js';
 import { invoiceKeyAuth } from '../src/invoice/auth.js';
 import { isInvoiceError, invoiceErrorCode, invoiceFieldErrors } from '../src/invoice/fehler.js';
-import type { IssueInvoiceRequest } from '../src/invoice/typen.js';
+import type { CancelInvoiceRequest, CreditNoteRequest, IssueInvoiceRequest } from '../src/invoice/typen.js';
 import { KasseneckApiError, KasseneckAuthError, KasseneckValidationError } from '../src/client/errors.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
@@ -411,6 +411,24 @@ test('issueInvoice: der Zahlungsblock geht unveraendert mit', async () => {
     payment: { method: 'card', reference: 'pi_3Q' },
   });
   assert.deepEqual((params(anfragen[0]!) as Record<string, unknown>)['payment'], { method: 'card', reference: 'pi_3Q' });
+});
+
+test('cancelInvoice und createCreditNote: Rueckgabe-Wahl und articleId gehen unveraendert hinaus', async () => {
+  const gutschrift = { ...rechnung, id: 'cn1', docType: 'credit_note' };
+  const { fetch, anfragen } = attrappe(
+    antwort(erfolg({ creditNote: gutschrift, original: { id: 'inv1', status: 'cancelled' }, originalPaidCents: 0, replayed: false })),
+    antwort(erfolg({ creditNote: gutschrift, remainingCents: 0, replayed: false })),
+  );
+  const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+  const storno: CancelInvoiceRequest = { idempotencyKey: 'storno-4711', invoiceId: 'inv1', reason: 'return', returnDisposition: 'disposed' };
+  const teil: CreditNoteRequest = {
+    idempotencyKey: 'gutschrift-4711', invoiceId: 'inv1', reason: 'return', returnDisposition: 'restock',
+    items: [{ description: 'Roggenbrot', quantity: 2, unitPriceCents: 450, vatRate: 10, articleId: 'rye-bread', returnDisposition: 'defective' }],
+  };
+  await api.cancelInvoice(storno);
+  await api.createCreditNote(teil);
+  assert.deepEqual(params(anfragen[0]!), storno);
+  assert.deepEqual(params(anfragen[1]!), teil);
 });
 
 test('getInvoicePdf: language geht nur mit, wenn gesetzt (Uebersetzungskopie)', async () => {

@@ -18,6 +18,11 @@
  * Nummer, Summen — ist bewusst **nicht** setzbar.
  */
 
+import { RETURN_DISPOSITIONS } from '../models/cancellation.js';
+
+export { RETURN_DISPOSITIONS };
+export type { ReturnDisposition } from '../models/cancellation.js';
+
 export const INVOICE_CONTRACT_VERSION = 2;
 
 export const INVOICE_ENDPOINTS = [
@@ -494,6 +499,13 @@ export const ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
   unitPriceMicros: { type: 'integer', required: false, min: 0, max: 1_000_000_000_000 },
   vatRate: { type: 'enum', required: true, values: VAT_RATES },
   discountPct: { type: 'number', required: false, min: 0, max: 100, decimals: 2 },
+  /**
+   * Artikel aus dem Artikelstamm (Lager-Kern Stufe 2): ist er bestandsgefuehrt
+   * und das Modul Lager aktiv, bucht das Ausstellen ihn ab -- danach, die
+   * Rechnung scheitert nie am Lager. Kein „/“, nicht „.“, „..“ oder „__…__“
+   * (prueft der Server, `validation`).
+   */
+  articleId: id,
 });
 
 /** Genau einer der beiden Preise je Position (§ 9.1). */
@@ -509,6 +521,26 @@ const positionen: Field = {
   max: 500,
   item: {
     type: 'object', required: true, fields: ITEM_FIELDS, exactlyOne: ITEM_PRICE_EXACTLY_ONE,
+  },
+};
+
+/** Rueckgabe-Wahl einer Gutschrift: Vorgabe des Aufrufs oder je Position. */
+const returnDisposition: Field = { type: 'enum', required: false, values: RETURN_DISPOSITIONS };
+
+/**
+ * Eine Gutschriftsposition: die Rechnungsposition plus `returnDisposition`
+ * (wohin die zurueckgenommene Ware geht). An einer Rechnungsposition weist der
+ * Server das Feld als unbekannt ab.
+ */
+export const CREDIT_NOTE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, returnDisposition });
+
+const gutschriftPositionen: Field = {
+  type: 'list',
+  required: true,
+  min: 1,
+  max: 500,
+  item: {
+    type: 'object', required: true, fields: CREDIT_NOTE_ITEM_FIELDS, exactlyOne: ITEM_PRICE_EXACTLY_ONE,
   },
 };
 
@@ -581,6 +613,12 @@ export const INVOICE_REQUESTS: Readonly<Record<InvoiceEndpoint, Readonly<Record<
     /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
     brandId: id,
     /**
+     * Lager-Standort, von dem bestandsgefuehrte Positionen abgebucht werden;
+     * sonst der Standard-Standort. Ein unbekannter oder aufgeloester Standort
+     * bucht am Standard-Standort und meldet ein Ereignis im Lager.
+     */
+    stockLocationId: id,
+    /**
      * Schon bezahlt: die Zahlung entsteht in **derselben** Transaktion wie das
      * Festschreiben. Sonst gaebe es einen Moment, in dem die Rechnung offen ist
      * und ein sofort geholtes PDF Zahlungsinformationen traegt.
@@ -598,13 +636,17 @@ export const INVOICE_REQUESTS: Readonly<Record<InvoiceEndpoint, Readonly<Record<
     invoiceId: idPflicht,
     reason: { type: 'enum', required: true, values: CREDIT_NOTE_REASONS },
     note: text(2000),
+    /** Fuer alle bestandsgefuehrten Positionen; fehlt = `restock`. */
+    returnDisposition,
   },
   createCreditNote: {
     idempotencyKey: idempotencyKey(true),
     invoiceId: idPflicht,
     reason: { type: 'enum', required: true, values: CREDIT_NOTE_REASONS },
     note: text(2000),
-    items: positionen,
+    items: gutschriftPositionen,
+    /** Vorgabe fuer alle Positionen; je Position abweichend ueber `items[].returnDisposition`. */
+    returnDisposition,
   },
   getInvoice: {
     invoiceId: id,
