@@ -70,6 +70,8 @@
       "listMyCashregisters",
       "listMyPrinters",
       "listMyReceipts",
+      "listMyStock",
+      "listMyStockLocations",
       "listMyTipRecipients",
       "listRegisterUsersForDevice",
       "listRegisterSessionsForDevice",
@@ -78,6 +80,7 @@
       "registerUserLogin",
       "renewRegisterSession",
       "sendReceiptEmail",
+      "setMyCashregisterStockLocation",
       "setMyKasseLogo",
       "setMyKasseSettings",
       "setMyRegisterDeviceSettings",
@@ -123,6 +126,8 @@
       "listCustomerCashregisters",
       "getCustomerCredentials",
       "reportCustomerContract",
+      "getPartnerBilling",
+      "getPartnerBillingMonth",
       "createCustomer",
       "getCustomer",
       "updateCustomer",
@@ -136,7 +141,14 @@
       "getInvoiceXml",
       "getInvoiceSetupStatus",
       "listBrands",
-      "recordInvoicePayment"
+      "recordInvoicePayment",
+      "createInvoiceItem",
+      "updateInvoiceItem",
+      "withdrawInvoiceItem",
+      "getInvoiceItem",
+      "listInvoiceItems",
+      "setCustomerMandate",
+      "revokeCustomerMandate"
     ],
     "pos": [
       "pairRegisterDevice",
@@ -163,7 +175,10 @@
       "listMyPrinters",
       "createPrintJob",
       "getPrintJob",
-      "listMyTipRecipients"
+      "listMyTipRecipients",
+      "listMyStockLocations",
+      "listMyStock",
+      "setMyCashregisterStockLocation"
     ]
   },
   "enums": {
@@ -339,6 +354,7 @@
   "registerErrorCodes": [
     "account_not_found",
     "admin_required",
+    "api_not_approved",
     "cashregister_in_use",
     "cashregister_not_assigned",
     "cashregister_not_found",
@@ -412,6 +428,7 @@
     "posErrorCodes": [
       "account_not_found",
       "admin_required",
+      "api_not_approved",
       "cashregister_not_assigned",
       "cashregister_not_found",
       "cashregister_token_invalid",
@@ -761,6 +778,7 @@
     "invoiceRequestErrorCodes": [
       "account_not_found",
       "admin_required",
+      "api_not_approved",
       "cashregister_not_assigned",
       "cashregister_not_found",
       "cashregister_token_invalid",

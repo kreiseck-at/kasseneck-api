@@ -58,11 +58,14 @@ test('remainingQuantities: Belegmengen minus Stornos und frische Reservierungen,
   assert.deepEqual(remainingQuantities(fromReceiptPayload(NUTZLAST), jetzt), [4, 1]);
 });
 
-// Fehlercodes: die neunzehn aus errorCodes.cancellation, dahinter die der
+// Fehlercodes: die zwanzig aus errorCodes.cancellation, dahinter die der
 // Anmeldung und des Rands (den Abgleich mit der Datei haelt receipts-v3.test.ts). Die Kasse entscheidet
 // am Code (KasseneckApiError.code), nie am Text.
-test('Fehlercode-Katalog: neunzehn /v3-Codes vorn, als Liste und Waechter', () => {
+test('Fehlercode-Katalog: zwanzig /v3-Codes vorn, als Liste und Waechter', () => {
   assert.equal(CANCELLATION_ERROR_CODES.indexOf('cancellation_outcome_unknown'), 18);
+  assert.equal(CANCELLATION_ERROR_CODES.indexOf('invalid_return_disposition'), 19);
+  assert.equal(isCancellationErrorCode('invalid_return_disposition'), true);
+  assert.equal(isCancellationErrorCode('rueckgabe_ungueltig'), false);
   assert.equal(isCancellationErrorCode('already_cancelled'), true);
   assert.equal(isCancellationErrorCode('cancellation_refund_exceeds_payment'), true);
   assert.equal(isCancellationErrorCode('cancellation_outcome_unknown'), true);

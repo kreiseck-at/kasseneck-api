@@ -145,7 +145,7 @@ export interface TransportOptions {
   auth: KasseneckAuth;
   /**
    * Abweichende Basis der **oeffentlichen** Aufrufe (Vorgabe
-   * [DEFAULT_BASE_URL]): alles ausser den 25 Aufrufen des Kassenwegs, und die
+   * [DEFAULT_BASE_URL]): alles ausser den 28 Aufrufen des Kassenwegs, und die
    * sechs oeffentlichen davon nur, wenn nicht mit `registerUserAuth`
    * angemeldet. Muss auf `/v3` enden (eigene Proxys erlaubt), sonst wirft das
    * Anlegen; `/v1` oder `/api` gibt es in der 1.x-Linie nicht.
@@ -154,7 +154,7 @@ export interface TransportOptions {
   /**
    * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 19
    * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
-   * Drucker, ...) und mit `registerUserAuth` alle 25 Aufrufe des Kassenwegs.
+   * Drucker, ...) und mit `registerUserAuth` alle 28 Aufrufe des Kassenwegs.
    * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
    * (in der Regel `/api/v3`), sonst wirft das Anlegen.
    */
@@ -300,9 +300,9 @@ function createCore(options: TransportOptions) {
   const kopfzeilenSenden = options.omitKasseneckHeaders !== true;
 
   /**
-   * Basis je Aufruf. Die 19 reinen Kassenaufrufe gehen immer an den
+   * Basis je Aufruf. Die 22 reinen Kassenaufrufe gehen immer an den
    * Kassenweg (unter der oeffentlichen Basis gibt es sie nicht), und die
-   * Kassen-Anmeldung ruft alle 25 Aufrufe des Kassenwegs dort, auch die sechs
+   * Kassen-Anmeldung ruft alle 28 Aufrufe des Kassenwegs dort, auch die sechs
    * oeffentlichen (Kanal `app`). Was der Kassenweg gar nicht fuehrt
    * (Berichte, Zahlungen, FinanzOnline), geht an die oeffentliche Basis.
    */

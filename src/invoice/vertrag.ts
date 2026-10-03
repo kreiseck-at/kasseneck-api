@@ -86,6 +86,7 @@ export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 export const INVOICE_REQUEST_ERROR_CODES = [
   'account_not_found',
   'admin_required',
+  'api_not_approved',
   'cashregister_not_assigned',
   'cashregister_not_found',
   'cashregister_token_invalid',

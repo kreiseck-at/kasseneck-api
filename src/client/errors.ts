@@ -269,6 +269,7 @@ export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
   'cashregister_not_found',
   'account_not_found',
   'live_not_enabled',
+  'api_not_approved',   // Live-API ohne Freigabe (Entwicklerbereich): vor dem Handler abgewiesen
   'unauthorized',
   'mfa_required',
   'user_verification_failed',

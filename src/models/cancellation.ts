@@ -70,10 +70,12 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'cancellation_refund_exceeds_payment',    // Rueckzahlungen auf eine Zahlung uebersteigen deren Rest
   'cancellation_refund_reference_required', // Karten-Rueckzahlung ohne refundOf einer Kartenzahlung
   'cancellation_refund_reference_unknown',  // refundOf nennt keine Zahlung des Originals
-  'cancellation_outcome_unknown',           // Ausgang unklar: nachlesen, nie wiederholen
+  'cancellation_outcome_unknown',
+  'invalid_return_disposition',             // Rueckgabe-Wahl nicht restock, defective oder disposed (Lager)           // Ausgang unklar: nachlesen, nie wiederholen
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
   'admin_required',
+  'api_not_approved',
   'cashregister_not_found',
   'cashregister_token_invalid',
   'cashregister_token_missing',

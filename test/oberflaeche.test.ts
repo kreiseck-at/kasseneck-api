@@ -54,7 +54,7 @@ test('Golden: die Aufrufe des Pakets, geteilt nach Weg (oeffentlich /v3, Kassenw
   assert.equal(vertrag.baseUrls.pos, 'https://kasse.kasseneck.at/api/v3');
   assert.deepEqual(vertrag.calls.public, ALL_CALLS.filter((n) => !isPosOnlyCall(n)), veraltet);
   assert.deepEqual(vertrag.calls.pos, ALL_CALLS.filter((n) => isPosCall(n)), veraltet);
-  // Jeder Aufruf des Pakets hat mindestens einen Weg; die Kasse ruft alle 25 des Kassenwegs.
+  // Jeder Aufruf des Pakets hat mindestens einen Weg; die Kasse ruft alle 28 des Kassenwegs.
   const beide = new Set<string>([...vertrag.calls.public, ...vertrag.calls.pos]);
   assert.deepEqual(ALL_CALLS.filter((n) => !beide.has(n)), []);
   assert.deepEqual([...vertrag.calls.pos].sort(), [...POS_CALLS].sort());
@@ -138,24 +138,25 @@ const vokabular = JSON.parse(
 ) as { endpoints: Record<string, string[]>; names: Record<string, string> };
 const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
 
-test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 51)', () => {
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 60)', () => {
   const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
   assert.deepEqual([...PUBLIC_CALLS], erwartet);
-  assert.equal(PUBLIC_CALLS.length, 51);
+  assert.equal(PUBLIC_CALLS.length, 60);
   // Unter /v3 geroutet ist genau die oeffentliche Liste.
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (25)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (28)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 25);
+  assert.equal(POS_CALLS.length, 28);
 });
 
-test('v3: nur ueber den Kassenweg gehen genau die 19 Namen aus endpoints.registerInternal', () => {
+test('v3: nur ueber den Kassenweg gehen genau die 22 Namen aus endpoints.registerInternal', () => {
   const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
   const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
   assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
-  assert.equal(nurKasse.length, 19);
+  assert.equal(nurKasse.length, 22);
+  for (const name of ['listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation']) assert.ok(isPosOnlyCall(name), name);
 });
 
 test('v3: jeder Aufruf des Pakets steht in PUBLIC_CALLS oder POS_CALLS', () => {

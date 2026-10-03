@@ -290,7 +290,7 @@ test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler 
     'not_permitted',
     'route_missing',
   ]);
-  assert.equal(erwartet.size, 23);
+  assert.equal(erwartet.size, 24);
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
   assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
 });
@@ -311,6 +311,7 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [
     'account_not_found',
     'admin_required',
+    'api_not_approved',
     'cashregister_not_assigned',
     'cashregister_not_found',
     'cashregister_token_invalid',
