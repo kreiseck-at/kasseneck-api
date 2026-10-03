@@ -28,8 +28,10 @@ same bytes as in 1.1.1.
   selling). New list `STOCK_LOCATION_TYPES`; `POS_ERROR_CODES` gains
   `location_inactive`, `location_not_found` and `server_error`.
 - **Locations on articles, registers and devices**: `PosArticle.stockLocationIds`
-  (`null` when the article names none), `Cashregister.stockLocationId`,
-  `cashregister.stockLocationId` in `listRegisterUsersForDevice`.
+  (optional on the type, so existing object literals keep compiling; the
+  reader always sets it, `null` when the article names none),
+  `Cashregister.stockLocationId`, `cashregister.stockLocationId` in
+  `listRegisterUsersForDevice`.
 - **Register permissions** `stockView`, `stockCosts`, `stockMove`, `stockLoss`,
   `stocktakeCount`, `stocktakeClose`, `stockLocation` in `RegisterUserPerms`
   and `REGISTER_PERMS`. New `stockViewOf(perms)` (`./pos` and root): a missing
@@ -38,7 +40,8 @@ same bytes as in 1.1.1.
 - **Returns on cancellation**: `cancelReceipt` takes `returnDisposition` for the
   call and per line (`RETURN_DISPOSITIONS`, `isReturnDisposition`: `restock`,
   `defective`, `disposed`), checked before sending. New code
-  `invalid_return_disposition`, the last entry of `CANCELLATION_ERROR_CODES`.
+  `invalid_return_disposition`, the last of the `cancelReceipt`-specific codes
+  in `CANCELLATION_ERROR_CODES` (before the auth/edge and client codes).
   Cancellation lines with an article carry `originalIndex` and
   `returnDisposition`, and so do the items of `cancellations[]`.
 - **Invoice API**: `items[].articleId`, `stockLocationId` on `issueInvoice`,
@@ -51,10 +54,11 @@ same bytes as in 1.1.1.
   `PUBLIC_CALLS` lists nine more public endpoints (partner billing, invoice
   items and mandates; names only, no wrappers), and `api_not_approved` (the
   developer area has to approve the account for the live API) is in every
-  derived error list and in `PAYMENT_CALL_REJECTED_CODES`, so a payment call
-  answered with it has the outcome `rejected`. For the Dart twin:
-  `surface.json` changes in `routes`, `calls.pos`, `registerPerms`, `pos` and
-  `invoice`.
+  derived error list. For the Dart twin: `surface.json` changes in `routes`,
+  `calls.pos`, `registerPerms`, `pos` and `invoice`.
+- **Behaviour change**: `api_not_approved` is in `PAYMENT_CALL_REJECTED_CODES`,
+  so a payment call answered with it now has the outcome `rejected` instead of
+  `unknown`. Nothing was charged: the approval gate runs before the handler.
 
 ## 1.1.1
 

@@ -851,8 +851,9 @@ cents, average cost in micro-euros, `null` for a quantity of 0) is `null`
 without the permission `stockCosts`, never an empty list: show no value then,
 not "0,00 €". `address` is `null` when the location has no address part (a
 vehicle has none). Articles carry `stockLocationIds` (`null` when the article
-names none), registers `stockLocationId` (`null` is the default location),
-and `listRegisterUsersForDevice` returns `cashregister.stockLocationId`;
+names none), registers `stockLocationId` (absent for the default location;
+only the result of `setMyCashregisterStockLocation` uses `null` for it), and
+`listRegisterUsersForDevice` returns `cashregister.stockLocationId`;
 errors such as `location_not_found` and `location_inactive` are in
 `POS_ERROR_CODES`.
 
