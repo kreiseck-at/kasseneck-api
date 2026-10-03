@@ -465,6 +465,13 @@ test('cancelReceipt: innere, vertippte oder leere Wahl je Position geht nicht hi
   assert.equal(aufrufe.length, 0);
 });
 
+test('cancelReceipt: eine Position geht nur mit den bekannten Feldern hinaus', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const position = { index: 0, quantity: 1, foo: 1 } as unknown as { index: number; quantity: number };
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', items: [position] });
+  assert.deepEqual(gesendet(aufrufe).params.items, [{ index: 0, quantity: 1 }]);
+});
+
 test('toReceiptItemPayload: originalIndex und returnDisposition gehen nie mit createReceipt hinaus', () => {
   const zeile = toReceiptItemPayload({ ...KAFFEE, articleId: 'coffee', originalIndex: 0, returnDisposition: 'restock' });
   assert.deepEqual(zeile, { name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20, articleId: 'coffee' });

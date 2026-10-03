@@ -155,3 +155,12 @@ test('fromReceiptPayload: Storno-Zeile und Storno-Eintrag tragen die Rueckgabe-W
   } as ReceiptPayloadRead);
   assert.deepEqual(original.cancellations![0]!.items, [{ index: 0, quantity: 1, returnDisposition: 'disposed' }, { index: 1, quantity: 1 }]);
 });
+
+test('fromReceiptPayload: ein ungueltiger originalIndex (negativ, gebrochen, null, Text) faellt weg', () => {
+  const werte = [-1, 1.5, null, '2'];
+  const beleg = fromReceiptPayload({
+    ...NUTZLAST, receiptType: 'cancellation',
+    items: werte.map((w) => ({ name: 'Semmel', quantity: -1, unitPriceCents: 79, vatRate: 10, articleId: 'roll', originalIndex: w })),
+  } as unknown as ReceiptPayloadRead);
+  beleg.items.forEach((zeile, i) => assert.equal('originalIndex' in zeile, false, String(werte[i])));
+});
