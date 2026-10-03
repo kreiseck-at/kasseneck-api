@@ -4,6 +4,58 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.2.0
+
+Stock at the register, returns on cancellation, stock fields in the invoice
+API. Reason: since stage 2 of the stock module the backend books sales,
+cancellations and invoices against the stock of a location. The register has
+to show locations and stock, choose its own location and say where returned
+goods go; external invoicing systems have to name the article.
+
+Additive, no breaking change; receipts and existing calls send and read the
+same bytes as in 1.1.1.
+
+- **Three register calls** (`./pos`, register path `/api/v3` only):
+  `listMyStockLocations(transport)`,
+  `listMyStock(transport, { locationId, articleId, belowMinimum })` and
+  `setMyCashregisterStockLocation(transport, { stockLocationId, cashregisterId })`
+  (`null` resets to the default location). Quantities are integer thousandths
+  of the base unit and keep their sign; `values` is `null` without the
+  permission `stockCosts`; a location without any address part has
+  `address: null`. A response with a missing or fractional quantity is never
+  read as `0`: it throws `KasseneckValidationError` with `scope: 'response'`
+  (a register treats that as "stock temporarily unavailable" and keeps
+  selling). New list `STOCK_LOCATION_TYPES`; `POS_ERROR_CODES` gains
+  `location_inactive`, `location_not_found` and `server_error`.
+- **Locations on articles, registers and devices**: `PosArticle.stockLocationIds`
+  (`null` when the article names none), `Cashregister.stockLocationId`,
+  `cashregister.stockLocationId` in `listRegisterUsersForDevice`.
+- **Register permissions** `stockView`, `stockCosts`, `stockMove`, `stockLoss`,
+  `stocktakeCount`, `stocktakeClose`, `stockLocation` in `RegisterUserPerms`
+  and `REGISTER_PERMS`. New `stockViewOf(perms)` (`./pos` and root): a missing
+  `stockView` counts as granted, only an explicit `false` blocks it, as in the
+  backend.
+- **Returns on cancellation**: `cancelReceipt` takes `returnDisposition` for the
+  call and per line (`RETURN_DISPOSITIONS`, `isReturnDisposition`: `restock`,
+  `defective`, `disposed`), checked before sending. New code
+  `invalid_return_disposition`, the last entry of `CANCELLATION_ERROR_CODES`.
+  Cancellation lines with an article carry `originalIndex` and
+  `returnDisposition`, and so do the items of `cancellations[]`.
+- **Invoice API**: `items[].articleId`, `stockLocationId` on `issueInvoice`,
+  `returnDisposition` on `cancelInvoice` and `createCreditNote` (also per line,
+  `CreditNoteItemInput`, `CREDIT_NOTE_ITEM_FIELDS`). Schema
+  `fixtures/invoice-api.schema.json` and six new examples.
+- **`./stored`**: stored receipts drop `lagerStandortId` and turn `rueckgabe`
+  into `returnDisposition`; stored articles carry `stockLocationIds`.
+- **Contract `/v3` caught up with the backend** (not stock related):
+  `PUBLIC_CALLS` lists nine more public endpoints (partner billing, invoice
+  items and mandates; names only, no wrappers), and `api_not_approved` (the
+  developer area has to approve the account for the live API) is in every
+  derived error list and in `PAYMENT_CALL_REJECTED_CODES`, so a payment call
+  answered with it has the outcome `rejected`. For the Dart twin:
+  `surface.json` changes in `routes`, `calls.pos`, `registerPerms`, `pos` and
+  `invoice`.
+
 ## 1.1.1
 
 The code-table test sheet asks for the right row. Reason: a Bluetooth
