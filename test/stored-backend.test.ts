@@ -127,7 +127,7 @@ async function belegServer(doc: Json, version: Json, konto: Json, testKasse: boo
     lay = layout.layoutFuerBeleg({ beleg: doc, betrieb, testKasse, testSignatur, regelwerk: doc.layoutRegeln, pruefangaben });
   } catch { /* wie belegAntwort: kein Layout */ }
   const huelle = {
-    receipt: storno.ohneInterneStornoFelder(doc), ...betrieb, logo_url: kopf.logoFuerBeleg(version, konto, doc),
+    receipt: storno.ohneInterneBelegFelder(doc), ...betrieb, logo_url: kopf.logoFuerBeleg(version, konto, doc),
     logo_skala: kopf.logoStufeFuerKonto(konto), kopfId: version ? version.id : null, layout: lay, pruefangaben, testSignatur, testKasse,
   };
   const aus = vok.antwortNachAussen('getReceipt', { status: 'success', data: huelle }, { kanal: 'app', art: 'kasse' });
@@ -153,6 +153,9 @@ test('stored-backend: Belege mit Firma und Layout wie belegAntwort und Rand des 
     { ...docs[1], layoutRegeln: undefined },
     { ...storno, cancellationOf: { ...storno.cancellationOf, marke: 'm1' }, stornoMarke: 'm0' },
     { ...docs[2], cancellations: [{ receiptId: 'X-1', marke: 'm2', items: [] }] },
+    { ...storno, lagerStandortId: 'van-1', items: storno.items.map((it: Json, i: number) => (i === 0 ? { ...it, articleId: 'rye-bread', originalIndex: 0, rueckgabe: 'defekt' } : it)) },
+    { ...storno, items: storno.items.map((it: Json) => ({ ...it, articleId: 'rye-bread', rueckgabe: 'verloren' })) },
+    { ...docs[2], lagerStandortId: 'store-1', cancellations: [{ receiptId: 'X-2', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] },
   ];
   for (const doc of [...docs, ...extra]) {
     for (const data of versionen) {
@@ -194,6 +197,7 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
     ['a6', { e1aGroup: 'waren', priceCents: 1, fremd: 1, groupId: '', revenueGroupId: 'rg1', unitPriceCents: 100, create_time: 1, active: false }],
     ['a7', { kasse: null, mengenregel: null, e1aGroup: null }],
     ['a8', { kasse: [1], stockTracked: true, stockQty: 3, ean: '123', source: 'foreign', codeSpec: { a: 1 } }],
+    ['a9', { standorte: ['haupt', 'van-1'], einkauf: { standardMicros: 1200000 }, bestandsart: 'menge', mindestJeStandort: { haupt: 5000 } }],
   ];
   for (const [id, doc] of faelle) {
     const erwartet = artikelServer(id, doc);
