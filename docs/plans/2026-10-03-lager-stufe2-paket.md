@@ -2405,3 +2405,12 @@ dabei `functions/vertrag/v3`, holt das Paket den Stand beim nächsten Vertragsna
   `StockLocation`, `StockList`, `SetMyCashregisterStockLocationOptions` nur in Task 2 definiert und in Task 7
   dokumentiert; 0.x-Namen (`GUTSCHRIFT_POSITION_FELDER`, `Feld`, `typ/pflicht/werte`) nur in Task 9.
 - **Review Focus:** alle fünf Zeilen haben Tests (Task 2: drei; Task 4; Task 6).
+
+## Festlegungen vor der Ausführung (2026-10-03)
+
+1. `PUBLIC_CALLS`: fehlende öffentliche Endpunkte (Partner-Abrechnung, Rechnungskorb, Mandat) nur als Namen in den Listen, die die Wächter verlangen – keine Wrapper in diesem Zweig; die Wrapper folgen mit den jeweiligen Vorhaben.
+2. Kachel-Filter nach `stockLocationIds`: das Paket liefert nur das Feld; die Regel (bestandsgeführte Artikel des Standorts ∪ Artikel mit Bestand dort) setzt die Kasse in Plan 2c um.
+3. Die sieben Lager-Rechte kommen jetzt in `RegisterUserPerms`/`REGISTER_PERMS`/`surface.json`; das Dart-Paket zieht in Plan 2d nach.
+4. Dist-Tag `next`: wie beim letzten 1.x-Release verfahren (siehe CHANGELOG/Release-Notiz); ohne Vorgabe bleibt `next` unverändert.
+5. Task 11 (keck) auf einem neuen Zweig von `origin/main`, sobald Stufe 2a gemergt ist.
+6. Veröffentlichen (1.2.0 und 0.32.0) nur nach ausdrücklicher Bestätigung, aus frischer Kopie.
