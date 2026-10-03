@@ -148,3 +148,24 @@ test('setMyCashregisterStockLocation: Antwort mit anderem Typ als Text oder null
   );
 });
 
+
+test('listMyStockLocations: Adresse ohne jeden Teil ist keine Adresse (null)', async () => {
+  const { rufen } = attrappe({
+    locations: [
+      { id: 'a', name: 'A', type: 'store', address: { street: '', zip: null, city: undefined, country: '' }, active: true },
+      { id: 'b', name: 'B', type: 'store', address: {}, active: true },
+      { id: 'c', name: 'C', type: 'store', address: { city: 'Linz' }, active: true },
+    ],
+  });
+  const orte = await listMyStockLocations(rufen);
+  assert.deepEqual(orte.map((o) => o.address), [null, null, { street: null, zip: null, city: 'Linz', country: null }]);
+});
+
+test('listMyStock: null als options ist ein Anfragefehler, kein TypeError', async () => {
+  const a = attrappe({ stock: [] });
+  await assert.rejects(
+    () => listMyStock(a.rufen, null as never),
+    (e) => isKasseneckValidationError(e) && e.scope === 'request' && /options/.test(e.reason),
+  );
+  assert.equal(a.aufrufe.length, 0);
+});

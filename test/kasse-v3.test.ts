@@ -28,7 +28,7 @@ import { partnerZugangsCodes, randUndAnmeldung } from './kassenweg-codes.js';
 /*
  * Kasse und Anmeldung am Kassenweg `/api/v3` gegen den Vertrags-Export des
  * Backends (fixtures/v3/antworten/kasse.json, v3-vokabular.json). Jeder Fall
- * der 18 Kassen-Endpunkte ausser der Belegwelt (die pruefen receipts-v3):
+ * aller Kassen-Endpunkte ausser der Belegwelt (die pruefen receipts-v3):
  * was das Paket sendet, sind die Parameter des Falls; was es liest, traegt die
  * englischen Namen; jeder Fehler wird am `code` erkannt, nie am Text.
  */

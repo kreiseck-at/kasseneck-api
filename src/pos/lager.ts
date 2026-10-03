@@ -126,11 +126,14 @@ function standort(name: string, e: unknown, i: number): StockLocation {
   const s = objekt(e) ?? {};
   const pfad = `locations[${i}]`;
   const a = objekt(s.address);
+  const teile = a ? { street: textOderNull(a.street), zip: textOderNull(a.zip), city: textOderNull(a.city), country: textOderNull(a.country) } : null;
+  // Eine Adresse ohne einen einzigen Teil ist keine Adresse.
+  const address = teile && Object.values(teile).some((t) => t !== null) ? teile : null;
   return {
     id: kennung(name, `${pfad}.id`, s.id),
     name: typeof s.name === 'string' ? s.name : '',
     type: typeof s.type === 'string' && TYPEN.has(s.type) ? (s.type as StockLocationType) : null,
-    address: a ? { street: textOderNull(a.street), zip: textOderNull(a.zip), city: textOderNull(a.city), country: textOderNull(a.country) } : null,
+    address,
     licensePlate: textOderNull(s.licensePlate),
     active: s.active !== false,
     virtual: s.virtual === true,
@@ -174,6 +177,7 @@ export async function listMyStockLocations(transport: InternerTransport): Promis
 /** Bestand je Artikel und Standort; Werte nur mit dem Recht `stockCosts`. */
 export async function listMyStock(transport: InternerTransport, options: ListMyStockOptions = {}): Promise<StockList> {
   const name = 'listMyStock';
+  if (options === null || typeof options !== 'object') throw new KasseneckValidationError(name, 'options muss ein Objekt sein', 'request');
   const params: Record<string, unknown> = {};
   for (const feld of ['locationId', 'articleId'] as const) {
     const w = options[feld];
