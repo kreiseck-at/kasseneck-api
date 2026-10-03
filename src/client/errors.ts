@@ -240,7 +240,7 @@ const GELDWEGE: ReadonlySet<string> = new Set(['hobexPayApi', 'hobexRefundApi', 
  * v3, `errorCodes`; dieselbe Liste wie `paymentCallRejectedCodes` im
  * Dart-Zwilling):
  *
- * - `errorCodes.auth` ohne die sieben des Partner-Zugangs (18 Codes):
+ * - `errorCodes.auth` ohne die sieben des Partner-Zugangs (19 Codes):
  *   Anmeldung und Pruefung in `checkRequest` laufen vor jeder Zeile des
  *   Handlers; `validation` heisst dort Pflichtfeld fehlt oder falscher Typ.
  *   Der Partner-Zugang trifft diese `api_key`-Aufrufe mit Kassen-Token nie.

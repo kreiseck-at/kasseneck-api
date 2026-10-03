@@ -152,7 +152,7 @@ export interface TransportOptions {
    */
   baseUrl?: string;
   /**
-   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 19
+   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 22
    * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
    * Drucker, ...) und mit `registerUserAuth` alle 28 Aufrufe des Kassenwegs.
    * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
