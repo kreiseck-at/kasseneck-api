@@ -215,6 +215,11 @@ export async function setMyCashregisterStockLocation(
   if (ziel !== null && typeof ziel !== 'string') {
     throw new KasseneckValidationError(name, 'stockLocationId fehlt (Kennung, oder null zum Zuruecksetzen)', 'request');
   }
+  // Leer setzt zurueck. Nur Leerraum wuerde der Server kuerzen und damit still
+  // auf den Standard-Standort zuruecksetzen: das ist kein Standort, sondern ein Fehler.
+  if (ziel !== null && ziel !== '' && ziel.trim() === '') {
+    throw new KasseneckValidationError(name, 'stockLocationId ist nur Leerraum (Kennung angeben, oder null zum Zuruecksetzen)', 'request');
+  }
   const params: Record<string, unknown> = { stockLocationId: ziel === null ? '' : ziel };
   if (options.cashregisterId !== undefined) {
     if (typeof options.cashregisterId !== 'string' || options.cashregisterId.trim() === '') {

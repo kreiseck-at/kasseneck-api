@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
-  fromPosArticlePayload, stockViewOf,
+  fromPosArticlePayload, stockViewOf, type PosArticle,
 } from '../src/pos/index.js';
 import { fromCashregisterPayload } from '../src/models/index.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
@@ -191,4 +191,45 @@ test('stockViewOf: fehlt das Recht, gilt es als erteilt – ein ausdrueckliches 
   assert.equal(stockViewOf({ ...basis, stockView: false }), false);
   assert.equal(stockViewOf(null), false);
   assert.equal(stockViewOf(undefined), false);
+});
+
+test('PosArticle: ein Literal ohne stockLocationIds ist gueltig (Feld optional), der Leser setzt es immer', () => {
+  // Bestehende Verbraucher bauen PosArticle-Literale ohne das neue Feld; das
+  // muss uebersetzbar bleiben (tsc ueber die Tests ist der Beweis).
+  const literal: PosArticle = {
+    id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: null, revenueGroupId: null,
+    visible: true, sort: 0, active: true, quantityRule: null, askQuantity: null, maxQuantity: null,
+  };
+  assert.equal(literal.stockLocationIds, undefined);
+  assert.equal(fromPosArticlePayload({ id: 'a1' }).stockLocationIds, null);
+  assert.deepEqual(fromPosArticlePayload({ id: 'a1', stockLocationIds: ['store-1'] }).stockLocationIds, ['store-1']);
+});
+
+test('listMyStock: values ohne Liste meldet "keine Liste", nicht "fehlt"', async () => {
+  for (const kaputt of ['x', 5, {}, true]) {
+    await assert.rejects(
+      () => listMyStock(attrappe({ stock: [], values: kaputt }).rufen),
+      (e) => isKasseneckValidationError(e) && e.scope === 'response' && /data\.values ist keine Liste/.test(e.reason) && !/fehlt/.test(e.reason),
+      String(kaputt),
+    );
+  }
+  // fehlt `values` ganz oder ist null, ist das kein Fehler (kein Recht stockCosts)
+  assert.equal((await listMyStock(attrappe({ stock: [] }).rufen)).values, null);
+  assert.equal((await listMyStock(attrappe({ stock: [], values: null }).rufen)).values, null);
+  // und die Pflichtliste `stock` fehlt weiterhin als "fehlt"
+  await assert.rejects(() => listMyStock(attrappe({}).rufen), /data\.stock fehlt/);
+});
+
+test('setMyCashregisterStockLocation: Standort nur aus Leerraum geht nicht hinaus, leerer Text setzt zurueck', async () => {
+  const { rufen, aufrufe } = attrappe({ cashregisterId: 'K1', stockLocationId: null });
+  for (const leer of ['  ', '\t', ' \n ']) {
+    await assert.rejects(
+      () => setMyCashregisterStockLocation(rufen, { stockLocationId: leer, cashregisterId: 'K1' }),
+      (e) => isKasseneckValidationError(e) && e.scope === 'request' && /stockLocationId/.test(e.reason),
+      JSON.stringify(leer),
+    );
+  }
+  assert.equal(aufrufe.length, 0);
+  await setMyCashregisterStockLocation(rufen, { stockLocationId: '', cashregisterId: 'K1' });
+  assert.deepEqual(aufrufe, [['setMyCashregisterStockLocation', { cashregisterId: 'K1', stockLocationId: '' }]]);
 });

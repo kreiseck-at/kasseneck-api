@@ -103,9 +103,11 @@ export interface PosArticle {
   /**
    * Standorte, an denen der Artikel gefuehrt wird (Lager-Kern Stufe 2, innen
    * `standorte`); `null`, wenn der Artikel keine Angabe traegt. Wie die Kasse
-   * daraus Kacheln filtert, entscheidet die Oberflaeche.
+   * daraus Kacheln filtert, entscheidet die Oberflaeche. Optional, damit
+   * bestehende Literale von Verbrauchern weiter uebersetzen; der Leser
+   * (`fromPosArticlePayload`) setzt das Feld immer (`null` oder Liste).
    */
-  stockLocationIds: string[] | null;
+  stockLocationIds?: string[] | null;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -150,7 +152,10 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
 export function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown, index: number) => T): T[] {
   const roh = (daten as Record<string, unknown> | null | undefined)?.[feld];
   if (!Array.isArray(roh)) {
-    throw new KasseneckValidationError(name, `Antwort enthaelt keine Liste (data.${feld} fehlt)`, 'response');
+    const grund = roh === undefined || roh === null
+      ? `Antwort enthaelt keine Liste (data.${feld} fehlt)`
+      : `Antwort ist unbrauchbar (data.${feld} ist keine Liste)`;
+    throw new KasseneckValidationError(name, grund, 'response');
   }
   return roh.map((e, i) => lesen(typeof e === 'object' && e !== null ? e : {}, i));
 }
