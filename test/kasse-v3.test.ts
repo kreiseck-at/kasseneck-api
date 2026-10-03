@@ -10,7 +10,7 @@ import {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo,
   listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients,
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
-  isPosError, posFieldErrors, mergePosSettings,
+  isPosError, posFieldErrors, mergePosSettings, stockViewOf,
   type PosBusinessSettings, type PosDeviceSettings,
 } from '../src/pos/index.js';
 import {
@@ -417,6 +417,34 @@ test('listRegisterUsersForDevice: der Standort der gebundenen Kasse reist mit, f
   assert.equal(stand.cashregister?.stockLocationId, 'auto1');
   const ohne = await listRegisterUsersForDevice({ ...(basis.params as typeof GERAET), fetch: holenFuer(basis).holen });
   assert.equal(ohne.cashregister !== undefined && 'stockLocationId' in ohne.cashregister, false);
+});
+
+test('listRegisterUsersForDevice: leerer oder kein Text als Standort der Kasse ergibt kein Feld', async () => {
+  const basis = erfolge('listRegisterUsersForDevice')[0]!;
+  const d = basis.response.data;
+  for (const wert of ['', 7, null, ['auto1'], {}]) {
+    const f = { ...basis, response: { ...basis.response, data: { ...d, cashregister: { ...d.cashregister, stockLocationId: wert } } } };
+    const stand = await listRegisterUsersForDevice({ ...(f.params as typeof GERAET), fetch: holenFuer(f).holen });
+    assert.equal(stand.cashregister?.ready, d.cashregister.ready, JSON.stringify(wert));
+    assert.equal('stockLocationId' in stand.cashregister!, false, JSON.stringify(wert));
+  }
+});
+
+test('Anmeldung: fehlendes stockView gilt als erteilt, ausdrueckliches false sperrt (echter Leseweg)', async () => {
+  const basis = erfolge('registerUserLogin')[0]!;
+  const user = basis.response.data.user;
+  const anmelden = async (perms: Json) => {
+    const f = { ...basis, response: { ...basis.response, data: { ...basis.response.data, user: { ...user, perms } } } };
+    return registerUserLogin({ ...(f.params as Json), fetch: holenFuer(f).holen } as Parameters<typeof registerUserLogin>[0]);
+  };
+  const { stockView: _weg, ...ohne } = { ...user.perms, stockView: true } as Json;
+  const fehlt = await anmelden(ohne);
+  assert.equal('stockView' in fehlt.user.perms, false);
+  assert.equal(stockViewOf(fehlt.user.perms), true);
+  assert.equal(stockViewOf((await anmelden({ ...ohne, stockView: false })).user.perms), false);
+  assert.equal(stockViewOf((await anmelden({ ...ohne, stockView: true })).user.perms), true);
+  // Die uebrigen Lager-Rechte gelten ohne Schluessel als verweigert.
+  assert.equal(fehlt.user.perms['stockMove'], undefined);
 });
 
 test('listRegisterSessionsForDevice: own statt selbst, deviceLabel null statt „Kasse"', async () => {
