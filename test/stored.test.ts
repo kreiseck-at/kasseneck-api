@@ -471,6 +471,13 @@ test('stored: Artikel verlieren unbekannte Felder und unbekannte Katalogwerte wi
   assert.equal(m.sort, 0);
 });
 
+test('stored: Artikel-Standorte heissen aussen stockLocationIds, interne Lagerfelder fallen weg', () => {
+  const draht = _storedArticleToWire('a9', { name: 'Roggenbrot', standorte: ['x'], bestandsart: 'menge', einkauf: { standardMicros: 1 }, mindestJeStandort: { x: 5 } });
+  assert.deepEqual(draht.stockLocationIds, ['x']);
+  for (const innen of ['standorte', 'bestandsart', 'einkauf', 'mindestJeStandort']) assert.equal(innen in draht, false, innen);
+  assert.deepEqual(stored.fromStoredArticle('a9', { name: 'Roggenbrot', standorte: ['x'], bestandsart: 'menge' }).stockLocationIds, ['x']);
+});
+
 test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit 1.0.0-rc.5', () => {
   // Jeder Storno-Grund, ob innen gespeichert oder schon englisch: dasselbe Modell.
   const doc = belegDokument('KECK-1-ID-7');

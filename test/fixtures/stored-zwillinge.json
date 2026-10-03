@@ -47,8 +47,8 @@
     },
     {
       "datei": "functions/gemeinsam/storno-core.js",
-      "marke": "function ohneInterneBelegFelder(",
-      "sha256": "5dc4f0f5ab12e74308c333f49532cbfb3da499baaeff3454eba898981fdbf54b"
+      "marke": "const INTERNE_BELEG_FELDER = ",
+      "sha256": "87794f241746bfaee271e364596eff06f0bad0d389b70f046754705ad4de0149"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",

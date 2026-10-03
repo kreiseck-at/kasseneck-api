@@ -29,7 +29,7 @@ export const BACKEND_STELLEN = [
   ['functions/beleg-layout.js', null],
   ['functions/beleg-pruefangaben.js', null],
   ['functions/gemeinsam/storno-core.js', 'function ohneInterneStornoFelder('],
-  ['functions/gemeinsam/storno-core.js', 'function ohneInterneBelegFelder('],
+  ['functions/gemeinsam/storno-core.js', 'const INTERNE_BELEG_FELDER = '],
   ['functions/gemeinsam/api-vokabular-v3.js', 'function schluessel('],
   ['functions/gemeinsam/api-vokabular-v3.js', 'function anPfad('],
   ['functions/gemeinsam/api-vokabular-v3.js', 'function werteAbbilden('],
