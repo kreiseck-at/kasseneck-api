@@ -485,6 +485,11 @@
       "piece",
       "decimal"
     ],
+    "returnDispositions": [
+      "restock",
+      "defective",
+      "disposed"
+    ],
     "stockLocationTypes": [
       "warehouse",
       "store",

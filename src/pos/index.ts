@@ -57,6 +57,9 @@ export {
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation,
 } from './lager.js';
 
+// Rueckgabe-Wahl beim Storno (Kassen-Dialog); dieselbe Liste wie an der Wurzel.
+export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from '../models/cancellation.js';
+
 // Was die Kasse selbst sagt: ein Katalog fuer Browser-Kasse und App.
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,

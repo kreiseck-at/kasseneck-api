@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromReceiptPayload, remainingQuantities, CANCELLATION_REASONS, isCancellationReason, CANCELLATION_ERROR_CODES, isCancellationErrorCode } from '../src/models/index.js';
+import { fromReceiptPayload, remainingQuantities, CANCELLATION_REASONS, isCancellationReason, CANCELLATION_ERROR_CODES, isCancellationErrorCode, RETURN_DISPOSITIONS, isReturnDisposition } from '../src/models/index.js';
 import type { ReceiptPayloadRead } from '../src/models/index.js';
 
 // Storno-Felder am Beleg: Bezug/Grund am Storno-Beleg, cancellations[] am
@@ -127,4 +127,31 @@ test('fromReceiptPayload behaelt cancellationOf.timeStamp, laesst es sonst weg',
   assert.deepEqual(mit.cancellationOf, { receiptId: 'kasse-1-ID-11', fullReceiptId: 'F11', timeStamp: '2026-08-11T09:02:17' });
   const ohne = fromReceiptPayload({ ...NUTZLAST, receiptType: 'cancellation', cancellationOf: { receiptId: 'kasse-1-ID-11', fullReceiptId: null } });
   assert.deepEqual(ohne.cancellationOf, { receiptId: 'kasse-1-ID-11', fullReceiptId: null });
+});
+
+test('Rueckgabe-Katalog: restock, defective, disposed; die inneren Werte gelten nicht', () => {
+  assert.deepEqual([...RETURN_DISPOSITIONS], ['restock', 'defective', 'disposed']);
+  assert.equal(isReturnDisposition('defective'), true);
+  for (const w of ['lager', 'defekt', 'entsorgt', '', null, undefined, 1]) assert.equal(isReturnDisposition(w), false, String(w));
+});
+
+test('fromReceiptPayload: Storno-Zeile und Storno-Eintrag tragen die Rueckgabe-Wahl, ein unbekannter Wert faellt weg', () => {
+  const storno = fromReceiptPayload({
+    ...NUTZLAST, receiptType: 'cancellation',
+    items: [
+      { name: 'Semmel', quantity: -1, unitPriceCents: 79, vatRate: 10, articleId: 'roll', originalIndex: 0, returnDisposition: 'defective' },
+      { name: 'Kaffee', quantity: -1, unitPriceCents: 280, vatRate: 20, articleId: 'coffee', originalIndex: 1, returnDisposition: 'lost' },
+      { name: 'Handeingabe', quantity: -1, unitPriceCents: 100, vatRate: 20 },
+    ],
+  } as ReceiptPayloadRead);
+  assert.equal(storno.items[0]!.returnDisposition, 'defective');
+  assert.equal(storno.items[0]!.originalIndex, 0);
+  assert.equal('returnDisposition' in storno.items[1]!, false);
+  assert.equal(storno.items[1]!.originalIndex, 1);
+  assert.equal('originalIndex' in storno.items[2]!, false);
+  const original = fromReceiptPayload({
+    ...NUTZLAST,
+    cancellations: [{ receiptId: 'kasse-1-ID-13', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, returnDisposition: 'disposed' }, { index: 1, quantity: 1 }] }],
+  } as ReceiptPayloadRead);
+  assert.deepEqual(original.cancellations![0]!.items, [{ index: 0, quantity: 1, returnDisposition: 'disposed' }, { index: 1, quantity: 1 }]);
 });

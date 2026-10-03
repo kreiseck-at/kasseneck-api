@@ -32,6 +32,21 @@ export function isCancellationReason(value: unknown): value is CancellationReaso
 }
 
 /**
+ * Rueckgabe-Wahl beim Storno und bei der Gutschrift (Lager-Kern Stufe 2,
+ * Katalog `RUECKGABE` des Backends): `restock` zurueck ins Lager (Vorgabe des
+ * Servers), `defective` als defekt ins Lager, `disposed` entsorgt. Wirkt nur
+ * an Positionen mit `articleId`; alle anderen bucht der Server nie und meldet
+ * dafuer auch keinen Fehler.
+ */
+export const RETURN_DISPOSITIONS = Object.freeze(['restock', 'defective', 'disposed'] as const);
+
+export type ReturnDisposition = (typeof RETURN_DISPOSITIONS)[number];
+
+export function isReturnDisposition(value: unknown): value is ReturnDisposition {
+  return typeof value === 'string' && (RETURN_DISPOSITIONS as readonly string[]).includes(value);
+}
+
+/**
  * Stabile Fehlercodes von `cancelReceipt` unter `/v3` (Vokabular
  * `errorCodes.cancellation`, gleiche Reihenfolge). Das Backend legt sie bei
  * jedem fachlichen Fehler als `code` neben die Meldung; das Paket reicht sie
@@ -139,10 +154,12 @@ export interface CancellationOf {
   timeStamp?: string;
 }
 
-/** Eine stornierte Position: Index im Original und Menge. */
+/** Eine stornierte Position: Index im Original und Menge, an Artikelzeilen die Rueckgabe-Wahl. */
 export interface CancellationItem {
   index: number;
   quantity: number;
+  /** Wohin die Ware dieser Position geht; fehlt = Vorgabe des Aufrufs bzw. `restock`. */
+  returnDisposition?: ReturnDisposition;
 }
 
 /**

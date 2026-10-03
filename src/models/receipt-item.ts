@@ -1,5 +1,6 @@
 import { VatRate } from '../enums/index.js';
 import { readVatRateByRate, requireVatRateByRate } from './enum-payload.js';
+import { isReturnDisposition, type ReturnDisposition } from './cancellation.js';
 
 /**
  * Belegposition — Zwilling von `KasseneckItem` in
@@ -52,6 +53,10 @@ export interface ReceiptItem {
    * im Bericht. Optional; Handeingaben haben keinen.
    */
   articleId?: string;
+  /** Nur an Storno-Zeilen mit `articleId`: Index der Position im Original. */
+  originalIndex?: number;
+  /** Nur an Storno-Zeilen mit `articleId`: wohin die Ware ging (Lager-Kern Stufe 2). */
+  returnDisposition?: ReturnDisposition;
 }
 
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
@@ -128,6 +133,10 @@ export interface ReceiptItemPayloadRead {
   vat?: number | null;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string | null;
+  /** Storno-Zeile mit `articleId`: Index im Original, siehe [ReceiptItem.originalIndex]. */
+  originalIndex?: number | null;
+  /** Storno-Zeile mit `articleId`: Rueckgabe-Wahl, siehe [ReceiptItem.returnDisposition]. */
+  returnDisposition?: string | null;
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
@@ -199,6 +208,10 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
         : {}),
     // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
     ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
+    // Lager: Bezug und Rueckgabe-Wahl einer Storno-Zeile (nur gelesen; ein
+    // unbekannter Wert faellt weg wie am Rand des Servers).
+    ...(Number.isInteger(payload.originalIndex) && (payload.originalIndex as number) >= 0 ? { originalIndex: payload.originalIndex as number } : {}),
+    ...(isReturnDisposition(payload.returnDisposition) ? { returnDisposition: payload.returnDisposition } : {}),
   };
 }
 

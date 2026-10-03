@@ -9,7 +9,7 @@ import {
   receiptItemTotalCents,
 } from './receipt-item.js';
 import { type Voucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload } from './voucher.js';
-import type { Cancellation, CancellationOf, CancellationReason } from './cancellation.js';
+import { isReturnDisposition, type Cancellation, type CancellationOf, type CancellationReason } from './cancellation.js';
 import { isZeroKind, type ZeroKind } from './receipt-summary.js';
 import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload, toReceiptPaymentPayload } from './receipt-payment.js';
 
@@ -236,7 +236,11 @@ function leseStorno(eintrag: Cancellation): Cancellation {
     at: Number(eintrag.at ?? 0),
     by: eintrag.by ?? null,
     note: eintrag.note ?? null,
-    items: (eintrag.items ?? []).map((p) => ({ index: Number(p.index), quantity: Number(p.quantity) })),
+    items: (eintrag.items ?? []).map((p) => ({
+      index: Number(p.index),
+      quantity: Number(p.quantity),
+      ...(isReturnDisposition(p.returnDisposition) ? { returnDisposition: p.returnDisposition } : {}),
+    })),
     ...(eintrag.promoAdjustmentCents && typeof eintrag.promoAdjustmentCents === 'object'
       ? { promoAdjustmentCents: Object.fromEntries(Object.entries(eintrag.promoAdjustmentCents).map(([k, v]) => [k, Number(v)])) }
       : {}),
