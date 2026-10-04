@@ -59,7 +59,7 @@ export async function getCashboxStatus(transport: InternerTransport): Promise<Ca
 
 /**
  * Status der Signatureinheit mit der Zertifikatsseriennummer [certificateSerialHex]
- * (hexadezimal, z. B. `6F0404F0`).
+ * (hexadezimal, z. B. `5A1C3E07`).
  *
  * **Der Returncode wird vor dem Status gelesen** (wie im Dart-Vorbild): `B33`
  * heisst "nicht registriert" und schlaegt jedes Statusfeld, das daneben stehen

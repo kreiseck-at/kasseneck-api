@@ -17,12 +17,12 @@ const FIRMA: ReceiptCompany = {
   vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf', footer2: 'www.kreiseck.com', thanksMessage: ['Bis bald!'], showKreiseckLogo: false,
 };
-const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
+const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR';
 const BELEG: Receipt = {
   receiptId: 'AT0-KASSE1-42', cashregisterId: 'KASSE1', timeStamp: '2026-08-13T00:30:00',
   items: [{ name: 'Espresso', quantity: 2, vat: VatRate.vat20, priceCents: 250 }],
   vouchers: [], paymentMethod: KeckPaymentMethod.cash, turnoverCounterAES256ICM: 'UMSATZ', signaturePreviousReceipt: 'VORGAENGER',
-  certificateSerialNumber: '6F0404F0', receiptType: ReceiptType.standard, sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT', qr: QR,
+  certificateSerialNumber: '5A1C3E07', receiptType: ReceiptType.standard, sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT', qr: QR,
   fullReceiptId: 'VOLL', customerDetails: [], legalMessage: [],
 };
 
@@ -151,7 +151,7 @@ test('Regelwerk: 2 ist die Vorgabe und steht am Layout; 1 setzt Altbelege wie bi
 
 // --- Regelwerk 2: Nullbeleg als Pruefbeleg -------------------------------------
 const NULL0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '', zeroKind: 'monthly', timeStamp: '2026-08-31T23:59:30',
-  qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR' };
+  qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR' };
 
 test('Regelwerk 2: Nullbeleg traegt einen Block "Prüfangaben" statt der Summenzeile', () => {
   const l = buildReceiptLayout(NULL0, FIRMA, { registrationInfo: { cardRegisteredAt: '2024-03-12', cashregisterRegisteredAt: '2024-03-12' } });
@@ -162,7 +162,7 @@ test('Regelwerk 2: Nullbeleg traegt einen Block "Prüfangaben" statt der Summenz
   assert.ok(t.some((z) => z === 'Barumsatz: 0,00 €'), t.join('\n'));
   assert.ok(t.some((z) => z === 'Signatur: signiert'), t.join('\n'));
   // Zertifikat-Seriennummer ist hexadezimal -- als solche gekennzeichnet
-  assert.ok(t.some((z) => z === 'Signaturkarte: 0x6F0404F0'), t.join('\n'));
+  assert.ok(t.some((z) => z === 'Signaturkarte: 0x5A1C3E07'), t.join('\n'));
   assert.ok(t.some((z) => z === 'Zertifizierungsdienst: A-Trust (AT1)'), t.join('\n'));
   assert.ok(t.some((z) => z === 'Karte registriert: 12.03.2024'), t.join('\n'));
   assert.ok(t.some((z) => z === 'Kasse registriert: 12.03.2024'), t.join('\n'));
@@ -178,7 +178,7 @@ test('Regelwerk 2: unbekannte Registrierdaten lassen die Zeile weg; ZDA-Kennunge
   const ohne = alsText(buildReceiptLayout(NULL0, FIRMA));
   assert.ok(!ohne.some((z) => z.startsWith('Karte registriert:')));
   assert.ok(!ohne.some((z) => z.startsWith('Kasse registriert:')));
-  assert.ok(ohne.some((z) => z === 'Signaturkarte: 0x6F0404F0'));
+  assert.ok(ohne.some((z) => z === 'Signaturkarte: 0x5A1C3E07'));
   const zda = (kennung: string) => alsText(buildReceiptLayout({ ...NULL0, qr: NULL0.qr.replace('_R1-AT1_', `_R1-${kennung}_`) }, FIRMA)).find((z) => z.startsWith('Zertifizierungsdienst:'));
   assert.equal(zda('AT0'), 'Zertifizierungsdienst: geschlossenes System (AT0)');
   assert.equal(zda('AT2'), 'Zertifizierungsdienst: GlobalTrust (AT2)');

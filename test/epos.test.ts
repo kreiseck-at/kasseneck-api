@@ -10,7 +10,7 @@ import { EposConnectionError, eposDirectPrint, eposDirectStatus, eposParseRespon
  * aus Rasterzeilen, QR als <symbol>, Schnitt. Kein eigenes Setzen: was das
  * Raster zeigt, druckt der Epson Zeile fuer Zeile.
  */
-const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
+const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR';
 const LAYOUT: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
   { kind: 'banner', text: 'TESTSIGNATUR — kein gültiger Beleg', tone: 'warning' },
   { kind: 'text', text: 'Bäckerei <Muster> & Söhne', align: 'center', bold: true },

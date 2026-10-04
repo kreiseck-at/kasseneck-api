@@ -43,7 +43,7 @@ const symbolBreite = (xml: string): number | null => {
 /** Eine Nutzlast, wie sie wirklich auf einem RKSV-Beleg steht: 193 Byte, 57 Module. */
 const RKSV =
   '_R1-AT1_KASSENECK1_AT0-KASSENECK1-10420_2026-08-13T10:15:30_12,90_0,00_0,00_0,00_0,00_' +
-  'PL5nQ2V0b3JRRA==_6F0404F0_Ky9lbXBmYW5nZXJzY2hsdXNzZWw=_' +
+  'PL5nQ2V0b3JRRA==_5A1C3E07_Ky9lbXBmYW5nZXJzY2hsdXNzZWw=_' +
   'bGV0enRlci1TaWduYXR1cndlcnQtUktTVi1CZWxlZy1EZW1vLTAx';
 
 // -------------------------------------------------------- Bestandsschutz

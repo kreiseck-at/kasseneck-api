@@ -21,9 +21,9 @@ import type { ReceiptPayload } from '../src/models/index.js';
  */
 
 const BELEG_NUTZLAST: ReceiptPayload = {
-  qr: '_R1-AT1_KASSE1_AT0-42_2026-08-13T00:30:00_5,00_0,00_0,00_0,00_0,00_U_V_6F0404F0_S',
+  qr: '_R1-AT1_KASSE1_AT0-42_2026-08-13T00:30:00_5,00_0,00_0,00_0,00_0,00_U_V_5A1C3E07_S',
   sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT',
-  certificateSerialNumber: '6F0404F0',
+  certificateSerialNumber: '5A1C3E07',
   signaturePreviousReceipt: 'V',
   turnoverCounterAES256ICM: 'U',
   paymentMethod: 'cash',
