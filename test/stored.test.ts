@@ -478,6 +478,13 @@ test('stored: Artikel-Standorte heissen aussen stockLocationIds, interne Lagerfe
   assert.deepEqual(stored.fromStoredArticle('a9', { name: 'Roggenbrot', standorte: ['x'], bestandsart: 'menge' }).stockLocationIds, ['x']);
 });
 
+test('stored: Artikelnummer, EAN, interner Code und bestandsgefuehrt kommen am Modell an', () => {
+  const m = stored.fromStoredArticle('a10', { name: 'Roggenbrot', number: '0042', ean: '9001234567896', internalCode: 'B-01', stockTracked: true });
+  assert.deepEqual([m.number, m.ean, m.internalCode, m.stockTracked], ['0042', '9001234567896', 'B-01', true]);
+  const leer = stored.fromStoredArticle('a11', { name: 'Semmel' });
+  assert.deepEqual([leer.number, leer.ean, leer.internalCode, leer.stockTracked], [null, null, null, null]);
+});
+
 test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit 1.0.0-rc.5', () => {
   // Jeder Storno-Grund, ob innen gespeichert oder schon englisch: dasselbe Modell.
   const doc = belegDokument('KECK-1-ID-7');

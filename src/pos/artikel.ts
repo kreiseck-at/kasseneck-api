@@ -108,6 +108,22 @@ export interface PosArticle {
    * (`fromPosArticlePayload`) setzt das Feld immer (`null` oder Liste).
    */
   stockLocationIds?: string[] | null;
+  /**
+   * Artikelnummer des Betriebs; null = keine. Diese und die drei folgenden
+   * Felder (Scanner-Suche, Lager) sind optional wie `stockLocationIds`, der
+   * Leser setzt sie immer. Texte kommen unveraendert durch (fuehrende Nullen,
+   * Schreibweise); nur ein leerer Text (auch reiner Leerraum) wird `null`.
+   */
+  number?: string | null;
+  /** EAN/GTIN, wie gespeichert; null = keine. */
+  ean?: string | null;
+  /** Interner Code des Betriebs (eigener Barcode/QR); null = keiner. */
+  internalCode?: string | null;
+  /**
+   * Bestandsgefuehrt (Lager-Modul). `null`, wenn die Antwort keine Angabe
+   * traegt (aeltere Backends) -- dann nicht aus anderen Feldern ableiten.
+   */
+  stockTracked?: boolean | null;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -122,6 +138,12 @@ export interface PosArticlePayload {
   tile?: { visible?: boolean | null; sort?: number | null } | null; active?: boolean | null;
   quantityRule?: string | null; askQuantity?: boolean | null; maxQuantity?: number | null;
   stockLocationIds?: string[] | null;
+  number?: string | null; ean?: string | null; internalCode?: string | null; stockTracked?: boolean | null;
+}
+
+/** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
+function textOderNull(wert: unknown): string | null {
+  return typeof wert === 'string' && wert.trim() !== '' ? wert : null;
 }
 
 export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
@@ -142,6 +164,10 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     stockLocationIds: Array.isArray(p.stockLocationIds)
       ? p.stockLocationIds.filter((s): s is string => typeof s === 'string' && s !== '')
       : null,
+    number: textOderNull(p.number),
+    ean: textOderNull(p.ean),
+    internalCode: textOderNull(p.internalCode),
+    stockTracked: typeof p.stockTracked === 'boolean' ? p.stockTracked : null,
   };
 }
 

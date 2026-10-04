@@ -22,6 +22,7 @@
  */
 
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
+import type { ReturnDisposition } from '../models/cancellation.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
 export type Surface = 'web' | 'app';
@@ -183,6 +184,10 @@ const MELDUNGEN_ROH = {
   // nicht jede Karte abgehakt ist: einmal nachfragen -- eine vergessene
   // Gutschrift faellt sonst erst dem Gast auf.
   'cancellation.cards_not_checked': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede am Terminal gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
+  // Das Backend weist Grund, Notiz oder Positionen des Stornos zurueck
+  // (`unknown_reason`, `note_too_long`, `invalid_items`): am Server geschah
+  // nichts, der Kassier beginnt das Storno von vorn.
+  'cancellation.input_rejected': { text: 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -648,10 +653,36 @@ const BESCHRIFTUNGEN_ROH = {
   'codetable.preview_title': { text: 'So steht es dann am Bon:' },
   'codetable.apply': { text: 'Übernehmen' },
   'codetable.other_row': { text: 'Andere Zeile' },
+
+  // --- Lager an der Kasse ----------------------------------------------------
+  // Standort-Auswahl, Bestandsanzeige und die Rueckgabe-Wahl beim Storno
+  // (`RETURN_DISPOSITION_LABELS`). „aufgelöst“ steht an einem Standort mit
+  // `active: false`, „verfügbar“ an der Menge `available`.
+  'stock.all_articles': { text: 'Alle Artikel' },
+  'stock.location': { text: 'Lager-Standort' },
+  'stock.default_location': { text: 'Standard-Standort' },
+  'stock.resolved': { text: 'aufgelöst' },
+  'stock.where_to': { text: 'Wohin mit der Ware?' },
+  'stock.available': { text: 'verfügbar' },
+  'stock.return_restock': { text: 'Zurück ins Lager' },
+  'stock.return_defective': { text: 'Defekt' },
+  'stock.return_disposed': { text: 'Entsorgt' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
 export const LABELS: Record<LabelKey, TextEntry> = BESCHRIFTUNGEN_ROH;
+
+/**
+ * Rueckgabe beim Storno (`returnDisposition`): welche Beschriftung jede Wahl
+ * traegt. Ein Objekt wie CANCELLATION_PAYMENT_ERROR_MESSAGES, keine Liste in
+ * GROSSSCHRIFT (der Oberflaechen-Vertrag liest Listen als Enums ein); die
+ * App liest die Zuordnung aus `fixtures/pos-texts.json`.
+ */
+export const RETURN_DISPOSITION_LABELS = {
+  restock: 'stock.return_restock',
+  defective: 'stock.return_defective',
+  disposed: 'stock.return_disposed',
+} as const satisfies Record<ReturnDisposition, LabelKey>;
 
 /** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `messageText`. */
 export function labelText(key: LabelKey, values: Record<string, string | number> = {}): string {

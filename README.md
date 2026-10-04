@@ -823,7 +823,9 @@ sending a German value.
 
 The rest of `…/pos`: `listMyArticles` and `listMyArticleGroups` for the tiles
 (`visible`, `quantityRule: 'piece' | 'decimal'`, `askQuantity`,
-`maxQuantity`), `listMyPrinters`, `createPrintJob` and `getPrintJob` for
+`maxQuantity`; for scanner search `number`, `ean` and `internalCode`, passed
+through unchanged and `null` when empty; `stockTracked`, `null` when the
+response says nothing), `listMyPrinters`, `createPrintJob` and `getPrintJob` for
 network printers (poll until `isPrintJobFinished(job)`; an unknown state is
 `'unknown'` and ends the polling), `listMyTipRecipients`, `setMyPosLogo`, and
 the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
@@ -855,7 +857,10 @@ names none), registers `stockLocationId` (absent for the default location;
 only the result of `setMyCashregisterStockLocation` uses `null` for it), and
 `listRegisterUsersForDevice` returns `cashregister.stockLocationId`;
 errors such as `location_not_found` and `location_inactive` are in
-`POS_ERROR_CODES`.
+`POS_ERROR_CODES`. The register's stock words are in the catalogue as
+`stock.*` labels (`labelText('stock.where_to')`), and
+`RETURN_DISPOSITION_LABELS` gives the label of each return choice
+(`labelText(RETURN_DISPOSITION_LABELS.restock)` is "Zurück ins Lager").
 
 `stockViewOf(perms)` (also exported from the package root) tells whether a
 register user may see locations and quantities: a missing `stockView` counts

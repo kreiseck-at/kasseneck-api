@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo } from '../src/pos/texte.js';
-import type { MessageKey } from '../src/pos/texte.js';
-import { CANCELLATION_ERROR_CODES } from '../src/models/cancellation.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo, RETURN_DISPOSITION_LABELS } from '../src/pos/texte.js';
+import type { MessageKey, LabelKey } from '../src/pos/texte.js';
+import { CANCELLATION_ERROR_CODES, RETURN_DISPOSITIONS } from '../src/models/cancellation.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CLIENT_ERROR_CODES, KasseneckApiError } from '../src/client/errors.js';
@@ -574,4 +574,51 @@ test('neue Beschriftungen: Geraet ohne Namen, Restzeit der PIN-Sperre, letzte Ru
   assert.equal(labelText('split.remaining_with_rounding', { amount: '19,99 €', cents: '−1' }), 'Rest inkl. Rundung 19,99 € (−1 ct)');
   assert.throws(() => labelText('login.locked_seconds'), /\{seconds\}/);
   assert.throws(() => labelText('split.remaining_with_rounding', { amount: '1,00 €' }), /\{cents\}/);
+});
+
+// --- Lager an der Kasse (1.3.0) ----------------------------------------------
+// Bisher stand das lokal in der Web-Kasse; Web- und Flutter-Kasse sagen
+// dasselbe Wort, darum im gemeinsamen Katalog.
+test('Lager: Beschriftungen exakt, ohne Geviertstrich', () => {
+  const soll: Record<string, string> = {
+    'stock.all_articles': 'Alle Artikel',
+    'stock.location': 'Lager-Standort',
+    'stock.default_location': 'Standard-Standort',
+    'stock.resolved': 'aufgelöst',
+    'stock.where_to': 'Wohin mit der Ware?',
+    'stock.available': 'verfügbar',
+    'stock.return_restock': 'Zurück ins Lager',
+    'stock.return_defective': 'Defekt',
+    'stock.return_disposed': 'Entsorgt',
+  };
+  for (const [schluessel, text] of Object.entries(soll)) {
+    assert.ok(schluessel in LABELS, schluessel);
+    assert.equal(labelText(schluessel as LabelKey), text, schluessel);
+    assert.equal(LABELS[schluessel as LabelKey].placeholders, undefined, schluessel);
+    assert.equal(LABELS[schluessel as LabelKey].only, undefined, `${schluessel}: gilt auf beiden Seiten`);
+    assert.ok(!text.includes('\u2014'), schluessel);
+  }
+  // Genau diese: wer ein stock.*-Wort ergaenzt, ergaenzt es auch hier.
+  assert.deepEqual(Object.keys(LABELS).filter((s) => s.startsWith('stock.')).sort(), Object.keys(soll).sort());
+});
+
+test('Lager: jede Rueckgabe-Wahl hat ihre Beschriftung', () => {
+  assert.deepEqual(Object.keys(RETURN_DISPOSITION_LABELS), [...RETURN_DISPOSITIONS]);
+  assert.deepEqual(RETURN_DISPOSITION_LABELS, {
+    restock: 'stock.return_restock',
+    defective: 'stock.return_defective',
+    disposed: 'stock.return_disposed',
+  });
+  for (const schluessel of Object.values(RETURN_DISPOSITION_LABELS)) assert.ok(schluessel in LABELS, schluessel);
+  assert.equal(labelText(RETURN_DISPOSITION_LABELS.restock), 'Zurück ins Lager');
+});
+
+test('Storno: abgelehnte Eingabe – Wortlaut exakt, Halbgeviertstrich mit Leerraum', () => {
+  const eintrag = MESSAGES['cancellation.input_rejected'];
+  assert.equal(eintrag.text, 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.');
+  assert.equal(messageText('cancellation.input_rejected'), eintrag.text);
+  assert.ok(eintrag.text.includes(' \u2013 '));
+  assert.ok(!eintrag.text.includes('\u2014'));
+  assert.equal(eintrag.placeholders, undefined);
+  assert.equal(eintrag.only, undefined);
 });

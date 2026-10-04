@@ -4,6 +4,37 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.3.0
+
+Article codes on `PosArticle` and the stock words of the register in the
+shared catalogue. Reason: the backend already sends `number`, `ean`,
+`internalCode` and `stockTracked` per article in `listMyArticles` under
+`/api/v3`, but the package dropped them, so the browser register could not
+search by scanned code nor tell a stock-tracked article without guessing. The
+stock labels lived locally in the browser register; the browser register and
+the register app have to use the same words.
+
+Additive, no breaking change; requests send the same bytes as in 1.2.2.
+
+- **`PosArticle`** gains `number`, `ean`, `internalCode` (`string | null`) and
+  `stockTracked` (`boolean | null`). Optional on the type like
+  `stockLocationIds`, so existing object literals keep compiling; the reader
+  `fromPosArticlePayload` always sets them. Texts pass through unchanged
+  (leading zeros, case, spaces); an empty or whitespace-only text and a
+  value of the wrong type become `null`. `stockTracked: null` means the
+  response carries no statement (older backends), not `false`. `./stored`
+  (`fromStoredArticle`) returns the same fields.
+- **Labels** (`LABELS`, `labelText`): `stock.all_articles`, `stock.location`,
+  `stock.default_location`, `stock.resolved`, `stock.where_to`,
+  `stock.available`, `stock.return_restock`, `stock.return_defective`,
+  `stock.return_disposed`. New `RETURN_DISPOSITION_LABELS` (`./pos`) maps each
+  `ReturnDisposition` to its label key.
+- **Message** (`MESSAGES`, `messageText`): `cancellation.input_rejected`, for
+  a cancellation whose reason, note or lines the server rejected.
+- **`fixtures/pos-texts.json`**: the new keys and a new top-level key
+  `returnDispositionLabels` after `labels`. `surface.json` and the other
+  contract files change only in their version.
+
 ## 1.2.2
 
 The receipt fixtures, goldens and tests carried the serial number of a real

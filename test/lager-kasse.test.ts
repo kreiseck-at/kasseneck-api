@@ -203,6 +203,49 @@ test('PosArticle: ein Literal ohne stockLocationIds ist gueltig (Feld optional),
   assert.equal(literal.stockLocationIds, undefined);
   assert.equal(fromPosArticlePayload({ id: 'a1' }).stockLocationIds, null);
   assert.deepEqual(fromPosArticlePayload({ id: 'a1', stockLocationIds: ['store-1'] }).stockLocationIds, ['store-1']);
+  // Seit 1.3.0 ebenso optional: Artikelnummer, EAN, interner Code, bestandsgefuehrt.
+  for (const feld of ['number', 'ean', 'internalCode', 'stockTracked'] as const) {
+    assert.equal(literal[feld], undefined, feld);
+    assert.equal(fromPosArticlePayload({ id: 'a1' })[feld], null, feld);
+  }
+});
+
+// --- Artikelfelder fuer Scanner und Lager (1.3.0) ------------------------------
+// EAN erfunden, Pruefziffer richtig (9001234567896).
+
+test('Artikel: number, ean, internalCode und stockTracked werden gelesen, Codes unveraendert', () => {
+  const a = fromPosArticlePayload({ id: 'rye-bread', number: '0042', ean: '9001234567896', internalCode: 'QR:Brot-01', stockTracked: true });
+  assert.equal(a.number, '0042');
+  assert.equal(a.ean, '9001234567896');
+  assert.equal(a.internalCode, 'QR:Brot-01');
+  assert.equal(a.stockTracked, true);
+  assert.equal(fromPosArticlePayload({ id: 'rye-bread', stockTracked: false }).stockTracked, false);
+  // Inhalt bleibt, wie er kommt: keine fuehrenden Nullen weg, kein Trimmen, keine Grossschreibung.
+  assert.equal(fromPosArticlePayload({ id: 'x', internalCode: ' ab-7 ' }).internalCode, ' ab-7 ');
+});
+
+test('Artikel: fehlende Artikelfelder ergeben null (aeltere Backends), nie undefined', () => {
+  const a = fromPosArticlePayload({ id: 'rye-bread' });
+  assert.equal(a.number, null);
+  assert.equal(a.ean, null);
+  assert.equal(a.internalCode, null);
+  assert.equal(a.stockTracked, null);
+  const b = fromPosArticlePayload({ id: 'rye-bread', number: null, ean: null, internalCode: null, stockTracked: null });
+  assert.deepEqual([b.number, b.ean, b.internalCode, b.stockTracked], [null, null, null, null]);
+});
+
+test('Artikel: Artikelfelder mit falschem Typ ergeben null', () => {
+  const a = fromPosArticlePayload({ id: 'x', number: 42, ean: 9001234567896, internalCode: { code: 'x' }, stockTracked: 'true' } as never);
+  assert.deepEqual([a.number, a.ean, a.internalCode, a.stockTracked], [null, null, null, null]);
+  const b = fromPosArticlePayload({ id: 'x', number: ['1'], ean: true, internalCode: 7, stockTracked: 1 } as never);
+  assert.deepEqual([b.number, b.ean, b.internalCode, b.stockTracked], [null, null, null, null]);
+});
+
+test('Artikel: leerer Text oder nur Leerraum ergibt null', () => {
+  for (const leer of ['', '  ', '\t']) {
+    const a = fromPosArticlePayload({ id: 'x', number: leer, ean: leer, internalCode: leer });
+    assert.deepEqual([a.number, a.ean, a.internalCode], [null, null, null], JSON.stringify(leer));
+  }
 });
 
 test('listMyStock: values ohne Liste meldet "keine Liste", nicht "fehlt"', async () => {
