@@ -4,6 +4,17 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.2.1
+
+En dash instead of em dash in the visible texts of the invoice catalog
+(`src/invoice/texte.ts`, both languages): `pdf.direct_debit.warning` ("Bitte für Deckung sorgen – die
+Kosten einer Rücklastschrift werden weiterverrechnet."), `pdf.footer.note`, `tax.reverse_charge.text`,
+`einvoice.exemption.small_business` and `einvoice.exemption.outside_scope`. Reason: German typography
+uses the spaced en dash as the dash; the em dash appeared only here. Keys, placeholders and every other
+character stay the same; whoever compares the texts byte by byte (PDF/e-invoice goldens) updates the
+five sentences. Same change as 0.32.1 on the legacy line; the frozen 0.x catalog in
+`test/fixtures/vor-1.0/` follows it so the rename check stays character-exact.
+
 ## 1.2.0
 
 Stock at the register, returns on cancellation, stock fields in the invoice
