@@ -187,7 +187,7 @@ const MELDUNGEN_ROH = {
   // Das Backend weist Grund, Notiz oder Positionen des Stornos zurueck
   // (`unknown_reason`, `note_too_long`, `invalid_items`): am Server geschah
   // nichts, der Kassier beginnt das Storno von vorn.
-  'cancellation.input_rejected': { text: 'Die Eingabe wurde abgelehnt – bitte den Storno neu beginnen.' },
+  'cancellation.input_rejected': { text: 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon

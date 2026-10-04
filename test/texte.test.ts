@@ -615,7 +615,7 @@ test('Lager: jede Rueckgabe-Wahl hat ihre Beschriftung', () => {
 
 test('Storno: abgelehnte Eingabe – Wortlaut exakt, Halbgeviertstrich mit Leerraum', () => {
   const eintrag = MESSAGES['cancellation.input_rejected'];
-  assert.equal(eintrag.text, 'Die Eingabe wurde abgelehnt – bitte den Storno neu beginnen.');
+  assert.equal(eintrag.text, 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.');
   assert.equal(messageText('cancellation.input_rejected'), eintrag.text);
   assert.ok(eintrag.text.includes(' \u2013 '));
   assert.ok(!eintrag.text.includes('\u2014'));
