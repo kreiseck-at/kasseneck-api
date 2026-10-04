@@ -9,7 +9,8 @@ import {
   POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_ERROR_CODES,
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo,
   listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients,
-  isPosError, posFieldErrors, mergePosSettings,
+  listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
+  isPosError, posFieldErrors, mergePosSettings, stockViewOf,
   type PosBusinessSettings, type PosDeviceSettings,
 } from '../src/pos/index.js';
 import {
@@ -27,7 +28,7 @@ import { partnerZugangsCodes, randUndAnmeldung } from './kassenweg-codes.js';
 /*
  * Kasse und Anmeldung am Kassenweg `/api/v3` gegen den Vertrags-Export des
  * Backends (fixtures/v3/antworten/kasse.json, v3-vokabular.json). Jeder Fall
- * der 18 Kassen-Endpunkte ausser der Belegwelt (die pruefen receipts-v3):
+ * aller Kassen-Endpunkte ausser der Belegwelt (die pruefen receipts-v3):
  * was das Paket sendet, sind die Parameter des Falls; was es liest, traegt die
  * englischen Namen; jeder Fehler wird am `code` erkannt, nie am Text.
  */
@@ -340,6 +341,41 @@ test('listMyTipRecipients: Empfaenger wie im Fall', async () => {
   }
 });
 
+// --- Lager an der Kasse --------------------------------------------------------
+
+test('listMyStockLocations: Standorte wie im Fall, virtual nur am Hauptstandort', async () => {
+  for (const f of erfolge('listMyStockLocations')) {
+    const orte = await listMyStockLocations(kassenweg(f).rufen);
+    assert.deepEqual(orte, f.response.data.locations.map((l: Json) => ({ ...l, virtual: l.virtual === true })), f.case);
+  }
+  assert.deepEqual([...STOCK_LOCATION_TYPES], Object.values(VOKABULAR.catalogs.STANDORT_TYP));
+});
+
+test('listMyStock: Bestand wie im Fall, values nur mit Recht stockCosts, Filter wie gesendet', async () => {
+  for (const f of erfolge('listMyStock')) {
+    const { rufen, aufrufe } = kassenweg(f);
+    const liste = await listMyStock(rufen, f.params as { locationId?: string });
+    assert.deepEqual(gesendet(aufrufe, 'listMyStock', f), f.params, f.case);
+    assert.deepEqual(liste.stock, f.response.data.stock, f.case);
+    assert.deepEqual(liste.values, f.response.data.values ?? null, f.case);
+  }
+});
+
+test('setMyCashregisterStockLocation: sendet wie der Fall, leerer Standort heisst zurueckgesetzt', async () => {
+  for (const f of erfolge('setMyCashregisterStockLocation')) {
+    const { rufen, aufrufe } = kassenweg(f);
+    const ziel = f.params.stockLocationId === '' ? null : (f.params.stockLocationId as string);
+    const stand = await setMyCashregisterStockLocation(rufen, { cashregisterId: f.params.cashregisterId as string, stockLocationId: ziel });
+    assert.deepEqual(gesendet(aufrufe, 'setMyCashregisterStockLocation', f), f.params, f.case);
+    assert.deepEqual(stand, f.response.data, f.case);
+  }
+  // Ohne cashregisterId gilt die Kasse der Anmeldung (registerUserAuth: KASSE1).
+  const f = fall('setMyCashregisterStockLocation', 'success_manager');
+  const { rufen, aufrufe } = kassenweg(f);
+  await setMyCashregisterStockLocation(rufen, { stockLocationId: 'auto1' });
+  assert.deepEqual(aufrufe[0]!.params, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' });
+});
+
 // --- Anmeldung ------------------------------------------------------------------
 
 test('pairRegisterDevice: sendet wie der Fall, liest companyName, cashregisterLabel, testEnvironment', async () => {
@@ -371,6 +407,44 @@ test('listRegisterUsersForDevice: englische Antwort, Einstellungen, Belegkopf, K
   // Die Kataloge der Anmeldung: PIN-Zeichen und Anmeldemodus.
   assert.deepEqual(Object.values(VOKABULAR.catalogs.ANMELDEMODUS), ['select_user', 'pin']);
   assert.deepEqual(Object.values(VOKABULAR.catalogs.PIN_ZEICHEN), ['digits', 'alphanumeric']);
+});
+
+test('listRegisterUsersForDevice: der Standort der gebundenen Kasse reist mit, fehlt er, fehlt das Feld', async () => {
+  const basis = erfolge('listRegisterUsersForDevice')[0]!;
+  const d = basis.response.data;
+  const mit = { ...basis, response: { ...basis.response, data: { ...d, cashregister: { ...d.cashregister, stockLocationId: 'auto1' } } } };
+  const stand = await listRegisterUsersForDevice({ ...(mit.params as typeof GERAET), fetch: holenFuer(mit).holen });
+  assert.equal(stand.cashregister?.stockLocationId, 'auto1');
+  const ohne = await listRegisterUsersForDevice({ ...(basis.params as typeof GERAET), fetch: holenFuer(basis).holen });
+  assert.equal(ohne.cashregister !== undefined && 'stockLocationId' in ohne.cashregister, false);
+});
+
+test('listRegisterUsersForDevice: leerer oder kein Text als Standort der Kasse ergibt kein Feld', async () => {
+  const basis = erfolge('listRegisterUsersForDevice')[0]!;
+  const d = basis.response.data;
+  for (const wert of ['', 7, null, ['auto1'], {}]) {
+    const f = { ...basis, response: { ...basis.response, data: { ...d, cashregister: { ...d.cashregister, stockLocationId: wert } } } };
+    const stand = await listRegisterUsersForDevice({ ...(f.params as typeof GERAET), fetch: holenFuer(f).holen });
+    assert.equal(stand.cashregister?.ready, d.cashregister.ready, JSON.stringify(wert));
+    assert.equal('stockLocationId' in stand.cashregister!, false, JSON.stringify(wert));
+  }
+});
+
+test('Anmeldung: fehlendes stockView gilt als erteilt, ausdrueckliches false sperrt (echter Leseweg)', async () => {
+  const basis = erfolge('registerUserLogin')[0]!;
+  const user = basis.response.data.user;
+  const anmelden = async (perms: Json) => {
+    const f = { ...basis, response: { ...basis.response, data: { ...basis.response.data, user: { ...user, perms } } } };
+    return registerUserLogin({ ...(f.params as Json), fetch: holenFuer(f).holen } as Parameters<typeof registerUserLogin>[0]);
+  };
+  const { stockView: _weg, ...ohne } = { ...user.perms, stockView: true } as Json;
+  const fehlt = await anmelden(ohne);
+  assert.equal('stockView' in fehlt.user.perms, false);
+  assert.equal(stockViewOf(fehlt.user.perms), true);
+  assert.equal(stockViewOf((await anmelden({ ...ohne, stockView: false })).user.perms), false);
+  assert.equal(stockViewOf((await anmelden({ ...ohne, stockView: true })).user.perms), true);
+  // Die uebrigen Lager-Rechte gelten ohne Schluessel als verweigert.
+  assert.equal(fehlt.user.perms['stockMove'], undefined);
 });
 
 test('listRegisterSessionsForDevice: own statt selbst, deviceLabel null statt „Kasse"', async () => {
@@ -469,6 +543,9 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
     createPrintJob: (r) => createPrintJob(r, { printerId: 'dr_theke', layout }),
     getPrintJob: (r) => getPrintJob(r, { printerId: 'dr_theke', jobId: 'job1' }),
     listMyTipRecipients: (r) => listMyTipRecipients(r),
+    listMyStockLocations: (r) => listMyStockLocations(r),
+    listMyStock: (r) => listMyStock(r),
+    setMyCashregisterStockLocation: (r) => setMyCashregisterStockLocation(r, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' }),
   };
   for (const [endpunkt, aufruf] of Object.entries(aufrufe)) {
     for (const f of fehler(endpunkt)) {
@@ -496,6 +573,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
   assert.deepEqual([...POS_ERROR_CODES], ableiten([
     'listMyArticleGroups', 'listMyArticles', 'getKasseSettings', 'setMyKasseSettings', 'setMyKasseLogo',
     'setMyRegisterDeviceSettings', 'listMyPrinters', 'createPrintJob', 'getPrintJob', 'listMyTipRecipients',
+    'listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation',
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);

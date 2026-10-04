@@ -58,6 +58,8 @@ export const ALL_CALLS = [
   'listMyCashregisters',
   'listMyPrinters',
   'listMyReceipts',
+  'listMyStock',
+  'listMyStockLocations',
   'listMyTipRecipients',
   'listPartnerCustomers',
   'listPartnerWebhookDeliveries',
@@ -75,6 +77,7 @@ export const ALL_CALLS = [
   'sendPartnerCustomerFonLink',
   'sendPartnerWebhookTest',
   'sendReceiptEmail',
+  'setMyCashregisterStockLocation',
   'setMyKasseLogo',
   'setMyKasseSettings',
   'setMyRegisterDeviceSettings',
@@ -131,6 +134,8 @@ export const PUBLIC_CALLS = [
   'listCustomerCashregisters',
   'getCustomerCredentials',
   'reportCustomerContract',
+  'getPartnerBilling',
+  'getPartnerBillingMonth',
   'createCustomer',
   'getCustomer',
   'updateCustomer',
@@ -145,6 +150,16 @@ export const PUBLIC_CALLS = [
   'getInvoiceSetupStatus',
   'listBrands',
   'recordInvoicePayment',
+  // Rechnungskorb und SEPA-Mandate (Backend keck#557): nur die Namen, damit
+  // die Liste dem Vertrag folgt; umhuellt sind sie in diesem Paket noch nicht
+  // (der offene Transport nimmt jeden Namen).
+  'createInvoiceItem',
+  'updateInvoiceItem',
+  'withdrawInvoiceItem',
+  'getInvoiceItem',
+  'listInvoiceItems',
+  'setCustomerMandate',
+  'revokeCustomerMandate',
 ] as const;
 
 /**
@@ -179,6 +194,10 @@ export const POS_CALLS = [
   'createPrintJob',
   'getPrintJob',
   'listMyTipRecipients',
+  // Lager an der Kasse (Lager-Kern Stufe 2): nur ueber den Kassenweg.
+  'listMyStockLocations',
+  'listMyStock',
+  'setMyCashregisterStockLocation',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -188,13 +207,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 25 Aufrufe des Kassenwegs. */
+/** Einer der 28 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (19 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (22 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */

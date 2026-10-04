@@ -29,6 +29,7 @@ import {
   CANCELLATION_ERROR_CODES,
   CANCELLATION_REASONS,
   CANCELLATION_STATUSES,
+  RETURN_DISPOSITIONS,
   PAYMENT_ERROR_CODES,
   RECEIPT_EMAIL_ERROR_CODES,
   RECEIPT_EMAIL_SEND_ERROR_CODES,
@@ -591,6 +592,7 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   assert.ok(CANCELLATION_ERROR_CODES.includes('cancellation_outcome_unknown'));
   assert.deepEqual(Object.keys(CANCELLATION_REASONS), Object.values(VOKABULAR.catalogs.STORNO_GRUND));
   assert.deepEqual([...CANCELLATION_STATUSES], Object.values(VOKABULAR.catalogs.STORNO_STAND));
+  assert.deepEqual([...RETURN_DISPOSITIONS], Object.values(VOKABULAR.catalogs.RUECKGABE));
   assert.deepEqual([...RECEIPT_EMAIL_VIAS], Object.values(VOKABULAR.catalogs.MAILWEG));
   // Jeder Code ist ein /v3-Code (klein, kein alter deutscher oder grosser)
   // oder einer, den das Paket selbst vergibt.

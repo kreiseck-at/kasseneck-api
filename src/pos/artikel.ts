@@ -100,6 +100,14 @@ export interface PosArticle {
   askQuantity: boolean | null;
   /** Hoechstmenge je Beleg (bei kg/l/m auch Kommazahl); null = keine Grenze. */
   maxQuantity: number | null;
+  /**
+   * Standorte, an denen der Artikel gefuehrt wird (Lager-Kern Stufe 2, innen
+   * `standorte`); `null`, wenn der Artikel keine Angabe traegt. Wie die Kasse
+   * daraus Kacheln filtert, entscheidet die Oberflaeche. Optional, damit
+   * bestehende Literale von Verbrauchern weiter uebersetzen; der Leser
+   * (`fromPosArticlePayload`) setzt das Feld immer (`null` oder Liste).
+   */
+  stockLocationIds?: string[] | null;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -113,6 +121,7 @@ export interface PosArticlePayload {
   groupId?: string | null; revenueGroupId?: string | null;
   tile?: { visible?: boolean | null; sort?: number | null } | null; active?: boolean | null;
   quantityRule?: string | null; askQuantity?: boolean | null; maxQuantity?: number | null;
+  stockLocationIds?: string[] | null;
 }
 
 export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
@@ -130,15 +139,25 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     quantityRule: p.quantityRule === 'piece' || p.quantityRule === 'decimal' ? p.quantityRule : null,
     askQuantity: typeof p.askQuantity === 'boolean' ? p.askQuantity : null,
     maxQuantity: typeof p.maxQuantity === 'number' && Number.isFinite(p.maxQuantity) && p.maxQuantity > 0 ? p.maxQuantity : null,
+    stockLocationIds: Array.isArray(p.stockLocationIds)
+      ? p.stockLocationIds.filter((s): s is string => typeof s === 'string' && s !== '')
+      : null,
   };
 }
 
-function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown) => T): T[] {
+/**
+ * Die Liste `data.<feld>` einer Antwort, jedes Element durch `lesen` (mit
+ * seinem Index fuer Fehlermeldungen). Paketintern: auch `lager.ts` liest so.
+ */
+export function liste<T>(daten: unknown, feld: string, name: string, lesen: (e: unknown, index: number) => T): T[] {
   const roh = (daten as Record<string, unknown> | null | undefined)?.[feld];
   if (!Array.isArray(roh)) {
-    throw new KasseneckValidationError(name, `Antwort enthaelt keine Liste (data.${feld} fehlt)`, 'response');
+    const grund = roh === undefined || roh === null
+      ? `Antwort enthaelt keine Liste (data.${feld} fehlt)`
+      : `Antwort ist unbrauchbar (data.${feld} ist keine Liste)`;
+    throw new KasseneckValidationError(name, grund, 'response');
   }
-  return roh.map((e) => lesen(typeof e === 'object' && e !== null ? e : {}));
+  return roh.map((e, i) => lesen(typeof e === 'object' && e !== null ? e : {}, i));
 }
 
 export async function listMyArticleGroups(transport: InternerTransport): Promise<ArticleGroup[]> {

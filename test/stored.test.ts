@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import * as stored from '../src/stored/index.js';
-import { _storedArticleToWire, _storedReceiptToWire } from '../src/stored/draht.js';
+import { _RUECKGABE_NACH_AUSSEN, _storedArticleToWire, _storedReceiptToWire } from '../src/stored/draht.js';
 import { _storedPosSettingsToWire } from '../src/stored/einstellungen.js';
 import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, VOKABULAR_QUELLE } from '../src/stored/vokabular.js';
 import type { InternerTransport } from '../src/client/aufrufe.js';
@@ -225,6 +225,33 @@ test('stored: Storno-Marke faellt weg, Grund englisch, unbekannter Grund bleibt 
   assert.equal(doc.stornoMarke, 'mui3ncw0-1111111111');
 });
 
+test('stored: Storno-Zeile mit innerer Rueckgabe und Lager-Standort ergibt den englischen Draht', () => {
+  const docs = Object.values(lies('stored/belege.json').documents) as Json[];
+  const storno = docs.find((d) => d.cancellationOf);
+  const original = docs.find((d) => !d.cancellationOf && d.receiptType === 'standard');
+  assert.ok(storno && original, 'Storno- und Normalbeleg im Vertrag');
+  const doc = {
+    ...storno, lagerStandortId: 'van-1',
+    items: storno.items.map((it: Json, i: number) => (i === 0 ? { ...it, articleId: 'rye-bread', originalIndex: 0, rueckgabe: 'defekt' } : it)),
+  };
+  const draht = _storedReceiptToWire(doc);
+  assert.equal('lagerStandortId' in draht, false);
+  const zeile = (draht.items as Json[])[0];
+  assert.equal(zeile.returnDisposition, 'defective');
+  assert.equal('rueckgabe' in zeile, false);
+  assert.equal(stored.fromStoredReceipt(doc).items[0]!.returnDisposition, 'defective');
+  // Ein unbekannter innerer Wert faellt weg wie am Rand des Servers (warneWeggelassen).
+  const fremd = _storedReceiptToWire({ ...doc, items: [{ ...doc.items[0], rueckgabe: 'verloren' }, ...doc.items.slice(1)] });
+  assert.equal('returnDisposition' in (fremd.items as Json[])[0], false);
+  assert.equal('rueckgabe' in (fremd.items as Json[])[0], false);
+  // Am Original: cancellations[].items[].rueckgabe.
+  const mitEintrag = { ...original, cancellations: [{ receiptId: 'KECK-1-ID-9', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] };
+  assert.equal(((_storedReceiptToWire(mitEintrag).cancellations as Json[])[0].items as Json[])[0].returnDisposition, 'disposed');
+  assert.deepEqual(stored.fromStoredReceipt(mitEintrag).cancellations![0]!.items, [{ index: 0, quantity: 1, returnDisposition: 'disposed' }]);
+  // Der Katalog ist der des Vertrags.
+  assert.deepEqual(_RUECKGABE_NACH_AUSSEN, VOKABULAR.catalogs.RUECKGABE);
+});
+
 test('stored: Registrierdaten der Huelle wie beleg-pruefangaben.alsIso, im Beleg woertlich', () => {
   const kopf = KASSE_GESPEICHERT.endpoints.createReceipt.cases.start_receipt['users/kw_betrieb1/beleg_kopf/auto1'];
   const doc = { ...belegDokument('KECK-1-ID-6'), kopfId: 'auto1' };
@@ -442,6 +469,13 @@ test('stored: Artikel verlieren unbekannte Felder und unbekannte Katalogwerte wi
   assert.equal(m.quantityRule, 'decimal');
   assert.equal(m.visible, false);
   assert.equal(m.sort, 0);
+});
+
+test('stored: Artikel-Standorte heissen aussen stockLocationIds, interne Lagerfelder fallen weg', () => {
+  const draht = _storedArticleToWire('a9', { name: 'Roggenbrot', standorte: ['x'], bestandsart: 'menge', einkauf: { standardMicros: 1 }, mindestJeStandort: { x: 5 } });
+  assert.deepEqual(draht.stockLocationIds, ['x']);
+  for (const innen of ['standorte', 'bestandsart', 'einkauf', 'mindestJeStandort']) assert.equal(innen in draht, false, innen);
+  assert.deepEqual(stored.fromStoredArticle('a9', { name: 'Roggenbrot', standorte: ['x'], bestandsart: 'menge' }).stockLocationIds, ['x']);
 });
 
 test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit 1.0.0-rc.5', () => {

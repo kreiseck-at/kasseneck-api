@@ -27,6 +27,7 @@ import { feldfehlerVon } from '../client/fehlercodes.js';
 export const REGISTER_ERROR_CODES = Object.freeze([
   'account_not_found',
   'admin_required',
+  'api_not_approved',
   'cashregister_in_use',
   'cashregister_not_assigned',
   'cashregister_not_found',

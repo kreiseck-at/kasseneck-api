@@ -17,6 +17,8 @@ import {
   CUSTOMER_FIELDS,
   INVOICE_UNIT_CODES,
   ITEM_FIELDS,
+  CREDIT_NOTE_ITEM_FIELDS,
+  RETURN_DISPOSITIONS,
   ITEM_PRICE_EXACTLY_ONE,
   INVOICE_REQUESTS,
   INVOICE_ENDPOINTS,
@@ -49,13 +51,25 @@ test('Vertrag: jeder Aufruf hat eine Anfragebeschreibung und keine darueber hina
   assert.deepEqual(Object.keys(INVOICE_REQUESTS).sort(), [...INVOICE_ENDPOINTS].sort());
 });
 
-test('Vertrag: Positionen von Rechnung und Gutschrift sind dieselbe Beschreibung', () => {
-  for (const aufruf of ['issueInvoice', 'createCreditNote'] as const) {
-    const items = INVOICE_REQUESTS[aufruf]['items'];
-    assert.ok(items && items.type === 'list', `${aufruf}.items fehlt`);
-    assert.equal(items.item.type, 'object');
-    assert.equal(items.item.type === 'object' ? items.item.fields : null, ITEM_FIELDS);
+test('Vertrag: Gutschrift-Positionen sind die Rechnungspositionen plus returnDisposition', () => {
+  const issue = INVOICE_REQUESTS.issueInvoice['items'];
+  const credit = INVOICE_REQUESTS.createCreditNote['items'];
+  assert.ok(issue && issue.type === 'list' && issue.item.type === 'object');
+  assert.ok(credit && credit.type === 'list' && credit.item.type === 'object');
+  assert.equal(issue.item.fields, ITEM_FIELDS);
+  assert.equal(credit.item.fields, CREDIT_NOTE_ITEM_FIELDS);
+  assert.deepEqual(CREDIT_NOTE_ITEM_FIELDS, { ...ITEM_FIELDS, returnDisposition: { type: 'enum', required: false, values: RETURN_DISPOSITIONS } });
+  assert.equal('returnDisposition' in ITEM_FIELDS, false, 'an der Rechnung weist der Server returnDisposition ab');
+});
+
+test('Vertrag: Lagerfelder wie im Backend (Kennung 1-128, Rueckgabe-Katalog), alle optional', () => {
+  const kennung = { type: 'string', required: false, min: 1, max: 128 };
+  assert.deepEqual(ITEM_FIELDS['articleId'], kennung);
+  assert.deepEqual(INVOICE_REQUESTS.issueInvoice['stockLocationId'], kennung);
+  for (const aufruf of ['cancelInvoice', 'createCreditNote'] as const) {
+    assert.deepEqual(INVOICE_REQUESTS[aufruf]['returnDisposition'], { type: 'enum', required: false, values: RETURN_DISPOSITIONS }, aufruf);
   }
+  assert.equal('stockLocationId' in INVOICE_REQUESTS.createCreditNote, false, 'die Gutschrift nimmt den Standort ihrer Rechnung');
 });
 
 test('Vertrag: kein Feldname ist deutsch', () => {

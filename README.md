@@ -631,6 +631,29 @@ in `receipt.cancellations[]` as `promoAdjustmentCents` (cents per VAT bucket
 of the backend). The register can show it in the dialog; it does not have to
 calculate anything.
 
+**Returns (stock module).** If the account runs the stock module, a
+cancellation books the goods of article lines back. `returnDisposition` says
+where they go: `restock` (back into stock, the server's default),
+`defective` (into stock as defective) or `disposed`. It is a default for the
+call and can differ per line:
+
+```ts
+await api.cancelReceipt({
+  receipt: original,
+  reason: 'customer_cancelled',
+  returnDisposition: 'restock',
+  items: [{ index: 0, quantity: 1, returnDisposition: 'defective' }, { index: 1, quantity: 2 }],
+});
+```
+
+Lines without `articleId` are never booked, whatever you send. A value outside
+`RETURN_DISPOSITIONS` (also `null` or an empty string) is rejected before
+sending with a `KasseneckValidationError` that names the path
+(`items[0].returnDisposition`); the server would answer
+`invalid_return_disposition`. The cancellation receipt carries `originalIndex`
+and `returnDisposition` on its article lines, the original carries
+`returnDisposition` in `cancellations[].items`.
+
 **Printed receipt.** The header of a cancellation receipt names the original,
 its date and the reason: "STORNOBELEG / Stornobuchung zu Beleg KASSE1-ID-42 /
 vom 11.08.2026, 09:02 Uhr / Grund: Fehleingabe". The date comes from
@@ -808,6 +831,42 @@ the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
 `split.add_payment`), and so are the placeholders:
 `messageText('checkout.locked', { reason })`. The rendered German texts are
 the same as in 0.x.
+
+**Stock at the register.** Three calls on the register path (`/api/v3` only),
+permissions checked by the server (`stockView`, `stockCosts`, `stockLocation`
+in `REGISTER_PERMS`):
+
+```ts
+import { listMyStockLocations, listMyStock, setMyCashregisterStockLocation } from '@kreiseck/kasseneck-api/pos';
+
+const locations = await listMyStockLocations(transport); // { id, name, type, address, licensePlate, active, virtual }
+const { stock, values } = await listMyStock(transport, { locationId: 'van-1' });
+await setMyCashregisterStockLocation(transport, { stockLocationId: 'van-1' }); // null resets to the default location
+```
+
+Quantities are integers in thousandths of the base unit (`1000` is one
+piece, `250` is 0.250 kg) and can be negative when more was sold than booked;
+the package never rounds, divides or clamps them. `values` (stock value in
+cents, average cost in micro-euros, `null` for a quantity of 0) is `null`
+without the permission `stockCosts`, never an empty list: show no value then,
+not "0,00 €". `address` is `null` when the location has no address part (a
+vehicle has none). Articles carry `stockLocationIds` (`null` when the article
+names none), registers `stockLocationId` (absent for the default location;
+only the result of `setMyCashregisterStockLocation` uses `null` for it), and
+`listRegisterUsersForDevice` returns `cashregister.stockLocationId`;
+errors such as `location_not_found` and `location_inactive` are in
+`POS_ERROR_CODES`.
+
+`stockViewOf(perms)` (also exported from the package root) tells whether a
+register user may see locations and quantities: a missing `stockView` counts
+as granted, only an explicit `false` blocks it, and the other stock
+permissions count as denied when missing.
+
+**Stock must never block a sale.** A response the package cannot read
+(a `KasseneckValidationError` with `scope: 'response'` from `listMyStock` or
+`listMyStockLocations`, for example a missing or fractional quantity) is never
+turned into a quantity of `0`. Treat it as "stock temporarily unavailable":
+hide the stock figures and keep selling.
 
 `ERROR_RULES` says which text a failed call shows, one rule per kind, the
 same in both registers. `ERROR_CODE_RULES` (per `error.code`) and
@@ -1169,6 +1228,17 @@ await invoices.createCreditNote({
 cent), in the invoice's `priceMode` (net or gross). `quantity` allows up to
 three decimals, `discountPct` up to two. `taxScheme` is optional: the server
 derives the tax case and checks a given value against it.
+
+**Stock.** A line may name its article (`articleId`); if the article is
+stock-tracked and the stock module is active, issuing the invoice books it
+out, from `stockLocationId` or the default location. The invoice never fails
+because of stock. `cancelInvoice` and `createCreditNote` take
+`returnDisposition` (`restock`, `defective`, `disposed`), credit-note lines
+also per line (`CreditNoteItemInput`); invoice lines reject it. Identifiers
+must not contain `/` and must not be `.`, `..` or `__…__` (`validation`).
+The package does not check invoice requests before sending; the server does,
+and the examples `issue-stock`, `credit-return-disposition` and
+`issue-error-stock-id` in `fixtures/invoice-api-examples/` show the shapes.
 
 **Check the setup before the first invoice.** The invoicing module must be
 active, the invoice API enabled for the account by Kasseneck, the account live,

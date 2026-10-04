@@ -186,8 +186,9 @@ export interface RegisterDeviceUsers {
    * nennt den Grund als Menschentext (ausser Betrieb, keine Signaturkarte,
    * Startbeleg fehlt): die Kasse sperrt das Kassieren VOR dem ersten Beleg
    * statt an createReceipt zu scheitern. Fehlt das Feld, gilt bereit.
+   * `stockLocationId`: Lager-Standort der Kasse, fehlt = Standard-Standort.
    */
-  cashregister?: { ready: boolean; reason?: string | null };
+  cashregister?: { ready: boolean; reason?: string | null; stockLocationId?: string };
   /** Das Geraet haengt an der Test-Umgebung des Betriebs. */
   testEnvironment: boolean;
 }
@@ -227,6 +228,24 @@ export interface RegisterUserPerms {
   discount?: boolean;
   /** Trinkgeld anderen zuweisen. */
   tipAssign?: boolean;
+  /**
+   * Lager: Standorte und Mengen sehen (listMyStockLocations, listMyStock).
+   * Fehlt das Recht, gilt es als erteilt – anders als alle anderen
+   * (siehe [stockViewOf]); ein ausdrueckliches `false` sperrt.
+   */
+  stockView?: boolean;
+  /** Lager: Einkaufswerte sehen (`values` in listMyStock); gibt nur der Inhaber frei. */
+  stockCosts?: boolean;
+  /** Lager: Wareneingang, Umbuchen. */
+  stockMove?: boolean;
+  /** Lager: Abgang, Zustand, Gegenbuchung. */
+  stockLoss?: boolean;
+  /** Inventur: zaehlen. */
+  stocktakeCount?: boolean;
+  /** Inventur: abschliessen. */
+  stocktakeClose?: boolean;
+  /** Standort der Kasse waehlen (setMyCashregisterStockLocation). */
+  stockLocation?: boolean;
   [weiteresRecht: string]: boolean | RegisterScope | undefined;
 }
 
@@ -239,7 +258,7 @@ export interface RegisterUserPerms {
  * `string | number`. Jede Pruefung dagegen — auch ein
  * `satisfies (keyof RegisterUserPerms)[]` — ginge deshalb ins Leere und
  * liesse jeden Namen durch. Erst die Umbenennung im `as`-Teil wirft die
- * Index-Signatur weg und laesst die elf echten Rechte stehen.
+ * Index-Signatur weg und laesst die benannten Rechte stehen.
  */
 type BenannteSchluessel<T> = keyof {
   [K in keyof T as string extends K ? never : number extends K ? never : K]: unknown;
@@ -259,6 +278,7 @@ type BenanntesRecht = BenannteSchluessel<RegisterUserPerms>;
 export const REGISTER_PERMS = [
   'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
   'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
+  'stockView', 'stockCosts', 'stockMove', 'stockLoss', 'stocktakeCount', 'stocktakeClose', 'stockLocation',
 ] as const satisfies readonly BenanntesRecht[];
 
 /**
@@ -291,6 +311,16 @@ export function receiptsScopeOf(perms: RegisterUserPerms | null | undefined): Re
   if (!perms) return 'none';
   if (perms.receiptsScope === undefined) return 'all';
   return ['none', 'own', 'all'].includes(perms.receiptsScope) ? perms.receiptsScope : 'none';
+}
+
+/**
+ * Darf der Benutzer Standorte und Mengen sehen? Wie im Backend (lager-core):
+ * ohne Schluessel gilt `stockView` als erteilt, ein ausdrueckliches `false`
+ * sperrt; alle anderen Lager-Rechte gelten ohne Schluessel als verweigert.
+ */
+export function stockViewOf(perms: RegisterUserPerms | null | undefined): boolean {
+  if (!perms) return false;
+  return perms.stockView === undefined ? true : perms.stockView === true;
 }
 
 /** Der angemeldete Kassen-Benutzer. */
@@ -561,11 +591,16 @@ export async function listRegisterUsersForDevice(
   };
 }
 
-function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null } | undefined {
+function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; stockLocationId?: string } | undefined {
   if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return undefined;
   const roh = wert as Record<string, unknown>;
   if (typeof roh['ready'] !== 'boolean') return undefined;
-  return { ready: roh['ready'], reason: typeof roh['reason'] === 'string' ? roh['reason'] : null };
+  const standort = roh['stockLocationId'];
+  return {
+    ready: roh['ready'],
+    reason: typeof roh['reason'] === 'string' ? roh['reason'] : null,
+    ...(typeof standort === 'string' && standort !== '' ? { stockLocationId: standort } : {}),
+  };
 }
 
 /** Die Regel aus der Antwort — oder `null`, wenn keine brauchbare kommt. */

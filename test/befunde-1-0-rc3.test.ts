@@ -42,6 +42,7 @@ interface KassenFall {
 const lies = (datei: string): Json =>
   JSON.parse(readFileSync(fileURLToPath(new URL(`../../fixtures/v3/${datei}`, import.meta.url)), 'utf8')) as Json;
 const KASSE = lies('antworten/kasse.json').endpoints as Record<string, { cases: KassenFall[] }>;
+const VOKABULAR = lies('v3-vokabular.json');
 const BELEGMAIL = lies('antworten/belegmail.json').cases as (KassenFall & { name: string })[];
 
 function antwortAus(f: { httpStatus: number; headers: Record<string, string>; response: Json }): HttpResponseLike {
@@ -127,6 +128,13 @@ test('B1: die Zeitpunkte der Inbetriebnahme kommen aus start_receipt_*_at', () =
   assert.equal(k.onboarding.startReceiptTransmittedAt?.toISOString(), '2026-01-02T09:06:00.000Z');
 });
 
+const VOKABEL_FELDER: ReadonlySet<string> = new Set(
+  Object.entries(VOKABULAR.schemas.listMyCashregisters.data.cashregisters[0] as Record<string, unknown>)
+    .filter(([k, v]) => k !== '__' && typeof v === 'string')
+    .map(([k]) => k),
+);
+assert.ok(VOKABEL_FELDER.has('stockLocationId'), 'das Vokabular von listMyCashregisters benennt den Standort');
+
 test('B1: fromCashregisterPayload liest nur Schluessel, die der Vertrag sendet', () => {
   for (const f of erfolge('listMyCashregisters')) {
     for (const r of f.response.data.cashregisters as Json[]) {
@@ -146,7 +154,10 @@ test('B1: fromCashregisterPayload liest nur Schluessel, die der Vertrag sendet',
         gesendet.add(k);
         if (v !== null && typeof v === 'object') for (const u of Object.keys(v)) gesendet.add(`${k}.${u}`);
       }
-      const fremd = [...gelesen].filter((k) => !gesendet.has(k));
+      // Aussen benannte Felder der Kasse im Vokabular (z. B. stockLocationId -> lagerStandortId)
+      // darf der Leser lesen, auch wenn die Beispielfaelle sie nicht fuehren (solange keiner
+      // Kasse ein Standort zugewiesen ist).
+      const fremd = [...gelesen].filter((k) => !gesendet.has(k) && !VOKABEL_FELDER.has(k));
       assert.deepEqual(fremd, [], `${f.case}/${r.id}: gelesen, aber nicht im Vertrag`);
     }
   }

@@ -404,6 +404,79 @@ test('cancelReceipt prueft die Eingabe, bevor etwas hinausgeht', async () => {
   assert.equal(aufrufe.length, 0);
 });
 
+test('cancelReceipt: Rueckgabe-Wahl als Vorgabe und je Position geht englisch hinaus', async () => {
+  const { rufen, aufrufe } = kassenBenutzerWeg(STORNO_ANTWORT);
+  await cancelReceipt(rufen, {
+    cashregisterId: KASSEN_ID,
+    originalReceiptId: 'kasse-1-ID-12',
+    reason: 'customer_cancelled',
+    returnDisposition: 'restock',
+    items: [{ index: 0, quantity: 1, returnDisposition: 'defective' }, { index: 1, quantity: 2 }],
+  });
+  const { endpunkt, params } = gesendet(aufrufe, POS_BASE_URL);
+  assert.equal(endpunkt, 'cancelReceipt');
+  assert.equal(params.returnDisposition, 'restock');
+  assert.deepEqual(params.items, [{ index: 0, quantity: 1, returnDisposition: 'defective' }, { index: 1, quantity: 2 }]);
+});
+
+test('cancelReceipt: Vollstorno mit Vorgabe sendet sie oben und ohne items', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', returnDisposition: 'disposed' });
+  const { params } = gesendet(aufrufe);
+  assert.equal(params.returnDisposition, 'disposed');
+  assert.equal('items' in params, false);
+});
+
+test('cancelReceipt: ohne Rueckgabe-Wahl geht kein returnDisposition hinaus (der Server bucht restock)', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'input_error', items: [{ index: 0, quantity: 1 }] });
+  const { params } = gesendet(aufrufe);
+  assert.equal('returnDisposition' in params, false);
+  assert.deepEqual(params.items, [{ index: 0, quantity: 1 }]);
+});
+
+test('cancelReceipt: innere, vertippte oder leere Vorgabe geht nicht hinaus und nennt das Feld', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const basis = { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other' as const };
+  await assert.rejects(
+    () => cancelReceipt(rufen, { ...basis, returnDisposition: 'lager' as never }),
+    (e) => isKasseneckValidationError(e) && /returnDisposition/.test(e.message) && !/items\[/.test(e.message) && /restock, defective, disposed/.test(e.message),
+  );
+  for (const wert of ['entsorgt', '', null, 'Restock', 1]) {
+    await assert.rejects(() => cancelReceipt(rufen, { ...basis, returnDisposition: wert as never }), /returnDisposition/, `Vorgabe ${String(wert)}`);
+  }
+  assert.equal(aufrufe.length, 0);
+});
+
+test('cancelReceipt: innere, vertippte oder leere Wahl je Position geht nicht hinaus und nennt den Pfad', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const basis = { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other' as const };
+  await assert.rejects(
+    () => cancelReceipt(rufen, { ...basis, items: [{ index: 0, quantity: 1 }, { index: 1, quantity: 1, returnDisposition: 'defekt' as never }] }),
+    (e) => isKasseneckValidationError(e) && /items\[1\]\.returnDisposition/.test(e.message) && /restock, defective, disposed/.test(e.message),
+  );
+  for (const wert of ['lager', 'entsorgt', '', null, 'Restock', 1]) {
+    await assert.rejects(
+      () => cancelReceipt(rufen, { ...basis, items: [{ index: 0, quantity: 1, returnDisposition: wert as never }] }),
+      /items\[0\]\.returnDisposition/,
+      `Position ${String(wert)}`,
+    );
+  }
+  assert.equal(aufrufe.length, 0);
+});
+
+test('cancelReceipt: eine Position geht nur mit den bekannten Feldern hinaus', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const position = { index: 0, quantity: 1, foo: 1 } as unknown as { index: number; quantity: number };
+  await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', items: [position] });
+  assert.deepEqual(gesendet(aufrufe).params.items, [{ index: 0, quantity: 1 }]);
+});
+
+test('toReceiptItemPayload: originalIndex und returnDisposition gehen nie mit createReceipt hinaus', () => {
+  const zeile = toReceiptItemPayload({ ...KAFFEE, articleId: 'coffee', originalIndex: 0, returnDisposition: 'restock' });
+  assert.deepEqual(zeile, { name: 'Kaffee', quantity: 1, unitPriceCents: 320, vatRate: 20, articleId: 'coffee' });
+});
+
 test('cancelReceipt weist eine Antwort ohne Bezug oder ohne Restmengen zurueck', async () => {
   const ohneBezug = apiSchluesselWeg({ receipt: BELEG_NUTZLAST, remaining: [0] });
   await assert.rejects(

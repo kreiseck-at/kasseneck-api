@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "29994ca53adc96e7cb49b9e3688b102a69c126544ef092fc6579a2e1fcd0d555";
+export const VOKABULAR_QUELLE = "b1049e2f65e9261cf8f729481d9ce1e5afda2cf620333f38ae6bf1afb36c8712";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -228,7 +228,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "__": "kasse",
             "visible": "sichtbar",
             "sort": "sort"
-          }
+          },
+          "stockLocationIds": "standorte"
         }
       ]
     },
@@ -266,7 +267,8 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "revenueGroupId",
   "active",
   "groupId",
-  "tile"
+  "tile",
+  "stockLocationIds"
 ];
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */

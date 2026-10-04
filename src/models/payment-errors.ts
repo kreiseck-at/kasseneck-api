@@ -43,6 +43,7 @@ export const PAYMENT_ERROR_CODES = Object.freeze([
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
   'admin_required',
+  'api_not_approved',
   'cashregister_not_assigned',
   'cashregister_not_found',
   'cashregister_token_invalid',

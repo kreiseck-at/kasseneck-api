@@ -97,7 +97,7 @@ const aeussereWerte = (name: string): ReadonlySet<string> => new Set(Object.valu
 /**
  * Interne Marke der Storno-Reservierung: `stornoMarke` am Storno-Beleg,
  * `marke` im Bezug und in `cancellations[]`. Handler
- * (storno-core.ohneInterneStornoFelder) und Rand (ohneStornoMarke) nehmen sie
+ * (storno-core.ohneInterneBelegFelder) und Rand (ohneStornoMarke) nehmen sie
  * heraus; der Vertrag nennt die Namen nicht (nur `$function: belegJeKanal`).
  */
 const STORNO_MARKE = 'stornoMarke';
@@ -107,6 +107,42 @@ const ohneMarke = (o: unknown): unknown => {
   const { [MARKE]: _m, ...rest } = o;
   return rest;
 };
+
+/**
+ * Interne Dokumentfelder eines Belegs, die keine Antwort traegt (Zwilling von
+ * storno-core.INTERNE_BELEG_FELDER): der Lager-Standort der Kasse, den
+ * createReceipt fuer die Lagerbuchung an den Beleg kopiert.
+ */
+const INTERNE_BELEG_FELDER = ['lagerStandortId'] as const;
+
+/** Rueckgabe-Wahl innen -> aussen (Katalog RUECKGABE; stored.test.ts vergleicht mit dem Vertrag). */
+export const _RUECKGABE_NACH_AUSSEN: Readonly<Record<string, string>> = Object.freeze({ lager: 'restock', defekt: 'defective', entsorgt: 'disposed' });
+
+/**
+ * Zwilling von `rueckgabeUmbenennen` (Rand): `rueckgabe` heisst aussen
+ * `returnDisposition`, an Ort und Stelle; ein Wert ausserhalb des Katalogs
+ * faellt weg (der Server schreibt dafuer eine Warnzeile).
+ */
+function rueckgabeUmbenennen(o: unknown): unknown {
+  if (!istObjekt(o) || !hat(o, 'rueckgabe')) return o;
+  const raus: Objekt = {};
+  for (const [k, w] of Object.entries(o)) {
+    if (k !== 'rueckgabe') { raus[k] = w; continue; }
+    if (typeof w === 'string' && hat(_RUECKGABE_NACH_AUSSEN, w)) raus.returnDisposition = _RUECKGABE_NACH_AUSSEN[w];
+  }
+  return raus;
+}
+const zeilenMitRueckgabe = (items: unknown): unknown => (Array.isArray(items) ? items.map(rueckgabeUmbenennen) : items);
+
+/** Zwilling von `belegRueckgabeNachAussen`: Storno-Zeilen und Eintraege in `cancellations[]`. */
+function belegRueckgabeNachAussen(beleg: Objekt): Objekt {
+  const raus: Objekt = { ...beleg };
+  if (Array.isArray(beleg.items)) raus.items = zeilenMitRueckgabe(beleg.items);
+  if (Array.isArray(beleg.cancellations)) {
+    raus.cancellations = beleg.cancellations.map((c) => (istObjekt(c) && Array.isArray(c.items) ? { ...c, items: zeilenMitRueckgabe(c.items) } : c));
+  }
+  return raus;
+}
 
 /**
  * Zwilling von `beleg-pruefangaben.alsIso`: leer (auch 0, '') -> null;
@@ -123,8 +159,8 @@ function alsIso(ts: unknown): string | null {
 
 /**
  * Ein Belegdokument, wie Handler und Rand es vor der Uebersetzung sehen:
- * ohne Storno-Marke (storno-core.ohneInterneStornoFelder, Rand
- * ohneStornoMarke). Alles andere bleibt woertlich, auch `pruefangaben` im
+ * ohne Storno-Marke und Lager-Standort (storno-core.ohneInterneBelegFelder,
+ * Rand ohneStornoMarke). Alles andere bleibt woertlich, auch `pruefangaben` im
  * Beleg selbst (der Server reicht sie so durch). Wirft, wenn es kein
  * Belegdokument ist.
  */
@@ -133,6 +169,7 @@ export function _storedReceiptInner(doc: unknown, functionName: string): Objekt 
     throw new KasseneckValidationError(functionName, 'Kein Belegdokument (receiptId fehlt)', 'response');
   }
   const { [STORNO_MARKE]: _s, ...beleg } = doc;
+  for (const feld of INTERNE_BELEG_FELDER) delete beleg[feld];
   if (hat(beleg, 'cancellationOf')) beleg.cancellationOf = ohneMarke(beleg.cancellationOf);
   if (Array.isArray(beleg.cancellations)) beleg.cancellations = beleg.cancellations.map(ohneMarke);
   return beleg;
@@ -154,7 +191,8 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
  */
 export function _receiptEnvelopeToWire(huelle: Objekt): Objekt {
   const schema = SCHEMAS.getReceipt;
-  return werteNachAussen(schluesselNachAussen(huelle, schema.data), schema.werte) as Objekt;
+  const draht = werteNachAussen(schluesselNachAussen(huelle, schema.data), schema.werte) as Objekt;
+  return istObjekt(draht.receipt) ? { ...draht, receipt: belegRueckgabeNachAussen(draht.receipt) } : draht;
 }
 
 /**

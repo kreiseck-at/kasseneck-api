@@ -28,6 +28,9 @@ import {
   type CancellationOf,
   type CancellationReason,
   isCancellationReason,
+  isReturnDisposition,
+  RETURN_DISPOSITIONS,
+  type ReturnDisposition,
   type ReceiptPaymentInput,
   type RegistrationInfo,
   type ReceiptEmailVia,
@@ -158,6 +161,14 @@ export type CancelReceiptOptions = {
   items?: CancellationItem[];
   /** Interne Anmerkung (≤ 200 Zeichen), wird gespeichert, nie gedruckt. */
   note?: string;
+  /**
+   * Wohin die Ware der stornierten Artikelzeilen geht (Lager-Kern Stufe 2):
+   * Vorgabe fuer alle Positionen, je Position abweichend ueber
+   * `items[].returnDisposition`. Fehlt beides, bucht der Server `restock`.
+   * Zeilen ohne `articleId` bucht er nie. Ein falscher Wert geht nicht hinaus;
+   * der Server meldete ihn als `invalid_return_disposition`.
+   */
+  returnDisposition?: ReturnDisposition;
   /**
    * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
    * Originalzahlung). Ohne Angabe spiegelt der Server die Restbetraege jeder
@@ -365,6 +376,13 @@ export function sellReceiptWithCompany(
 
 const NOTE_MAX = 200;
 
+/** Prueft eine Rueckgabe-Wahl (Vorgabe oder Position); `pfad` nennt das Feld in der Meldung. */
+function pruefeRueckgabeWahl(wert: unknown, pfad: string): void {
+  if (wert !== undefined && !isReturnDisposition(wert)) {
+    throw new KasseneckValidationError('cancelReceipt', `${pfad}: erlaubt sind ${RETURN_DISPOSITIONS.join(', ')}`, 'request');
+  }
+}
+
 /**
  * Storno-Beleg zu einem bestehenden Beleg — voll oder in Teilen. Prueft die
  * Eingabe, bevor etwas hinausgeht; der Server haelt die Restmengen und die
@@ -383,14 +401,16 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (!isCancellationReason(options.reason)) {
     throw new KasseneckValidationError('cancelReceipt', 'Storno-Grund fehlt oder ist unbekannt', 'request');
   }
+  pruefeRueckgabeWahl(options.returnDisposition, 'returnDisposition');
   if (options.items !== undefined) {
     if (!Array.isArray(options.items) || options.items.length === 0) {
       throw new KasseneckValidationError('cancelReceipt', 'items muss eine nicht leere Liste sein', 'request');
     }
-    for (const pos of options.items) {
+    for (const [i, pos] of options.items.entries()) {
       if (!Number.isInteger(pos.index) || pos.index < 0 || !Number.isInteger(pos.quantity) || pos.quantity < 1) {
         throw new KasseneckValidationError('cancelReceipt', 'Storno-Menge muss eine ganze Zahl >= 1 sein', 'request');
       }
+      pruefeRueckgabeWahl(pos.returnDisposition, `items[${i}].returnDisposition`);
     }
   }
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
@@ -404,7 +424,14 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt') : undefined;
   if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
-  if (options.items !== undefined) params.items = options.items.map((p) => ({ index: p.index, quantity: p.quantity }));
+  if (options.items !== undefined) {
+    params.items = options.items.map((p) => ({
+      index: p.index,
+      quantity: p.quantity,
+      ...(p.returnDisposition !== undefined ? { returnDisposition: p.returnDisposition } : {}),
+    }));
+  }
+  if (options.returnDisposition !== undefined) params.returnDisposition = options.returnDisposition;
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
 

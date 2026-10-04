@@ -18,7 +18,7 @@
     {
       "datei": "functions-kasse/article-endpoints.js",
       "marke": "const listMyArticles = ",
-      "sha256": "c7334eefdc6d25c6d12a1f51465d2d180a33b7378fce5e702992ba6353e16473"
+      "sha256": "bb8b13ad42e71bc3d7775f1b2b45f5ed7195a9e5f6b0cbd3cb0ece7fbb6071af"
     },
     {
       "datei": "functions/beleg-kopf-core.js",
@@ -44,6 +44,11 @@
       "datei": "functions/gemeinsam/storno-core.js",
       "marke": "function ohneInterneStornoFelder(",
       "sha256": "2671908095ddf48e773fd8b3853929d6fd2e5f97fd7992cd96e5543a7ef74154"
+    },
+    {
+      "datei": "functions/gemeinsam/storno-core.js",
+      "marke": "const INTERNE_BELEG_FELDER = ",
+      "sha256": "87794f241746bfaee271e364596eff06f0bad0d389b70f046754705ad4de0149"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -77,18 +82,33 @@
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function rueckgabeUmbenennen(",
+      "sha256": "3900077d689f6a208074679631bc763681501b37a91d494e8c1501f9b9c94d64"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function zeilenMitRueckgabe(",
+      "sha256": "cd547357c77c610f758225a2ceada932920ce10828e54f9657a7f644bea129fe"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function belegRueckgabeNachAussen(",
+      "sha256": "e1bb9a05bdabfdb7b1124e6724d44ce587c7561d1fb70a4fcd8535c0f7186b1f"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "const belegJeKanal = ",
-      "sha256": "f34abe753659b9c4d9fa3a9a64e19f8a32b467a197f0d8b697432df420fed241"
+      "sha256": "4efd04f9e0c0fc81ba35e2e7b66568c49e1df002ab15112728ee177c068fb604"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "function nurBekannte(",
-      "sha256": "1b8bb51fe573ed1b6a80811fcec97b90082e6e061827a4f0fa62b6f4a2180814"
+      "sha256": "cf277dff15beb7314e3720589d8df8755fb575048ffa46d9c1c5566dc5cea129"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "function artikelNachAussen(",
-      "sha256": "6e5cb6c58a0c658f3aae8f38a01e5553abdfde9627928618eeba00fbe760295d"
+      "sha256": "37473d6e567d46267d400efc380921c6c01f0a20072d0c295e78f06f0d7d5663"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -103,11 +123,11 @@
     {
       "datei": "functions/index.js",
       "marke": "async function belegAntwort(",
-      "sha256": "fe183ce56204b000c79a56da10dc90717e2aa8fe11420f5b037ff7d21f1f7d92"
+      "sha256": "f5f4732dbda2f7138a42b60233bbf33b96bc177c70879643412d53bc50f227a1"
     }
   ],
   "zwilling": {
-    "src/stored/draht.ts": "7da3e5d5805eb54347fc197769049d565a7536be03463d4f363a2570c2f68e45",
+    "src/stored/draht.ts": "f2d244e0bc3f782bacbdb6bc24b7560cc8619b3ae893160ae9ae982da3b42670",
     "src/stored/einstellungen.ts": "45fc7b702455f49a44f9872fe24d892772fbb72a7bcfef8671e2e7fd43772fed",
     "src/stored/index.ts": "87c8b5bf79e34c779359278a03aa9a157673d6521381ceb859d6d87fa421ef47"
   }
