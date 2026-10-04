@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.32.1
+
+Halbgeviertstrich statt Geviertstrich in den sichtbaren Texten des Rechnungskatalogs
+(`src/rechnung/texte.ts`, beide Sprachen): `pdf.lastschrift.warnung` („Bitte für Deckung sorgen – die
+Kosten einer Rücklastschrift werden weiterverrechnet."), `pdf.fuss.hinweis`, der Reverse-Charge-Hinweis
+und die Befreiungsgründe `einvoice.befreiung.kleinunternehmer`/`outsideScope`. Grund: deutsche Typografie
+setzt als Gedankenstrich den Halbgeviertstrich mit Leerzeichen; der Geviertstrich stand nur hier.
+Schlüssel, Platzhalter und alle übrigen Zeichen bleiben gleich; wer die Texte byteweise vergleicht
+(PDF-/E-Rechnung-Goldens), zieht die fünf Sätze nach.
+
 ## 0.32.0
 
 Vertragsgleichstand mit dem Backend für Lager-Kern Stufe 2. Das Backend vendort nur die 0.x-Linie und
