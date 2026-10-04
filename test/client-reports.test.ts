@@ -324,10 +324,10 @@ test('getCashboxStatus reicht einen noch unbekannten Status unveraendert durch',
 test('getSignatureStatus ruft financeWebService mit method status_signature und zertifikatnr_hex', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({ rkdbMessage: { rc: '0', status: 'AUSFALL' } }));
 
-  const status = await getSignatureStatus(jsonWeg(holen), '6F0404F0');
+  const status = await getSignatureStatus(jsonWeg(holen), '5A1C3E07');
 
   assert.equal(aufrufe[0]!.url, `${DEFAULT_BASE_URL}/financeWebService`);
-  assert.deepEqual(rumpfVon(aufrufe[0]!), { params: { zertifikatnr_hex: '6F0404F0' }, method: 'status_signature' });
+  assert.deepEqual(rumpfVon(aufrufe[0]!), { params: { zertifikatnr_hex: '5A1C3E07' }, method: 'status_signature' });
   assert.equal(status, 'AUSFALL');
 });
 
@@ -337,7 +337,7 @@ test('getSignatureStatus liest rc B33 VOR dem Status: nicht registriert schlaegt
   // zuerst wuerde eine nie registrierte Karte als "in Betrieb" melden.
   const { holen } = fetchFake(erfolg({ rkdbMessage: { rc: 'B33', msg: 'nicht registriert', status: 'IN_BETRIEB' } }));
 
-  assert.equal(await getSignatureStatus(jsonWeg(holen), '6F0404F0'), 'NOT_REGISTERED');
+  assert.equal(await getSignatureStatus(jsonWeg(holen), '5A1C3E07'), 'NOT_REGISTERED');
 });
 
 test('getSignatureStatus verlangt eine Zertifikatsnummer, bevor etwas rausgeht', async () => {
@@ -358,7 +358,7 @@ const alleAufrufe: Array<[string, (holen: FetchLike) => Promise<unknown>]> = [
   ['downloadDailyReport', (holen) => downloadDailyReport(binaerWeg(holen), new Date('2026-03-17T09:00:00+01:00'))],
   ['downloadMonthlyReport', (holen) => downloadMonthlyReport(binaerWeg(holen), { month: 3, year: 2026 })],
   ['getCashboxStatus', (holen) => getCashboxStatus(jsonWeg(holen))],
-  ['getSignatureStatus', (holen) => getSignatureStatus(jsonWeg(holen), '6F0404F0')],
+  ['getSignatureStatus', (holen) => getSignatureStatus(jsonWeg(holen), '5A1C3E07')],
 ];
 
 /**
@@ -468,13 +468,13 @@ test('ein Zusatzfeld kann params nicht verdraengen — auch nicht ohne Typen', a
   // vorbei. Wuerde sein `params` gewinnen, verschwaende die Kassenbindung aus
   // der Anmeldung still — genau der Fehler, der weiter unten im Rumpf schon
   // einmal behoben wurde.
-  await rufen('financeWebService', { zertifikatnr_hex: '6F0404F0' }, {
+  await rufen('financeWebService', { zertifikatnr_hex: '5A1C3E07' }, {
     method: 'status_signature',
     params: { boese: true },
   } as unknown as { method?: string });
 
   assert.deepEqual(rumpfVon(aufrufe[0]!), {
-    params: { cashregisterId: KASSEN_ID, zertifikatnr_hex: '6F0404F0' },
+    params: { cashregisterId: KASSEN_ID, zertifikatnr_hex: '5A1C3E07' },
     method: 'status_signature',
   });
 });
@@ -486,7 +486,7 @@ test('ein Fehler nennt den Vorgang, nicht nur den geteilten Endpunkt financeWebS
   // "financeWebService" sagt, verschweigt, welche der beiden scheiterte.
   const faelle: Array<[string, (holen: FetchLike) => Promise<unknown>, string]> = [
     ['Kassenstatus', (holen) => getCashboxStatus(jsonWeg(holen)), 'financeWebService/status_cashbox'],
-    ['Signaturstatus', (holen) => getSignatureStatus(jsonWeg(holen), '6F0404F0'), 'financeWebService/status_signature'],
+    ['Signaturstatus', (holen) => getSignatureStatus(jsonWeg(holen), '5A1C3E07'), 'financeWebService/status_signature'],
   ];
 
   for (const [name, aufruf, erwartet] of faelle) {

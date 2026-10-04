@@ -10,7 +10,7 @@ import { LOGO_PIXEL_MAX, LOGO_STUFEN, belegBlatt, logoMass, logoPixelZulaessig, 
  * Jeder Zeichner setzt nur noch das Blatt um -- darum stehen Reihenfolge,
  * Abstaende und Groessen hier und nirgends sonst.
  */
-const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
+const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR';
 const TESTKASSE: ReceiptLayout = { paperSize: 'mm80', regelwerk: 2, lines: [
   { kind: 'banner', text: 'TESTKASSE — kein gültiger Beleg', ton: 'warnung' },
   { kind: 'text', text: 'Bäckerei Muster', align: 'center', bold: true },
