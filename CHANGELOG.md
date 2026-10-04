@@ -4,6 +4,14 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.2.2
+
+The receipt fixtures, goldens and tests carried the serial number of a real
+signature card (signature card line, machine-readable code). It is replaced by
+the made-up `5A1C3E07` (same length); the dependent ESC/POS hex goldens are
+regenerated. Reason: fixtures only carry made-up identifiers; backend and web
+use the same replacement. No code change. Same change as 0.32.2 on the legacy line.
+
 ## 1.2.1
 
 En dash instead of em dash in the visible texts of the invoice catalog

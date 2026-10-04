@@ -37,6 +37,11 @@ import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
  * wird dort genau der betroffene Fall rot (selbst nachgestellt). Dass die
  * gezogene Vertragsdatei zur Dart-Quelle passt, prueft dort
  * `test/marke_test.dart`; beides zusammen schliesst die Kette.
+ *
+ * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
+ * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
+ * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
+ * Ausgaben -- sonst hat sich nichts verschoben.
  */
 
 const layout = (paperSize: 'mm58' | 'mm80'): ReceiptLayout => ({
@@ -50,17 +55,17 @@ const digest = (paperSize: 'mm58' | 'mm80', marke: boolean): string =>
   createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { brandMark: marke })).digest('hex');
 
 test('58 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', false), '42a673115d099035009a72aa171d0785f1ec697bd9042a669720e3b416d6d749');
+  assert.equal(digest('mm58', false), '521e45bb716bc552eab2163868806be07e626a6dc47cb1fdd71c3018d2c9d48b');
 });
 
 test('80 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', false), '76d9c93b23f062ffa53ff1a0cba53a2b2f0db3dd9bd36ad6cced638c20e547d8');
+  assert.equal(digest('mm80', false), '947423a069cb37ada914bb9db3feeda4a07a5f9b627795cc769f98d06f605158');
 });
 
 test('58 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', true), '98e98cfdbd54741634a6b2189970c72ea01594c97f193ca8f69c6df4b5013a34');
+  assert.equal(digest('mm58', true), '83d391bdf5ab85602686009c59281223d267b10b57cca9750a88007d9c984823');
 });
 
 test('80 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', true), '31fee883750041872ce63d07e5f4ba819be78892f6569611b4bdc98f66913fe6');
+  assert.equal(digest('mm80', true), 'b40133de3fc03e9a3884123ebc16a5dc8bf97b089e7609952590dfb119203ace');
 });

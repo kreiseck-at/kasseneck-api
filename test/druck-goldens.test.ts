@@ -19,6 +19,11 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  *
  * Aendert sich eine Ausgabe absichtlich, ist das eine eigene Entscheidung mit
  * eigenem Commit, nie ein Beifang.
+ *
+ * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
+ * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
+ * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
+ * Ausgaben -- sonst hat sich nichts verschoben.
  */
 const goldens = JSON.parse(readFileSync(new URL('../../test/fixtures/druck-goldens.json', import.meta.url), 'utf8')) as {
   receipts: Record<string, Record<string, string>>;
