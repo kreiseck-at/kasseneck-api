@@ -370,6 +370,10 @@ const text = (max: number, pflicht = false, extra: { min?: number; format?: Form
   ({ typ: 'string', pflicht, max, ...(pflicht && extra.min === undefined ? { min: 1 } : {}), ...extra });
 const idempotencyKey = (pflicht: boolean): Feld => ({ typ: 'string', pflicht, min: 1, max: 120 });
 const id: Feld = { typ: 'string', pflicht: false, min: 1, max: 128 };
+/** Rueckgabe-Wahl einer Gutschrift (Lager-Kern Stufe 2), wie im Backend RUECKGABE_API. */
+export const RETURN_DISPOSITIONS = ['restock', 'defective', 'disposed'] as const;
+export type ReturnDisposition = (typeof RETURN_DISPOSITIONS)[number];
+const rueckgabe: Feld = { typ: 'enum', pflicht: false, werte: RETURN_DISPOSITIONS };
 const idPflicht: Feld = { typ: 'string', pflicht: true, min: 1, max: 128 };
 const datum = (pflicht = false): Feld => ({ typ: 'string', pflicht, min: 10, max: 10, format: 'date' });
 const limit: Feld = { typ: 'integer', pflicht: false, min: 1, max: 100 };
@@ -425,6 +429,13 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   unitPriceMicros: { typ: 'integer', pflicht: false, min: 0, max: 1_000_000_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
+  /**
+   * Artikel aus dem Artikelstamm (Lager-Kern Stufe 2): ist er bestandsgefuehrt
+   * und das Modul Lager aktiv, bucht das Ausstellen ihn ab -- danach, die
+   * Rechnung scheitert nie am Lager. Kein „/“, nicht „.“, „..“ oder „__…__“
+   * (prueft der Server, `validation`).
+   */
+  articleId: id,
 });
 
 /** Genau einer der beiden Preise je Position (§ 9.1). */
@@ -440,6 +451,19 @@ const positionen: Feld = {
   max: 500,
   eintrag: {
     typ: 'object', pflicht: true, felder: POSITION_FELDER, genauEins: POSITION_PREIS_GENAU_EINS,
+  },
+};
+
+/** Gutschriftsposition: Rechnungsposition plus Rueckgabe-Wahl (an der Rechnung weist der Server sie ab). */
+export const GUTSCHRIFT_POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({ ...POSITION_FELDER, returnDisposition: rueckgabe });
+
+const gutschriftPositionen: Feld = {
+  typ: 'list',
+  pflicht: true,
+  min: 1,
+  max: 500,
+  eintrag: {
+    typ: 'object', pflicht: true, felder: GUTSCHRIFT_POSITION_FELDER, genauEins: POSITION_PREIS_GENAU_EINS,
   },
 };
 
@@ -511,6 +535,8 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     language: { typ: 'enum', pflicht: false, werte: INVOICE_LANGUAGES },
     /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. */
     brandId: id,
+    /** Lagerstandort (Kennung), von dem bestandsgefuehrte Positionen abbuchen. */
+    stockLocationId: id,
     /**
      * Schon bezahlt: die Zahlung entsteht in **derselben** Transaktion wie das
      * Festschreiben. Sonst gaebe es einen Moment, in dem die Rechnung offen ist
@@ -529,13 +555,15 @@ export const RECHNUNG_ANFRAGEN: Readonly<Record<RechnungAufruf, Readonly<Record<
     invoiceId: idPflicht,
     reason: { typ: 'enum', pflicht: true, werte: CREDIT_NOTE_REASONS },
     note: text(2000),
+    returnDisposition: rueckgabe,
   },
   createCreditNote: {
     idempotencyKey: idempotencyKey(true),
     invoiceId: idPflicht,
     reason: { typ: 'enum', pflicht: true, werte: CREDIT_NOTE_REASONS },
     note: text(2000),
-    items: positionen,
+    returnDisposition: rueckgabe,
+    items: gutschriftPositionen,
   },
   getInvoice: {
     invoiceId: id,

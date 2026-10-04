@@ -16,6 +16,7 @@ import type {
   ReverseChargeReason,
   InvoicePaymentMethod,
   InvoiceUnit,
+  ReturnDisposition,
   InvoiceSetupRequirement,
   InvoiceListStatus,
   PriceMode,
@@ -111,6 +112,14 @@ export interface InvoiceItemInput {
   vatRate: VatRatePercent;
   /** Zeilenrabatt in Prozent, hoechstens zwei Nachkommastellen. */
   discountPct?: number;
+  /** Artikel aus dem Artikelstamm; bestandsgefuehrt bucht das Ausstellen ihn vom Lager ab. */
+  articleId?: string;
+}
+
+/** Eine Gutschriftsposition: wie eine Rechnungsposition, dazu die Rueckgabe-Wahl. */
+export interface CreditNoteItemInput extends InvoiceItemInput {
+  /** Wohin die Ware dieser Position geht; fehlt = Vorgabe des Aufrufs bzw. `restock`. */
+  returnDisposition?: ReturnDisposition;
 }
 
 export interface IssueInvoiceRequest {
@@ -141,6 +150,8 @@ export interface IssueInvoiceRequest {
   language?: InvoiceLanguage;
   /** Marke (Kennung aus `listBrands`); sonst die Standardmarke. Unbekannt = `brand_not_found`. */
   brandId?: string;
+  /** Lager-Standort fuer bestandsgefuehrte Positionen; sonst der Standard-Standort. */
+  stockLocationId?: string;
   /**
    * Schon bezahlt (Shop kassiert online, Rechnung folgt). Die Zahlung entsteht
    * in derselben Transaktion wie das Festschreiben: das PDF traegt dann keine
@@ -207,10 +218,12 @@ export interface CancelInvoiceRequest {
   invoiceId: string;
   reason: CreditNoteReason;
   note?: string;
+  /** Wohin die Ware bestandsgefuehrter Positionen geht; fehlt = `restock`. */
+  returnDisposition?: ReturnDisposition;
 }
 
 export interface CreditNoteRequest extends CancelInvoiceRequest {
-  items: InvoiceItemInput[];
+  items: CreditNoteItemInput[];
 }
 
 /**

@@ -1,0 +1,25 @@
+{
+  "aufruf": "issueInvoice",
+  "beschreibung": "Die Rueckgabe-Wahl gehoert an die Gutschrift, nicht an die Rechnung",
+  "anfrage": {
+    "idempotencyKey": "bsp-17",
+    "priceMode": "gross",
+    "serviceStart": "2026-10-01",
+    "items": [
+      {
+        "description": "Roggenbrot",
+        "quantity": 1,
+        "unitPriceCents": 450,
+        "vatRate": 10,
+        "returnDisposition": "restock"
+      }
+    ]
+  },
+  "erwartet": {
+    "ok": false,
+    "code": "validation",
+    "fields": [
+      "items[0].returnDisposition"
+    ]
+  }
+}

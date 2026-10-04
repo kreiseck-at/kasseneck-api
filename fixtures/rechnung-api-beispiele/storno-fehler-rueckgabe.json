@@ -1,0 +1,17 @@
+{
+  "aufruf": "cancelInvoice",
+  "beschreibung": "Unbekannte Rueckgabe-Wahl beim Vollstorno",
+  "anfrage": {
+    "idempotencyKey": "bsp-16",
+    "invoiceId": "rechnung_beispiel",
+    "reason": "return",
+    "returnDisposition": "lost"
+  },
+  "erwartet": {
+    "ok": false,
+    "code": "validation",
+    "fields": [
+      "returnDisposition"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "version": "0.31.0",
+  "version": "0.32.0",
   "aufrufe": [
     "activateCashregister",
     "cancelInvoice",
@@ -529,6 +529,11 @@
       "getInvoiceSetupStatus",
       "listBrands",
       "recordInvoicePayment"
+    ],
+    "returnDispositions": [
+      "restock",
+      "defective",
+      "disposed"
     ],
     "steuerfreieFaelle": [
       "smallBusiness",

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Kasseneck Rechnungs-API",
   "version": 1,
-  "paket": "0.31.0",
+  "paket": "0.32.0",
   "aufrufe": {
     "createCustomer": {
       "anfrage": {
@@ -461,6 +461,11 @@
                   "minimum": 0,
                   "maximum": 100,
                   "x-decimals": 2
+                },
+                "articleId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
                 }
               },
               "required": [
@@ -501,6 +506,11 @@
             ]
           },
           "brandId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "stockLocationId": {
             "type": "string",
             "minLength": 1,
             "maxLength": 128
@@ -579,6 +589,13 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "returnDisposition": {
+            "enum": [
+              "restock",
+              "defective",
+              "disposed"
+            ]
           }
         },
         "required": [
@@ -615,6 +632,13 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "returnDisposition": {
+            "enum": [
+              "restock",
+              "defective",
+              "disposed"
+            ]
           },
           "items": {
             "type": "array",
@@ -720,6 +744,18 @@
                   "minimum": 0,
                   "maximum": 100,
                   "x-decimals": 2
+                },
+                "articleId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "returnDisposition": {
+                  "enum": [
+                    "restock",
+                    "defective",
+                    "disposed"
+                  ]
                 }
               },
               "required": [
