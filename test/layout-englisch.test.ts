@@ -21,16 +21,16 @@ const FIRMA: ReceiptCompany = {
   vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
   footer1: '', footer2: '', thanksMessage: [], showKreiseckLogo: false,
 };
-const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR';
+const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR';
 const BELEG: Receipt = {
   receiptId: 'AT0-KASSE1-42', cashregisterId: 'KASSE1', timeStamp: '2026-08-13T00:30:00',
   items: [{ name: 'Espresso', quantity: 2, vat: VatRate.vat20, priceCents: 250 }],
   vouchers: [], paymentMethod: KeckPaymentMethod.cash, turnoverCounterAES256ICM: 'UMSATZ', signaturePreviousReceipt: 'VORGAENGER',
-  certificateSerialNumber: '6F0404F0', receiptType: ReceiptType.standard, sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT', qr: QR,
+  certificateSerialNumber: '5A1C3E07', receiptType: ReceiptType.standard, sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT', qr: QR,
   fullReceiptId: 'VOLL', customerDetails: [], legalMessage: [],
 };
 const NULL0: Receipt = { ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '', zeroKind: 'monthly', timeStamp: '2026-08-31T23:59:30',
-  qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_6F0404F0_SIGNATUR' };
+  qr: '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-31T23:59:30_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR' };
 
 const banner = (l: ReceiptLayout) => l.lines.filter((z): z is Extract<typeof z, { kind: 'banner' }> => z.kind === 'banner');
 

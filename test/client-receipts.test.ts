@@ -82,7 +82,7 @@ function fetchFake(antwortWert: HttpResponseLike): { holen: FetchLike; aufrufe: 
 const BELEG_NUTZLAST: ReceiptPayload = {
   qr: '_R1-AT1_...',
   sig: 'SIGNATUR',
-  certificateSerialNumber: '6F0404F0',
+  certificateSerialNumber: '5A1C3E07',
   signaturePreviousReceipt: 'VORGAENGER',
   turnoverCounterAES256ICM: 'ZAEHLER',
   paymentMethod: 'cash',

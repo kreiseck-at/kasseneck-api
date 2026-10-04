@@ -18,6 +18,11 @@ import { qrModuleCount } from '../src/printing/index.js';
  * jetzt ueberall hoechstens 6 heisst (bis 0.13 stand hier `mittel`, weil `auto`
  * damals 4 war) -- derselbe Wert, also kein Byte anders. Ohne ausdrueckliche
  * Wahl aendert sich damit nur dort etwas, wo heute gar nichts herauskommt.
+ *
+ * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
+ * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
+ * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
+ * Ausgaben -- sonst hat sich nichts verschoben.
  */
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
@@ -43,7 +48,7 @@ const symbolBreite = (xml: string): number | null => {
 /** Eine Nutzlast, wie sie wirklich auf einem RKSV-Beleg steht: 193 Byte, 57 Module. */
 const RKSV =
   '_R1-AT1_KASSENECK1_AT0-KASSENECK1-10420_2026-08-13T10:15:30_12,90_0,00_0,00_0,00_0,00_' +
-  'PL5nQ2V0b3JRRA==_6F0404F0_Ky9lbXBmYW5nZXJzY2hsdXNzZWw=_' +
+  'PL5nQ2V0b3JRRA==_5A1C3E07_Ky9lbXBmYW5nZXJzY2hsdXNzZWw=_' +
   'bGV0enRlci1TaWduYXR1cndlcnQtUktTVi1CZWxlZy1EZW1vLTAx';
 
 // -------------------------------------------------------- Bestandsschutz
@@ -51,14 +56,14 @@ const RKSV =
 test('ePOS-Bestandsschutz: das XML eines Belegs auf 58 mm ist byteidentisch', () => {
   assert.equal(
     digest(eposPrintXml(basis)),
-    '8815fd017a5483413d545093145d76fe5d00ab9bf977b37e6fb6b72aff509785',
+    '0d0f6091bd788fa8c4d50244d44bf08717619c7c6d6f396ff354e3eb5daf6c1e',
   );
 });
 
 test('ePOS-Bestandsschutz: das XML eines Belegs auf 80 mm ist byteidentisch', () => {
   assert.equal(
     digest(eposPrintXml({ ...roh, paperSize: 'mm80' })),
-    'e7318f34c510dd291cd64a67cfd9cdd68352ed1cd70ec76a60f1a779aecab0b0',
+    'b3468c21b513af242b692b40aa2b353942f957d5a1cabca2d64f71e68eafc6fb',
   );
 });
 
