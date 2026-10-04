@@ -20,7 +20,7 @@ import { ReceiptLayoutView } from '../src/react/index.js';
  * einer Gegenprobe, die beweist, dass die Falle ueberhaupt zuschnappen kann.
  */
 
-const QR_INHALT = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_U_V_6F0404F0_S';
+const QR_INHALT = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_U_V_5A1C3E07_S';
 
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck',
@@ -49,7 +49,7 @@ const BELEG: Receipt = {
   paymentMethod: KeckPaymentMethod.cash,
   turnoverCounterAES256ICM: 'U',
   signaturePreviousReceipt: 'V',
-  certificateSerialNumber: '6F0404F0',
+  certificateSerialNumber: '5A1C3E07',
   receiptType: ReceiptType.standard,
   sig: 'eyJhbGciOiJFUzI1NiJ9.QVQx.SIGNATURWERT',
   qr: QR_INHALT,

@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.32.2
+
+Die Beleg-Fixtures, Goldens und Tests trugen die Seriennummer einer echten Signaturkarte
+(Signaturkarten-Zeile, Maschinenlesbarer Code). Sie ist durch die erfundene `5A1C3E07` (gleiche Länge)
+ersetzt, die Prüfsummen in `fixtures/manifest.json` sind neu erzeugt. Grund: in Fixtures stehen nur
+erfundene Kennungen; Backend und Web führen denselben Ersatzwert. Am Code ändert sich nichts.
+
 ## 0.32.1
 
 Halbgeviertstrich statt Geviertstrich in den sichtbaren Texten des Rechnungskatalogs

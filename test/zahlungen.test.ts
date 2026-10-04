@@ -32,7 +32,7 @@ const KASSEN_ID = 'kasse-1';
 const NUTZLAST: ReceiptPayload = {
   qr: '_R1-AT1_...',
   sig: 'SIGNATUR',
-  certificateSerialNumber: '6F0404F0',
+  certificateSerialNumber: '5A1C3E07',
   signaturePreviousReceipt: 'VORGAENGER',
   turnoverCounterAES256ICM: 'ZAEHLER',
   paymentMethod: 'mixed',
