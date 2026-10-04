@@ -114,7 +114,7 @@ test('fromArticleGroupPayload / fromPosArticlePayload lesen die Backend-Form', (
   const g = fromArticleGroupPayload({ id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   assert.deepEqual(g, { id: 'g1', name: 'Gebäck', color: '#D97706', symbol: '🥐', sort: 1, vatRate: 10 });
   const a = fromPosArticlePayload({ id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', tile: { visible: true, sort: 2 }, active: true });
-  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', revenueGroupId: null, visible: true, sort: 2, active: true, quantityRule: null, askQuantity: null, maxQuantity: null, stockLocationIds: null });
+  assert.deepEqual(a, { id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: 'g1', revenueGroupId: null, visible: true, sort: 2, active: true, quantityRule: null, askQuantity: null, maxQuantity: null, stockLocationIds: null, number: null, ean: null, internalCode: null, stockTracked: null });
   // Hoechstmenge je Beleg: nur positive ganze Zahlen zaehlen, sonst keine Grenze
   assert.equal(fromPosArticlePayload({ id: 'a2', name: 'Torte', maxQuantity: 3 }).maxQuantity, 3);
   assert.equal(fromPosArticlePayload({ id: 'a3', name: 'X', maxQuantity: 0 }).maxQuantity, null);

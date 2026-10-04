@@ -37,7 +37,7 @@ import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printi
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
 import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
-import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings } from '@kreiseck/kasseneck-api/pos';
+import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings, type PosArticle } from '@kreiseck/kasseneck-api/pos';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { createInvoiceApi, INVOICE_ERROR_CODES } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
@@ -73,6 +73,12 @@ export const drucker = listMyPrinters(rufen);
 export const betrieb = setMyPosSettings(rufen, { theme: 'night', vatRates: { '20': true } });
 export const aktionen: readonly string[] = POS_SHORTCUT_ACTIONS;
 export type Einstellungen = PosSettings;
+// Ein Artikel-Literal, wie Verbraucher es vor 1.2.0/1.3.0 bauten: ohne
+// stockLocationIds, number, ean, internalCode, stockTracked (alle optional).
+export const kachelArtikel: PosArticle = {
+  id: 'a1', name: 'Semmel', unitPriceCents: 79, vatRate: 10, unit: 'Stk', groupId: null, revenueGroupId: null,
+  visible: true, sort: 0, active: true, quantityRule: null, askQuantity: null, maxQuantity: null,
+};
 export const belegt = (e: unknown): string | null => (isRegisterError(e, 'cashregister_in_use') ? registerErrorDetails(e).deviceLabel : null);
 export const partner = createPartnerApi;
 export const webhookPruefen = verifyWebhookSignature;

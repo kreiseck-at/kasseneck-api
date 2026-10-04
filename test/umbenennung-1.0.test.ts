@@ -48,12 +48,15 @@ const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
  * 0.x-Stand, nur umbenannt.
  */
 const NACH_1_0 = {
-  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable', 'codetable.question', 'codetable.instruction', 'codetable.question_hint', 'codetable.instruction_none'],
-  labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row'],
+  messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable', 'codetable.question', 'codetable.instruction', 'codetable.question_hint', 'codetable.instruction_none', 'cancellation.input_rejected'],
+  labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
+    'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
+    'stock.return_restock', 'stock.return_defective', 'stock.return_disposed'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
-  // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules.
-  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect'],
+  // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
+  // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'returnDispositionLabels'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
