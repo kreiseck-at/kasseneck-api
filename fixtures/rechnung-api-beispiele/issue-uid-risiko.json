@@ -1,0 +1,28 @@
+{
+  "aufruf": "issueInvoice",
+  "beschreibung": "Innergemeinschaftliche Lieferung, Risiko einer noch offenen UID-Prüfung übernommen",
+  "anfrage": {
+    "idempotencyKey": "bsp-uid-1",
+    "customerId": "kunde_beispiel",
+    "taxScheme": "igLieferung",
+    "priceMode": "net",
+    "serviceStart": "2026-10-06",
+    "acceptVatIdRisk": true,
+    "items": [
+      {
+        "description": "Ware",
+        "quantity": 2,
+        "unitPriceCents": 5000,
+        "vatRate": 0
+      }
+    ]
+  },
+  "erwartet": {
+    "ok": true,
+    "totals": {
+      "netCents": 10000,
+      "vatCents": 0,
+      "grossCents": 10000
+    }
+  }
+}

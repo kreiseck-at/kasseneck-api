@@ -243,13 +243,23 @@ test('Vertrag: Sprache am Kunden und an der Rechnung, Marke an der Rechnung, Spr
 test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
-  // derselben Stelle wie zuvor, die beiden neuen (0.23.0) hinten dran.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-8, -2), [
+  // derselben Stelle wie zuvor, die beiden neuen (0.23.0) dahinter, die
+  // beiden der UID-Pruefung (0.33.0) ganz hinten.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-10, -4), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-4, -2), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['vat_id_invalid', 'vat_id_check_pending']);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
+});
+
+test('Vertrag: acceptVatIdRisk ist eine optionale Angabe nur an issueInvoice', () => {
+  assert.deepEqual(RECHNUNG_ANFRAGEN.issueInvoice['acceptVatIdRisk'], { typ: 'boolean', pflicht: false });
+  for (const aufruf of RECHNUNG_AUFRUFE) {
+    if (aufruf === 'issueInvoice') continue;
+    assert.ok(!pfade(RECHNUNG_ANFRAGEN[aufruf]).includes('acceptVatIdRisk'), `${aufruf} nimmt acceptVatIdRisk an`);
+  }
 });
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
