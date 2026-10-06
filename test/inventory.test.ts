@@ -24,6 +24,13 @@ import {
   STOCK_CONDITIONS,
   STOCK_CHANGE_CAUSES,
   WEBHOOK_DELIVERY_STATUSES,
+  INVENTORY_WARNING_CODES,
+  STOCK_KINDS,
+  STOCK_LOSS_REASONS,
+  WITHDRAWAL_TYPES,
+  LANDED_COST_TYPES,
+  LANDED_COST_ALLOCATIONS,
+  RESERVATION_STATUSES,
   type Article,
   type InventoryWebhookEvent,
 } from '../src/inventory/index.js';
@@ -101,12 +108,14 @@ const ZUSTELLUNG: Json = daten('list_webhook_deliveries').deliveries[0];
 
 const AEUSSER = (namen: string[]) => namen.map((n) => (VOKABULAR.names as Record<string, string>)[n] ?? n);
 
-test('Lager-API: INVENTORY_ENDPOINTS sind die 14 Endpunkte von Stufe 5a in endpoints.public, in Vertragsreihenfolge', () => {
+test('Lager-API: INVENTORY_ENDPOINTS sind die 27 Endpunkte von Stufe 5a und 5b in endpoints.public, in Vertragsreihenfolge', () => {
   const oeffentlich = AEUSSER(VOKABULAR.endpoints.public as string[]);
   const start = oeffentlich.indexOf('getArticle');
   assert.ok(start > 0, 'getArticle fehlt im Vertrag');
-  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 14));
-  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'listWebhookDeliveries');
+  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 27));
+  assert.equal(INVENTORY_ENDPOINTS.length, 27);
+  assert.equal(INVENTORY_ENDPOINTS[13], 'listWebhookDeliveries');
+  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'listReservations');
   for (const name of INVENTORY_ENDPOINTS) {
     assert.ok((PUBLIC_CALLS as readonly string[]).includes(name), `${name} fehlt in PUBLIC_CALLS`);
     assert.ok((ALL_CALLS as readonly string[]).includes(name), `${name} fehlt in ALL_CALLS`);
@@ -122,6 +131,13 @@ test('Lager-API: die Wertlisten sind die Kataloge des Vertrags (aussen, in Katal
   assert.deepEqual([...STOCK_CONDITIONS], werte('LAGER_ZUSTAND'));
   assert.deepEqual([...STOCK_CHANGE_CAUSES], werte('LAGER_URSACHE'));
   assert.deepEqual([...WEBHOOK_DELIVERY_STATUSES], werte('ZUSTELLUNG'));
+  assert.deepEqual([...STOCK_LOSS_REASONS], werte('LAGER_ABGANG_GRUND'));
+  assert.deepEqual([...WITHDRAWAL_TYPES], werte('LAGER_ENTNAHME_ART'));
+  assert.deepEqual([...LANDED_COST_TYPES], werte('LAGER_NEBENKOSTEN_ART'));
+  assert.deepEqual([...LANDED_COST_ALLOCATIONS], werte('LAGER_VERTEILUNG'));
+  assert.deepEqual([...RESERVATION_STATUSES], werte('RESERVIERUNG_STATUS'));
+  assert.equal(STOCK_MOVEMENT_TYPES.at(-1), 'reservation', 'neue Bewegungsart hinten (gespeicherte Reihenfolgen bleiben gueltig)');
+  assert.deepEqual([...INVENTORY_WARNING_CODES], VOKABULAR.warningCodes.inventory);
   // Die Schemata verweisen wirklich auf diese Kataloge.
   assert.deepEqual(VOKABULAR.schemas.listLocations.werte['locations[].type'], { $catalog: 'STANDORT_TYP' });
   assert.deepEqual(VOKABULAR.schemas.listStockMovements.werte['movements[].type'], { $catalog: 'BEWEGUNG_ART' });
@@ -129,12 +145,33 @@ test('Lager-API: die Wertlisten sind die Kataloge des Vertrags (aussen, in Katal
   assert.deepEqual(VOKABULAR.schemas.listStockMovements.werte['movements[].condition'], { $catalog: 'LAGER_ZUSTAND' });
   assert.deepEqual(VOKABULAR.schemas.listWebhookDeliveries.werte['deliveries[].status'], { $catalog: 'ZUSTELLUNG' });
   assert.deepEqual(VOKABULAR.events['stock.changed'].werte.cause, { $catalog: 'LAGER_URSACHE' });
+  assert.deepEqual(VOKABULAR.schemas.recordStockLoss.paramWerte, {
+    reason: { $catalog: 'LAGER_ABGANG_GRUND' }, withdrawalType: { $catalog: 'LAGER_ENTNAHME_ART' }, condition: { $catalog: 'LAGER_ZUSTAND' },
+  });
+  assert.deepEqual(VOKABULAR.schemas.changeStockCondition.paramWerte, { from: { $catalog: 'LAGER_ZUSTAND' }, to: { $catalog: 'LAGER_ZUSTAND' } });
+  assert.deepEqual(VOKABULAR.schemas.receiveGoods.paramWerte, { allocation: { $catalog: 'LAGER_VERTEILUNG' }, 'landedCosts[].type': { $catalog: 'LAGER_NEBENKOSTEN_ART' } });
+  assert.deepEqual(VOKABULAR.schemas.listReservations.paramWerte, { status: { $catalog: 'RESERVIERUNG_STATUS' } });
+  for (const name of ['createReservation', 'extendReservation', 'releaseReservation', 'getReservation'] as const) {
+    assert.deepEqual(VOKABULAR.schemas[name].werte, { 'reservation.status': { $catalog: 'RESERVIERUNG_STATUS' } }, name);
+  }
+  for (const e of ['reservation.expired', 'reservation.released', 'reservation.redeemed']) {
+    assert.deepEqual(VOKABULAR.events[e].werte, { status: { $catalog: 'RESERVIERUNG_STATUS' } }, e);
+  }
+  // stockKind ist kein Katalog des Vokabulars: jeder Artikel im Vertrag traegt einen Wert aus STOCK_KINDS.
+  const arten = new Set<string>();
+  for (const c of LAGER.cases as Json[]) {
+    const d = c.response.data ?? {};
+    for (const a of [d.article, ...(d.articles ?? [])]) if (a) arten.add(a.stockKind);
+  }
+  assert.deepEqual([...arten].sort(), [...STOCK_KINDS].filter((k) => arten.has(k)).sort());
+  assert.ok(arten.has('quantity'));
 });
 
-test('Lager-API: INVENTORY_WEBHOOK_EVENTS sind genau die Konto-Ereignisse des Vertrags', () => {
-  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => e.startsWith('stock.') || e.startsWith('article.'));
+test('Lager-API: INVENTORY_WEBHOOK_EVENTS sind genau die Konto-Ereignisse des Vertrags, in der Reihenfolge von listWebhooks', () => {
+  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => /^(stock|article|reservation)\./.test(e));
   assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS].sort(), imVertrag.sort());
-  assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS], ['stock.changed', 'stock.below_minimum', 'article.created', 'article.updated', 'article.deactivated']);
+  assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS], daten('list_webhooks').events);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-3), ['reservation.expired', 'reservation.released', 'reservation.redeemed']);
   assert.deepEqual([...INVENTORY_WEBHOOK_ENVELOPE_FIELDS], ['id', 'type', 'createdAt', 'accountId', 'test', 'data']);
 });
 
@@ -198,12 +235,38 @@ const RUFE: Record<string, (l: Lager, p: Json) => Promise<unknown>> = {
   sendWebhookTest: (l, p) => l.sendWebhookTest(p['webhookId'], p['event']),
   rotateWebhookSecret: (l, p) => l.rotateWebhookSecret(p['webhookId']),
   listWebhookDeliveries: (l, p) => l.listWebhookDeliveries(p),
+  createArticle: (l, p) => l.createArticle(p as never),
+  updateArticle: (l, p) => l.updateArticle(p as never),
+  deactivateArticle: (l, p) => l.deactivateArticle(p as never),
+  // Die Vorschau ist ein eigener Aufruf: dryRun gehoert nicht in die Buchung.
+  receiveGoods: (l, { dryRun, ...p }) => (dryRun === true ? l.previewGoodsReceipt(p as never) : l.receiveGoods(p as never)),
+  transferStock: (l, p) => l.transferStock(p as never),
+  recordStockLoss: (l, p) => l.recordStockLoss(p as never),
+  changeStockCondition: (l, p) => l.changeStockCondition(p as never),
+  reverseStockMovement: (l, p) => l.reverseStockMovement(p as never),
+  createReservation: (l, p) => l.createReservation(p as never),
+  extendReservation: (l, p) => l.extendReservation(p as never),
+  releaseReservation: (l, p) => l.releaseReservation(p as never),
+  getReservation: (l, p) => l.getReservation(p['reservationId']),
+  listReservations: (l, p) => l.listReservations(p),
+};
+
+/**
+ * Die Faelle, die der Client schon vor dem Senden abweist (sicher falsch ohne
+ * Netz): genau diese, keiner mehr. Kommt ein Fall dazu, steht er hier mit Grund.
+ */
+const VOR_DEM_SENDEN: Record<string, string> = {
+  error_list_articles_validation: 'limit 500 liegt ueber 200',
+  error_create_article_idempotency_key_required: 'idempotencyKey fehlt',
+  error_receive_goods_validation: 'quantity 1.5 ist keine Ganzzahl (Tausendstel)',
+  error_create_reservation_validation: 'expiresInMinutes 2 liegt unter 5',
 };
 
 test('Vertrag antworten/lager.json: jeder Endpunkt kommt vor, jeder Fall laeuft durch den Client', async () => {
   const faelle = LAGER.cases as Json[];
   assert.deepEqual([...new Set(faelle.map((c) => c.endpoint))].sort(), [...INVENTORY_ENDPOINTS].sort());
   let gesendet = 0;
+  const abgewiesen: string[] = [];
   for (const c of faelle) {
     const { lager, anfragen } = client(antwort(c.response));
     const rufe = RUFE[c.endpoint];
@@ -215,6 +278,7 @@ test('Vertrag antworten/lager.json: jeder Endpunkt kommt vor, jeder Fall laeuft 
       // Der Client hat die Anfrage selbst abgewiesen: nur bei Fehlerfaellen erlaubt.
       assert.equal(c.response.status, 'error', `${c.name}: Erfolgsfall nicht gesendet`);
       assert.ok(fehlerWert instanceof KasseneckValidationError && fehlerWert.scope === 'request', `${c.name}: ${String(fehlerWert)}`);
+      abgewiesen.push(c.name);
       continue;
     }
     gesendet += 1;
@@ -228,7 +292,8 @@ test('Vertrag antworten/lager.json: jeder Endpunkt kommt vor, jeder Fall laeuft 
       assert.ok(ergebnis !== undefined, c.name);
     }
   }
-  assert.ok(gesendet >= faelle.length - 2, `nur ${gesendet} von ${faelle.length} Faellen gesendet`);
+  assert.deepEqual(abgewiesen.sort(), Object.keys(VOR_DEM_SENDEN).sort(), 'vor dem Senden abgewiesen');
+  assert.equal(gesendet, faelle.length - abgewiesen.length);
 });
 
 test('Vertrag antworten/lager.json: Zustellungen und Webhooks tragen die Namen der Partner-Webhooks', async () => {
@@ -246,6 +311,9 @@ test('Vertrag antworten/lager.json: Zustellungen und Webhooks tragen die Namen d
 test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisiert', () => {
   const ereignisse = LAGER.webhookEvents as Json[];
   assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), [...INVENTORY_WEBHOOK_EVENTS].sort());
+  for (const { event, body } of ereignisse.filter((e) => e.event.startsWith('reservation.'))) {
+    for (const k of schluessel(VOKABULAR.events[event].data)) assert.ok(k in body.data, `${event}.${k}`);
+  }
   for (const { event, body } of ereignisse) {
     const e = parseInventoryWebhookEvent(JSON.stringify(body));
     assert.ok(e, event);
@@ -261,9 +329,21 @@ test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisi
   assert.ok(zugang.every((c: string) => (STOCK_CHANGE_CAUSES as readonly string[]).includes(c)), zugang.join());
 });
 
-test('Lager-API: INVENTORY_ERROR_CODES stehen alle im Vertrag', () => {
+test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_user_not_allowed), 5a-Reihenfolge vorn, 5b hinten', () => {
   const alle = new Set(VOKABULAR.errorCodes.all as string[]);
   assert.deepEqual(INVENTORY_ERROR_CODES.filter((c) => !alle.has(c)), []);
+  const vertrag = (VOKABULAR.errorCodes.inventory as string[]).filter((c) => c !== 'register_user_not_allowed');
+  assert.deepEqual([...INVENTORY_ERROR_CODES].sort(), [...vertrag].sort());
+  // Angehaengt wird hinten: die 12 Codes aus 1.4.0 stehen unveraendert vorn, dahinter 5b in Vertragsreihenfolge.
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(0, 12), [
+    'validation', 'invalid_cursor', 'article_not_found', 'webhook_not_found', 'webhook_limit', 'invalid_webhook_url',
+    'event_not_subscribed', 'webhook_inactive', 'inventory_api_not_enabled', 'module_inactive', 'rate_limited', 'server_error',
+  ]);
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(12), vertrag.slice(vertrag.indexOf('server_error') + 1));
+  // Hinweise sind nie Fehler.
+  for (const w of INVENTORY_WARNING_CODES) assert.ok(!(INVENTORY_ERROR_CODES as readonly string[]).includes(w), w);
+  // Jeder Fehlercode, den ein Vertragsfall der Lager-API zeigt, steht im Katalog oder bei den Anfragecodes.
+  for (const c of LAGER.cases as Json[]) if (c.response.status === 'error') assert.ok(isInventoryErrorCode(c.response.code), `${c.name}: ${c.response.code}`);
   for (const c of ['rate_limited', 'module_inactive', 'validation', 'event_not_subscribed', 'webhook_inactive', 'server_error']) {
     assert.ok((INVENTORY_ERROR_CODES as readonly string[]).includes(c), c);
   }
@@ -661,7 +741,7 @@ test('parseInventoryWebhookEvent: stock.below_minimum und article.* (Artikel wie
 });
 
 test('parseInventoryWebhookEvent: unbekannter Typ ist null (2xx antworten und uebergehen), kaputter Rumpf wirft', () => {
-  assert.equal(parseInventoryWebhookEvent(huelle('reservation.expired', { reservationId: 'r1' })), null);
+  assert.equal(parseInventoryWebhookEvent(huelle('variant_group.updated', { variantGroupId: 'vg1' })), null);
   for (const kaputt of ['', 'kein json', '[]', '{"type":"stock.changed"}', huelle('stock.changed', { ...STOCK_CHANGED, onHand: 1.5 }),
     huelle('stock.changed', { ...STOCK_CHANGED, sequence: undefined }), huelle('stock.below_minimum', { ...UNTER_MINDEST, minStock: '5000' })]) {
     assert.throws(() => parseInventoryWebhookEvent(kaputt), KasseneckValidationError, kaputt);

@@ -212,7 +212,7 @@ adapter:
 | `…/stored` | Stored Firestore documents (inner form, German) as the same English models the `/v3` wire returns: receipts with company and layout, register settings, articles. For clients that read Firestore directly, such as the admin panel. |
 | `…/invoice` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
 | `…/invoice/calc` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
-| `…/inventory` | Inventory API: read articles, locations, stock and the stock ledger, manage account webhooks, verify and parse incoming stock and article events. **Belongs on a server.** |
+| `…/inventory` | Inventory API: read articles, locations, stock and the stock ledger; create and update articles, book goods receipts, transfers and losses, reserve stock at checkout; manage account webhooks, verify and parse incoming stock, article and reservation events. **Belongs on a server.** |
 | `…/react` | Thin React adapter that renders a receipt layout or a receipt sheet. Needs React. |
 | `…/fixtures/*` | Golden receipts (JSON): inputs `receipts/<name>.json`, promised line output `expected/<name>.lines.json`, `manifest.json` with checksums. The backend, the browser register and the Flutter package check against the same files. |
 
@@ -1425,10 +1425,16 @@ the old formula: `fixtures/invoice-totals.json`.
 For online shops and other systems that show or mirror the stock of a
 Kasseneck account: read articles, locations, stock per location and the stock
 ledger, and get every stock change pushed by webhook within seconds, also the
-ones made at the register in the shop. Uses the `api_key` of the account and
-belongs on a **server**. Reading needs the module `lager`; purchase prices and
-stock values appear only when the account has the permission `costs`
-(otherwise the fields are absent, not `null`).
+ones made at the register in the shop. Since 1.5.0 also the write side:
+create and update articles, book goods receipts, transfers, losses and
+condition changes, and reserve stock at checkout (see
+[Shop: reserve and invoice](#shop-reserve-and-invoice)). Uses the `api_key` of
+the account and belongs on a **server**. Reading needs the module `lager`,
+writing additionally the account switch *Lager-API schreiben*, which Kasseneck
+turns on (always on in the test environment, `kr_test_…`; otherwise
+`inventory_api_not_enabled`). Purchase prices and stock values appear only when
+the account has the permission `costs` (otherwise the fields are absent, not
+`null`).
 
 **Integers with a fixed scale:** quantities in thousandths of the base unit
 (`1000` = 1 piece, `250` = 0.250 kg), money in cents, purchase prices in
@@ -1500,16 +1506,22 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 - **Events.** `stock.changed` carries the current state of one article at one
   location (`onHand`, `reserved`, `available`, `defective`, `sequence`,
   `updatedAt`) plus `cause` (`sale`, `invoice`, `goods_receipt`, `transfer`,
-  `takeover` …) and `movementId`; changes within 10 seconds are combined into
-  one delivery. `stock.below_minimum` fires once when `onHand` drops below the
-  minimum stock set for the location; `minStock` in the payload is that
-  threshold. The article's own `minStock` never triggers it, and
+  `takeover`, `reservation` …) and `movementId`; changes within 10 seconds are
+  combined into one delivery. `stock.below_minimum` fires once when
+  `available` (`onHand − reserved`, so a reservation alone can trigger it)
+  drops below the minimum stock set for the location (`minStockByLocation` of
+  the article); `minStock` in the payload is that threshold. The article's own
+  `minStock` is a legacy field and never triggers it, and
   `listStock({ belowMinimum: true })` follows the same rule. In movements,
   `goods_receipt` is a goods receipt; `receipt` only ever means a sales receipt
   (`source.type`).
   `article.created`, `article.updated` and `article.deactivated` carry the
-  article as `getArticle` returns it, without purchase prices. Deduplicate on
-  `event.id`; deliveries are retried after 1 min, 5 min, 30 min, 2 h and 12 h.
+  article as `getArticle` returns it, without purchase prices.
+  `reservation.expired`, `reservation.released` and `reservation.redeemed`
+  carry the reservation as `getReservation` returns it, with its status after
+  the change; `released` and `redeemed` also fire for a partial release or
+  redemption (status still `active`). Deduplicate on `event.id`; deliveries
+  are retried after 1 min, 5 min, 30 min, 2 h and 12 h.
 - **Safety net without webhooks.** `listStock({ changedSince })` and
   `listArticles({ updatedSince })` are sorted by `updatedAt` ascending and
   include the boundary, so remembering the last `updatedAt` and asking again
@@ -1527,6 +1539,152 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
   `webhook_not_found`, `webhook_limit` (5 per account),
   `invalid_webhook_url`, `event_not_subscribed` and `webhook_inactive` are
   decided on the code with `isInventoryError(error, code)`.
+
+### Writing: articles and bookings
+
+Every write takes an `idempotencyKey` (1 to 120 characters). The same request
+with the same key takes effect exactly once; repeating it returns the stored
+answer of the first call, the same key with different content gives
+`idempotency_conflict`. After a timeout or a network error, repeat with the
+**same** key, never with a new one. The client refuses to send a write without
+a valid key, and checks before sending only what is certainly wrong without the
+network (required ids, integer quantities, amounts and prices, the range of
+`expiresInMinutes`); everything else the server decides and reports with its
+code.
+
+```ts
+import { createInventoryClient, isInventoryError, inventoryFieldErrors } from '@kreiseck/kasseneck-api/inventory';
+
+const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// A foreign article with its EAN; without ean the server assigns an own code.
+const roll = await inventory.createArticle({
+  idempotencyKey: 'shop-article-1001',
+  name: 'Kaisersemmel',
+  ean: '9001234567896',
+  unitPriceCents: 65,
+  vatRate: 10,
+  stockTracked: true,
+  minStockByLocation: { haupt: 20000 },   // thousandths: warn below 20 pieces
+  externalIds: { shop: '1001' },          // lookupArticleByCode({ externalSystem: 'shop', externalId: '1001' })
+});
+
+// Goods receipt: 60 pieces at 0.38 EUR each, plus freight spread by value.
+const receipt = await inventory.receiveGoods({
+  idempotencyKey: 'shop-goods-receipt-118',
+  items: [{ articleId: roll.id, quantity: 60000, unitPriceMicros: 380000 }],
+  landedCosts: [{ type: 'freight', amountCents: 450 }],
+  reference: 'LS-2026-118',
+});
+// receipt: { operationId, movementIds, lotIds, warnings: [] }
+
+try {
+  await inventory.recordStockLoss({ idempotencyKey: 'shop-loss-7', reason: 'breakage', items: [{ articleId: roll.id, quantity: 2000 }] });
+} catch (error) {
+  if (isInventoryError(error, 'exceeds_stock')) { /* losses, transfers and condition changes never overdraw */ }
+  else if (isInventoryError(error, 'validation')) console.log(inventoryFieldErrors(error));
+  else throw error;
+}
+```
+
+- **Articles.** `updateArticle({ idempotencyKey, articleId, …fields })` changes
+  only the fields it names; `null` clears an optional one. `externalIds` and
+  `metadata` are replaced as a whole, `minStockByLocation` is merged per
+  location (`{ haupt: null }` removes just that one). `stockKind` is fixed after
+  the first movement (`stock_kind_locked`). `deactivateArticle` frees the code
+  and the external ids. `code_taken` and `external_id_taken` carry `field` and
+  the `articleId` that holds the code in `error.details`. `minStock` is a
+  legacy field without effect; use `minStockByLocation`.
+- **Bookings.** `receiveGoods`, `transferStock`, `recordStockLoss` (`reason`
+  from `STOCK_LOSS_REASONS`; `other` needs `note`, `withdrawal` needs
+  `withdrawalType`), `changeStockCondition` (`sellable` ↔ `defective`) and
+  `reverseStockMovement({ operationId, reason })` answer with a
+  `StockOperation`. `warnings[]` are notices from `INVENTORY_WARNING_CODES`,
+  never errors: the booking took effect. Prices may be sent without the
+  permission `costs`; values come back only in `previewGoodsReceipt`, which is
+  `receiveGoods` with `dryRun: true` (books nothing, needs no key).
+
+### Shop: reserve and invoice
+
+Hold the goods while the customer pays, turn the reservation into a sale with
+the invoice, and let the server release what was never paid:
+
+```ts
+import { createInventoryClient, inventoryShortfalls, isInventoryError, parseInventoryWebhookEvent } from '@kreiseck/kasseneck-api/inventory';
+import { createInvoiceApi } from '@kreiseck/kasseneck-api/invoice';
+
+const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
+const invoices = createInvoiceApi({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// 1. Checkout: reserve everything or nothing, measured against `available`.
+async function checkout(order: Order) {
+  try {
+    return await inventory.createReservation({
+      idempotencyKey: `checkout-${order.id}`,   // the same key on every retry of this checkout
+      reference: `Bestellung ${order.number}`,
+      expiresInMinutes: 30,
+      items: [{ articleId: 'kaisersemmel', quantity: 6000 }],   // 6 pieces, at the default location
+    });
+  } catch (error) {
+    if (!isInventoryError(error, 'insufficient_available')) throw error;
+    // Nothing was reserved. Tell the customer what is short:
+    // [{ articleId, locationId, requested: 6000, available: 2000 }]
+    return showShortage(inventoryShortfalls(error));
+  }
+}
+
+// 2. Paid: issue the invoice; the position redeems the reservation.
+async function paid(order: Order, reservationId: string) {
+  const { invoice, notice } = await invoices.issueInvoice({
+    idempotencyKey: `invoice-${order.id}`,
+    priceMode: 'gross',
+    serviceStart: '2026-10-06',
+    orderReference: `Bestellung ${order.number}`,
+    items: [{
+      description: 'Kaisersemmel', quantity: 6, unitPriceCents: 65, vatRate: 10,
+      articleId: 'kaisersemmel', reservationId,
+    }],
+    payment: { method: 'online' },
+  });
+  // Expired before the invoice: no error, the invoice sells without it.
+  if (notice?.some((n) => n.code === 'reservation_expired')) log('sold without reservation', invoice.number);
+}
+
+// 3. Abandoned cart: give the goods back at once instead of waiting for expiry.
+async function abandoned(order: Order, reservationId: string) {
+  await inventory.releaseReservation({ idempotencyKey: `release-${order.id}`, reservationId });
+}
+
+// 4. Webhooks (subscribe to reservation.* with createWebhook, verify as above).
+function onDelivery(rawBody: Buffer) {
+  const event = parseInventoryWebhookEvent(rawBody);
+  if (event && !event.test && event.type === 'reservation.expired') {
+    return shop.cancelUnpaidOrder(event.data.reference);   // the stock is available again
+  }
+}
+```
+
+- **Redeeming.** A position with `reservationId` needs `articleId`. The server
+  checks it when the invoice is issued: `reservation_not_found` (unknown or
+  another account), `reservation_not_active` (already redeemed or released),
+  `reservation_mismatch` (no open quantity of this article at the invoice's
+  stock location, `stockLocationId` or the default location); nothing is issued
+  then. An expired reservation is no error but the notice `reservation_expired`
+  (with `reservationId`). The reservation is redeemed when the invoice is
+  booked into stock: selling less than reserved releases the rest, selling
+  more gives the warning `reservation_exceeded`. Credit notes take no
+  `reservationId`.
+- **Expiry.** Without `expiresInMinutes` the account's default applies (7 days);
+  5 to 43,200 minutes are allowed. `extendReservation` sets a new expiry from
+  now, only for an active reservation that is not yet due
+  (`reservation_not_active`). `releaseReservation` without `items` releases
+  everything, with `items` per position (without `quantity` the whole rest);
+  the status becomes `released` only when nothing is open.
+- **Events.** `reservation.expired`, `reservation.released` and
+  `reservation.redeemed` carry the reservation with its status afterwards.
+  `listReservations({ status: 'active' })` or `({ reference })` is the safety
+  net without webhooks; the stock ledger shows reservations as movements of
+  type `reservation` with `quantityDelta: 0` and the change in `reservedDelta`.
 
 ## Migrating from 0.x
 

@@ -256,7 +256,7 @@ const FELDER = {
   creditNoteRef: schluessel<InvoiceDetail['creditNotes'][number]>()(['id', 'number', 'grossCents']),
   preview: schluessel<InvoicePreview>()(['docType', 'invoiceDate', 'dueDate', 'customerId', 'taxScheme', 'taxSchemeReason',
     'reverseChargeReason', 'taxCountry', 'priceMode', 'totals', 'language', 'brand', 'einvoice']),
-  notice: schluessel<InvoiceNotice>()(['code', 'message']),
+  notice: schluessel<InvoiceNotice>()(['code', 'message', 'reservationId']),
   payment: schluessel<InvoicePayment>()(['id', 'amountCents', 'paidAt', 'method', 'reference']),
   original: schluessel<CancelResult['original']>()(['id', 'status']),
   setup: schluessel<InvoiceSetupStatus>()(['ready', 'environment', 'missing']),
@@ -269,7 +269,8 @@ const FELDER = {
 } as const;
 
 /** Felder, die der Typ als optional fuehrt und die in einer Antwort fehlen duerfen. */
-const OPTIONAL = new Set(['unitPriceMicros', 'notice']);
+// `reservationId` steht nur am Hinweis `reservation_expired` (seit 1.5.0).
+const OPTIONAL = new Set(['unitPriceMicros', 'notice', 'reservationId']);
 
 const geprueft = new Set<string>();
 

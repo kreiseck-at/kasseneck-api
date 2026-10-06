@@ -39,9 +39,9 @@ import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedR
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings, type PosArticle } from '@kreiseck/kasseneck-api/pos';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
-import { createInvoiceApi, INVOICE_ERROR_CODES } from '@kreiseck/kasseneck-api/invoice';
+import { createInvoiceApi, INVOICE_ERROR_CODES, type IssueInvoiceItemInput } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
-import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, INVENTORY_WEBHOOK_EVENTS, type StockLevel } from '@kreiseck/kasseneck-api/inventory';
+import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest } from '@kreiseck/kasseneck-api/inventory';
 // 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
 // ./rechnung -> ./invoice, ./rechnung/rechnen -> ./invoice/calc). Loest einer
 // wieder auf, meldet tsc die unbenutzte Erwartung.
@@ -101,6 +101,17 @@ const lagerE = parseInventoryWebhookEvent('{}');
 export const lagerFolge: number | null = lagerE && lagerE.type === 'stock.changed' ? lagerE.data.sequence : null;
 export const lagerEreignisse: readonly string[] = INVENTORY_WEBHOOK_EVENTS;
 export type Bestandszeile = StockLevel;
+// ./inventory schreiben und reservieren (1.5.0): idempotencyKey ist Pflicht im Typ.
+const reservieren: CreateReservationRequest = { idempotencyKey: 'shop-res-1', items: [{ articleId: 'kaisersemmel', quantity: 6000 }], expiresInMinutes: 30 };
+export const reserviert: Promise<Reservation> = lager.createReservation(reservieren);
+export const gebucht: Promise<StockOperation> = lager.receiveGoods({ idempotencyKey: 'we-1', items: [{ articleId: 'kaisersemmel', quantity: 60000, unitPriceMicros: 380000 }] });
+// @ts-expect-error ohne idempotencyKey keine schreibende Anfrage
+export const ohneSchluessel = lager.transferStock({ fromLocationId: 'haupt', toLocationId: 'lieferwagen', items: [] });
+const lagerR = parseInventoryWebhookEvent('{}');
+export const lagerStand: string | null = lagerR && lagerR.type === 'reservation.expired' ? lagerR.data.status : null;
+export const fehlmenge: number = inventoryShortfalls(null)[0]?.available ?? 0;
+export const reservierungsStaende: readonly string[] = RESERVATION_STATUSES;
+export const rechnungsPosition: IssueInvoiceItemInput = { description: 'Kaisersemmel', quantity: 6, unitPriceCents: 65, vatRate: 10, articleId: 'kaisersemmel', reservationId: 'res_1' };
 // ./stored: gespeicherte Dokumente als dieselben Modelle wie am Draht.
 export const gespeichert: string = fromStoredReceipt({ receiptId: 'K-1' }).receiptId;
 declare const kopf: StoredDocument;

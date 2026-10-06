@@ -119,7 +119,21 @@ export interface InvoiceItemInput {
   articleId?: string;
 }
 
-/** Eine Gutschriftsposition: wie eine Rechnungsposition, dazu die Rueckgabe-Wahl. */
+/**
+ * Eine Position beim Ausstellen (`issueInvoice`): dazu optional die
+ * Reservierung aus der Lager-API, die diese Position einloest.
+ */
+export interface IssueInvoiceItemInput extends InvoiceItemInput {
+  /**
+   * Kennung aus `createReservation` (`./inventory`); braucht `articleId`.
+   * Geprueft beim Ausstellen (`reservation_not_found`, `reservation_mismatch`,
+   * `reservation_not_active`; abgelaufen = Hinweis `reservation_expired`),
+   * eingeloest beim Buchen der Rechnung am Lagerstandort der Rechnung.
+   */
+  reservationId?: string;
+}
+
+/** Eine Gutschriftsposition: wie eine Rechnungsposition (ohne Reservierung), dazu die Rueckgabe-Wahl. */
 export interface CreditNoteItemInput extends InvoiceItemInput {
   /** Wohin die Ware dieser Position geht; fehlt = Vorgabe des Aufrufs bzw. `restock`. */
   returnDisposition?: ReturnDisposition;
@@ -146,7 +160,7 @@ export interface IssueInvoiceRequest {
   paymentReference?: string;
   girocode?: boolean;
   tracking?: boolean;
-  items: InvoiceItemInput[];
+  items: IssueInvoiceItemInput[];
   /** Eigene Merkmale (hoechstens 20), nie gedruckt. */
   metadata?: Record<string, string>;
   /** Sprache dieser Rechnung; sonst die des Kunden, sonst `de`. Eine Rechnung, eine Nummer, eine Sprache. */
@@ -203,6 +217,8 @@ export interface InvoicePayment {
 export interface InvoiceNotice {
   code: InvoiceNoticeCode;
   message: string;
+  /** Bei `reservation_expired`: die abgelaufene Reservierung. */
+  reservationId?: string;
 }
 
 export interface RecordPaymentResult {

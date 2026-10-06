@@ -16,7 +16,7 @@
 
 import { KasseneckValidationError } from '../client/errors.js';
 import { verifyWebhookSignature as pruefeSignatur } from '../partner/webhook-signatur.js';
-import { artikel, bestandGeaendert, objekt, unterMindestbestand } from './lesen.js';
+import { artikel, bestandGeaendert, objekt, reservierung, unterMindestbestand } from './lesen.js';
 import { INVENTORY_WEBHOOK_EVENTS, type InventoryWebhookEventType } from './vertrag.js';
 import type { InventoryWebhookEvent } from './typen.js';
 
@@ -79,8 +79,10 @@ function kaputt(grund: string): KasseneckValidationError {
  * Liest eine Zustellung als typisiertes Ereignis. Vorher die Signatur pruefen
  * ([verifyInventoryWebhookSignature]).
  *
- * - Ein Ereignis, das diese Paketversion nicht kennt (etwa `reservation.*`
+ * - Ein Ereignis, das diese Paketversion nicht kennt (etwa `variant_group.*`
  *   einer spaeteren Stufe), ergibt `null`: mit 2xx antworten und uebergehen.
+ * - `reservation.expired|released|redeemed` tragen die Reservierung wie
+ *   `getReservation`, mit dem Status nach dem Vorgang (seit 1.5.0).
  * - Ein Rumpf, der keine Huelle ist, oder eine Bruchzahl in einer Menge wirft
  *   `KasseneckValidationError` (`scope: 'response'`).
  *
@@ -111,6 +113,10 @@ export function parseInventoryWebhookEvent(rawBody: string | Uint8Array): Invent
       return { ...huelle, type: huelle.type, data: bestandGeaendert(ort, data) };
     case 'stock.below_minimum':
       return { ...huelle, type: huelle.type, data: unterMindestbestand(ort, data) };
+    case 'reservation.expired':
+    case 'reservation.released':
+    case 'reservation.redeemed':
+      return { ...huelle, type: huelle.type, data: reservierung(ort, data) };
     default:
       return { ...huelle, type: huelle.type, data: artikel(ort, data) };
   }

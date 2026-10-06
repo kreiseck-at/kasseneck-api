@@ -16,15 +16,21 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { LOCATION_TYPES, type LocationType } from './vertrag.js';
 import type {
   Article,
+  GoodsReceiptPreviewLine,
+  InventoryShortfall,
+  InventoryWarning,
   InventoryWebhook,
   InventoryWebhookDelivery,
   InventoryWebhookTestDelivery,
   Location,
+  Reservation,
+  ReservationItem,
   StockBelowMinimumEventData,
   StockChangedEventData,
   StockLevel,
   StockMovement,
   StockMovementLot,
+  StockOperation,
   StockValue,
 } from './typen.js';
 
@@ -86,6 +92,28 @@ function textAbbildung(w: unknown): Record<string, string> | undefined {
   return raus;
 }
 
+/**
+ * Mengen je Standort (`minStockByLocation`): jeder Wert eine Ganzzahl. Fehlt
+ * das Feld (Server vor Stufe 5b), gilt „keiner“ (`{}`).
+ */
+function mengenJeStandort(ort: Ort, feld: string, w: unknown): Record<string, number> {
+  if (w === undefined || w === null) return {};
+  const o = objekt(w);
+  if (!o) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist kein Objekt)`);
+  const raus: Record<string, number> = {};
+  for (const [k, v] of Object.entries(o)) raus[k] = ganzzahl(ort, `${feld}.${k}`, v);
+  return raus;
+}
+
+/** Eine Liste von Kennungen (`movementIds`, `lotIds`); fehlt sie, ist sie leer. */
+function kennungsliste(ort: Ort, feld: string, w: unknown): string[] {
+  if (w === undefined || w === null) return [];
+  if (!Array.isArray(w) || !w.every((x) => typeof x === 'string')) {
+    throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}${ort.pfad ? '.' : ''}${feld} ist keine Liste von Kennungen)`);
+  }
+  return [...(w as string[])];
+}
+
 // ---- Artikel ------------------------------------------------------------------
 
 export function artikel(ort: Ort, w: unknown): Article {
@@ -104,6 +132,7 @@ export function artikel(ort: Ort, w: unknown): Article {
   const raus: Article = {
     id: kennung(ort, 'id', a.id),
     name: text(a.name),
+    description: text(a.description),
     unitPriceCents: ganzzahlOderNull(ort, 'unitPriceCents', a.unitPriceCents),
     vatRate: typeof vatRate === 'number' ? vatRate : null,
     unit: text(a.unit),
@@ -113,8 +142,10 @@ export function artikel(ort: Ort, w: unknown): Article {
     groupId: text(a.groupId),
     revenueGroupId: text(a.revenueGroupId),
     stockTracked: a.stockTracked === true,
+    stockKind: textOderNull(a.stockKind),
     stockLocationIds: standorte,
     minStock: ganzzahlOderNull(ort, 'minStock', a.minStock),
+    minStockByLocation: mengenJeStandort(ort, 'minStockByLocation', a.minStockByLocation),
     active: a.active !== false,
     createdAt: text(a.createdAt),
     updatedAt: text(a.updatedAt),
@@ -205,8 +236,14 @@ export function bewegung(ort: Ort, w: unknown): StockMovement {
     locationId: text(b.locationId),
     condition: text(b.condition),
     quantityDelta: ganzzahl(ort, 'quantityDelta', b.quantityDelta),
+    // Server vor Stufe 5b senden das Feld nicht: dort aenderte keine Bewegung `reserved`.
+    reservedDelta: b.reservedDelta === undefined ? 0 : ganzzahl(ort, 'reservedDelta', b.reservedDelta),
     stockAfter: nachher
-      ? { sellable: ganzzahl(nachherOrt, 'sellable', nachher.sellable), defective: ganzzahl(nachherOrt, 'defective', nachher.defective) }
+      ? {
+        sellable: ganzzahl(nachherOrt, 'sellable', nachher.sellable),
+        defective: ganzzahl(nachherOrt, 'defective', nachher.defective),
+        reserved: ganzzahlOderNull(nachherOrt, 'reserved', nachher.reserved),
+      }
       : null,
     operationId: text(b.operationId),
     source: quelle
@@ -291,6 +328,97 @@ export function unterMindestbestand(ort: Ort, w: unknown): StockBelowMinimumEven
     available: ganzzahl(ort, 'available', d.available),
     minStock: ganzzahl(ort, 'minStock', d.minStock),
   };
+}
+
+// ---- Schreiben (Stufe 5b) ------------------------------------------------------------
+
+function warnung(ort: Ort, w: unknown): InventoryWarning {
+  const h = eintrag(ort, w);
+  if (typeof h.code !== 'string' || h.code === '') throw antwortfehler(ort.name, `Hinweis ohne Code (data.${ort.pfad}.code)`);
+  return {
+    code: h.code,
+    articleId: textOderNull(h.articleId),
+    locationId: textOderNull(h.locationId),
+    message: typeof h.message === 'string' ? h.message : '',
+  };
+}
+
+/** Antwort einer Buchung; ohne `operationId` ist nicht belegt, dass gebucht wurde. */
+export function vorgang(name: string, daten: unknown): StockOperation {
+  const d = objekt(daten);
+  if (!d) throw antwortfehler(name, 'Antwort ist unbrauchbar (data ist kein Objekt)');
+  const ort = { name, pfad: '' };
+  if (typeof d.operationId !== 'string' || d.operationId === '') {
+    throw antwortfehler(name, 'Antwort enthaelt keine Kennung (data.operationId fehlt)');
+  }
+  const hinweise = d.warnings === undefined || d.warnings === null ? [] : d.warnings;
+  if (!Array.isArray(hinweise)) throw antwortfehler(name, 'Antwort ist unbrauchbar (data.warnings ist keine Liste)');
+  return {
+    operationId: d.operationId,
+    movementIds: kennungsliste(ort, 'movementIds', d.movementIds),
+    lotIds: kennungsliste(ort, 'lotIds', d.lotIds),
+    warnings: hinweise.map((h, i) => warnung({ name, pfad: `warnings[${i}]` }, h)),
+  };
+}
+
+/** Eine Zeile der Wareneingangs-Vorschau; Werte nur, wenn der Server sie sendet (Recht `costs`). */
+export function vorschauZeile(ort: Ort, w: unknown): GoodsReceiptPreviewLine {
+  const z = eintrag(ort, w);
+  const serien = z.serialNumbers === undefined || z.serialNumbers === null ? [] : z.serialNumbers;
+  if (!Array.isArray(serien) || !serien.every((x) => typeof x === 'string')) {
+    throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.serialNumbers ist keine Liste)`);
+  }
+  const raus: GoodsReceiptPreviewLine = {
+    articleId: kennung(ort, 'articleId', z.articleId),
+    quantity: ganzzahl(ort, 'quantity', z.quantity),
+    expiresOn: textOderNull(z.expiresOn),
+    batch: textOderNull(z.batch),
+    serialNumbers: [...(serien as string[])],
+    priceFromArticle: z.priceFromArticle === true,
+  };
+  for (const feld of ['baseCents', 'landedCostCents', 'valueCents', 'unitCostMicros'] as const) {
+    if (hat(z, feld)) raus[feld] = ganzzahlOderNull(ort, feld, z[feld]);
+  }
+  return raus;
+}
+
+function reservierungsPosition(ort: Ort, w: unknown): ReservationItem {
+  const p = eintrag(ort, w);
+  return {
+    articleId: kennung(ort, 'articleId', p.articleId),
+    locationId: kennung(ort, 'locationId', p.locationId),
+    quantity: ganzzahl(ort, 'quantity', p.quantity),
+    redeemed: ganzzahl(ort, 'redeemed', p.redeemed),
+    released: ganzzahl(ort, 'released', p.released),
+  };
+}
+
+export function reservierung(ort: Ort, w: unknown): Reservation {
+  const r = eintrag(ort, w);
+  if (!Array.isArray(r.items)) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.items ist keine Liste)`);
+  return {
+    id: kennung(ort, 'id', r.id),
+    status: textOderNull(r.status),
+    reference: text(r.reference),
+    items: r.items.map((p, i) => reservierungsPosition({ name: ort.name, pfad: `${ort.pfad}.items[${i}]` }, p)),
+    expiresAt: text(r.expiresAt),
+    createdAt: text(r.createdAt),
+  };
+}
+
+/** Die fehlenden Positionen aus `insufficient_available` (`data.details[]`); ein kaputter Eintrag faellt weg. */
+export function fehlmengen(roh: unknown): InventoryShortfall[] {
+  if (!Array.isArray(roh)) return [];
+  const raus: InventoryShortfall[] = [];
+  for (const e of roh) {
+    const o = objekt(e);
+    if (!o) continue;
+    const { articleId, locationId, requested, available } = o;
+    if (typeof articleId !== 'string' || typeof locationId !== 'string') continue;
+    if (!Number.isSafeInteger(requested) || !Number.isSafeInteger(available)) continue;
+    raus.push({ articleId, locationId, requested: requested as number, available: available as number });
+  }
+  return raus;
 }
 
 // ---- Listen ------------------------------------------------------------------
