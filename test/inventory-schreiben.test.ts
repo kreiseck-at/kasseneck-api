@@ -272,6 +272,15 @@ test('previewGoodsReceipt: dryRun true an receiveGoods, Schluessel freigestellt;
   assert.equal(anfragen.length, 3);
 });
 
+test('previewGoodsReceipt: idempotencyKey null geht nicht hinaus (wie nicht angegeben)', async () => {
+  const ohne = fall('receive_goods_dry_run');
+  const { dryRun: _a, ...anfrage } = ohne.params;
+  const { lager, anfragen } = client(antwort(ohne.response));
+  await lager.previewGoodsReceipt({ ...(anfrage as Json), idempotencyKey: null } as never);
+  assert.equal('idempotencyKey' in params(anfragen[0]), false);
+  assert.deepEqual(params(anfragen[0]), ohne.params);
+});
+
 test('receiveGoods: dryRun true ist keine Buchung und geht nicht hinaus (dafuer previewGoodsReceipt)', async () => {
   const { lager, anfragen } = client();
   await assert.rejects(lager.receiveGoods({ ...(fall('receive_goods').params as Json), dryRun: true } as never), anfragefehler);

@@ -213,13 +213,16 @@ export async function receiveGoods(transport: InternerTransport, request: Receiv
 /**
  * Vorschau eines Wareneingangs (`receiveGoods` mit `dryRun: true`): prueft
  * Positionen, Artikel, Preise und Nebenkosten und rechnet die Verteilung,
- * schreibt aber nichts. Ein `idempotencyKey` ist freigestellt und wird nicht
- * verbraucht; dieselbe Anfrage laesst sich danach mit ihm buchen. Werte
+ * schreibt aber nichts. Ein `idempotencyKey` ist freigestellt (`null` wie nicht
+ * angegeben, geht nicht hinaus) und wird nicht verbraucht; dieselbe Anfrage
+ * laesst sich danach mit ihm buchen. Werte
  * (`baseCents` …) nur mit dem Recht `costs`. Den Standort prueft erst die Buchung.
  */
 export async function previewGoodsReceipt(transport: InternerTransport, request: GoodsReceiptPreviewRequest): Promise<GoodsReceiptPreview> {
   const name = 'receiveGoods';
   const p = anfrage(name, request);
+  // null heisst hier „kein Schluessel“ und geht wie undefined nicht hinaus.
+  if (p.idempotencyKey === null) delete p.idempotencyKey;
   schluessel(name, p, { pflicht: false });
   eingangZahlen(name, p);
   const daten = await transport(name, { ...p, dryRun: true });

@@ -29,7 +29,10 @@ New response fields are added to the models.
   `changeStockCondition`, `reverseStockMovement`, each answering with a
   `StockOperation` (`operationId`, `movementIds`, `lotIds`, `warnings[]`).
   `previewGoodsReceipt` is `receiveGoods` with `dryRun: true`: it books nothing,
-  needs no key and returns the values only with the permission `costs`.
+  needs no key (a `null` key counts as none and is not sent) and returns the
+  values only with the permission `costs`. `receiveGoods` with `dryRun: true`
+  is refused before sending: a preview answers without an operation, so it
+  goes through `previewGoodsReceipt`.
   Transfers, losses and condition changes never overdraw (`exceeds_stock`).
   Catalogs `STOCK_LOSS_REASONS`, `WITHDRAWAL_TYPES`, `LANDED_COST_TYPES`,
   `LANDED_COST_ALLOCATIONS`; warnings `INVENTORY_WARNING_CODES`
@@ -52,7 +55,8 @@ New response fields are added to the models.
   gives `idempotency_conflict`.
 - **Checked before sending**, nothing else: the key, required ids, integer
   quantities, amounts and prices (`1.5` is never 1.5 pieces), the range of
-  `expiresInMinutes`, an update without a field, an empty release list. All of
+  `expiresInMinutes`, an update without a field, an empty release list,
+  `receiveGoods` with `dryRun: true` (use `previewGoodsReceipt`). All of
   these throw `KasseneckValidationError` with `scope: 'request'`.
 - **Models**: `Article` gains `description`, `stockKind` and
   `minStockByLocation` (missing on an older server: `null`, `null`, `{}`).

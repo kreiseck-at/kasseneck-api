@@ -1602,7 +1602,10 @@ try {
   `StockOperation`. `warnings[]` are notices from `INVENTORY_WARNING_CODES`,
   never errors: the booking took effect. Prices may be sent without the
   permission `costs`; values come back only in `previewGoodsReceipt`, which is
-  `receiveGoods` with `dryRun: true` (books nothing, needs no key).
+  `receiveGoods` with `dryRun: true` (books nothing, needs no key; a `null`
+  key counts as none and is not sent). `receiveGoods` itself refuses
+  `dryRun: true` before sending (`KasseneckValidationError`, `scope:
+  'request'`): a preview is not a booking, call `previewGoodsReceipt`.
 
 ### Shop: reserve and invoice
 
