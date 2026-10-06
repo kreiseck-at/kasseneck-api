@@ -1,6 +1,6 @@
 /**
- * Fassade ueber den Aufrufen der Lager-API: Schluessel einmal binden, dann
- * rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
+ * Fassade ueber den Aufrufen der Lager-API (lesen, Webhooks, schreiben,
+ * reservieren): Schluessel einmal binden, dann rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
  * Funktionen (endpunkte.ts) und bleiben einzeln importierbar.
  */
 
@@ -26,8 +26,42 @@ import {
   sendWebhookTest,
   updateWebhook,
 } from './endpunkte.js';
+import {
+  changeStockCondition,
+  createArticle,
+  createReservation,
+  deactivateArticle,
+  extendReservation,
+  getReservation,
+  iterateReservations,
+  listReservations,
+  previewGoodsReceipt,
+  receiveGoods,
+  recordStockLoss,
+  releaseReservation,
+  reverseStockMovement,
+  transferStock,
+  updateArticle,
+} from './schreiben.js';
 import type {
   Article,
+  ChangeStockConditionRequest,
+  CreateArticleRequest,
+  CreateReservationRequest,
+  DeactivateArticleRequest,
+  ExtendReservationRequest,
+  GoodsReceiptPreview,
+  GoodsReceiptPreviewRequest,
+  ReceiveGoodsRequest,
+  RecordStockLossRequest,
+  ReleaseReservationRequest,
+  Reservation,
+  ReservationListQuery,
+  ReservationPage,
+  ReverseStockMovementRequest,
+  StockOperation,
+  TransferStockRequest,
+  UpdateArticleRequest,
   ArticleListQuery,
   ArticleLookup,
   ArticlePage,
@@ -84,6 +118,26 @@ export interface InventoryClient {
   sendWebhookTest(webhookId: string, event: InventoryWebhookEventType | (string & {})): Promise<InventoryWebhookTestResult>;
   rotateWebhookSecret(webhookId: string): Promise<InventoryWebhookWithSecret>;
   listWebhookDeliveries(options?: { webhookId?: string; limit?: number }): Promise<InventoryWebhookDelivery[]>;
+
+  // Schreiben (Stufe 5b): jeder Aufruf mit `idempotencyKey`, Konto-Schalter „Lager-API schreiben“.
+  createArticle(request: CreateArticleRequest): Promise<Article>;
+  updateArticle(request: UpdateArticleRequest): Promise<Article>;
+  deactivateArticle(request: DeactivateArticleRequest): Promise<Article>;
+  receiveGoods(request: ReceiveGoodsRequest): Promise<StockOperation>;
+  /** `receiveGoods` mit `dryRun: true`: rechnet, schreibt nichts, Schluessel freigestellt. */
+  previewGoodsReceipt(request: GoodsReceiptPreviewRequest): Promise<GoodsReceiptPreview>;
+  transferStock(request: TransferStockRequest): Promise<StockOperation>;
+  recordStockLoss(request: RecordStockLossRequest): Promise<StockOperation>;
+  changeStockCondition(request: ChangeStockConditionRequest): Promise<StockOperation>;
+  reverseStockMovement(request: ReverseStockMovementRequest): Promise<StockOperation>;
+
+  // Reservierung (Stufe 5b): eingeloest ueber `issueInvoice` mit `items[].reservationId`.
+  createReservation(request: CreateReservationRequest): Promise<Reservation>;
+  extendReservation(request: ExtendReservationRequest): Promise<Reservation>;
+  releaseReservation(request: ReleaseReservationRequest): Promise<Reservation>;
+  getReservation(reservationId: string): Promise<Reservation>;
+  listReservations(query?: ReservationListQuery): Promise<ReservationPage>;
+  iterateReservations(query?: ReservationListQuery): AsyncGenerator<Reservation, void, undefined>;
 }
 
 export function createInventoryClient(options: InventoryClientOptions): InventoryClient {
@@ -114,5 +168,22 @@ export function createInventoryClient(options: InventoryClientOptions): Inventor
     sendWebhookTest: (id, event) => sendWebhookTest(rufen, id, event),
     rotateWebhookSecret: (id) => rotateWebhookSecret(rufen, id),
     listWebhookDeliveries: (o) => listWebhookDeliveries(rufen, o),
+
+    createArticle: (r) => createArticle(rufen, r),
+    updateArticle: (r) => updateArticle(rufen, r),
+    deactivateArticle: (r) => deactivateArticle(rufen, r),
+    receiveGoods: (r) => receiveGoods(rufen, r),
+    previewGoodsReceipt: (r) => previewGoodsReceipt(rufen, r),
+    transferStock: (r) => transferStock(rufen, r),
+    recordStockLoss: (r) => recordStockLoss(rufen, r),
+    changeStockCondition: (r) => changeStockCondition(rufen, r),
+    reverseStockMovement: (r) => reverseStockMovement(rufen, r),
+
+    createReservation: (r) => createReservation(rufen, r),
+    extendReservation: (r) => extendReservation(rufen, r),
+    releaseReservation: (r) => releaseReservation(rufen, r),
+    getReservation: (id) => getReservation(rufen, id),
+    listReservations: (q) => listReservations(rufen, q),
+    iterateReservations: (q) => iterateReservations(rufen, q),
   };
 }

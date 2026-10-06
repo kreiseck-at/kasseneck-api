@@ -18,6 +18,7 @@ import {
   INVOICE_UNIT_CODES,
   ITEM_FIELDS,
   CREDIT_NOTE_ITEM_FIELDS,
+  INVOICE_ITEM_FIELDS,
   RETURN_DISPOSITIONS,
   ITEM_PRICE_EXACTLY_ONE,
   INVOICE_REQUESTS,
@@ -51,15 +52,19 @@ test('Vertrag: jeder Aufruf hat eine Anfragebeschreibung und keine darueber hina
   assert.deepEqual(Object.keys(INVOICE_REQUESTS).sort(), [...INVOICE_ENDPOINTS].sort());
 });
 
-test('Vertrag: Gutschrift-Positionen sind die Rechnungspositionen plus returnDisposition', () => {
+test('Vertrag: Rechnungspositionen = gemeinsame Felder plus reservationId, Gutschrift-Positionen = gemeinsame plus returnDisposition', () => {
   const issue = INVOICE_REQUESTS.issueInvoice['items'];
   const credit = INVOICE_REQUESTS.createCreditNote['items'];
   assert.ok(issue && issue.type === 'list' && issue.item.type === 'object');
   assert.ok(credit && credit.type === 'list' && credit.item.type === 'object');
-  assert.equal(issue.item.fields, ITEM_FIELDS);
+  assert.equal(issue.item.fields, INVOICE_ITEM_FIELDS);
   assert.equal(credit.item.fields, CREDIT_NOTE_ITEM_FIELDS);
+  assert.deepEqual(INVOICE_ITEM_FIELDS, { ...ITEM_FIELDS, reservationId: { type: 'string', required: false, min: 1, max: 128 } });
   assert.deepEqual(CREDIT_NOTE_ITEM_FIELDS, { ...ITEM_FIELDS, returnDisposition: { type: 'enum', required: false, values: RETURN_DISPOSITIONS } });
-  assert.equal('returnDisposition' in ITEM_FIELDS, false, 'an der Rechnung weist der Server returnDisposition ab');
+  assert.equal('returnDisposition' in INVOICE_ITEM_FIELDS, false, 'an der Rechnung weist der Server returnDisposition ab');
+  // Eingeloest wird nur beim Ausstellen: an einer Gutschrift ist reservationId ein unbekanntes Feld (validation).
+  assert.equal('reservationId' in CREDIT_NOTE_ITEM_FIELDS, false, 'an der Gutschrift weist der Server reservationId ab');
+  assert.equal('reservationId' in ITEM_FIELDS, false);
 });
 
 test('Vertrag: Lagerfelder wie im Backend (Kennung 1-128, Rueckgabe-Katalog), alle optional', () => {
@@ -244,12 +249,24 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
   // derselben Stelle wie zuvor, die beiden neuen (0.23.0) hinten dran.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-8, -2), [
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-13, -7), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-7, -5), ['einvoice_unavailable', 'amount_too_large']);
+  // UID-Pruefung (0.x: 0.33.0, hier 1.5.0) vor der Reservierung, wie im Backend.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5, -3), ['vat_id_invalid', 'vat_id_check_pending']);
+  // 1.5.0: Reservierung an der Rechnungsposition, hinten angehaengt.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-3), ['reservation_not_found', 'reservation_mismatch', 'reservation_not_active']);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
+});
+
+test('Vertrag: acceptVatIdRisk ist eine optionale Angabe nur an issueInvoice', () => {
+  assert.deepEqual(INVOICE_REQUESTS.issueInvoice['acceptVatIdRisk'], { type: 'boolean', required: false });
+  for (const aufruf of INVOICE_ENDPOINTS) {
+    if (aufruf === 'issueInvoice') continue;
+    assert.ok(!pfade(INVOICE_REQUESTS[aufruf]).includes('acceptVatIdRisk'), `${aufruf} nimmt acceptVatIdRisk an`);
+  }
 });
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {
@@ -308,7 +325,7 @@ test('Vertrag: jeder Reverse-Charge-Grund nennt Stelle, Schwelle und Aufdruck', 
 });
 
 test('Vertrag: Hinweise sind keine Fehler und tragen eigene Codes', () => {
-  assert.deepEqual([...INVOICE_NOTICE_CODES], ['cash_receipt_required', 'recapitulative_statement_due', 'place_of_supply_check']);
+  assert.deepEqual([...INVOICE_NOTICE_CODES], ['cash_receipt_required', 'recapitulative_statement_due', 'place_of_supply_check', 'reservation_expired']);
   for (const code of INVOICE_NOTICE_CODES) {
     assert.ok(!(INVOICE_ERROR_CODES as readonly string[]).includes(code), `${code} steht faelschlich bei den Fehlern`);
   }

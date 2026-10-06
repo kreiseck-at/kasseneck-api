@@ -101,6 +101,20 @@ export const ALL_CALLS = [
   'sendWebhookTest',
   'rotateWebhookSecret',
   'listWebhookDeliveries',
+  // Lager-API schreiben und Reservierung (Stufe 5b, ./inventory)
+  'createArticle',
+  'updateArticle',
+  'deactivateArticle',
+  'receiveGoods',
+  'transferStock',
+  'recordStockLoss',
+  'changeStockCondition',
+  'reverseStockMovement',
+  'createReservation',
+  'extendReservation',
+  'releaseReservation',
+  'getReservation',
+  'listReservations',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -190,6 +204,20 @@ export const PUBLIC_CALLS = [
   'sendWebhookTest',
   'rotateWebhookSecret',
   'listWebhookDeliveries',
+  // Lager-API schreiben und Reservierung (Backend Stufe 5b), umhuellt in `./inventory`.
+  'createArticle',
+  'updateArticle',
+  'deactivateArticle',
+  'receiveGoods',
+  'transferStock',
+  'recordStockLoss',
+  'changeStockCondition',
+  'reverseStockMovement',
+  'createReservation',
+  'extendReservation',
+  'releaseReservation',
+  'getReservation',
+  'listReservations',
 ] as const;
 
 /**

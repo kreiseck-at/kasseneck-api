@@ -1,7 +1,8 @@
 /**
  * `@kreiseck/kasseneck-api/inventory` – die Lager-API: Artikel, Standorte,
  * Bestand und Lagerprotokoll lesen, Konto-Webhooks verwalten und eingehende
- * Zustellungen pruefen (Backend Stufe 5a).
+ * Zustellungen pruefen (Backend Stufe 5a); Artikel anlegen und aendern,
+ * Bestand buchen und Ware reservieren (Stufe 5b, seit 1.5.0).
  *
  * Ein eigener Unterpfad wie `invoice`: der `api_key` eines Kontos gehoert auf
  * einen **Server** (etwa das Backend eines Online-Shops) und soll nicht
@@ -21,6 +22,8 @@ export {
   inventoryErrorCode,
   inventoryFieldErrors,
   inventoryRetryAfterSec,
+  inventoryShortfalls,
+  isInventoryWarningCode,
   type InventoryApiErrorCode,
   type InventoryFieldError,
 } from './fehler.js';
@@ -46,6 +49,24 @@ export {
 } from './endpunkte.js';
 
 export {
+  changeStockCondition,
+  createArticle,
+  createReservation,
+  deactivateArticle,
+  extendReservation,
+  getReservation,
+  iterateReservations,
+  listReservations,
+  previewGoodsReceipt,
+  receiveGoods,
+  recordStockLoss,
+  releaseReservation,
+  reverseStockMovement,
+  transferStock,
+  updateArticle,
+} from './schreiben.js';
+
+export {
   verifyInventoryWebhookSignature,
   parseInventoryWebhookEvent,
   WEBHOOK_SIGNATURE_HEADER,
@@ -57,10 +78,22 @@ export {
 
 export type {
   Article,
+  ArticleInput,
   ArticleListQuery,
   ArticleLookup,
   ArticlePage,
+  ChangeStockConditionRequest,
+  CreateArticleRequest,
   CreateInventoryWebhookOptions,
+  CreateReservationRequest,
+  DeactivateArticleRequest,
+  ExtendReservationRequest,
+  GoodsReceiptItem,
+  GoodsReceiptPreview,
+  GoodsReceiptPreviewLine,
+  GoodsReceiptPreviewRequest,
+  InventoryShortfall,
+  InventoryWarning,
   InventoryWebhook,
   InventoryWebhookDelivery,
   InventoryWebhookEnvelope,
@@ -70,10 +103,22 @@ export type {
   InventoryWebhookTestDelivery,
   InventoryWebhookTestResult,
   InventoryWebhookWithSecret,
+  LandedCost,
   Location,
   LocationAddress,
+  ReceiveGoodsRequest,
+  RecordStockLossRequest,
+  ReleaseReservationItem,
+  ReleaseReservationRequest,
+  Reservation,
+  ReservationItem,
+  ReservationItemInput,
+  ReservationListQuery,
+  ReservationPage,
+  ReverseStockMovementRequest,
   StockBelowMinimumEventData,
   StockChangedEventData,
+  StockItem,
   StockLevel,
   StockListQuery,
   StockMovement,
@@ -81,9 +126,12 @@ export type {
   StockMovementPage,
   StockMovementQuery,
   StockMovementSourceRef,
+  StockOperation,
   StockPage,
   StockResult,
   StockValue,
+  TransferStockRequest,
+  UpdateArticleRequest,
 } from './typen.js';
 
 export {
@@ -100,6 +148,16 @@ export {
   STOCK_CONDITIONS,
   STOCK_CHANGE_CAUSES,
   WEBHOOK_DELIVERY_STATUSES,
+  INVENTORY_WARNING_CODES,
+  STOCK_KINDS,
+  STOCK_LOSS_REASONS,
+  WITHDRAWAL_TYPES,
+  LANDED_COST_TYPES,
+  LANDED_COST_ALLOCATIONS,
+  RESERVATION_STATUSES,
+  INVENTORY_IDEMPOTENCY_KEY_MAX,
+  RESERVATION_MINUTES_MIN,
+  RESERVATION_MINUTES_MAX,
   type InventoryEndpoint,
   type InventoryErrorCode,
   type InventoryRequestErrorCode,
@@ -110,4 +168,11 @@ export {
   type StockCondition,
   type StockChangeCause,
   type WebhookDeliveryStatus,
+  type InventoryWarningCode,
+  type StockKind,
+  type StockLossReason,
+  type WithdrawalType,
+  type LandedCostType,
+  type LandedCostAllocation,
+  type ReservationStatus,
 } from './vertrag.js';

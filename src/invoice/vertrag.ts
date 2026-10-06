@@ -77,6 +77,13 @@ export const INVOICE_ERROR_CODES = [
   'oss_not_enabled',
   'einvoice_unavailable', // zu dieser Rechnung entsteht keine E-Rechnung, Grund in `reason`
   'amount_too_large', // Betrag ueber der Grenze des Ganzzahlkerns; erst ab dessen Umstieg gesendet
+  // Seit 1.5.0 (0.x: 0.33.0): UID-Pruefung beim Ausstellen ohne Steuer.
+  'vat_id_invalid', // UID des Kunden laut FinanzOnline/VIES ungueltig, sperrt auch mit acceptVatIdRisk
+  'vat_id_check_pending', // noch kein Ergebnis der UID-Pruefung; `retryAfter` in Sekunden, oder acceptVatIdRisk
+  // Seit 1.5.0: Position mit `reservationId` (nur `issueInvoice`), geprueft beim Ausstellen.
+  'reservation_not_found', // unbekannt oder einem anderen Konto
+  'reservation_mismatch', // keine offene Position mit gleichem Artikel am Lagerstandort der Rechnung
+  'reservation_not_active', // schon eingeloest oder freigegeben
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -266,6 +273,10 @@ export const INVOICE_NOTICE_CODES = [
   /** Leistung an eine Privatperson im Drittland: der Leistungsort haengt von der
    *  Art der Leistung ab — wir nehmen den oesterreichischen Fall an. */
   'place_of_supply_check',
+  /** Die Reservierung einer Position war beim Ausstellen schon abgelaufen: die
+   *  Rechnung entsteht trotzdem, verkauft wird ohne Reservierung (seit 1.5.0).
+   *  Der Hinweis nennt `reservationId`, je Reservierung einmal. */
+  'reservation_expired',
 ] as const;
 export type InvoiceNoticeCode = (typeof INVOICE_NOTICE_CODES)[number];
 
@@ -508,6 +519,20 @@ export const ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
   articleId: id,
 });
 
+/**
+ * Eine Rechnungsposition beim Ausstellen: die gemeinsamen Positionsfelder plus
+ * `reservationId` (seit 1.5.0). Die Reservierung aus der Lager-API
+ * (`createReservation`) wird beim Ausstellen geprueft und beim Buchen der
+ * Rechnung eingeloest; die Position braucht dazu `articleId`. Unbekannt =
+ * `reservation_not_found`, schon eingeloest oder freigegeben =
+ * `reservation_not_active`, kein offener Rest dieses Artikels am Lagerstandort
+ * der Rechnung (`stockLocationId`, sonst der Standard-Standort) =
+ * `reservation_mismatch`; abgelaufen ist kein Fehler, sondern der Hinweis
+ * `reservation_expired`. Weniger verkauft als reserviert gibt den Rest frei.
+ * Gutschriften kennen das Feld nicht (`validation`).
+ */
+export const INVOICE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, reservationId: id });
+
 /** Genau einer der beiden Preise je Position (§ 9.1). */
 export const ITEM_PRICE_EXACTLY_ONE: readonly (readonly string[])[] = Object.freeze([
   Object.freeze(['unitPriceCents']),
@@ -520,7 +545,7 @@ const positionen: Field = {
   min: 1,
   max: 500,
   item: {
-    type: 'object', required: true, fields: ITEM_FIELDS, exactlyOne: ITEM_PRICE_EXACTLY_ONE,
+    type: 'object', required: true, fields: INVOICE_ITEM_FIELDS, exactlyOne: ITEM_PRICE_EXACTLY_ONE,
   },
 };
 
@@ -528,9 +553,10 @@ const positionen: Field = {
 const returnDisposition: Field = { type: 'enum', required: false, values: RETURN_DISPOSITIONS };
 
 /**
- * Eine Gutschriftsposition: die Rechnungsposition plus `returnDisposition`
- * (wohin die zurueckgenommene Ware geht). An einer Rechnungsposition weist der
- * Server das Feld als unbekannt ab.
+ * Eine Gutschriftsposition: die gemeinsamen Positionsfelder plus
+ * `returnDisposition` (wohin die zurueckgenommene Ware geht), ohne
+ * `reservationId`. An einer Rechnungsposition weist der Server
+ * `returnDisposition` als unbekannt ab.
  */
 export const CREDIT_NOTE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, returnDisposition });
 
@@ -630,6 +656,13 @@ export const INVOICE_REQUESTS: Readonly<Record<InvoiceEndpoint, Readonly<Record<
      * Idempotenz-Eintrag. Die Antwort traegt `preview` statt `invoice`.
      */
     dryRun: { type: 'boolean', required: false },
+    /**
+     * Rechnung ohne Steuer, deren UID-Pruefung (FinanzOnline, sonst VIES) noch
+     * kein Ergebnis hat: `true` stellt trotzdem aus. Der Aussteller traegt das
+     * Risiko, die Rechnung steht dann mit `vatIdRisk`. Eine ungueltige UID
+     * (`vat_id_invalid`) sperrt auch damit.
+     */
+    acceptVatIdRisk: { type: 'boolean', required: false },
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),

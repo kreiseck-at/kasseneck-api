@@ -1,6 +1,7 @@
 /**
  * Die Aufrufe der Lager-API: Artikel, Standorte, Bestand und Bewegungen
- * lesen, Konto-Webhooks verwalten (Backend Stufe 5a).
+ * lesen, Konto-Webhooks verwalten (Backend Stufe 5a). Die schreibenden
+ * Aufrufe (Stufe 5b) stehen in `schreiben.ts` und teilen die Helfer hier.
  *
  * Jede Funktion nimmt den Transport als ersten Parameter und ist einzeln
  * importierbar; die Fassade [createInventoryClient] bindet ihn nur einmal.
@@ -56,12 +57,12 @@ import type {
 
 type Params = Record<string, unknown>;
 
-function anfragefehler(name: ApiCall, grund: string): KasseneckValidationError {
+export function anfragefehler(name: ApiCall, grund: string): KasseneckValidationError {
   return new KasseneckValidationError(name, grund, 'request');
 }
 
 /** Eine Kennung, die gesendet werden muss: Text mit mindestens einem Zeichen ausser Leerraum. */
-function kennung(name: ApiCall, feld: string, wert: unknown): string {
+export function kennung(name: ApiCall, feld: string, wert: unknown): string {
   if (typeof wert !== 'string' || wert.trim() === '') throw anfragefehler(name, `${feld} fehlt`);
   return wert;
 }
@@ -73,7 +74,7 @@ const ZEITFELDER: ReadonlySet<string> = new Set(['updatedSince', 'changedSince',
  * Die Abfrage einer Liste als Parameter. Unbekannte Felder gehen unveraendert
  * hinaus (der Server weist sie mit `validation` ab), `undefined` faellt weg.
  */
-function abfrage(name: ApiCall, query: object | undefined): Params {
+export function abfrage(name: ApiCall, query: object | undefined): Params {
   if (query === undefined || query === null) return {};
   if (typeof query !== 'object' || Array.isArray(query)) throw anfragefehler(name, 'Abfrage muss ein Objekt sein');
   const raus: Params = {};
@@ -100,7 +101,7 @@ function abfrage(name: ApiCall, query: object | undefined): Params {
  * Blaettert ueber alle Seiten, Eintrag fuer Eintrag. Derselbe Cursor zweimal
  * waere eine Endlosschleife: dann endet die Schleife mit einem Antwortfehler.
  */
-async function* seitenweise<T>(
+export async function* seitenweise<T>(
   name: ApiCall,
   start: string | undefined,
   seite: (cursor: string | undefined) => Promise<{ eintraege: T[]; nextCursor: string | null }>,

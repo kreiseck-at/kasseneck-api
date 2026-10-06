@@ -4,6 +4,114 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.5.0
+
+Inventory API, write side and reservations: `./inventory` gains the 13
+endpoints of backend stage 5b, and the invoice API learns `reservationId`.
+Reason: a shop that only reads stock still oversells. It has to hold the goods
+at checkout, book what arrives and leaves, keep its articles in sync, and turn
+the reservation into a sale when the order is invoiced, all with retries that
+never book twice. The invoice API also catches up with the VAT ID check of
+the backend (stage 4, in the 0.x line since 0.33.0).
+
+Additive, no breaking change; existing calls send the same bytes as in 1.4.0.
+New response fields are added to the models.
+
+- **Articles**: `createArticle`, `updateArticle`, `deactivateArticle`, each
+  answering with the article as `getArticle` returns it. Fields: `name`,
+  `description`, `unitPriceCents`, `vatRate`, `unit`, `number`, `ean` (with
+  `ean` a foreign article with that code, otherwise the server assigns the next
+  own code), `groupId`, `revenueGroupId`, `stockTracked`, `stockLocationIds`,
+  `minStockByLocation`, `minStock` (legacy, triggers nothing), `stockKind`,
+  `purchasePriceMicros` (only with the permission `costs`), `externalIds` and
+  `metadata`. In an update `null` clears an optional field; `externalIds` and
+  `metadata` are replaced, `minStockByLocation` is merged per location.
+- **Booking**: `receiveGoods`, `transferStock`, `recordStockLoss`,
+  `changeStockCondition`, `reverseStockMovement`, each answering with a
+  `StockOperation` (`operationId`, `movementIds`, `lotIds`, `warnings[]`).
+  `previewGoodsReceipt` is `receiveGoods` with `dryRun: true`: it books nothing,
+  needs no key (a `null` key counts as none and is not sent) and returns the
+  values only with the permission `costs`. `receiveGoods` with `dryRun: true`
+  is refused before sending: a preview answers without an operation, so it
+  goes through `previewGoodsReceipt`.
+  Transfers, losses and condition changes never overdraw (`exceeds_stock`).
+  Catalogs `STOCK_LOSS_REASONS`, `WITHDRAWAL_TYPES`, `LANDED_COST_TYPES`,
+  `LANDED_COST_ALLOCATIONS`; warnings `INVENTORY_WARNING_CODES`
+  (`insufficient_stock`, `below_minimum`, `return_exceeds_sale`,
+  `reservation_exceeded`) with `isInventoryWarningCode`. A warning is not an
+  error: the booking took effect.
+- **Reservations**: `createReservation` (all or nothing, measured against
+  `available`; `insufficient_available` lists the missing positions in
+  `inventoryShortfalls(error)`), `extendReservation`, `releaseReservation` (all,
+  or per position), `getReservation`, `listReservations` and
+  `iterateReservations`. `Reservation` carries `status` (`active`, `redeemed`,
+  `released`, `expired`; `RESERVATION_STATUSES`), `reference`, `items[]` with
+  `quantity`, `redeemed`, `released`, and `expiresAt`. `expiresInMinutes` is
+  5 to 43,200.
+- **Idempotency**: every write takes `idempotencyKey` (1 to 120 characters,
+  required in the type). The client refuses to send a write without a valid
+  key, because a write without one cannot be retried safely; it never trims or
+  shortens the key. Retry after a timeout with the **same** key: the call takes
+  effect once and returns the stored answer; the same key with other content
+  gives `idempotency_conflict`.
+- **Checked before sending**, nothing else: the key, required ids, integer
+  quantities, amounts and prices (`1.5` is never 1.5 pieces), the range of
+  `expiresInMinutes`, an update without a field, an empty release list,
+  `receiveGoods` with `dryRun: true` (use `previewGoodsReceipt`). All of
+  these throw `KasseneckValidationError` with `scope: 'request'`.
+- **Models**: `Article` gains `description`, `stockKind` and
+  `minStockByLocation` (missing on an older server: `null`, `null`, `{}`).
+  `StockMovement` gains `reservedDelta` (0 for every movement that is not a
+  reservation) and `stockAfter.reserved` (only on reservation movements,
+  otherwise `null`); the movement type `reservation` has `quantityDelta: 0`.
+  The minimum stock (`below_minimum`, `listStock({ belowMinimum })`,
+  `stock.below_minimum`) is now measured against `available = onHand −
+  reserved`, so a reservation alone can trigger it. A fractional value in any
+  of these fields throws `KasseneckValidationError` with `scope: 'response'`.
+- **Events**: `reservation.expired`, `reservation.released` and
+  `reservation.redeemed` in `INVENTORY_WEBHOOK_EVENTS` and
+  `parseInventoryWebhookEvent`, carrying the reservation with its status
+  afterwards. `released` and `redeemed` fire on every effective release or
+  redemption, also a partial one (status stays `active`).
+- **Errors**: `INVENTORY_ERROR_CODES` keeps its 12 codes in front and appends
+  the codes of the write side in contract order (`idempotency_key_required`,
+  `idempotency_conflict`, `exceeds_stock`, `code_taken`,
+  `external_id_taken`, `stock_kind_locked`, `article_inactive`,
+  `insufficient_available`, `reservation_not_found`,
+  `reservation_not_active` …).
+- **Invoice API, reservations**: `issueInvoice` items take `reservationId`
+  (`IssueInvoiceItemInput`, needs `articleId`; not on credit notes, where the
+  server rejects it). New codes at the end of `INVOICE_ERROR_CODES`:
+  `reservation_not_found`, `reservation_mismatch`, `reservation_not_active`;
+  new notice `reservation_expired` (with `reservationId`): the invoice is
+  issued anyway and sells without the reservation. Three new examples in
+  `fixtures/invoice-api-examples/`.
+- **Invoice API, VAT ID check**: an invoice without VAT that relies on the
+  customer's VAT ID (intra-Community supply, reverse charge) is only issued
+  with a result of the VAT ID check (FinanzOnline, otherwise VIES) on the day
+  of issue. Reason: the caller has to decide by the code whether to retry
+  later or not to issue at all.
+  - Codes `vat_id_invalid` and `vat_id_check_pending` in
+    `INVOICE_ERROR_CODES`, after `amount_too_large` and before the
+    reservation codes (the backend order). `vat_id_check_pending` carries
+    `details.retryAfter` (seconds until the next sensible attempt, with the
+    same `idempotencyKey`).
+  - `IssueInvoiceRequest.acceptVatIdRisk` (optional boolean): issues despite
+    a pending check, the issuer bears the risk. An invalid VAT ID blocks even
+    with it. It does not count towards the idempotency of the request.
+  - `Invoice.vatIdProof` (`InvoiceVatIdProof`: `checkedOn`, `source`
+    `finanzonline` | `vies`, `level` 1 | 2, `code`) and `Invoice.vatIdRisk`
+    (`InvoiceVatIdRisk`: `acceptedOn`), otherwise `null`.
+  - `fixtures/invoice-api.schema.json` regenerated (`acceptVatIdRisk`, the
+    two codes), two new examples `issue-vat-id-risk.json` and
+    `issue-error-vat-id-risk.json`.
+- **Contract**: `fixtures/v3/` pulled again from the backend (the 13 new
+  endpoints, catalogs, `warningCodes`, events and the 5b cases in
+  `antworten/lager.json`, the VAT ID cases in `antworten/rechnungen.json`);
+  `PUBLIC_CALLS` and `ALL_CALLS` gain the 13 names (87 public calls);
+  `surface.json` gains the new lists under `inventory` and the two invoice
+  codes.
+
 ## 1.4.0
 
 Inventory API, read side and account webhooks: new subpath `./inventory`.

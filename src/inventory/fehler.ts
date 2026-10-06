@@ -10,11 +10,15 @@
 
 import type { KasseneckApiError } from '../client/errors.js';
 import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
+import { fehlmengen } from './lesen.js';
+import type { InventoryShortfall } from './typen.js';
 import {
   INVENTORY_ERROR_CODES,
   INVENTORY_REQUEST_ERROR_CODES,
+  INVENTORY_WARNING_CODES,
   type InventoryErrorCode,
   type InventoryRequestErrorCode,
+  type InventoryWarningCode,
 } from './vertrag.js';
 
 /** Ein Code, den ein Lager-Aufruf liefern kann. */
@@ -59,4 +63,22 @@ export function inventoryRetryAfterSec(error: unknown): number | undefined {
   if (inventoryErrorCode(error) !== 'rate_limited') return undefined;
   const wert = (error as KasseneckApiError).details['retryAfterSec'];
   return typeof wert === 'number' && Number.isFinite(wert) && wert >= 0 ? wert : undefined;
+}
+
+/**
+ * Die Positionen, fuer die beim Reservieren der verfuegbare Bestand nicht
+ * reicht (`insufficient_available`, `data.details[]`): je Artikel und Standort
+ * angefragt und verfuegbar, in Tausendstel. Leer, wenn der Fehler ein anderer
+ * ist. Es fehlen nur diese Positionen; reserviert wurde nichts.
+ */
+export function inventoryShortfalls(error: unknown): InventoryShortfall[] {
+  if (inventoryErrorCode(error) !== 'insufficient_available') return [];
+  return fehlmengen((error as KasseneckApiError).details['details']);
+}
+
+const HINWEISE: ReadonlySet<string> = new Set<string>(INVENTORY_WARNING_CODES);
+
+/** `true` fuer einen Hinweis-Code einer Buchung (`warnings[].code`); Hinweise sind nie Fehler. */
+export function isInventoryWarningCode(value: unknown): value is InventoryWarningCode {
+  return typeof value === 'string' && HINWEISE.has(value);
 }
