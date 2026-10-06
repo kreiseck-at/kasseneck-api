@@ -1351,6 +1351,26 @@ was classified.
 `previewInvoice` and `recordInvoicePayment`. An intra-Community supply carries
 `recapitulative_statement_due` (recapitulative statement).
 
+**VAT ID check.** An invoice without VAT that relies on the customer's VAT ID
+(intra-Community supply, reverse charge) is only issued with a result of the
+VAT ID check (FinanzOnline, otherwise VIES) on the day of issue.
+`vat_id_invalid` blocks the invoice. `vat_id_check_pending` means there is no
+result yet: retry after `retryAfter` seconds with the same `idempotencyKey`,
+or send `acceptVatIdRisk: true` to issue anyway, at the issuer's risk. The
+invoice then carries `vatIdRisk` (`acceptedOn`), otherwise the frozen proof
+`vatIdProof` (`checkedOn`, `source`, `level`, `code`); both are `null` where
+nothing was checked.
+
+```ts
+try {
+  await invoices.issueInvoice(request);
+} catch (error) {
+  if (!isInvoiceError(error, 'vat_id_check_pending')) throw error;
+  const retryAfter = error.details['retryAfter'];           // seconds
+  // later: same request and key, or with acceptVatIdRisk: true
+}
+```
+
 **After a timeout, retry with the same `idempotencyKey`**, never with a new one:
 you then get the invoice that was already issued (`replayed: true`). The same
 key with different data gives `idempotency_conflict`.

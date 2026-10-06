@@ -11,7 +11,8 @@ endpoints of backend stage 5b, and the invoice API learns `reservationId`.
 Reason: a shop that only reads stock still oversells. It has to hold the goods
 at checkout, book what arrives and leaves, keep its articles in sync, and turn
 the reservation into a sale when the order is invoiced, all with retries that
-never book twice.
+never book twice. The invoice API also catches up with the VAT ID check of
+the backend (stage 4, in the 0.x line since 0.33.0).
 
 Additive, no breaking change; existing calls send the same bytes as in 1.4.0.
 New response fields are added to the models.
@@ -78,17 +79,38 @@ New response fields are added to the models.
   `external_id_taken`, `stock_kind_locked`, `article_inactive`,
   `insufficient_available`, `reservation_not_found`,
   `reservation_not_active` …).
-- **Invoice API**: `issueInvoice` items take `reservationId`
+- **Invoice API, reservations**: `issueInvoice` items take `reservationId`
   (`IssueInvoiceItemInput`, needs `articleId`; not on credit notes, where the
   server rejects it). New codes at the end of `INVOICE_ERROR_CODES`:
   `reservation_not_found`, `reservation_mismatch`, `reservation_not_active`;
   new notice `reservation_expired` (with `reservationId`): the invoice is
-  issued anyway and sells without the reservation. `fixtures/invoice-api.schema.json`
-  regenerated, three new examples in `fixtures/invoice-api-examples/`.
+  issued anyway and sells without the reservation. Three new examples in
+  `fixtures/invoice-api-examples/`.
+- **Invoice API, VAT ID check**: an invoice without VAT that relies on the
+  customer's VAT ID (intra-Community supply, reverse charge) is only issued
+  with a result of the VAT ID check (FinanzOnline, otherwise VIES) on the day
+  of issue. Reason: the caller has to decide by the code whether to retry
+  later or not to issue at all.
+  - Codes `vat_id_invalid` and `vat_id_check_pending` in
+    `INVOICE_ERROR_CODES`, after `amount_too_large` and before the
+    reservation codes (the backend order). `vat_id_check_pending` carries
+    `details.retryAfter` (seconds until the next sensible attempt, with the
+    same `idempotencyKey`).
+  - `IssueInvoiceRequest.acceptVatIdRisk` (optional boolean): issues despite
+    a pending check, the issuer bears the risk. An invalid VAT ID blocks even
+    with it. It does not count towards the idempotency of the request.
+  - `Invoice.vatIdProof` (`InvoiceVatIdProof`: `checkedOn`, `source`
+    `finanzonline` | `vies`, `level` 1 | 2, `code`) and `Invoice.vatIdRisk`
+    (`InvoiceVatIdRisk`: `acceptedOn`), otherwise `null`.
+  - `fixtures/invoice-api.schema.json` regenerated (`acceptVatIdRisk`, the
+    two codes), two new examples `issue-vat-id-risk.json` and
+    `issue-error-vat-id-risk.json`.
 - **Contract**: `fixtures/v3/` pulled again from the backend (the 13 new
   endpoints, catalogs, `warningCodes`, events and the 5b cases in
-  `antworten/lager.json`); `PUBLIC_CALLS` and `ALL_CALLS` gain the 13 names
-  (87 public calls); `surface.json` gains the new lists under `inventory`.
+  `antworten/lager.json`, the VAT ID cases in `antworten/rechnungen.json`);
+  `PUBLIC_CALLS` and `ALL_CALLS` gain the 13 names (87 public calls);
+  `surface.json` gains the new lists under `inventory` and the two invoice
+  codes.
 
 ## 1.4.0
 

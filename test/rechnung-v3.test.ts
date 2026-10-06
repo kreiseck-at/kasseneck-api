@@ -28,6 +28,8 @@ import {
   type InvoiceRecipient,
   type InvoiceSetupStatus,
   type InvoiceTotals,
+  type InvoiceVatIdProof,
+  type InvoiceVatIdRisk,
   type IssueInvoiceRequest,
   type IssueResult,
   type PreviewResult,
@@ -237,9 +239,11 @@ function schluessel<T>() {
 
 const FELDER = {
   invoice: schluessel<Invoice>()(['id', 'number', 'docType', 'status', 'invoiceDate', 'dueDate', 'customerId', 'totals',
-    'einvoice', 'statusUrl', 'statusPassword', 'metadata', 'language', 'brand', 'paidCents', 'openCents']),
+    'einvoice', 'statusUrl', 'statusPassword', 'metadata', 'language', 'brand', 'paidCents', 'openCents', 'vatIdProof',
+    'vatIdRisk']),
   detail: schluessel<InvoiceDetail>()(['id', 'number', 'docType', 'status', 'invoiceDate', 'dueDate', 'customerId', 'totals',
-    'einvoice', 'statusUrl', 'statusPassword', 'metadata', 'language', 'brand', 'paidCents', 'openCents', 'items', 'customer',
+    'einvoice', 'statusUrl', 'statusPassword', 'metadata', 'language', 'brand', 'paidCents', 'openCents', 'vatIdProof',
+    'vatIdRisk', 'items', 'customer',
     'taxScheme', 'reverseChargeReason', 'taxCountry', 'priceMode', 'serviceStart', 'serviceEnd', 'paymentTermDays',
     'orderReference', 'payments', 'overdue', 'writtenOff', 'writeOffReasonCode', 'related', 'creditNotes', 'source',
     'createdAt', 'finalizedAt']),
@@ -247,6 +251,8 @@ const FELDER = {
   rate: schluessel<InvoiceRateTotals>()(['rate', 'netCents', 'vatCents', 'grossCents']),
   einvoice: schluessel<EInvoiceStatus>()(['level', 'formats', 'missing']),
   brand: schluessel<NonNullable<Invoice['brand']>>()(['id', 'name']),
+  vatIdProof: schluessel<InvoiceVatIdProof>()(['checkedOn', 'source', 'level', 'code']),
+  vatIdRisk: schluessel<InvoiceVatIdRisk>()(['acceptedOn']),
   item: schluessel<InvoiceItem>()(['description', 'subtitle', 'quantity', 'unit', 'kind', 'unitPriceCents', 'unitPriceMicros',
     'vatRate', 'discountPct']),
   recipient: schluessel<InvoiceRecipient>()(['name', 'type', 'street', 'houseNumber', 'zip', 'city', 'country', 'vatId',
@@ -290,6 +296,8 @@ function rechnungssicht(r: Json, pfad: string, detail: boolean): void {
   for (const [i, s] of (r.totals.byRate as Json[]).entries()) feldmenge(s, 'rate', `${pfad}.totals.byRate[${i}]`);
   feldmenge(r.einvoice, 'einvoice', `${pfad}.einvoice`);
   feldmenge(r.brand, 'brand', `${pfad}.brand`);
+  feldmenge(r.vatIdProof, 'vatIdProof', `${pfad}.vatIdProof`);
+  feldmenge(r.vatIdRisk, 'vatIdRisk', `${pfad}.vatIdRisk`);
   if (!detail) return;
   for (const [i, p] of (r.items as Json[]).entries()) feldmenge(p, 'item', `${pfad}.items[${i}]`);
   feldmenge(r.customer, 'recipient', `${pfad}.customer`);
@@ -405,4 +413,48 @@ test('INVOICE_REQUEST_ERROR_CODES: Anmeldung und Rand aus dem Vertrag, dahinter 
   if (isInvoiceError(e, 'validation')) assert.ok(Array.isArray(e.details['errors']));
   else assert.fail('validation nicht erkannt');
   assert.deepEqual(invoiceFieldErrors(e), [{ field: 'items[0].vatRate', message: 'm' }]);
+});
+
+// --- UID-Pruefung beim Ausstellen ohne Steuer (Backend Stufe 4) ----------------
+
+test('UID-Pruefung: vat_id_check_pending traegt retryAfter, acceptVatIdRisk geht unveraendert hinaus', async () => {
+  const offen = FAELLE.find((f) => f.name === 'error_vat_id_check_pending');
+  assert.ok(offen, 'Vertragsfall error_vat_id_check_pending fehlt');
+  const { fehler } = await fallAusfuehren(offen);
+  assert.ok(isInvoiceError(fehler, 'vat_id_check_pending'));
+  const warten = fehler.details['retryAfter'];
+  assert.ok(typeof warten === 'number' && Number.isInteger(warten) && warten > 0, `retryAfter ${String(warten)}`);
+
+  const risiko = FAELLE.find((f) => f.name === 'issue_final_vat_id_risk');
+  assert.ok(risiko, 'Vertragsfall issue_final_vat_id_risk fehlt');
+  // Derselbe idempotencyKey wie der offene Versuch: wiederholt wird mit dem Feld.
+  assert.equal(risiko.params.idempotencyKey, offen.params.idempotencyKey);
+  const { params, ergebnis } = await fallAusfuehren(risiko);
+  assert.equal(params.acceptVatIdRisk, true);
+  const r = ergebnis as IssueResult;
+  assert.equal(r.invoice.vatIdProof, null);
+  assert.ok(r.invoice.vatIdRisk && /^\d{4}-\d{2}-\d{2}$/.test(r.invoice.vatIdRisk.acceptedOn));
+});
+
+test('UID-Pruefung: der eingefrorene Nachweis kommt mit Quelle, Stufe und Pruefcode an', async () => {
+  const mitNachweis = FAELLE.filter((f) => f.endpoint === 'issueInvoice' && f.response.status === 'success'
+    && (f.response.data as Json).invoice?.vatIdProof);
+  assert.ok(mitNachweis.length > 0, 'kein Vertragsfall mit vatIdProof');
+  for (const fall of mitNachweis) {
+    const r = (await fallAusfuehren(fall)).ergebnis as IssueResult;
+    const n = r.invoice.vatIdProof;
+    assert.ok(n, fall.name);
+    assert.ok(['finanzonline', 'vies'].includes(n.source), `${fall.name}: ${n.source}`);
+    assert.ok([1, 2].includes(n.level), `${fall.name}: ${n.level}`);
+    assert.match(n.checkedOn, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(n.code === null || typeof n.code === 'string');
+    assert.equal(r.invoice.vatIdRisk, null, fall.name);
+  }
+});
+
+test('UID-Pruefung: vat_id_invalid ist ein Rechnungs-Fehler, auch wenn acceptVatIdRisk gesendet wurde', () => {
+  const e = new KasseneckApiError('issueInvoice', 'Die UID-Nummer des Kunden ist ungültig.', {}, 'vat_id_invalid');
+  assert.ok(isInvoiceError(e, 'vat_id_invalid'));
+  assert.equal(invoiceErrorCode(e), 'vat_id_invalid');
+  assert.ok((VOKABULAR.errorCodes.invoice as string[]).includes('vat_id_invalid'));
 });

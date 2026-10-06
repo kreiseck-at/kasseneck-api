@@ -249,14 +249,24 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
   // derselben Stelle wie zuvor, die beiden neuen (0.23.0) hinten dran.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-11, -5), [
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-13, -7), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5, -3), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-7, -5), ['einvoice_unavailable', 'amount_too_large']);
+  // UID-Pruefung (0.x: 0.33.0, hier 1.5.0) vor der Reservierung, wie im Backend.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5, -3), ['vat_id_invalid', 'vat_id_check_pending']);
   // 1.5.0: Reservierung an der Rechnungsposition, hinten angehaengt.
   assert.deepEqual(INVOICE_ERROR_CODES.slice(-3), ['reservation_not_found', 'reservation_mismatch', 'reservation_not_active']);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
+});
+
+test('Vertrag: acceptVatIdRisk ist eine optionale Angabe nur an issueInvoice', () => {
+  assert.deepEqual(INVOICE_REQUESTS.issueInvoice['acceptVatIdRisk'], { type: 'boolean', required: false });
+  for (const aufruf of INVOICE_ENDPOINTS) {
+    if (aufruf === 'issueInvoice') continue;
+    assert.ok(!pfade(INVOICE_REQUESTS[aufruf]).includes('acceptVatIdRisk'), `${aufruf} nimmt acceptVatIdRisk an`);
+  }
 });
 
 test('Vertrag: listBrands ist Aufruf der Rechnungs-API und des Clients', () => {

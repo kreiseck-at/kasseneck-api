@@ -1,9 +1,9 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "2385d837d8280cd5486bee5e60623ed62bb73f3eafe903dab697c5dfbb9e3cb0",
-    "inputsSha256": "e8c1a553336af078425153f859fbae4ecbab24632fc09d4025715c66e8bb40d3",
-    "backendPackage": "@kreiseck/kasseneck-api@0.32.2",
+    "sha256": "d351a778c02888291e325068f96156ad1346859f6ff97bae27f91089e9619e8c",
+    "inputsSha256": "b9dd3d819a4be22c35a201a788e7fcf947d90b6af7d9e41d3d74be3b48f8aa8e",
+    "backendPackage": "@kreiseck/kasseneck-api@0.33.0",
     "inputs": [
       "docs/api/fehlercodes.json",
       "functions-kasse/test/unit/fixtures/kassen-codes-v3.js",
@@ -963,6 +963,8 @@
       "user_disabled",
       "user_verification_failed",
       "validation",
+      "vat_id_check_pending",
+      "vat_id_invalid",
       "vat_rate_not_in_country",
       "webhook_inactive",
       "webhook_limit",
@@ -1020,7 +1022,9 @@
       "TIP_CONFLICT": "tip_conflict",
       "adresse_ungueltig": "invalid_address",
       "zu_oft": "too_many_requests",
-      "versand_fehlgeschlagen": "send_failed"
+      "versand_fehlgeschlagen": "send_failed",
+      "uid_ungueltig": "vat_id_invalid",
+      "uid_pruefung_offen": "vat_id_check_pending"
     },
     "edge": [
       "validation",
@@ -1229,6 +1233,8 @@
       "oss_not_enabled",
       "einvoice_unavailable",
       "amount_too_large",
+      "vat_id_invalid",
+      "vat_id_check_pending",
       "reservation_not_found",
       "reservation_mismatch",
       "reservation_not_active"
@@ -1437,7 +1443,9 @@
       "tip_conflict",
       "invalid_address",
       "too_many_requests",
-      "send_failed"
+      "send_failed",
+      "vat_id_invalid",
+      "vat_id_check_pending"
     ],
     "receiptMessagesByEndpoint": {
       "createReceipt": [
@@ -1899,7 +1907,9 @@
             "TIP_CONFLICT": "tip_conflict",
             "adresse_ungueltig": "invalid_address",
             "zu_oft": "too_many_requests",
-            "versand_fehlgeschlagen": "send_failed"
+            "versand_fehlgeschlagen": "send_failed",
+            "uid_ungueltig": "vat_id_invalid",
+            "uid_pruefung_offen": "vat_id_check_pending"
           }
         }
       }
@@ -2359,7 +2369,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         },
         "signatures[].error.code": {
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -2411,7 +2423,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         }
       }
     },
@@ -2939,7 +2953,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         }
       }
     },
@@ -3783,7 +3799,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         }
       },
       "fehler": {
@@ -4334,7 +4352,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         }
       }
     },
@@ -4473,7 +4493,9 @@
           "TIP_CONFLICT": "tip_conflict",
           "adresse_ungueltig": "invalid_address",
           "zu_oft": "too_many_requests",
-          "versand_fehlgeschlagen": "send_failed"
+          "versand_fehlgeschlagen": "send_failed",
+          "uid_ungueltig": "vat_id_invalid",
+          "uid_pruefung_offen": "vat_id_check_pending"
         }
       }
     },

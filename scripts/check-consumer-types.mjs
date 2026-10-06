@@ -39,7 +39,7 @@ import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedR
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
 import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings, type PosArticle } from '@kreiseck/kasseneck-api/pos';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
-import { createInvoiceApi, INVOICE_ERROR_CODES, type IssueInvoiceItemInput } from '@kreiseck/kasseneck-api/invoice';
+import { createInvoiceApi, INVOICE_ERROR_CODES, type IssueInvoiceItemInput, type IssueInvoiceRequest, type Invoice, type InvoiceVatIdProof } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
 import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest } from '@kreiseck/kasseneck-api/inventory';
 // 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
@@ -112,6 +112,11 @@ export const lagerStand: string | null = lagerR && lagerR.type === 'reservation.
 export const fehlmenge: number = inventoryShortfalls(null)[0]?.available ?? 0;
 export const reservierungsStaende: readonly string[] = RESERVATION_STATUSES;
 export const rechnungsPosition: IssueInvoiceItemInput = { description: 'Kaisersemmel', quantity: 6, unitPriceCents: 65, vatRate: 10, articleId: 'kaisersemmel', reservationId: 'res_1' };
+// UID-Pruefung beim Ausstellen ohne Steuer: Risiko uebernehmen, Nachweis lesen.
+export const mitRisiko: Pick<IssueInvoiceRequest, 'acceptVatIdRisk'> = { acceptVatIdRisk: true };
+declare const ausgestellt: Invoice;
+export const uidQuelle: InvoiceVatIdProof['source'] | null = ausgestellt.vatIdProof?.source ?? null;
+export const risikoTag: string | null = ausgestellt.vatIdRisk?.acceptedOn ?? null;
 // ./stored: gespeicherte Dokumente als dieselben Modelle wie am Draht.
 export const gespeichert: string = fromStoredReceipt({ receiptId: 'K-1' }).receiptId;
 declare const kopf: StoredDocument;

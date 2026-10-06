@@ -77,6 +77,9 @@ export const INVOICE_ERROR_CODES = [
   'oss_not_enabled',
   'einvoice_unavailable', // zu dieser Rechnung entsteht keine E-Rechnung, Grund in `reason`
   'amount_too_large', // Betrag ueber der Grenze des Ganzzahlkerns; erst ab dessen Umstieg gesendet
+  // Seit 1.5.0 (0.x: 0.33.0): UID-Pruefung beim Ausstellen ohne Steuer.
+  'vat_id_invalid', // UID des Kunden laut FinanzOnline/VIES ungueltig, sperrt auch mit acceptVatIdRisk
+  'vat_id_check_pending', // noch kein Ergebnis der UID-Pruefung; `retryAfter` in Sekunden, oder acceptVatIdRisk
   // Seit 1.5.0: Position mit `reservationId` (nur `issueInvoice`), geprueft beim Ausstellen.
   'reservation_not_found', // unbekannt oder einem anderen Konto
   'reservation_mismatch', // keine offene Position mit gleichem Artikel am Lagerstandort der Rechnung
@@ -653,6 +656,13 @@ export const INVOICE_REQUESTS: Readonly<Record<InvoiceEndpoint, Readonly<Record<
      * Idempotenz-Eintrag. Die Antwort traegt `preview` statt `invoice`.
      */
     dryRun: { type: 'boolean', required: false },
+    /**
+     * Rechnung ohne Steuer, deren UID-Pruefung (FinanzOnline, sonst VIES) noch
+     * kein Ergebnis hat: `true` stellt trotzdem aus. Der Aussteller traegt das
+     * Risiko, die Rechnung steht dann mit `vatIdRisk`. Eine ungueltige UID
+     * (`vat_id_invalid`) sperrt auch damit.
+     */
+    acceptVatIdRisk: { type: 'boolean', required: false },
   },
   cancelInvoice: {
     idempotencyKey: idempotencyKey(true),

@@ -827,6 +827,8 @@
       "oss_not_enabled",
       "einvoice_unavailable",
       "amount_too_large",
+      "vat_id_invalid",
+      "vat_id_check_pending",
       "reservation_not_found",
       "reservation_mismatch",
       "reservation_not_active"
