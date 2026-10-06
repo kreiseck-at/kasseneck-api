@@ -82,20 +82,20 @@ const client = (...antworten: HttpResponseLike[]) => {
 
 const ARTIKEL: Json = {
   id: 'roggenbrot', name: 'Roggenbrot 1 kg', unitPriceCents: 450, vatRate: 10, unit: 'Stk', number: 'A-100', ean: '9001234567896',
-  internalCode: null, groupId: 'brot', revenueGroupId: null, stockTracked: true, stockLocationIds: ['hauptstandort'], minStock: 5000,
+  internalCode: null, groupId: 'brot', revenueGroupId: null, stockTracked: true, stockLocationIds: ['haupt'], minStock: 5000,
   active: true, createdAt: '2026-10-01T06:00:00.000Z', updatedAt: '2026-10-06T08:15:00.000Z',
 };
 const BESTAND: Json = {
-  articleId: 'roggenbrot', locationId: 'hauptstandort', onHand: 12000, reserved: 2000, available: 10000, defective: 0, sequence: 42,
+  articleId: 'roggenbrot', locationId: 'haupt', onHand: 12000, reserved: 2000, available: 10000, defective: 0, sequence: 42,
   updatedAt: '2026-10-06T08:15:00.000Z',
 };
 const STANDORTE: Json[] = [
-  { id: 'hauptstandort', name: 'Hauptstandort', type: 'store', address: null, licensePlate: null, active: true, virtual: true },
+  { id: 'haupt', name: 'Hauptstandort', type: 'store', address: null, licensePlate: null, active: true, virtual: true },
   { id: 'lager1', name: 'Lager Kornblum', type: 'warehouse', address: { street: 'Mühlgasse 4', zip: '5020', city: 'Salzburg', country: 'AT' }, licensePlate: null, active: true },
   { id: 'lieferwagen', name: 'Lieferwagen W-12345', type: 'vehicle', address: null, licensePlate: 'W-12345', active: false },
 ];
 const BEWEGUNG: Json = {
-  id: 'bw1', type: 'sale', articleId: 'roggenbrot', locationId: 'hauptstandort', condition: 'sellable', quantityDelta: -2000,
+  id: 'bw1', type: 'sale', articleId: 'roggenbrot', locationId: 'haupt', condition: 'sellable', quantityDelta: -2000,
   stockAfter: { sellable: 10000, defective: 0 }, operationId: 'beleg_k1_r1', source: { type: 'receipt', id: 'r1', register: 'k1', position: 0 },
   viennaDay: '2026-10-06', time: '2026-10-06T08:15:00.000Z',
   lots: [{ lotId: 'los1', quantity: 2000, expiresOn: '2026-10-09', batch: 'C-7', serialNumber: null, receivedAt: '2026-10-05T05:00:00.000Z' }],
@@ -189,19 +189,9 @@ test('Lager-API: jedes Feld der Webhook-Schemata kommt im gelesenen Modell an', 
   for (const k of schluessel(VOKABULAR.schemas.listWebhookDeliveries.data.deliveries[0])) assert.ok(k in z!, `InventoryWebhookDelivery.${k}`);
 });
 
-/**
- * Codes, die der Lager-Rand des Backends sendet, die aber (Stand des
- * Vertrags-Exports) noch nicht in `errorCodes.all` stehen. Sobald der Export
- * sie fuehrt, wird dieser Test rot: dann die Liste leeren.
- */
-const NOCH_NICHT_IM_VERTRAG = [
-  'invalid_cursor', 'article_not_found', 'webhook_not_found', 'webhook_limit_reached', 'invalid_webhook_url', 'inventory_api_not_enabled',
-];
-
-test('Lager-API: INVENTORY_ERROR_CODES stehen im Vertrag, ausser den benannten Luecken des Exports', () => {
+test('Lager-API: INVENTORY_ERROR_CODES stehen alle im Vertrag', () => {
   const alle = new Set(VOKABULAR.errorCodes.all as string[]);
-  const fehlend = INVENTORY_ERROR_CODES.filter((c) => !alle.has(c));
-  assert.deepEqual(fehlend, NOCH_NICHT_IM_VERTRAG, 'der Vertrag fuehrt jetzt mehr Lager-Codes: NOCH_NICHT_IM_VERTRAG anpassen');
+  assert.deepEqual(INVENTORY_ERROR_CODES.filter((c) => !alle.has(c)), []);
   for (const c of ['rate_limited', 'module_inactive', 'validation', 'event_not_subscribed', 'webhook_inactive', 'server_error']) {
     assert.ok((INVENTORY_ERROR_CODES as readonly string[]).includes(c), c);
   }
@@ -250,7 +240,7 @@ test('getArticle: purchasePriceMicros, externalIds, metadata und Varianten komme
 });
 
 test('getArticle: Bruchzahl als Preis, Mindestbestand oder Einkaufspreis ist ein Antwortfehler, nie gerundet', async () => {
-  for (const kaputt of [{ unitPriceCents: 4.5 }, { minStock: 2.5 }, { purchasePriceMicros: 10.25 }, { id: '' }, { stockLocationIds: 'hauptstandort' }]) {
+  for (const kaputt of [{ unitPriceCents: 4.5 }, { minStock: 2.5 }, { purchasePriceMicros: 10.25 }, { id: '' }, { stockLocationIds: 'haupt' }]) {
     const { lager } = client(erfolg({ article: { ...ARTIKEL, ...kaputt } }));
     await assert.rejects(lager.getArticle('roggenbrot'), (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response', JSON.stringify(kaputt));
   }
@@ -367,7 +357,7 @@ test('listStock und iterateStock: Filter, changedSince als Date, Seiten bis next
   );
   const orte: string[] = [];
   for await (const z of lager.iterateStock({ articleId: 'roggenbrot', changedSince: new Date('2026-10-06T08:00:00Z') })) orte.push(z.locationId);
-  assert.deepEqual(orte, ['hauptstandort', 'lager1']);
+  assert.deepEqual(orte, ['haupt', 'lager1']);
   assert.deepEqual(params(anfragen[1]), { articleId: 'roggenbrot', changedSince: '2026-10-06T08:00:00.000Z', cursor: 'c1' });
   const seite = await lager.listStock({ belowMinimum: true });
   assert.deepEqual(params(anfragen[2]), { belowMinimum: true });
@@ -565,10 +555,10 @@ const huelle = (type: string, data: unknown, test = false) =>
 
 // Nutzlasten wie konto-webhook-core.beispielNutzlast (aussen, englisch).
 const STOCK_CHANGED = {
-  articleId: 'beispiel_roggenbrot', locationId: 'hauptstandort', onHand: 12000, reserved: 0, available: 12000, defective: 0,
+  articleId: 'beispiel_roggenbrot', locationId: 'haupt', onHand: 12000, reserved: 0, available: 12000, defective: 0,
   sequence: 42, updatedAt: '2026-10-06T08:15:00.000Z', cause: 'sale', movementId: 'beispiel_bewegung_1',
 };
-const UNTER_MINDEST = { articleId: 'beispiel_roggenbrot', locationId: 'hauptstandort', available: 4000, minStock: 5000 };
+const UNTER_MINDEST = { articleId: 'beispiel_roggenbrot', locationId: 'haupt', available: 4000, minStock: 5000 };
 
 test('parseInventoryWebhookEvent: stock.changed typisiert, Huelle mit accountId, test nur bei true', () => {
   const e = parseInventoryWebhookEvent(huelle('stock.changed', STOCK_CHANGED));
@@ -610,7 +600,7 @@ test('Shop-Ablauf: Signatur pruefen, dann Ereignis lesen, Stand nur bei groesser
   const t = 1791274510;
   const body = huelle('stock.changed', STOCK_CHANGED);
   const kopf = `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
-  const stand = new Map<string, number>([['beispiel_roggenbrot/hauptstandort', 41]]);
+  const stand = new Map<string, number>([['beispiel_roggenbrot/haupt', 41]]);
   assert.equal(await verifyInventoryWebhookSignature(secret, kopf, body, { now: um(t + 2) }), true);
   const e: InventoryWebhookEvent | null = parseInventoryWebhookEvent(body);
   if (!e || e.type !== 'stock.changed') assert.fail('kein stock.changed');

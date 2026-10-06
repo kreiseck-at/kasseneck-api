@@ -90,7 +90,7 @@ Code-Änderung zusammen einchecken.
     äußere Codes) und je Quelle: Rand (`edge`), Anmeldung (`auth`),
     `receiptMessages`, Kassen-Handler (`registerHandlers`, je Endpunkt in
     `registerHandlersByEndpoint`), Fälle der Kassen-Welt (`registerCases`), Storno,
-    Zahlungen, Belegmail, Rechnung, Partner. Jeder Code, der irgendwo in `antworten/`
+    Zahlungen, Belegmail, Rechnung, Partner, Lager-API (`inventory`). Jeder Code, der irgendwo in `antworten/`
     vorkommt, steht in `all` (Test).
   - `noticeCodes`: Hinweis-Codes (`notice[].code` der Rechnungs-API), keine Fehler.
   - `schemas`: je Endpunkt der Eintrag des Vokabulars (Notation außen → innen);
