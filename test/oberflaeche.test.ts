@@ -142,7 +142,7 @@ test('Golden: der Vertrag fuehrt JEDE Lager-Liste des Pakets, keine mehr und kei
     assert.deepEqual(vertrag.inventory[name], [...liste], `${veraltet} (inventory.${name})`);
   }
   assert.ok(lagerListen.has('inventoryEndpoints') && lagerListen.has('inventoryWebhookEvents') && lagerListen.has('stockChangeCauses'),
-    'der Lager-Teil traegt seine Listen nicht mehr — dann prueft dieser Test nichts');
+    'der Lager-Teil traegt seine Listen nicht mehr – dann prueft dieser Test nichts');
 });
 
 test('Die Vertragsdatei nennt die Paketversion', () => {

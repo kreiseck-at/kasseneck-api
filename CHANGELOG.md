@@ -37,16 +37,20 @@ in 1.3.0.
   response throws `KasseneckValidationError` with `scope: 'response'`, as for
   register stock since 1.2.0. A `Date` in `updatedSince`, `changedSince`,
   `from` or `to` goes out as ISO 8601 UTC.
-- **Incoming webhooks**: `verifyWebhookSignature(secret, header, rawBody,
+- **Incoming webhooks**: `verifyInventoryWebhookSignature(secret, header, rawBody,
   { toleranceSec = 300, now })` resolves to `true` or `false` and never
   throws: HMAC-SHA256 over `"<t>.<raw body>"`, constant-time comparison,
   300 seconds in both directions, several `v1=` parts allowed; checked against
   the backend's test vector (t=1700000000). Asynchronous because it uses
-  WebCrypto, as `./partner` does. `parseWebhookEvent(rawBody)` returns a typed
+  WebCrypto, as `./partner` does. `parseInventoryWebhookEvent(rawBody)` returns a typed
   `InventoryWebhookEvent` for `stock.changed` (`cause`, `movementId`),
   `stock.below_minimum` and `article.created|updated|deactivated`, with
   `accountId` instead of `partnerId` in the envelope; an event type this
   version does not know returns `null`, a body that is no envelope throws.
+  Both carry `Inventory` in their name on purpose: `./partner` has a
+  `verifyWebhookSignature` with an options object that resolves to
+  `{ ok, reason }`, and an object is truthy, so a mix-up in plain JavaScript
+  would accept every delivery.
 - **Errors** through the existing classes: `INVENTORY_ERROR_CODES`
   (`rate_limited` with `retryAfterSec`, `inventory_api_not_enabled`,
   `module_inactive`, `article_not_found`, `invalid_cursor`, the webhook codes

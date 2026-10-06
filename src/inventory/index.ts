@@ -46,8 +46,8 @@ export {
 } from './endpunkte.js';
 
 export {
-  verifyWebhookSignature,
-  parseWebhookEvent,
+  verifyInventoryWebhookSignature,
+  parseInventoryWebhookEvent,
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_EVENT_HEADER,
   WEBHOOK_DELIVERY_HEADER,

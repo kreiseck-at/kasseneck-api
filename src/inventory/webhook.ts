@@ -47,7 +47,7 @@ export interface VerifyInventoryWebhookOptions {
  * @param header  der Wert von `X-Kasseneck-Signature`, unveraendert
  * @param rawBody der **rohe** Rumpf (Text oder Bytes), nicht `JSON.parse` + `stringify`
  */
-export async function verifyWebhookSignature(
+export async function verifyInventoryWebhookSignature(
   secret: string | readonly string[],
   header: string | null | undefined,
   rawBody: string | Uint8Array,
@@ -72,12 +72,12 @@ export async function verifyWebhookSignature(
 const BEKANNT: ReadonlySet<string> = new Set(INVENTORY_WEBHOOK_EVENTS);
 
 function kaputt(grund: string): KasseneckValidationError {
-  return new KasseneckValidationError('parseWebhookEvent', grund, 'response');
+  return new KasseneckValidationError('parseInventoryWebhookEvent', grund, 'response');
 }
 
 /**
  * Liest eine Zustellung als typisiertes Ereignis. Vorher die Signatur pruefen
- * ([verifyWebhookSignature]).
+ * ([verifyInventoryWebhookSignature]).
  *
  * - Ein Ereignis, das diese Paketversion nicht kennt (etwa `reservation.*`
  *   einer spaeteren Stufe), ergibt `null`: mit 2xx antworten und uebergehen.
@@ -87,7 +87,7 @@ function kaputt(grund: string): KasseneckValidationError {
  * **Entdoppeln** auf `event.id`; **Stand statt Aenderung**: einen gespeicherten
  * Bestand nur ueberschreiben, wenn `data.sequence` groesser ist.
  */
-export function parseWebhookEvent(rawBody: string | Uint8Array): InventoryWebhookEvent | null {
+export function parseInventoryWebhookEvent(rawBody: string | Uint8Array): InventoryWebhookEvent | null {
   const text = typeof rawBody === 'string' ? rawBody : new TextDecoder('utf-8').decode(rawBody);
   let roh: unknown;
   try {
@@ -102,7 +102,7 @@ export function parseWebhookEvent(rawBody: string | Uint8Array): InventoryWebhoo
   if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) throw kaputt('Ereignis ohne createdAt');
   if (typeof accountId !== 'string' || accountId === '') throw kaputt('Ereignis ohne accountId');
   if (!BEKANNT.has(type)) return null;
-  const ort = { name: 'parseWebhookEvent', pfad: 'data' };
+  const ort = { name: 'parseInventoryWebhookEvent', pfad: 'data' };
   if (!objekt(data)) throw kaputt('Ereignis ohne data');
   // Nur ein ausdrueckliches `true` ist eine Probe; im Zweifel der Ernstfall.
   const huelle = { id, type: type as InventoryWebhookEventType, createdAt, accountId, test: e.test === true };

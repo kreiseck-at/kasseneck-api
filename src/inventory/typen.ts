@@ -266,7 +266,7 @@ export interface InventoryWebhookPatch {
 export interface InventoryWebhookWithSecret {
   webhook: InventoryWebhook;
   /**
-   * Das Secret fuer [verifyWebhookSignature]. **Es kommt genau einmal**, bei
+   * Das Secret fuer [verifyInventoryWebhookSignature]. **Es kommt genau einmal**, bei
    * `createWebhook` bzw. `rotateWebhookSecret`; danach gibt der Server es nie
    * wieder aus. Nach einem Wechsel gilt sofort nur das neue.
    */

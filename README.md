@@ -1438,7 +1438,7 @@ never refuses a sale. A fractional quantity in a response throws
 
 ```ts
 import express from 'express';
-import { createInventoryClient, verifyWebhookSignature, parseWebhookEvent } from '@kreiseck/kasseneck-api/inventory';
+import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent } from '@kreiseck/kasseneck-api/inventory';
 
 const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
 
@@ -1462,10 +1462,17 @@ const { secret } = await inventory.createWebhook({
 // 4. Receive. express.raw BEFORE any JSON parser: the signature covers the bytes as received.
 const app = express();
 app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) => {
-  if (!(await verifyWebhookSignature(secret, req.header('X-Kasseneck-Signature'), req.body))) {
+  // await is required: the check is asynchronous, and a forgotten await
+  // yields a Promise, which is truthy, so every delivery would pass.
+  if (!(await verifyInventoryWebhookSignature(secret, req.header('X-Kasseneck-Signature'), req.body))) {
     return res.sendStatus(400);
   }
-  const event = parseWebhookEvent(req.body);
+  let event;
+  try {
+    event = parseInventoryWebhookEvent(req.body);   // throws on a malformed envelope
+  } catch {
+    return res.sendStatus(400);
+  }
   res.sendStatus(200);                  // answer within 10 s, work afterwards
   if (!event || event.test) return;     // unknown type of a later version, or a test delivery
   if (event.type === 'stock.changed') {
@@ -1475,13 +1482,21 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
 });
 ```
 
-- **Signature.** `verifyWebhookSignature(secret, header, rawBody, { toleranceSec, now })`
+- **Signature.** `verifyInventoryWebhookSignature(secret, header, rawBody, { toleranceSec, now })`
   resolves to `true` or `false` and never throws. It is the same procedure as
   for partner webhooks: `X-Kasseneck-Signature: t=<unix seconds>,v1=<hex>`
   with HMAC-SHA256 over `"<t>.<raw body>"`, compared in constant time, and a
   window of 300 seconds in both directions against replays. It is asynchronous
-  because it uses WebCrypto. After `rotateWebhookSecret` only the new secret is
-  valid; pass both during your own switch-over (`secret` may be a list).
+  because it uses WebCrypto: always `await` it, a forgotten `await` leaves a
+  Promise, which is truthy, and lets every delivery through. The name differs
+  on purpose from `verifyWebhookSignature` in `./partner`, which takes an
+  options object and resolves to `{ ok, reason }`. After `rotateWebhookSecret`
+  only the new secret is valid; pass both during your own switch-over
+  (`secret` may be a list, one match is enough).
+- **Parsing.** `parseInventoryWebhookEvent(rawBody)` returns `null` for an
+  event type this version does not know (answer 2xx and skip it) and throws
+  `KasseneckValidationError` on a body that is no envelope or carries a
+  fractional quantity; verify first, then parse inside `try`.
 - **Events.** `stock.changed` carries the current state of one article at one
   location (`onHand`, `reserved`, `available`, `defective`, `sequence`,
   `updatedAt`) plus `cause` (`sale`, `invoice`, `receipt`, `transfer` …) and

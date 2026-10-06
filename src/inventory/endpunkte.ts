@@ -106,6 +106,8 @@ async function* seitenweise<T>(
   seite: (cursor: string | undefined) => Promise<{ eintraege: T[]; nextCursor: string | null }>,
 ): AsyncGenerator<T, void, undefined> {
   const gesehen = new Set<string>();
+  // Auch der Startcursor zaehlt: nennt die erste Antwort ihn wieder, waere es dieselbe Seite.
+  if (start) gesehen.add(start);
   let cursor = start;
   for (;;) {
     const { eintraege, nextCursor } = await seite(cursor);

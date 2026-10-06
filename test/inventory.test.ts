@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 import {
   createInventoryClient,
   inventoryKeyAuth,
-  verifyWebhookSignature,
-  parseWebhookEvent,
+  verifyInventoryWebhookSignature,
+  parseInventoryWebhookEvent,
   isInventoryError,
   isInventoryErrorCode,
   inventoryErrorCode,
@@ -297,6 +297,15 @@ test('iterateArticles: folgt nextCursor bis null, der Filter bleibt auf jeder Se
   ]);
 });
 
+test('iterateArticles: nennt die erste Antwort den Startcursor wieder, endet es mit einem Antwortfehler', async () => {
+  const { lager, anfragen } = client(erfolg({ articles: [ARTIKEL], nextCursor: 'c0' }));
+  await assert.rejects(async () => {
+    for await (const _ of lager.iterateArticles({ cursor: 'c0' })) { /* leer */ }
+  }, (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'response');
+  assert.equal(anfragen.length, 1);
+  assert.deepEqual(params(anfragen[0]), { cursor: 'c0' });
+});
+
 test('iterateArticles: derselbe Cursor zweimal ist ein Antwortfehler statt einer Endlosschleife', async () => {
   const { lager } = client(erfolg({ articles: [ARTIKEL], nextCursor: 'c1' }), erfolg({ articles: [ARTIKEL], nextCursor: 'c1' }));
   await assert.rejects(async () => {
@@ -496,32 +505,48 @@ const VEKTOR = { secret: 'whsec_test', t: 1700000000, body: '{"id":"evt_1","type
 const VEKTOR_HEX = '684fbc8999ff13aa332102c10e23ad56af8cb3b34c5d3bcba8bf53317e5f6c33';
 const um = (sek: number) => new Date(sek * 1000);
 
-test('verifyWebhookSignature: Testvektor des Backends (t=1700000000) ist gueltig', async () => {
+test('verifyInventoryWebhookSignature: Testvektor des Backends (t=1700000000) ist gueltig', async () => {
   assert.equal(createHmac('sha256', VEKTOR.secret).update(`${VEKTOR.t}.${VEKTOR.body}`).digest('hex'), VEKTOR_HEX);
   const kopf = `t=${VEKTOR.t},v1=${VEKTOR_HEX}`;
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body, { now: um(VEKTOR.t) }), true);
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, new TextEncoder().encode(VEKTOR.body), { now: VEKTOR.t * 1000 }), true);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body, { now: um(VEKTOR.t) }), true);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, new TextEncoder().encode(VEKTOR.body), { now: VEKTOR.t * 1000 }), true);
   // Ein zweiter v1-Anteil (Schluesselwechsel) stoert nicht.
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, `t=${VEKTOR.t},v1=${'0'.repeat(64)},v1=${VEKTOR_HEX}`, VEKTOR.body, { now: um(VEKTOR.t) }), true);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, `t=${VEKTOR.t},v1=${'0'.repeat(64)},v1=${VEKTOR_HEX}`, VEKTOR.body, { now: um(VEKTOR.t) }), true);
 });
 
-test('verifyWebhookSignature: falscher Schluessel, veraenderter Rumpf, kaputter Kopf: nein, nie ein Wurf (Rot-Probe)', async () => {
+test('verifyInventoryWebhookSignature: falscher Schluessel, veraenderter Rumpf, kaputter Kopf: nein, nie ein Wurf (Rot-Probe)', async () => {
   const kopf = `t=${VEKTOR.t},v1=${VEKTOR_HEX}`;
   const jetzt = { now: um(VEKTOR.t) };
-  assert.equal(await verifyWebhookSignature('whsec_anders', kopf, VEKTOR.body, jetzt), false);
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, `${VEKTOR.body} `, jetzt), false);
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, JSON.stringify(JSON.parse(VEKTOR.body), null, 1), jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature('whsec_anders', kopf, VEKTOR.body, jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, `${VEKTOR.body} `, jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, JSON.stringify(JSON.parse(VEKTOR.body), null, 1), jetzt), false);
   for (const schlecht of ['', 'unsinn', `t=abc,v1=${VEKTOR_HEX}`, `v1=${VEKTOR_HEX}`, `t=${VEKTOR.t}`, `t=${VEKTOR.t},v1=zz`, null, undefined]) {
-    assert.equal(await verifyWebhookSignature(VEKTOR.secret, schlecht as never, VEKTOR.body, jetzt), false, String(schlecht));
+    assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, schlecht as never, VEKTOR.body, jetzt), false, String(schlecht));
   }
-  assert.equal(await verifyWebhookSignature('', kopf, VEKTOR.body, jetzt), false);
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, null as never, jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature('', kopf, VEKTOR.body, jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, null as never, jetzt), false);
 });
 
-test('verifyWebhookSignature: Zeitfenster 300 s in beide Richtungen, toleranceSec setzbar', async () => {
+test('verifyInventoryWebhookSignature: Secret als Liste (Schluesselwechsel) prueft mit dem zweiten Schluessel', async () => {
+  const kopf = `t=${VEKTOR.t},v1=${VEKTOR_HEX}`;
+  const jetzt = { now: um(VEKTOR.t) };
+  assert.equal(await verifyInventoryWebhookSignature(['whsec_alt', VEKTOR.secret], kopf, VEKTOR.body, jetzt), true);
+  assert.equal(await verifyInventoryWebhookSignature(['whsec_alt', 'whsec_anders'], kopf, VEKTOR.body, jetzt), false);
+  assert.equal(await verifyInventoryWebhookSignature([], kopf, VEKTOR.body, jetzt), false);
+});
+
+test('Lager-API: die Pruefung heisst anders als die Partner-Pruefung (Objekt waere truthy, Verwechslung liesse alles durch)', async () => {
+  const lagerModul = await import('../src/inventory/index.js') as Record<string, unknown>;
+  assert.equal('verifyWebhookSignature' in lagerModul, false);
+  assert.equal('parseWebhookEvent' in lagerModul, false);
+  assert.equal(typeof lagerModul['verifyInventoryWebhookSignature'], 'function');
+  assert.equal(typeof lagerModul['parseInventoryWebhookEvent'], 'function');
+});
+
+test('verifyInventoryWebhookSignature: Zeitfenster 300 s in beide Richtungen, toleranceSec setzbar', async () => {
   const kopf = `t=${VEKTOR.t},v1=${VEKTOR_HEX}`;
   const pruefe = (sek: number, toleranceSec?: number) =>
-    verifyWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body, toleranceSec === undefined ? { now: um(sek) } : { now: um(sek), toleranceSec });
+    verifyInventoryWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body, toleranceSec === undefined ? { now: um(sek) } : { now: um(sek), toleranceSec });
   assert.equal(await pruefe(VEKTOR.t + 300), true);
   assert.equal(await pruefe(VEKTOR.t - 300), true);
   assert.equal(await pruefe(VEKTOR.t + 301), false);
@@ -529,7 +554,7 @@ test('verifyWebhookSignature: Zeitfenster 300 s in beide Richtungen, toleranceSe
   assert.equal(await pruefe(VEKTOR.t + 600, 600), true);
   assert.equal(await pruefe(VEKTOR.t + 61, 60), false);
   // Ohne `now` gilt die Systemuhr: der Vektor von 2023 ist laengst abgelaufen.
-  assert.equal(await verifyWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body), false);
+  assert.equal(await verifyInventoryWebhookSignature(VEKTOR.secret, kopf, VEKTOR.body), false);
 });
 
 // ---- Ereignisse ------------------------------------------------------------------
@@ -545,8 +570,8 @@ const STOCK_CHANGED = {
 };
 const UNTER_MINDEST = { articleId: 'beispiel_roggenbrot', locationId: 'hauptstandort', available: 4000, minStock: 5000 };
 
-test('parseWebhookEvent: stock.changed typisiert, Huelle mit accountId, test nur bei true', () => {
-  const e = parseWebhookEvent(huelle('stock.changed', STOCK_CHANGED));
+test('parseInventoryWebhookEvent: stock.changed typisiert, Huelle mit accountId, test nur bei true', () => {
+  const e = parseInventoryWebhookEvent(huelle('stock.changed', STOCK_CHANGED));
   assert.ok(e);
   assert.deepEqual(Object.keys(e), [...INVENTORY_WEBHOOK_ENVELOPE_FIELDS]);
   assert.equal(e.accountId, 'konto_kornblum');
@@ -555,28 +580,28 @@ test('parseWebhookEvent: stock.changed typisiert, Huelle mit accountId, test nur
   if (e.type !== 'stock.changed') assert.fail(e.type);
   assert.deepEqual(e.data, STOCK_CHANGED);
   for (const k of schluessel(VOKABULAR.events['stock.changed'].data)) assert.ok(k in e.data, `stock.changed.${k}`);
-  const probe = parseWebhookEvent(new TextEncoder().encode(huelle('stock.changed', { ...STOCK_CHANGED, movementId: null, cause: 'other' }, true)));
+  const probe = parseInventoryWebhookEvent(new TextEncoder().encode(huelle('stock.changed', { ...STOCK_CHANGED, movementId: null, cause: 'other' }, true)));
   assert.equal(probe?.test, true);
   assert.equal(probe?.type === 'stock.changed' && probe.data.movementId, null);
 });
 
-test('parseWebhookEvent: stock.below_minimum und article.* (Artikel wie getArticle)', () => {
-  const u = parseWebhookEvent(huelle('stock.below_minimum', UNTER_MINDEST));
+test('parseInventoryWebhookEvent: stock.below_minimum und article.* (Artikel wie getArticle)', () => {
+  const u = parseInventoryWebhookEvent(huelle('stock.below_minimum', UNTER_MINDEST));
   assert.ok(u && u.type === 'stock.below_minimum');
   assert.deepEqual(u.data, UNTER_MINDEST);
   for (const art of ['article.created', 'article.updated', 'article.deactivated'] as const) {
-    const a = parseWebhookEvent(huelle(art, { ...ARTIKEL, active: art !== 'article.deactivated' }));
+    const a = parseInventoryWebhookEvent(huelle(art, { ...ARTIKEL, active: art !== 'article.deactivated' }));
     assert.ok(a && a.type === art);
     assert.equal((a.data as Article).id, 'roggenbrot');
     assert.equal((a.data as Article).active, art !== 'article.deactivated');
   }
 });
 
-test('parseWebhookEvent: unbekannter Typ ist null (2xx antworten und uebergehen), kaputter Rumpf wirft', () => {
-  assert.equal(parseWebhookEvent(huelle('reservation.expired', { reservationId: 'r1' })), null);
+test('parseInventoryWebhookEvent: unbekannter Typ ist null (2xx antworten und uebergehen), kaputter Rumpf wirft', () => {
+  assert.equal(parseInventoryWebhookEvent(huelle('reservation.expired', { reservationId: 'r1' })), null);
   for (const kaputt of ['', 'kein json', '[]', '{"type":"stock.changed"}', huelle('stock.changed', { ...STOCK_CHANGED, onHand: 1.5 }),
     huelle('stock.changed', { ...STOCK_CHANGED, sequence: undefined }), huelle('stock.below_minimum', { ...UNTER_MINDEST, minStock: '5000' })]) {
-    assert.throws(() => parseWebhookEvent(kaputt), KasseneckValidationError, kaputt);
+    assert.throws(() => parseInventoryWebhookEvent(kaputt), KasseneckValidationError, kaputt);
   }
 });
 
@@ -586,8 +611,8 @@ test('Shop-Ablauf: Signatur pruefen, dann Ereignis lesen, Stand nur bei groesser
   const body = huelle('stock.changed', STOCK_CHANGED);
   const kopf = `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
   const stand = new Map<string, number>([['beispiel_roggenbrot/hauptstandort', 41]]);
-  assert.equal(await verifyWebhookSignature(secret, kopf, body, { now: um(t + 2) }), true);
-  const e: InventoryWebhookEvent | null = parseWebhookEvent(body);
+  assert.equal(await verifyInventoryWebhookSignature(secret, kopf, body, { now: um(t + 2) }), true);
+  const e: InventoryWebhookEvent | null = parseInventoryWebhookEvent(body);
   if (!e || e.type !== 'stock.changed') assert.fail('kein stock.changed');
   const schluesselStand = `${e.data.articleId}/${e.data.locationId}`;
   if (e.data.sequence > (stand.get(schluesselStand) ?? -1)) stand.set(schluesselStand, e.data.sequence);
