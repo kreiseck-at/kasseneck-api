@@ -86,6 +86,21 @@ export const ALL_CALLS = [
   'rotatePartnerWebhookSecret',
   'updateCustomer',
   'updatePartnerWebhook',
+  // Lager-API (Stufe 5a, ./inventory)
+  'getArticle',
+  'listArticles',
+  'lookupArticleByCode',
+  'listLocations',
+  'getStock',
+  'listStock',
+  'listStockMovements',
+  'createWebhook',
+  'updateWebhook',
+  'deleteWebhook',
+  'listWebhooks',
+  'sendWebhookTest',
+  'rotateWebhookSecret',
+  'listWebhookDeliveries',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -160,6 +175,21 @@ export const PUBLIC_CALLS = [
   'listInvoiceItems',
   'setCustomerMandate',
   'revokeCustomerMandate',
+  // Lager-API lesen und Konto-Webhooks (Backend Stufe 5a), umhuellt in `./inventory`.
+  'getArticle',
+  'listArticles',
+  'lookupArticleByCode',
+  'listLocations',
+  'getStock',
+  'listStock',
+  'listStockMovements',
+  'createWebhook',
+  'updateWebhook',
+  'deleteWebhook',
+  'listWebhooks',
+  'sendWebhookTest',
+  'rotateWebhookSecret',
+  'listWebhookDeliveries',
 ] as const;
 
 /**

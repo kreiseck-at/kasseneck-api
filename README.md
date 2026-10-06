@@ -49,6 +49,7 @@ models, same enum values, checked against each other in tests.
 - [Card payments](#card-payments)
 - [Partner API (`./partner`)](#partner-api-partner)
 - [Invoice API (`./invoice`)](#invoice-api-invoice)
+- [Inventory API (`./inventory`)](#inventory-api-inventory)
 - [Migrating from 0.x](#migrating-from-0x)
 - [Development](#development)
 - [Contract files for the twin packages](#contract-files-for-the-twin-packages)
@@ -211,6 +212,7 @@ adapter:
 | `…/stored` | Stored Firestore documents (inner form, German) as the same English models the `/v3` wire returns: receipts with company and layout, register settings, articles. For clients that read Firestore directly, such as the admin panel. |
 | `…/invoice` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
 | `…/invoice/calc` | Pure calculation core for invoice totals (integers, no transport, no dependency beyond types). Safe to run in the browser. |
+| `…/inventory` | Inventory API: read articles, locations, stock and the stock ledger, manage account webhooks, verify and parse incoming stock and article events. **Belongs on a server.** |
 | `…/react` | Thin React adapter that renders a receipt layout or a receipt sheet. Needs React. |
 | `…/fixtures/*` | Golden receipts (JSON): inputs `receipts/<name>.json`, promised line output `expected/<name>.lines.json`, `manifest.json` with checksums. The backend, the browser register and the Flutter package check against the same files. |
 
@@ -408,6 +410,7 @@ the received body.
 | `POS_ERROR_CODES` | `isPosError` (`…/pos`) | settings, articles, printers, tip recipients |
 | `PARTNER_ERROR_CODES` + `PARTNER_REQUEST_ERROR_CODES` | `isPartnerError` (`…/partner`) | partner API |
 | `INVOICE_ERROR_CODES` + `INVOICE_REQUEST_ERROR_CODES` | `isInvoiceError` (`…/invoice`) | invoice API |
+| `INVENTORY_ERROR_CODES` + `INVENTORY_REQUEST_ERROR_CODES` | `isInventoryError` (`…/inventory`) | inventory API |
 
 Every group has the same helpers: `is…ErrorCode(value)`, `…ErrorCode(error)`
 (the code if the group knows it), `is…Error(error, code?)` (a type guard; without
@@ -1417,6 +1420,87 @@ but € 23.49 with the core and on the invoice. It stays unchanged for existing
 callers; use `calculateInvoice` or `previewInvoice` in new code. Test cases for
 the old formula: `fixtures/invoice-totals.json`.
 
+## Inventory API (`./inventory`)
+
+For online shops and other systems that show or mirror the stock of a
+Kasseneck account: read articles, locations, stock per location and the stock
+ledger, and get every stock change pushed by webhook within seconds, also the
+ones made at the register in the shop. Uses the `api_key` of the account and
+belongs on a **server**. Reading needs the module `lager`; purchase prices and
+stock values appear only when the account has the permission `costs`
+(otherwise the fields are absent, not `null`).
+
+**Integers with a fixed scale:** quantities in thousandths of the base unit
+(`1000` = 1 piece, `250` = 0.250 kg), money in cents, purchase prices in
+micro-euros. `available = onHand − reserved` and may be negative: the register
+never refuses a sale. A fractional quantity in a response throws
+`KasseneckValidationError` with `scope: 'response'`; it is never read as `0`.
+
+```ts
+import express from 'express';
+import { createInventoryClient, verifyWebhookSignature, parseWebhookEvent } from '@kreiseck/kasseneck-api/inventory';
+
+const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// 1. Read: an article by its EAN, then its stock per location.
+const article = await inventory.lookupArticleByCode('9001234567896');
+const { stock } = await inventory.getStock(article.id);
+// stock[0]: { articleId, locationId, onHand: 12000, reserved: 2000, available: 10000, defective: 0, sequence: 42, updatedAt }
+
+// 2. Initial sync, page by page over nextCursor.
+for await (const row of inventory.iterateStock()) {
+  await shop.saveStock(row.articleId, row.locationId, row.available, row.sequence);
+}
+
+// 3. Subscribe once. The secret is shown only in this response.
+const { secret } = await inventory.createWebhook({
+  url: 'https://shop.example.com/kasseneck-webhook',
+  events: ['stock.changed', 'stock.below_minimum'],
+  description: 'Bäckerei Kornblum online shop',
+});
+
+// 4. Receive. express.raw BEFORE any JSON parser: the signature covers the bytes as received.
+const app = express();
+app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  if (!(await verifyWebhookSignature(secret, req.header('X-Kasseneck-Signature'), req.body))) {
+    return res.sendStatus(400);
+  }
+  const event = parseWebhookEvent(req.body);
+  res.sendStatus(200);                  // answer within 10 s, work afterwards
+  if (!event || event.test) return;     // unknown type of a later version, or a test delivery
+  if (event.type === 'stock.changed') {
+    // State, not delta: keep it only if sequence is higher than the stored one.
+    await shop.saveStockIfNewer(event.data.articleId, event.data.locationId, event.data.available, event.data.sequence);
+  }
+});
+```
+
+- **Signature.** `verifyWebhookSignature(secret, header, rawBody, { toleranceSec, now })`
+  resolves to `true` or `false` and never throws. It is the same procedure as
+  for partner webhooks: `X-Kasseneck-Signature: t=<unix seconds>,v1=<hex>`
+  with HMAC-SHA256 over `"<t>.<raw body>"`, compared in constant time, and a
+  window of 300 seconds in both directions against replays. It is asynchronous
+  because it uses WebCrypto. After `rotateWebhookSecret` only the new secret is
+  valid; pass both during your own switch-over (`secret` may be a list).
+- **Events.** `stock.changed` carries the current state of one article at one
+  location (`onHand`, `reserved`, `available`, `defective`, `sequence`,
+  `updatedAt`) plus `cause` (`sale`, `invoice`, `receipt`, `transfer` …) and
+  `movementId`; changes within 10 seconds are combined into one delivery.
+  `stock.below_minimum` fires once when `available` drops below the minimum.
+  `article.created`, `article.updated` and `article.deactivated` carry the
+  article as `getArticle` returns it, without purchase prices. Deduplicate on
+  `event.id`; deliveries are retried after 1 min, 5 min, 30 min, 2 h and 12 h.
+- **Safety net without webhooks.** `listStock({ changedSince })` and
+  `listArticles({ updatedSince })` are sorted by `updatedAt` ascending and
+  include the boundary, so remembering the last `updatedAt` and asking again
+  loses nothing. Lists take `limit` (1–200, default 50) and `cursor`.
+- **Errors.** `rate_limited` (about 20 requests per second per account) carries
+  the wait in `inventoryRetryAfterSec(error)`. `inventory_api_not_enabled`,
+  `module_inactive`, `article_not_found`, `invalid_cursor`,
+  `webhook_not_found`, `webhook_limit_reached` (5 per account),
+  `invalid_webhook_url`, `event_not_subscribed` and `webhook_inactive` are
+  decided on the code with `isInventoryError(error, code)`.
+
 ## Migrating from 0.x
 
 1.0 is one breaking step: the wire, the exported names and the contract files
@@ -1492,7 +1576,7 @@ in machine form what both sides agreed on, among them:
 |---|---|---|
 | `pos-settings-defaults.json` | field names and defaults of the register settings as sent on `/api/v3` (`business`, `device`), derived from the backend contract in `fixtures/v3/` | `npm run fixtures:kasse` |
 | `stored/pos-settings-defaults.json` | the same defaults in the stored (internal, German) form (`betrieb`, `geraet`) | `npm run fixtures:kasse` |
-| `surface.json` | base URLs (`baseUrls.public`, `baseUrls.pos`), the calls per path (`calls`, and the backend's `routes`), settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, shortcut actions, partner and invoice lists | `npm run fixtures:oberflaeche` |
+| `surface.json` | base URLs (`baseUrls.public`, `baseUrls.pos`), the calls per path (`calls`, and the backend's `routes`), settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, shortcut actions, partner, invoice and inventory lists | `npm run fixtures:oberflaeche` |
 | `hobex-hps-codes.json` | measured HPS result codes, their meaning and whether they settle an outcome (the contract behind `isConclusive`) | `npm run fixtures:hobex-hps-codes` |
 | `pos-texts.json` | the register's message catalogue | `npm run fixtures:texte` |
 | `invoice-texts.json` | invoice texts in both languages | `npm run fixtures:rechnungstexte` |

@@ -41,6 +41,7 @@ import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSetting
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { createInvoiceApi, INVOICE_ERROR_CODES } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
+import { createInventoryClient, verifyWebhookSignature as lagerSignatur, parseWebhookEvent as lagerEreignis, INVENTORY_WEBHOOK_EVENTS, type StockLevel } from '@kreiseck/kasseneck-api/inventory';
 // 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
 // ./rechnung -> ./invoice, ./rechnung/rechnen -> ./invoice/calc). Loest einer
 // wieder auf, meldet tsc die unbenutzte Erwartung.
@@ -93,6 +94,13 @@ export const summen = calculateInvoice(
   [{ unitPriceMicros: 14_790_000, quantityMilli: 1000, vatRateBp: 2000 }],
   { priceMode: 'gross' },
 );
+// ./inventory: Lager lesen, Konto-Webhooks pruefen und typisiert lesen.
+export const lager = createInventoryClient({ apiKey: 'kr_test_x' });
+export const lagerPruefen: Promise<boolean> = lagerSignatur('whsec_x', 't=1,v1=00', '{}', { now: new Date(1000) });
+const lagerE = lagerEreignis('{}');
+export const lagerFolge: number | null = lagerE && lagerE.type === 'stock.changed' ? lagerE.data.sequence : null;
+export const lagerEreignisse: readonly string[] = INVENTORY_WEBHOOK_EVENTS;
+export type Bestandszeile = StockLevel;
 // ./stored: gespeicherte Dokumente als dieselben Modelle wie am Draht.
 export const gespeichert: string = fromStoredReceipt({ receiptId: 'K-1' }).receiptId;
 declare const kopf: StoredDocument;

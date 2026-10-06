@@ -1,7 +1,7 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "1.3.0",
-  "description": "Austrian fiscal cash register (RKSV) client for JavaScript and TypeScript: signed receipts, cancellations, card payments, receipt printing (ESC/POS), invoices. RKSV-Registrierkasse für JavaScript und TypeScript.",
+  "version": "1.4.0",
+  "description": "Austrian fiscal cash register (RKSV) client for JavaScript and TypeScript: signed receipts, cancellations, card payments, receipt printing (ESC/POS), invoices, inventory. RKSV-Registrierkasse für JavaScript und TypeScript.",
   "license": "Apache-2.0",
   "author": "Kreiseck",
   "homepage": "https://kasseneck.at/api-doku",
@@ -43,6 +43,8 @@
     "peppol",
     "factur-x",
     "vat",
+    "inventory",
+    "stock",
     "webhook",
     "nodejs",
     "javascript"
@@ -161,6 +163,16 @@
       "require": {
         "types": "./dist/cjs/invoice/calc.d.ts",
         "default": "./dist/cjs/invoice/calc.js"
+      }
+    },
+    "./inventory": {
+      "import": {
+        "types": "./dist/esm/inventory/index.d.ts",
+        "default": "./dist/esm/inventory/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/inventory/index.d.ts",
+        "default": "./dist/cjs/inventory/index.js"
       }
     },
     "./fixtures/*": "./fixtures/*"

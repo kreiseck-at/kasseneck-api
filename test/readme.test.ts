@@ -10,6 +10,7 @@ import * as register from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/invoice/index.js';
 import * as calculateInvoice from '../src/invoice/calc.js';
+import * as lager from '../src/inventory/index.js';
 import * as react from '../src/react/index.js';
 import * as kasse from '../src/pos/index.js';
 import * as stored from '../src/stored/index.js';
@@ -47,6 +48,7 @@ const MODULE: Record<string, Record<string, unknown>> = {
   '@kreiseck/kasseneck-api/partner': partner,
   '@kreiseck/kasseneck-api/invoice': rechnung,
   '@kreiseck/kasseneck-api/invoice/calc': calculateInvoice,
+  '@kreiseck/kasseneck-api/inventory': lager,
   '@kreiseck/kasseneck-api/react': react,
   '@kreiseck/kasseneck-api/pos': kasse,
   '@kreiseck/kasseneck-api/stored': stored,
