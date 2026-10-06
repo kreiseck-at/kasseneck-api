@@ -14,8 +14,8 @@ a reservation or `issueInvoice` came back as `'rejected'` ("did not happen")
 although the server may have booked it. Whoever believed that and resent with
 a **new** `idempotencyKey` booked twice.
 
-A change to the safe side, no change on the wire; requests send the same bytes
-as in 1.5.0.
+A change to the safe side, no change on the wire; requests send the same body
+as in 1.5.0 (only the `Kasseneck-Client` header carries the new version).
 
 - **Which calls**: `UNKNOWN_OUTCOME_CALLS` (exported, sorted), also in
   `fixtures/surface.json` as `unknownOutcomeCalls` for the Dart twin. New in it:
@@ -41,15 +41,20 @@ as in 1.5.0.
   A timeout already during sign-in stays `'rejected'` as before: nothing was
   sent.
 - **What to do**: with an `idempotencyKey`, send the same request with the
-  **same** key; it takes effect once and returns the stored answer. Without a
-  key (receipts, cancellations, money calls, settings, webhooks), read the
-  state first. The rule for receipts and payments is unchanged: look it up,
+  **same** key; it takes effect once and returns the stored answer.
+  `createInvoiceItem` is recognised by `source` + `reference`: the same values
+  again are safe. Without a key (receipts, cancellations, money calls,
+  settings, webhooks, changing or withdrawing invoice items, mandates), read
+  the state first. The rule for receipts and payments is unchanged: look it up,
   never resend.
 - **Per call**: the transport takes a fifth argument `{ hasEffect }`
-  (`TransportCallOptions`). `false` marks a dry run under the name of the real
-  call (the package's own previews use it), `true` a call with an effect that
-  this package does not know; without it the list decides, and an unknown
-  name counts as having no effect.
+  (`TransportCallOptions`). `true` marks a call with an effect that this
+  package does not know. `false` only counts together with
+  `params.dryRun === true` (a dry run under the name of the real call; the
+  package's own previews use it); without `dryRun: true` a call from the list
+  stays `'unknown'`, so no option can turn a real booking into `'rejected'`.
+  Without the option the list decides, and an unknown name counts as having no
+  effect.
 - **Guard**: every call the package knows (`ALL_CALLS`, `PUBLIC_CALLS`,
   `POS_CALLS`) is classified as with or without effect; a new call without a
   classification fails the tests.

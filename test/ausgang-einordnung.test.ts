@@ -215,14 +215,14 @@ test('HTML mit Kennzeichen: mit Wirkung unlesbarer Rumpf (unknown), Lesen und Pr
 
 // ---- Angabe beim Aufruf (offener Transport) -----------------------------------------------
 
-test('hasEffect beim Aufruf sticht die Liste in beide Richtungen; ohne Angabe gilt die Liste', async () => {
+test('hasEffect beim Aufruf: true hebt jeden Aufruf, false senkt nur einen Probelauf; ohne Angabe gilt die Liste', async () => {
   const rufen = createTransport({
     auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: 'cb_test_TOKEN' }),
     fetch: STOERUNGEN.network,
   });
-  const ausgang = async (name: string, hasEffect?: boolean): Promise<unknown> => {
+  const ausgang = async (name: string, hasEffect?: boolean, params: Record<string, unknown> = {}): Promise<unknown> => {
     try {
-      await rufen(name, {}, undefined, undefined, hasEffect === undefined ? undefined : { hasEffect });
+      await rufen(name, params, undefined, undefined, hasEffect === undefined ? undefined : { hasEffect });
     } catch (e) {
       assert.ok(e instanceof KasseneckNetworkError, String(e));
       return e.outcome;
@@ -230,7 +230,18 @@ test('hasEffect beim Aufruf sticht die Liste in beide Richtungen; ohne Angabe gi
     return assert.fail(`${name}: kein Fehler`);
   };
   assert.equal(await ausgang('receiveGoods'), 'unknown');
-  assert.equal(await ausgang('receiveGoods', false), 'rejected');
+  // false ohne `dryRun: true` aendert nichts: ein echter Beleg oder eine echte
+  // Buchung laeuft nach einem Zeitlimit nie als `rejected`.
+  for (const name of ['receiveGoods', 'createReceipt', 'issueInvoice', 'recordStockLoss']) {
+    assert.equal(await ausgang(name, false), 'unknown', `${name} mit hasEffect:false ohne dryRun`);
+    assert.equal(await ausgang(name, false, { dryRun: false }), 'unknown', `${name} mit dryRun:false`);
+    assert.equal(await ausgang(name, false, { dryRun: 'true' }), 'unknown', `${name} mit dryRun als Text`);
+    // dryRun allein (ohne die Angabe) senkt ebenfalls nicht.
+    assert.equal(await ausgang(name, undefined, { dryRun: true }), 'unknown', `${name} mit dryRun ohne Angabe`);
+  }
+  // Nur beides zusammen ist ein Probelauf.
+  assert.equal(await ausgang('receiveGoods', false, { dryRun: true }), 'rejected');
+  assert.equal(await ausgang('issueInvoice', false, { dryRun: true }), 'rejected');
   assert.equal(await ausgang('getStock'), 'rejected');
   assert.equal(await ausgang('getStock', true), 'unknown');
   // Ein Name, den das Paket nicht kennt: ohne Angabe ohne Wirkung, mit Angabe unklar.

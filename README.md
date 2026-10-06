@@ -433,7 +433,7 @@ receipt email, and values outside a settings field's value list throw a
 `KasseneckValidationError` before anything is sent, instead of being dropped
 silently. For a layout option of 0.x the message names its English successor.
 
-### `outcome: 'unknown'`: never retry, look it up
+### `outcome: 'unknown'`: never resend blindly
 
 `KasseneckApiError`, `KasseneckHttpError` and `KasseneckNetworkError` carry
 `outcome`. `'rejected'` means the server turned the request down; whether
@@ -441,8 +441,9 @@ anything else is safe to do depends on the code, and on the money calls it
 is only set for the codes listed below. `'unknown'` means the operation **may have been carried out**, for
 `createReceipt` a signed receipt in the chain. Then never send it again blindly:
 read the result back (`getReceipt`, `listMyReceipts`, the original of a
-cancellation) and continue from there. A call with an `idempotencyKey` is the
-one exception: send it again with the **same** key (see below).
+cancellation) and continue from there. A call with an `idempotencyKey` (or,
+for invoice items, the same `source` and `reference`) is the exception: send
+it again unchanged (see below).
 `isOutcomeUnknown(error)` covers all three classes. The outcome is unknown for:
 
 - `dialect_mismatch`, `receipt_outcome_unknown`, `cancellation_outcome_unknown`;
@@ -511,16 +512,22 @@ transaction by its `transactionId`, the Stripe session).
 
 **With an `idempotencyKey`** (inventory writes and reservations, `issueInvoice`,
 `cancelInvoice`, `createCreditNote`, `recordInvoicePayment`, `createCustomer`
-with a key, invoice items) the safe retry after `'unknown'` is the same request
-with the **same** key: it takes effect exactly once and returns the stored
-answer (`replayed: true` on invoices). Never a new key: that books a second
-time. Without a key (receipts, cancellations, money calls, settings, webhooks,
-`updateCustomer`) read the state first and only then decide.
+and `createPartnerCustomer` with a key) the safe retry after `'unknown'` is the
+same request with the **same** key: it takes effect exactly once and returns
+the stored answer (`replayed: true`). Never a new key: that books a second
+time. `createInvoiceItem` has no key; the server recognises a repeat by
+`source` + `reference`, so the same request with the same values is safe
+(`replayed: true`; other data gives `item_reference_conflict`). Without a key
+(receipts, cancellations, money calls, settings, webhooks, `updateCustomer`,
+`createCustomer` and `createPartnerCustomer` without one, `updateInvoiceItem`,
+`withdrawInvoiceItem`, `setCustomerMandate`, `revokeCustomerMandate`) read the
+state first (for invoice items `getInvoiceItem`) and only then decide.
 
 A call through the open transport that this package does not know counts as
 having no effect; say so with `transport(name, params, undefined, undefined,
-{ hasEffect: true })`. `hasEffect: false` marks a dry run under the name of
-the real call.
+{ hasEffect: true })`. `hasEffect: false` only counts together with
+`params.dryRun === true` (a dry run under the name of the real call); without
+it a call with an effect stays `'unknown'`.
 
 ```ts
 import { isOutcomeUnknown, paymentsExpectedCents } from '@kreiseck/kasseneck-api';
@@ -964,7 +971,7 @@ process:
 `hobexPay`, `hobexRefund` and `stripeCaptureIntent` move money. They are never
 retried, neither by the app nor by a retrying `fetch` under the package: on
 `isOutcomeUnknown(error)` look the payment up (see
-[`outcome: 'unknown'`](#outcome-unknown-never-retry-look-it-up)).
+[`outcome: 'unknown'`](#outcome-unknown-never-resend-blindly)).
 - **Hobex HPS via Kasseneck Connect**, described below.
 
 ### Hobex HPS via Kasseneck Connect
@@ -1399,7 +1406,7 @@ call with an effect (`issueInvoice`, `cancelInvoice`, `createCreditNote`,
 `outcome: 'unknown'` after a timeout, a network error, HTTP 5xx or an
 unreadable answer (before: `'rejected'`); `previewInvoice` and the reading
 calls stay `'rejected'`. See
-[`outcome: 'unknown'`](#outcome-unknown-never-retry-look-it-up).
+[`outcome: 'unknown'`](#outcome-unknown-never-resend-blindly).
 
 Validation errors arrive as `validation` with field paths
 (`invoiceFieldErrors(error)` → `[{ field: 'items[0].vatRate', message }]`).

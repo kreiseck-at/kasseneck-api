@@ -356,7 +356,8 @@ export type CallWithoutEffectReason = 'read' | 'repeatable';
  *
  * Probelaeufe (`previewGoodsReceipt`, `previewInvoice`) teilen den Namen mit
  * dem echten Aufruf und stehen darum nicht hier; die Huellen setzen fuer sie
- * `hasEffect: false` beim Aufruf (siehe `TransportCallOptions`).
+ * `hasEffect: false` beim Aufruf, das nur zusammen mit `dryRun: true` gilt
+ * (siehe `TransportCallOptions`).
  *
  * Paketintern; nicht Teil der Paketoberflaeche.
  */

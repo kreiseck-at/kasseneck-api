@@ -27,9 +27,12 @@
  *   ausgefuehrt sein (bei `createReceipt` ein signierter Beleg). Dann **nie
  *   blind wiederholen**: Belege, Stornos und Zahlungen nachlesen
  *   (Belegliste, `getReceipt`, Terminal-Beleg); ein Aufruf mit
- *   `idempotencyKey` (Lager schreiben, Rechnung, Rechnungskorb) darf mit
- *   **demselben** Schluessel erneut gesendet werden und wirkt genau einmal,
- *   nie mit einem neuen.
+ *   `idempotencyKey` (Lager schreiben, Rechnung, Partner-Betrieb mit
+ *   Schluessel) darf mit **demselben** Schluessel erneut gesendet werden und
+ *   wirkt genau einmal, nie mit einem neuen. `createInvoiceItem` erkennt die
+ *   Wiederholung an `source` + `reference` (dieselben Werte erneut senden);
+ *   Posten aendern oder zurueckziehen und Mandate haben keinen Schluessel:
+ *   erst nachlesen.
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
  *   HTTP 500/404 ohne Huelle, leerer Rumpf oder Text statt JSON. Beim
  *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.

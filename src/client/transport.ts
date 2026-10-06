@@ -209,13 +209,15 @@ export interface TransportCallOptions {
    * Hat dieser Aufruf Wirkung? Entscheidet den Ausgang, wenn er scheitert,
    * nachdem die Anfrage unterwegs war (Netzfehler, Zeitlimit, HTTP 5xx,
    * unlesbare Erfolgsantwort, HTML mit Kennzeichen): `true` ergibt
-   * `outcome: 'unknown'`, `false` ergibt `'rejected'`. Ohne Angabe gilt die
-   * Liste des Pakets (`UNKNOWN_OUTCOME_CALLS`); ein Name, den sie nicht
-   * kennt, gilt dann als ohne Wirkung.
+   * `outcome: 'unknown'`. Ohne Angabe gilt die Liste des Pakets
+   * (`UNKNOWN_OUTCOME_CALLS`); ein Name, den sie nicht kennt, gilt dann als
+   * ohne Wirkung.
    *
-   * `false` nur fuer einen Probelauf (`dryRun: true`), der unter dem Namen
-   * des echten Aufrufs laeuft und nichts schreibt; `true` fuer einen Aufruf
-   * mit Wirkung, den dieses Paket nicht kennt.
+   * `true` fuer einen Aufruf mit Wirkung, den dieses Paket nicht kennt.
+   * `false` gilt **nur zusammen mit `params.dryRun === true`** (Probelauf
+   * unter dem Namen des echten Aufrufs, schreibt nichts) und ergibt dann
+   * `'rejected'`; ohne `dryRun: true` bleibt ein Aufruf aus der Liste
+   * `'unknown'`, was immer hier steht.
    */
   hasEffect?: boolean;
 }
@@ -334,12 +336,14 @@ function createCore(options: TransportOptions) {
     // dem Aufrufer, welcher davon scheiterte.
     const fehlerName = extraBodyFields?.method ? `${functionName}/${extraBodyFields.method}` : functionName;
     // Ausgang eines Scheiterns nach dem Senden: offen, wenn der Aufruf Wirkung
-    // hat. Die Angabe beim Aufruf sticht die Liste (Probelauf unter dem Namen
-    // des echten Aufrufs, fremder Aufruf mit Wirkung).
-    const nachDemSenden: ErrorOutcome =
-      (typeof callOptions?.hasEffect === 'boolean' ? callOptions.hasEffect : isUnknownOutcomeCall(functionName))
-        ? 'unknown'
-        : 'rejected';
+    // hat. `hasEffect: true` hebt einen fremden Aufruf auf `unknown`.
+    // `hasEffect: false` senkt einen Aufruf mit Wirkung nur, wenn er wirklich
+    // ein Probelauf ist (`dryRun === true`, so streng prueft auch das
+    // Backend): sonst liefe ein echter Beleg oder eine Buchung nach einem
+    // Zeitlimit als `rejected`, und genau das fuehrt zur Doppelbuchung.
+    const probelauf = callOptions?.hasEffect === false && params['dryRun'] === true;
+    const wirkung = callOptions?.hasEffect === true || (isUnknownOutcomeCall(functionName) && !probelauf);
+    const nachDemSenden: ErrorOutcome = wirkung ? 'unknown' : 'rejected';
     // Das Zeitlimit laeuft ab HIER — es deckt die Anmeldung mit ab. Haengt die
     // Token-Erneuerung auf flauem Netz, haette der Aufruf sonst weder Ergebnis
     // noch Fehler, und die Kasse stuende still.
