@@ -514,8 +514,9 @@ transaction by its `transactionId`, the Stripe session).
 `cancelInvoice`, `createCreditNote`, `recordInvoicePayment`, `createCustomer`
 and `createPartnerCustomer` with a key) the safe retry after `'unknown'` is the
 same request with the **same** key: it takes effect exactly once and returns
-the stored answer (`replayed: true`). Never a new key: that books a second
-time. `createInvoiceItem` has no key; the server recognises a repeat by
+the stored answer (invoices and partner customers mark it with
+`replayed: true`; inventory writes return the stored answer unchanged). Never a
+new key: that books a second time. `createInvoiceItem` has no key; the server recognises a repeat by
 `source` + `reference`, so the same request with the same values is safe
 (`replayed: true`; other data gives `item_reference_conflict`). Without a key
 (receipts, cancellations, money calls, settings, webhooks, `updateCustomer`,
