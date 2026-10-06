@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosCall, isPosOnlyCall } from '../src/client/aufrufe.js';
+import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, UNKNOWN_OUTCOME_CALLS, isPosCall, isPosOnlyCall } from '../src/client/aufrufe.js';
 import { DEFAULT_BASE_URL, POS_BASE_URL } from '../src/client/transport.js';
 import * as kasse from '../src/pos/index.js';
 import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from '../src/pos/index.js';
@@ -41,9 +41,10 @@ for (const name of Object.keys(namensraum).sort()) {
 
 test('Golden: die Oberflaeche steht in fixtures/surface.json', () => {
   assert.deepEqual(Object.keys(vertrag), [
-    'version', 'baseUrls', 'calls', 'routes', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice', 'inventory',
+    'version', 'baseUrls', 'calls', 'routes', 'unknownOutcomeCalls', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice', 'inventory',
   ], veraltet);
   assert.deepEqual(vertrag.routes, { public: [...PUBLIC_CALLS], pos: [...POS_CALLS] }, veraltet);
+  assert.deepEqual(vertrag.unknownOutcomeCalls, [...UNKNOWN_OUTCOME_CALLS].sort(), veraltet);
   assert.deepEqual(vertrag.registerPerms, [...REGISTER_PERMS], veraltet);
   assert.deepEqual(vertrag.posShortcutActions, [...POS_SHORTCUT_ACTIONS], veraltet);
   assert.deepEqual(vertrag.registerErrorCodes, [...REGISTER_ERROR_CODES], veraltet);

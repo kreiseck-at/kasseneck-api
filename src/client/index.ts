@@ -16,6 +16,7 @@ export {
   type FetchLike,
   type TransportOptions,
   type TransportBodyFields,
+  type TransportCallOptions,
   type KasseneckTransport,
   type KasseneckBinaryTransport,
   createTransport,
@@ -27,6 +28,7 @@ export {
   type ApiCall,
   PUBLIC_CALLS,
   POS_CALLS,
+  UNKNOWN_OUTCOME_CALLS,
   type PublicCall,
   type PosCall,
 } from './aufrufe.js';

@@ -1,5 +1,5 @@
 import { isRegisterUserAuth, type AuthCredentials, type KasseneckAuth } from './auth.js';
-import { isPosCall, isPosOnlyCall } from './aufrufe.js';
+import { isPosCall, isPosOnlyCall, isUnknownOutcomeCall } from './aufrufe.js';
 import { PACKAGE_VERSION } from '../version.js';
 import {
   KasseneckApiError,
@@ -46,6 +46,12 @@ import {
  * **Kein Wiederholen fehlgeschlagener Aufrufe.** Ein Beleg ist nicht folgenlos
  * wiederholbar; ohne entschiedene Idempotenz waere ein automatischer zweiter
  * Versuch ein zweiter Beleg.
+ *
+ * **Ausgang je Aufruf.** Ob ein Scheitern nach dem Senden `outcome: 'unknown'`
+ * traegt, haengt am Aufruf: mit Wirkung ([UNKNOWN_OUTCOME_CALLS] in
+ * aufrufe.ts) ja, Lesen und Probelauf nein. Ein Probelauf traegt denselben
+ * Namen wie der echte Aufruf; die Huelle sagt es darum beim Aufruf
+ * (`hasEffect: false`, [TransportCallOptions]).
  */
 
 /** Basis-URL der oeffentlichen API (Produktion). */
@@ -71,24 +77,6 @@ const KASSENECK_HOSTS: ReadonlySet<string> = new Set(['api.kasseneck.at', 'kasse
 
 /** Die 1.x-Linie spricht nur `/v3`: jede Basis endet so (`/v3` oder `/api/v3`). */
 const V3_ENDE = /\/v3$/;
-
-/**
- * Aufrufe mit Wirkung, die nie blind wiederholt werden duerfen: sie signieren
- * (`createReceipt`, `cancelReceipt`), loesen bei FinanzOnline etwas aus
- * (`financeWebService`) oder bewegen Geld (`hobexPayApi` belastet eine Karte,
- * `hobexRefundApi` erstattet, `stripeCaptureIntent` zieht eine vorgemerkte
- * Zahlung ein). Scheitert einer, nachdem die Anfrage unterwegs war (Netz,
- * Zeitlimit, HTTP 5xx, unlesbare Erfolgsantwort, HTML mit Kennzeichen), ist
- * sein Ausgang offen.
- */
-const UNKNOWN_OUTCOME_CALLS: ReadonlySet<string> = new Set([
-  'createReceipt',
-  'cancelReceipt',
-  'financeWebService',
-  'hobexPayApi',
-  'hobexRefundApi',
-  'stripeCaptureIntent',
-]);
 
 /**
  * Produkte, die das Backend in `Kasseneck-Client` zaehlt (Positivliste,
@@ -213,11 +201,31 @@ export interface TransportBodyFields {
   method?: string;
 }
 
+/**
+ * Einstellungen fuer **einen** Aufruf, die nicht mitgesendet werden.
+ */
+export interface TransportCallOptions {
+  /**
+   * Hat dieser Aufruf Wirkung? Entscheidet den Ausgang, wenn er scheitert,
+   * nachdem die Anfrage unterwegs war (Netzfehler, Zeitlimit, HTTP 5xx,
+   * unlesbare Erfolgsantwort, HTML mit Kennzeichen): `true` ergibt
+   * `outcome: 'unknown'`, `false` ergibt `'rejected'`. Ohne Angabe gilt die
+   * Liste des Pakets (`UNKNOWN_OUTCOME_CALLS`); ein Name, den sie nicht
+   * kennt, gilt dann als ohne Wirkung.
+   *
+   * `false` nur fuer einen Probelauf (`dryRun: true`), der unter dem Namen
+   * des echten Aufrufs laeuft und nichts schreibt; `true` fuer einen Aufruf
+   * mit Wirkung, den dieses Paket nicht kennt.
+   */
+  hasEffect?: boolean;
+}
+
 export type KasseneckTransport = <T = unknown>(
   functionName: string,
   params?: Record<string, unknown>,
   extraBodyFields?: TransportBodyFields,
   secretParams?: readonly string[],
+  options?: TransportCallOptions,
 ) => Promise<T>;
 
 /**
@@ -259,12 +267,14 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
     params?: Record<string, unknown>,
     extraBodyFields?: TransportBodyFields,
     secretParams?: readonly string[],
+    callOptions?: TransportCallOptions,
   ) =>
     kern<string, T>(
       functionName,
       params,
       extraBodyFields,
       secretParams,
+      callOptions,
       alsText,
       jsonAuswerten as Auswertung<string, T>,
     );
@@ -281,7 +291,7 @@ export function createTransport(options: TransportOptions): KasseneckTransport {
 export function createBinaryTransport(options: TransportOptions): KasseneckBinaryTransport {
   const kern = createCore(options);
   return (functionName: string, params?: Record<string, unknown>) =>
-    kern<Uint8Array, Uint8Array>(functionName, params, undefined, undefined, alsBytes, pdfAuswerten);
+    kern<Uint8Array, Uint8Array>(functionName, params, undefined, undefined, undefined, alsBytes, pdfAuswerten);
 }
 
 /**
@@ -314,6 +324,7 @@ function createCore(options: TransportOptions) {
     params: Record<string, unknown> = {},
     extraBodyFields: TransportBodyFields | undefined,
     secretParams: readonly string[] | undefined,
+    callOptions: TransportCallOptions | undefined,
     lesen: Koerperleser<R>,
     auswerten: Auswertung<R, T>,
   ): Promise<T> {
@@ -322,6 +333,13 @@ function createCore(options: TransportOptions) {
     // Endpunkt, und ein Fehler, der nur "financeWebService" sagt, verschweigt
     // dem Aufrufer, welcher davon scheiterte.
     const fehlerName = extraBodyFields?.method ? `${functionName}/${extraBodyFields.method}` : functionName;
+    // Ausgang eines Scheiterns nach dem Senden: offen, wenn der Aufruf Wirkung
+    // hat. Die Angabe beim Aufruf sticht die Liste (Probelauf unter dem Namen
+    // des echten Aufrufs, fremder Aufruf mit Wirkung).
+    const nachDemSenden: ErrorOutcome =
+      (typeof callOptions?.hasEffect === 'boolean' ? callOptions.hasEffect : isUnknownOutcomeCall(functionName))
+        ? 'unknown'
+        : 'rejected';
     // Das Zeitlimit laeuft ab HIER — es deckt die Anmeldung mit ab. Haengt die
     // Token-Erneuerung auf flauem Netz, haette der Aufruf sonst weder Ergebnis
     // noch Fehler, und die Kasse stuende still.
@@ -361,13 +379,14 @@ function createCore(options: TransportOptions) {
         }
         // Bis hierher kam keine verwertbare Antwort: Netz weg oder Zeitlimit.
         // Die Anfrage war schon unterwegs: bei einem Aufruf mit Wirkung kann
-        // der Beleg bzw. die Zahlung entstanden sein (Ausgang unklar, nachlesen).
+        // der Vorgang ausgefuehrt sein (Beleg, Zahlung, Buchung, Rechnung;
+        // Ausgang unklar).
         return new KasseneckNetworkError(
           fehlerName,
           abbruch.signal.aborted,
           zeitlimitMs,
           causeDigest(ursache, geheimnisse),
-          UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected',
+          nachDemSenden,
         );
       };
       const basis = basisFuer(functionName);
@@ -422,7 +441,7 @@ function createCore(options: TransportOptions) {
           if (fehler) throw fehler;
         }
         // 5xx auf einem Aufruf mit Wirkung: der Handler kann gelaufen sein.
-        const ausgang = antwort.status >= 500 && UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected';
+        const ausgang = antwort.status >= 500 ? nachDemSenden : 'rejected';
         throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'server-error', ausgang);
       }
       // HTTP 200 mit HTML: die Auffangregel der Single-Page-App hat den Aufruf
@@ -430,9 +449,9 @@ function createCore(options: TransportOptions) {
       if (inhaltstyp !== undefined && /^\s*text\/html\b/i.test(inhaltstyp)) {
         // Mit Kennzeichen hat der `/v3`-Rand den Aufruf gesehen (etwa ein
         // Proxy, der nur den Inhaltstyp umschreibt). Bei einem Aufruf mit
-        // Wirkung kann der Beleg bzw. die Zahlung dann entstanden sein: unlesbarer Rumpf,
+        // Wirkung kann der Vorgang dann ausgefuehrt sein: unlesbarer Rumpf,
         // Ausgang unklar, statt `route_missing`.
-        if (UNKNOWN_OUTCOME_CALLS.has(functionName) && traegtKennzeichen(antwort)) {
+        if (nachDemSenden === 'unknown' && traegtKennzeichen(antwort)) {
           throw new KasseneckHttpError(fehlerName, antwort.status, inhaltstyp, 'not-json', 'unknown');
         }
         throw new KasseneckApiError(
@@ -461,8 +480,7 @@ function createCore(options: TransportOptions) {
       // Ab hier kam HTTP 200 mit Kennzeichen: der `/v3`-Rand hat den Aufruf
       // gesehen. Ist der Rumpf dann unlesbar (gekuerzt von einem Proxy,
       // abgebrochene Verbindung), kann ein Handler mit Wirkung gelaufen sein.
-      const unlesbar: ErrorOutcome = UNKNOWN_OUTCOME_CALLS.has(functionName) ? 'unknown' : 'rejected';
-      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse, unlesbar);
+      return auswerten(koerper, fehlerName, antwort.status, inhaltstyp, geheimnisse, nachDemSenden);
     } finally {
       // Ohne Abraeumen haelt der Wecker den Node-Prozess bis zum Zeitlimit wach.
       clearTimeout(wecker);

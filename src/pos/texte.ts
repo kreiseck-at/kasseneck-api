@@ -414,12 +414,17 @@ export function findErrorRule(kind: ErrorKind, detail: ErrorRuleDetail = {}): Er
 
 /**
  * Kassen-Aufrufe mit Wirkung, die sich nach einem Netzfehler nicht gefahrlos
- * wiederholen lassen: die sechs, deren Ausgang das Paket selbst als unklar
- * fuehrt (Beleg, auch Null- und Startbeleg ueber `createReceipt`, Storno,
- * FinanzOnline, die drei Geldwege), dazu der Druckjob (zweiter Bon) und die
- * Belegmail (zweite Mail). Ob die Anfrage vor dem Abriss schon draussen war,
- * sieht das Paket nicht (fetch wirft in beiden Faellen gleich); darum gilt
- * hier immer der vorsichtige Satz.
+ * wiederholen lassen: Beleg (auch Null- und Startbeleg ueber
+ * `createReceipt`), Storno, FinanzOnline, die drei Geldwege, der Druckjob
+ * (zweiter Bon) und die Belegmail (zweite Mail). Ob die Anfrage vor dem
+ * Abriss schon draussen war, sieht das Paket nicht (fetch wirft in beiden
+ * Faellen gleich); darum gilt hier immer der vorsichtige Satz, auch fuer
+ * einen Fehler, der vor dem Senden entstand.
+ *
+ * Seit 1.5.1 fuehrt der Transport jeden Aufruf mit Wirkung als unklar
+ * (`UNKNOWN_OUTCOME_CALLS`, eine Obermenge dieser Liste), und
+ * [messageOutcome] folgt zuerst ihm. Die Liste bleibt als Vertrag der
+ * Kassentexte (`callsWithEffect` in `fixtures/pos-texts.json`) unveraendert.
  */
 export const CALLS_WITH_EFFECT = Object.freeze([
   'createReceipt',

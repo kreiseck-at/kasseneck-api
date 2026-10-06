@@ -450,7 +450,7 @@ test('v3: Fehlerhuelle mit Code aus der Antwort bekommt ihren outcome (receipt_o
   assert.equal((e2 as KasseneckApiError).outcome, 'rejected');
 });
 
-test('v3: Netzfehler oder Zeitlimit nach dem Senden: signierende Aufrufe unknown, uebrige rejected', async () => {
+test('v3: Netzfehler oder Zeitlimit nach dem Senden: Aufrufe mit Wirkung unknown, Lesen rejected', async () => {
   const netzWeg: FetchLike = async () => {
     throw Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
   };
@@ -459,7 +459,10 @@ test('v3: Netzfehler oder Zeitlimit nach dem Senden: signierende Aufrufe unknown
     ['cancelReceipt', 'unknown'],
     ['financeWebService', 'unknown'],
     ['getReceipt', 'rejected'],
-    ['sendReceiptEmail', 'rejected'],
+    ['sendReceiptEmail', 'unknown'],
+    ['issueInvoice', 'unknown'],
+    ['receiveGoods', 'unknown'],
+    ['getStock', 'rejected'],
   ] as const) {
     const e = await fehler(createTransport({ auth: schluessel(), fetch: netzWeg })(name, {}));
     assert.ok(e instanceof KasseneckNetworkError, name);
@@ -520,7 +523,7 @@ test('v3: HTTP 404 ohne Kennzeichen, ohne Code oder ohne Huelle bleibt HTTP-Fehl
   assert.equal(f500.gelesen, 0);
 });
 
-test('v3: HTTP 5xx auf signierenden Aufrufen ist outcome unknown, 4xx und andere Aufrufe rejected', async () => {
+test('v3: HTTP 5xx auf Aufrufen mit Wirkung ist outcome unknown, 4xx und Lesen rejected', async () => {
   const faelle: [string, number, 'unknown' | 'rejected'][] = [
     ['createReceipt', 500, 'unknown'],
     ['createReceipt', 502, 'unknown'],
@@ -530,7 +533,9 @@ test('v3: HTTP 5xx auf signierenden Aufrufen ist outcome unknown, 4xx und andere
     ['createReceipt', 429, 'rejected'],
     ['cancelReceipt', 400, 'rejected'],
     ['getReceipt', 500, 'rejected'],
-    ['sendReceiptEmail', 503, 'rejected'],
+    ['sendReceiptEmail', 503, 'unknown'],
+    ['issueInvoice', 500, 'unknown'],
+    ['getInvoice', 500, 'rejected'],
   ];
   for (const [name, status, erwartet] of faelle) {
     for (const kennzeichen of ['v3', null]) {
@@ -548,7 +553,7 @@ test('v3: HTTP 5xx auf signierenden Aufrufen ist outcome unknown, 4xx und andere
   assert.equal((e as KasseneckHttpError).outcome, 'unknown');
 });
 
-test('v3: HTTP 200 mit Kennzeichen, aber unlesbarem Rumpf: signierende Aufrufe unknown, uebrige rejected', async () => {
+test('v3: HTTP 200 mit Kennzeichen, aber unlesbarem Rumpf: Aufrufe mit Wirkung unknown, Lesen rejected', async () => {
   const rumpfe: [string, string][] = [
     ['', 'empty-body'],
     ['   ', 'empty-body'],
@@ -562,8 +567,9 @@ test('v3: HTTP 200 mit Kennzeichen, aber unlesbarem Rumpf: signierende Aufrufe u
     ['cancelReceipt', 'unknown', undefined],
     ['financeWebService', 'unknown', { method: 'status_cashbox' }],
     ['getReceipt', 'rejected', undefined],
-    ['sendReceiptEmail', 'rejected', undefined],
-    ['issueInvoice', 'rejected', undefined],
+    ['sendReceiptEmail', 'unknown', undefined],
+    ['issueInvoice', 'unknown', undefined],
+    ['getInvoice', 'rejected', undefined],
   ];
   for (const [rumpf, grund] of rumpfe) {
     for (const [name, erwartet, zusatz] of aufrufe) {
@@ -589,7 +595,7 @@ test('v3: HTTP 200 ohne Kennzeichen bleibt dialect_mismatch, der Rumpf wird nich
   assert.equal(a.gelesen, 0);
 });
 
-test('v3: HTTP 200 mit Kennzeichen und text/html: signierende Aufrufe unknown, ohne Kennzeichen route_missing rejected', async () => {
+test('v3: HTTP 200 mit Kennzeichen und text/html: Aufrufe mit Wirkung unknown, ohne Kennzeichen route_missing rejected', async () => {
   for (const name of ['createReceipt', 'cancelReceipt', 'financeWebService']) {
     for (const auth of [schluessel(), kassenBenutzer()]) {
       const mit = antwort('<html>umgeschrieben</html>', { contentType: 'text/html; charset=utf-8' });
@@ -607,7 +613,7 @@ test('v3: HTTP 200 mit Kennzeichen und text/html: signierende Aufrufe unknown, o
       assert.equal(e2.outcome, 'rejected', name);
     }
   }
-  // Nicht signierende Aufrufe bleiben auch mit Kennzeichen route_missing.
+  // Lesende Aufrufe bleiben auch mit Kennzeichen route_missing.
   const mit = antwort('<html></html>', { contentType: 'text/html' });
   const e3 = await fehler(createTransport({ auth: schluessel(), fetch: async () => mit })('getReceipt', {}));
   assert.equal((e3 as KasseneckApiError).code, 'route_missing');

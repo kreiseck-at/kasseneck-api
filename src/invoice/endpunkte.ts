@@ -12,6 +12,12 @@
  * **Nicht automatisch wiederholen.** Wer nach einem Zeitlimit erneut
  * ausstellt, tut das mit **demselben** `idempotencyKey`: dann kommt die schon
  * ausgestellte Rechnung zurueck (`replayed: true`) statt einer zweiten.
+ * Jeder Aufruf mit Wirkung (ausstellen, stornieren, gutschreiben, Zahlung
+ * nachtragen, Kunde anlegen oder aendern) meldet nach Zeitlimit, Netzfehler,
+ * HTTP 5xx oder unlesbarer Antwort `outcome: 'unknown'`: er kann gewirkt
+ * haben. Mit Schluessel denselben Schluessel erneut senden, ohne Schluessel
+ * (`updateCustomer`, `createCustomer` ohne) erst nachlesen. Lesen und der
+ * Probelauf (`previewInvoice`) bleiben `'rejected'`.
  *
  * Nach dem Senden wird nichts hart gecastet: fehlt ein zugesagtes Feld, wirft
  * der Aufruf `KasseneckValidationError` mit `scope:'response'`.
@@ -146,7 +152,10 @@ export async function searchCustomers(transport: InternerTransport, search: Cust
 // ---- Rechnungen -------------------------------------------------------------
 
 export async function issueInvoice(transport: InternerTransport, request: IssueInvoiceRequest): Promise<IssueResult> {
-  const daten = await transport('issueInvoice', nutzlast(request));
+  const params = nutzlast(request);
+  // Ohne Typen kann `dryRun: true` hier ankommen: dann ist es ein Probelauf
+  // ohne Wirkung (sonst: `previewInvoice`).
+  const daten = await transport('issueInvoice', params, undefined, undefined, { hasEffect: params['dryRun'] !== true });
   const ergebnis: IssueResult = {
     invoice: pflichtObjekt<Invoice>('issueInvoice', daten, 'invoice'),
     replayed: objekt(daten)['replayed'] === true,
@@ -167,7 +176,9 @@ export async function issueInvoice(transport: InternerTransport, request: IssueI
  * Probelauf und Ausstellen kann sich der Kunde oder das Konto aendern.
  */
 export async function previewInvoice(transport: InternerTransport, request: IssueInvoiceRequest): Promise<PreviewResult> {
-  const daten = await transport('issueInvoice', { ...nutzlast(request), dryRun: true });
+  // Ein Probelauf schreibt nichts: nach einem Zeitlimit bleibt er `rejected`,
+  // obwohl `issueInvoice` sonst Wirkung hat.
+  const daten = await transport('issueInvoice', { ...nutzlast(request), dryRun: true }, undefined, undefined, { hasEffect: false });
   const ergebnis: PreviewResult = { preview: pflichtObjekt<InvoicePreview>('issueInvoice', daten, 'preview') };
   const notice = hinweise(daten);
   if (notice) ergebnis.notice = notice;

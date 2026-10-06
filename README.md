@@ -439,24 +439,35 @@ silently. For a layout option of 0.x the message names its English successor.
 `outcome`. `'rejected'` means the server turned the request down; whether
 anything else is safe to do depends on the code, and on the money calls it
 is only set for the codes listed below. `'unknown'` means the operation **may have been carried out**, for
-`createReceipt` a signed receipt in the chain. Then never send it again: read
-the result back (`getReceipt`, `listMyReceipts`, the original of a
-cancellation) and continue from there. `isOutcomeUnknown(error)` covers all
-three classes. The outcome is unknown for:
+`createReceipt` a signed receipt in the chain. Then never send it again blindly:
+read the result back (`getReceipt`, `listMyReceipts`, the original of a
+cancellation) and continue from there. A call with an `idempotencyKey` is the
+one exception: send it again with the **same** key (see below).
+`isOutcomeUnknown(error)` covers all three classes. The outcome is unknown for:
 
 - `dialect_mismatch`, `receipt_outcome_unknown`, `cancellation_outcome_unknown`;
 - `response_translation_failed`, unless `details.handled === false`;
 - `response_unreadable`: a signing or money-moving call reported success,
   but the response lacks what the call promises (no receipt, no reference, no
   remaining quantities, no Hobex receipt, no captured payment intent);
-- on the calls with an effect: the signing calls `createReceipt`,
-  `cancelReceipt` and `financeWebService`, and the money calls `hobexPay`
-  (`hobexPayApi`, charges a card), `hobexRefund` (`hobexRefundApi`) and
-  `stripeCaptureIntent`: a network error or timeout after sending began, HTTP
-  5xx, and HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
+- on every call with an effect (`UNKNOWN_OUTCOME_CALLS`, also in
+  `fixtures/surface.json` as `unknownOutcomeCalls`): the signing calls
+  `createReceipt`, `cancelReceipt` and `financeWebService`, the money calls
+  `hobexPay` (`hobexPayApi`, charges a card), `hobexRefund`
+  (`hobexRefundApi`) and `stripeCaptureIntent`, and since 1.5.1 every other
+  call that books, issues, creates, changes, deletes or sends something:
+  inventory writes and reservations, webhooks, invoices, credit notes,
+  recorded payments, customers, invoice items and SEPA mandates, partner
+  businesses, register settings, pairing, print jobs and receipt emails.
+  There it is a network error or timeout after sending began, HTTP 5xx, and
+  HTTP 200 with the `Kasseneck-Api-Version: v3` marker but an empty,
   non-JSON (also `text/html`) or status-less body (`KasseneckHttpError`,
   `reason` `empty-body`, `not-json` or `missing-status`). HTML without the
-  marker stays `route_missing` with `'rejected'`: no function saw the call;
+  marker stays `route_missing` with `'rejected'`: no function saw the call.
+  Reading calls and dry runs (`previewGoodsReceipt`, `previewInvoice`) stay
+  `'rejected'`, and so do the register sign-in sessions and
+  `createPaymentLinkStripe`: a repeat books nothing (a second short-lived
+  session, a second link nobody else has seen);
 - on the money calls: every error envelope **without a code**, and every
   code that is not one of the rejection codes below. The Hobex and Stripe
   handlers also answer with a plain error message after the provider was
@@ -490,17 +501,26 @@ failed `hobexRefund` throws a `KasseneckApiError`; it never returns `false`,
 because a `false` on an unclear outcome invites a second refund. Even a
 `'rejected'` is no invitation to resend blindly: fix the cause first.
 
-**Never retry these six calls, and never put a retrying layer under the
-package.** A `fetch` passed in `options.fetch` (or a proxy or service worker in
-front of it) must not resend a request by itself after a network error, a
-timeout or a 5xx: a silent second send is a second signed receipt, a second
-charge or a second refund, and the package cannot see it. Look the result up
-instead (`getReceipt`, `listMyReceipts`, the Hobex transaction by its
-`transactionId`, the Stripe session).
+**Never retry a call with an effect blindly, and never put a retrying layer
+under the package.** A `fetch` passed in `options.fetch` (or a proxy or service
+worker in front of it) must not resend a request by itself after a network
+error, a timeout or a 5xx: a silent second send is a second signed receipt, a
+second charge, a second refund or a second booking, and the package cannot
+see it. Look the result up instead (`getReceipt`, `listMyReceipts`, the Hobex
+transaction by its `transactionId`, the Stripe session).
 
-`outcome` only covers signing and the money calls. After a network error on
-`issueInvoice` an invoice may still have been issued; retry it with the same
-`idempotencyKey`.
+**With an `idempotencyKey`** (inventory writes and reservations, `issueInvoice`,
+`cancelInvoice`, `createCreditNote`, `recordInvoicePayment`, `createCustomer`
+with a key, invoice items) the safe retry after `'unknown'` is the same request
+with the **same** key: it takes effect exactly once and returns the stored
+answer (`replayed: true` on invoices). Never a new key: that books a second
+time. Without a key (receipts, cancellations, money calls, settings, webhooks,
+`updateCustomer`) read the state first and only then decide.
+
+A call through the open transport that this package does not know counts as
+having no effect; say so with `transport(name, params, undefined, undefined,
+{ hasEffect: true })`. `hasEffect: false` marks a dry run under the name of
+the real call.
 
 ```ts
 import { isOutcomeUnknown, paymentsExpectedCents } from '@kreiseck/kasseneck-api';
@@ -1373,7 +1393,13 @@ try {
 
 **After a timeout, retry with the same `idempotencyKey`**, never with a new one:
 you then get the invoice that was already issued (`replayed: true`). The same
-key with different data gives `idempotency_conflict`.
+key with different data gives `idempotency_conflict`. Since 1.5.1 every invoice
+call with an effect (`issueInvoice`, `cancelInvoice`, `createCreditNote`,
+`recordInvoicePayment`, `createCustomer`, `updateCustomer`) reports
+`outcome: 'unknown'` after a timeout, a network error, HTTP 5xx or an
+unreadable answer (before: `'rejected'`); `previewInvoice` and the reading
+calls stay `'rejected'`. See
+[`outcome: 'unknown'`](#outcome-unknown-never-retry-look-it-up).
 
 Validation errors arrive as `validation` with field paths
 (`invoiceFieldErrors(error)` → `[{ field: 'items[0].vatRate', message }]`).
@@ -1566,7 +1592,11 @@ Every write takes an `idempotencyKey` (1 to 120 characters). The same request
 with the same key takes effect exactly once; repeating it returns the stored
 answer of the first call, the same key with different content gives
 `idempotency_conflict`. After a timeout or a network error, repeat with the
-**same** key, never with a new one. The client refuses to send a write without
+**same** key, never with a new one. Since 1.5.1 every write, reservation and
+webhook call reports `outcome: 'unknown'` in that case (also after HTTP 5xx or
+an unreadable answer; before: `'rejected'`), so `isOutcomeUnknown(error)` is
+the signal to resend with the same key; `previewGoodsReceipt` and the reading
+calls stay `'rejected'`. The client refuses to send a write without
 a valid key, and checks before sending only what is certainly wrong without the
 network (required ids, integer quantities, amounts and prices, the range of
 `expiresInMinutes`); everything else the server decides and reports with its
@@ -1784,7 +1814,7 @@ in machine form what both sides agreed on, among them:
 |---|---|---|
 | `pos-settings-defaults.json` | field names and defaults of the register settings as sent on `/api/v3` (`business`, `device`), derived from the backend contract in `fixtures/v3/` | `npm run fixtures:kasse` |
 | `stored/pos-settings-defaults.json` | the same defaults in the stored (internal, German) form (`betrieb`, `geraet`) | `npm run fixtures:kasse` |
-| `surface.json` | base URLs (`baseUrls.public`, `baseUrls.pos`), the calls per path (`calls`, and the backend's `routes`), settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, shortcut actions, partner, invoice and inventory lists | `npm run fixtures:oberflaeche` |
+| `surface.json` | base URLs (`baseUrls.public`, `baseUrls.pos`), the calls per path (`calls`, and the backend's `routes`), the calls with an effect whose outcome is `unknown` after a timeout, network error, 5xx or unreadable answer (`unknownOutcomeCalls`, sorted), settings value lists (`enums`, keyed by field), other register lists (`pos`), register error codes, permission keys, shortcut actions, partner, invoice and inventory lists | `npm run fixtures:oberflaeche` |
 | `hobex-hps-codes.json` | measured HPS result codes, their meaning and whether they settle an outcome (the contract behind `isConclusive`) | `npm run fixtures:hobex-hps-codes` |
 | `pos-texts.json` | the register's message catalogue | `npm run fixtures:texte` |
 | `invoice-texts.json` | invoice texts in both languages | `npm run fixtures:rechnungstexte` |
