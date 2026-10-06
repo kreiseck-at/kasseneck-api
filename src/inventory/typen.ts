@@ -48,7 +48,11 @@ export interface Article {
   stockTracked: boolean;
   /** Standorte, an denen der Artikel gefuehrt wird; leer = nur der Standard-Standort. */
   stockLocationIds: string[];
-  /** Mindestbestand in Tausendstel; `null` = keiner. */
+  /**
+   * Mindestbestand des Artikels in Tausendstel; `null` = keiner. Warnungen,
+   * `belowMinimum` und `stock.below_minimum` richten sich nach dem Mindestbestand je
+   * Standort, nicht nach diesem Wert.
+   */
   minStock: number | null;
   active: boolean;
   externalIds?: Record<string, string>;
@@ -153,6 +157,10 @@ export interface StockResult {
 export interface StockListQuery {
   locationId?: string;
   articleId?: string;
+  /**
+   * `true`: nur Zeilen, deren `onHand` unter dem Mindestbestand ihres Standorts liegt
+   * (dieselbe Regel wie `stock.below_minimum`; `minStock` des Artikels zaehlt nicht).
+   */
   belowMinimum?: boolean;
   /** Nur Zeilen, die sich seitdem geaendert haben (inklusive), nach `updatedAt` aufsteigend. */
   changedSince?: string | Date;
@@ -242,8 +250,8 @@ export interface InventoryWebhook {
     status: WebhookDeliveryStatus | (string & {}) | null;
     statusCode: number | null;
   } | null;
-  /** Fehlversuche in Folge; steigt der Wert, stimmt beim Empfaenger etwas nicht. */
-  failuresInRow: number;
+  /** Fehlversuche in Folge (wie bei Partner-Webhooks); steigt der Wert, stimmt beim Empfaenger etwas nicht. */
+  consecutiveFailures: number;
 }
 
 export interface CreateInventoryWebhookOptions {
@@ -280,7 +288,8 @@ export interface InventoryWebhookList {
 }
 
 export interface InventoryWebhookTestDelivery {
-  id: string;
+  /** Kennung der Zustellung (Kopfzeile `X-Kasseneck-Delivery`), wie bei Partner-Webhooks. */
+  deliveryId: string;
   webhookId: string;
   status: WebhookDeliveryStatus | (string & {}) | null;
   statusCode: number | null;
@@ -293,7 +302,8 @@ export interface InventoryWebhookTestResult {
 }
 
 export interface InventoryWebhookDelivery {
-  id: string;
+  /** Kennung der Zustellung (Kopfzeile `X-Kasseneck-Delivery`), wie bei Partner-Webhooks. */
+  deliveryId: string;
   webhookId: string | null;
   event: string | null;
   eventId: string | null;
@@ -324,7 +334,10 @@ export interface StockBelowMinimumEventData {
   articleId: string;
   locationId: string;
   available: number;
-  /** Die verwendete Schwelle (je Standort, sonst die des Artikels), in Tausendstel. */
+  /**
+   * Der Mindestbestand des Standorts in Tausendstel – die unterschrittene Schwelle,
+   * gemessen am Bestand `onHand`. Der `minStock` des Artikels allein loest nie aus.
+   */
   minStock: number;
 }
 

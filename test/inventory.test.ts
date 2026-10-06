@@ -78,36 +78,24 @@ const client = (...antworten: HttpResponseLike[]) => {
   return { lager: createInventoryClient({ apiKey: API_KEY, fetch: a.fetch }), anfragen: a.anfragen };
 };
 
-// ---- Drahtbeispiele (erfunden) ---------------------------------------------
+// ---- Drahtbeispiele aus dem Vertrag ------------------------------------------
+// `fixtures/v3/antworten/lager.json`: echte Antworten der Lager-Endpunkte unter
+// /v3, erzeugt im Backend aus einem erfundenen Konto (Baeckerei Kornblum),
+// dazu die zugestellten Webhook-Ereignisse. Nichts davon ist hier gebaut.
 
-const ARTIKEL: Json = {
-  id: 'roggenbrot', name: 'Roggenbrot 1 kg', unitPriceCents: 450, vatRate: 10, unit: 'Stk', number: 'A-100', ean: '9001234567896',
-  internalCode: null, groupId: 'brot', revenueGroupId: null, stockTracked: true, stockLocationIds: ['haupt'], minStock: 5000,
-  active: true, createdAt: '2026-10-01T06:00:00.000Z', updatedAt: '2026-10-06T08:15:00.000Z',
-};
-const BESTAND: Json = {
-  articleId: 'roggenbrot', locationId: 'haupt', onHand: 12000, reserved: 2000, available: 10000, defective: 0, sequence: 42,
-  updatedAt: '2026-10-06T08:15:00.000Z',
-};
-const STANDORTE: Json[] = [
-  { id: 'haupt', name: 'Hauptstandort', type: 'store', address: null, licensePlate: null, active: true, virtual: true },
-  { id: 'lager1', name: 'Lager Kornblum', type: 'warehouse', address: { street: 'Mühlgasse 4', zip: '5020', city: 'Salzburg', country: 'AT' }, licensePlate: null, active: true },
-  { id: 'lieferwagen', name: 'Lieferwagen W-12345', type: 'vehicle', address: null, licensePlate: 'W-12345', active: false },
-];
-const BEWEGUNG: Json = {
-  id: 'bw1', type: 'sale', articleId: 'roggenbrot', locationId: 'haupt', condition: 'sellable', quantityDelta: -2000,
-  stockAfter: { sellable: 10000, defective: 0 }, operationId: 'beleg_k1_r1', source: { type: 'receipt', id: 'r1', register: 'k1', position: 0 },
-  viennaDay: '2026-10-06', time: '2026-10-06T08:15:00.000Z',
-  lots: [{ lotId: 'los1', quantity: 2000, expiresOn: '2026-10-09', batch: 'C-7', serialNumber: null, receivedAt: '2026-10-05T05:00:00.000Z' }],
-};
-const WEBHOOK: Json = {
-  id: 'wh1', url: 'https://shop.example.com/kasseneck-webhook', events: ['stock.changed', 'stock.below_minimum'], active: true, description: 'Shop',
-  createdAt: '2026-10-06T08:00:00.000Z', lastDelivery: { at: '2026-10-06T08:15:10.000Z', status: 'delivered', statusCode: 200 }, failuresInRow: 0,
-};
-const ZUSTELLUNG: Json = {
-  id: 'd1', webhookId: 'wh1', event: 'stock.changed', eventId: 'evt_1', status: 'failed', attempts: 6, statusCode: 500, response: 'Fehler',
-  error: null, createdAt: '2026-10-06T08:15:10.000Z', lastAttemptAt: '2026-10-07T00:00:00.000Z', nextAttemptAt: null, test: false,
-};
+const LAGER = JSON.parse(readFileSync(new URL('../../fixtures/v3/antworten/lager.json', import.meta.url), 'utf8')) as Json;
+function fall(name: string): Json {
+  const c = (LAGER.cases as Json[]).find((x) => x.name === name);
+  if (!c) throw new Error(`antworten/lager.json: kein Fall ${name}`);
+  return c;
+}
+const daten = (name: string): Json => fall(name).response.data as Json;
+const ARTIKEL: Json = daten('get_article').article;
+const BESTAND: Json = daten('get_stock').stock[0];
+const STANDORTE: Json[] = daten('list_locations').locations;
+const BEWEGUNG: Json = daten('list_stock_movements').movements[0];
+const WEBHOOK: Json = daten('list_webhooks').webhooks[0];
+const ZUSTELLUNG: Json = daten('list_webhook_deliveries').deliveries[0];
 
 // ---- Vertrag ------------------------------------------------------------------
 
@@ -170,8 +158,9 @@ test('Lager-API: jedes Feld der Schemata kommt im gelesenen Modell an (Artikel, 
   for (const k of schluessel(VOKABULAR.schemas.getStock.data.stock[0])) assert.ok(k in stock[0]!, `StockLevel.${k}`);
   const standorte = await lager.listLocations();
   const s = VOKABULAR.schemas.listLocations.data.locations[0];
-  for (const k of schluessel(s)) assert.ok(k in standorte[1]!, `Location.${k}`);
-  for (const k of schluessel(s.address)) assert.ok(k in standorte[1]!.address!, `Location.address.${k}`);
+  const mitAdresse = standorte.find((x) => x.address)!;
+  for (const k of schluessel(s)) assert.ok(k in mitAdresse, `Location.${k}`);
+  for (const k of schluessel(s.address)) assert.ok(k in mitAdresse.address!, `Location.address.${k}`);
   const { movements } = await lager.listStockMovements();
   const m = VOKABULAR.schemas.listStockMovements.data.movements[0];
   const b = movements[0]!;
@@ -187,6 +176,89 @@ test('Lager-API: jedes Feld der Webhook-Schemata kommt im gelesenen Modell an', 
   for (const k of schluessel(VOKABULAR.schemas.listWebhooks.data.webhooks[0])) assert.ok(k in webhooks[0]!, `InventoryWebhook.${k}`);
   const [z] = await lager.listWebhookDeliveries();
   for (const k of schluessel(VOKABULAR.schemas.listWebhookDeliveries.data.deliveries[0])) assert.ok(k in z!, `InventoryWebhookDelivery.${k}`);
+});
+
+// Jeder Fall aus antworten/lager.json durch den Client: gesendet wird genau, was
+// das Backend bekam, und die echte Antwort liest sich (Erfolg) bzw. ergibt den
+// Code des Falls (Fehler). Lehnt der Client eine Anfrage schon vorher ab, ist
+// das ein Anfragefehler, nie ein stiller Erfolg.
+type Lager = ReturnType<typeof createInventoryClient>;
+const RUFE: Record<string, (l: Lager, p: Json) => Promise<unknown>> = {
+  getArticle: (l, p) => l.getArticle(p['articleId']),
+  listArticles: (l, p) => l.listArticles(p),
+  lookupArticleByCode: (l, p) => l.lookupArticleByCode(p['code']),
+  listLocations: (l) => l.listLocations(),
+  getStock: (l, p) => l.getStock(p['articleId']),
+  listStock: (l, p) => l.listStock(p),
+  listStockMovements: (l, p) => l.listStockMovements(p),
+  createWebhook: (l, p) => l.createWebhook(p as never),
+  updateWebhook: (l, { webhookId, ...rest }) => l.updateWebhook(webhookId, rest),
+  deleteWebhook: (l, p) => l.deleteWebhook(p['webhookId']),
+  listWebhooks: (l) => l.listWebhooks(),
+  sendWebhookTest: (l, p) => l.sendWebhookTest(p['webhookId'], p['event']),
+  rotateWebhookSecret: (l, p) => l.rotateWebhookSecret(p['webhookId']),
+  listWebhookDeliveries: (l, p) => l.listWebhookDeliveries(p),
+};
+
+test('Vertrag antworten/lager.json: jeder Endpunkt kommt vor, jeder Fall laeuft durch den Client', async () => {
+  const faelle = LAGER.cases as Json[];
+  assert.deepEqual([...new Set(faelle.map((c) => c.endpoint))].sort(), [...INVENTORY_ENDPOINTS].sort());
+  let gesendet = 0;
+  for (const c of faelle) {
+    const { lager, anfragen } = client(antwort(c.response));
+    const rufe = RUFE[c.endpoint];
+    assert.ok(rufe, `${c.name}: kein Aufruf fuer ${c.endpoint}`);
+    let ergebnis: unknown;
+    let fehlerWert: unknown;
+    try { ergebnis = await rufe(lager, c.params); } catch (e) { fehlerWert = e; }
+    if (anfragen.length === 0) {
+      // Der Client hat die Anfrage selbst abgewiesen: nur bei Fehlerfaellen erlaubt.
+      assert.equal(c.response.status, 'error', `${c.name}: Erfolgsfall nicht gesendet`);
+      assert.ok(fehlerWert instanceof KasseneckValidationError && fehlerWert.scope === 'request', `${c.name}: ${String(fehlerWert)}`);
+      continue;
+    }
+    gesendet += 1;
+    assert.equal(anfragen[0]!.url, `https://api.kasseneck.at${c.path}`, c.name);
+    assert.deepEqual(params(anfragen[0]), c.params, `${c.name}: Parameter`);
+    if (c.response.status === 'error') {
+      assert.equal(inventoryErrorCode(fehlerWert), c.response.code, c.name);
+      if (c.response.code === 'rate_limited') assert.equal(inventoryRetryAfterSec(fehlerWert), c.response.data.retryAfterSec);
+    } else {
+      assert.equal(fehlerWert, undefined, `${c.name}: ${String(fehlerWert)}`);
+      assert.ok(ergebnis !== undefined, c.name);
+    }
+  }
+  assert.ok(gesendet >= faelle.length - 2, `nur ${gesendet} von ${faelle.length} Faellen gesendet`);
+});
+
+test('Vertrag antworten/lager.json: Zustellungen und Webhooks tragen die Namen der Partner-Webhooks', async () => {
+  const probe = (await client(antwort(fall('send_webhook_test').response)).lager.sendWebhookTest('wh', 'stock.below_minimum'));
+  assert.equal(probe.deliveries[0]!.deliveryId, fall('send_webhook_test').response.data.deliveries[0].deliveryId);
+  const [z] = await client(antwort(fall('list_webhook_deliveries').response)).lager.listWebhookDeliveries();
+  assert.equal(z!.deliveryId, ZUSTELLUNG['deliveryId']);
+  const { webhooks } = await client(antwort(fall('list_webhooks').response)).lager.listWebhooks();
+  assert.equal(webhooks[0]!.consecutiveFailures, 0);
+  const limit = fall('error_create_webhook_limit').response;
+  assert.equal(limit.code, 'webhook_limit');
+  assert.ok((INVENTORY_ERROR_CODES as readonly string[]).includes(limit.code));
+});
+
+test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisiert', () => {
+  const ereignisse = LAGER.webhookEvents as Json[];
+  assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), [...INVENTORY_WEBHOOK_EVENTS].sort());
+  for (const { event, body } of ereignisse) {
+    const e = parseInventoryWebhookEvent(JSON.stringify(body));
+    assert.ok(e, event);
+    assert.equal(e.type, event);
+    assert.equal(e.id, body.id);
+    assert.equal(e.accountId, body.accountId);
+    assert.equal(e.test, false);
+    assert.deepEqual(e.data, body.data, event);
+  }
+  const unter = ereignisse.find((e) => e.event === 'stock.below_minimum')!.body.data;
+  assert.ok(unter.available < unter.minStock);
+  const zugang = ereignisse.filter((e) => e.event === 'stock.changed').map((e) => e.body.data.cause);
+  assert.ok(zugang.every((c: string) => (STOCK_CHANGE_CAUSES as readonly string[]).includes(c)), zugang.join());
 });
 
 test('Lager-API: INVENTORY_ERROR_CODES stehen alle im Vertrag', () => {
@@ -326,10 +398,10 @@ test('listLocations: Typen aus dem Katalog, Adresse oder null, virtual nur bei t
   const { lager, anfragen } = client(erfolg({ locations: [...STANDORTE, { id: 'x', name: 'Neu', type: 'spaceship', active: true }] }));
   const l = await lager.listLocations();
   assert.deepEqual(params(anfragen[0]), {});
-  assert.deepEqual(l[0], STANDORTE[0]);
-  assert.deepEqual(l[1], { ...STANDORTE[1], virtual: false });
-  assert.deepEqual(l[2], { ...STANDORTE[2], virtual: false });
-  assert.equal(l[3]!.type, null, 'ein unbekannter Typ wird null, nicht geraten');
+  STANDORTE.forEach((s, i) => assert.deepEqual(l[i], { ...s, virtual: s['virtual'] === true }));
+  assert.equal(l[STANDORTE.length]!.type, null, 'ein unbekannter Typ wird null, nicht geraten');
+  const virtuell = (await client(erfolg({ locations: [{ id: 'haupt', name: 'Hauptstandort', type: 'store', address: null, licensePlate: null, active: true, virtual: true }] })).lager.listLocations())[0]!;
+  assert.equal(virtuell.virtual, true);
 });
 
 test('getStock: Zeilen je Standort, available darf negativ sein; values null ohne Kosten-Recht, Liste mit', async () => {
@@ -380,7 +452,7 @@ test('iterateStockMovements: alle Seiten', async () => {
   const { lager } = client(erfolg({ movements: [BEWEGUNG], nextCursor: 'c1' }), erfolg({ movements: [{ ...BEWEGUNG, id: 'bw2' }], nextCursor: null }));
   const ids: string[] = [];
   for await (const b of lager.iterateStockMovements()) ids.push(b.id);
-  assert.deepEqual(ids, ['bw1', 'bw2']);
+  assert.deepEqual(ids, [BEWEGUNG['id'], 'bw2']);
 });
 
 test('listStockMovements: Bruchzahl in quantityDelta, stockAfter oder einem Los ist ein Antwortfehler', async () => {
@@ -461,7 +533,7 @@ test('deleteWebhook, listWebhooks, rotateWebhookSecret, sendWebhookTest, listWeb
     erfolg({ webhookId: 'wh1', deleted: true }),
     erfolg({ webhooks: [WEBHOOK, { ...WEBHOOK, id: 'wh2', lastDelivery: null }], events: [...INVENTORY_WEBHOOK_EVENTS] }),
     erfolg({ webhook: WEBHOOK, secret: 'whsec_Neu0123456789' }),
-    erfolg({ eventId: 'evt_9', event: 'stock.changed', deliveries: [{ id: 'd9', webhookId: 'wh1', status: 'delivered', statusCode: 204 }] }),
+    erfolg(daten('send_webhook_test')),
     erfolg({ deliveries: [ZUSTELLUNG] }),
   );
   assert.deepEqual(await lager.deleteWebhook('wh1'), { webhookId: 'wh1', deleted: true });
@@ -470,7 +542,8 @@ test('deleteWebhook, listWebhooks, rotateWebhookSecret, sendWebhookTest, listWeb
   assert.equal(liste.webhooks[1]!.lastDelivery, null);
   assert.equal((await lager.rotateWebhookSecret('wh1')).secret, 'whsec_Neu0123456789');
   const probe = await lager.sendWebhookTest('wh1', 'stock.changed');
-  assert.deepEqual(probe, { eventId: 'evt_9', event: 'stock.changed', deliveries: [{ id: 'd9', webhookId: 'wh1', status: 'delivered', statusCode: 204 }] });
+  assert.deepEqual(probe, daten('send_webhook_test'));
+  assert.match(probe.deliveries[0]!.deliveryId, /\S/);
   const zustellungen = await lager.listWebhookDeliveries({ webhookId: 'wh1', limit: 20 });
   assert.deepEqual(zustellungen, [ZUSTELLUNG]);
   assert.deepEqual(anfragen.map((a) => a.url.split('/').pop()),

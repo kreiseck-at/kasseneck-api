@@ -30,8 +30,9 @@ in 1.3.0.
   with the account permission `costs`, otherwise the field is absent, not
   `null`), `StockLevel` (`onHand`, `reserved`, `available`, `defective`,
   `sequence`, `updatedAt`), `StockValue`, `StockMovement`, `Location`,
-  `InventoryWebhook`, `InventoryWebhookDelivery` (status `delivered`,
-  `pending`, `failed`, `dropped`). Quantities are integer thousandths, money
+  `InventoryWebhook` (`consecutiveFailures`), `InventoryWebhookDelivery`
+  (`deliveryId`; status `delivered`, `pending`, `failed`, `dropped`); the same
+  names as for partner webhooks. Quantities are integer thousandths, money
   integer cents, purchase prices integer micro-euros; `available` may be
   negative. A fractional or missing quantity, amount or `sequence` in a
   response throws `KasseneckValidationError` with `scope: 'response'`, as for
@@ -44,7 +45,9 @@ in 1.3.0.
   the backend's test vector (t=1700000000). Asynchronous because it uses
   WebCrypto, as `./partner` does. `parseInventoryWebhookEvent(rawBody)` returns a typed
   `InventoryWebhookEvent` for `stock.changed` (`cause`, `movementId`),
-  `stock.below_minimum` and `article.created|updated|deactivated`, with
+  `stock.below_minimum` (when `onHand` drops below the minimum stock set for
+  the location; the article's `minStock` alone never triggers it, the same rule
+  as `listStock({ belowMinimum: true })`) and `article.created|updated|deactivated`, with
   `accountId` instead of `partnerId` in the envelope; an event type this
   version does not know returns `null`, a body that is no envelope throws.
   Both carry `Inventory` in their name on purpose: `./partner` has a
@@ -52,17 +55,21 @@ in 1.3.0.
   `{ ok, reason }`, and an object is truthy, so a mix-up in plain JavaScript
   would accept every delivery.
 - **Errors** through the existing classes: `INVENTORY_ERROR_CODES`
-  (`rate_limited` with `retryAfterSec`, `inventory_api_not_enabled`,
-  `module_inactive`, `article_not_found`, `invalid_cursor`, the webhook codes
-  …), `INVENTORY_REQUEST_ERROR_CODES`, `isInventoryError`,
+  (`rate_limited` with `retryAfterSec`, also after 20 `sendWebhookTest` per
+  account and calendar day in Vienna, `inventory_api_not_enabled`,
+  `module_inactive`, `article_not_found`, `invalid_cursor`, `webhook_limit`
+  and the other webhook codes …), `INVENTORY_REQUEST_ERROR_CODES`, `isInventoryError`,
   `inventoryErrorCode`, `inventoryFieldErrors`, `inventoryRetryAfterSec`.
 - **Lists as data**: `INVENTORY_ENDPOINTS`, `INVENTORY_WEBHOOK_EVENTS`,
   `INVENTORY_WEBHOOK_ENVELOPE_FIELDS`, `LOCATION_TYPES`,
   `STOCK_MOVEMENT_TYPES`, `STOCK_MOVEMENT_SOURCES`, `STOCK_CONDITIONS`,
   `STOCK_CHANGE_CAUSES`, `WEBHOOK_DELIVERY_STATUSES`, each held against the
-  backend contract.
+  backend contract. A goods receipt is `goods_receipt` (movement type and
+  cause), opening stock taken over is `takeover` (also as cause); `receipt`
+  only ever means a sales receipt (`source.type`).
 - **Contract**: `fixtures/v3/` pulled again from the backend (the 14 new
-  endpoints, catalogs and events); `PUBLIC_CALLS` and `ALL_CALLS` gain the 14
+  endpoints, catalogs and events, and `antworten/lager.json` with real
+  responses and delivered webhook events that the tests read); `PUBLIC_CALLS` and `ALL_CALLS` gain the 14
   names; `surface.json` gains the key `inventory` with the lists above.
 
 ## 1.3.0

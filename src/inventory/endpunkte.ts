@@ -236,7 +236,7 @@ function mitSecret(name: ApiCall, daten: unknown): InventoryWebhookWithSecret {
 }
 
 /**
- * Legt einen Webhook an (hoechstens 5 je Konto, `webhook_limit_reached`).
+ * Legt einen Webhook an (hoechstens 5 je Konto, `webhook_limit`).
  * **Das Secret in der Antwort kommt nur dieses eine Mal**; sofort dorthin
  * schreiben, wo der Empfaenger es liest, nicht in ein Protokoll.
  */

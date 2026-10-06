@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "a03680e997d298397add1d488829b0f83395235ccf9debb36416aecfcae82e1b",
-    "inputsSha256": "a25df988ba35f76c6c5bc2b10e564446741f9e41308659d38a97e66cea1417be",
+    "sha256": "79931a40ccaea45777da4713bba475c2f74e1fe7d6264f294cecd321964f9ded",
+    "inputsSha256": "4fec6d58dd069e6d980bcab1d9883380d06e6fe8ba2a5e0f05d772b7720955c2",
     "backendPackage": "@kreiseck/kasseneck-api@0.32.2",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -379,7 +379,7 @@
     },
     "BEWEGUNG_ART": {
       "verkauf": "sale",
-      "zugang": "receipt",
+      "zugang": "goods_receipt",
       "abgang": "loss",
       "rueckgabe": "return",
       "umbuchung_ab": "transfer_out",
@@ -557,14 +557,14 @@
       "rechnung": "invoice",
       "gutschrift": "credit_note",
       "storno": "cancellation",
-      "zugang": "receipt",
+      "zugang": "goods_receipt",
       "umbuchung": "transfer",
       "abgang": "loss",
       "zustand": "condition",
       "gegenbuchung": "reversal",
       "reservierung": "reservation",
       "inventur": "stocktake",
-      "uebernahme": "import",
+      "uebernahme": "takeover",
       "sonstiges": "other"
     },
     "LAGER_ZUSTAND": {
@@ -846,7 +846,6 @@
       "vat_rate_not_in_country",
       "webhook_inactive",
       "webhook_limit",
-      "webhook_limit_reached",
       "webhook_not_found"
     ],
     "translation": {
@@ -1156,7 +1155,7 @@
       "inventory_api_not_enabled",
       "article_not_found",
       "webhook_not_found",
-      "webhook_limit_reached",
+      "webhook_limit",
       "invalid_webhook_url",
       "event_not_subscribed",
       "webhook_inactive",
@@ -1980,7 +1979,7 @@
           "active": "aktiv",
           "description": "beschreibung",
           "lastDelivery": "letzteZustellung",
-          "failuresInRow": "fehlerInFolge"
+          "consecutiveFailures": "fehlerInFolge"
         }
       },
       "werte": {
@@ -3199,7 +3198,7 @@
             "active": "aktiv",
             "description": "beschreibung",
             "lastDelivery": "letzteZustellung",
-            "failuresInRow": "fehlerInFolge"
+            "consecutiveFailures": "fehlerInFolge"
           }
         ],
         "events": "ereignisse"
@@ -3370,7 +3369,7 @@
           "active": "aktiv",
           "description": "beschreibung",
           "lastDelivery": "letzteZustellung",
-          "failuresInRow": "fehlerInFolge"
+          "consecutiveFailures": "fehlerInFolge"
         }
       },
       "werte": {
@@ -3770,7 +3769,7 @@
           "active": "aktiv",
           "description": "beschreibung",
           "lastDelivery": "letzteZustellung",
-          "failuresInRow": "fehlerInFolge"
+          "consecutiveFailures": "fehlerInFolge"
         }
       },
       "werte": {

@@ -32,10 +32,14 @@ export type InventoryEndpoint = (typeof INVENTORY_ENDPOINTS)[number];
 export const LOCATION_TYPES = ['warehouse', 'store', 'vehicle', 'other'] as const;
 export type LocationType = (typeof LOCATION_TYPES)[number];
 
-/** Art einer Lagerbewegung (Katalog `BEWEGUNG_ART`); zugleich der Filter `type`. */
+/**
+ * Art einer Lagerbewegung (Katalog `BEWEGUNG_ART`); zugleich der Filter `type`.
+ * `goods_receipt` ist der Wareneingang, `takeover` der uebernommene Anfangsbestand
+ * (auch per Import). `receipt` gibt es hier nicht: das ist der Kassenbeleg (Quelle).
+ */
 export const STOCK_MOVEMENT_TYPES = [
   'sale',
-  'receipt',
+  'goods_receipt',
   'loss',
   'return',
   'transfer_out',
@@ -53,8 +57,8 @@ export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
 
 /**
  * Woher eine Bewegung kommt (Katalog `BEWEGUNG_QUELLE`); zugleich der Filter
- * `source`. `receipt` ist hier der Kassenbeleg, nicht der Wareneingang (der
- * ist die Bewegungsart `receipt`).
+ * `source`. `receipt` ist der Kassenbeleg wie ueberall in der API (der
+ * Wareneingang ist die Bewegungsart `goods_receipt`).
  */
 export const STOCK_MOVEMENT_SOURCES = [
   'receipt',
@@ -83,14 +87,14 @@ export const STOCK_CHANGE_CAUSES = [
   'invoice',
   'credit_note',
   'cancellation',
-  'receipt',
+  'goods_receipt',
   'transfer',
   'loss',
   'condition',
   'reversal',
   'reservation',
   'stocktake',
-  'import',
+  'takeover',
   'other',
 ] as const;
 export type StockChangeCause = (typeof STOCK_CHANGE_CAUSES)[number];
@@ -119,7 +123,7 @@ export type InventoryWebhookEventType = (typeof INVENTORY_WEBHOOK_EVENTS)[number
  */
 export const INVENTORY_WEBHOOK_ENVELOPE_FIELDS = ['id', 'type', 'createdAt', 'accountId', 'test', 'data'] as const;
 
-/** Hoechstzahl der Webhooks je Konto (`webhook_limit_reached`). */
+/** Hoechstzahl der Webhooks je Konto (`webhook_limit`, wie bei Partner-Webhooks). */
 export const INVENTORY_WEBHOOK_LIMIT = 5;
 
 /** Groesstes `limit` einer Liste; ohne Angabe liefert der Server 50. */
@@ -128,14 +132,15 @@ export const INVENTORY_LIST_LIMIT_MAX = 200;
 /**
  * Die Codes, die die Lager-Endpunkte selbst senden. `validation` traegt
  * `errors: [{ field, message }]`, `rate_limited` traegt `retryAfterSec`
- * (dazu die Kopfzeile `Retry-After`).
+ * (dazu die Kopfzeile `Retry-After`) – auch bei `sendWebhookTest` nach 20
+ * Probesendungen je Wiener Kalendertag (dann bis Mitternacht in Wien).
  */
 export const INVENTORY_ERROR_CODES = [
   'validation',
   'invalid_cursor',
   'article_not_found',
   'webhook_not_found',
-  'webhook_limit_reached',
+  'webhook_limit',
   'invalid_webhook_url',
   'event_not_subscribed',
   'webhook_inactive',

@@ -241,14 +241,14 @@ export function webhook(ort: Ort, w: unknown): InventoryWebhook {
     description: text(h.description),
     createdAt: text(h.createdAt),
     lastDelivery: z ? { at: text(z.at), status: text(z.status), statusCode: zahlOderNull(z.statusCode) } : null,
-    failuresInRow: typeof h.failuresInRow === 'number' && Number.isSafeInteger(h.failuresInRow) ? h.failuresInRow : 0,
+    consecutiveFailures: typeof h.consecutiveFailures === 'number' && Number.isSafeInteger(h.consecutiveFailures) ? h.consecutiveFailures : 0,
   };
 }
 
 export function zustellung(ort: Ort, w: unknown): InventoryWebhookDelivery {
   const z = eintrag(ort, w);
   return {
-    id: kennung(ort, 'id', z.id),
+    deliveryId: kennung(ort, 'deliveryId', z.deliveryId),
     webhookId: text(z.webhookId),
     event: text(z.event),
     eventId: text(z.eventId),
@@ -267,7 +267,7 @@ export function zustellung(ort: Ort, w: unknown): InventoryWebhookDelivery {
 export function probeZustellung(ort: Ort, w: unknown, webhookId: string): InventoryWebhookTestDelivery {
   const z = eintrag(ort, w);
   return {
-    id: kennung(ort, 'id', z.id),
+    deliveryId: kennung(ort, 'deliveryId', z.deliveryId),
     webhookId: typeof z.webhookId === 'string' && z.webhookId ? z.webhookId : webhookId,
     status: text(z.status),
     statusCode: zahlOderNull(z.statusCode),

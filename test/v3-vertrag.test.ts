@@ -29,6 +29,7 @@ const ERWARTET = [
   'antworten/belegmail.json',
   'antworten/kasse-belege.json',
   'antworten/kasse.json',
+  'antworten/lager.json',
   'antworten/rechnungen.json',
   'antworten/storno.json',
   'stored/belege.json',
@@ -106,8 +107,8 @@ test('v3-Vertrag: jede JSON-Datei passt zu ihrem eigenen Fingerabdruck (_quelle)
   for (const datei of ERWARTET.filter((name) => name.endsWith('.json'))) {
     teile += pruefeFingerabdruck(datei, lies(datei));
   }
-  // 9 einfache Dateien + je zwei Teile in den beiden kasse.json
-  assert.equal(teile, 13);
+  // 10 einfache Dateien (mit antworten/lager.json) + je zwei Teile in den beiden kasse.json
+  assert.equal(teile, 14);
 });
 
 test('v3-Vertrag: ein veraendertes Byte faellt am Fingerabdruck auf (Rot-Probe im Test)', () => {

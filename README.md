@@ -1499,9 +1499,14 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
   fractional quantity; verify first, then parse inside `try`.
 - **Events.** `stock.changed` carries the current state of one article at one
   location (`onHand`, `reserved`, `available`, `defective`, `sequence`,
-  `updatedAt`) plus `cause` (`sale`, `invoice`, `receipt`, `transfer` …) and
-  `movementId`; changes within 10 seconds are combined into one delivery.
-  `stock.below_minimum` fires once when `available` drops below the minimum.
+  `updatedAt`) plus `cause` (`sale`, `invoice`, `goods_receipt`, `transfer`,
+  `takeover` …) and `movementId`; changes within 10 seconds are combined into
+  one delivery. `stock.below_minimum` fires once when `onHand` drops below the
+  minimum stock set for the location; `minStock` in the payload is that
+  threshold. The article's own `minStock` never triggers it, and
+  `listStock({ belowMinimum: true })` follows the same rule. In movements,
+  `goods_receipt` is a goods receipt; `receipt` only ever means a sales receipt
+  (`source.type`).
   `article.created`, `article.updated` and `article.deactivated` carry the
   article as `getArticle` returns it, without purchase prices. Deduplicate on
   `event.id`; deliveries are retried after 1 min, 5 min, 30 min, 2 h and 12 h.
@@ -1509,10 +1514,17 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
   `listArticles({ updatedSince })` are sorted by `updatedAt` ascending and
   include the boundary, so remembering the last `updatedAt` and asking again
   loses nothing. Lists take `limit` (1–200, default 50) and `cursor`.
-- **Errors.** `rate_limited` (about 20 requests per second per account) carries
-  the wait in `inventoryRetryAfterSec(error)`. `inventory_api_not_enabled`,
+- **Test deliveries.** `sendWebhookTest` sends a recognisably invented payload
+  with `test: true` in the envelope. At most 20 per account and calendar day in
+  Vienna (live and test environment count separately; rejected calls do not
+  count); after that `rate_limited` with the wait until midnight in Vienna.
+  Deliveries carry `deliveryId` (the header `X-Kasseneck-Delivery`), webhooks
+  `consecutiveFailures`, the same names as for partner webhooks.
+- **Errors.** `rate_limited` (about 20 requests per second per account, or the
+  daily limit of `sendWebhookTest`) carries the wait in
+  `inventoryRetryAfterSec(error)`. `inventory_api_not_enabled`,
   `module_inactive`, `article_not_found`, `invalid_cursor`,
-  `webhook_not_found`, `webhook_limit_reached` (5 per account),
+  `webhook_not_found`, `webhook_limit` (5 per account),
   `invalid_webhook_url`, `event_not_subscribed` and `webhook_inactive` are
   decided on the code with `isInventoryError(error, code)`.
 
