@@ -1603,8 +1603,13 @@ answer of the first call, the same key with different content gives
 **same** key, never with a new one. Since 1.5.1 every write, reservation and
 webhook call reports `outcome: 'unknown'` in that case (also after HTTP 5xx or
 an unreadable answer; before: `'rejected'`), so `isOutcomeUnknown(error)` is
-the signal to resend with the same key; `previewGoodsReceipt` and the reading
-calls stay `'rejected'`. The client refuses to send a write without
+the signal to resend writes and reservations with the same key;
+`previewGoodsReceipt` and the reading calls stay `'rejected'`. The webhook
+calls (`createWebhook`, `updateWebhook`, `deleteWebhook`,
+`rotateWebhookSecret`, `sendWebhookTest`) have no key: after `'unknown'` look
+the state up first (`listWebhooks`, `listWebhookDeliveries`) instead of
+resending, or you get a second webhook, a second new secret or a used-up test
+delivery. The client refuses to send a write without
 a valid key, and checks before sending only what is certainly wrong without the
 network (required ids, integer quantities, amounts and prices, the range of
 `expiresInMinutes`); everything else the server decides and reports with its
