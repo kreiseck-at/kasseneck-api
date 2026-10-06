@@ -8,6 +8,7 @@ import { POS_SHORTCUT_ACTIONS, POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS } from
 import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../src/register/index.js';
 import * as partner from '../src/partner/index.js';
 import * as rechnung from '../src/invoice/index.js';
+import * as lager from '../src/inventory/index.js';
 
 const vertrag = JSON.parse(
   readFileSync(new URL('../../fixtures/surface.json', import.meta.url), 'utf8'),
@@ -40,7 +41,7 @@ for (const name of Object.keys(namensraum).sort()) {
 
 test('Golden: die Oberflaeche steht in fixtures/surface.json', () => {
   assert.deepEqual(Object.keys(vertrag), [
-    'version', 'baseUrls', 'calls', 'routes', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice',
+    'version', 'baseUrls', 'calls', 'routes', 'enums', 'registerPerms', 'registerErrorCodes', 'posShortcutActions', 'pos', 'partner', 'invoice', 'inventory',
   ], veraltet);
   assert.deepEqual(vertrag.routes, { public: [...PUBLIC_CALLS], pos: [...POS_CALLS] }, veraltet);
   assert.deepEqual(vertrag.registerPerms, [...REGISTER_PERMS], veraltet);
@@ -124,6 +125,26 @@ test('Golden: der Vertrag fuehrt JEDE Rechnungs-Liste des Pakets, keine mehr und
     'der Rechnungs-Teil traegt seine Codes nicht mehr — dann prueft dieser Test nichts');
 });
 
+/** Dieselbe Ableitung fuer die Lager-API (`./inventory`). */
+const lagerRaum = lager as unknown as Record<string, unknown>;
+const lagerListen = new Map<string, readonly (string | number)[]>();
+for (const name of Object.keys(lagerRaum).sort()) {
+  const wert = lagerRaum[name];
+  if (!/^[A-Z][A-Z0-9_]*$/.test(name)) continue;
+  if (!Array.isArray(wert)) continue;
+  if (!wert.every((eintrag) => typeof eintrag === 'string' || typeof eintrag === 'number')) continue;
+  lagerListen.set(schluessel(name), wert as readonly (string | number)[]);
+}
+
+test('Golden: der Vertrag fuehrt JEDE Lager-Liste des Pakets, keine mehr und keine weniger', () => {
+  assert.deepEqual(Object.keys(vertrag.inventory ?? {}).sort(), [...lagerListen.keys()].sort(), veraltet);
+  for (const [name, liste] of lagerListen) {
+    assert.deepEqual(vertrag.inventory[name], [...liste], `${veraltet} (inventory.${name})`);
+  }
+  assert.ok(lagerListen.has('inventoryEndpoints') && lagerListen.has('inventoryWebhookEvents') && lagerListen.has('stockChangeCauses'),
+    'der Lager-Teil traegt seine Listen nicht mehr – dann prueft dieser Test nichts');
+});
+
 test('Die Vertragsdatei nennt die Paketversion', () => {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(vertrag.version, pkg.version, veraltet);
@@ -138,10 +159,10 @@ const vokabular = JSON.parse(
 ) as { endpoints: Record<string, string[]>; names: Record<string, string> };
 const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
 
-test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 60)', () => {
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 74)', () => {
   const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
   assert.deepEqual([...PUBLIC_CALLS], erwartet);
-  assert.equal(PUBLIC_CALLS.length, 60);
+  assert.equal(PUBLIC_CALLS.length, 74);
   // Unter /v3 geroutet ist genau die oeffentliche Liste.
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });

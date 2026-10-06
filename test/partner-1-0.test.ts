@@ -6,6 +6,7 @@ import antworten from './fixtures/partner-v3-antworten.json' with { type: 'json'
 import * as partner from '../src/partner/index.js';
 import type * as P from '../src/partner/index.js';
 import { ALL_CALLS } from '../src/client/aufrufe.js';
+import { INVENTORY_WEBHOOK_EVENTS } from '../src/inventory/index.js';
 import { KasseneckApiError, KasseneckValidationError } from '../src/client/errors.js';
 import type { FetchLike, HttpRequestInit, HttpResponseLike } from '../src/client/transport.js';
 
@@ -236,7 +237,13 @@ test('1.0: die Wertlisten des Partner-Teils sind die Kataloge des Vertrags', () 
 test('1.0: PARTNER_WEBHOOK_EVENTS ist der Katalog des Backends, samt Vertragsereignissen', () => {
   const katalog = ((A['listPartnerWebhooks'] as { data: { events: { key: string }[] } }).data.events).map((e) => e.key);
   assert.deepEqual([...partner.PARTNER_WEBHOOK_EVENTS], katalog);
+  // Die Konto-Ereignisse der Lager-API (stock.*, article.*) stehen im selben
+  // Vertragsabschnitt, gehoeren aber zu `./inventory`, nicht zum Partner.
   for (const ereignis of Object.keys(vokabular.events)) {
+    if ((INVENTORY_WEBHOOK_EVENTS as readonly string[]).includes(ereignis)) {
+      assert.equal(partner.isPartnerWebhookEvent(ereignis), false, `${ereignis} ist ein Konto-Ereignis`);
+      continue;
+    }
     assert.ok(partner.isPartnerWebhookEvent(ereignis), `${ereignis} (events im Vertrag) fehlt`);
   }
 });

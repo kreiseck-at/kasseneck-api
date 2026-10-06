@@ -18,6 +18,7 @@ import { DEFAULT_BASE_URL, POS_BASE_URL } from '../dist/esm/client/transport.js'
 import * as kasse from '../dist/esm/pos/index.js';
 import * as partner from '../dist/esm/partner/index.js';
 import * as rechnung from '../dist/esm/invoice/index.js';
+import * as lager from '../dist/esm/inventory/index.js';
 import { REGISTER_ERROR_CODES, REGISTER_PERMS } from '../dist/esm/register/index.js';
 
 /** GROSS_GESCHRIEBEN -> kleinCamel: PRINTER_TYPE -> printerType, CUT -> cut. */
@@ -77,6 +78,14 @@ for (const name of Object.keys(rechnung).sort()) {
   rechnungListen[schluessel(name)] = [...wert];
 }
 
+// Dasselbe fuer die Lager-API: Endpunkte, Kataloge, Ereignisse, Fehlercodes.
+const lagerListen = {};
+for (const name of Object.keys(lager).sort()) {
+  const wert = lager[name];
+  if (!istEnumListe(name, wert)) continue;
+  lagerListen[schluessel(name)] = [...wert];
+}
+
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 // Schluessel englisch seit 1.0. Unter 0.x: aufrufe (eine Liste), rechte,
@@ -102,6 +111,7 @@ const vertrag = {
   pos: kasseListen,
   partner: partnerListen,
   invoice: rechnungListen,
+  inventory: lagerListen,
 };
 
 writeFileSync(new URL('../fixtures/surface.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');

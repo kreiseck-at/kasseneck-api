@@ -4,6 +4,74 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.4.0
+
+Inventory API, read side and account webhooks: new subpath `./inventory`.
+Reason: since stage 5a the backend offers articles, locations, stock and the
+stock ledger under `/v3` with the account's `api_key`, plus webhooks that
+report every stock change within seconds. A shop that shows stock or keeps
+its own copy needs a typed client and, above all, a signature check it
+cannot get wrong.
+
+Additive, no breaking change; existing calls send and read the same bytes as
+in 1.3.0.
+
+- **`createInventoryClient({ apiKey })`** (`./inventory`, server only, base
+  `https://api.kasseneck.at/v3`): `getArticle`, `listArticles`,
+  `lookupArticleByCode` (code as text or `{ code }`, or
+  `{ externalSystem, externalId }`), `listLocations`, `getStock`, `listStock`,
+  `listStockMovements`, and the async iterators `iterateArticles`,
+  `iterateStock`, `iterateStockMovements` that follow `nextCursor` until
+  `null` (the same cursor twice throws instead of looping). Webhook management:
+  `createWebhook`, `updateWebhook`, `deleteWebhook`, `listWebhooks`,
+  `sendWebhookTest`, `rotateWebhookSecret`, `listWebhookDeliveries`. Every call
+  is also exported as a free function taking the transport.
+- **Models**: `Article` (incl. `stockLocationIds`; `purchasePriceMicros` only
+  with the account permission `costs`, otherwise the field is absent, not
+  `null`), `StockLevel` (`onHand`, `reserved`, `available`, `defective`,
+  `sequence`, `updatedAt`), `StockValue`, `StockMovement`, `Location`,
+  `InventoryWebhook` (`consecutiveFailures`), `InventoryWebhookDelivery`
+  (`deliveryId`; status `delivered`, `pending`, `failed`, `dropped`); the same
+  names as for partner webhooks. Quantities are integer thousandths, money
+  integer cents, purchase prices integer micro-euros; `available` may be
+  negative. A fractional or missing quantity, amount or `sequence` in a
+  response throws `KasseneckValidationError` with `scope: 'response'`, as for
+  register stock since 1.2.0. A `Date` in `updatedSince`, `changedSince`,
+  `from` or `to` goes out as ISO 8601 UTC.
+- **Incoming webhooks**: `verifyInventoryWebhookSignature(secret, header, rawBody,
+  { toleranceSec = 300, now })` resolves to `true` or `false` and never
+  throws: HMAC-SHA256 over `"<t>.<raw body>"`, constant-time comparison,
+  300 seconds in both directions, several `v1=` parts allowed; checked against
+  the backend's test vector (t=1700000000). Asynchronous because it uses
+  WebCrypto, as `./partner` does. `parseInventoryWebhookEvent(rawBody)` returns a typed
+  `InventoryWebhookEvent` for `stock.changed` (`cause`, `movementId`),
+  `stock.below_minimum` (when `onHand` drops below the minimum stock set for
+  the location; the article's `minStock` alone never triggers it, the same rule
+  as `listStock({ belowMinimum: true })`) and `article.created|updated|deactivated`, with
+  `accountId` instead of `partnerId` in the envelope; an event type this
+  version does not know returns `null`, a body that is no envelope throws.
+  Both carry `Inventory` in their name on purpose: `./partner` has a
+  `verifyWebhookSignature` with an options object that resolves to
+  `{ ok, reason }`, and an object is truthy, so a mix-up in plain JavaScript
+  would accept every delivery.
+- **Errors** through the existing classes: `INVENTORY_ERROR_CODES`
+  (`rate_limited` with `retryAfterSec`, also after 20 `sendWebhookTest` per
+  account and calendar day in Vienna, `inventory_api_not_enabled`,
+  `module_inactive`, `article_not_found`, `invalid_cursor`, `webhook_limit`
+  and the other webhook codes …), `INVENTORY_REQUEST_ERROR_CODES`, `isInventoryError`,
+  `inventoryErrorCode`, `inventoryFieldErrors`, `inventoryRetryAfterSec`.
+- **Lists as data**: `INVENTORY_ENDPOINTS`, `INVENTORY_WEBHOOK_EVENTS`,
+  `INVENTORY_WEBHOOK_ENVELOPE_FIELDS`, `LOCATION_TYPES`,
+  `STOCK_MOVEMENT_TYPES`, `STOCK_MOVEMENT_SOURCES`, `STOCK_CONDITIONS`,
+  `STOCK_CHANGE_CAUSES`, `WEBHOOK_DELIVERY_STATUSES`, each held against the
+  backend contract. A goods receipt is `goods_receipt` (movement type and
+  cause), opening stock taken over is `takeover` (also as cause); `receipt`
+  only ever means a sales receipt (`source.type`).
+- **Contract**: `fixtures/v3/` pulled again from the backend (the 14 new
+  endpoints, catalogs and events, and `antworten/lager.json` with real
+  responses and delivered webhook events that the tests read); `PUBLIC_CALLS` and `ALL_CALLS` gain the 14
+  names; `surface.json` gains the key `inventory` with the lists above.
+
 ## 1.3.0
 
 Article codes on `PosArticle` and the stock words of the register in the
