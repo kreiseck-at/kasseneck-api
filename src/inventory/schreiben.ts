@@ -23,6 +23,9 @@
  * **Wiederholen:** nach einem Zeitlimit oder Netzfehler denselben Aufruf mit
  * **demselben** `idempotencyKey` noch einmal senden. Er wirkt genau einmal und
  * liefert die gespeicherte Antwort; ein neuer Schluessel buchte ein zweites Mal.
+ * Darum meldet jeder schreibende Aufruf in diesen Faellen (auch HTTP 5xx und
+ * unlesbare Antwort) `outcome: 'unknown'`, nie `'rejected'`. Lesen und der
+ * Probelauf (`previewGoodsReceipt`) bleiben `'rejected'`.
  */
 
 import type { ApiCall, InternerTransport } from '../client/aufrufe.js';
@@ -225,7 +228,9 @@ export async function previewGoodsReceipt(transport: InternerTransport, request:
   if (p.idempotencyKey === null) delete p.idempotencyKey;
   schluessel(name, p, { pflicht: false });
   eingangZahlen(name, p);
-  const daten = await transport(name, { ...p, dryRun: true });
+  // Ein Probelauf schreibt nichts: nach einem Zeitlimit bleibt er `rejected`,
+  // obwohl `receiveGoods` sonst Wirkung hat.
+  const daten = await transport(name, { ...p, dryRun: true }, undefined, undefined, { hasEffect: false });
   return { preview: liste(name, daten, 'preview', vorschauZeile) };
 }
 

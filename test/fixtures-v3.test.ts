@@ -45,6 +45,7 @@ const AUSGENOMMEN: Record<string, string> = {
  */
 const AUSNAHMEN_WERT: Array<{ datei: string; pfad: RegExp; grund: string }> = [
   { datei: 'surface.json', pfad: /^(calls|routes)\.(public|pos)\[\]$/, grund: 'Namen der Backend-Functions (URL-Pfad) unter /v3 und /api/v3, wie das Backend sie fuehrt (v3-vokabular.json endpoints; getKasseSettings, setMyKasseLogo ...)' },
+  { datei: 'surface.json', pfad: /^unknownOutcomeCalls\[\]$/, grund: 'dieselben Backend-Namen wie unter calls/routes, hier die mit Wirkung (setMyKasseSettings, setMyKasseLogo ...)' },
   { datei: 'invoice-api-examples/credit-error-reason.json', pfad: /^request\.reason$/, grund: 'absichtlich ungueltiger Grund ("storno"): das Beispiel zeigt, dass der Server ihn mit validation abweist' },
   { datei: 'pos-texts.json', pfad: /^(messages|labels)\..+\.text$/, grund: 'Text fuer den Kassier ("Kein", "Bar"); die Texte bleiben deutsch' },
   { datei: 'invoice-calc-random.json', pfad: /^cases\[\]\.name$/, grund: 'Name eines Pruffalls fuer Menschen (etwa "steuerfrei" als Pflichtklasse)' },

@@ -13,7 +13,7 @@
 //
 // Aufruf: `npm run fixtures:oberflaeche` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, isPosCall, isPosOnlyCall } from '../dist/esm/client/aufrufe.js';
+import { ALL_CALLS, POS_CALLS, PUBLIC_CALLS, UNKNOWN_OUTCOME_CALLS, isPosCall, isPosOnlyCall } from '../dist/esm/client/aufrufe.js';
 import { DEFAULT_BASE_URL, POS_BASE_URL } from '../dist/esm/client/transport.js';
 import * as kasse from '../dist/esm/pos/index.js';
 import * as partner from '../dist/esm/partner/index.js';
@@ -104,6 +104,11 @@ const vertrag = {
   // Alle Endpunkte je Weg, wie im Backend-Vertrag fixtures/v3/v3-vokabular.json
   // (endpoints.public mit aeusseren Namen, endpoints.register).
   routes: { public: [...PUBLIC_CALLS], pos: [...POS_CALLS] },
+  // Die Aufrufe mit Wirkung (seit 1.5.1), sortiert: scheitert einer nach dem
+  // Senden (Netzfehler, Zeitlimit, HTTP 5xx, unlesbare Erfolgsantwort, HTML
+  // mit Kennzeichen), ist sein Ausgang `unknown`, sonst `rejected`. Der
+  // Dart-Zwilling fuehrt dieselbe Liste.
+  unknownOutcomeCalls: [...UNKNOWN_OUTCOME_CALLS].sort(),
   enums,
   registerPerms: [...REGISTER_PERMS],
   registerErrorCodes: [...REGISTER_ERROR_CODES],

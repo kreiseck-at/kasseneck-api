@@ -25,20 +25,27 @@
  *   **Entscheidend ist `outcome`:** `'rejected'` heisst abgelehnt, nichts
  *   geschehen, Wiederholen hilft nicht. `'unknown'` heisst: der Vorgang kann
  *   ausgefuehrt sein (bei `createReceipt` ein signierter Beleg). Dann **nie
- *   wiederholen**, sondern das Ergebnis nachlesen (Belegliste, `getReceipt`).
+ *   blind wiederholen**: Belege, Stornos und Zahlungen nachlesen
+ *   (Belegliste, `getReceipt`, Terminal-Beleg); ein Aufruf mit
+ *   `idempotencyKey` (Lager schreiben, Rechnung, Partner-Betrieb mit
+ *   Schluessel) darf mit **demselben** Schluessel erneut gesendet werden und
+ *   wirkt genau einmal, nie mit einem neuen. `createInvoiceItem` erkennt die
+ *   Wiederholung an `source` + `reference` (dieselben Werte erneut senden);
+ *   Posten aendern oder zurueckziehen und Mandate haben keinen Schluessel:
+ *   erst nachlesen.
  * - `KasseneckHttpError` — die Antwort war **keine** verwertbare Huelle:
  *   HTTP 500/404 ohne Huelle, leerer Rumpf oder Text statt JSON. Beim
  *   Bericht-Download gelten dieselben Gruende fuer alles, was kein PDF ist.
  *   `reason` trennt die Faelle maschinenlesbar. Auf einem Aufruf mit
- *   Wirkung (signierend oder geldbewegend) hat HTTP 5xx
+ *   Wirkung (`UNKNOWN_OUTCOME_CALLS` in aufrufe.ts) hat HTTP 5xx
  *   `outcome: 'unknown'`, ebenso HTTP 200 mit Kennzeichen, aber leerem oder
  *   unlesbarem Rumpf.
  * - `KasseneckNetworkError` — die Antwort kam gar nicht: Netz weg, DNS,
  *   abgebrochene Verbindung oder Zeitueberschreitung (`timedOut`). Auch hier
  *   gilt `outcome`: war die Anfrage schon unterwegs und ist der Aufruf einer
- *   mit Wirkung (signierend: `createReceipt`, `cancelReceipt`,
- *   `financeWebService`; geldbewegend: `hobexPayApi`, `hobexRefundApi`,
- *   `stripeCaptureIntent`), ist er `'unknown'`.
+ *   mit Wirkung (signieren, Geld bewegen, buchen, ausstellen, anlegen,
+ *   aendern, loeschen, senden; die Liste `UNKNOWN_OUTCOME_CALLS`), ist er
+ *   `'unknown'`. Lesen und Probelauf bleiben `'rejected'`.
  * - `KasseneckAuthError` — es kam nicht einmal zur Anfrage, weil die Anmeldung
  *   scheiterte (fehlende Zugangsdaten, oder der Token-/Sitzungsgeber warf).
  *   In der Browser-Kasse mit ihrer 90-Sekunden-Sitzung ist das Alltag, kein
@@ -206,8 +213,10 @@ function feldHinweis(details: Record<string, unknown>): string {
 
 /**
  * Ausgang eines gescheiterten Aufrufs. `'rejected'`: nichts geschehen.
- * `'unknown'`: der Vorgang kann ausgefuehrt sein; nie wiederholen, sondern
- * das Ergebnis nachlesen.
+ * `'unknown'`: der Vorgang kann ausgefuehrt sein; nie blind wiederholen.
+ * Belege, Stornos und Zahlungen nachlesen; ein Aufruf mit `idempotencyKey`
+ * nur mit **demselben** Schluessel erneut senden (wirkt genau einmal); ohne
+ * Schluessel erst nachlesen.
  */
 export type ErrorOutcome = 'unknown' | 'rejected';
 
@@ -385,12 +394,12 @@ export class KasseneckHttpError extends Error {
   /** Maschinenlesbarer Grund — trennt den Rewrite-Fall vom 500er ohne Textparsen. */
   readonly reason: HttpFailureReason;
   /**
-   * `'unknown'` auf einem Aufruf mit Wirkung (`createReceipt`,
-   * `cancelReceipt`, `financeWebService`, `hobexPayApi`, `hobexRefundApi`,
-   * `stripeCaptureIntent`) bei HTTP 5xx und bei HTTP 200 mit
-   * Kennzeichen, aber unlesbarem Rumpf (`empty-body`, `not-json` auch bei
-   * `text/html`, `missing-status`): der Handler kann gelaufen sein, nie wiederholen,
-   * sondern nachlesen. Sonst `'rejected'` (auch 4xx).
+   * `'unknown'` auf einem Aufruf mit Wirkung (`UNKNOWN_OUTCOME_CALLS`:
+   * signieren, Geld bewegen, buchen, ausstellen, anlegen, aendern, loeschen,
+   * senden) bei HTTP 5xx und bei HTTP 200 mit Kennzeichen, aber unlesbarem
+   * Rumpf (`empty-body`, `not-json` auch bei `text/html`, `missing-status`):
+   * der Handler kann gelaufen sein, nie blind wiederholen (siehe
+   * [ErrorOutcome]). Sonst `'rejected'` (auch 4xx, Lesen und Probelauf).
    */
   readonly outcome: ErrorOutcome;
 
@@ -424,9 +433,10 @@ export class KasseneckNetworkError extends Error {
   /** Code der zugrunde liegenden Ursache, sofern unbedenklich (z. B. `ECONNREFUSED`). */
   readonly causeCode: string | undefined;
   /**
-   * `'unknown'`, wenn die Anfrage schon unterwegs war und der Aufruf signiert
-   * (`createReceipt`, `cancelReceipt`, `financeWebService`): dann nie
-   * wiederholen, sondern nachlesen. Sonst `'rejected'`.
+   * `'unknown'`, wenn die Anfrage schon unterwegs war und der Aufruf Wirkung
+   * hat (`UNKNOWN_OUTCOME_CALLS`): dann nie blind wiederholen (siehe
+   * [ErrorOutcome]). Sonst `'rejected'`, auch bei Lesen und Probelauf und
+   * wenn schon die Anmeldung das Zeitlimit verbrauchte.
    */
   readonly outcome: ErrorOutcome;
 
@@ -515,9 +525,12 @@ export type KasseneckError =
 
 /**
  * Ist der Ausgang dieses Fehlers unklar (`outcome === 'unknown'`)? Dann den
- * Aufruf **nicht wiederholen**, sondern das Ergebnis nachlesen. Gilt fuer
- * jede Fehlerart; nur [KasseneckApiError], [KasseneckHttpError] und
- * [KasseneckNetworkError] koennen `'unknown'` sein.
+ * Aufruf **nicht blind wiederholen**: Belege, Stornos und Zahlungen
+ * nachlesen; einen Aufruf mit `idempotencyKey` nur mit **demselben**
+ * Schluessel erneut senden (wirkt genau einmal, ein neuer buchte doppelt);
+ * ohne Schluessel erst nachlesen. Gilt fuer jede Fehlerart; nur
+ * [KasseneckApiError], [KasseneckHttpError] und [KasseneckNetworkError]
+ * koennen `'unknown'` sein.
  */
 export function isOutcomeUnknown(error: unknown): boolean {
   return (

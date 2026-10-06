@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createTransport, type FetchLike } from '../src/client/transport.js';
 import { apiKeyAuth } from '../src/client/auth.js';
-import { ALL_CALLS } from '../src/client/aufrufe.js';
+import { ALL_CALLS, UNKNOWN_OUTCOME_CALLS } from '../src/client/aufrufe.js';
 import { KasseneckNetworkError } from '../src/client/errors.js';
 import { CALLS_WITH_EFFECT, ERROR_RULES, findErrorRule, messageOutcome, messageText } from '../src/pos/texte.js';
 
@@ -10,7 +10,10 @@ import { CALLS_WITH_EFFECT, ERROR_RULES, findErrorRule, messageOutcome, messageT
  * Frist und Netzfehler am echten Transport: welcher Satz kommt auf den
  * Kassenschirm? Auf einem Aufruf mit Wirkung raet er nie zum Wiederholen
  * (der Vorgang kann gebucht sein); auf allen anderen bleibt der Satz von rc.4.
+ * „Mit Wirkung“ heisst: in CALLS_WITH_EFFECT (Kassentexte) oder seit 1.5.1
+ * vom Transport als unklar gefuehrt (UNKNOWN_OUTCOME_CALLS, Obermenge).
  */
+const MIT_WIRKUNG = new Set<string>([...CALLS_WITH_EFFECT, ...UNKNOWN_OUTCOME_CALLS]);
 const RAET_ZUM_WIEDERHOLEN = /erneut|nochmal|noch einmal|wiederhol|neu senden/i;
 const schluessel = () => apiKeyAuth({ apiKey: 'kr_test_SCHLUESSEL', cashregisterToken: 'cb_test_TOKEN' });
 
@@ -35,15 +38,17 @@ function satz(e: unknown): string {
   return messageText(regel.key);
 }
 
-test('CALLS_WITH_EFFECT sind echte Aufrufe und enthalten jeden, dessen Ausgang der Transport als unklar fuehrt', async () => {
+test('CALLS_WITH_EFFECT sind echte Aufrufe, und der Transport fuehrt jeden davon als unklar', async () => {
   const alle = new Set<string>(ALL_CALLS);
   for (const c of CALLS_WITH_EFFECT) assert.ok(alle.has(c), c);
-  // Druckjob und Belegmail fuehrt der Transport als abgelehnt; ihr zweiter Versuch druckt bzw. mailt doppelt.
+  // Druckjob und Belegmail: ihr zweiter Versuch druckt bzw. mailt doppelt.
   for (const c of ['createPrintJob', 'sendReceiptEmail']) assert.ok((CALLS_WITH_EFFECT as readonly string[]).includes(c), c);
+  // Seit 1.5.1 ist die Liste der Kassentexte eine Teilmenge der Transport-Liste.
+  for (const c of CALLS_WITH_EFFECT) assert.ok((UNKNOWN_OUTCOME_CALLS as readonly string[]).includes(c), `${c} fehlt in UNKNOWN_OUTCOME_CALLS`);
   for (const call of ALL_CALLS) {
     const e = await fehlerBei(call, netzWeg);
     assert.ok(e instanceof KasseneckNetworkError, `${call}: ${String(e)}`);
-    if (e.outcome === 'unknown') assert.ok((CALLS_WITH_EFFECT as readonly string[]).includes(call), `${call} ist unklar, fehlt in CALLS_WITH_EFFECT`);
+    assert.equal(e.outcome, (UNKNOWN_OUTCOME_CALLS as readonly string[]).includes(call) ? 'unknown' : 'rejected', call);
   }
 });
 
@@ -52,7 +57,7 @@ test('Netzfehler: auf einem Aufruf mit Wirkung nie „erneut versuchen“, sonst
   assert.ok(rc4 && 'key' in rc4);
   for (const call of ALL_CALLS) {
     const e = await fehlerBei(call, netzWeg);
-    if ((CALLS_WITH_EFFECT as readonly string[]).includes(call)) {
+    if (MIT_WIRKUNG.has(call)) {
       assert.equal(messageOutcome(e), 'unknown', call);
       assert.doesNotMatch(satz(e), RAET_ZUM_WIEDERHOLEN, call);
     } else {
@@ -64,10 +69,10 @@ test('Netzfehler: auf einem Aufruf mit Wirkung nie „erneut versuchen“, sonst
 test('Frist: auf einem Aufruf mit Wirkung nie „erneut versuchen“, sonst der Satz von rc.4', async () => {
   const rc4 = ERROR_RULES.find((r) => r.kind === 'timeout');
   assert.ok(rc4 && 'key' in rc4);
-  for (const call of ['createReceipt', 'createPrintJob', 'sendReceiptEmail', 'hobexPayApi', 'listMyArticles', 'getReceipt']) {
+  for (const call of ['createReceipt', 'createPrintJob', 'sendReceiptEmail', 'hobexPayApi', 'setMyKasseSettings', 'listMyArticles', 'getReceipt']) {
     const e = await fehlerBei(call, antwortetNie, 5);
     assert.ok(e instanceof KasseneckNetworkError && e.timedOut, call);
-    if ((CALLS_WITH_EFFECT as readonly string[]).includes(call)) assert.doesNotMatch(satz(e), RAET_ZUM_WIEDERHOLEN, call);
+    if (MIT_WIRKUNG.has(call)) assert.doesNotMatch(satz(e), RAET_ZUM_WIEDERHOLEN, call);
     else assert.equal(satz(e), messageText(rc4.key), call);
   }
 });

@@ -4,6 +4,64 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.5.1
+
+Every call with an effect reports `outcome: 'unknown'` when it fails after
+sending began: network error, timeout, HTTP 5xx, HTTP 200 with the `/v3`
+marker but an empty, non-JSON or status-less body, and HTML with the marker.
+Reason: until 1.5.0 only the six signing and money calls did; a goods receipt,
+a reservation or `issueInvoice` came back as `'rejected'` ("did not happen")
+although the server may have booked it. Whoever believed that and resent with
+a **new** `idempotencyKey` booked twice.
+
+A change to the safe side, no change on the wire; requests send the same body
+as in 1.5.0 (only the `Kasseneck-Client` header carries the new version).
+
+- **Which calls**: `UNKNOWN_OUTCOME_CALLS` (exported, sorted), also in
+  `fixtures/surface.json` as `unknownOutcomeCalls` for the Dart twin. New in it:
+  inventory writes (`createArticle`, `updateArticle`, `deactivateArticle`,
+  `receiveGoods`, `transferStock`, `recordStockLoss`, `changeStockCondition`,
+  `reverseStockMovement`), reservations (`createReservation`,
+  `extendReservation`, `releaseReservation`), inventory and partner webhooks
+  (create, update, delete, rotate the secret, test delivery), the invoice API
+  (`issueInvoice`, `cancelInvoice`, `createCreditNote`, `recordInvoicePayment`,
+  `createCustomer`, `updateCustomer`), invoice items and SEPA mandates
+  (`createInvoiceItem`, `updateInvoiceItem`, `withdrawInvoiceItem`,
+  `setCustomerMandate`, `revokeCustomerMandate`), the partner calls with an
+  effect (`createPartnerCustomer`, `sendPartnerCustomerFonLink`,
+  `requestCustomerSignature`, `createCustomerCashregister`,
+  `activateCashregister`, `reportCustomerContract`), and on the register
+  `pairRegisterDevice`, `unpairRegisterDevice`, `setMyKasseSettings`,
+  `setMyKasseLogo`, `setMyRegisterDeviceSettings`,
+  `setMyCashregisterStockLocation`, `createPrintJob`, `sendReceiptEmail`.
+- **Which stay `'rejected'`**: reading calls, dry runs (`previewGoodsReceipt`,
+  `previewInvoice`, `issueInvoice` with `dryRun: true`), the register sign-in
+  sessions (`registerUserLogin`, `registerPinLogin`, `renewRegisterSession`,
+  `endRegisterSession`) and `createPaymentLinkStripe`: a repeat books nothing.
+  A timeout already during sign-in stays `'rejected'` as before: nothing was
+  sent.
+- **What to do**: with an `idempotencyKey`, send the same request with the
+  **same** key; it takes effect once and returns the stored answer.
+  `createInvoiceItem` is recognised by `source` + `reference`: the same values
+  again are safe. Without a key (receipts, cancellations, money calls,
+  settings, webhooks, changing or withdrawing invoice items, mandates), read
+  the state first. The rule for receipts and payments is unchanged: look it up,
+  never resend.
+- **Per call**: the transport takes a fifth argument `{ hasEffect }`
+  (`TransportCallOptions`). `true` marks a call with an effect that this
+  package does not know. `false` only counts together with
+  `params.dryRun === true` (a dry run under the name of the real call; the
+  package's own previews use it); without `dryRun: true` a call from the list
+  stays `'unknown'`, so no option can turn a real booking into `'rejected'`.
+  Without the option the list decides, and an unknown name counts as having no
+  effect.
+- **Guard**: every call the package knows (`ALL_CALLS`, `PUBLIC_CALLS`,
+  `POS_CALLS`) is classified as with or without effect; a new call without a
+  classification fails the tests.
+- `CALLS_WITH_EFFECT` of the register texts and `fixtures/pos-texts.json` are
+  unchanged; `messageOutcome` follows the transport first, so the register
+  shows the careful sentence for every call above.
+
 ## 1.5.0
 
 Inventory API, write side and reservations: `./inventory` gains the 13
