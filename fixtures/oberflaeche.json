@@ -1,5 +1,5 @@
 {
-  "version": "0.32.2",
+  "version": "0.33.0",
   "aufrufe": [
     "activateCashregister",
     "cancelInvoice",
@@ -421,7 +421,9 @@
       "mixed_supply_not_allowed",
       "oss_not_enabled",
       "einvoice_unavailable",
-      "amount_too_large"
+      "amount_too_large",
+      "vat_id_invalid",
+      "vat_id_check_pending"
     ],
     "invoiceLanguages": [
       "de",

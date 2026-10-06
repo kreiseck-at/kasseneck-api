@@ -4,6 +4,23 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.33.0
+
+Vertragsgleichstand mit dem Backend für die UID-Prüfung beim Ausstellen (Stufe 4). Eine Rechnung ohne Steuer,
+die die UID des Kunden verlangt (ig. Lieferung, Reverse Charge), stellt das Backend nur noch mit einem Ergebnis
+der UID-Prüfung am Ausstelltag aus.
+
+- **Fehlercodes `vat_id_invalid` und `vat_id_check_pending`** am Ende von `INVOICE_ERROR_CODES`
+  (bestehende Reihenfolge unverändert). `vat_id_check_pending` trägt `data.retryAfter` (Sekunden bis zum
+  nächsten sinnvollen Versuch, mit demselben `idempotencyKey`). Grund: das Fremdsystem soll am Code
+  entscheiden, ob es später wiederholt oder die Rechnung gar nicht ausstellen kann.
+- **`issueInvoice.acceptVatIdRisk`** (optional, Wahrheitswert): stellt trotz offener Prüfung aus, der
+  Aussteller trägt das Risiko. Eine ungültige UID sperrt auch damit. Schema `fixtures/rechnung-api.schema.json`
+  und zwei Beispiele.
+- **Rechnung `vatIdProof` / `vatIdRisk`** (`InvoiceVatIdProof`, `InvoiceVatIdRisk`): der eingefrorene
+  UID-Nachweis (`checkedOn`, `source`, `level`, `code`) bzw. der Tag, an dem das Risiko übernommen wurde;
+  sonst `null`.
+
 ## 0.32.2
 
 Die Beleg-Fixtures, Goldens und Tests trugen die Seriennummer einer echten Signaturkarte

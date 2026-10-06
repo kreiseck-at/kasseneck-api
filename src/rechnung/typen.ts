@@ -158,6 +158,14 @@ export interface IssueInvoiceRequest {
    * Zahlungsinformationen und keinen Giro-QR.
    */
   payment?: PaymentInput;
+  /**
+   * Nur fuer Rechnungen ohne Steuer, die die UID des Kunden verlangen (ig.
+   * Lieferung, Reverse Charge): hat die UID-Pruefung noch kein Ergebnis
+   * (`vat_id_check_pending`), stellt `true` trotzdem aus. Der Aussteller traegt
+   * dann das Risiko, die Rechnung traegt `vatIdRisk`. Eine ungueltige UID
+   * (`vat_id_invalid`) sperrt auch damit.
+   */
+  acceptVatIdRisk?: boolean;
 }
 
 /** Eine Zahlung, wie das Fremdsystem sie meldet. */
@@ -273,6 +281,28 @@ export interface Invoice {
   paidCents: number;
   /** Was noch offen ist; `0` heisst bezahlt. */
   openCents: number;
+  /** Beim Festschreiben eingefrorener UID-Nachweis des Kunden; sonst `null`. */
+  vatIdProof: InvoiceVatIdProof | null;
+  /** Ohne Ergebnis der UID-Pruefung mit `acceptVatIdRisk` ausgestellt; sonst `null`. */
+  vatIdRisk: InvoiceVatIdRisk | null;
+}
+
+/** UID-Nachweis an einer Rechnung: gueltige Pruefung der Kunden-UID, hoechstens 30 Tage vor dem Festschreiben. */
+export interface InvoiceVatIdProof {
+  /** Wiener Tag der Pruefung (`YYYY-MM-DD`). */
+  checkedOn: string;
+  /** Wer geprueft hat: FinanzOnline (Stufe 2 mit Name und Anschrift) oder VIES. */
+  source: 'finanzonline' | 'vies';
+  /** Stufe der Pruefung: 1 = nur UID, 2 = UID mit Name und Anschrift. */
+  level: 1 | 2;
+  /** Pruefcode fuer die oeffentliche Pruefseite (auf dem PDF als QR); `null`, wenn keiner vergeben wurde. */
+  code: string | null;
+}
+
+/** Ausgestellt ohne Ergebnis der UID-Pruefung, das Risiko traegt der Aussteller. */
+export interface InvoiceVatIdRisk {
+  /** Wiener Tag der Bestaetigung (`YYYY-MM-DD`). */
+  acceptedOn: string;
 }
 
 /** Eine Marke des Kontos (Logo, Farbe, Absender) — `id` geht als `brandId` in `issueInvoice`. */
