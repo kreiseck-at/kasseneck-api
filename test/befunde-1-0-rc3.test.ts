@@ -131,7 +131,13 @@ test('B1: die Zeitpunkte der Inbetriebnahme kommen aus start_receipt_*_at', () =
 const VOKABEL_FELDER: ReadonlySet<string> = new Set(
   Object.entries(VOKABULAR.schemas.listMyCashregisters.data.cashregisters[0] as Record<string, unknown>)
     .filter(([k, v]) => k !== '__' && typeof v === 'string')
-    .map(([k]) => k),
+    .map(([k]) => k)
+    // verschachtelte Felder (autoLogout.*) mit ihrem Pfad
+    .concat(
+      Object.entries(VOKABULAR.schemas.listMyCashregisters.data.cashregisters[0] as Record<string, unknown>)
+        .filter(([k, v]) => k === 'autoLogout' && v !== null && typeof v === 'object')
+        .flatMap(([k, v]) => [k, ...Object.keys(v as object).filter((u) => u !== '__').map((u) => `${k}.${u}`)]),
+    ),
 );
 assert.ok(VOKABEL_FELDER.has('stockLocationId'), 'das Vokabular von listMyCashregisters benennt den Standort');
 

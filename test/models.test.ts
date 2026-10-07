@@ -447,6 +447,23 @@ test('Kasse: ein fehlender Zeitstempel wird nicht still zur Epoche', () => {
   });
 });
 
+test('Kasse: autoLogout vom Server wird gelesen', () => {
+  const kasse = fromCashregisterPayload(
+    { id: 'cr1', label: 'THEKE-1', autoLogout: { autoLogoutMinutes: 5, logoutAfterSale: true } },
+    'cr1',
+  );
+  assert.deepEqual(kasse.autoLogout, { autoLogoutMinutes: 5, logoutAfterSale: true });
+  const teil = fromCashregisterPayload({ id: 'cr1', autoLogout: { autoLogoutMinutes: 0 } }, 'cr1');
+  assert.deepEqual(teil.autoLogout, { autoLogoutMinutes: 0 });
+});
+
+test('Kasse: fehlt autoLogout, ist das Feld undefined', () => {
+  const kasse = fromCashregisterPayload({ id: 'cr1', label: 'THEKE-1' }, 'cr1');
+  assert.equal(kasse.autoLogout, undefined);
+  assert.equal('autoLogout' in kasse, false);
+  assert.equal(fromCashregisterPayload({ id: 'cr1', autoLogout: null }, 'cr1').autoLogout, undefined);
+});
+
 test('Kasse: der Kassen-Token kommt durch, wenn das Backend ihn sendet', () => {
   // Nur der api_key-Pfad bekommt ihn; fuer Kassen-Benutzer ist er null.
   const kasse = fromCashregisterPayload({ id: 'cr1', token: 'cb_live_ABC', create_time: null }, 'cr1');
