@@ -40,7 +40,23 @@ export interface Cashregister {
   signatureId?: string;
   /** Lager-Standort der Kasse (Lager-Kern Stufe 2); fehlt = Standard-Standort des Betriebs. */
   stockLocationId?: string;
+  /**
+   * Eigene Abmelde-Werte dieser Kasse; fehlt, wenn die Kasse keine eigenen hat
+   * (dann gelten die Werte des Betriebs).
+   */
+  autoLogout?: CashregisterAutoLogout;
   onboarding: CashregisterOnboarding;
+}
+
+/**
+ * Automatisches Abmelden an der Kasse. Beide Felder sind einzeln optional: der
+ * Server sendet nur, was die Kasse selbst gesetzt hat.
+ */
+export interface CashregisterAutoLogout {
+  /** Abmeldung nach Leerlauf in Minuten; `0` = aus. */
+  autoLogoutMinutes?: 0 | 1 | 5 | 15 | 30;
+  /** Nach jedem Verkauf abmelden. */
+  logoutAfterSale?: boolean;
 }
 
 /**
@@ -65,8 +81,15 @@ export interface CashregisterPayload {
   create_time?: string | null;
   signature_id?: string | null;
   stockLocationId?: string | null;
+  autoLogout?: CashregisterAutoLogoutPayload | null;
   token?: string | null;
   onboarding?: CashregisterOnboardingPayload | null;
+}
+
+/** `autoLogout` am Draht `/v3`; die Namen sind dieselben wie am Modell. */
+export interface CashregisterAutoLogoutPayload {
+  autoLogoutMinutes?: number | null;
+  logoutAfterSale?: boolean | null;
 }
 
 /**
@@ -99,6 +122,7 @@ export function fromCashregisterPayload(payload: CashregisterPayload, id: string
     ...(payload.token ? { token: payload.token } : {}),
     ...(payload.signature_id ? { signatureId: payload.signature_id } : {}),
     ...(payload.stockLocationId ? { stockLocationId: payload.stockLocationId } : {}),
+    ...autoLogoutFeld(payload.autoLogout),
     onboarding: {
       cashboxRegistered: ob.cashbox_registered === true,
       startReceiptCreated: ob.start_receipt_created === true,
@@ -108,6 +132,27 @@ export function fromCashregisterPayload(payload: CashregisterPayload, id: string
       ...zeitfeld('startReceiptTransmittedAt', ob.start_receipt_transmitted_at),
     },
   };
+}
+
+const AUTO_LOGOUT_MINUTEN: ReadonlySet<number> = new Set([0, 1, 5, 15, 30]);
+
+/**
+ * `autoLogout` gibt es nur, wenn die Nutzlast mindestens einen lesbaren Wert
+ * traegt. Eine Minutenzahl ausserhalb von 0/1/5/15/30 wird verworfen statt
+ * durchgereicht (ein neuer Server-Wert soll die Kasse nicht unlesbar machen).
+ */
+function autoLogoutFeld(roh: CashregisterAutoLogoutPayload | null | undefined): { autoLogout?: CashregisterAutoLogout } {
+  if (roh === null || roh === undefined || typeof roh !== 'object') {
+    return {};
+  }
+  const wert: CashregisterAutoLogout = {};
+  if (typeof roh.autoLogoutMinutes === 'number' && AUTO_LOGOUT_MINUTEN.has(roh.autoLogoutMinutes)) {
+    wert.autoLogoutMinutes = roh.autoLogoutMinutes as CashregisterAutoLogout['autoLogoutMinutes'];
+  }
+  if (typeof roh.logoutAfterSale === 'boolean') {
+    wert.logoutAfterSale = roh.logoutAfterSale;
+  }
+  return Object.keys(wert).length === 0 ? {} : { autoLogout: wert };
 }
 
 /**

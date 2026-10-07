@@ -4,6 +4,18 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.7.0
+
+Register auto-logout: `Cashregister` gains the optional `autoLogout`
+(`{ autoLogoutMinutes?: 0 | 1 | 5 | 15 | 30, logoutAfterSale?: boolean }`),
+read from `listMyCashregisters`. Reason: the backend now reports a register's
+own sign-out settings; a client that ignored them showed the operator's
+defaults on a register that had its own. The field is absent when the register
+has no values of its own (then the operator's values apply); a minutes value
+outside 0/1/5/15/30 is dropped rather than passed on. Additive, no breaking
+change; `fixtures/v3/` is the vendored contract at the backend state that
+carries the field.
+
 ## 1.6.0
 
 Inventory API, variants: `./inventory` gains the five endpoints of backend

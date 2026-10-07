@@ -97,6 +97,8 @@ export {
   type CashregisterOnboarding,
   type CashregisterPayload,
   type CashregisterOnboardingPayload,
+  type CashregisterAutoLogout,
+  type CashregisterAutoLogoutPayload,
   fromCashregisterPayload,
   type ReceiptSummary,
   type ReceiptSummaryPayload,
