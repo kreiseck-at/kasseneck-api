@@ -1798,7 +1798,7 @@ try {
     idempotencyKey: 'shop-variant-3001-xl-rot',
     variantGroupId: apron.id,
     variantAttributes: { size: 'XL', colour: 'rot' },
-    ean: '9001234567896',                                  // optional: a foreign article with this code
+    ean: '9001234567834',                                  // optional: a foreign article with this code
   });
 } catch (error) {
   if (!isInventoryError(error, 'variant_already_exists')) throw error;

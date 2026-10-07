@@ -13,7 +13,13 @@ and codes in step by hand; nothing told the shop or the register that they
 belong together, and nothing stopped a second "M red". A variant group holds
 what they share and guarantees that each combination exists once.
 
-Additive, no breaking change; existing calls send the same bytes as in 1.5.1.
+Additive at runtime; existing calls send the same bytes as in 1.5.1. Two
+things change for code that relies on the old shape: the unions
+`InventoryWebhookEvent`/`InventoryWebhookEventType`, `InventoryErrorCode`,
+`InventoryEndpoint` and `ApiCall` gain members, so an exhaustive `switch` with a
+`never` check (or a `Record<…>` over them) needs the new cases; and
+`parseInventoryWebhookEvent` now returns an event for `variant_group.*` where
+1.5.x returned `null`.
 
 - **Variant groups**: `createVariantGroup` (with `createMatrix: true` every
   combination of the values, at most 100, or the listed `variants[]`, at most
