@@ -2,7 +2,8 @@
  * `@kreiseck/kasseneck-api/inventory` – die Lager-API: Artikel, Standorte,
  * Bestand und Lagerprotokoll lesen, Konto-Webhooks verwalten und eingehende
  * Zustellungen pruefen (Backend Stufe 5a); Artikel anlegen und aendern,
- * Bestand buchen und Ware reservieren (Stufe 5b, seit 1.5.0).
+ * Bestand buchen und Ware reservieren (Stufe 5b, seit 1.5.0);
+ * Variantengruppen (Stufe 5c, seit 1.6.0).
  *
  * Ein eigener Unterpfad wie `invoice`: der `api_key` eines Kontos gehoert auf
  * einen **Server** (etwa das Backend eines Online-Shops) und soll nicht
@@ -67,6 +68,15 @@ export {
 } from './schreiben.js';
 
 export {
+  addVariant,
+  createVariantGroup,
+  getVariantGroup,
+  iterateVariantGroups,
+  listVariantGroups,
+  updateVariantGroup,
+} from './varianten.js';
+
+export {
   verifyInventoryWebhookSignature,
   parseInventoryWebhookEvent,
   WEBHOOK_SIGNATURE_HEADER,
@@ -77,6 +87,7 @@ export {
 } from './webhook.js';
 
 export type {
+  AddVariantRequest,
   Article,
   ArticleInput,
   ArticleListQuery,
@@ -86,6 +97,7 @@ export type {
   CreateArticleRequest,
   CreateInventoryWebhookOptions,
   CreateReservationRequest,
+  CreateVariantGroupRequest,
   DeactivateArticleRequest,
   ExtendReservationRequest,
   GoodsReceiptItem,
@@ -132,6 +144,15 @@ export type {
   StockValue,
   TransferStockRequest,
   UpdateArticleRequest,
+  UpdateVariantGroupRequest,
+  VariantAttribute,
+  VariantGroup,
+  VariantGroupDefaults,
+  VariantGroupDefaultsInput,
+  VariantGroupListQuery,
+  VariantGroupMember,
+  VariantGroupPage,
+  VariantInput,
 } from './typen.js';
 
 export {
@@ -158,6 +179,10 @@ export {
   INVENTORY_IDEMPOTENCY_KEY_MAX,
   RESERVATION_MINUTES_MIN,
   RESERVATION_MINUTES_MAX,
+  VARIANT_ATTRIBUTES_MAX,
+  VARIANT_VALUES_MAX,
+  VARIANT_MATRIX_MAX,
+  VARIANT_GROUP_ACTIVE_MAX,
   type InventoryEndpoint,
   type InventoryErrorCode,
   type InventoryRequestErrorCode,

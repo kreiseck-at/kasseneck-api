@@ -1482,7 +1482,8 @@ ledger, and get every stock change pushed by webhook within seconds, also the
 ones made at the register in the shop. Since 1.5.0 also the write side:
 create and update articles, book goods receipts, transfers, losses and
 condition changes, and reserve stock at checkout (see
-[Shop: reserve and invoice](#shop-reserve-and-invoice)). Uses the `api_key` of
+[Shop: reserve and invoice](#shop-reserve-and-invoice)); since 1.6.0 variant
+groups (sizes, colours, see [Variants](#variants)). Uses the `api_key` of
 the account and belongs on a **server**. Reading needs the module `lager`,
 writing additionally the account switch *Lager-API schreiben*, which Kasseneck
 turns on (always on in the test environment, `kr_test_…`; otherwise
@@ -1751,6 +1752,116 @@ function onDelivery(rawBody: Buffer) {
   `listReservations({ status: 'active' })` or `({ reference })` is the safety
   net without webhooks; the stock ledger shows reservations as movements of
   type `reservation` with `quantityDelta: 0` and the change in `reservedDelta`.
+
+### Variants
+
+A variant is an ordinary article with `variantGroupId` and
+`variantAttributes`: its own id, code, stock and tile at the register; it is
+read, booked, reserved and invoiced like any other article. The variant group
+holds what the variants share (name, attributes with their values, defaults
+for new variants) and guarantees that each combination exists only once. The
+writes take an `idempotencyKey` and the account switch *Lager-API schreiben*,
+like every other write.
+
+```ts
+import { createInventoryClient, isInventoryError, parseInventoryWebhookEvent } from '@kreiseck/kasseneck-api/inventory';
+
+const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// 1. Create the group with every combination (3 sizes × 2 colours = 6 variants).
+const apron = await inventory.createVariantGroup({
+  idempotencyKey: 'shop-group-3001',
+  name: 'Schürze',
+  attributes: [
+    { key: 'size', label: 'Größe', values: ['S', 'M', 'L'] },
+    { key: 'colour', label: 'Farbe', values: ['rot', 'blau'] },
+  ],
+  defaults: { unitPriceCents: 2490, vatRate: 20, stockTracked: true },
+  createMatrix: true,
+});
+// apron.variants: [{ articleId, variantAttributes: { colour: 'rot', size: 'S' } }, …]
+
+// 2. The answer carries ids only. Read the articles of the group (names
+//    "Schürze S rot" …, own codes) and map them to the shop's products.
+for await (const article of inventory.iterateArticles({ variantGroupId: apron.id })) {
+  await shop.linkVariant(article.variantAttributes!, article.id, article.internalCode);
+}
+
+// 3. A new size later: add the value, then the variants you want.
+await inventory.updateVariantGroup({
+  idempotencyKey: 'shop-group-3001-xl',
+  variantGroupId: apron.id,
+  addAttributeValues: { size: ['S', 'M', 'L', 'XL'] },   // known values are skipped
+});
+try {
+  await inventory.addVariant({
+    idempotencyKey: 'shop-variant-3001-xl-rot',
+    variantGroupId: apron.id,
+    variantAttributes: { size: 'XL', colour: 'rot' },
+    ean: '9001234567834',                                  // optional: a foreign article with this code
+  });
+} catch (error) {
+  if (!isInventoryError(error, 'variant_already_exists')) throw error;
+  // Exists already (error.details.articleId): link that one instead.
+}
+
+// 4. Webhooks: keep the group state with the latest updatedAt.
+function onDelivery(rawBody: Buffer) {
+  const event = parseInventoryWebhookEvent(rawBody);
+  if (event && !event.test && (event.type === 'variant_group.created' || event.type === 'variant_group.updated')) {
+    return shop.saveGroupIfNewer(event.data.id, event.data, event.data.updatedAt);
+  }
+}
+```
+
+- **Limits.** At most 3 attributes per group (keys `^[a-z0-9_]{1,32}$`,
+  `__…__` is reserved), at most 30 values per attribute (1 to 30 characters,
+  unique ignoring case), at most 100 combinations with `createMatrix` and at
+  most 100 entries in `variants[]` per request, at most 250 active variants
+  per group (`variant_limit`). The client does not check these before sending
+  (the server may raise them); they are exported as
+  `VARIANT_ATTRIBUTES_MAX`, `VARIANT_VALUES_MAX`, `VARIANT_MATRIX_MAX` and
+  `VARIANT_GROUP_ACTIVE_MAX`. A request that would need more writes than fit
+  into one operation (about 187 external ids with 100 variants) is refused as
+  a whole with `too_many_positions` and `field` (`variants`, `createMatrix`,
+  or `externalIds` for `addVariant`); nothing is written. Send fewer variants
+  and add the rest with `addVariant`.
+- **Order.** `attributes` keeps the order of the group: it decides the default
+  name "<group> <value1> <value2>" and the matrix (the first attribute runs
+  outermost). `variantAttributes` on articles, in `variants[]` and in webhooks
+  comes with its keys **sorted by code point**, not in attribute order; compare
+  by key, never by position. Values are stored trimmed and in Unicode NFC; a
+  variant's value must match a listed value exactly (case and spaces are not
+  adjusted), otherwise `invalid_variant_attributes` names the `field`.
+- **Variants are articles.** `addVariant` answers with the article as
+  `createArticle` does. Each variant takes the fields of `createArticle`;
+  fields it does not name are filled from the group defaults **at creation
+  only**: changing the group name or defaults later changes no existing
+  variant (use `updateArticle`). `createArticle` and `updateArticle` refuse
+  `variantGroupId` and `variantAttributes`; a variant is never moved to another
+  group, and an existing article never becomes a variant.
+- **Deactivating.** `deactivateArticle` on one variant of an active group
+  takes it out of the group's `variants[]` and frees its combination for a new
+  variant.
+  `updateVariantGroup({ active: false })` deactivates the group and every
+  variant (codes and external ids become free), stands alone and is final; a
+  deactivated group answers every other change and `addVariant` with
+  `variant_group_inactive`. The answer comes when all variants are
+  deactivated; after `outcome: 'unknown'` simply repeat it, also with a new
+  key, it completes an interrupted run.
+- **After `unknown`.** As with every write: resend with the **same**
+  `idempotencyKey`. A new key would create the group a second time (the
+  combination check is per group). `variant_already_exists` on `addVariant`
+  carries `articleId` of the existing variant.
+- **Events.** `variant_group.created` and `variant_group.updated` carry the
+  group as `getVariantGroup` returns it (with `variants[]`, without articles).
+  `updated` fires only on a visible change; creating a variant also sends
+  `article.created`, deactivating the group one `variant_group.updated` and
+  one `article.deactivated` per variant. Deliveries can overtake each other:
+  keep a group state only if its `updatedAt` is later than the stored one.
+  Without webhooks, `listVariantGroups({ updatedSince })` and
+  `listArticles({ variantGroupId, updatedSince })` are sorted by `updatedAt`
+  ascending and include the boundary.
 
 ## Migrating from 0.x
 

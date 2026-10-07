@@ -115,6 +115,12 @@ export const ALL_CALLS = [
   'releaseReservation',
   'getReservation',
   'listReservations',
+  // Lager-API Varianten (Stufe 5c, ./inventory)
+  'createVariantGroup',
+  'updateVariantGroup',
+  'getVariantGroup',
+  'listVariantGroups',
+  'addVariant',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -218,6 +224,12 @@ export const PUBLIC_CALLS = [
   'releaseReservation',
   'getReservation',
   'listReservations',
+  // Lager-API Varianten (Backend Stufe 5c), umhuellt in `./inventory`.
+  'createVariantGroup',
+  'updateVariantGroup',
+  'getVariantGroup',
+  'listVariantGroups',
+  'addVariant',
 ] as const;
 
 /**
@@ -281,6 +293,7 @@ export type PosCall = typeof POS_CALLS[number];
  */
 export const UNKNOWN_OUTCOME_CALLS = [
   'activateCashregister',
+  'addVariant',
   'cancelInvoice',
   'cancelReceipt',
   'changeStockCondition',
@@ -294,6 +307,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'createPrintJob',
   'createReceipt',
   'createReservation',
+  'createVariantGroup',
   'createWebhook',
   'deactivateArticle',
   'deletePartnerWebhook',
@@ -330,6 +344,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'updateCustomer',
   'updateInvoiceItem',
   'updatePartnerWebhook',
+  'updateVariantGroup',
   'updateWebhook',
   'withdrawInvoiceItem',
 ] as const;
@@ -389,6 +404,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getReportV2: 'read',
   getReservation: 'read',
   getStock: 'read',
+  getVariantGroup: 'read',
   hobexGetStatus: 'read',
   listArticles: 'read',
   listBrands: 'read',
@@ -412,6 +428,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   listReservations: 'read',
   listStock: 'read',
   listStockMovements: 'read',
+  listVariantGroups: 'read',
   listWebhookDeliveries: 'read',
   listWebhooks: 'read',
   lookupArticleByCode: 'read',

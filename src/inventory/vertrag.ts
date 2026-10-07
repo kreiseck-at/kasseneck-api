@@ -1,6 +1,6 @@
 /**
  * Der Vertrag der Lager-API (Backend Stufe 5a lesen, 5b schreiben und
- * reservieren) als Daten: Endpunkte, Wertkataloge, Ereignisse, Fehler- und
+ * reservieren, 5c Varianten) als Daten: Endpunkte, Wertkataloge, Ereignisse, Fehler- und
  * Hinweiscodes, englisch wie am Draht `/v3`.
  *
  * Quelle ist der Vertrags-Export des Backends (`fixtures/v3/v3-vokabular.json`):
@@ -12,7 +12,7 @@
  * deckungsgleich mit dieser Datei; nichts hier wird geraten.
  */
 
-/** Die 27 Endpunkte (14 aus 5a, 13 aus 5b), in der Reihenfolge von `endpoints.public`. */
+/** Die 32 Endpunkte (14 aus 5a, 13 aus 5b, 5 aus 5c), in der Reihenfolge von `endpoints.public`. */
 export const INVENTORY_ENDPOINTS = [
   'getArticle',
   'listArticles',
@@ -41,6 +41,11 @@ export const INVENTORY_ENDPOINTS = [
   'releaseReservation',
   'getReservation',
   'listReservations',
+  'createVariantGroup',
+  'updateVariantGroup',
+  'getVariantGroup',
+  'listVariantGroups',
+  'addVariant',
 ] as const;
 export type InventoryEndpoint = (typeof INVENTORY_ENDPOINTS)[number];
 
@@ -128,6 +133,10 @@ export type WebhookDeliveryStatus = (typeof WEBHOOK_DELIVERY_STATUSES)[number];
  * wie `getReservation`, mit dem Status danach: `reservation.released` und
  * `reservation.redeemed` kommen bei jeder wirksamen Freigabe bzw. Einloesung,
  * auch einer teilweisen (dann bleibt der Status `active`).
+ * `variant_group.created` und `variant_group.updated` (seit 1.6.0) tragen die
+ * Variantengruppe wie `getVariantGroup`; `updated` kommt nur bei einer aussen
+ * sichtbaren Aenderung (neuer Wert, neue oder stillgelegte Variante, Name,
+ * Vorgaben, Stilllegen der Gruppe).
  */
 export const INVENTORY_WEBHOOK_EVENTS = [
   'stock.changed',
@@ -138,6 +147,8 @@ export const INVENTORY_WEBHOOK_EVENTS = [
   'reservation.expired',
   'reservation.released',
   'reservation.redeemed',
+  'variant_group.created',
+  'variant_group.updated',
 ] as const;
 export type InventoryWebhookEventType = (typeof INVENTORY_WEBHOOK_EVENTS)[number];
 
@@ -170,6 +181,19 @@ export const INVENTORY_LIST_LIMIT_MAX = 200;
  * [inventoryShortfalls]), `code_taken` und `external_id_taken` (mit `field` und
  * `articleId` des Artikels, dem der Code gehoert), `stock_kind_locked`,
  * `reservation_not_found`, `reservation_not_active` …
+ *
+ * Seit 1.6.0 dahinter die Codes der Variantengruppen: `variant_group_not_found`
+ * (unbekannte Kennung), `variant_already_exists` (die Kombination gibt es in der
+ * Gruppe schon, dann mit `articleId` der bestehenden Variante, oder sie steht
+ * zweimal in `variants[]`; jeweils mit `field`),
+ * `invalid_variant_attributes` (ein Merkmal fehlt, ist unbekannt oder sein Wert
+ * steht nicht in der Werteliste; `field` und `errors[]`),
+ * `variant_group_inactive` (stillgelegte Gruppe: kein `addVariant`, keine
+ * Aenderung ausser erneutem Stilllegen) und `variant_limit` (mehr als
+ * [VARIANT_GROUP_ACTIVE_MAX] aktive Varianten je Gruppe). Wiederverwendet:
+ * `too_many_positions` traegt bei Varianten `field` (`variants`,
+ * `createMatrix` bzw. `externalIds` bei `addVariant`): die Anfrage braeuchte
+ * mehr Schreibvorgaenge, als in einen Vorgang passen; geschrieben wurde nichts.
  */
 export const INVENTORY_ERROR_CODES = [
   'validation',
@@ -233,6 +257,11 @@ export const INVENTORY_ERROR_CODES = [
   'insufficient_available',
   'reservation_not_found',
   'reservation_not_active',
+  'variant_group_not_found',
+  'variant_already_exists',
+  'invalid_variant_attributes',
+  'variant_group_inactive',
+  'variant_limit',
 ] as const;
 export type InventoryErrorCode = (typeof INVENTORY_ERROR_CODES)[number];
 
@@ -326,3 +355,24 @@ export const INVENTORY_IDEMPOTENCY_KEY_MAX = 120;
 /** Kuerzeste und laengste Haltedauer einer Reservierung in Minuten (`expiresInMinutes`, 30 Tage). */
 export const RESERVATION_MINUTES_MIN = 5;
 export const RESERVATION_MINUTES_MAX = 43_200;
+
+// ---- Varianten (Backend Stufe 5c, seit 1.6.0) -----------------------------------
+
+/**
+ * Grenzen einer Variantengruppe, wie das Backend sie prueft. Das Paket prueft
+ * sie **nicht** vor dem Senden: der Server darf sie anheben, ohne dass eine
+ * aeltere Paketversion dann faelschlich abweist. Wer darueber liegt, bekommt
+ * `validation` (Merkmale, Werte, Matrix, `variants[]`) bzw. `variant_limit`.
+ *
+ * - [VARIANT_ATTRIBUTES_MAX] Merkmale je Gruppe (Schluessel `^[a-z0-9_]{1,32}$`,
+ *   eindeutig; `__…__` ist reserviert),
+ * - [VARIANT_VALUES_MAX] Werte je Merkmal (je 1–30 Zeichen, eindeutig ohne
+ *   Gross/Klein),
+ * - [VARIANT_MATRIX_MAX] Kombinationen bei `createMatrix: true` und hoechstens
+ *   so viele Eintraege in `variants[]` je Anfrage,
+ * - [VARIANT_GROUP_ACTIVE_MAX] aktive Varianten je Gruppe.
+ */
+export const VARIANT_ATTRIBUTES_MAX = 3;
+export const VARIANT_VALUES_MAX = 30;
+export const VARIANT_MATRIX_MAX = 100;
+export const VARIANT_GROUP_ACTIVE_MAX = 250;

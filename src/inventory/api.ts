@@ -1,6 +1,6 @@
 /**
  * Fassade ueber den Aufrufen der Lager-API (lesen, Webhooks, schreiben,
- * reservieren): Schluessel einmal binden, dann rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
+ * reservieren, Varianten): Schluessel einmal binden, dann rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
  * Funktionen (endpunkte.ts) und bleiben einzeln importierbar.
  */
 
@@ -43,7 +43,21 @@ import {
   transferStock,
   updateArticle,
 } from './schreiben.js';
+import {
+  addVariant,
+  createVariantGroup,
+  getVariantGroup,
+  iterateVariantGroups,
+  listVariantGroups,
+  updateVariantGroup,
+} from './varianten.js';
 import type {
+  AddVariantRequest,
+  CreateVariantGroupRequest,
+  UpdateVariantGroupRequest,
+  VariantGroup,
+  VariantGroupListQuery,
+  VariantGroupPage,
   Article,
   ChangeStockConditionRequest,
   CreateArticleRequest,
@@ -138,6 +152,18 @@ export interface InventoryClient {
   getReservation(reservationId: string): Promise<Reservation>;
   listReservations(query?: ReservationListQuery): Promise<ReservationPage>;
   iterateReservations(query?: ReservationListQuery): AsyncGenerator<Reservation, void, undefined>;
+
+  // Varianten (Stufe 5c, seit 1.6.0): eine Variante ist ein Artikel mit
+  // `variantGroupId`; die schreibenden Aufrufe mit `idempotencyKey` und dem
+  // Konto-Schalter „Lager-API schreiben“, wie oben.
+  createVariantGroup(request: CreateVariantGroupRequest): Promise<VariantGroup>;
+  /** Name, Vorgaben, neue Werte; oder `active: false` (Gruppe und alle Varianten stilllegen, endgueltig). */
+  updateVariantGroup(request: UpdateVariantGroupRequest): Promise<VariantGroup>;
+  /** Eine Variante mehr; Antwort: der Artikel wie `createArticle`. */
+  addVariant(request: AddVariantRequest): Promise<Article>;
+  getVariantGroup(variantGroupId: string): Promise<VariantGroup>;
+  listVariantGroups(query?: VariantGroupListQuery): Promise<VariantGroupPage>;
+  iterateVariantGroups(query?: VariantGroupListQuery): AsyncGenerator<VariantGroup, void, undefined>;
 }
 
 export function createInventoryClient(options: InventoryClientOptions): InventoryClient {
@@ -185,5 +211,12 @@ export function createInventoryClient(options: InventoryClientOptions): Inventor
     getReservation: (id) => getReservation(rufen, id),
     listReservations: (q) => listReservations(rufen, q),
     iterateReservations: (q) => iterateReservations(rufen, q),
+
+    createVariantGroup: (r) => createVariantGroup(rufen, r),
+    updateVariantGroup: (r) => updateVariantGroup(rufen, r),
+    addVariant: (r) => addVariant(rufen, r),
+    getVariantGroup: (id) => getVariantGroup(rufen, id),
+    listVariantGroups: (q) => listVariantGroups(rufen, q),
+    iterateVariantGroups: (q) => iterateVariantGroups(rufen, q),
   };
 }

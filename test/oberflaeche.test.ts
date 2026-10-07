@@ -161,10 +161,10 @@ const vokabular = JSON.parse(
 ) as { endpoints: Record<string, string[]>; names: Record<string, string> };
 const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
 
-test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 87)', () => {
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 92)', () => {
   const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
   assert.deepEqual([...PUBLIC_CALLS], erwartet);
-  assert.equal(PUBLIC_CALLS.length, 87);
+  assert.equal(PUBLIC_CALLS.length, 92);
   // Unter /v3 geroutet ist genau die oeffentliche Liste.
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });

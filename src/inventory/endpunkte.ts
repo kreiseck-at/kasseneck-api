@@ -1,7 +1,8 @@
 /**
  * Die Aufrufe der Lager-API: Artikel, Standorte, Bestand und Bewegungen
  * lesen, Konto-Webhooks verwalten (Backend Stufe 5a). Die schreibenden
- * Aufrufe (Stufe 5b) stehen in `schreiben.ts` und teilen die Helfer hier.
+ * Aufrufe (Stufe 5b) stehen in `schreiben.ts`, die Variantengruppen (Stufe 5c)
+ * in `varianten.ts`; beide teilen die Helfer hier.
  *
  * Jede Funktion nimmt den Transport als ersten Parameter und ist einzeln
  * importierbar; die Fassade [createInventoryClient] bindet ihn nur einmal.
