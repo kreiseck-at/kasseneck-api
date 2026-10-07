@@ -57,8 +57,8 @@ type Params = Record<string, unknown>;
 
 // ---- Pruefung vor dem Senden ------------------------------------------------------
 
-/** Die Anfrage als flache Kopie ohne `undefined`; der Aufrufer behaelt sein Objekt. */
-function anfrage(name: ApiCall, request: unknown): Params {
+/** Die Anfrage als flache Kopie ohne `undefined`; der Aufrufer behaelt sein Objekt. Paketintern, auch fuer `varianten.ts`. */
+export function anfrage(name: ApiCall, request: unknown): Params {
   if (request === null || typeof request !== 'object' || Array.isArray(request)) {
     throw anfragefehler(name, 'Anfrage muss ein Objekt sein');
   }
@@ -71,7 +71,7 @@ function anfrage(name: ApiCall, request: unknown): Params {
  * `idempotencyKey`: Text mit 1–120 Zeichen, nicht nur Leerraum. Er wird nie
  * getrimmt oder gekuerzt: ein veraenderter Schluessel waere ein anderer.
  */
-function schluessel(name: ApiCall, p: Params, { pflicht }: { pflicht: boolean }): void {
+export function schluessel(name: ApiCall, p: Params, { pflicht }: { pflicht: boolean }): void {
   const w = p.idempotencyKey;
   if (w === undefined || w === null) {
     if (pflicht) {
@@ -86,7 +86,7 @@ function schluessel(name: ApiCall, p: Params, { pflicht }: { pflicht: boolean })
 }
 
 /** Eine Ganzzahl (Tausendstel, Cent, Mikro-Euro); fehlt sie, nur wenn sie darf. `null` nur, wo es leert. */
-function ganz(name: ApiCall, feld: string, w: unknown, { pflicht = false, leerbar = false } = {}): void {
+export function ganz(name: ApiCall, feld: string, w: unknown, { pflicht = false, leerbar = false } = {}): void {
   if (w === undefined || (w === null && leerbar)) {
     if (pflicht) throw anfragefehler(name, `${feld} fehlt`);
     return;
@@ -136,16 +136,19 @@ function positionen(
 
 // ---- Artikel ------------------------------------------------------------------
 
-/** Zahlenfelder eines Artikels; `null` leert sie (bzw. heisst bei der Anlage „nicht angegeben“). */
-function artikelZahlen(name: ApiCall, p: Params): void {
-  for (const feld of ['unitPriceCents', 'minStock', 'purchasePriceMicros'] as const) ganz(name, feld, p[feld], { leerbar: true });
+/**
+ * Zahlenfelder eines Artikels; `null` leert sie (bzw. heisst bei der Anlage
+ * „nicht angegeben“). `praefix` nennt die Stelle in der Anfrage (`variants[2].`).
+ */
+export function artikelZahlen(name: ApiCall, p: Params, praefix = ''): void {
+  for (const feld of ['unitPriceCents', 'minStock', 'purchasePriceMicros'] as const) ganz(name, `${praefix}${feld}`, p[feld], { leerbar: true });
   const jeStandort = p.minStockByLocation;
   if (jeStandort === undefined || jeStandort === null) return;
-  if (typeof jeStandort !== 'object' || Array.isArray(jeStandort)) throw anfragefehler(name, 'minStockByLocation muss ein Objekt { standort: Tausendstel } sein');
-  for (const [standort, w] of Object.entries(jeStandort as Params)) ganz(name, `minStockByLocation.${standort}`, w, { leerbar: true });
+  if (typeof jeStandort !== 'object' || Array.isArray(jeStandort)) throw anfragefehler(name, `${praefix}minStockByLocation muss ein Objekt { standort: Tausendstel } sein`);
+  for (const [standort, w] of Object.entries(jeStandort as Params)) ganz(name, `${praefix}minStockByLocation.${standort}`, w, { leerbar: true });
 }
 
-const artikelAus = (name: ApiCall, daten: unknown): Article => artikel({ name, pfad: 'article' }, objekt(daten)?.article);
+export const artikelAus = (name: ApiCall, daten: unknown): Article => artikel({ name, pfad: 'article' }, objekt(daten)?.article);
 
 /**
  * Legt einen Artikel an. Mit `ean` ein Fremdartikel mit diesem Code (gueltige

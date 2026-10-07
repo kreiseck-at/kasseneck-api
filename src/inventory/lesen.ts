@@ -32,6 +32,10 @@ import type {
   StockMovementLot,
   StockOperation,
   StockValue,
+  VariantAttribute,
+  VariantGroup,
+  VariantGroupDefaults,
+  VariantGroupMember,
 } from './typen.js';
 
 type Roh = Record<string, unknown>;
@@ -419,6 +423,78 @@ export function fehlmengen(roh: unknown): InventoryShortfall[] {
     raus.push({ articleId, locationId, requested: requested as number, available: available as number });
   }
   return raus;
+}
+
+// ---- Varianten (Stufe 5c) ------------------------------------------------------------
+
+/** Eine Liste von Texten (Werte eines Merkmals); etwas anderes ist kaputt. */
+function textliste(ort: Ort, feld: string, w: unknown): string[] {
+  if (!Array.isArray(w) || !w.every((x) => typeof x === 'string')) {
+    throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist keine Liste von Texten)`);
+  }
+  return [...(w as string[])];
+}
+
+function merkmal(ort: Ort, w: unknown): VariantAttribute {
+  const m = eintrag(ort, w);
+  return { key: kennung(ort, 'key', m.key), label: typeof m.label === 'string' ? m.label : '', values: textliste(ort, 'values', m.values) };
+}
+
+/**
+ * Vorgaben einer Gruppe: nur die Felder, die der Server sendet. Ein Preis als
+ * Bruchzahl ist kaputt (er fuellte sonst jede neue Variante falsch), ein Feld
+ * mit fremdem Typ ebenso.
+ */
+function vorgaben(ort: Ort, w: unknown): VariantGroupDefaults {
+  if (w === undefined || w === null) return {};
+  const v = objekt(w);
+  const vOrt = { name: ort.name, pfad: `${ort.pfad}.defaults` };
+  if (!v) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${vOrt.pfad} ist kein Objekt)`);
+  const raus: VariantGroupDefaults = {};
+  if (v.unitPriceCents !== undefined && v.unitPriceCents !== null) raus.unitPriceCents = ganzzahl(vOrt, 'unitPriceCents', v.unitPriceCents);
+  if (v.vatRate !== undefined && v.vatRate !== null) {
+    if (typeof v.vatRate !== 'number' || !Number.isFinite(v.vatRate)) throw antwortfehler(ort.name, `Antwort enthaelt keinen USt-Satz (data.${vOrt.pfad}.vatRate)`);
+    raus.vatRate = v.vatRate;
+  }
+  for (const feld of ['unit', 'groupId'] as const) {
+    const t = v[feld];
+    if (t === undefined || t === null) continue;
+    if (typeof t !== 'string') throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${vOrt.pfad}.${feld} ist kein Text)`);
+    raus[feld] = t;
+  }
+  if (v.stockTracked !== undefined && v.stockTracked !== null) {
+    if (typeof v.stockTracked !== 'boolean') throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${vOrt.pfad}.stockTracked ist kein Wahrheitswert)`);
+    raus.stockTracked = v.stockTracked;
+  }
+  return raus;
+}
+
+function mitglied(ort: Ort, w: unknown): VariantGroupMember {
+  const x = eintrag(ort, w);
+  return { articleId: kennung(ort, 'articleId', x.articleId), variantAttributes: textAbbildung(x.variantAttributes) ?? {} };
+}
+
+/**
+ * Eine Variantengruppe. `attributes` und `variants` sind zugesagte Listen:
+ * fehlen sie, ist die Antwort kaputt (eine leere Liste hiesse „keine Merkmale“
+ * bzw. „keine Varianten“).
+ */
+export function variantengruppe(ort: Ort, w: unknown): VariantGroup {
+  const g = eintrag(ort, w);
+  for (const feld of ['attributes', 'variants'] as const) {
+    if (!Array.isArray(g[feld])) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist keine Liste)`);
+  }
+  const unter = (feld: string, i: number): Ort => ({ name: ort.name, pfad: `${ort.pfad}.${feld}[${i}]` });
+  return {
+    id: kennung(ort, 'id', g.id),
+    name: text(g.name),
+    attributes: (g.attributes as unknown[]).map((m, i) => merkmal(unter('attributes', i), m)),
+    defaults: vorgaben(ort, g.defaults),
+    active: g.active !== false,
+    variants: (g.variants as unknown[]).map((x, i) => mitglied(unter('variants', i), x)),
+    createdAt: text(g.createdAt),
+    updatedAt: text(g.updatedAt),
+  };
 }
 
 // ---- Listen ------------------------------------------------------------------

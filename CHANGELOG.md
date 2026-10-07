@@ -4,6 +4,66 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.6.0
+
+Inventory API, variants: `./inventory` gains the five endpoints of backend
+stage 5c. Reason: a shop sells the same apron in three sizes and two colours.
+Until now it had to create six unrelated articles and keep their names, prices
+and codes in step by hand; nothing told the shop or the register that they
+belong together, and nothing stopped a second "M red". A variant group holds
+what they share and guarantees that each combination exists once.
+
+Additive, no breaking change; existing calls send the same bytes as in 1.5.1.
+
+- **Variant groups**: `createVariantGroup` (with `createMatrix: true` every
+  combination of the values, at most 100, or the listed `variants[]`, at most
+  100; never both), `updateVariantGroup` (name, defaults as a partial update,
+  `addAttributeValues`, or `active: false` to deactivate the group and all its
+  variants for good), `getVariantGroup`, `listVariantGroups` and
+  `iterateVariantGroups` (sorted by `updatedAt` ascending, filters `active`
+  and `updatedSince`). `VariantGroup` carries `attributes` (1 to 3, each with
+  `key`, `label` and 1 to 30 `values`, in group order), `defaults`
+  (`unitPriceCents`, `vatRate`, `unit`, `groupId`, `stockTracked`), `active`,
+  `variants[]` (`articleId` and `variantAttributes` of every active variant)
+  and the times. The group answers carry no articles: read them with
+  `listArticles({ variantGroupId })`.
+- **Variants are articles**: `addVariant` creates one more variant and answers
+  with the article as `createArticle` does. Each variant takes the article
+  fields of `createArticle`; fields it does not name are filled from the group
+  defaults at creation, the name defaults to "<group> <value1> <value2>" in
+  attribute order. `Article.variantGroupId` and `Article.variantAttributes`
+  are set only on variants; the keys of `variantAttributes` come sorted by code
+  point, the attribute order is in `VariantGroup.attributes`.
+- **Idempotency**: the three writes take `idempotencyKey` (required in the
+  type and refused before sending without a valid one) and are in
+  `UNKNOWN_OUTCOME_CALLS`: after `outcome: 'unknown'` resend with the same key.
+  `getVariantGroup` and `listVariantGroups` are reads.
+- **Checked before sending**, nothing else: the key, `variantGroupId`,
+  `createMatrix: true` together with `variants`, `variants` that is no list or
+  holds an entry without a `variantAttributes` object, integer prices,
+  quantities and purchase prices (also in `defaults` and in every variant), an
+  update without a change, `active` other than `false` or not alone,
+  `addAttributeValues` that is no object. The limits (3 attributes, 30 values,
+  matrix 100, 250 active variants per group) are left to the server, so it can
+  raise them; they are exported as `VARIANT_ATTRIBUTES_MAX`,
+  `VARIANT_VALUES_MAX`, `VARIANT_MATRIX_MAX`, `VARIANT_GROUP_ACTIVE_MAX`.
+- **Events**: `variant_group.created` and `variant_group.updated` in
+  `INVENTORY_WEBHOOK_EVENTS` and `parseInventoryWebhookEvent`, carrying the
+  group as `getVariantGroup` returns it. `updated` fires only on a visible
+  change (new value, new or deactivated variant, name, defaults, deactivating
+  the group). Two deliveries may overtake each other: keep the one with the
+  later `updatedAt`.
+- **Errors**: `INVENTORY_ERROR_CODES` appends `variant_group_not_found`,
+  `variant_already_exists` (with `field`, and `articleId` of the existing
+  variant), `invalid_variant_attributes` (with `field` and `errors[]`),
+  `variant_group_inactive` and `variant_limit`. `too_many_positions` now also
+  answers a variant request that would need more writes than fit into one
+  operation, with `field` (`variants`, `createMatrix`, or `externalIds` for
+  `addVariant`); nothing is written then.
+- **Contract**: `fixtures/v3/` pulled from the backend (stage 5c); the
+  vocabulary of `./stored` regenerated from it (fingerprint only, no schema
+  change for stored documents).
+
 ## 1.5.1
 
 Every call with an effect reports `outcome: 'unknown'` when it fails after

@@ -38,7 +38,7 @@ import type {
  * `purchasePriceMicros` nur mit dem Recht `costs` (Konto-Schalter
  * `lagerApi.kosten`, sonst fehlt das Feld, nicht `null`), `externalIds`,
  * `metadata`, `variantGroupId` und `variantAttributes` nur, wenn der Artikel
- * sie traegt.
+ * sie traegt (eine Variante, siehe [VariantGroup]).
  */
 export interface Article {
   id: string;
@@ -78,7 +78,14 @@ export interface Article {
   active: boolean;
   externalIds?: Record<string, string>;
   metadata?: Record<string, string>;
+  /** Nur an einer Variante: die Variantengruppe. Gesetzt nur ueber `createVariantGroup`/`addVariant`, nie umgehaengt. */
   variantGroupId?: string;
+  /**
+   * Nur an einer Variante: je Merkmal der Gruppe genau ein Wert
+   * (`{ farbe: 'rot', groesse: 'S' }`). Die Schluessel kommen nach Codepunkt
+   * sortiert, nicht in der Merkmalsreihenfolge der Gruppe; die steht in
+   * [VariantGroup.attributes].
+   */
   variantAttributes?: Record<string, string>;
   createdAt: string | null;
   updatedAt: string | null;
@@ -98,6 +105,12 @@ export interface ArticleListQuery {
    */
   updatedSince?: string | Date;
   groupId?: string;
+  /**
+   * Nur die Varianten dieser Gruppe (Backend ab Stufe 5c), wie ohne Filter
+   * nach `updatedAt` aufsteigend; mit `updatedSince` der Abgleich
+   * einer Gruppe. Die Artikel einer neuen Gruppe liest man so, die Antwort von
+   * `createVariantGroup` traegt nur ihre Kennungen.
+   */
   variantGroupId?: string;
   active?: boolean;
   stockTracked?: boolean;
@@ -397,7 +410,9 @@ export type InventoryWebhookEvent =
   | InventoryWebhookEnvelope<'article.deactivated', Article>
   | InventoryWebhookEnvelope<'reservation.expired', Reservation>
   | InventoryWebhookEnvelope<'reservation.released', Reservation>
-  | InventoryWebhookEnvelope<'reservation.redeemed', Reservation>;
+  | InventoryWebhookEnvelope<'reservation.redeemed', Reservation>
+  | InventoryWebhookEnvelope<'variant_group.created', VariantGroup>
+  | InventoryWebhookEnvelope<'variant_group.updated', VariantGroup>;
 
 // ---- Schreiben (Backend Stufe 5b, seit 1.5.0) ---------------------------------
 //
@@ -768,4 +783,164 @@ export interface InventoryShortfall {
   requested: number;
   /** Verfuegbar (`onHand − reserved`), Tausendstel; darf negativ sein. */
   available: number;
+}
+
+// ---- Varianten (Backend Stufe 5c, seit 1.6.0) -----------------------------------
+//
+// Eine Variante ist ein gewoehnlicher Artikel mit `variantGroupId` und
+// `variantAttributes`: eigene Kennung, eigener Code, eigener Bestand, eigene
+// Kachel an der Kasse. Die Gruppe haelt nur, was alle teilen (Name, Merkmale
+// mit ihren Werten, Vorgaben fuer neue Varianten) und die Liste ihrer aktiven
+// Varianten. Jede Kombination gibt es je Gruppe hoechstens einmal.
+
+/** Ein Merkmal einer Variantengruppe mit seinen Werten, in der Reihenfolge der Gruppe. */
+export interface VariantAttribute {
+  /** `^[a-z0-9_]{1,32}$`, eindeutig in der Gruppe; Schluessel in `variantAttributes`. */
+  key: string;
+  /** Beschriftung, 1–40 Zeichen, z. B. „Größe“. */
+  label: string;
+  /**
+   * 1–30 Werte zu je 1–30 Zeichen, eindeutig ohne Gross/Klein, getrimmt und in
+   * Unicode-NFC gespeichert. Werte kommen nur dazu (`addAttributeValues`), nie weg.
+   */
+  values: string[];
+}
+
+/**
+ * Vorgaben einer Gruppe: sie fuellen bei der **Anlage** einer Variante die
+ * Felder, die die Variante nicht selbst nennt. Ein spaeteres Aendern der
+ * Vorgaben aendert keine bestehende Variante (dafuer `updateArticle`).
+ * Ein Feld ohne Vorgabe fehlt.
+ */
+export interface VariantGroupDefaults {
+  unitPriceCents?: number;
+  vatRate?: number;
+  unit?: string;
+  groupId?: string;
+  /** Ohne Vorgabe gilt wie bei `createArticle` `false` (dann nicht reservierbar). */
+  stockTracked?: boolean;
+}
+
+/** Eine Variante in der Liste ihrer Gruppe. */
+export interface VariantGroupMember {
+  articleId: string;
+  /** Je Merkmal ein Wert, Schluessel nach Codepunkt sortiert. */
+  variantAttributes: Record<string, string>;
+}
+
+/**
+ * Eine Variantengruppe, wie `getVariantGroup`, `listVariantGroups`, die
+ * schreibenden Gruppenaufrufe und die Ereignisse `variant_group.*` sie senden.
+ */
+export interface VariantGroup {
+  id: string;
+  /** 1–100 Zeichen; Standardname einer Variante: „<Gruppe> <Wert1> <Wert2>“. */
+  name: string | null;
+  /** 1–3 Merkmale in der Reihenfolge der Gruppe (sie bestimmt den Standardnamen). */
+  attributes: VariantAttribute[];
+  defaults: VariantGroupDefaults;
+  /** `false` = stillgelegt: alle Varianten stillgelegt, kein `addVariant`, endgueltig. */
+  active: boolean;
+  /**
+   * Die aktiven Varianten einer aktiven Gruppe; eine einzeln stillgelegte
+   * Variante faellt heraus (ihre Kombination ist dann wieder frei). Beim
+   * Stilllegen der Gruppe wird die Liste eingefroren. Die Artikel selbst
+   * liest `listArticles({ variantGroupId })`.
+   */
+  variants: VariantGroupMember[];
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** Vorgaben in einer Anfrage. Bei der Anlage heisst `null` „nicht angegeben“, bei einer Aenderung „leeren“. */
+export interface VariantGroupDefaultsInput {
+  unitPriceCents?: number | null;
+  vatRate?: number | null;
+  unit?: string | null;
+  /** Artikelgruppe; unbekannt = `group_not_found` (bei einer Variante mit `field: 'defaults.groupId'`). */
+  groupId?: string | null;
+  stockTracked?: boolean | null;
+}
+
+/**
+ * Eine neue Variante: ihre Merkmalswerte und die Felder eines Artikels wie bei
+ * `createArticle`. Was fehlt (oder `null` ist), fuellen die Vorgaben der
+ * Gruppe; ohne `name` heisst sie „<Gruppe> <Wert1> <Wert2>“ in
+ * Merkmalsreihenfolge. Mit `ean` wird sie ein Fremdartikel, sonst vergibt der
+ * Server den naechsten eigenen Code.
+ */
+export interface VariantInput extends Omit<ArticleInput, 'name'> {
+  /**
+   * Jedes Merkmal der Gruppe genau einmal, Wert exakt aus der Werteliste
+   * (Gross/Klein und Leerraum werden nicht angeglichen), sonst
+   * `invalid_variant_attributes` mit `field`.
+   */
+  variantAttributes: Record<string, string>;
+  /** 1–200 Zeichen; ohne Angabe der Standardname. */
+  name?: string | null;
+}
+
+/**
+ * Legt eine Variantengruppe an, mit `createMatrix: true` samt allen
+ * Kombinationen (hoechstens 100) oder mit den genannten `variants[]`
+ * (hoechstens 100), nie beides. Ohne beides entsteht die Gruppe ohne Variante.
+ * Die Antwort traegt die Gruppe mit `variants[]` (Kennungen und Merkmale),
+ * nicht die Artikel.
+ */
+export interface CreateVariantGroupRequest {
+  idempotencyKey: string;
+  /** 1–100 Zeichen. */
+  name: string;
+  /** 1–3 Merkmale; ihre Reihenfolge bestimmt Standardnamen und Matrix (das erste laeuft aussen). */
+  attributes: VariantAttribute[];
+  defaults?: VariantGroupDefaultsInput | null;
+  /** `true`: alle Kombinationen der Werte als Varianten. Schliesst `variants` aus. */
+  createMatrix?: boolean;
+  variants?: VariantInput[];
+}
+
+/**
+ * Aendert eine aktive Gruppe: nur die genannten Felder, mindestens eines.
+ * `defaults` ist ein Teil-Update (`null` je Feld leert es, `defaults: null`
+ * alle). `addAttributeValues` haengt Werte an bestehende Merkmale an und
+ * uebergeht still, was es schon gibt (auch in anderer Gross-/Kleinschreibung):
+ * der Shop darf immer alle seine Werte senden. Werte entfernen und Merkmale
+ * ergaenzen gibt es nicht.
+ *
+ * `active: false` legt die Gruppe und alle ihre Varianten still, steht allein
+ * und ist endgueltig (`true` gibt es nicht). Eine stillgelegte Gruppe ergibt
+ * bei jeder anderen Aenderung `variant_group_inactive`.
+ */
+export interface UpdateVariantGroupRequest {
+  idempotencyKey: string;
+  variantGroupId: string;
+  name?: string;
+  defaults?: VariantGroupDefaultsInput | null;
+  /** `{ groesse: ['XL'] }`: hoechstens 30 Werte je Merkmal danach. */
+  addAttributeValues?: Record<string, string[]>;
+  active?: false;
+}
+
+/** Legt eine Variante in einer aktiven Gruppe an. Antwort: der Artikel wie `createArticle`. */
+export interface AddVariantRequest extends VariantInput {
+  idempotencyKey: string;
+  variantGroupId: string;
+}
+
+export interface VariantGroupListQuery {
+  active?: boolean;
+  /**
+   * Nur Gruppen, die seitdem geaendert wurden (inklusive). Die Liste ist nach
+   * `updatedAt` aufsteigend sortiert, gleiche Zeit nach Kennung.
+   */
+  updatedSince?: string | Date;
+  /** 1–200, Vorgabe des Servers 50. */
+  limit?: number;
+  cursor?: string;
+}
+
+export interface VariantGroupPage {
+  variantGroups: VariantGroup[];
+  /** `null` = letzte Seite. */
+  nextCursor: string | null;
 }

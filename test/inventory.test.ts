@@ -108,14 +108,15 @@ const ZUSTELLUNG: Json = daten('list_webhook_deliveries').deliveries[0];
 
 const AEUSSER = (namen: string[]) => namen.map((n) => (VOKABULAR.names as Record<string, string>)[n] ?? n);
 
-test('Lager-API: INVENTORY_ENDPOINTS sind die 27 Endpunkte von Stufe 5a und 5b in endpoints.public, in Vertragsreihenfolge', () => {
+test('Lager-API: INVENTORY_ENDPOINTS sind die 32 Endpunkte von Stufe 5a, 5b und 5c in endpoints.public, in Vertragsreihenfolge', () => {
   const oeffentlich = AEUSSER(VOKABULAR.endpoints.public as string[]);
   const start = oeffentlich.indexOf('getArticle');
   assert.ok(start > 0, 'getArticle fehlt im Vertrag');
-  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 27));
-  assert.equal(INVENTORY_ENDPOINTS.length, 27);
+  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 32));
+  assert.equal(INVENTORY_ENDPOINTS.length, 32);
   assert.equal(INVENTORY_ENDPOINTS[13], 'listWebhookDeliveries');
-  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'listReservations');
+  assert.equal(INVENTORY_ENDPOINTS[26], 'listReservations');
+  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'addVariant');
   for (const name of INVENTORY_ENDPOINTS) {
     assert.ok((PUBLIC_CALLS as readonly string[]).includes(name), `${name} fehlt in PUBLIC_CALLS`);
     assert.ok((ALL_CALLS as readonly string[]).includes(name), `${name} fehlt in ALL_CALLS`);
@@ -168,10 +169,12 @@ test('Lager-API: die Wertlisten sind die Kataloge des Vertrags (aussen, in Katal
 });
 
 test('Lager-API: INVENTORY_WEBHOOK_EVENTS sind genau die Konto-Ereignisse des Vertrags, in der Reihenfolge von listWebhooks', () => {
-  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => /^(stock|article|reservation)\./.test(e));
+  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => /^(stock|article|reservation|variant_group)\./.test(e));
   assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS].sort(), imVertrag.sort());
   assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS], daten('list_webhooks').events);
-  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-3), ['reservation.expired', 'reservation.released', 'reservation.redeemed']);
+  // Angehaengt wird hinten: 5b die Reservierung, 5c die Variantengruppen.
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(5, 8), ['reservation.expired', 'reservation.released', 'reservation.redeemed']);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-2), ['variant_group.created', 'variant_group.updated']);
   assert.deepEqual([...INVENTORY_WEBHOOK_ENVELOPE_FIELDS], ['id', 'type', 'createdAt', 'accountId', 'test', 'data']);
 });
 
@@ -249,6 +252,11 @@ const RUFE: Record<string, (l: Lager, p: Json) => Promise<unknown>> = {
   releaseReservation: (l, p) => l.releaseReservation(p as never),
   getReservation: (l, p) => l.getReservation(p['reservationId']),
   listReservations: (l, p) => l.listReservations(p),
+  createVariantGroup: (l, p) => l.createVariantGroup(p as never),
+  updateVariantGroup: (l, p) => l.updateVariantGroup(p as never),
+  getVariantGroup: (l, p) => l.getVariantGroup(p['variantGroupId']),
+  listVariantGroups: (l, p) => l.listVariantGroups(p),
+  addVariant: (l, p) => l.addVariant(p as never),
 };
 
 /**
@@ -260,6 +268,7 @@ const VOR_DEM_SENDEN: Record<string, string> = {
   error_create_article_idempotency_key_required: 'idempotencyKey fehlt',
   error_receive_goods_validation: 'quantity 1.5 ist keine Ganzzahl (Tausendstel)',
   error_create_reservation_validation: 'expiresInMinutes 2 liegt unter 5',
+  error_create_variant_group_validation: 'createMatrix true zusammen mit variants',
 };
 
 test('Vertrag antworten/lager.json: jeder Endpunkt kommt vor, jeder Fall laeuft durch den Client', async () => {
@@ -311,7 +320,7 @@ test('Vertrag antworten/lager.json: Zustellungen und Webhooks tragen die Namen d
 test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisiert', () => {
   const ereignisse = LAGER.webhookEvents as Json[];
   assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), [...INVENTORY_WEBHOOK_EVENTS].sort());
-  for (const { event, body } of ereignisse.filter((e) => e.event.startsWith('reservation.'))) {
+  for (const { event, body } of ereignisse.filter((e) => /^(reservation|variant_group)\./.test(e.event))) {
     for (const k of schluessel(VOKABULAR.events[event].data)) assert.ok(k in body.data, `${event}.${k}`);
   }
   for (const { event, body } of ereignisse) {
@@ -329,7 +338,7 @@ test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisi
   assert.ok(zugang.every((c: string) => (STOCK_CHANGE_CAUSES as readonly string[]).includes(c)), zugang.join());
 });
 
-test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_user_not_allowed), 5a-Reihenfolge vorn, 5b hinten', () => {
+test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_user_not_allowed), 5a-Reihenfolge vorn, 5b und 5c hinten', () => {
   const alle = new Set(VOKABULAR.errorCodes.all as string[]);
   assert.deepEqual(INVENTORY_ERROR_CODES.filter((c) => !alle.has(c)), []);
   const vertrag = (VOKABULAR.errorCodes.inventory as string[]).filter((c) => c !== 'register_user_not_allowed');
@@ -340,6 +349,11 @@ test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_use
     'event_not_subscribed', 'webhook_inactive', 'inventory_api_not_enabled', 'module_inactive', 'rate_limited', 'server_error',
   ]);
   assert.deepEqual(INVENTORY_ERROR_CODES.slice(12), vertrag.slice(vertrag.indexOf('server_error') + 1));
+  // 5c haengt hinter 5b an (die Reihenfolge der 1.5-Codes bleibt).
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(-6), [
+    'reservation_not_active', 'variant_group_not_found', 'variant_already_exists', 'invalid_variant_attributes',
+    'variant_group_inactive', 'variant_limit',
+  ]);
   // Hinweise sind nie Fehler.
   for (const w of INVENTORY_WARNING_CODES) assert.ok(!(INVENTORY_ERROR_CODES as readonly string[]).includes(w), w);
   // Jeder Fehlercode, den ein Vertragsfall der Lager-API zeigt, steht im Katalog oder bei den Anfragecodes.
@@ -741,7 +755,8 @@ test('parseInventoryWebhookEvent: stock.below_minimum und article.* (Artikel wie
 });
 
 test('parseInventoryWebhookEvent: unbekannter Typ ist null (2xx antworten und uebergehen), kaputter Rumpf wirft', () => {
-  assert.equal(parseInventoryWebhookEvent(huelle('variant_group.updated', { variantGroupId: 'vg1' })), null);
+  // Seit 1.6.0 kennt das Paket variant_group.*; ein Ereignis einer spaeteren Stufe bleibt null.
+  assert.equal(parseInventoryWebhookEvent(huelle('price_list.updated', { priceListId: 'pl1' })), null);
   for (const kaputt of ['', 'kein json', '[]', '{"type":"stock.changed"}', huelle('stock.changed', { ...STOCK_CHANGED, onHand: 1.5 }),
     huelle('stock.changed', { ...STOCK_CHANGED, sequence: undefined }), huelle('stock.below_minimum', { ...UNTER_MINDEST, minStock: '5000' })]) {
     assert.throws(() => parseInventoryWebhookEvent(kaputt), KasseneckValidationError, kaputt);

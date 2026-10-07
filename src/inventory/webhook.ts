@@ -16,7 +16,7 @@
 
 import { KasseneckValidationError } from '../client/errors.js';
 import { verifyWebhookSignature as pruefeSignatur } from '../partner/webhook-signatur.js';
-import { artikel, bestandGeaendert, objekt, reservierung, unterMindestbestand } from './lesen.js';
+import { artikel, bestandGeaendert, objekt, reservierung, unterMindestbestand, variantengruppe } from './lesen.js';
 import { INVENTORY_WEBHOOK_EVENTS, type InventoryWebhookEventType } from './vertrag.js';
 import type { InventoryWebhookEvent } from './typen.js';
 
@@ -79,10 +79,13 @@ function kaputt(grund: string): KasseneckValidationError {
  * Liest eine Zustellung als typisiertes Ereignis. Vorher die Signatur pruefen
  * ([verifyInventoryWebhookSignature]).
  *
- * - Ein Ereignis, das diese Paketversion nicht kennt (etwa `variant_group.*`
- *   einer spaeteren Stufe), ergibt `null`: mit 2xx antworten und uebergehen.
+ * - Ein Ereignis, das diese Paketversion nicht kennt (eines einer spaeteren
+ *   Stufe), ergibt `null`: mit 2xx antworten und uebergehen.
  * - `reservation.expired|released|redeemed` tragen die Reservierung wie
  *   `getReservation`, mit dem Status nach dem Vorgang (seit 1.5.0).
+ * - `variant_group.created|updated` tragen die Gruppe wie `getVariantGroup`
+ *   (seit 1.6.0). Zwei Zustellungen koennen sich ueberholen: den Stand nur
+ *   uebernehmen, wenn `data.updatedAt` neuer ist als der gespeicherte.
  * - Ein Rumpf, der keine Huelle ist, oder eine Bruchzahl in einer Menge wirft
  *   `KasseneckValidationError` (`scope: 'response'`).
  *
@@ -117,6 +120,9 @@ export function parseInventoryWebhookEvent(rawBody: string | Uint8Array): Invent
     case 'reservation.released':
     case 'reservation.redeemed':
       return { ...huelle, type: huelle.type, data: reservierung(ort, data) };
+    case 'variant_group.created':
+    case 'variant_group.updated':
+      return { ...huelle, type: huelle.type, data: variantengruppe(ort, data) };
     default:
       return { ...huelle, type: huelle.type, data: artikel(ort, data) };
   }

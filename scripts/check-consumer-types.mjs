@@ -41,7 +41,7 @@ import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSetting
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { createInvoiceApi, INVOICE_ERROR_CODES, type IssueInvoiceItemInput, type IssueInvoiceRequest, type Invoice, type InvoiceVatIdProof } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
-import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest } from '@kreiseck/kasseneck-api/inventory';
+import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, VARIANT_MATRIX_MAX, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest, type VariantGroup, type AddVariantRequest, type Article } from '@kreiseck/kasseneck-api/inventory';
 // 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
 // ./rechnung -> ./invoice, ./rechnung/rechnen -> ./invoice/calc). Loest einer
 // wieder auf, meldet tsc die unbenutzte Erwartung.
@@ -111,6 +111,20 @@ const lagerR = parseInventoryWebhookEvent('{}');
 export const lagerStand: string | null = lagerR && lagerR.type === 'reservation.expired' ? lagerR.data.status : null;
 export const fehlmenge: number = inventoryShortfalls(null)[0]?.available ?? 0;
 export const reservierungsStaende: readonly string[] = RESERVATION_STATUSES;
+// ./inventory Varianten (1.6.0): Gruppe mit Matrix, Variante als Artikel, Ereignis typisiert.
+export const gruppe: Promise<VariantGroup> = lager.createVariantGroup({
+  idempotencyKey: 'shop-gruppe-1', name: 'Schürze', attributes: [{ key: 'groesse', label: 'Größe', values: ['S', 'M'] }], createMatrix: true,
+});
+const variante: AddVariantRequest = { idempotencyKey: 'shop-variante-1', variantGroupId: 'vg_1', variantAttributes: { groesse: 'L' } };
+export const varianteArtikel: Promise<Article> = lager.addVariant(variante);
+export const stillgelegt: Promise<VariantGroup> = lager.updateVariantGroup({ idempotencyKey: 'shop-gruppe-1-aus', variantGroupId: 'vg_1', active: false });
+// @ts-expect-error eine stillgelegte Gruppe laesst sich nicht wieder aktivieren
+export const reaktiviert = lager.updateVariantGroup({ idempotencyKey: 'k', variantGroupId: 'vg_1', active: true });
+// @ts-expect-error ohne idempotencyKey keine Variante
+export const ohneSchluesselVariante = lager.addVariant({ variantGroupId: 'vg_1', variantAttributes: { groesse: 'L' } });
+const lagerV = parseInventoryWebhookEvent('{}');
+export const gruppenStand: string | null = lagerV && lagerV.type === 'variant_group.updated' ? lagerV.data.updatedAt : null;
+export const matrixGrenze: number = VARIANT_MATRIX_MAX;
 export const rechnungsPosition: IssueInvoiceItemInput = { description: 'Kaisersemmel', quantity: 6, unitPriceCents: 65, vatRate: 10, articleId: 'kaisersemmel', reservationId: 'res_1' };
 // UID-Pruefung beim Ausstellen ohne Steuer: Risiko uebernehmen, Nachweis lesen.
 export const mitRisiko: Pick<IssueInvoiceRequest, 'acceptVatIdRisk'> = { acceptVatIdRisk: true };

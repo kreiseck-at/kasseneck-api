@@ -78,6 +78,7 @@ test('Einordnung: die Liste mit Wirkung ist sortiert und ohne Doppel, die Gruend
   for (const n of [
     'createArticle', 'updateArticle', 'deactivateArticle', 'receiveGoods', 'transferStock', 'recordStockLoss',
     'changeStockCondition', 'reverseStockMovement', 'createReservation', 'extendReservation', 'releaseReservation',
+    'createVariantGroup', 'updateVariantGroup', 'addVariant',
     'createWebhook', 'updateWebhook', 'deleteWebhook', 'rotateWebhookSecret', 'sendWebhookTest',
     'issueInvoice', 'cancelInvoice', 'createCreditNote', 'recordInvoicePayment', 'createCustomer', 'updateCustomer',
     'createInvoiceItem', 'updateInvoiceItem', 'withdrawInvoiceItem', 'setCustomerMandate', 'revokeCustomerMandate',
@@ -168,6 +169,10 @@ const FAELLE: Array<[string, ErrorOutcome, (h: Huellen) => Promise<unknown>, str
   ['reservierung: createReservation', 'unknown', (h) => h.lager.createReservation(lagerParams('create_reservation') as never), 'createReservation null'],
   ['reservierung: extendReservation', 'unknown', (h) => h.lager.extendReservation(lagerParams('extend_reservation') as never), 'extendReservation null'],
   ['reservierung: releaseReservation', 'unknown', (h) => h.lager.releaseReservation(lagerParams('release_reservation') as never), 'releaseReservation null'],
+  // Varianten mit Wirkung (1.6.0)
+  ['varianten: createVariantGroup', 'unknown', (h) => h.lager.createVariantGroup(lagerParams('create_variant_group_matrix') as never), 'createVariantGroup null'],
+  ['varianten: updateVariantGroup', 'unknown', (h) => h.lager.updateVariantGroup(lagerParams('update_variant_group_deactivate') as never), 'updateVariantGroup null'],
+  ['varianten: addVariant', 'unknown', (h) => h.lager.addVariant(lagerParams('add_variant') as never), 'addVariant null'],
   // Rechnung mit Wirkung
   ['rechnung: issueInvoice', 'unknown', (h) => h.rechnung.issueInvoice(RECHNUNG_ANFRAGE() as never), 'issueInvoice null'],
   ['rechnung: cancelInvoice', 'unknown', (h) => h.rechnung.cancelInvoice({ idempotencyKey: 'storno-7', invoiceId: 'inv_beispiel' } as never), 'cancelInvoice null'],
@@ -177,6 +182,8 @@ const FAELLE: Array<[string, ErrorOutcome, (h: Huellen) => Promise<unknown>, str
   // Lesen
   ['lesen: getStock', 'rejected', (h) => h.lager.getStock('roggenbrot'), 'getStock null'],
   ['lesen: getReservation', 'rejected', (h) => h.lager.getReservation('auto43'), 'getReservation null'],
+  ['lesen: getVariantGroup', 'rejected', (h) => h.lager.getVariantGroup('auto61'), 'getVariantGroup null'],
+  ['lesen: listVariantGroups', 'rejected', (h) => h.lager.listVariantGroups({ active: true }), 'listVariantGroups null'],
   ['lesen: getInvoice', 'rejected', (h) => h.rechnung.getInvoice({ invoiceId: 'inv_beispiel' }), 'getInvoice null'],
   ['lesen: listInvoices', 'rejected', (h) => h.rechnung.listInvoices(), 'listInvoices null'],
   // Probelauf unter dem Namen des echten Aufrufs
