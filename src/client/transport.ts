@@ -133,16 +133,16 @@ export interface TransportOptions {
   auth: KasseneckAuth;
   /**
    * Abweichende Basis der **oeffentlichen** Aufrufe (Vorgabe
-   * [DEFAULT_BASE_URL]): alles ausser den 28 Aufrufen des Kassenwegs, und die
+   * [DEFAULT_BASE_URL]): alles ausser den 33 Aufrufen des Kassenwegs, und die
    * sechs oeffentlichen davon nur, wenn nicht mit `registerUserAuth`
    * angemeldet. Muss auf `/v3` enden (eigene Proxys erlaubt), sonst wirft das
    * Anlegen; `/v1` oder `/api` gibt es in der 1.x-Linie nicht.
    */
   baseUrl?: string;
   /**
-   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 22
+   * Abweichende Basis des **Kassenwegs** (Vorgabe [POS_BASE_URL]): die 27
    * reinen Kassenaufrufe (Kopplung, Anmeldung, Einstellungen, Artikel,
-   * Drucker, ...) und mit `registerUserAuth` alle 28 Aufrufe des Kassenwegs.
+   * Drucker, ...) und mit `registerUserAuth` alle 33 Aufrufe des Kassenwegs.
    * Die Web-Kasse gibt `'/api/v3'` (gleicher Ursprung). Muss auf `/v3` enden
    * (in der Regel `/api/v3`), sonst wirft das Anlegen.
    */
@@ -297,7 +297,29 @@ export function createBinaryTransport(options: TransportOptions): KasseneckBinar
 }
 
 /**
- * Gemeinsamer Kern beider Einstiegspunkte: Anmeldung, Zeitlimit, Anfrage und
+ * Ergebnis eines Aufrufs, der eine Datei **oder** eine Nutzlast liefert: das
+ * PDF als Bytes oder die `data` einer Erfolgshuelle (etwa ein Lese-Link, wenn
+ * die Datei zu gross fuer die Antwort ist).
+ */
+export type PdfOrData = { pdf: Uint8Array } | { data: unknown };
+
+/**
+ * Wie [createBinaryTransport], nur nimmt er neben dem PDF auch eine
+ * Erfolgshuelle an und reicht deren `data` weiter (Inventurprotokoll: bis
+ * 9 MiB als Datei, darueber als signierter Lese-Link). Gelesen wird wie dort
+ * nur als Bytes; ob es ein PDF ist, entscheiden die ersten Bytes. Paketintern,
+ * nicht Teil der Oberflaeche.
+ */
+export function createPdfOrDataTransport(
+  options: TransportOptions,
+): (functionName: string, params?: Record<string, unknown>) => Promise<PdfOrData> {
+  const kern = createCore(options);
+  return (functionName: string, params?: Record<string, unknown>) =>
+    kern<Uint8Array, PdfOrData>(functionName, params, undefined, undefined, undefined, alsBytes, pdfOderDatenAuswerten);
+}
+
+/**
+ * Gemeinsamer Kern aller Einstiegspunkte: Anmeldung, Zeitlimit, Anfrage und
  * HTTP-Status. Was danach mit dem Rumpf geschieht, entscheiden `lesen` und
  * `auswerten`.
  */
@@ -312,9 +334,9 @@ function createCore(options: TransportOptions) {
   const kopfzeilenSenden = options.omitKasseneckHeaders !== true;
 
   /**
-   * Basis je Aufruf. Die 22 reinen Kassenaufrufe gehen immer an den
+   * Basis je Aufruf. Die 27 reinen Kassenaufrufe gehen immer an den
    * Kassenweg (unter der oeffentlichen Basis gibt es sie nicht), und die
-   * Kassen-Anmeldung ruft alle 28 Aufrufe des Kassenwegs dort, auch die sechs
+   * Kassen-Anmeldung ruft alle 33 Aufrufe des Kassenwegs dort, auch die sechs
    * oeffentlichen (Kanal `app`). Was der Kassenweg gar nicht fuehrt
    * (Berichte, Zahlungen, FinanzOnline), geht an die oeffentliche Basis.
    */
@@ -694,6 +716,27 @@ function pdfAuswerten(
   // Derselbe fachliche Fehler wie auf dem JSON-Weg — fuer den Aufrufer macht
   // es keinen Unterschied, ob er ein PDF oder eine Nutzlast erwartet hat.
   throw fachfehler(functionName, huelle.message, huelle.data, geheimnisse, huelle.code);
+}
+
+/**
+ * Auswertung von [createPdfOrDataTransport]: ein PDF geht als Bytes zurueck,
+ * eine Erfolgshuelle als ihre `data`, eine Fehlerhuelle als derselbe
+ * fachliche Fehler wie auf dem JSON-Weg. Alles andere (leer, kein JSON, ohne
+ * Statusfeld) ist unlesbar mit denselben Gruenden wie dort.
+ */
+function pdfOderDatenAuswerten(
+  bytes: Uint8Array,
+  functionName: string,
+  statusCode: number,
+  inhaltstyp: string | undefined,
+  geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
+): PdfOrData {
+  if (istPdf(bytes)) {
+    return { pdf: bytes };
+  }
+  const text = new TextDecoder('utf-8').decode(bytes);
+  return { data: jsonAuswerten<unknown>(text, functionName, statusCode, inhaltstyp, geheimnisse, unlesbar) };
 }
 
 /** `%PDF` am Anfang — die Kennung jeder PDF-Datei. */

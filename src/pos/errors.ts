@@ -2,12 +2,13 @@ import { KasseneckApiError } from '../client/errors.js';
 
 /**
  * Fehler der Kassen-Aufrufe um den Verkauf herum (Einstellungen, Logo,
- * Artikel, Drucker, Trinkgeld-Empfaenger, Lager) auswerten: am `code`, nie am Text.
+ * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen) auswerten:
+ * am `code`, nie am Text.
  * Belege, Storno und Belegmail haben eigene Listen (`RECEIPT_ERROR_CODES`,
  * `CANCELLATION_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`), die Anmeldung
  * `REGISTER_ERROR_CODES` im Unterpfad `./register`.
  *
- * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser dreizehn Endpunkte in
+ * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser achtzehn Endpunkte in
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).
@@ -24,13 +25,25 @@ export const POS_ERROR_CODES = Object.freeze([
   'account_not_found',
   'admin_required',
   'api_not_approved',
+  'app_check_invalid',
+  'app_check_missing',
+  'article_not_found',
+  'article_not_in_scope',
+  'article_not_tracked',
   'cashregister_not_assigned',
   'cashregister_not_found',
   'cashregister_token_invalid',
   'cashregister_token_missing',
+  'count_already_voided',
+  'count_not_found',
   'device_not_found',
   'dialect_mismatch',
+  'idempotency_conflict',
+  'idempotency_key_required',
   'internal_translation_error',
+  'invalid_cursor',
+  'invalid_quantity',
+  'invalid_serial',
   'live_not_enabled',
   'location_inactive',
   'location_not_found',
@@ -49,9 +62,17 @@ export const POS_ERROR_CODES = Object.freeze([
   'register_user_not_allowed',
   'register_user_not_found',
   'response_translation_failed',
+  'serial_already_counted',
+  'serial_not_allowed',
+  'serial_required',
   'server_error',
   'session_expired',
   'session_other_cashregister',
+  'stocktake_closed',
+  'stocktake_closing',
+  'stocktake_not_found',
+  'stocktake_not_open',
+  'too_many_counts',
   'unauthorized',
   'user_disabled',
   'user_verification_failed',

@@ -12,7 +12,7 @@
  * weiterhin jeden `string`: wer einen Aufruf braucht, den dieses Paket nicht
  * umhuellt, muss ihn weiterhin absetzen koennen.
  */
-import type { TransportBodyFields, TransportCallOptions } from './transport.js';
+import type { PdfOrData, TransportBodyFields, TransportCallOptions } from './transport.js';
 
 export const ALL_CALLS = [
   'activateCashregister',
@@ -121,6 +121,25 @@ export const ALL_CALLS = [
   'getVariantGroup',
   'listVariantGroups',
   'addVariant',
+  // Lager-API Inventur (Lager-Kern Stufe 3, ./inventory)
+  'createStocktake',
+  'listStocktakes',
+  'getStocktake',
+  'listStocktakeItems',
+  'recordStocktakeCount',
+  'voidStocktakeCount',
+  'listStocktakeCounts',
+  'reviewStocktake',
+  'recountStocktake',
+  'closeStocktake',
+  'cancelStocktake',
+  'getStocktakePdf',
+  // Inventur zaehlen an der Kasse (Lager-Kern Stufe 3, ./pos)
+  'listMyStocktakes',
+  'listMyStocktakeItems',
+  'listMyStocktakeCounts',
+  'recordMyStocktakeCount',
+  'voidMyStocktakeCount',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -230,6 +249,19 @@ export const PUBLIC_CALLS = [
   'getVariantGroup',
   'listVariantGroups',
   'addVariant',
+  // Lager-API Inventur (Lager-Kern Stufe 3), umhuellt in `./inventory`.
+  'createStocktake',
+  'listStocktakes',
+  'getStocktake',
+  'listStocktakeItems',
+  'recordStocktakeCount',
+  'voidStocktakeCount',
+  'listStocktakeCounts',
+  'reviewStocktake',
+  'recountStocktake',
+  'closeStocktake',
+  'cancelStocktake',
+  'getStocktakePdf',
 ] as const;
 
 /**
@@ -268,6 +300,12 @@ export const POS_CALLS = [
   'listMyStockLocations',
   'listMyStock',
   'setMyCashregisterStockLocation',
+  // Inventur zaehlen (Lager-Kern Stufe 3): nur ueber den Kassenweg.
+  'listMyStocktakes',
+  'listMyStocktakeItems',
+  'listMyStocktakeCounts',
+  'recordMyStocktakeCount',
+  'voidMyStocktakeCount',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -296,7 +334,9 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'addVariant',
   'cancelInvoice',
   'cancelReceipt',
+  'cancelStocktake',
   'changeStockCondition',
+  'closeStocktake',
   'createArticle',
   'createCreditNote',
   'createCustomer',
@@ -307,6 +347,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'createPrintJob',
   'createReceipt',
   'createReservation',
+  'createStocktake',
   'createVariantGroup',
   'createWebhook',
   'deactivateArticle',
@@ -320,11 +361,15 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'pairRegisterDevice',
   'receiveGoods',
   'recordInvoicePayment',
+  'recordMyStocktakeCount',
   'recordStockLoss',
+  'recordStocktakeCount',
+  'recountStocktake',
   'releaseReservation',
   'reportCustomerContract',
   'requestCustomerSignature',
   'reverseStockMovement',
+  'reviewStocktake',
   'revokeCustomerMandate',
   'rotatePartnerWebhookSecret',
   'rotateWebhookSecret',
@@ -346,6 +391,8 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'updatePartnerWebhook',
   'updateVariantGroup',
   'updateWebhook',
+  'voidMyStocktakeCount',
+  'voidStocktakeCount',
   'withdrawInvoiceItem',
 ] as const;
 
@@ -404,6 +451,8 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getReportV2: 'read',
   getReservation: 'read',
   getStock: 'read',
+  getStocktake: 'read',
+  getStocktakePdf: 'read',
   getVariantGroup: 'read',
   hobexGetStatus: 'read',
   listArticles: 'read',
@@ -419,6 +468,9 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   listMyReceipts: 'read',
   listMyStock: 'read',
   listMyStockLocations: 'read',
+  listMyStocktakeCounts: 'read',
+  listMyStocktakeItems: 'read',
+  listMyStocktakes: 'read',
   listMyTipRecipients: 'read',
   listPartnerCustomers: 'read',
   listPartnerWebhookDeliveries: 'read',
@@ -428,6 +480,9 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   listReservations: 'read',
   listStock: 'read',
   listStockMovements: 'read',
+  listStocktakeCounts: 'read',
+  listStocktakeItems: 'read',
+  listStocktakes: 'read',
   listVariantGroups: 'read',
   listWebhookDeliveries: 'read',
   listWebhooks: 'read',
@@ -455,13 +510,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 28 Aufrufe des Kassenwegs. */
+/** Einer der 33 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (22 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (27 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */
@@ -483,3 +538,9 @@ export type InternerBinaerTransport = (
   functionName: ApiCall,
   params?: Record<string, unknown>,
 ) => Promise<Uint8Array>;
+
+/** Wie `createPdfOrDataTransport` (transport.ts), nur mit bekanntem Aufrufnamen. */
+export type InternerPdfOderDatenTransport = (
+  functionName: ApiCall,
+  params?: Record<string, unknown>,
+) => Promise<PdfOrData>;

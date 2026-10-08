@@ -279,6 +279,8 @@ export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
   'account_not_found',
   'live_not_enabled',
   'api_not_approved',   // Live-API ohne Freigabe (Entwicklerbereich): vor dem Handler abgewiesen
+  'app_check_missing',  // Admin-App ohne bzw. mit ungueltigem App Check: vor dem Handler abgewiesen
+  'app_check_invalid',
   'unauthorized',
   'mfa_required',
   'user_verification_failed',

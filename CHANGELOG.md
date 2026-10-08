@@ -4,6 +4,94 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.8.0
+
+Stocktake (Lager-Kern stage 3): `./inventory` gains the twelve stocktake
+endpoints of the inventory API, `./pos` the five calls for counting at the
+register. Reason: a business that counts its stock had only the old
+"set the stock to this number" adjustment, which knows no expected quantity
+at the time of the count, no several counts per article, no blind count and
+no record. The backend now runs a stocktake as its own process (count, review,
+recount, close in parts, PDF record with the state of the ledger seal), and
+shops, the web register and the app need it through the package.
+
+Additive at runtime; existing calls send the same bytes as in 1.7.1. As in
+1.6.0, the unions `InventoryEndpoint`, `InventoryErrorCode`,
+`InventoryWarningCode`, `PosErrorCode`, `ApiCall`, `PublicCall`, `PosCall`,
+`MessageKey`, `LabelKey` and the error code unions derived from the
+authentication codes (see Contract below) gain members, so an exhaustive `switch` with a
+`never` check needs the new cases.
+
+- **Inventory API**: `createStocktake`, `listStocktakes`/`iterateStocktakes`
+  (without `updatedSince` the most recently changed first; with `updatedSince`
+  sorted by `updatedAt` ascending and inclusive, like `listArticles`),
+  `getStocktake` (with `progress.counted`), `listStocktakeItems`/
+  `iterateStocktakeItems` (`openOnly`), `recordStocktakeCount`,
+  `voidStocktakeCount`, `listStocktakeCounts`/`iterateStocktakeCounts`,
+  `reviewStocktake`, `recountStocktake`, `closeStocktake` (answers
+  `{ stocktake, warnings }`), `cancelStocktake` and `getStocktakePdf`. Models
+  `Stocktake`, `StocktakeItem`, `StocktakeCount` and their parts; the result
+  fields of a closed stocktake (`totals`, `warnings`, `seal`, `checksum`,
+  `inventoryAsOf`, `pdf`) and the expected quantity of an item
+  (`expectedQuantity`, `differenceQuantity`, `needsCheck` …) are present only
+  when the server sends them: never before `review` (blind), values only with
+  `costs`. A missing count, quantity or round is a response error, never `0`.
+- **The record**: `getStocktakePdf` returns `{ kind: 'pdf', pdf }` (the bytes,
+  up to 9 MiB) or `{ kind: 'download', download: { url, expiresAt, sizeBytes,
+  sha256, fileName, contentType } }` (a signed link for 15 minutes above
+  that). It reads the answer as bytes like the report downloads and accepts
+  either a PDF or a success envelope.
+- **Counting at the register** (`./pos`, register path only):
+  `listMyStocktakes`, `listMyStocktakeItems`, `listMyStocktakeCounts`,
+  `recordMyStocktakeCount`, `voidMyStocktakeCount`, with the same models.
+  `parseQuantityMilli(text, unit)` turns the typed quantity into thousandths
+  without floating point (comma or point, at most three decimals, whole
+  numbers without separator for piece units, otherwise `null`); its cases are
+  shared with the Dart twin in the new `fixtures/stocktake-quantity-cases.json`.
+  Messages and labels `stocktake.*` for the counting screen in the catalogue
+  (`fixtures/pos-texts.json`).
+- **Idempotency and outcome**: every write takes `idempotencyKey` (refused
+  before sending without a valid one). `createStocktake`, `recordStocktakeCount`,
+  `voidStocktakeCount`, `reviewStocktake`, `recountStocktake`, `closeStocktake`,
+  `cancelStocktake`, `recordMyStocktakeCount` and `voidMyStocktakeCount` are in
+  `UNKNOWN_OUTCOME_CALLS`: after `outcome: 'unknown'` resend with the **same**
+  key, a count is then counted once. The eight reads are in the list without
+  effect.
+- **Checked before sending**, nothing else: the key, `stocktakeId`,
+  `articleId`, `countId`, `locationId`, `scope` as an object, an integer
+  `quantity`, a non-empty `reason`, a non-empty `items` list with `articleId`
+  for a recount, `serialNumbers` as a list, `uncountedAsZero` as a boolean.
+  The limits (5000 items, 200 per recount, 200 counts per item and round) are
+  left to the server and exported as `STOCKTAKE_ITEMS_MAX`,
+  `STOCKTAKE_RECOUNT_ITEMS_MAX`, `STOCKTAKE_COUNTS_PER_ITEM_MAX`.
+- **Catalogues**: `STOCKTAKE_STATUSES`, `STOCKTAKE_TYPES`,
+  `STOCKTAKE_SCOPE_TYPES`, `STOCKTAKE_CHECK_REASONS`,
+  `STOCKTAKE_NOT_BOOKED_REASONS`, `STOCKTAKE_SOURCES`, `STOCKTAKE_ACTOR_TYPES`,
+  `STOCKTAKE_INVENTORY_AS_OF`, each the contract catalogue in its order.
+- **Errors**: `INVENTORY_ERROR_CODES` appends `stocktake_not_found`,
+  `stocktake_not_open`, `stocktake_closed`, `stocktake_not_in_review`,
+  `stocktake_closing`, `stocktake_location_busy` (with `data.stocktakeId`, read
+  by the new `inventoryBusyStocktakeId(error)`), `stocktake_review_running`,
+  `stocktake_recount_open`, `article_not_in_scope`, `article_not_tracked`,
+  `count_not_found`, `count_already_voided`, `serial_already_counted`,
+  `too_many_counts` and `stocktake_not_closed`; `INVENTORY_WARNING_CODES`
+  appends `defect_capped`, `uncounted_items`, `not_booked` and
+  `recount_uncounted`. `POS_ERROR_CODES` gains the codes of the five register
+  calls.
+- **Contract**: `fixtures/v3/` pulled from the backend at the state of the
+  stocktake (keck #633, #634); the vocabulary of `./stored` regenerated
+  (fingerprint only). The contract also lists `app_check_missing` and
+  `app_check_invalid` among the authentication codes (App Check of the admin
+  app, refused before any handler); every list derived from them gains both:
+  `RECEIPT_ERROR_CODES`, `CANCELLATION_ERROR_CODES`,
+  `RECEIPT_EMAIL_ERROR_CODES`, `PAYMENT_ERROR_CODES`, `REGISTER_ERROR_CODES`,
+  `POS_ERROR_CODES`, `INVOICE_REQUEST_ERROR_CODES`,
+  `INVENTORY_REQUEST_ERROR_CODES` (and their unions) and
+  `PAYMENT_CALL_REJECTED_CODES`, so they stay `rejected` on the money calls
+  (the Dart twin's `paymentCallRejectedCodes` follows).
+- **Counts**: `PUBLIC_CALLS` 92 → 104, `POS_CALLS` 28 → 33 (27 register-only
+  names).
+
 ## 1.7.1
 
 `ReceiptSheetLines` pins `letter-spacing` and `word-spacing` to 0. Reason:

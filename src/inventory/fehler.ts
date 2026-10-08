@@ -82,3 +82,14 @@ const HINWEISE: ReadonlySet<string> = new Set<string>(INVENTORY_WARNING_CODES);
 export function isInventoryWarningCode(value: unknown): value is InventoryWarningCode {
   return typeof value === 'string' && HINWEISE.has(value);
 }
+
+/**
+ * Die Inventur, die einen Standort belegt (`stocktake_location_busy`,
+ * `data.stocktakeId`): weiterzaehlen statt neu anlegen. `undefined`, wenn der
+ * Fehler ein anderer ist oder der Server keine Kennung nennt.
+ */
+export function inventoryBusyStocktakeId(error: unknown): string | undefined {
+  if (inventoryErrorCode(error) !== 'stocktake_location_busy') return undefined;
+  const wert = (error as KasseneckApiError).details['stocktakeId'];
+  return typeof wert === 'string' && wert !== '' ? wert : undefined;
+}

@@ -24,6 +24,14 @@ import type {
   StockLossReason,
   StockMovementSource,
   StockMovementType,
+  StocktakeActorType,
+  StocktakeCheckReason,
+  StocktakeInventoryAsOf,
+  StocktakeNotBookedReason,
+  StocktakeScopeType,
+  StocktakeSource,
+  StocktakeStatus,
+  StocktakeType,
   WebhookDeliveryStatus,
   WithdrawalType,
 } from './vertrag.js';
@@ -944,3 +952,442 @@ export interface VariantGroupPage {
   /** `null` = letzte Seite. */
   nextCursor: string | null;
 }
+
+// ---- Inventur (Lager-Kern Stufe 3, seit 1.8.0) ----------------------------------
+//
+// Eine Inventur zaehlt den Bestand eines Standorts: anlegen (Umfang, Stichtag
+// oder permanent, blind als Standard), zaehlen (mehrere Zaehlungen je Artikel
+// werden addiert, eine falsche wird mit Grund storniert), pruefen (erst jetzt
+// Soll und Differenz), einzelne Positionen nachzaehlen, abschliessen (bucht je
+// Position eine Bewegung `stocktake`, legt das Inventurprotokoll ab) oder
+// abbrechen.
+//
+// **Blind:** vor `review` traegt keine Antwort ein Soll, eine Differenz oder
+// „pruefen“; die Felder fehlen dann ganz (nicht `null`). Werte (`…Cents`,
+// `…Micros`) kommen nur mit dem Konto-Schalter `lagerApi.kosten` und fehlen
+// sonst ebenso. Mengen in Tausendstel, Zeitpunkte ISO 8601 UTC.
+
+/** Wer etwas tat: Inhaber, Kasseneck-Admin, Kassen-Benutzer oder ein API-Schluessel. */
+export interface StocktakeActor {
+  /** `null`: ein Wert, den diese Paketversion nicht kennt, steht als Text, sonst keiner. */
+  type: StocktakeActorType | (string & {}) | null;
+  id: string | null;
+  /** Anzeigename (Kassen-Benutzer); `null` beim Inhaber und bei der API. */
+  name: string | null;
+}
+
+/** Umfang einer Inventur, bei der Anlage eingefroren. */
+export interface StocktakeScope {
+  type: StocktakeScopeType | (string & {}) | null;
+  /** Nur bei `groups`, sonst leer. */
+  groupIds: string[];
+  /** Nur bei `articles`, sonst leer. */
+  articleIds: string[];
+}
+
+/** Fortschritt: Zahl der Positionen und ob Positionen zum Nachzaehlen offen sind. */
+export interface StocktakeProgress {
+  items: number;
+  /**
+   * Gezaehlte Positionen; nur `getStocktake` zaehlt sie (sonst `null`, nie 0:
+   * „unbekannt“ ist nicht „keine“).
+   */
+  counted: number | null;
+  recountOpen: boolean;
+}
+
+/** Die Pruefung: wann und von wem angestossen, ob Soll und Differenz schon gerechnet sind. */
+export interface StocktakeReview {
+  startedAt: string | null;
+  startedBy: StocktakeActor | null;
+  /** `false`: der Server rechnet noch; danach erneut `getStocktake`. */
+  complete: boolean;
+  /** Stand der Soll-Rechnung; `null`, solange sie nicht fertig ist. */
+  expectedAsOf: string | null;
+  /** Positionen, die zum Nachzaehlen offen und noch ungezaehlt sind; `null`, wenn der Server es nicht nennt. */
+  recountUncounted: number | null;
+}
+
+/** Der Abschluss: er bucht in Teilen, wiederaufnehmbar. */
+export interface StocktakeClosing {
+  startedAt: string | null;
+  startedBy: StocktakeActor | null;
+  /** Ungezaehlte Positionen als 0 gebucht (sonst nicht gebucht, im Protokoll „nicht gezaehlt“). */
+  uncountedAsZero: boolean;
+  /** Zahl der Teile; `null`, solange der Plan noch nicht steht. */
+  parts: number | null;
+  /** Gebuchte Teile; `null`, wenn der Server es nicht nennt. */
+  bookedParts: number | null;
+  completedAt: string | null;
+}
+
+export interface StocktakeCancellation {
+  reason: string | null;
+  cancelledAt: string | null;
+  cancelledBy: StocktakeActor | null;
+}
+
+/** Summen des Abschlusses (Anzahlen; Werte nur mit `lagerApi.kosten`). */
+export interface StocktakeTotals {
+  items: number;
+  counted: number;
+  uncounted: number;
+  recounted: number;
+  withDifference: number;
+  needsCheck: number;
+  notBooked: number;
+  /** Summe der gebuchten Differenzwerte in Cent; nur mit `lagerApi.kosten`. */
+  differenceValueCents?: number | null;
+  /** Inventarwert in Cent; nur mit `lagerApi.kosten`. */
+  inventoryValueCents?: number | null;
+}
+
+/** Ein Hinweis zur Inventur, mit der Zahl der betroffenen Positionen. */
+export interface StocktakeWarning {
+  code: InventoryWarningCode | (string & {});
+  items: number;
+  /** Menschentext (deutsch); `null` am Kopf, der nur Codes fuehrt. */
+  message: string | null;
+}
+
+/**
+ * Siegelstand des Lagerprotokolls beim Abschluss: Wiener Tage `YYYY-MM-DD`.
+ * `verified: null` heisst „nicht fertig geprueft“, nie Bruch.
+ */
+export interface StocktakeSeal {
+  fromDay: string | null;
+  toDay: string | null;
+  daysChecked: number | null;
+  verified: boolean | null;
+  /** Erster Tag mit gebrochenem Siegel; `null` = keiner. */
+  firstBreak: string | null;
+  /** Tage ohne Siegel. */
+  gaps: string[];
+  gapCount: number | null;
+  /** `time_limit` (Frist des Laufs) oder `unavailable`; fehlt, wenn ganz geprueft. */
+  notChecked?: string;
+  /** Bis wohin geprueft wurde, wenn die Pruefung nicht fertig wurde. */
+  checkedUntil?: string | null;
+}
+
+/** Das Inventurprotokoll: ob es da ist, und die Pruefsummen der Fassungen, die der Aufrufer sehen darf. */
+export interface StocktakePdfInfo {
+  available: boolean;
+  /** SHA-256 der Fassung mit Werten; nur mit `lagerApi.kosten`. */
+  valuesSha256?: string;
+  /** SHA-256 der Fassung nur mit Mengen. */
+  quantitiesSha256?: string;
+}
+
+/**
+ * Eine Inventur (Kopf), wie jeder Inventur-Aufruf ausser den Listen der
+ * Positionen und Zaehlungen sie sendet.
+ *
+ * Die Felder des Ergebnisses (`totals`, `warnings`, `seal`, `checksum`,
+ * `inventoryAsOf`, `pdf`) gibt es erst nach dem Abschluss; vorher fehlen sie.
+ */
+export interface Stocktake {
+  id: string;
+  /** 1–100 Zeichen, Vorgabe „Inventur <Standort> <Tag>“. */
+  name: string | null;
+  locationId: string | null;
+  scope: StocktakeScope | null;
+  type: StocktakeType | (string & {}) | null;
+  /** `YYYY-MM-DD` bei `key_date`, sonst `null`. */
+  keyDate: string | null;
+  /** Blind zaehlen (Vorgabe): niemand sieht vor der Pruefung ein Soll. */
+  blind: boolean;
+  status: StocktakeStatus | (string & {}) | null;
+  progress: StocktakeProgress | null;
+  createdAt: string | null;
+  createdBy: StocktakeActor | null;
+  source: StocktakeSource | (string & {}) | null;
+  /** Letzte Aenderung des Kopfs; Grundlage von `listStocktakes({ updatedSince })`. */
+  updatedAt: string | null;
+  review: StocktakeReview | null;
+  closing: StocktakeClosing | null;
+  cancellation: StocktakeCancellation | null;
+  totals?: StocktakeTotals;
+  /** Hinweise des Abschlusses (`uncounted_items`, `not_booked`, `defect_capped`). */
+  warnings?: StocktakeWarning[];
+  seal?: StocktakeSeal;
+  /** SHA-256 ueber Kopf, Positionen und Zaehlungen (kanonisches JSON), steht auch im Protokoll. */
+  checksum?: string | null;
+  inventoryAsOf?: StocktakeInventoryAsOf | (string & {}) | null;
+  pdf?: StocktakePdfInfo;
+}
+
+/** Ein Nachzaehlen-Auftrag an einer Position. */
+export interface StocktakeRecount {
+  reason: string | null;
+  requestedAt: string | null;
+  requestedBy: StocktakeActor | null;
+  /** Die Runde, die das Nachzaehlen begann. */
+  round: number | null;
+}
+
+/** Was von einer Position nicht gebucht wurde, und warum. */
+export interface StocktakeNotBooked {
+  code: StocktakeNotBookedReason | (string & {});
+  /** Nicht gebuchte Menge in Tausendstel; `null`, wenn der Server keine nennt. */
+  quantity: number | null;
+  /** Bei mehreren Gruenden je Grund ein Eintrag; fehlt sonst. */
+  reasons?: Array<{ code: StocktakeNotBookedReason | (string & {}); quantity: number | null }>;
+}
+
+/** Eine Zeile des Inventars (nach dem Abschluss). */
+export interface StocktakeInventoryLine {
+  quantity: number;
+  /** Aufnahmetag (Wiener Tag der Referenzzeit), `YYYY-MM-DD`. */
+  countedOn: string | null;
+  /** Einzelwert je Basiseinheit in Mikro-Euro; nur mit `lagerApi.kosten`. */
+  unitValueMicros?: number | null;
+  /** Gesamtwert in Cent; nur mit `lagerApi.kosten`. */
+  valueCents?: number | null;
+}
+
+/**
+ * Eine Position: ein Artikel in einem Zustand (`sellable` bzw. `defective`).
+ *
+ * Ab `review` (und nur dann) kommen Soll, Differenz und „pruefen“ dazu
+ * (`expectedQuantity` …), nach dem Abschluss die Buchung und das Inventar.
+ * Vorher fehlen diese Felder ganz.
+ */
+export interface StocktakeItem {
+  articleId: string;
+  condition: StockCondition | (string & {});
+  /** Name, Nummer und Einheit, wie sie bei der Anlage galten. */
+  name: string | null;
+  number: string | null;
+  unit: string | null;
+  /** Zaehlrunde ab 1; jedes Nachzaehlen beginnt eine neue. */
+  round: number;
+  /** Gezaehlt (auch „0 gezaehlt“); `false` heisst ungezaehlt, nicht leer. */
+  counted: boolean;
+  /** Summe der aktiven Zaehlungen der Runde in Tausendstel; `null` = nicht gezaehlt. */
+  quantity: number | null;
+  /** Zahl der aktiven Zaehlungen der Runde. */
+  counts: number;
+  firstCountedAt: string | null;
+  /** Referenzzeit: Serverzeit der letzten aktiven Zaehlung der Runde. */
+  referenceTime: string | null;
+  countedBy: StocktakeActor[];
+  /** Gezaehlte Seriennummern (Einzelstuecke). */
+  serialNumbers: string[];
+  recountRequested: boolean;
+  recount: StocktakeRecount | null;
+  /** Erst beim Zaehlen aufgenommen (Umfang `all`). */
+  addedLater: boolean;
+  /**
+   * Heutiger Buchbestand in Tausendstel, nur bei `blind: false` waehrend der
+   * Zaehlung. Nie das Soll zur Referenzzeit.
+   */
+  bookStockNow?: number | null;
+  expectedQuantity?: number | null;
+  /** `quantity − expectedQuantity`; `null`, wenn ungezaehlt. */
+  differenceQuantity?: number | null;
+  needsCheck?: boolean;
+  checkReasons?: Array<StocktakeCheckReason | (string & {})>;
+  expectedAsOf?: string | null;
+  /** Voraussichtlicher (in `review`) bzw. gebuchter Differenzwert in Cent; nur mit `lagerApi.kosten`. */
+  differenceValueCents?: number | null;
+  /** Einzelstueck: Soll-Nummern ohne Zaehlung. */
+  missingSerialNumbers?: string[];
+  /** Einzelstueck: gezaehlte Nummern, die nicht im Soll stehen. */
+  extraSerialNumbers?: string[];
+  /** Gebuchte Menge in Tausendstel (nach dem Abschluss). */
+  bookedQuantity?: number | null;
+  notBooked?: StocktakeNotBooked | null;
+  inventory?: StocktakeInventoryLine | null;
+}
+
+/** Eine Zaehlung. */
+export interface StocktakeCount {
+  id: string;
+  articleId: string;
+  condition: StockCondition | (string & {});
+  /** Tausendstel; `0` heisst „leer gezaehlt“. */
+  quantity: number;
+  serialNumbers: string[];
+  round: number;
+  countedBy: StocktakeActor | null;
+  source: StocktakeSource | (string & {}) | null;
+  /** Kasse, an der gezaehlt wurde; `null` im Panel und ueber die API. */
+  cashregisterId: string | null;
+  /** Serverzeit der Zaehlung (die Geraetezeit zaehlt nie). */
+  countedAt: string | null;
+  note: string | null;
+  /** `null` = aktiv. */
+  voided: { reason: string | null; voidedAt: string | null; voidedBy: StocktakeActor | null } | null;
+}
+
+/** Antwort von Zaehlen und Stornieren: die Zaehlung und ihre Position danach. */
+export interface StocktakeCountResult {
+  count: StocktakeCount;
+  item: StocktakeItem;
+}
+
+export interface StocktakeScopeInput {
+  type: StocktakeScopeType;
+  /** Bei `groups`: 1–50 Gruppen. */
+  groupIds?: string[];
+  /** Bei `articles`: 1–5000 bestandsgefuehrte Artikel. */
+  articleIds?: string[];
+}
+
+/**
+ * Legt eine Inventur an. Je Standort hoechstens eine offene
+ * (`stocktake_location_busy` mit `data.stocktakeId`); hoechstens
+ * [STOCKTAKE_ITEMS_MAX] Positionen.
+ */
+export interface CreateStocktakeRequest {
+  idempotencyKey: string;
+  locationId: string;
+  scope: StocktakeScopeInput;
+  type: StocktakeType;
+  /** Pflicht bei `key_date` (`YYYY-MM-DD`), sonst weglassen oder `null`. */
+  keyDate?: string | null;
+  /** Vorgabe `true`. */
+  blind?: boolean;
+  /** 1–100 Zeichen; ohne Angabe „Inventur <Standort> <Tag>“. */
+  name?: string | null;
+}
+
+/**
+ * Inventuren des Kontos. Ohne `updatedSince` zuletzt geaenderte zuerst
+ * (`updatedAt` absteigend); offene stehen dabei nicht zwingend oben, dafuer
+ * gibt es den Filter `status`. Mit `updatedSince` aufsteigend und inklusive:
+ * ein Abgleich mit dem groessten gesehenen `updatedAt` als naechstem
+ * `updatedSince` ist lueckenlos (der Eintrag an der Grenze kommt noch einmal).
+ */
+export interface StocktakeListQuery {
+  status?: StocktakeStatus;
+  locationId?: string;
+  updatedSince?: string | Date;
+  /** 1–200, Vorgabe des Servers 50. */
+  limit?: number;
+  cursor?: string;
+}
+
+export interface StocktakePage {
+  stocktakes: Stocktake[];
+  nextCursor: string | null;
+}
+
+/** Positionen nach Kennung; `openOnly` = ungezaehlt (in der Pruefung: zum Nachzaehlen offen). */
+export interface StocktakeItemListQuery {
+  stocktakeId: string;
+  openOnly?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface StocktakeItemPage {
+  items: StocktakeItem[];
+  nextCursor: string | null;
+}
+
+/** Zaehlungen, neueste zuerst; mit `articleId` nur die des Artikels. */
+export interface StocktakeCountListQuery {
+  stocktakeId: string;
+  articleId?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface StocktakeCountPage {
+  counts: StocktakeCount[];
+  nextCursor: string | null;
+}
+
+/**
+ * Eine Zaehlung. Menge in Tausendstel (`0` = leer gezaehlt; Stueckartikel und
+ * Einzelstuecke nur ganze Stueck), Einzelstueck mit je Stueck genau einer
+ * Seriennummer. Mehrere Zaehlungen derselben Position werden addiert.
+ */
+export interface RecordStocktakeCountRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+  articleId: string;
+  /** Vorgabe `sellable`. */
+  condition?: StockCondition;
+  quantity: number;
+  serialNumbers?: string[];
+  /** Hoechstens 200 Zeichen. */
+  note?: string | null;
+}
+
+/** Storniert eine Zaehlung; die Position wird neu summiert. */
+export interface VoidStocktakeCountRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+  countId: string;
+  /** 1–500 Zeichen. */
+  reason: string;
+}
+
+/** Pruefen: `counting` → `review` (bzw. in `review` neu rechnen, etwa nach dem Nachzaehlen). */
+export interface ReviewStocktakeRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+}
+
+/** Nachzaehlen in `review`: je Position eine neue Runde; danach erneut pruefen. */
+export interface RecountStocktakeRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+  /** 1–200 Positionen. */
+  items: Array<{ articleId: string; condition?: StockCondition }>;
+  /** 1–500 Zeichen. */
+  reason: string;
+}
+
+/** Abschliessen (nur aus `review`); `uncountedAsZero` bucht Ungezaehltes als 0. */
+export interface CloseStocktakeRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+  /** Vorgabe `false`: Ungezaehltes wird nicht gebucht. */
+  uncountedAsZero?: boolean;
+}
+
+/**
+ * Antwort von `closeStocktake`: der Kopf (meist `closing`, der Server bucht
+ * im Hintergrund weiter) und Hinweise wie `recount_uncounted`.
+ */
+export interface CloseStocktakeResult {
+  stocktake: Stocktake;
+  /** Leer, wenn es keinen Hinweis gibt. */
+  warnings: StocktakeWarning[];
+}
+
+/** Abbrechen (aus `counting` oder `review`); der Standort ist danach wieder frei. */
+export interface CancelStocktakeRequest {
+  idempotencyKey: string;
+  stocktakeId: string;
+  /** 1–500 Zeichen. */
+  reason: string;
+}
+
+/**
+ * Lese-Link auf das Inventurprotokoll, wenn es zu gross fuer die Antwort ist
+ * (ueber 9 MiB). Signiert, 15 Minuten gueltig; die geladene Datei an
+ * `sha256` pruefen.
+ */
+export interface StocktakePdfDownload {
+  url: string;
+  expiresAt: string;
+  sizeBytes: number;
+  /** SHA-256 der Datei, hexadezimal (dieselbe wie `pdf.valuesSha256` bzw. `pdf.quantitiesSha256`). */
+  sha256: string;
+  fileName: string | null;
+  contentType: string | null;
+}
+
+/**
+ * Das Inventurprotokoll: als Datei (`kind: 'pdf'`) oder, ueber 9 MiB, als
+ * Lese-Link (`kind: 'download'`). Mit `lagerApi.kosten` die Fassung mit
+ * Werten, sonst die nur mit Mengen.
+ */
+export type StocktakePdf =
+  | { kind: 'pdf'; pdf: Uint8Array }
+  | { kind: 'download'; download: StocktakePdfDownload };

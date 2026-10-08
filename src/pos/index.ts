@@ -1,7 +1,7 @@
 /**
  * Kachel-Kasse: Einstellungen, Artikelgruppen/Artikel fuer Kacheln,
  * Rabattverteilung, Drucker, Trinkgeld-Empfaenger, Lager (Standorte, Bestand,
- * Standort der Kasse). Die Aufrufe heissen 1:1 wie
+ * Standort der Kasse), Inventur zaehlen. Die Aufrufe heissen 1:1 wie
  * die Backend-Functions (die Rewrites-Waechter der Web-App leiten daraus ab)
  * und sprechen den Kassenweg `/api/v3` (Schluessel und Werte englisch).
  */
@@ -56,6 +56,18 @@ export {
   type SetMyCashregisterStockLocationOptions, type CashregisterStockLocation,
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation,
 } from './lager.js';
+export {
+  type ListMyStocktakesOptions, type ListMyStocktakeItemsOptions, type ListMyStocktakeCountsOptions,
+  type RecordMyStocktakeCountOptions, type VoidMyStocktakeCountOptions,
+  listMyStocktakes, listMyStocktakeItems, listMyStocktakeCounts, recordMyStocktakeCount, voidMyStocktakeCount,
+  parseQuantityMilli,
+} from './inventur.js';
+// Die Modelle der Inventur sind dieselben wie in ./inventory.
+export type {
+  Stocktake, StocktakeItem, StocktakeCount, StocktakeCountResult, StocktakeItemPage, StocktakeCountPage,
+  StocktakeActor, StocktakeProgress, StocktakeReview, StocktakeRecount, StocktakeScope,
+} from '../inventory/typen.js';
+export type { StocktakeStatus } from '../inventory/vertrag.js';
 
 // Rueckgabe-Wahl beim Storno (Kassen-Dialog); dieselbe Liste wie an der Wurzel.
 export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from '../models/cancellation.js';

@@ -290,7 +290,7 @@ test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler 
     'not_permitted',
     'route_missing',
   ]);
-  assert.equal(erwartet.size, 24);
+  assert.equal(erwartet.size, 26);
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
   assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
 });
@@ -312,6 +312,9 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
     'account_not_found',
     'admin_required',
     'api_not_approved',
+    // Seit 1.8.0 (Vertrag: App Check der Admin-App, vor dem Handler abgewiesen).
+    'app_check_invalid',
+    'app_check_missing',
     'cashregister_not_assigned',
     'cashregister_not_found',
     'cashregister_token_invalid',
