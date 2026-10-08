@@ -10,7 +10,7 @@ import type {
   StocktakeItemPage,
 } from '../inventory/typen.js';
 import type { StockCondition, StocktakeStatus } from '../inventory/vertrag.js';
-import { quantityRuleForUnit } from './artikel.js';
+import { quantityRuleForUnit, type QuantityRule } from './artikel.js';
 
 /**
  * Inventur zaehlen an der Kasse (Lager-Kern Stufe 3, Backend
@@ -147,28 +147,41 @@ const STELLEN = 3;
 
 /**
  * Eine eingetippte Menge in Tausendstel der Basiseinheit, **ohne Gleitkomma**:
- * `'12'` → `12000`, `'0,25'` → `250`, `'1.5'` → `1500` (Komma oder Punkt als
- * Dezimaltrenner, hoechstens drei Nachkommastellen; weitere Nullen am Ende
- * zaehlen nicht). Nach der Einheit Stueckware (`quantityRuleForUnit`: Stk, g,
- * ml …, auch ohne Einheit) nur Ziffern, ohne Trenner: `'1.000'` waere dort
- * „tausend“ oder „eins“, also keines von beiden. `'0'` ist eine gueltige Menge
- * (leer gezaehlt).
+ * `'12'` → `12000`, `'0,25'` → `250`, `'1.5'` → `1500`.
  *
- * `null` fuer alles andere: leer, Vorzeichen, Tausendertrenner, Exponent, mehr
- * als drei Nachkommastellen, Trenner bei Stueckware, groesser als eine sichere
- * Ganzzahl. Die Kasse zeigt dann ihren Satz (`stocktake.quantity_invalid`),
- * statt still zu runden. Gemeinsame Prueffaelle mit dem Dart-Zwilling:
+ * - Dezimaltrenner Komma oder Punkt, hoechstens drei Nachkommastellen; weitere
+ *   Nullen am Ende zaehlen nicht (`'1,2340'` → `1234`). `'0'` ist eine gueltige
+ *   Menge (leer gezaehlt).
+ * - **Punkt mit genau drei Ziffern danach und einem Ganzteil ungleich 0**
+ *   (`'1.000'`, `'12.500'`) ist bei jeder Einheit `null`: in oesterreichischer
+ *   Schreibweise ist das ein Tausenderpunkt („tausend“), am Ziffernblock ein
+ *   Dezimalpunkt („eins“); ein Faktor 1000 buchte der Abschluss als Differenz.
+ *   Mit Komma ist es eindeutig (`'1,000'` → `1000`), ebenso `'0.500'`,
+ *   `'1.5'`, `'1.25'`.
+ * - **Stueckware** nur als ganze Zahl ohne Trenner. Stueckware ist, was
+ *   `rule` sagt (die gespeicherte Mengenregel des Artikels,
+ *   `PosArticle.quantityRule`, `'piece'` | `'decimal'`), ohne `rule` die
+ *   Vorgabe der Einheit (`quantityRuleForUnit`: Stk, g, ml …, auch ohne
+ *   Einheit). Einzelstuecke (Seriennummer) sind immer Stueckware: dann
+ *   `'piece'` uebergeben.
+ *
+ * `null` auch fuer: leer, Vorzeichen, Tausenderleerzeichen, Exponent, mehr als
+ * drei Nachkommastellen, groesser als eine sichere Ganzzahl. Die Kasse zeigt
+ * dann ihren Satz (`stocktake.quantity_invalid`), statt still zu runden.
+ * Gemeinsame Prueffaelle mit dem Dart-Zwilling:
  * `fixtures/stocktake-quantity-cases.json`.
  */
-export function parseQuantityMilli(text: string, unit?: string | null): number | null {
+export function parseQuantityMilli(text: string, unit?: string | null, rule?: QuantityRule | null): number | null {
   if (typeof text !== 'string') return null;
   const m = /^(\d*)(?:([.,])(\d*))?$/.exec(text.trim());
   if (!m) return null;
   const ganz = m[1] ?? '';
-  const mitTrenner = m[2] !== undefined;
+  const trenner = m[2];
   const roh = m[3] ?? '';
   if (ganz === '' && roh === '') return null;
-  if (mitTrenner && quantityRuleForUnit(unit).rule === 'piece') return null;
+  const stueck = (rule === 'piece' || rule === 'decimal' ? rule : quantityRuleForUnit(unit).rule) === 'piece';
+  if (trenner !== undefined && stueck) return null;
+  if (trenner === '.' && roh.length === 3 && /[1-9]/.test(ganz)) return null;
   const nachkomma = roh.replace(/0+$/, '');
   if (nachkomma.length > STELLEN) return null;
   const milli = BigInt(ganz === '' ? '0' : ganz) * 1000n + BigInt(nachkomma.padEnd(STELLEN, '0'));

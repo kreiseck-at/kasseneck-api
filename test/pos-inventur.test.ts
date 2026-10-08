@@ -167,11 +167,29 @@ test('listMyStocktakes: leerer Standort geht nicht hinaus, Status wie gegeben', 
 });
 
 test('parseQuantityMilli: die gemeinsamen Faelle (fixtures/stocktake-quantity-cases.json), ohne Gleitkomma', () => {
-  const { cases } = lies('stocktake-quantity-cases.json') as { cases: Array<{ text: string; unit: string | null; expected: number | null }> };
-  assert.ok(cases.length >= 30);
-  for (const { text, unit, expected } of cases) {
-    assert.equal(parseQuantityMilli(text, unit), expected, JSON.stringify({ text, unit }));
+  const { cases } = lies('stocktake-quantity-cases.json') as { cases: Array<{ text: string; unit: string | null; rule: 'piece' | 'decimal' | null; expected: number | null }> };
+  assert.ok(cases.length >= 45);
+  for (const c of cases) assert.deepEqual(Object.keys(c), ['text', 'unit', 'rule', 'expected'], c.text);
+  for (const { text, unit, rule, expected } of cases) {
+    assert.equal(parseQuantityMilli(text, unit, rule), expected, JSON.stringify({ text, unit, rule }));
   }
+  // Ohne rule gilt die Einheit: dieselben Faelle ohne rule ergeben dasselbe wie rule null.
+  for (const { text, unit, rule, expected } of cases.filter((c) => c.rule === null)) {
+    assert.equal(parseQuantityMilli(text, unit), expected, `${text} ohne rule`);
+    void rule;
+  }
+  // Die gespeicherte Regel schlaegt die Einheit, in beide Richtungen.
+  assert.equal(parseQuantityMilli('2,5', 'Stk'), null);
+  assert.equal(parseQuantityMilli('2,5', 'Stk', 'decimal'), 2500);
+  assert.equal(parseQuantityMilli('0,5', 'kg'), 500);
+  assert.equal(parseQuantityMilli('0,5', 'kg', 'piece'), null);
+  // Punkt mit genau drei Ziffern und Ganzteil ungleich 0: mehrdeutig, bei jeder Einheit und Regel null; mit Komma eindeutig.
+  for (const [text, unit] of [['1.000', 'kg'], ['12.500', 'm'], ['1.200', 'l'], ['1.000', 'Stk']] as const) {
+    assert.equal(parseQuantityMilli(text, unit, 'decimal'), null, `${text} ${unit}`);
+  }
+  assert.equal(parseQuantityMilli('1,000', 'kg'), 1000);
+  assert.equal(parseQuantityMilli('0.500', 'kg'), 500);
+  assert.equal(parseQuantityMilli('1.5', 'kg'), 1500);
   // Wo Gleitkomma irrte (0,1 + 0,2), stimmt es hier auf das Tausendstel.
   assert.equal(parseQuantityMilli('0,3', 'kg'), 300);
   assert.equal(parseQuantityMilli('1,005', 'kg'), 1005);

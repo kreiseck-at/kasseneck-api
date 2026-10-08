@@ -19,8 +19,11 @@ export {
   type TransportCallOptions,
   type KasseneckTransport,
   type KasseneckBinaryTransport,
+  type KasseneckPdfOrDataTransport,
+  type PdfOrData,
   createTransport,
   createBinaryTransport,
+  createPdfOrDataTransport,
 } from './transport.js';
 
 export {

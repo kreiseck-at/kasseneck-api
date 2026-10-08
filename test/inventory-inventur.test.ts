@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { createPdfOrDataTransport } from '../src/index.js';
 import {
   createInventoryClient,
+  getStocktakePdf,
+  inventoryKeyAuth,
   inventoryBusyStocktakeId,
   inventoryErrorCode,
   isInventoryError,
@@ -347,4 +350,54 @@ test('Kornspitz (Plan, Aufgabe 2): gezaehlt 37 bei Soll 37 ergibt Differenz 0, b
   const [nachher] = (await lager.listStocktakeItems({ stocktakeId: 'inv_kornspitz' })).items;
   assert.deepEqual([nachher!.quantity, nachher!.expectedQuantity, nachher!.differenceQuantity], [37000, 40000, -3000]);
   assert.equal(40000 - 3000 + nachher!.differenceQuantity!, 34000);
+});
+
+test('getStocktakePdf als freie Funktion: mit createPdfOrDataTransport von der Paketwurzel, Datei und Link', async () => {
+  const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0xc3, 0xa4, 0x25, 0x25, 0x45, 0x4f, 0x46]);
+  const gesendet: Json[] = [];
+  const antworten = [antwort(pdf, 'application/pdf'), huelle(fall('get_stocktake_pdf_download').response)];
+  const fetch: FetchLike = async (url, init) => {
+    gesendet.push({ url, params: JSON.parse(init.body).params });
+    return antworten.shift()!;
+  };
+  const transport = createPdfOrDataTransport({ auth: inventoryKeyAuth({ apiKey: API_KEY }), fetch });
+  const datei = await getStocktakePdf(transport, 'auto78');
+  assert.deepEqual(datei.kind === 'pdf' ? [...datei.pdf] : null, [...pdf]);
+  const link = await getStocktakePdf(transport, 'auto78');
+  assert.equal(link.kind === 'download' ? link.download.fileName : null, 'stocktake-auto78-quantities.pdf');
+  assert.deepEqual(gesendet.map((g) => g.url), ['https://api.kasseneck.at/v3/getStocktakePdf', 'https://api.kasseneck.at/v3/getStocktakePdf']);
+  assert.deepEqual(gesendet[0]!.params, { stocktakeId: 'auto78' });
+  // Der Transport selbst: PDF als Bytes, Erfolgshuelle als data.
+  const roh = createPdfOrDataTransport({ auth: inventoryKeyAuth({ apiKey: API_KEY }), fetch: async () => erfolg({ ok: 1 }) });
+  assert.deepEqual(await roh('getStocktakePdf', { stocktakeId: 'auto78' }), { data: { ok: 1 } });
+});
+
+test('Seriennummern der Position nur, wenn der Server sie sendet; die Zaehlung traegt sie immer', async () => {
+  const gezaehlt = (await rufe(fall('record_stocktake_count'))).ergebnis.item as StocktakeItem;
+  assert.equal('serialNumbers' in gezaehlt, false, 'Zaehl-Antwort ohne Seriennummern: Feld fehlt, nie []');
+  const liste = (await rufe(fall('list_stocktake_items_counting'))).ergebnis.items[0] as StocktakeItem;
+  assert.deepEqual(liste.serialNumbers, []);
+  const zaehlung = fall('list_stocktake_counts').response.data.counts[0];
+  const { serialNumbers: _weg, ...ohne } = zaehlung;
+  await assert.rejects(() => client(erfolg({ counts: [ohne], nextCursor: null })).lager.listStocktakeCounts({ stocktakeId: 'auto78' }),
+    (e) => e instanceof KasseneckValidationError && e.message.includes('counts[0].serialNumbers'));
+});
+
+test('Akteure: ein kaputter Eintrag ist ein Antwortfehler, kein stilles Weglassen', async () => {
+  const pos = fall('list_stocktake_items_counting').response.data.items[0];
+  const kopf = fall('get_stocktake_counting').response.data.stocktake;
+  const zaehlung = fall('list_stocktake_counts').response.data.counts[0];
+  const kaputt: Array<[string, () => Promise<unknown>, string]> = [
+    ['Zaehler als Text', () => client(erfolg({ items: [{ ...pos, countedBy: ['kornblum'] }], nextCursor: null })).lager.listStocktakeItems({ stocktakeId: 'auto78' }), 'items[0].countedBy[0]'],
+    ['Zaehler null in der Liste', () => client(erfolg({ items: [{ ...pos, countedBy: [null] }], nextCursor: null })).lager.listStocktakeItems({ stocktakeId: 'auto78' }), 'items[0].countedBy[0]'],
+    ['Zaehlerliste fehlt', () => client(erfolg({ items: [{ ...pos, countedBy: undefined }], nextCursor: null })).lager.listStocktakeItems({ stocktakeId: 'auto78' }), 'items[0].countedBy'],
+    ['angelegt von als Text', () => client(erfolg({ stocktake: { ...kopf, createdBy: 'api' } })).lager.getStocktake('auto78'), 'stocktake.createdBy'],
+    ['Zaehler der Zaehlung als Zahl', () => client(erfolg({ counts: [{ ...zaehlung, countedBy: 7 }], nextCursor: null })).lager.listStocktakeCounts({ stocktakeId: 'auto78' }), 'counts[0].countedBy'],
+  ];
+  for (const [name, aufruf, stelle] of kaputt) {
+    await assert.rejects(aufruf, (e) => e instanceof KasseneckValidationError && e.scope === 'response' && e.message.includes(stelle), name);
+  }
+  // Fehlt der Akteur ganz (null), bleibt er null.
+  const ohne = await client(erfolg({ stocktake: { ...kopf, createdBy: null } })).lager.getStocktake('auto78');
+  assert.equal(ohne.createdBy, null);
 });

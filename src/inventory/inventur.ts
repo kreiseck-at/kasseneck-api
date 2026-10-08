@@ -272,6 +272,10 @@ export async function cancelStocktake(transport: InternerTransport, request: Can
  * Werten, sonst die nur mit Mengen. Bis 9 MiB kommt die Datei selbst
  * (`kind: 'pdf'`), darueber ein signierter Lese-Link fuer 15 Minuten
  * (`kind: 'download'`); die geladene Datei an `download.sha256` pruefen.
+ *
+ * Als freie Funktion braucht sie den Transport aus `createPdfOrDataTransport`
+ * (Paketwurzel): ein JSON-Transport laese die Datei als Text, ein reiner
+ * Binaer-Transport kennt den Link nicht. [createInventoryClient] bindet ihn selbst.
  */
 export async function getStocktakePdf(transport: InternerPdfOderDatenTransport, stocktakeId: string): Promise<StocktakePdf> {
   const name = 'getStocktakePdf';

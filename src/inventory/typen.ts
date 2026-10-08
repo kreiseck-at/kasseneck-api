@@ -1172,8 +1172,12 @@ export interface StocktakeItem {
   /** Referenzzeit: Serverzeit der letzten aktiven Zaehlung der Runde. */
   referenceTime: string | null;
   countedBy: StocktakeActor[];
-  /** Gezaehlte Seriennummern (Einzelstuecke). */
-  serialNumbers: string[];
+  /**
+   * Gezaehlte Seriennummern der Runde (Einzelstuecke). Nur in den Listen;
+   * die Antwort von Zaehlen und Stornieren sendet die Position ohne sie, dann
+   * fehlt das Feld (nicht „keine Seriennummern“).
+   */
+  serialNumbers?: string[];
   recountRequested: boolean;
   recount: StocktakeRecount | null;
   /** Erst beim Zaehlen aufgenommen (Umfang `all`). */

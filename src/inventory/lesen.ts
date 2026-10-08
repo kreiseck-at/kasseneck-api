@@ -530,9 +530,11 @@ function textlisteOderLeer(ort: Ort, feld: string, w: unknown): string[] {
   return textliste(ort, feld, w);
 }
 
-function akteur(ort: Ort, w: unknown): StocktakeActor | null {
+/** Wer etwas tat; fehlt die Angabe, `null`. Etwas anderes als ein Objekt ist kaputt, nie still „niemand“. */
+function akteur(ort: Ort, feld: string, w: unknown): StocktakeActor | null {
+  if (w === undefined || w === null) return null;
   const a = objekt(w);
-  if (!a) return null;
+  if (!a) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist kein Objekt)`);
   return { type: textOderNull(a.type), id: textOderNull(a.id), name: textOderNull(a.name) };
 }
 
@@ -605,13 +607,13 @@ export function inventur(ort: Ort, w: unknown): Stocktake {
       }
       : null,
     createdAt: text(k.createdAt),
-    createdBy: akteur(ort, k.createdBy),
+    createdBy: akteur(ort, 'createdBy', k.createdBy),
     source: textOderNull(k.source),
     updatedAt: text(k.updatedAt),
     review: pruefung
       ? {
         startedAt: text(pruefung.startedAt),
-        startedBy: akteur(pOrt, pruefung.startedBy),
+        startedBy: akteur(pOrt, 'startedBy', pruefung.startedBy),
         complete: pruefung.complete === true,
         expectedAsOf: text(pruefung.expectedAsOf),
         recountUncounted: ganzzahlOderNull(pOrt, 'recountUncounted', pruefung.recountUncounted),
@@ -620,7 +622,7 @@ export function inventur(ort: Ort, w: unknown): Stocktake {
     closing: abschluss
       ? {
         startedAt: text(abschluss.startedAt),
-        startedBy: akteur(aOrt, abschluss.startedBy),
+        startedBy: akteur(aOrt, 'startedBy', abschluss.startedBy),
         uncountedAsZero: abschluss.uncountedAsZero === true,
         parts: ganzzahlOderNull(aOrt, 'parts', abschluss.parts),
         bookedParts: ganzzahlOderNull(aOrt, 'bookedParts', abschluss.bookedParts),
@@ -628,7 +630,7 @@ export function inventur(ort: Ort, w: unknown): Stocktake {
       }
       : null,
     cancellation: abbruch
-      ? { reason: text(abbruch.reason), cancelledAt: text(abbruch.cancelledAt), cancelledBy: akteur(unter(ort, 'cancellation'), abbruch.cancelledBy) }
+      ? { reason: text(abbruch.reason), cancelledAt: text(abbruch.cancelledAt), cancelledBy: akteur(unter(ort, 'cancellation'), 'cancelledBy', abbruch.cancelledBy) }
       : null,
   };
   const summen = objektOderNull(ort, 'totals', k.totals);
@@ -682,10 +684,9 @@ function nichtGebucht(ort: Ort, w: unknown): StocktakeNotBooked {
  */
 export function inventurPosition(ort: Ort, w: unknown): StocktakeItem {
   const p = eintrag(ort, w);
-  if (!Array.isArray(p.countedBy) && p.countedBy !== undefined && p.countedBy !== null) {
-    throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.countedBy ist keine Liste)`);
-  }
-  const zaehler = Array.isArray(p.countedBy) ? p.countedBy : [];
+  // Wer gezaehlt hat, ist zugesagt: fehlt die Liste, ist die Antwort kaputt (nie „niemand“).
+  if (!Array.isArray(p.countedBy)) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.countedBy ist keine Liste)`);
+  const zaehler = p.countedBy as unknown[];
   const nachzaehlen = objektOderNull(ort, 'recount', p.recount);
   const nOrt = unter(ort, 'recount');
   const raus: StocktakeItem = {
@@ -700,19 +701,24 @@ export function inventurPosition(ort: Ort, w: unknown): StocktakeItem {
     counts: ganzzahl(ort, 'counts', p.counts),
     firstCountedAt: text(p.firstCountedAt),
     referenceTime: text(p.referenceTime),
-    countedBy: zaehler.map((a) => akteur(ort, a)).filter((a): a is StocktakeActor => a !== null),
-    serialNumbers: textlisteOderLeer(ort, 'serialNumbers', p.serialNumbers),
+    countedBy: zaehler.map((a, i) => {
+      const wer = akteur(ort, `countedBy[${i}]`, a);
+      if (!wer) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.countedBy[${i}] ist kein Objekt)`);
+      return wer;
+    }),
     recountRequested: p.recountRequested === true,
     recount: nachzaehlen
       ? {
         reason: text(nachzaehlen.reason),
         requestedAt: text(nachzaehlen.requestedAt),
-        requestedBy: akteur(nOrt, nachzaehlen.requestedBy),
+        requestedBy: akteur(nOrt, 'requestedBy', nachzaehlen.requestedBy),
         round: ganzzahlOderNull(nOrt, 'round', nachzaehlen.round),
       }
       : null,
     addedLater: p.addedLater === true,
   };
+  // Die Zaehl- und Storno-Antwort sendet die Position ohne Seriennummern: dann fehlt das Feld, nie [].
+  if (hat(p, 'serialNumbers')) raus.serialNumbers = textlisteOderLeer(ort, 'serialNumbers', p.serialNumbers);
   // Gezaehlt heisst: es gibt eine Menge. Beides zusammen kaputt waere „0“ oder „nichts“ geraten.
   if (raus.counted && raus.quantity === null) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.quantity fehlt bei counted: true)`);
   for (const feld of ['bookStockNow', 'expectedQuantity', 'differenceQuantity', 'differenceValueCents', 'bookedQuantity'] as const) {
@@ -748,15 +754,16 @@ export function inventurZaehlung(ort: Ort, w: unknown): StocktakeCount {
     articleId: kennung(ort, 'articleId', z.articleId),
     condition: kennung(ort, 'condition', z.condition),
     quantity: ganzzahl(ort, 'quantity', z.quantity),
-    serialNumbers: textlisteOderLeer(ort, 'serialNumbers', z.serialNumbers),
+    // Die Zaehlung traegt ihre Seriennummern immer (leer bei Mengenartikeln); fehlt die Liste, ist sie kaputt.
+    serialNumbers: textliste(ort, 'serialNumbers', z.serialNumbers),
     round: ganzzahl(ort, 'round', z.round),
-    countedBy: akteur(ort, z.countedBy),
+    countedBy: akteur(ort, 'countedBy', z.countedBy),
     source: textOderNull(z.source),
     cashregisterId: textOderNull(z.cashregisterId),
     countedAt: text(z.countedAt),
     note: text(z.note),
     voided: storno
-      ? { reason: text(storno.reason), voidedAt: text(storno.voidedAt), voidedBy: akteur(unter(ort, 'voided'), storno.voidedBy) }
+      ? { reason: text(storno.reason), voidedAt: text(storno.voidedAt), voidedBy: akteur(unter(ort, 'voided'), 'voidedBy', storno.voidedBy) }
       : null,
   };
 }

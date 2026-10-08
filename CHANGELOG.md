@@ -35,19 +35,29 @@ authentication codes (see Contract below) gain members, so an exhaustive `switch
   `inventoryAsOf`, `pdf`) and the expected quantity of an item
   (`expectedQuantity`, `differenceQuantity`, `needsCheck` …) are present only
   when the server sends them: never before `review` (blind), values only with
-  `costs`. A missing count, quantity or round is a response error, never `0`.
+  `costs`. A missing count, quantity, round or list of counters, and an actor
+  that is not an object, are response errors, never `0` or "nobody".
+  `StocktakeItem.serialNumbers` is present only when the server sends it (the
+  answer of counting and voiding omits it), never invented as `[]`.
 - **The record**: `getStocktakePdf` returns `{ kind: 'pdf', pdf }` (the bytes,
   up to 9 MiB) or `{ kind: 'download', download: { url, expiresAt, sizeBytes,
   sha256, fileName, contentType } }` (a signed link for 15 minutes above
   that). It reads the answer as bytes like the report downloads and accepts
-  either a PDF or a success envelope.
+  either a PDF or a success envelope. The transport for it is public:
+  `createPdfOrDataTransport(options)` at the package root (types
+  `KasseneckPdfOrDataTransport`, `PdfOrData`), so the free function
+  `getStocktakePdf(transport, stocktakeId)` works outside the client too, as
+  `getInvoicePdf` does with `createBinaryTransport`.
 - **Counting at the register** (`./pos`, register path only):
   `listMyStocktakes`, `listMyStocktakeItems`, `listMyStocktakeCounts`,
   `recordMyStocktakeCount`, `voidMyStocktakeCount`, with the same models.
-  `parseQuantityMilli(text, unit)` turns the typed quantity into thousandths
-  without floating point (comma or point, at most three decimals, whole
-  numbers without separator for piece units, otherwise `null`); its cases are
-  shared with the Dart twin in the new `fixtures/stocktake-quantity-cases.json`.
+  `parseQuantityMilli(text, unit, rule?)` turns the typed quantity into
+  thousandths without floating point (comma or point, at most three decimals;
+  a point with exactly three digits after a non-zero whole part, `'1.000'`,
+  is ambiguous and `null` for every unit; pieces, by the stored `rule` of the
+  article or else by the unit, whole numbers without separator only); its
+  cases are shared with the Dart twin in the new
+  `fixtures/stocktake-quantity-cases.json`.
   Messages and labels `stocktake.*` for the counting screen in the catalogue
   (`fixtures/pos-texts.json`).
 - **Idempotency and outcome**: every write takes `idempotencyKey` (refused
@@ -88,9 +98,17 @@ authentication codes (see Contract below) gain members, so an exhaustive `switch
   `POS_ERROR_CODES`, `INVOICE_REQUEST_ERROR_CODES`,
   `INVENTORY_REQUEST_ERROR_CODES` (and their unions) and
   `PAYMENT_CALL_REJECTED_CODES`, so they stay `rejected` on the money calls
-  (the Dart twin's `paymentCallRejectedCodes` follows).
+  (the Dart twin's `paymentCallRejectedCodes` follows). No call of this
+  package can receive them: the backend sends them only on three endpoints
+  of the admin app (App Check), none of which is public `/v3`, on the register
+  path or wrapped here; the lists follow the contract so that their guards
+  stay derived from it.
 - **Counts**: `PUBLIC_CALLS` 92 → 104, `POS_CALLS` 28 → 33 (27 register-only
   names).
+- **Twin check**: the source fingerprint of `functions-kasse/kasse-settings-core.js`
+  in `test/fixtures/stored-zwillinge.json` follows the backend, which only added
+  functions after `mische` (card provider and auto-logout per device); the
+  behaviour comparison of `./stored` against the backend is unchanged and green.
 
 ## 1.7.1
 

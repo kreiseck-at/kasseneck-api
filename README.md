@@ -905,7 +905,7 @@ import { listMyStocktakes, listMyStocktakeItems, recordMyStocktakeCount, voidMyS
 const [open] = await listMyStocktakes(transport, { locationId: 'haupt' });
 if (!open) showHint(messageText('stocktake.none_open'));
 const { items } = await listMyStocktakeItems(transport, { stocktakeId: open!.id, openOnly: true });
-const quantity = parseQuantityMilli('0,25', 'kg');        // 250; null for invalid input
+const quantity = parseQuantityMilli('0,25', 'kg', article.quantityRule); // 250; null for invalid input
 if (quantity === null) showHint(messageText('stocktake.quantity_invalid'));
 const key = crypto.randomUUID();                            // keep it for "Erneut senden"
 const { count, item } = await recordMyStocktakeCount(transport, {
@@ -914,11 +914,18 @@ const { count, item } = await recordMyStocktakeCount(transport, {
 await voidMyStocktakeCount(transport, { idempotencyKey: `${key}-void`, stocktakeId: open!.id, countId: count.id, reason: 'Doppelt gezählt' });
 ```
 
-`parseQuantityMilli(text, unit)` turns the typed text into thousandths
-without floating point: comma or point, at most three decimals (trailing
-zeros do not count), whole numbers only for a piece unit
+`parseQuantityMilli(text, unit, rule?)` turns the typed text into thousandths
+without floating point: comma or point as decimal separator, at most three
+decimals (trailing zeros do not count). A point followed by exactly three
+digits after a non-zero whole part (`'1.000'`, `'12.500'`) is `null` for every
+unit: in Austrian notation it is a thousands separator, on a keypad a decimal
+point, and a factor of 1000 would be booked as a difference; with a comma it
+is unambiguous (`'1,000'` is 1000, i.e. one unit). Pieces take whole numbers
+without any separator only. Whether an article is counted in pieces comes
+from `rule`, the stored quantity rule of the article (`PosArticle.quantityRule`,
+`'piece'` or `'decimal'`), without it from the default of the unit
 (`quantityRuleForUnit`: `Stk`, `g`, `ml` …, also when the unit is missing);
-anything else is `null`. Its cases are shared with the Dart twin in
+pass `'piece'` for a serial-number article. Anything else is `null`. Its cases are shared with the Dart twin in
 `fixtures/stocktake-quantity-cases.json`. Counting works online only; after
 `outcome: 'unknown'` resend the **same** count with the **same** key
 (`labelText('stocktake.resend')`), it is counted exactly once. The texts of the
@@ -1992,7 +1999,10 @@ else await download(pdf.download.url, pdf.download.sha256);   // over 9 MiB: sig
   round for the named items (old counts stay, but no longer count); count
   them, then call `reviewStocktake` again. `closeStocktake` refuses with
   `stocktake_recount_open` while recounts are open.
-- **Closing.** Only from `review` (`stocktake_not_in_review`). Uncounted items
+- **Closing.** Only from `review` (`stocktake_not_in_review`) and only once the
+  review has finished computing: while `review.complete` is `false`,
+  `closeStocktake` and `recountStocktake` answer `stocktake_review_running`
+  (poll `getStocktake` and try again). Uncounted items
   are not booked and appear as "not counted" in the record; with
   `uncountedAsZero: true` they are booked as 0. The answer usually has
   `status: 'closing'` with `closing.parts` and `closing.bookedParts`; calling

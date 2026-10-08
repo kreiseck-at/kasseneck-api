@@ -304,15 +304,23 @@ export function createBinaryTransport(options: TransportOptions): KasseneckBinar
 export type PdfOrData = { pdf: Uint8Array } | { data: unknown };
 
 /**
- * Wie [createBinaryTransport], nur nimmt er neben dem PDF auch eine
- * Erfolgshuelle an und reicht deren `data` weiter (Inventurprotokoll: bis
- * 9 MiB als Datei, darueber als signierter Lese-Link). Gelesen wird wie dort
- * nur als Bytes; ob es ein PDF ist, entscheiden die ersten Bytes. Paketintern,
- * nicht Teil der Oberflaeche.
+ * Ruft eine Backend-Funktion auf, die ein PDF **oder** eine JSON-Nutzlast
+ * liefert (Inventurprotokoll: die Datei bis 9 MiB, darueber ein Lese-Link).
  */
-export function createPdfOrDataTransport(
-  options: TransportOptions,
-): (functionName: string, params?: Record<string, unknown>) => Promise<PdfOrData> {
+export type KasseneckPdfOrDataTransport = (
+  functionName: string,
+  params?: Record<string, unknown>,
+) => Promise<PdfOrData>;
+
+/**
+ * Dritter Einstiegspunkt, fuer Aufrufe, die eine Datei oder eine Nutzlast
+ * liefern (`getStocktakePdf` aus `./inventory`). Wie [createBinaryTransport]
+ * wird die Antwort nur als Bytes gelesen; die ersten Bytes entscheiden: `%PDF`
+ * ergibt `{ pdf }`, eine Erfolgshuelle `{ data }`, eine Fehlerhuelle denselben
+ * fachlichen Fehler wie auf dem JSON-Weg. Leer, kein JSON oder ohne Statusfeld
+ * ist unlesbar mit denselben Gruenden wie dort.
+ */
+export function createPdfOrDataTransport(options: TransportOptions): KasseneckPdfOrDataTransport {
   const kern = createCore(options);
   return (functionName: string, params?: Record<string, unknown>) =>
     kern<Uint8Array, PdfOrData>(functionName, params, undefined, undefined, undefined, alsBytes, pdfOderDatenAuswerten);
