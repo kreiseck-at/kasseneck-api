@@ -4,6 +4,22 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.7.1
+
+`ReceiptSheetLines` pins `letter-spacing` and `word-spacing` to 0. Reason:
+both are inherited, and the sheet is exactly `charsPerLine` × `1ch` wide with
+`overflow: hidden` on every line. A page stylesheet that spaced its text (a
+`tracking-*` utility, a `letter-spacing` on `body`) made every full line wider
+than the sheet, and its last character was cut off. Same fix as the Dart twin
+`KeckReceiptSheetWidget` in 10.6.1, where the Material 3 theme's 0.25 letter
+spacing clipped "Kartenzahlung" to "Kartenzahlun".
+
+The sheet's HTML gains `letter-spacing:0;word-spacing:0` in the `keck-blatt`
+style, so the 264 `html.blatt.*` digests in `test/fixtures/druck-goldens.json`
+are re-recorded; cross-check: with the addition removed each output matches its
+old digest byte for byte. ESC/POS, ePOS, grid and sheet bytes are unchanged.
+No public symbol changes.
+
 ## 1.7.0
 
 Register auto-logout: `Cashregister` gains the optional `autoLogout`
