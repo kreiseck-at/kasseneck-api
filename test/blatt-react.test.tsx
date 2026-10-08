@@ -107,3 +107,11 @@ test('ReceiptSheetView fragt beim Laden des Logos isLogoPixelSizeAllowed (diesel
   assert.ok(onload, 'onload-Handler in ReceiptSheetView nicht gefunden');
   assert.match(onload[1]!, /isLogoPixelSizeAllowed\(bild\.naturalWidth,\s*bild\.naturalHeight\)/);
 });
+
+test('ReceiptSheetLines: Zeichen- und Wortabstand fest 0 -- ein geerbter Abstand schnitte das letzte Zeichen voller Zeilen ab', () => {
+  const blatt = receiptSheet(LAYOUT, {});
+  const html = renderToStaticMarkup(<ReceiptSheetLines sheet={blatt} />);
+  const blattStil = /<div class="keck-blatt"[^>]*style="([^"]*)"/.exec(html)?.[1] ?? '';
+  assert.match(blattStil, /letter-spacing:0(;|$)/, blattStil);
+  assert.match(blattStil, /word-spacing:0(;|$)/, blattStil);
+});

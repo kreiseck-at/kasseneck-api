@@ -220,6 +220,12 @@ export function ReceiptSheetLines({ sheet: blatt, logoUrl, renderQr, qrHidden: q
     width: `${z}ch`,
     fontFamily: 'var(--keck-blatt-schrift, "DM Mono", ui-monospace, Menlo, Consolas, monospace)',
     fontVariantLigatures: 'none',
+    // Ausdruecklich 0: `letter-spacing`/`word-spacing` erben sich, und das Blatt
+    // ist genau `charsPerLine` x 1ch breit. Ein Abstand aus dem Stylesheet der
+    // Seite (z. B. `tracking-wide`) machte jede volle Zeile breiter als das
+    // Blatt; `overflow: hidden` schnitt das letzte Zeichen ab.
+    letterSpacing: 0,
+    wordSpacing: 0,
   };
   return (
     <div className={klasse} data-zeichen={z} style={blattStil}>
