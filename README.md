@@ -893,6 +893,48 @@ errors such as `location_not_found` and `location_inactive` are in
 `RETURN_DISPOSITION_LABELS` gives the label of each return choice
 (`labelText(RETURN_DISPOSITION_LABELS.restock)` is "Zurück ins Lager").
 
+**Counting a stocktake at the register.** Five calls on the register path,
+permissions `stocktakeCount` (count, void own counts) and `stocktakeClose`
+(also void other people's counts; the expected quantity from `review` on).
+Creating, reviewing and closing happen in the panel or through the inventory
+API, not at the register.
+
+```ts
+import { listMyStocktakes, listMyStocktakeItems, recordMyStocktakeCount, voidMyStocktakeCount, parseQuantityMilli, messageText, labelText } from '@kreiseck/kasseneck-api/pos';
+
+const [open] = await listMyStocktakes(transport, { locationId: 'haupt' });
+if (!open) showHint(messageText('stocktake.none_open'));
+const { items } = await listMyStocktakeItems(transport, { stocktakeId: open!.id, openOnly: true });
+const quantity = parseQuantityMilli('0,25', 'kg', article.quantityRule); // 250; null for invalid input
+if (quantity === null) showHint(messageText('stocktake.quantity_invalid'));
+const key = crypto.randomUUID();                            // keep it for "Erneut senden"
+const { count, item } = await recordMyStocktakeCount(transport, {
+  idempotencyKey: key, stocktakeId: open!.id, articleId: items[0]!.articleId, quantity: quantity!,
+});
+await voidMyStocktakeCount(transport, { idempotencyKey: `${key}-void`, stocktakeId: open!.id, countId: count.id, reason: 'Doppelt gezählt' });
+```
+
+`parseQuantityMilli(text, unit, rule?)` turns the typed text into thousandths
+without floating point: comma or point as decimal separator, at most three
+decimals (trailing zeros do not count). A point followed by exactly three
+digits after a non-zero whole part (`'1.000'`, `'12.500'`) is `null` for every
+unit: in Austrian notation it is a thousands separator, on a keypad a decimal
+point, and a factor of 1000 would be booked as a difference; with a comma it
+is unambiguous (`'1,000'` is 1000, i.e. one unit). Pieces take whole numbers
+without any separator only. Whether an article is counted in pieces comes
+from `rule`, the stored quantity rule of the article (`PosArticle.quantityRule`,
+`'piece'` or `'decimal'`), without it from the default of the unit
+(`quantityRuleForUnit`: `Stk`, `g`, `ml` …, also when the unit is missing);
+pass `'piece'` for a serial-number article. Anything else is `null`. Its cases are shared with the Dart twin in
+`fixtures/stocktake-quantity-cases.json`. Counting works online only; after
+`outcome: 'unknown'` resend the **same** count with the **same** key
+(`labelText('stocktake.resend')`), it is counted exactly once. The texts of the
+counting screen are in the catalogue as `stocktake.*`
+(`messageText('stocktake.counted', { name, quantity })`,
+`labelText('stocktake.progress', { counted, total })`); the error codes
+(`stocktake_not_open`, `article_not_in_scope`, `count_already_voided` …) are in
+`POS_ERROR_CODES`.
+
 `stockViewOf(perms)` (also exported from the package root) tells whether a
 register user may see locations and quantities: a missing `stockView` counts
 as granted, only an explicit `false` blocks it, and the other stock
@@ -1483,7 +1525,8 @@ ones made at the register in the shop. Since 1.5.0 also the write side:
 create and update articles, book goods receipts, transfers, losses and
 condition changes, and reserve stock at checkout (see
 [Shop: reserve and invoice](#shop-reserve-and-invoice)); since 1.6.0 variant
-groups (sizes, colours, see [Variants](#variants)). Uses the `api_key` of
+groups (sizes, colours, see [Variants](#variants)); since 1.8.0 stocktakes
+(see [Stocktake](#stocktake)). Uses the `api_key` of
 the account and belongs on a **server**. Reading needs the module `lager`,
 writing additionally the account switch *Lager-API schreiben*, which Kasseneck
 turns on (always on in the test environment, `kr_test_…`; otherwise
@@ -1863,6 +1906,131 @@ function onDelivery(rawBody: Buffer) {
   `listArticles({ variantGroupId, updatedSince })` are sorted by `updatedAt`
   ascending and include the boundary.
 
+### Stocktake
+
+A stocktake counts the stock of one location: create it (scope, key date or
+perpetual, blind by default), count (several counts of the same article are
+added up, a wrong one is voided with a reason), review (only now the expected
+quantity and the difference appear), recount single items, close (books one
+movement `stocktake` per item and stores the stocktake record as PDF) or
+cancel. The same flow runs in the panel and, for counting, at the register
+(`./pos`, below). All writes, counting included, take an `idempotencyKey`
+and the account switch *Lager-API schreiben*; values (`…Cents`, `…Micros`)
+and the PDF with values need `costs`.
+
+Example: Bäckerei Kornblum has 40 Kornspitz at the location `haupt`. At
+10:00:00 the register sells 3, the stock movement is booked a few seconds
+late at 10:00:03. At 10:00:02 Livia Lindmayr counts 37 on the shelf.
+
+```ts
+import { createInventoryClient, inventoryBusyStocktakeId, isInventoryError } from '@kreiseck/kasseneck-api/inventory';
+import { parseQuantityMilli } from '@kreiseck/kasseneck-api/pos';
+
+const inventory = createInventoryClient({ apiKey: process.env.KASSENECK_API_KEY! });
+
+// 1. One open stocktake per location; reuse it if there is one.
+let stocktakeId: string;
+try {
+  const created = await inventory.createStocktake({
+    idempotencyKey: 'shop-stocktake-haupt-2026-12',
+    locationId: 'haupt',
+    scope: { type: 'groups', groupIds: ['gebaeck'] },
+    type: 'key_date',
+    keyDate: '2026-12-31',            // blind: true is the default
+  });
+  stocktakeId = created.id;           // status: 'counting'
+} catch (error) {
+  const busy = inventoryBusyStocktakeId(error);
+  if (!busy) throw error;
+  stocktakeId = busy;
+}
+
+// 2. Count. Quantities in thousandths: "37" pieces -> 37000, "0,25" kg -> 250.
+const kornspitz = await inventory.lookupArticleByCode('9001234567896');
+const { item } = await inventory.recordStocktakeCount({
+  idempotencyKey: 'shelf-a-kornspitz-1',   // after outcome 'unknown': resend with the SAME key
+  stocktakeId,
+  articleId: kornspitz.id,
+  quantity: parseQuantityMilli('37', kornspitz.unit)!,
+});
+// item.quantity: 37000 (sum of the round), no expectedQuantity while counting
+
+// 3. Review: computed in the background, poll until complete.
+await inventory.reviewStocktake({ idempotencyKey: 'review-1', stocktakeId });
+let stocktake = await inventory.getStocktake(stocktakeId);
+while (!stocktake.review?.complete) {
+  await new Promise((r) => setTimeout(r, 2000));
+  stocktake = await inventory.getStocktake(stocktakeId);
+}
+for await (const it of inventory.iterateStocktakeItems({ stocktakeId })) {
+  // Kornspitz: expectedQuantity 37000, differenceQuantity 0 (the sale at
+  // 10:00:00 was booked after the count, but it happened before it)
+  if (it.needsCheck) console.log(it.articleId, it.checkReasons);
+}
+
+// 4. Close (books in parts in the background), then fetch the record.
+const { warnings } = await inventory.closeStocktake({ idempotencyKey: 'close-1', stocktakeId });
+// … poll getStocktake until status === 'closed' …
+const pdf = await inventory.getStocktakePdf(stocktakeId);
+if (pdf.kind === 'pdf') await save('stocktake.pdf', pdf.pdf);
+else await download(pdf.download.url, pdf.download.sha256);   // over 9 MiB: signed link, 15 minutes
+```
+
+- **Reference time.** The expected quantity of an item is the stock at the
+  time of its last count (server time; the device clock never counts), taken
+  from the stock ledger, including sales that happened before the count but
+  were booked after it (within 3 days). In the example the expected quantity
+  is 37, the difference 0, and closing changes nothing. Had the 3 Kornspitz
+  been sold at 10:00:05, after the count, the expected quantity would be 40
+  and the difference −3: closing books −3 on today's stock (37 after the
+  sale), which leaves 34. Each piece is deducted exactly once.
+- **Blind.** Before `review` no response carries an expected quantity, a
+  difference or `needsCheck`; the fields are absent, not `null`. With
+  `blind: false` the items carry `bookStockNow` while counting: today's book
+  stock, never the expected quantity at the reference time.
+- **Counting.** `quantity` in thousandths, `0` means counted empty. Pieces
+  and serial-number articles take whole pieces only, serial-number articles
+  exactly one serial number per piece (`serial_required`,
+  `serial_already_counted`). Scope `all` adds a tracked article that was not
+  listed (`addedLater`); scopes `groups` and `articles` answer
+  `article_not_in_scope`. While counting or recounting, `voidStocktakeCount`
+  with a reason takes a count back; the item is summed up again.
+- **Recount.** In `review`, `recountStocktake({ items, reason })` starts a new
+  round for the named items (old counts stay, but no longer count); count
+  them, then call `reviewStocktake` again. `closeStocktake` refuses with
+  `stocktake_recount_open` while recounts are open.
+- **Closing.** Only from `review` (`stocktake_not_in_review`) and only once the
+  review has finished computing: while `review.complete` is `false`,
+  `closeStocktake` and `recountStocktake` answer `stocktake_review_running`
+  (poll `getStocktake` and try again). Uncounted items
+  are not booked and appear as "not counted" in the record; with
+  `uncountedAsZero: true` they are booked as 0. The answer usually has
+  `status: 'closing'` with `closing.parts` and `closing.bookedParts`; calling
+  `closeStocktake` again while it is closing resumes it. After `closed`, the
+  head carries `totals`, `warnings` (`uncounted_items`, `not_booked`,
+  `defect_capped`), `seal` (the state of the stock ledger seal), `checksum`
+  and `pdf`; `closeStocktake` itself may warn `recount_uncounted`. Each
+  booking reaches webhooks as `stock.changed` with `cause: 'stocktake'`;
+  there is no `stocktake.*` event.
+- **Lists.** `listStocktakes()` without `updatedSince` returns the most
+  recently changed first (an open stocktake is not necessarily on top; filter
+  with `status`). With `updatedSince` it is sorted by `updatedAt` ascending
+  and includes the boundary, like `listArticles`: remember the largest
+  `updatedAt` and ask again. `listStocktakeItems({ stocktakeId, openOnly })`
+  and `listStocktakeCounts({ stocktakeId, articleId })` page with `cursor`;
+  the `iterate…` variants follow `nextCursor` in the same order.
+- **The record.** `getStocktakePdf` exists only after closing
+  (`stocktake_not_closed`, also for a cancelled stocktake). With `costs` it is
+  the version with values, otherwise the one with quantities only. Up to
+  9 MiB the file comes in the answer (`kind: 'pdf'`), above that as a signed
+  link for 15 minutes (`kind: 'download'`, with `sizeBytes` and `sha256`; check
+  the downloaded file against `sha256`).
+- **Limits.** At most `STOCKTAKE_ITEMS_MAX` (5000) items per stocktake
+  (`too_many_positions`; count larger stocks in several stocktakes one after
+  another), `STOCKTAKE_RECOUNT_ITEMS_MAX` (200) items per recount and
+  `STOCKTAKE_COUNTS_PER_ITEM_MAX` (200) counts per item and round
+  (`too_many_counts`). The server checks them, not the client.
+
 ## Migrating from 0.x
 
 1.0 is one breaking step: the wire, the exported names and the contract files
@@ -1946,6 +2114,7 @@ in machine form what both sides agreed on, among them:
 | `pos-message-cases.json` | error cases and the message each one must show in both registers | by hand |
 | `receipt-due-generated.json` | 1206 amounts due computed by the backend's own code, the reference for `receiptDueCents` | `node scripts/v3-zahlbetrag-generieren.mjs` |
 | `receipt-due-errors.json` | input the amount due cannot be computed from, with the `reason` of the `ReceiptDueError` each one throws | by hand |
+| `stocktake-quantity-cases.json` | typed quantities and the thousandths `parseQuantityMilli` makes of them (or `null`), per unit | by hand |
 | `v3/` | the backend's `/v3` contract (vocabulary, response cases, stored cases, amounts due), copied byte for byte | `node scripts/v3-vertrag-holen.mjs` |
 | `renames-1.0.json` | everything in these files that changed from 0.x to 1.0: paths (`files`), text catalogue keys (`texts`), placeholders, structural keys (`structure`), machine values (`values`), shape changes (`shapes`); rendered texts are unchanged | `npm run fixtures:umbenennung` |
 

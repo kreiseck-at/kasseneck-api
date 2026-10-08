@@ -1,11 +1,11 @@
 /**
  * Fassade ueber den Aufrufen der Lager-API (lesen, Webhooks, schreiben,
- * reservieren, Varianten): Schluessel einmal binden, dann rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
+ * reservieren, Varianten, Inventur): Schluessel einmal binden, dann rufen. Wie [createInvoiceApi] bewusst keine Klasse; die Aufrufe sind freie
  * Funktionen (endpunkte.ts) und bleiben einzeln importierbar.
  */
 
-import type { InternerTransport } from '../client/aufrufe.js';
-import { createTransport, type FetchLike } from '../client/transport.js';
+import type { InternerPdfOderDatenTransport, InternerTransport } from '../client/aufrufe.js';
+import { createPdfOrDataTransport, createTransport, type FetchLike } from '../client/transport.js';
 import { inventoryKeyAuth } from './auth.js';
 import {
   createWebhook,
@@ -44,6 +44,23 @@ import {
   updateArticle,
 } from './schreiben.js';
 import {
+  cancelStocktake,
+  closeStocktake,
+  createStocktake,
+  getStocktake,
+  getStocktakePdf,
+  iterateStocktakeCounts,
+  iterateStocktakeItems,
+  iterateStocktakes,
+  listStocktakeCounts,
+  listStocktakeItems,
+  listStocktakes,
+  recordStocktakeCount,
+  recountStocktake,
+  reviewStocktake,
+  voidStocktakeCount,
+} from './inventur.js';
+import {
   addVariant,
   createVariantGroup,
   getVariantGroup,
@@ -52,6 +69,25 @@ import {
   updateVariantGroup,
 } from './varianten.js';
 import type {
+  CancelStocktakeRequest,
+  CloseStocktakeRequest,
+  CloseStocktakeResult,
+  CreateStocktakeRequest,
+  RecordStocktakeCountRequest,
+  RecountStocktakeRequest,
+  ReviewStocktakeRequest,
+  Stocktake,
+  StocktakeCount,
+  StocktakeCountListQuery,
+  StocktakeCountPage,
+  StocktakeCountResult,
+  StocktakeItem,
+  StocktakeItemListQuery,
+  StocktakeItemPage,
+  StocktakeListQuery,
+  StocktakePage,
+  StocktakePdf,
+  VoidStocktakeCountRequest,
   AddVariantRequest,
   CreateVariantGroupRequest,
   UpdateVariantGroupRequest,
@@ -164,15 +200,41 @@ export interface InventoryClient {
   getVariantGroup(variantGroupId: string): Promise<VariantGroup>;
   listVariantGroups(query?: VariantGroupListQuery): Promise<VariantGroupPage>;
   iterateVariantGroups(query?: VariantGroupListQuery): AsyncGenerator<VariantGroup, void, undefined>;
+
+  // Inventur (Lager-Kern Stufe 3, seit 1.8.0): blind zaehlen, pruefen,
+  // nachzaehlen, abschliessen. Die schreibenden Aufrufe (auch Zaehlen) mit
+  // `idempotencyKey` und dem Konto-Schalter „Lager-API schreiben“, wie oben.
+  createStocktake(request: CreateStocktakeRequest): Promise<Stocktake>;
+  /** Ohne `updatedSince` zuletzt geaenderte zuerst, mit `updatedSince` aufsteigend und inklusive. */
+  listStocktakes(query?: StocktakeListQuery): Promise<StocktakePage>;
+  iterateStocktakes(query?: StocktakeListQuery): AsyncGenerator<Stocktake, void, undefined>;
+  getStocktake(stocktakeId: string): Promise<Stocktake>;
+  listStocktakeItems(query: StocktakeItemListQuery): Promise<StocktakeItemPage>;
+  iterateStocktakeItems(query: StocktakeItemListQuery): AsyncGenerator<StocktakeItem, void, undefined>;
+  recordStocktakeCount(request: RecordStocktakeCountRequest): Promise<StocktakeCountResult>;
+  voidStocktakeCount(request: VoidStocktakeCountRequest): Promise<StocktakeCountResult>;
+  listStocktakeCounts(query: StocktakeCountListQuery): Promise<StocktakeCountPage>;
+  iterateStocktakeCounts(query: StocktakeCountListQuery): AsyncGenerator<StocktakeCount, void, undefined>;
+  /** Pruefen; die Antwort kommt mit `review.complete: false`, gerechnet wird im Hintergrund. */
+  reviewStocktake(request: ReviewStocktakeRequest): Promise<Stocktake>;
+  recountStocktake(request: RecountStocktakeRequest): Promise<Stocktake>;
+  /** Abschliessen; der Server bucht in Teilen weiter (`status: 'closing'`). */
+  closeStocktake(request: CloseStocktakeRequest): Promise<CloseStocktakeResult>;
+  cancelStocktake(request: CancelStocktakeRequest): Promise<Stocktake>;
+  /** Das Inventurprotokoll: die Datei (`kind: 'pdf'`) oder, ueber 9 MiB, ein Lese-Link (`kind: 'download'`). */
+  getStocktakePdf(stocktakeId: string): Promise<StocktakePdf>;
 }
 
 export function createInventoryClient(options: InventoryClientOptions): InventoryClient {
-  const rufen = createTransport({
+  const transportOptionen = {
     auth: inventoryKeyAuth({ apiKey: options.apiKey }),
     baseUrl: options.baseUrl,
     timeoutMs: options.timeoutMs,
     fetch: options.fetch,
-  }) as InternerTransport;
+  };
+  const rufen = createTransport(transportOptionen) as InternerTransport;
+  // Das Inventurprotokoll kommt als Datei oder als Lese-Link (ueber 9 MiB).
+  const rufenDatei = createPdfOrDataTransport(transportOptionen) as InternerPdfOderDatenTransport;
 
   return {
     getArticle: (id) => getArticle(rufen, id),
@@ -218,5 +280,21 @@ export function createInventoryClient(options: InventoryClientOptions): Inventor
     getVariantGroup: (id) => getVariantGroup(rufen, id),
     listVariantGroups: (q) => listVariantGroups(rufen, q),
     iterateVariantGroups: (q) => iterateVariantGroups(rufen, q),
+
+    createStocktake: (r) => createStocktake(rufen, r),
+    listStocktakes: (q) => listStocktakes(rufen, q),
+    iterateStocktakes: (q) => iterateStocktakes(rufen, q),
+    getStocktake: (id) => getStocktake(rufen, id),
+    listStocktakeItems: (q) => listStocktakeItems(rufen, q),
+    iterateStocktakeItems: (q) => iterateStocktakeItems(rufen, q),
+    recordStocktakeCount: (r) => recordStocktakeCount(rufen, r),
+    voidStocktakeCount: (r) => voidStocktakeCount(rufen, r),
+    listStocktakeCounts: (q) => listStocktakeCounts(rufen, q),
+    iterateStocktakeCounts: (q) => iterateStocktakeCounts(rufen, q),
+    reviewStocktake: (r) => reviewStocktake(rufen, r),
+    recountStocktake: (r) => recountStocktake(rufen, r),
+    closeStocktake: (r) => closeStocktake(rufen, r),
+    cancelStocktake: (r) => cancelStocktake(rufen, r),
+    getStocktakePdf: (id) => getStocktakePdf(rufenDatei, id),
   };
 }

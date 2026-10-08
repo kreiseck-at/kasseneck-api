@@ -42,6 +42,8 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'account_not_found',
   'admin_required',
   'api_not_approved',
+  'app_check_invalid',
+  'app_check_missing',
   'cashregister_not_assigned',
   'cashregister_not_found',
   'cashregister_token_invalid',

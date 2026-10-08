@@ -310,6 +310,23 @@ const MELDUNGEN_ROH = {
   'logo.upload_failed': { text: 'Hochladen fehlgeschlagen.' },
   'logo.remove_failed': { text: 'Entfernen fehlgeschlagen.' },
 
+  // --- Inventur zählen ------------------------------------------------------
+  // Gezählt wird blind und nur online; bei unklarem Ausgang schickt
+  // „Erneut senden“ dieselbe Zählung mit demselben Schlüssel (sie zählt genau
+  // einmal), nie eine neue. `{quantity}` ist die Menge samt Einheit („12 Stk“),
+  // `{count}` die Zahl der erfassten Seriennummern.
+  'stocktake.none_open': { text: 'An diesem Standort läuft gerade keine Inventur. Eine Inventur legt der Inhaber im Panel an.' },
+  'stocktake.scan_or_search': { text: 'Artikel scannen oder suchen.' },
+  'stocktake.counted': { text: '{name}: {quantity} gezählt.', placeholders: ['name', 'quantity'] },
+  'stocktake.blind_hint': { text: 'Blind zählen – die Kasse zeigt keinen Buchbestand. Bitte zählen, was wirklich da ist.' },
+  'stocktake.recount_hint': { text: 'Bitte die markierten Positionen nachzählen.' },
+  'stocktake.unknown_code': { text: 'Zu „{code}“ gibt es keinen Artikel. Bitte den Code prüfen oder den Artikel suchen.', placeholders: ['code'] },
+  'stocktake.quantity_invalid': { text: 'Bitte eine gültige Menge eingeben – höchstens drei Nachkommastellen, bei Stückware nur ganze Zahlen.' },
+  'stocktake.serials_capture': { text: 'Bitte für jedes Stück die Seriennummer scannen.' },
+  'stocktake.serials_mismatch': { text: 'Je Stück genau eine Seriennummer: {count} erfasst, {quantity} gezählt.', placeholders: ['count', 'quantity'] },
+  'stocktake.reason_missing': { text: 'Bitte einen Grund für das Stornieren eingeben.' },
+  'stocktake.outcome_unknown': { text: 'Unklar, ob die Zählung angekommen ist. „Erneut senden“ schickt dieselbe Zählung – sie zählt auch dann nur einmal.' },
+
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
@@ -672,6 +689,26 @@ const BESCHRIFTUNGEN_ROH = {
   'stock.return_restock': { text: 'Zurück ins Lager' },
   'stock.return_defective': { text: 'Defekt' },
   'stock.return_disposed': { text: 'Entsorgt' },
+
+  // --- Inventur zählen ---------------------------------------------------------
+  // Knöpfe und Zeilen des Zählbildschirms. „gesendet“ und „unbestätigt“ stehen
+  // an den Zählungen der Sitzung (unbestätigt: unklarer Ausgang, „Erneut
+  // senden“ mit demselben Schlüssel).
+  'stocktake.title': { text: 'Inventur zählen' },
+  'stocktake.quantity': { text: 'Menge' },
+  'stocktake.defective': { text: 'Defekt' },
+  'stocktake.count_zero': { text: '0 zählen' },
+  'stocktake.next': { text: 'Weiter' },
+  'stocktake.void': { text: 'Stornieren' },
+  'stocktake.reason': { text: 'Grund' },
+  'stocktake.progress': { text: '{counted} von {total} gezählt', placeholders: ['counted', 'total'] },
+  'stocktake.serial_numbers': { text: 'Seriennummern erfassen' },
+  'stocktake.recount': { text: 'Nachzählen' },
+  'stocktake.resend': { text: 'Erneut senden' },
+  'stocktake.my_counts': { text: 'Meine Zählungen' },
+  'stocktake.sent': { text: 'gesendet' },
+  'stocktake.unconfirmed': { text: 'unbestätigt' },
+  'stocktake.voided': { text: 'storniert' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

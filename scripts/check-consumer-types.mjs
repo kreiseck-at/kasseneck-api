@@ -37,11 +37,11 @@ import { createEscPosDocument, escPosText } from '@kreiseck/kasseneck-api/printi
 import type { HobexPayOptions } from '@kreiseck/kasseneck-api/payments';
 import { pairRegisterDevice, isRegisterError, registerErrorDetails, type PairedRegisterDevice } from '@kreiseck/kasseneck-api/register';
 import { ReceiptLayoutView } from '@kreiseck/kasseneck-api/react';
-import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, type PosSettings, type PosArticle } from '@kreiseck/kasseneck-api/pos';
+import { listMyPrinters, setMyPosSettings, POS_SHORTCUT_ACTIONS, recordMyStocktakeCount, parseQuantityMilli, labelText, type PosSettings, type PosArticle, type StocktakeCountResult } from '@kreiseck/kasseneck-api/pos';
 import { createPartnerApi, verifyWebhookSignature, KasseneckSecret, reportCustomerContract, partnerErrorAdvice, type Business } from '@kreiseck/kasseneck-api/partner';
 import { createInvoiceApi, INVOICE_ERROR_CODES, type IssueInvoiceItemInput, type IssueInvoiceRequest, type Invoice, type InvoiceVatIdProof } from '@kreiseck/kasseneck-api/invoice';
 import { calculateInvoice } from '@kreiseck/kasseneck-api/invoice/calc';
-import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, VARIANT_MATRIX_MAX, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest, type VariantGroup, type AddVariantRequest, type Article } from '@kreiseck/kasseneck-api/inventory';
+import { createInventoryClient, verifyInventoryWebhookSignature, parseInventoryWebhookEvent, inventoryShortfalls, INVENTORY_WEBHOOK_EVENTS, RESERVATION_STATUSES, VARIANT_MATRIX_MAX, STOCKTAKE_STATUSES, inventoryBusyStocktakeId, type StockLevel, type Reservation, type StockOperation, type CreateReservationRequest, type VariantGroup, type AddVariantRequest, type Article, type Stocktake, type StocktakePdf, type CloseStocktakeResult } from '@kreiseck/kasseneck-api/inventory';
 // 1.0 hat die deutschen Unterpfade ohne Alias entfernt (./kasse -> ./pos,
 // ./rechnung -> ./invoice, ./rechnung/rechnen -> ./invoice/calc). Loest einer
 // wieder auf, meldet tsc die unbenutzte Erwartung.
@@ -125,6 +125,24 @@ export const ohneSchluesselVariante = lager.addVariant({ variantGroupId: 'vg_1',
 const lagerV = parseInventoryWebhookEvent('{}');
 export const gruppenStand: string | null = lagerV && lagerV.type === 'variant_group.updated' ? lagerV.data.updatedAt : null;
 export const matrixGrenze: number = VARIANT_MATRIX_MAX;
+// ./inventory Inventur (1.8.0): anlegen, zaehlen, abschliessen, Protokoll als Datei oder Link.
+export const inventur: Promise<Stocktake> = lager.createStocktake({
+  idempotencyKey: 'inv-1', locationId: 'haupt', scope: { type: 'groups', groupIds: ['gebaeck'] }, type: 'key_date', keyDate: '2026-12-31',
+});
+// @ts-expect-error ohne idempotencyKey keine Zaehlung
+export const ohneSchluesselZaehlung = lager.recordStocktakeCount({ stocktakeId: 'inv_1', articleId: 'kornspitz', quantity: 37000 });
+export const abschluss: Promise<CloseStocktakeResult> = lager.closeStocktake({ idempotencyKey: 'inv-1-schluss', stocktakeId: 'inv_1' });
+declare const protokoll: StocktakePdf;
+export const protokollBytes: number = protokoll.kind === 'pdf' ? protokoll.pdf.byteLength : protokoll.download.sizeBytes;
+export const inventurStaende: readonly string[] = STOCKTAKE_STATUSES;
+export const belegterStandort: string | undefined = inventoryBusyStocktakeId(null);
+declare const kopfInventur: Stocktake;
+export const soll: number | null | undefined = kopfInventur.totals?.withDifference;
+// ./pos Inventur zaehlen: Menge ohne Gleitkomma, Satz aus dem Katalog.
+export const gezaehlt: Promise<StocktakeCountResult> = recordMyStocktakeCount(rufen, {
+  idempotencyKey: 'k-1', stocktakeId: 'inv_1', articleId: 'kornspitz', quantity: parseQuantityMilli('37', 'Stk') ?? 0,
+});
+export const fortschritt: string = labelText('stocktake.progress', { counted: 12, total: 40 });
 export const rechnungsPosition: IssueInvoiceItemInput = { description: 'Kaisersemmel', quantity: 6, unitPriceCents: 65, vatRate: 10, articleId: 'kaisersemmel', reservationId: 'res_1' };
 // UID-Pruefung beim Ausstellen ohne Steuer: Risiko uebernehmen, Nachweis lesen.
 export const mitRisiko: Pick<IssueInvoiceRequest, 'acceptVatIdRisk'> = { acceptVatIdRisk: true };

@@ -32,6 +32,15 @@ import type {
   StockMovementLot,
   StockOperation,
   StockValue,
+  Stocktake,
+  StocktakeActor,
+  StocktakeCount,
+  StocktakeCountResult,
+  StocktakeItem,
+  StocktakeNotBooked,
+  StocktakePdfDownload,
+  StocktakeSeal,
+  StocktakeWarning,
   VariantAttribute,
   VariantGroup,
   VariantGroupDefaults,
@@ -494,6 +503,288 @@ export function variantengruppe(ort: Ort, w: unknown): VariantGroup {
     variants: (g.variants as unknown[]).map((x, i) => mitglied(unter('variants', i), x)),
     createdAt: text(g.createdAt),
     updatedAt: text(g.updatedAt),
+  };
+}
+
+// ---- Inventur (Lager-Kern Stufe 3) ---------------------------------------------------
+
+const unter = (ort: Ort, feld: string): Ort => ({ name: ort.name, pfad: ort.pfad ? `${ort.pfad}.${feld}` : feld });
+
+/** Ein Unterobjekt, das `null` sein darf (`review`, `closing` …); etwas anderes als Objekt oder `null` ist kaputt. */
+function objektOderNull(ort: Ort, feld: string, w: unknown): Roh | null {
+  if (w === undefined || w === null) return null;
+  const o = objekt(w);
+  if (!o) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist kein Objekt)`);
+  return o;
+}
+
+/** Ein Wahrheitswert, der da sein muss: ein fehlendes „gezaehlt“ ist nicht „ungezaehlt“. */
+function wahrheitswert(ort: Ort, feld: string, w: unknown): boolean {
+  if (typeof w !== 'boolean') throw antwortfehler(ort.name, `Antwort enthaelt keinen Wahrheitswert (data.${ort.pfad}.${feld})`);
+  return w;
+}
+
+/** Eine Liste von Texten, die fehlen darf (dann leer); etwas anderes ist kaputt. */
+function textlisteOderLeer(ort: Ort, feld: string, w: unknown): string[] {
+  if (w === undefined || w === null) return [];
+  return textliste(ort, feld, w);
+}
+
+/** Wer etwas tat; fehlt die Angabe, `null`. Etwas anderes als ein Objekt ist kaputt, nie still „niemand“. */
+function akteur(ort: Ort, feld: string, w: unknown): StocktakeActor | null {
+  if (w === undefined || w === null) return null;
+  const a = objekt(w);
+  if (!a) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.${feld} ist kein Objekt)`);
+  return { type: textOderNull(a.type), id: textOderNull(a.id), name: textOderNull(a.name) };
+}
+
+function inventurWarnung(ort: Ort, w: unknown): StocktakeWarning {
+  const h = eintrag(ort, w);
+  if (typeof h.code !== 'string' || h.code === '') throw antwortfehler(ort.name, `Hinweis ohne Code (data.${ort.pfad}.code)`);
+  return { code: h.code, items: ganzzahl(ort, 'items', h.items), message: typeof h.message === 'string' ? h.message : null };
+}
+
+/** Hinweise einer Inventur; fehlt die Liste, gibt es keine. */
+export function inventurWarnungen(ort: Ort, w: unknown): StocktakeWarning[] {
+  if (w === undefined || w === null) return [];
+  if (!Array.isArray(w)) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad} ist keine Liste)`);
+  return w.map((h, i) => inventurWarnung({ name: ort.name, pfad: `${ort.pfad}[${i}]` }, h));
+}
+
+function siegel(ort: Ort, w: unknown): StocktakeSeal {
+  const s = eintrag(ort, w);
+  const raus: StocktakeSeal = {
+    fromDay: textOderNull(s.fromDay),
+    toDay: textOderNull(s.toDay),
+    daysChecked: ganzzahlOderNull(ort, 'daysChecked', s.daysChecked),
+    verified: typeof s.verified === 'boolean' ? s.verified : null,
+    firstBreak: textOderNull(s.firstBreak),
+    gaps: textlisteOderLeer(ort, 'gaps', s.gaps),
+    gapCount: ganzzahlOderNull(ort, 'gapCount', s.gapCount),
+  };
+  if (typeof s.notChecked === 'string') raus.notChecked = s.notChecked;
+  if (hat(s, 'checkedUntil')) raus.checkedUntil = textOderNull(s.checkedUntil);
+  return raus;
+}
+
+/**
+ * Kopf einer Inventur. Was erst nach dem Abschluss kommt (Summen, Hinweise,
+ * Siegel, Pruefsumme, Protokoll), steht im Modell nur, wenn der Server es
+ * sendet; Werte nur mit dem Kosten-Recht.
+ */
+export function inventur(ort: Ort, w: unknown): Stocktake {
+  const k = eintrag(ort, w);
+  const umfang = objektOderNull(ort, 'scope', k.scope);
+  const umfangOrt = unter(ort, 'scope');
+  const fortschritt = objektOderNull(ort, 'progress', k.progress);
+  const fOrt = unter(ort, 'progress');
+  const pruefung = objektOderNull(ort, 'review', k.review);
+  const pOrt = unter(ort, 'review');
+  const abschluss = objektOderNull(ort, 'closing', k.closing);
+  const aOrt = unter(ort, 'closing');
+  const abbruch = objektOderNull(ort, 'cancellation', k.cancellation);
+  const raus: Stocktake = {
+    id: kennung(ort, 'id', k.id),
+    name: text(k.name),
+    locationId: textOderNull(k.locationId),
+    scope: umfang
+      ? {
+        type: textOderNull(umfang.type),
+        groupIds: textlisteOderLeer(umfangOrt, 'groupIds', umfang.groupIds),
+        articleIds: textlisteOderLeer(umfangOrt, 'articleIds', umfang.articleIds),
+      }
+      : null,
+    type: textOderNull(k.type),
+    keyDate: textOderNull(k.keyDate),
+    // Blind ist die sichere Vorgabe: nur ein ausdrueckliches false zeigt Bestand.
+    blind: k.blind !== false,
+    status: textOderNull(k.status),
+    progress: fortschritt
+      ? {
+        items: ganzzahl(fOrt, 'items', fortschritt.items),
+        counted: ganzzahlOderNull(fOrt, 'counted', fortschritt.counted),
+        recountOpen: fortschritt.recountOpen === true,
+      }
+      : null,
+    createdAt: text(k.createdAt),
+    createdBy: akteur(ort, 'createdBy', k.createdBy),
+    source: textOderNull(k.source),
+    updatedAt: text(k.updatedAt),
+    review: pruefung
+      ? {
+        startedAt: text(pruefung.startedAt),
+        startedBy: akteur(pOrt, 'startedBy', pruefung.startedBy),
+        complete: pruefung.complete === true,
+        expectedAsOf: text(pruefung.expectedAsOf),
+        recountUncounted: ganzzahlOderNull(pOrt, 'recountUncounted', pruefung.recountUncounted),
+      }
+      : null,
+    closing: abschluss
+      ? {
+        startedAt: text(abschluss.startedAt),
+        startedBy: akteur(aOrt, 'startedBy', abschluss.startedBy),
+        uncountedAsZero: abschluss.uncountedAsZero === true,
+        parts: ganzzahlOderNull(aOrt, 'parts', abschluss.parts),
+        bookedParts: ganzzahlOderNull(aOrt, 'bookedParts', abschluss.bookedParts),
+        completedAt: text(abschluss.completedAt),
+      }
+      : null,
+    cancellation: abbruch
+      ? { reason: text(abbruch.reason), cancelledAt: text(abbruch.cancelledAt), cancelledBy: akteur(unter(ort, 'cancellation'), 'cancelledBy', abbruch.cancelledBy) }
+      : null,
+  };
+  const summen = objektOderNull(ort, 'totals', k.totals);
+  if (summen) {
+    const sOrt = unter(ort, 'totals');
+    raus.totals = {
+      items: ganzzahl(sOrt, 'items', summen.items),
+      counted: ganzzahl(sOrt, 'counted', summen.counted),
+      uncounted: ganzzahl(sOrt, 'uncounted', summen.uncounted),
+      recounted: ganzzahl(sOrt, 'recounted', summen.recounted),
+      withDifference: ganzzahl(sOrt, 'withDifference', summen.withDifference),
+      needsCheck: ganzzahl(sOrt, 'needsCheck', summen.needsCheck),
+      notBooked: ganzzahl(sOrt, 'notBooked', summen.notBooked),
+    };
+    for (const feld of ['differenceValueCents', 'inventoryValueCents'] as const) {
+      if (hat(summen, feld)) raus.totals[feld] = ganzzahlOderNull(sOrt, feld, summen[feld]);
+    }
+  }
+  if (hat(k, 'warnings')) raus.warnings = inventurWarnungen(unter(ort, 'warnings'), k.warnings);
+  if (hat(k, 'seal') && k.seal !== null) raus.seal = siegel(unter(ort, 'seal'), k.seal);
+  if (hat(k, 'checksum')) raus.checksum = textOderNull(k.checksum);
+  if (hat(k, 'inventoryAsOf')) raus.inventoryAsOf = textOderNull(k.inventoryAsOf);
+  const pdf = objektOderNull(ort, 'pdf', k.pdf);
+  if (pdf) {
+    raus.pdf = { available: pdf.available === true };
+    if (typeof pdf.valuesSha256 === 'string') raus.pdf.valuesSha256 = pdf.valuesSha256;
+    if (typeof pdf.quantitiesSha256 === 'string') raus.pdf.quantitiesSha256 = pdf.quantitiesSha256;
+  }
+  return raus;
+}
+
+function nichtGebucht(ort: Ort, w: unknown): StocktakeNotBooked {
+  const n = eintrag(ort, w);
+  if (typeof n.code !== 'string' || n.code === '') throw antwortfehler(ort.name, `Antwort enthaelt keinen Grund (data.${ort.pfad}.code)`);
+  const raus: StocktakeNotBooked = { code: n.code, quantity: ganzzahlOderNull(ort, 'quantity', n.quantity) };
+  if (n.reasons !== undefined && n.reasons !== null) {
+    if (!Array.isArray(n.reasons)) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.reasons ist keine Liste)`);
+    raus.reasons = n.reasons.map((g, i) => {
+      const gOrt = { name: ort.name, pfad: `${ort.pfad}.reasons[${i}]` };
+      const r = eintrag(gOrt, g);
+      if (typeof r.code !== 'string' || r.code === '') throw antwortfehler(ort.name, `Antwort enthaelt keinen Grund (data.${gOrt.pfad}.code)`);
+      return { code: r.code, quantity: ganzzahlOderNull(gOrt, 'quantity', r.quantity) };
+    });
+  }
+  return raus;
+}
+
+/**
+ * Eine Position. Soll, Differenz und alles aus Pruefung und Abschluss stehen
+ * im Modell nur, wenn der Server sie sendet (blind: vor `review` nie).
+ */
+export function inventurPosition(ort: Ort, w: unknown): StocktakeItem {
+  const p = eintrag(ort, w);
+  // Wer gezaehlt hat, ist zugesagt: fehlt die Liste, ist die Antwort kaputt (nie „niemand“).
+  if (!Array.isArray(p.countedBy)) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.countedBy ist keine Liste)`);
+  const zaehler = p.countedBy as unknown[];
+  const nachzaehlen = objektOderNull(ort, 'recount', p.recount);
+  const nOrt = unter(ort, 'recount');
+  const raus: StocktakeItem = {
+    articleId: kennung(ort, 'articleId', p.articleId),
+    condition: kennung(ort, 'condition', p.condition),
+    name: text(p.name),
+    number: text(p.number),
+    unit: text(p.unit),
+    round: ganzzahl(ort, 'round', p.round),
+    counted: wahrheitswert(ort, 'counted', p.counted),
+    quantity: ganzzahlOderNull(ort, 'quantity', p.quantity),
+    counts: ganzzahl(ort, 'counts', p.counts),
+    firstCountedAt: text(p.firstCountedAt),
+    referenceTime: text(p.referenceTime),
+    countedBy: zaehler.map((a, i) => {
+      const wer = akteur(ort, `countedBy[${i}]`, a);
+      if (!wer) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.countedBy[${i}] ist kein Objekt)`);
+      return wer;
+    }),
+    recountRequested: p.recountRequested === true,
+    recount: nachzaehlen
+      ? {
+        reason: text(nachzaehlen.reason),
+        requestedAt: text(nachzaehlen.requestedAt),
+        requestedBy: akteur(nOrt, 'requestedBy', nachzaehlen.requestedBy),
+        round: ganzzahlOderNull(nOrt, 'round', nachzaehlen.round),
+      }
+      : null,
+    addedLater: p.addedLater === true,
+  };
+  // Die Zaehl- und Storno-Antwort sendet die Position ohne Seriennummern: dann fehlt das Feld, nie [].
+  if (hat(p, 'serialNumbers')) raus.serialNumbers = textlisteOderLeer(ort, 'serialNumbers', p.serialNumbers);
+  // Gezaehlt heisst: es gibt eine Menge. Beides zusammen kaputt waere „0“ oder „nichts“ geraten.
+  if (raus.counted && raus.quantity === null) throw antwortfehler(ort.name, `Antwort ist unbrauchbar (data.${ort.pfad}.quantity fehlt bei counted: true)`);
+  for (const feld of ['bookStockNow', 'expectedQuantity', 'differenceQuantity', 'differenceValueCents', 'bookedQuantity'] as const) {
+    if (hat(p, feld)) raus[feld] = ganzzahlOderNull(ort, feld, p[feld]);
+  }
+  if (hat(p, 'needsCheck')) raus.needsCheck = p.needsCheck === true;
+  if (hat(p, 'checkReasons')) raus.checkReasons = textlisteOderLeer(ort, 'checkReasons', p.checkReasons);
+  if (hat(p, 'expectedAsOf')) raus.expectedAsOf = text(p.expectedAsOf);
+  if (hat(p, 'missingSerialNumbers')) raus.missingSerialNumbers = textlisteOderLeer(ort, 'missingSerialNumbers', p.missingSerialNumbers);
+  if (hat(p, 'extraSerialNumbers')) raus.extraSerialNumbers = textlisteOderLeer(ort, 'extraSerialNumbers', p.extraSerialNumbers);
+  if (hat(p, 'notBooked')) raus.notBooked = p.notBooked === null ? null : nichtGebucht(unter(ort, 'notBooked'), p.notBooked);
+  if (hat(p, 'inventory')) {
+    const inv = objektOderNull(ort, 'inventory', p.inventory);
+    if (!inv) {
+      raus.inventory = null;
+    } else {
+      const iOrt = unter(ort, 'inventory');
+      raus.inventory = { quantity: ganzzahl(iOrt, 'quantity', inv.quantity), countedOn: textOderNull(inv.countedOn) };
+      for (const feld of ['unitValueMicros', 'valueCents'] as const) {
+        if (hat(inv, feld)) raus.inventory[feld] = ganzzahlOderNull(iOrt, feld, inv[feld]);
+      }
+    }
+  }
+  return raus;
+}
+
+/** Eine Zaehlung: Menge, Runde und Kennungen muessen da sein. */
+export function inventurZaehlung(ort: Ort, w: unknown): StocktakeCount {
+  const z = eintrag(ort, w);
+  const storno = objektOderNull(ort, 'voided', z.voided);
+  return {
+    id: kennung(ort, 'id', z.id),
+    articleId: kennung(ort, 'articleId', z.articleId),
+    condition: kennung(ort, 'condition', z.condition),
+    quantity: ganzzahl(ort, 'quantity', z.quantity),
+    // Die Zaehlung traegt ihre Seriennummern immer (leer bei Mengenartikeln); fehlt die Liste, ist sie kaputt.
+    serialNumbers: textliste(ort, 'serialNumbers', z.serialNumbers),
+    round: ganzzahl(ort, 'round', z.round),
+    countedBy: akteur(ort, 'countedBy', z.countedBy),
+    source: textOderNull(z.source),
+    cashregisterId: textOderNull(z.cashregisterId),
+    countedAt: text(z.countedAt),
+    note: text(z.note),
+    voided: storno
+      ? { reason: text(storno.reason), voidedAt: text(storno.voidedAt), voidedBy: akteur(unter(ort, 'voided'), 'voidedBy', storno.voidedBy) }
+      : null,
+  };
+}
+
+/** Antwort von Zaehlen und Stornieren: beide Teile sind zugesagt. */
+export function zaehlungMitPosition(name: string, daten: unknown): StocktakeCountResult {
+  const d = objekt(daten);
+  return { count: inventurZaehlung({ name, pfad: 'count' }, d?.count), item: inventurPosition({ name, pfad: 'item' }, d?.item) };
+}
+
+/** Lese-Link auf ein grosses Inventurprotokoll; ohne Adresse, Ablauf, Groesse oder Pruefsumme ist er unbrauchbar. */
+export function protokollLink(name: string, w: unknown): StocktakePdfDownload {
+  const ort = { name, pfad: 'download' };
+  const d = eintrag(ort, w);
+  return {
+    url: kennung(ort, 'url', d.url),
+    expiresAt: kennung(ort, 'expiresAt', d.expiresAt),
+    sizeBytes: ganzzahl(ort, 'sizeBytes', d.sizeBytes),
+    sha256: kennung(ort, 'sha256', d.sha256),
+    fileName: textOderNull(d.fileName),
+    contentType: textOderNull(d.contentType),
   };
 }
 

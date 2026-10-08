@@ -4,4 +4,4 @@
  * Client-Version, Nachtrag §6). Ein Test haelt sie gleich mit `package.json`;
  * beim Anheben der Version beide Stellen aendern.
  */
-export const PACKAGE_VERSION = '1.7.1';
+export const PACKAGE_VERSION = '1.8.0';

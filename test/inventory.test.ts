@@ -31,6 +31,14 @@ import {
   LANDED_COST_TYPES,
   LANDED_COST_ALLOCATIONS,
   RESERVATION_STATUSES,
+  STOCKTAKE_STATUSES,
+  STOCKTAKE_TYPES,
+  STOCKTAKE_SCOPE_TYPES,
+  STOCKTAKE_CHECK_REASONS,
+  STOCKTAKE_NOT_BOOKED_REASONS,
+  STOCKTAKE_SOURCES,
+  STOCKTAKE_ACTOR_TYPES,
+  STOCKTAKE_INVENTORY_AS_OF,
   type Article,
   type InventoryWebhookEvent,
 } from '../src/inventory/index.js';
@@ -108,15 +116,18 @@ const ZUSTELLUNG: Json = daten('list_webhook_deliveries').deliveries[0];
 
 const AEUSSER = (namen: string[]) => namen.map((n) => (VOKABULAR.names as Record<string, string>)[n] ?? n);
 
-test('Lager-API: INVENTORY_ENDPOINTS sind die 32 Endpunkte von Stufe 5a, 5b und 5c in endpoints.public, in Vertragsreihenfolge', () => {
+test('Lager-API: INVENTORY_ENDPOINTS sind die 44 Endpunkte von Stufe 5a, 5b, 5c und der Inventur in endpoints.public, in Vertragsreihenfolge', () => {
   const oeffentlich = AEUSSER(VOKABULAR.endpoints.public as string[]);
   const start = oeffentlich.indexOf('getArticle');
   assert.ok(start > 0, 'getArticle fehlt im Vertrag');
-  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 32));
-  assert.equal(INVENTORY_ENDPOINTS.length, 32);
+  assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 44));
+  assert.equal(INVENTORY_ENDPOINTS.length, 44);
+  assert.equal(start + 44, oeffentlich.length, 'die Lager-API steht am Ende von endpoints.public');
   assert.equal(INVENTORY_ENDPOINTS[13], 'listWebhookDeliveries');
   assert.equal(INVENTORY_ENDPOINTS[26], 'listReservations');
-  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'addVariant');
+  assert.equal(INVENTORY_ENDPOINTS[31], 'addVariant');
+  assert.equal(INVENTORY_ENDPOINTS[32], 'createStocktake');
+  assert.equal(INVENTORY_ENDPOINTS.at(-1), 'getStocktakePdf');
   for (const name of INVENTORY_ENDPOINTS) {
     assert.ok((PUBLIC_CALLS as readonly string[]).includes(name), `${name} fehlt in PUBLIC_CALLS`);
     assert.ok((ALL_CALLS as readonly string[]).includes(name), `${name} fehlt in ALL_CALLS`);
@@ -139,6 +150,19 @@ test('Lager-API: die Wertlisten sind die Kataloge des Vertrags (aussen, in Katal
   assert.deepEqual([...RESERVATION_STATUSES], werte('RESERVIERUNG_STATUS'));
   assert.equal(STOCK_MOVEMENT_TYPES.at(-1), 'reservation', 'neue Bewegungsart hinten (gespeicherte Reihenfolgen bleiben gueltig)');
   assert.deepEqual([...INVENTORY_WARNING_CODES], VOKABULAR.warningCodes.inventory);
+  // Inventur (1.8.0): die Kataloge INVENTUR_*, aussen und in Katalogreihenfolge.
+  assert.deepEqual([...STOCKTAKE_STATUSES], werte('INVENTUR_STATUS'));
+  assert.deepEqual([...STOCKTAKE_TYPES], werte('INVENTUR_ART'));
+  assert.deepEqual([...STOCKTAKE_SCOPE_TYPES], werte('INVENTUR_UMFANG'));
+  assert.deepEqual([...STOCKTAKE_CHECK_REASONS], werte('INVENTUR_PRUEFGRUND'));
+  assert.deepEqual([...STOCKTAKE_NOT_BOOKED_REASONS], werte('INVENTUR_NICHT_GEBUCHT'));
+  assert.deepEqual([...STOCKTAKE_SOURCES], werte('INVENTUR_QUELLE'));
+  assert.deepEqual([...STOCKTAKE_ACTOR_TYPES], werte('INVENTUR_AKTEUR'));
+  assert.deepEqual([...STOCKTAKE_INVENTORY_AS_OF], werte('INVENTUR_INVENTAR_ZUM'));
+  assert.deepEqual(VOKABULAR.schemas.createStocktake.paramWerte, { 'scope.type': { $catalog: 'INVENTUR_UMFANG' }, type: { $catalog: 'INVENTUR_ART' } });
+  assert.deepEqual(VOKABULAR.schemas.listStocktakes.paramWerte, { status: { $catalog: 'INVENTUR_STATUS' } });
+  assert.deepEqual(VOKABULAR.schemas.recordStocktakeCount.paramWerte, { condition: { $catalog: 'LAGER_ZUSTAND' } });
+  assert.deepEqual(VOKABULAR.schemas.recountStocktake.paramWerte, { 'items[].condition': { $catalog: 'LAGER_ZUSTAND' } });
   // Die Schemata verweisen wirklich auf diese Kataloge.
   assert.deepEqual(VOKABULAR.schemas.listLocations.werte['locations[].type'], { $catalog: 'STANDORT_TYP' });
   assert.deepEqual(VOKABULAR.schemas.listStockMovements.werte['movements[].type'], { $catalog: 'BEWEGUNG_ART' });
@@ -257,6 +281,18 @@ const RUFE: Record<string, (l: Lager, p: Json) => Promise<unknown>> = {
   getVariantGroup: (l, p) => l.getVariantGroup(p['variantGroupId']),
   listVariantGroups: (l, p) => l.listVariantGroups(p),
   addVariant: (l, p) => l.addVariant(p as never),
+  createStocktake: (l, p) => l.createStocktake(p as never),
+  listStocktakes: (l, p) => l.listStocktakes(p),
+  getStocktake: (l, p) => l.getStocktake(p['stocktakeId']),
+  listStocktakeItems: (l, p) => l.listStocktakeItems(p as never),
+  recordStocktakeCount: (l, p) => l.recordStocktakeCount(p as never),
+  voidStocktakeCount: (l, p) => l.voidStocktakeCount(p as never),
+  listStocktakeCounts: (l, p) => l.listStocktakeCounts(p as never),
+  reviewStocktake: (l, p) => l.reviewStocktake(p as never),
+  recountStocktake: (l, p) => l.recountStocktake(p as never),
+  closeStocktake: (l, p) => l.closeStocktake(p as never),
+  cancelStocktake: (l, p) => l.cancelStocktake(p as never),
+  getStocktakePdf: (l, p) => l.getStocktakePdf(p['stocktakeId']),
 };
 
 /**
@@ -338,7 +374,7 @@ test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisi
   assert.ok(zugang.every((c: string) => (STOCK_CHANGE_CAUSES as readonly string[]).includes(c)), zugang.join());
 });
 
-test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_user_not_allowed), 5a-Reihenfolge vorn, 5b und 5c hinten', () => {
+test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_user_not_allowed), 5a-Reihenfolge vorn, 5b, 5c und Inventur hinten', () => {
   const alle = new Set(VOKABULAR.errorCodes.all as string[]);
   assert.deepEqual(INVENTORY_ERROR_CODES.filter((c) => !alle.has(c)), []);
   const vertrag = (VOKABULAR.errorCodes.inventory as string[]).filter((c) => c !== 'register_user_not_allowed');
@@ -349,10 +385,16 @@ test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_use
     'event_not_subscribed', 'webhook_inactive', 'inventory_api_not_enabled', 'module_inactive', 'rate_limited', 'server_error',
   ]);
   assert.deepEqual(INVENTORY_ERROR_CODES.slice(12), vertrag.slice(vertrag.indexOf('server_error') + 1));
-  // 5c haengt hinter 5b an (die Reihenfolge der 1.5-Codes bleibt).
-  assert.deepEqual(INVENTORY_ERROR_CODES.slice(-6), [
+  // 5c haengt hinter 5b an (die Reihenfolge der 1.5-Codes bleibt), die Inventur (1.8.0) dahinter.
+  const fuenfC = INVENTORY_ERROR_CODES.indexOf('variant_group_not_found');
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(fuenfC - 1, fuenfC + 5), [
     'reservation_not_active', 'variant_group_not_found', 'variant_already_exists', 'invalid_variant_attributes',
     'variant_group_inactive', 'variant_limit',
+  ]);
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(fuenfC + 5), [
+    'stocktake_not_found', 'stocktake_not_open', 'stocktake_closed', 'stocktake_not_in_review', 'stocktake_closing',
+    'stocktake_location_busy', 'stocktake_review_running', 'stocktake_recount_open', 'article_not_in_scope', 'article_not_tracked',
+    'count_not_found', 'count_already_voided', 'serial_already_counted', 'too_many_counts', 'stocktake_not_closed',
   ]);
   // Hinweise sind nie Fehler.
   for (const w of INVENTORY_WARNING_CODES) assert.ok(!(INVENTORY_ERROR_CODES as readonly string[]).includes(w), w);
