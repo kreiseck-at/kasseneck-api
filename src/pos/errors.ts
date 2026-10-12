@@ -55,6 +55,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'module_inactive',
   'not_found',
   'not_permitted',
+  'password_change_required',
   'print_job_not_found',
   'print_layout_failed',
   'printer_not_found',

@@ -55,6 +55,7 @@ export const REGISTER_ERROR_CODES = Object.freeze([
   'pairing_code_unknown',
   'pairing_code_used',
   'pairing_failed',
+  'password_change_required',
   'register_user_no_business',
   'register_user_not_allowed',
   'register_user_not_found',

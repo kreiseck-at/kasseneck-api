@@ -290,7 +290,7 @@ test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler 
     'not_permitted',
     'route_missing',
   ]);
-  assert.equal(erwartet.size, 26);
+  assert.equal(erwartet.size, 27);
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
   assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
 });
@@ -326,6 +326,8 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
     'module_inactive',
     'not_found',
     'not_permitted',
+    // Seit 1.9.0 (Vertrag: Pflichtwechsel des Passworts, vor dem Handler abgewiesen).
+    'password_change_required',
     'register_user_no_business',
     'register_user_not_allowed',
     'register_user_not_found',

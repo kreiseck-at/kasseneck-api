@@ -72,6 +72,7 @@ export type {
   InvoicePreview,
   InvoiceRateTotals,
   InvoiceVatIdProof,
+  InvoiceSupplyDateProof,
   InvoiceVatIdRisk,
   IssueInvoiceRequest,
   IssueResult,
