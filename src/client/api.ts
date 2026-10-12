@@ -83,9 +83,9 @@ export interface KasseneckApi {
   getReportV2(options: ReportV2Options): Promise<ReportV2>;
   /** Kassenbericht als PDF (v2): abgeschlossener Monat, Tag oder Zeitraum (Endpunkt `getCashregisterReport`). */
   getCashregisterReport(options: CashregisterReportPeriod): Promise<Uint8Array>;
-  /** @deprecated Since 1.9.0: use getCashregisterReport. Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
+  /** @deprecated Since 1.10.0: use getCashregisterReport. Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
   downloadDailyReport(date: Date): Promise<Uint8Array>;
-  /** @deprecated Since 1.9.0: use getCashregisterReport. Monatsbericht als PDF (Endpunkt `downloadReport`). */
+  /** @deprecated Since 1.10.0: use getCashregisterReport. Monatsbericht als PDF (Endpunkt `downloadReport`). */
   downloadMonthlyReport(reportMonth: ReportMonth): Promise<Uint8Array>;
   /** Betriebsstatus der Kasse bei FinanzOnline. */
   getCashboxStatus(): Promise<CashboxStatus>;

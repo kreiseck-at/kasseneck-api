@@ -41,7 +41,7 @@ import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
  * Vortags holen (das Dart-Vorbild nimmt hier die Geraetezeit, was auf einer
  * oesterreichischen Kasse zufaellig stimmt).
  *
- * @deprecated Since 1.9.0: use getCashregisterReport(...). The old endpoint keeps working
+ * @deprecated Since 1.10.0: use getCashregisterReport(...). The old endpoint keeps working
  * (closed periods as v2, current month / today as before) until it is switched off.
  */
 // `async`, damit auch die Eingabepruefung als abgelehntes Versprechen ankommt
@@ -68,7 +68,7 @@ export async function downloadDailyReport(transport: InternerBinaerTransport, da
  * `month` geht als **Zahl 1-12** raus (im Flutter-Paket `reportMonth.month.id`,
  * wo `KeckMonth.january.id === 1` ist) — kein Name, kein nullbasierter Index.
  *
- * @deprecated Since 1.9.0: use getCashregisterReport(...). The old endpoint keeps working
+ * @deprecated Since 1.10.0: use getCashregisterReport(...). The old endpoint keeps working
  * (closed periods as v2, current month / today as before) until it is switched off.
  */
 

@@ -326,7 +326,7 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
     'module_inactive',
     'not_found',
     'not_permitted',
-    // Seit 1.9.0 (Vertrag: Pflichtwechsel des Passworts, vor dem Handler abgewiesen).
+    // Seit 1.10.0 (Vertrag: Pflichtwechsel des Passworts, vor dem Handler abgewiesen).
     'password_change_required',
     'register_user_no_business',
     'register_user_not_allowed',
