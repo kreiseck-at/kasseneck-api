@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inspect } from 'node:util';
-import { downloadDailyReport, downloadMonthlyReport } from '../src/client/reports.js';
+import { downloadDailyReport, downloadMonthlyReport, getCashregisterReport } from '../src/client/reports.js';
 import { getCashboxStatus, getSignatureStatus } from '../src/client/status.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import {
@@ -532,4 +532,27 @@ test('createKasseneckApi bietet die vier Aufrufe gebunden an', async () => {
   assert.equal(typeof api.downloadDailyReport, 'function');
   assert.equal(typeof api.getCashboxStatus, 'function');
   assert.equal(typeof api.getSignatureStatus, 'function');
+});
+
+test('getCashregisterReport: Monat, Tag, Zeitraum gehen unveraendert an den Endpunkt', async () => {
+  const gerufen: [string, Record<string, unknown>][] = [];
+  const transport = (async (name: string, params: Record<string, unknown>) => {
+    gerufen.push([name, params]);
+    return new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+  }) as never;
+  await getCashregisterReport(transport, { year: 2026, month: 9 });
+  await getCashregisterReport(transport, { year: 2026, month: 10, day: 11 });
+  await getCashregisterReport(transport, { start: '2026-09-01', end: '2026-09-15' });
+  assert.deepEqual(gerufen, [
+    ['getCashregisterReport', { year: 2026, month: 9 }],
+    ['getCashregisterReport', { year: 2026, month: 10, day: 11 }],
+    ['getCashregisterReport', { start: '2026-09-01', end: '2026-09-15' }],
+  ]);
+});
+
+test('getCashregisterReport: ungueltige Eingabe wird vor dem Aufruf abgelehnt', async () => {
+  const leer = (async () => new Uint8Array()) as never;
+  await assert.rejects(getCashregisterReport(leer, { year: 2026, month: 13 }), /month/);
+  await assert.rejects(getCashregisterReport(leer, { year: 2026, month: 2, day: 0 }), /day/);
+  await assert.rejects(getCashregisterReport(leer, { start: '01.09.2026', end: '2026-09-15' }), /start/);
 });

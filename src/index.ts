@@ -201,6 +201,8 @@ export {
   sendReceiptEmail,
   downloadDailyReport,
   downloadMonthlyReport,
+  getCashregisterReport,
+  type CashregisterReportPeriod,
   getReportV2,
   type ReportV2,
   type ReportV2Metadata,
