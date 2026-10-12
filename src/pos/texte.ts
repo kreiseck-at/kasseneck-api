@@ -327,6 +327,32 @@ const MELDUNGEN_ROH = {
   'stocktake.reason_missing': { text: 'Bitte einen Grund für das Stornieren eingeben.' },
   'stocktake.outcome_unknown': { text: 'Unklar, ob die Zählung angekommen ist. „Erneut senden“ schickt dieselbe Zählung – sie zählt auch dann nur einmal.' },
 
+  // --- Schicht und Kassenstand ---------------------------------------------
+  // Soll und Differenz nennt kein Satz: ohne Recht `cashView` wird blind
+  // gezaehlt. `{number}` ist die Schicht-Nummer, `{since}` die Startzeit
+  // („08:00“ bzw. „gestern 22:15“), `{type}` die Beschriftung der Art
+  // (`cash_movement.type_*`), `{amount}` der Betrag samt Euro-Zeichen.
+  // „Erneut senden“ schickt denselben Vorgang mit demselben Schluessel.
+  'shift.required': { text: 'Bitte zuerst die Schicht öffnen.' },
+  'shift.recount': { text: 'Bitte noch einmal zählen.' },
+  'shift.comment_required': { text: 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.' },
+  'shift.closed': { text: 'Schicht {number} geschlossen.', placeholders: ['number'] },
+  'shift.long_open': { text: 'Die Schicht läuft seit {since}.', placeholders: ['since'] },
+  'shift.already_open': { text: 'An dieser Lade läuft schon eine Schicht.' },
+  'shift.already_closed': { text: 'Diese Schicht ist schon geschlossen.' },
+  'shift.recount_exhausted': { text: 'Es wurde schon zweimal gezählt. Bitte denselben Betrag mit Begründung senden oder den Chef rufen.' },
+  'shift.outcome_unknown': { text: 'Unklar, ob das angekommen ist. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.' },
+  'cash_movement.exceeds_balance': { text: 'So viel Bargeld ist laut Kassenstand nicht in der Lade.' },
+  'cash_movement.note_required': { text: 'Bitte einen Grund eingeben.' },
+  'cash_movement.booked': { text: '{type} über {amount} gebucht.', placeholders: ['type', 'amount'] },
+  'cash_movement.type_invalid': { text: 'Diese Art der Kassenbewegung ist hier nicht möglich.' },
+  'cash_movement.same_drawer': { text: 'Eine Umbuchung in dieselbe Lade geht nicht. Bitte eine andere Lade wählen.' },
+  'tip_payout.exceeds_claim': { text: 'Mehr als der offene Anspruch kann nicht ausgezahlt werden.' },
+  'denominations.invalid': { text: 'Scheine und Münzen ergeben nicht den Betrag.' },
+  'amount.invalid': { text: 'Bitte einen gültigen Betrag eingeben.' },
+  'drawer.not_found': { text: 'Diese Lade gibt es nicht mehr. Bitte im Panel die Lade dieses Geräts prüfen.' },
+  'drawer.inactive': { text: 'Diese Lade ist stillgelegt. Bitte im Panel eine andere Lade zuordnen.' },
+
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
@@ -386,6 +412,23 @@ export type ErrorKind = (typeof ERROR_RULES)[number]['kind'];
 export const ERROR_CODE_RULES = [
   { kind: 'api', codes: ['dialect_mismatch', 'response_translation_failed', 'response_unreadable'], key: 'server.response_unreadable' },
   { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error'], key: 'server.connection_disturbed' },
+  // Schicht und Kassenstand (1.9.0): die Saetze des Backends nennen Felder
+  // und Schwellen; die Kasse sagt, was zu tun ist. Der Server hat in jedem
+  // dieser Faelle nichts gebucht.
+  { kind: 'api', codes: ['shift_not_open'], key: 'shift.required' },
+  { kind: 'api', codes: ['shift_already_open'], key: 'shift.already_open' },
+  { kind: 'api', codes: ['shift_closed'], key: 'shift.already_closed' },
+  { kind: 'api', codes: ['comment_required'], key: 'shift.comment_required' },
+  { kind: 'api', codes: ['recount_exhausted'], key: 'shift.recount_exhausted' },
+  { kind: 'api', codes: ['cash_movement_exceeds_balance'], key: 'cash_movement.exceeds_balance' },
+  { kind: 'api', codes: ['note_required'], key: 'cash_movement.note_required' },
+  { kind: 'api', codes: ['invalid_movement_type'], key: 'cash_movement.type_invalid' },
+  { kind: 'api', codes: ['transfer_same_drawer'], key: 'cash_movement.same_drawer' },
+  { kind: 'api', codes: ['tip_payout_exceeds_claim'], key: 'tip_payout.exceeds_claim' },
+  { kind: 'api', codes: ['invalid_denominations'], key: 'denominations.invalid' },
+  { kind: 'api', codes: ['invalid_amount'], key: 'amount.invalid' },
+  { kind: 'api', codes: ['drawer_not_found'], key: 'drawer.not_found' },
+  { kind: 'api', codes: ['drawer_inactive'], key: 'drawer.inactive' },
 ] as const;
 
 /**
@@ -709,6 +752,75 @@ const BESCHRIFTUNGEN_ROH = {
   'stocktake.sent': { text: 'gesendet' },
   'stocktake.unconfirmed': { text: 'unbestätigt' },
   'stocktake.voided': { text: 'storniert' },
+
+  // --- Schicht und Kassenstand ---------------------------------------------
+  'shift.open_title': { text: 'Schicht öffnen' },
+  'shift.take_over': { text: 'Bestand übernehmen' },
+  'shift.count': { text: 'Zählen' },
+  'shift.by_denomination': { text: 'Nach Scheinen und Münzen' },
+  'shift.close_title': { text: 'Schicht schließen' },
+  'shift.cash_title': { text: 'Kassenstand' },
+  'shift.x_report': { text: 'Zwischenbericht' },
+  'shift.pay_out_tips': { text: 'Trinkgeld auszahlen' },
+  'shift.not_a_receipt': { text: 'Kein Registrierkassenbeleg' },
+  'drawer.reason_title': { text: 'Warum öffnen Sie die Lade?' },
+  'drawer.reason_change': { text: 'Wechselgeld' },
+  'drawer.reason_check': { text: 'Kontrolle' },
+  'drawer.reason_misoperation': { text: 'Fehlbedienung' },
+  'drawer.reason_other': { text: 'Sonstiges' },
+  // Je Art einer Kassenbewegung (auch die, die nur der Server vergibt: sie
+  // stehen auf dem Z-Bon und im Bericht).
+  'cash_movement.type_change_in': { text: 'Wechselgeld von Bank/Tresor' },
+  'cash_movement.type_cash_drop': { text: 'Abschöpfung' },
+  'cash_movement.type_owner_deposit': { text: 'Privateinlage' },
+  'cash_movement.type_owner_withdrawal': { text: 'Privatentnahme' },
+  'cash_movement.type_tip_payout': { text: 'Trinkgeld-Auszahlung' },
+  'cash_movement.type_other_in': { text: 'Sonstige Einzahlung' },
+  'cash_movement.type_other_out': { text: 'Sonstige Auszahlung' },
+  'cash_movement.type_transfer_out': { text: 'Umbuchung' },
+  'cash_movement.type_transfer_in': { text: 'Umbuchung (Eingang)' },
+  'cash_movement.type_expense': { text: 'Barausgabe' },
+  'cash_movement.type_count_difference': { text: 'Zähldifferenz' },
+  'cash_movement.type_handover_difference': { text: 'Übergabedifferenz' },
+  // Bon der Schicht (Z-Bon, X-Bon, Kassenbewegung): Titel und Zeilennamen.
+  'shift_receipt.title_close': { text: 'Schichtabschluss' },
+  'shift_receipt.title_interim': { text: 'Zwischenbericht' },
+  'shift_receipt.title_movement': { text: 'Kassenbewegung' },
+  'shift_receipt.cashregister': { text: 'Kasse' },
+  'shift_receipt.drawer': { text: 'Lade' },
+  'shift_receipt.shift': { text: 'Schicht' },
+  'shift_receipt.number': { text: 'Nr. {number}', placeholders: ['number'] },
+  'shift_receipt.opened': { text: 'Geöffnet' },
+  'shift_receipt.closed': { text: 'Geschlossen' },
+  'shift_receipt.by': { text: 'von' },
+  'shift_receipt.opening_float': { text: 'Startgeld' },
+  'shift_receipt.opening_float_taken_over': { text: 'Startgeld übernommen' },
+  'shift_receipt.cash_sales': { text: 'Bar aus Verkäufen' },
+  'shift_receipt.cash_cancellations': { text: 'Bar aus Storno' },
+  'shift_receipt.movements': { text: 'Bewegungen' },
+  'shift_receipt.expected': { text: 'Soll' },
+  'shift_receipt.counted': { text: 'Ist' },
+  'shift_receipt.difference': { text: 'Differenz' },
+  'shift_receipt.comment': { text: 'Kommentar' },
+  'shift_receipt.non_cash': { text: 'Unbar (nur Information)' },
+  'shift_receipt.receipts': { text: 'Belege' },
+  'shift_receipt.cancellations': { text: 'Stornos' },
+  'shift_receipt.openings_without_sale': { text: 'Öffnungen ohne Verkauf' },
+  'shift_receipt.tips': { text: 'Trinkgeld' },
+  'shift_receipt.tip_immediately': { text: 'sofort' },
+  'shift_receipt.tip_retained': { text: 'über Lohn' },
+  'shift_receipt.tip_paid_out': { text: 'ausgezahlt' },
+  'shift_receipt.movement_number': { text: 'Nr.' },
+  'shift_receipt.type': { text: 'Art' },
+  'shift_receipt.amount': { text: 'Betrag' },
+  'shift_receipt.location': { text: 'Ort' },
+  'shift_receipt.location_bank': { text: 'Bank' },
+  'shift_receipt.location_safe': { text: 'Tresor' },
+  'shift_receipt.recipient': { text: 'Empfänger' },
+  'shift_receipt.target_drawer': { text: 'Ziel-Lade' },
+  'shift_receipt.note': { text: 'Grund' },
+  'shift_receipt.operator': { text: 'Bediener' },
+  'shift_receipt.time': { text: 'Zeit' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

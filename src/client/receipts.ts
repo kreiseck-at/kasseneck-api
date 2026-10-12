@@ -91,6 +91,12 @@ export interface ReceiptCommonOptions {
    * anteilig je Steuersatz). Nur auf `standard` und `training`.
    */
   tip?: number | TipOptions;
+  /**
+   * Lade, in deren Kassenstand der Beleg zaehlt (Schichtbetrieb, Geraete-
+   * Einstellung `drawerId`). Ohne Angabe gilt die Lade des Geraets bzw. die
+   * Hauptlade der Kasse. Leer oder kein Text: wirft vor dem Senden.
+   */
+  drawerId?: string;
 }
 
 /** Trinkgeld mit eigener Zahlart und/oder Empfaengern (Kassen-Benutzer-IDs, Summe = cents). */
@@ -182,6 +188,8 @@ export type CancelReceiptOptions = {
    * Kassenweg (Kanal `app`, `registerUserAuth`).
    */
   payments?: ReceiptPaymentInput[];
+  /** Lade, in deren Kassenstand der Storno zaehlt; wie bei [ReceiptCommonOptions.drawerId]. */
+  drawerId?: string;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -351,8 +359,19 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
   if (options.legalMessage != null) {
     params['legalMessage'] = options.legalMessage.join('\n');
   }
+  if (options.drawerId !== undefined) {
+    params['drawerId'] = ladeKennung('createReceipt', options.drawerId);
+  }
 
   return params;
+}
+
+/** Die Lade eines Belegs: ein nicht leerer Text, sonst wirft der Aufruf vor dem Senden. */
+function ladeKennung(name: 'createReceipt' | 'cancelReceipt', wert: unknown): string {
+  if (typeof wert !== 'string' || wert.trim() === '') {
+    throw new KasseneckValidationError(name, 'drawerId muss eine Kennung sein (oder weglassen)', 'request');
+  }
+  return wert;
 }
 
 /** Felder des alten Einzel-Zahlungswegs; unter /v3 abgewiesen. */
@@ -434,6 +453,7 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.returnDisposition !== undefined) params.returnDisposition = options.returnDisposition;
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
+  if (options.drawerId !== undefined) params.drawerId = ladeKennung('cancelReceipt', options.drawerId);
 
   const daten = await transport('cancelReceipt', params);
   return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));

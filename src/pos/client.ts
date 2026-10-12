@@ -2,7 +2,7 @@ import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
-  mergePosSettings, posShortcutConflict, _istAltwert0x,
+  POS_DEVICE_OPTIONAL_FIELDS, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -150,6 +150,10 @@ function pruefeTeil(
     throw new KasseneckValidationError(name, `${teil}: keine Einstellungen uebergeben`, 'request');
   }
   for (const [schluessel, wert] of gesendet) {
+    if (teil === 'device' && (POS_DEVICE_OPTIONAL_FIELDS as readonly string[]).includes(schluessel)) {
+      if (!_optionalerWert(wert, true)) throw new KasseneckValidationError(name, `${teil}.${schluessel}: Kennung oder null erwartet`, 'request');
+      continue;
+    }
     if (!Object.prototype.hasOwnProperty.call(standard, schluessel)) {
       throw new KasseneckValidationError(name, `${teil}.${schluessel}: unbekanntes Feld`, 'request');
     }

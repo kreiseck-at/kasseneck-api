@@ -81,6 +81,7 @@ test('Einordnung: die Liste mit Wirkung ist sortiert und ohne Doppel, die Gruend
     'createVariantGroup', 'updateVariantGroup', 'addVariant',
     'createStocktake', 'recordStocktakeCount', 'voidStocktakeCount', 'reviewStocktake', 'recountStocktake', 'closeStocktake',
     'cancelStocktake', 'recordMyStocktakeCount', 'voidMyStocktakeCount',
+    'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'closeMyShift',
     'createWebhook', 'updateWebhook', 'deleteWebhook', 'rotateWebhookSecret', 'sendWebhookTest',
     'issueInvoice', 'cancelInvoice', 'createCreditNote', 'recordInvoicePayment', 'createCustomer', 'updateCustomer',
     'createInvoiceItem', 'updateInvoiceItem', 'withdrawInvoiceItem', 'setCustomerMandate', 'revokeCustomerMandate',

@@ -3,7 +3,7 @@
     {
       "datei": "functions-kasse/kasse-settings-core.js",
       "marke": null,
-      "sha256": "6aaf964e150f397dd51964ecfba2b63af6ce655f08796130a584c405f985453f"
+      "sha256": "0c7076b6099c2672457de9e2df1da0d25da72259216206d009a3daacc639e155"
     },
     {
       "datei": "functions-kasse/kasse-settings-v3.js",
@@ -48,7 +48,7 @@
     {
       "datei": "functions/gemeinsam/storno-core.js",
       "marke": "const INTERNE_BELEG_FELDER = ",
-      "sha256": "87794f241746bfaee271e364596eff06f0bad0d389b70f046754705ad4de0149"
+      "sha256": "fddb7a4f4d8c2b28be57072d69229031da5ab9beaf9385d3ff5a382608d41e45"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -127,8 +127,8 @@
     }
   ],
   "zwilling": {
-    "src/stored/draht.ts": "f2d244e0bc3f782bacbdb6bc24b7560cc8619b3ae893160ae9ae982da3b42670",
-    "src/stored/einstellungen.ts": "45fc7b702455f49a44f9872fe24d892772fbb72a7bcfef8671e2e7fd43772fed",
+    "src/stored/draht.ts": "f8f5868f28a597b1e0f2be30eba58f26186ae4461f0e5cc287f24d69860c9ed7",
+    "src/stored/einstellungen.ts": "5cb88c8df0d72c1f83493a26082f7f1e8a0a0663206568d806da2943aaa28142",
     "src/stored/index.ts": "87c8b5bf79e34c779359278a03aa9a157673d6521381ceb859d6d87fa421ef47"
   }
 }

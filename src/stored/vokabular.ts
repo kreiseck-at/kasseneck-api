@@ -157,6 +157,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "qrMode": "qrModus",
         "drawerEnabled": "ladeAn",
         "drawerAutoOpen": "ladeAuto",
+        "drawerId": "ladeId",
         "terminalIp": "terminalIp",
         "terminalPort": "terminalPort",
         "terminalTid": "terminalTid",
