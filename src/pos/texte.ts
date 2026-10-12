@@ -334,6 +334,7 @@ const MELDUNGEN_ROH = {
   // (`cash_movement.type_*`), `{amount}` der Betrag samt Euro-Zeichen.
   // „Erneut senden“ schickt denselben Vorgang mit demselben Schluessel.
   'shift.required': { text: 'Bitte zuerst die Schicht öffnen.' },
+  'shift.required_other': { text: 'Die Schicht muss ein berechtigter Mitarbeiter öffnen.' },
   'shift.recount': { text: 'Bitte noch einmal zählen.' },
   'shift.comment_required': { text: 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.' },
   'shift.closed': { text: 'Schicht {number} geschlossen.', placeholders: ['number'] },

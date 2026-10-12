@@ -79,7 +79,8 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   sources and checksums in the new `fixtures/shift-receipts.json`. The
   receipt goldens of 1.10.1 are byte for byte unchanged.
 - **Texts** (`fixtures/pos-texts.json`): messages `shift.*`,
-  `cash_movement.*`, `tip_payout.exceeds_claim`, `denominations.invalid`,
+  `shift.required_other` (shift mode on, no shift open, the signed-in user
+  lacks the `shift` right), `cash_movement.*`, `tip_payout.exceeds_claim`, `denominations.invalid`,
   `amount.invalid`, `drawer.not_found`, `drawer.inactive`; labels for the
   screens (`shift.*`, `drawer.reason_*`), one per movement type
   (`cash_movement.type_*`) and the receipt lines (`shift_receipt.*`).

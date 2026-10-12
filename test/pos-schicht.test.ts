@@ -257,6 +257,7 @@ test('Geraete-Einstellung drawerId: optional wie am Draht, ohne Standardwert; sc
 test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein Geviertstrich', () => {
   const meldungen: Record<string, string> = {
     'shift.required': 'Bitte zuerst die Schicht öffnen.',
+    'shift.required_other': 'Die Schicht muss ein berechtigter Mitarbeiter öffnen.',
     'shift.recount': 'Bitte noch einmal zählen.',
     'shift.comment_required': 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.',
     'shift.closed': 'Schicht {number} geschlossen.',

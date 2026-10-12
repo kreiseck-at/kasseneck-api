@@ -52,7 +52,7 @@ const NACH_1_0 = {
     'stocktake.none_open', 'stocktake.scan_or_search', 'stocktake.counted', 'stocktake.blind_hint', 'stocktake.recount_hint', 'stocktake.unknown_code',
     'stocktake.quantity_invalid', 'stocktake.serials_capture', 'stocktake.serials_mismatch', 'stocktake.reason_missing', 'stocktake.outcome_unknown',
     // Schicht und Kassenstand (1.9.0)
-    'shift.required', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
+    'shift.required', 'shift.required_other', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
     'shift.already_closed', 'shift.recount_exhausted', 'shift.outcome_unknown', 'cash_movement.exceeds_balance', 'cash_movement.note_required', 'cash_movement.booked',
     'cash_movement.type_invalid', 'cash_movement.same_drawer', 'tip_payout.exceeds_claim', 'denominations.invalid', 'amount.invalid', 'drawer.not_found',
     'drawer.inactive'],
