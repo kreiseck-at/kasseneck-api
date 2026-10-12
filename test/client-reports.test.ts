@@ -556,3 +556,22 @@ test('getCashregisterReport: ungueltige Eingabe wird vor dem Aufruf abgelehnt', 
   await assert.rejects(getCashregisterReport(leer, { year: 2026, month: 2, day: 0 }), /day/);
   await assert.rejects(getCashregisterReport(leer, { start: '01.09.2026', end: '2026-09-15' }), /start/);
 });
+
+test('getCashregisterReport: Misch- und Teilformen werfen vor dem Transport', async () => {
+  let gerufen = 0;
+  const transport = (async () => { gerufen += 1; return new Uint8Array(); }) as never;
+  const faelle: Record<string, unknown>[] = [
+    { year: 2026, month: 9, start: '2026-09-01', end: '2026-09-15' },
+    { year: 2026, month: 9, start: '2026-09-01' },
+    { start: '2026-09-01', end: '2026-09-15', day: 5 },
+    { year: 2026, month: 9, day: 5, end: '2026-09-15' },
+    { day: 5 },
+    { start: '2026-09-01' },
+    { year: 2026 },
+    {},
+  ];
+  for (const f of faelle) {
+    await assert.rejects(getCashregisterReport(transport, f as never), /genau eine Form/, JSON.stringify(f));
+  }
+  assert.equal(gerufen, 0);
+});

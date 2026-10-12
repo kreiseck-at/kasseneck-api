@@ -103,7 +103,14 @@ export async function getCashregisterReport(
   transport: InternerBinaerTransport,
   options: CashregisterReportPeriod,
 ): Promise<Uint8Array> {
-  if ('start' in options || 'end' in options) {
+  // Genau eine Form; Misch- und Teilformen werfen vor dem Transport (wie im Dart-Paket).
+  const o = options as unknown as Record<string, unknown>;
+  const da = (k: string) => o[k] !== undefined && o[k] !== null;
+  const felder = ['year', 'month', 'day', 'start', 'end'].filter(da).sort().join(',');
+  if (felder !== 'month,year' && felder !== 'day,month,year' && felder !== 'end,start') {
+    throw eingabefehler('getCashregisterReport', 'genau eine Form angeben: year+month, year+month+day oder start+end');
+  }
+  if (felder === 'end,start') {
     const { start, end } = options as { start: string; end: string };
     for (const [feld, wert] of [['start', start], ['end', end]] as const) {
       if (typeof wert !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(wert)) {
@@ -112,7 +119,7 @@ export async function getCashregisterReport(
     }
     return transport('getCashregisterReport', { start, end });
   }
-  const { year, month } = options;
+  const { year, month } = options as { year: number; month: number };
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw eingabefehler('getCashregisterReport', `month muss 1-12 sein, war "${month}"`);
   }
@@ -120,10 +127,11 @@ export async function getCashregisterReport(
     throw eingabefehler('getCashregisterReport', `year muss eine ganze Zahl sein, war "${year}"`);
   }
   if ('day' in options) {
-    if (!Number.isInteger(options.day) || options.day < 1 || options.day > 31) {
-      throw eingabefehler('getCashregisterReport', `day muss 1-31 sein, war "${options.day}"`);
+    const day = (options as { day: number }).day;
+    if (!Number.isInteger(day) || day < 1 || day > 31) {
+      throw eingabefehler('getCashregisterReport', `day muss 1-31 sein, war "${day}"`);
     }
-    return transport('getCashregisterReport', { year, month, day: options.day });
+    return transport('getCashregisterReport', { year, month, day });
   }
   return transport('getCashregisterReport', { year, month });
 }
