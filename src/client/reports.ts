@@ -40,6 +40,9 @@ import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
  * `getDate()`/`getMonth()` wuerden auf einer UTC-Maschine den Bericht des
  * Vortags holen (das Dart-Vorbild nimmt hier die Geraetezeit, was auf einer
  * oesterreichischen Kasse zufaellig stimmt).
+ *
+ * @deprecated Since 1.10.0: use getCashregisterReport(...). The old endpoint keeps working
+ * (closed periods as v2, current month / today as before) until it is switched off.
  */
 // `async`, damit auch die Eingabepruefung als abgelehntes Versprechen ankommt
 // und nicht als synchroner Wurf am `await` des Aufrufers vorbei.
@@ -64,7 +67,11 @@ export async function downloadDailyReport(transport: InternerBinaerTransport, da
  *
  * `month` geht als **Zahl 1-12** raus (im Flutter-Paket `reportMonth.month.id`,
  * wo `KeckMonth.january.id === 1` ist) — kein Name, kein nullbasierter Index.
+ *
+ * @deprecated Since 1.10.0: use getCashregisterReport(...). The old endpoint keeps working
+ * (closed periods as v2, current month / today as before) until it is switched off.
  */
+
 export async function downloadMonthlyReport(
   transport: InternerBinaerTransport,
   reportMonth: ReportMonth,
@@ -77,6 +84,56 @@ export async function downloadMonthlyReport(
     throw eingabefehler('downloadReport', `Berichtsmonat: year muss eine ganze Zahl sein, war "${year}"`);
   }
   return transport('downloadReport', { month, year });
+}
+
+/** Zeitraum fuer [getCashregisterReport]: genau eine der drei Formen. */
+export type CashregisterReportPeriod =
+  | { year: number; month: number }
+  | { year: number; month: number; day: number }
+  | { start: string; end: string };
+
+/**
+ * Kassenbericht als PDF (v2) fuer einen abgeschlossenen Monat, einen Tag bis
+ * heute oder einen Zeitraum (`end` ausschliesslich, hoechstens 366 Tage).
+ * Laufender Monat und Zukunft liefern die Fehler `period_not_closed` bzw.
+ * `period_in_future`. Nachfolger von [downloadMonthlyReport] und
+ * [downloadDailyReport].
+ */
+export async function getCashregisterReport(
+  transport: InternerBinaerTransport,
+  options: CashregisterReportPeriod,
+): Promise<Uint8Array> {
+  // Genau eine Form; Misch- und Teilformen werfen vor dem Transport (wie im Dart-Paket).
+  const o = options as unknown as Record<string, unknown>;
+  const da = (k: string) => o[k] !== undefined && o[k] !== null;
+  const felder = ['year', 'month', 'day', 'start', 'end'].filter(da).sort().join(',');
+  if (felder !== 'month,year' && felder !== 'day,month,year' && felder !== 'end,start') {
+    throw eingabefehler('getCashregisterReport', 'genau eine Form angeben: year+month, year+month+day oder start+end');
+  }
+  if (felder === 'end,start') {
+    const { start, end } = options as { start: string; end: string };
+    for (const [feld, wert] of [['start', start], ['end', end]] as const) {
+      if (typeof wert !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(wert)) {
+        throw eingabefehler('getCashregisterReport', `${feld} muss YYYY-MM-DD sein, war "${String(wert)}"`);
+      }
+    }
+    return transport('getCashregisterReport', { start, end });
+  }
+  const { year, month } = options as { year: number; month: number };
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw eingabefehler('getCashregisterReport', `month muss 1-12 sein, war "${month}"`);
+  }
+  if (!Number.isInteger(year)) {
+    throw eingabefehler('getCashregisterReport', `year muss eine ganze Zahl sein, war "${year}"`);
+  }
+  if ('day' in options) {
+    const day = (options as { day: number }).day;
+    if (!Number.isInteger(day) || day < 1 || day > 31) {
+      throw eingabefehler('getCashregisterReport', `day muss 1-31 sein, war "${day}"`);
+    }
+    return transport('getCashregisterReport', { year, month, day });
+  }
+  return transport('getCashregisterReport', { year, month });
 }
 
 /** Zeitfenster von [getReportV2]: Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel, `end` ausschliesslich. */

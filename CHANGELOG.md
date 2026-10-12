@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.10.0
+
+- New `getCashregisterReport(options)`: cash register report PDF (v2) for a closed month, a day up to today or a date range (`end` exclusive, max. 366 days). Reason: one successor for the monthly and daily report downloads, same rules as the customer panel.
+- Deprecated `downloadMonthlyReport` and `downloadDailyReport`. Reason: the endpoints are deprecated; they keep working (closed periods now return the v2 report, the current month and today the previous layout).
+- New error code `password_change_required` in the request error code lists. Reason: the backend /v3 contract already contains them since keck#638 (mandatory password change is rejected before the handler).
+- `InvoiceVatIdProof` gains `afterSupplyDate` and `supplyDateProof` (new type `InvoiceSupplyDateProof`). Reason: the backend /v3 contract already contains them since keck#644 (proof relative to the date of supply).
+
 ## 1.8.0
 
 Stocktake (Lager-Kern stage 3): `./inventory` gains the twelve stocktake

@@ -282,6 +282,7 @@ export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
   'app_check_missing',  // Admin-App ohne bzw. mit ungueltigem App Check: vor dem Handler abgewiesen
   'app_check_invalid',
   'unauthorized',
+  'password_change_required', // Pflichtwechsel des Passworts offen: vor dem Handler abgewiesen
   'mfa_required',
   'user_verification_failed',
   'admin_required',

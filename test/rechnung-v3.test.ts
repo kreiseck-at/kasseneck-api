@@ -29,6 +29,7 @@ import {
   type InvoiceSetupStatus,
   type InvoiceTotals,
   type InvoiceVatIdProof,
+  type InvoiceSupplyDateProof,
   type InvoiceVatIdRisk,
   type IssueInvoiceRequest,
   type IssueResult,
@@ -251,7 +252,8 @@ const FELDER = {
   rate: schluessel<InvoiceRateTotals>()(['rate', 'netCents', 'vatCents', 'grossCents']),
   einvoice: schluessel<EInvoiceStatus>()(['level', 'formats', 'missing']),
   brand: schluessel<NonNullable<Invoice['brand']>>()(['id', 'name']),
-  vatIdProof: schluessel<InvoiceVatIdProof>()(['checkedOn', 'source', 'level', 'code']),
+  vatIdProof: schluessel<InvoiceVatIdProof>()(['checkedOn', 'source', 'level', 'code', 'afterSupplyDate', 'supplyDateProof']),
+  supplyDateProof: schluessel<InvoiceSupplyDateProof>()(['checkedOn', 'source', 'level']),
   vatIdRisk: schluessel<InvoiceVatIdRisk>()(['acceptedOn']),
   item: schluessel<InvoiceItem>()(['description', 'subtitle', 'quantity', 'unit', 'kind', 'unitPriceCents', 'unitPriceMicros',
     'vatRate', 'discountPct']),
@@ -297,6 +299,7 @@ function rechnungssicht(r: Json, pfad: string, detail: boolean): void {
   feldmenge(r.einvoice, 'einvoice', `${pfad}.einvoice`);
   feldmenge(r.brand, 'brand', `${pfad}.brand`);
   feldmenge(r.vatIdProof, 'vatIdProof', `${pfad}.vatIdProof`);
+  feldmenge(r.vatIdProof?.supplyDateProof ?? null, 'supplyDateProof', `${pfad}.vatIdProof.supplyDateProof`);
   feldmenge(r.vatIdRisk, 'vatIdRisk', `${pfad}.vatIdRisk`);
   if (!detail) return;
   for (const [i, p] of (r.items as Json[]).entries()) feldmenge(p, 'item', `${pfad}.items[${i}]`);
@@ -354,7 +357,7 @@ test('Feldmengen: jede Sicht der Vertragsfaelle traegt genau die Felder ihres Ty
     }
   }
   // Was der Export nicht belegt, belegen die beiden Tests darunter.
-  assert.deepEqual(Object.keys(FELDER).filter((s) => !geprueft.has(s)).sort(), ['detailPayment', 'related']);
+  assert.deepEqual(Object.keys(FELDER).filter((s) => !geprueft.has(s)).sort(), ['detailPayment', 'related', 'supplyDateProof']);
 });
 
 /*

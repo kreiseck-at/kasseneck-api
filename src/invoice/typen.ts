@@ -318,6 +318,19 @@ export interface InvoiceVatIdProof {
   level: 1 | 2;
   /** Pruefcode fuer die oeffentliche Pruefseite (auf dem PDF als QR); `null`, wenn keiner vergeben wurde. */
   code: string | null;
+  /** `true`, wenn erst nach dem Leistungstag geprueft wurde (kein Nachweis am oder vor dem Leistungstag). */
+  afterSupplyDate: boolean;
+  /** Pruefung am oder vor dem Leistungstag (ohne Pruefcode); `null`, wenn es keine gibt. */
+  supplyDateProof: InvoiceSupplyDateProof | null;
+}
+
+/** Nachweis am oder vor dem Leistungstag: wann, wer, welche Stufe. */
+export interface InvoiceSupplyDateProof {
+  /** Wiener Tag der Pruefung (`YYYY-MM-DD`). */
+  checkedOn: string;
+  source: 'finanzonline' | 'vies';
+  /** Stufe der Pruefung: 1 = nur UID, 2 = UID mit Name und Anschrift. */
+  level: 1 | 2;
 }
 
 /** Ausgestellt ohne Ergebnis der UID-Pruefung, das Risiko traegt der Aussteller. */
