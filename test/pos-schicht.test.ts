@@ -113,6 +113,26 @@ test('Kassenweg Schicht: jeder Erfolgsfall sendet die Parameter des Falls und li
   assert.ok(n >= 18, `nur ${n} Erfolgsfaelle`);
 });
 
+test('getMyDrawerState ohne Recht shift: die offene Schicht nur mit Grunddaten, kein Betrag, kein Abschluss', async () => {
+  const f = fall('getMyDrawerState', 'success_cashier_without_permission');
+  const { ergebnis } = await rufe('getMyDrawerState', f);
+  const stand = ergebnis as Json;
+  assert.equal(stand.rights.shift, false);
+  assert.deepEqual(Object.keys(stand.shift).sort(), ['cashregisterId', 'drawerId', 'id', 'number', 'openedAt', 'openedBy', 'status']);
+  assert.equal(stand.shift.status, 'open');
+  assert.equal(stand.shift.openedBy.name, 'Anna Chef');
+  for (const feld of ['openingFloatCents', 'openingFloatTakenOver', 'runningTotals', 'expectedCents', 'blind', 'closedAt']) assert.ok(!(feld in stand.shift), feld);
+});
+
+test('logMyDrawerOpenings: gepufferte Eintraege senden Bediener und Lade; die Antwort nennt die wirksame Lade', async () => {
+  const f = fall('logMyDrawerOpenings', 'success_operator_reported_late');
+  const { ergebnis, gesendet } = await rufe('logMyDrawerOpenings', f);
+  assert.deepEqual((gesendet[0]!.entries as Json[]).map((e) => [e.drawerId, e.operator.registerUserId]), [['haupt_KASSE1', 'ru_kellner'], ['haupt_KASSE1', 'ru_kellner']]);
+  assert.deepEqual(ergebnis, { accepted: 2, duplicates: 0, drawerId: 'haupt_KASSE1' });
+  const still = await rufe('logMyDrawerOpenings', fall('logMyDrawerOpenings', 'success_drawer_decommissioned'));
+  assert.equal((still.ergebnis as Json).drawerId, 'haupt_KASSE1');
+});
+
 test('Kassenweg Schicht: jeder Fehlerfall wird am Code erkannt; vor dem Senden abgewiesen nur die benannten', async () => {
   const abgewiesen: string[] = [];
   for (const endpunkt of ENDPUNKTE) {
@@ -264,7 +284,8 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
     'shift.long_open': 'Die Schicht läuft seit {since}.',
     'shift.already_open': 'An dieser Lade läuft schon eine Schicht.',
     'shift.already_closed': 'Diese Schicht ist schon geschlossen.',
-    'shift.recount_exhausted': 'Es wurde schon zweimal gezählt. Bitte denselben Betrag mit Begründung senden oder den Chef rufen.',
+    'shift.recount_exhausted': 'Es wurde schon zweimal gezählt. Bitte den Betrag der zweiten Zählung senden oder den Chef rufen.',
+    'shift.mode_off': 'An dieser Lade ist der Schichtbetrieb aus. Bitte im Panel einschalten.',
     'shift.outcome_unknown': 'Unklar, ob das angekommen ist. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.',
     'cash_movement.exceeds_balance': 'So viel Bargeld ist laut Kassenstand nicht in der Lade.',
     'cash_movement.note_required': 'Bitte einen Grund eingeben.',

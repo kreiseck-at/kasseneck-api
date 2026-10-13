@@ -283,6 +283,8 @@ export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
   'app_check_invalid',
   'unauthorized',
   'password_change_required', // Pflichtwechsel des Passworts offen: vor dem Handler abgewiesen
+  'second_factor_required', // Anmeldung wartet auf die Bestaetigung in der Kasseneck-App: vor dem Handler abgewiesen
+  'action_confirmation_required', // Aenderung wartet auf die Bestaetigung in der Kasseneck-App: vor dem Handler abgewiesen
   'mfa_required',
   'user_verification_failed',
   'admin_required',

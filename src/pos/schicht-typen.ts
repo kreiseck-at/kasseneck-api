@@ -141,17 +141,21 @@ export interface Shift {
   status: ShiftStatus;
   openedAt: string | null;
   openedBy: ShiftActor | null;
-  openedDeviceId: string | null;
-  closedAt: string | null;
-  closedBy: ShiftActor | null;
-  closedDeviceId: string | null;
+  // Ab hier bis `blind` nur mit dem Recht `shift`: ohne es sendet der Server von
+  // einer offenen Schicht nur die Grunddaten (Kennung, Lade, Kasse, Nummer,
+  // Status, geoeffnet am und von) – die Kasse verkauft in sie, sieht aber
+  // nichts von Startgeld und Abschluss. Was fehlt, fehlt auch im Modell.
+  openedDeviceId?: string | null;
+  closedAt?: string | null;
+  closedBy?: ShiftActor | null;
+  closedDeviceId?: string | null;
   /** Startgeld; blind `null`, wenn es uebernommen wurde. */
-  openingFloatCents: number | null;
-  openingDenominations: Denominations | null;
-  openingFloatTakenOver: boolean;
-  comment: string | null;
+  openingFloatCents?: number | null;
+  openingDenominations?: Denominations | null;
+  openingFloatTakenOver?: boolean;
+  comment?: string | null;
   /** Wurde blind gezaehlt (nach dem Abschluss); offen `null`. */
-  blind: boolean | null;
+  blind?: boolean | null;
   // Nur mit `cashView`:
   countedCents?: number | null;
   suggestedFloatCents?: number | null;
@@ -184,7 +188,7 @@ export interface DrawerOpening {
 export interface DrawerState {
   drawer: DrawerInfo;
   rights: DrawerRights;
-  /** Die offene Schicht oder `null`; fehlt ohne Recht `shift`. */
+  /** Die offene Schicht oder `null`; ohne Recht `shift` nur ihre Grunddaten, ohne Betrag (siehe [Shift]). */
   shift?: Shift | null;
   /** Schicht seit mindestens 16 Stunden offen; fehlt ohne Recht `shift`. */
   longOpenWarning?: boolean;
@@ -293,6 +297,8 @@ export interface DrawerOpeningsResult {
   accepted: number;
   /** Schon gemeldet (gleicher Schluessel): zaehlt nicht doppelt. */
   duplicates: number;
+  /** Die Lade, in die gemeldet wurde: eine stillgelegte meldet in die Hauptlade. */
+  drawerId: string | null;
 }
 
 export interface ShiftReport {

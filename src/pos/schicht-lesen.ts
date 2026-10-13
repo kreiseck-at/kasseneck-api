@@ -181,17 +181,18 @@ export function schicht(ort: Ort, w: unknown): Shift {
     status,
     openedAt: text(o.openedAt),
     openedBy: akteur(unter(ort, 'openedBy'), o.openedBy),
-    openedDeviceId: text(o.openedDeviceId),
-    closedAt: text(o.closedAt),
-    closedBy: akteur(unter(ort, 'closedBy'), o.closedBy),
-    closedDeviceId: text(o.closedDeviceId),
-    openingFloatCents: ganzzahlOderNull(ort, o, 'openingFloatCents'),
-    openingDenominations: stueckelung(ort, o, 'openingDenominations'),
-    openingFloatTakenOver: wahr(ort, o, 'openingFloatTakenOver'),
-    comment: text(o.comment),
-    blind: wahrOderNull(ort, o, 'blind'),
   };
   const r = raus as unknown as Roh;
+  // Ohne Recht `shift` fehlen sie (Grunddaten der offenen Schicht).
+  wennDa(r, o, 'openedDeviceId', () => text(o.openedDeviceId));
+  wennDa(r, o, 'closedAt', () => text(o.closedAt));
+  wennDa(r, o, 'closedBy', () => akteur(unter(ort, 'closedBy'), o.closedBy));
+  wennDa(r, o, 'closedDeviceId', () => text(o.closedDeviceId));
+  wennDa(r, o, 'openingFloatCents', () => ganzzahlOderNull(ort, o, 'openingFloatCents'));
+  wennDa(r, o, 'openingDenominations', () => stueckelung(ort, o, 'openingDenominations'));
+  wennDa(r, o, 'openingFloatTakenOver', () => wahr(ort, o, 'openingFloatTakenOver'));
+  wennDa(r, o, 'comment', () => text(o.comment));
+  wennDa(r, o, 'blind', () => wahrOderNull(ort, o, 'blind'));
   wennDa(r, o, 'countedCents', () => ganzzahlOderNull(ort, o, 'countedCents'));
   wennDa(r, o, 'suggestedFloatCents', () => ganzzahlOderNull(ort, o, 'suggestedFloatCents'));
   wennDa(r, o, 'runningTotals', () => laufstand(unter(ort, 'runningTotals'), o.runningTotals));
@@ -389,7 +390,7 @@ export function gebucht(ort: Ort, w: unknown): CashMovementResult {
 
 export function gemeldet(ort: Ort, w: unknown): DrawerOpeningsResult {
   const o = pflichtObjekt(ort, w);
-  return { accepted: ganzzahl(ort, o, 'accepted'), duplicates: ganzzahl(ort, o, 'duplicates') };
+  return { accepted: ganzzahl(ort, o, 'accepted'), duplicates: ganzzahl(ort, o, 'duplicates'), drawerId: text(o.drawerId) };
 }
 
 export function bericht(ort: Ort, w: unknown): ShiftReport {

@@ -29,8 +29,10 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `denominations`, or `takeOver: true`, exactly one), `recordMyCashMovement`
   (`type`, `amountCents`, `location` `bank` | `safe`, `note`, `recipientId`,
   `targetDrawerId`; answers the movement and the receipt data),
-  `logMyDrawerOpenings` (1–50 entries, each with its own `idempotencyKey`;
-  answers `accepted` and `duplicates`), `getMyShiftReport` (shift, movements,
+  `logMyDrawerOpenings` (1–50 entries, each with its own `idempotencyKey`,
+  optionally `drawerId` and the `operator` who opened the drawer while the
+  entry was buffered; answers `accepted`, `duplicates` and the effective
+  `drawerId`, the main drawer for a decommissioned one), `getMyShiftReport` (shift, movements,
   X report or Z report for a reprint) and `closeMyShift` (answers
   `status: 'recount'`, which is not an error, or `status: 'closed'` with the
   shift, the Z report and `lastShiftOfRegister`; the server counts the
@@ -39,6 +41,11 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   amount, no counted amount, no running totals and no suggestion. The models
   are the wire form field by field: such a field is then absent, never `0`.
   On the receipt data (`ShiftSummaryReceipt`) the same values are `null`.
+- **Without the right `shift`** `getMyDrawerState` still sends the open shift,
+  but only its basic data (`id`, `drawerId`, `cashregisterId`, `number`,
+  `status`, `openedAt`, `openedBy`); the register sells into it. Every other
+  field of `Shift` is therefore optional. Reason: a user without the right
+  saw no shift and the register blocked the sale although one was open.
 - **Models**: `DrawerState`, `Shift`, `ShiftRunningTotals` (maps go out as
   lists: `nonCashByMethod: [{ method, cents }]`, `tips: [{ registerUserId,
   name, … }]`), `ShiftReconciliation`, `CashMovement`, `TipClaim`,
@@ -53,6 +60,14 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   once. `getMyDrawerState` and `getMyShiftReport` are reads.
   `newIdempotencyKey()` draws a fresh key for a new action (`kasse-` and 32
   hex characters from `crypto.getRandomValues`, the form of the register app).
+- **Error codes**: `shift_mode_off` (`openMyShift` on a drawer without shift
+  mode) with the text `shift.mode_off`; the text of `recount_exhausted` asks
+  for the amount of the second count (a comment is only needed above the
+  threshold, `comment_required`). The lists of request error codes and
+  `PAYMENT_CALL_REJECTED_CODES` gain `second_factor_required` and
+  `action_confirmation_required`. Reason: the backend /v3 contract contains
+  them since keck#657 (confirmation in the Kasseneck app, rejected before the
+  handler).
 - **Checked before sending**, nothing else: `drawerId`, `shiftId`, the key
   (also per drawer opening), a non-empty `entries` list and amounts,
   denomination counts and tip payouts as integers. Catalogue, mandatory
@@ -100,7 +115,7 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `createReceipt` options, `cancelReceipt`): the drawer whose cash position
   the receipt counts in; an empty id is refused before sending.
 - **Errors**: `POS_ERROR_CODES` gains the codes of the six calls
-  (`drawer_not_found`, `drawer_inactive`, `shift_already_open`,
+  (`drawer_not_found`, `drawer_inactive`, `shift_already_open`, `shift_mode_off`,
   `shift_not_open`, `shift_closed`, `comment_required`, `recount_exhausted`,
   `cash_movement_exceeds_balance`, `tip_payout_exceeds_claim`,
   `invalid_amount`, `invalid_denominations`, `invalid_movement_type`,

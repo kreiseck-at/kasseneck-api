@@ -91,6 +91,14 @@ export interface DrawerOpeningEntry {
   receiptId?: string;
   /** Fehlertext eines fehlgeschlagenen Impulses. */
   error?: string;
+  /** Lade der Oeffnung (gepuffert); muss `drawerId` der Anfrage sein, sonst `validation`. */
+  drawerId?: string;
+  /**
+   * Wer die Lade oeffnete (gepuffert: der damals angemeldete Mitarbeiter). Der
+   * Server nimmt ihn nur, wenn er zum Betrieb gehoert und der Kasse zugewiesen
+   * ist, den Namen aus dem Konto; sonst gilt der sendende Benutzer.
+   */
+  operator?: { registerUserId: string; name?: string | null };
 }
 
 export interface LogMyDrawerOpeningsOptions {

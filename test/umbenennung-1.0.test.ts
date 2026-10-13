@@ -55,7 +55,7 @@ const NACH_1_0 = {
     'shift.required', 'shift.required_other', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
     'shift.already_closed', 'shift.recount_exhausted', 'shift.outcome_unknown', 'cash_movement.exceeds_balance', 'cash_movement.note_required', 'cash_movement.booked',
     'cash_movement.type_invalid', 'cash_movement.same_drawer', 'tip_payout.exceeds_claim', 'denominations.invalid', 'amount.invalid', 'drawer.not_found',
-    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint'],
+    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
