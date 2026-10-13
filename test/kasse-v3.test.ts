@@ -159,7 +159,8 @@ test('Standardwerte: die innere Form unter fixtures/stored ist dieselbe Vorgabe,
 test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide Richtungen', () => {
   const schema = VOKABULAR.schemas.getKasseSettings.data;
   const aussen = (teil: Json) => Object.keys(teil).filter((k) => k !== '__').sort();
-  assert.deepEqual(Object.keys(POS_BUSINESS_DEFAULTS).sort(), aussen(schema.business));
+  // Optionale Betriebs-Einstellungen (tipKeptByDefault) ebenso.
+  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS].sort(), aussen(schema.business));
   // Optionale Geraete-Einstellungen (drawerId) haben keinen Standardwert, stehen aber im Schema.
   assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS].sort(), aussen(schema.device));
   assert.deepEqual([...POS_SHORTCUT_ACTIONS], Object.keys(schema.device.shortcuts).filter((k) => k !== '__'));

@@ -3,7 +3,7 @@
     {
       "datei": "functions-kasse/kasse-settings-core.js",
       "marke": null,
-      "sha256": "0c7076b6099c2672457de9e2df1da0d25da72259216206d009a3daacc639e155"
+      "sha256": "dacb77872a9dfd9e5024bb5e863d5a0e5963933176f7e91464bdbab460fbe3dc"
     },
     {
       "datei": "functions-kasse/kasse-settings-v3.js",
@@ -128,7 +128,7 @@
   ],
   "zwilling": {
     "src/stored/draht.ts": "f8f5868f28a597b1e0f2be30eba58f26186ae4461f0e5cc287f24d69860c9ed7",
-    "src/stored/einstellungen.ts": "5cb88c8df0d72c1f83493a26082f7f1e8a0a0663206568d806da2943aaa28142",
+    "src/stored/einstellungen.ts": "81808c31adce2ad3e76d46bca6d82ec3f7acf89c08829cb443db0b5d5843e1f4",
     "src/stored/index.ts": "87c8b5bf79e34c779359278a03aa9a157673d6521381ceb859d6d87fa421ef47"
   }
 }

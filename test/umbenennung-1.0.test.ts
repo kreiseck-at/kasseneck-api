@@ -55,7 +55,7 @@ const NACH_1_0 = {
     'shift.required', 'shift.required_other', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
     'shift.already_closed', 'shift.recount_exhausted', 'shift.outcome_unknown', 'cash_movement.exceeds_balance', 'cash_movement.note_required', 'cash_movement.booked',
     'cash_movement.type_invalid', 'cash_movement.same_drawer', 'tip_payout.exceeds_claim', 'denominations.invalid', 'amount.invalid', 'drawer.not_found',
-    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off'],
+    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off', 'tip.kept_setting_hint'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -74,7 +74,9 @@ const NACH_1_0 = {
     'shift_receipt.openings_without_sale', 'shift_receipt.tips', 'shift_receipt.tip_earned', 'shift_receipt.tip_retained', 'shift_receipt.tip_paid_out', 'shift_receipt.tip_open', 'shift_receipt.movement_number',
     'shift_receipt.type', 'shift_receipt.amount', 'shift_receipt.location', 'shift_receipt.location_bank', 'shift_receipt.location_safe', 'shift_receipt.recipient',
     'shift_receipt.target_drawer', 'shift_receipt.note', 'shift_receipt.operator', 'shift_receipt.time',
-    'cash_movement.pay_in', 'cash_movement.pay_out', 'cash_movement.print', 'drawer.recent_openings', 'drawer.reason_sale', 'drawer.reason_cash_movement', 'drawer.reason_shift_open', 'drawer.reason_shift_close', 'shift.resend', 'shift.next', 'shift.print_close', 'shift.print_again', 'shift.back_to_register', 'shift.later', 'time.yesterday'],
+    'cash_movement.pay_in', 'cash_movement.pay_out', 'cash_movement.print', 'drawer.recent_openings', 'drawer.reason_sale', 'drawer.reason_cash_movement', 'drawer.reason_shift_open', 'drawer.reason_shift_close', 'shift.resend', 'shift.next', 'shift.print_close', 'shift.print_again', 'shift.back_to_register', 'shift.later', 'time.yesterday',
+    // Bar-Trinkgeld „gleich behalten“ (1.11.0)
+    'checkout.tip_kept', 'tip.kept_setting'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

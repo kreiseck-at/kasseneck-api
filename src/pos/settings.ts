@@ -180,6 +180,13 @@ export interface PosBusinessSettings {
   glass: boolean;
   /** Hilfetexte in den Chef-Einstellungen anzeigen. */
   hints: boolean;
+  /**
+   * Bar-Trinkgeld behaelt der Mitarbeiter gleich: Vorbelegung des Schalters
+   * „gleich behalten“ beim Kassieren (je Verkauf aenderbar). Optional: der
+   * Server sendet das Feld nur, wenn es gespeichert ist; fehlt es, gilt aus.
+   * Lesen ueber [posTipKeptByDefault]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
+   */
+  tipKeptByDefault?: boolean;
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen (Schluessel von `device.shortcuts`). */
@@ -334,6 +341,21 @@ export function _optionalerWert(wert: unknown, schreiben: boolean): boolean {
 const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
 
 /**
+ * Optionale Betriebs-Einstellungen (Schalter): ohne Standardwert, der Server
+ * sendet sie nur, wenn sie gespeichert sind (Backend `BETRIEB_OPTIONAL`).
+ * [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg
+ * nimmt nur `true`/`false`.
+ */
+export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault'] as const);
+
+const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
+
+/** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
+export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return !!business && business.tipKeptByDefault === true;
+}
+
+/**
  * Die Wertemenge je Feld, soweit das Feld eine hat: dagegen prueft der
  * Schreibweg vor dem Senden (ein deutscher Wert wie `'nacht'` geht so gar
  * nicht erst hinaus). Die Wahrheit ueber Gueltigkeit hat weiter das Backend.
@@ -403,7 +425,8 @@ export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALT
  * werden je Schluessel gemischt, damit neue Saetze beim Altbestand ankommen;
  * Schluessel, die der Standard nicht fuehrt, bleiben draussen, ausser einer
  * optionalen Geraete-Einstellung ([POS_DEVICE_OPTIONAL_FIELDS]) mit gueltiger
- * Kennung.
+ * Kennung und einem optionalen Betriebs-Schalter
+ * ([POS_BUSINESS_OPTIONAL_FIELDS]) als Wahrheitswert.
  *
  * **Immer** (unabhaengig davon, welches Standard-Objekt uebergeben wird, auch
  * eine Kopie oder das einer zweiten Paketkopie) faellt ein Wert der inneren
@@ -417,9 +440,11 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
   if (stored && typeof stored === 'object') {
     for (const key of Object.keys(stored)) {
       if (!eigen(out, key)) {
-        // Optionale Geraete-Einstellung (ohne Standardwert): nur als Kennung.
+        // Optionale Geraete-Einstellung (ohne Standardwert): nur als Kennung;
+        // optionaler Betriebs-Schalter: nur als Wahrheitswert.
         const wert = (stored as Record<string, unknown>)[key];
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
+        if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
         continue;
       }
       const wert = (stored as Record<string, unknown>)[key];

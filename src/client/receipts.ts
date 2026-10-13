@@ -122,6 +122,15 @@ export interface TipOptions {
    * (ohne angemeldeten Kassen-Benutzer) gilt die Einschraenkung nicht.
    */
   receivedImmediately?: boolean;
+  /**
+   * Bar-Trinkgeld „gleich behalten“: die Mitarbeiterin steckt das Trinkgeld
+   * beim Verkauf gleich ein. Der Beleg bleibt, wie er ist (signiert, im DEP);
+   * nur im Kassenstand zaehlt der Betrag nicht ins Bar-Soll und gilt sofort als
+   * „schon genommen“. Nur `true` geht hinaus. Der Server nimmt es nur bei
+   * Mitarbeiter-Trinkgeld, bar und sofort erhalten; sonst faellt es still weg.
+   * Vorbelegung des Schalters: [posTipKeptByDefault] der Kassen-Einstellungen.
+   */
+  keptByEmployee?: boolean;
 }
 
 export interface TipRecipientShare {
@@ -883,6 +892,13 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
     }
     nutzlast['receivedImmediately'] = tip.receivedImmediately;
   }
+  if (tip.keptByEmployee != null) {
+    if (typeof tip.keptByEmployee !== 'boolean') {
+      throw eingabefehler('Trinkgeld: keptByEmployee muss true oder false sein.');
+    }
+    // `false` ist dasselbe wie weglassen: die Nutzlast bleibt wie bisher.
+    if (tip.keptByEmployee) nutzlast['keptByEmployee'] = true;
+  }
   if (tip.recipients != null) {
     if (!Array.isArray(tip.recipients) || tip.recipients.length === 0) {
       throw eingabefehler('Trinkgeld: recipients darf nicht leer sein.');
@@ -906,7 +922,7 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   return nutzlast;
 }
 
-const TIP_FELDER: readonly string[] = ['cents', 'paymentMethod', 'recipients', 'receivedImmediately'];
+const TIP_FELDER: readonly string[] = ['cents', 'paymentMethod', 'recipients', 'receivedImmediately', 'keptByEmployee'];
 
 /**
  * Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht.

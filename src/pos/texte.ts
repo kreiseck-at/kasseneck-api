@@ -96,6 +96,8 @@ const MELDUNGEN_ROH = {
   // Keine gesetzliche Obergrenze – steuerfrei ist aber nur ortsuebliches
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
+  // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht in den Kassenstand und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -626,6 +628,9 @@ const BESCHRIFTUNGEN_ROH = {
   'checkout.clear_tendered': { text: 'Gegeben löschen' },
   'checkout.still_missing': { text: 'Es fehlen noch' },
   'checkout.change': { text: 'Rückgeld' },
+  // Schalter beim Trinkgeld (nur Mitarbeiter-Trinkgeld, reine Barzahlung), vorbelegt aus der Einstellung.
+  'checkout.tip_kept': { text: 'gleich behalten' },
+  'tip.kept_setting': { text: 'Bar-Trinkgeld behält der Mitarbeiter gleich' },
   // Die Warte-Karte, solange der Betrag am Terminal steht; `{time}` ist der
   // Rest des Kartenfensters als m:ss.
   'card_payment.amount_on_terminal': { text: 'Betrag steht am Terminal' },

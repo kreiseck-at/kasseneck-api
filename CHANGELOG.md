@@ -133,6 +133,21 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   now reads „schon genommen“, `shift_receipt.tip_immediately` („sofort“) is
   gone. Reason: staff take their tips at any time, not only at the end of
   the shift, and the slip showed lines with 0,00 nobody needed.
+- **Cash tip kept right away**: `TipOptions.keptByEmployee` (sent only when
+  `true`; anything but a boolean is refused before sending) marks a staff
+  cash tip the employee pockets at the sale. The receipt stays as it was
+  (signed, in the DEP); the tip position carries `keptByEmployee: true`
+  (`ReceiptItem.keptByEmployee`, read and mirrored on a cancellation). In
+  the cash position the amount is not part of the expected cash and counts
+  as „schon genommen“ at once (`paidOutCents`, no line of its own); the open
+  claim does not grow. The server takes it only for staff tips paid in cash
+  and received immediately, otherwise it drops it silently. New optional
+  business setting `tipKeptByDefault` (`POS_BUSINESS_OPTIONAL_FIELDS`, sent
+  by the server only when stored, missing = off; `posTipKeptByDefault(business)`)
+  presets the switch. Labels `checkout.tip_kept` „gleich behalten“ and
+  `tip.kept_setting`, message `tip.kept_setting_hint`. Reason: a waitress
+  who keeps 2 € of a 22 € cash payment left 20 € in the drawer while the
+  expected cash said 22 € — a difference that was none.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes

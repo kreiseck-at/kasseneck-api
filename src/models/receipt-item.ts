@@ -49,6 +49,12 @@ export interface ReceiptItem {
    */
   receivedImmediately?: boolean;
   /**
+   * Nur Personal-Trinkgeld bar: die Mitarbeiterin hat es beim Verkauf gleich
+   * eingesteckt („gleich behalten“). Nur ein Merkmal fuer den Kassenstand;
+   * fehlt sonst.
+   */
+  keptByEmployee?: boolean;
+  /**
    * Artikel-Verweis (Artikelstamm) — Grundlage der Erloesgruppen-Zuordnung
    * im Bericht. Optional; Handeingaben haben keinen.
    */
@@ -91,6 +97,8 @@ export interface ReceiptItemPayload {
   recipient?: TipRecipient | null;
   paymentMethod?: string;
   receivedImmediately?: boolean;
+  /** Trinkgeld-Position, siehe [ReceiptItem.keptByEmployee]; nur `true`. */
+  keptByEmployee?: boolean;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string;
 }
@@ -117,6 +125,8 @@ export interface ReceiptItemPayloadRead {
   paymentMethod?: string | null;
   /** Trinkgeld-Position, siehe [ReceiptItem.receivedImmediately]. */
   receivedImmediately?: boolean | null;
+  /** Trinkgeld-Position, siehe [ReceiptItem.keptByEmployee]. */
+  keptByEmployee?: boolean | null;
   /** v2: Menge */
   quantity?: number | null;
   /** v2: Einzelpreis in Cent */
@@ -158,6 +168,7 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
     nutzlast.recipient = item.recipient ?? null;
     if (item.paymentMethod != null) nutzlast.paymentMethod = item.paymentMethod;
     if (typeof item.receivedImmediately === 'boolean') nutzlast.receivedImmediately = item.receivedImmediately;
+    if (item.keptByEmployee === true) nutzlast.keptByEmployee = true;
   }
   // Rabatt-Kennzeichnung reist mit — sonst kaeme ein Storno dieser Position
   // am Bon wieder als gewoehnliche Warenzeile mit "1 x" an.
@@ -202,6 +213,7 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
           recipient: payload.recipient ?? null,
           ...(payload.paymentMethod != null ? { paymentMethod: payload.paymentMethod } : {}),
           ...(typeof payload.receivedImmediately === 'boolean' ? { receivedImmediately: payload.receivedImmediately } : {}),
+          ...(payload.keptByEmployee === true ? { keptByEmployee: true } : {}),
         }
       : payload.kind === 'discount'
         ? { kind: 'discount' as const }
