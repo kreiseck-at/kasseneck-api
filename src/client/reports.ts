@@ -93,10 +93,10 @@ export type CashregisterReportPeriod =
   | { start: string; end: string };
 
 /**
- * Kassenbericht als PDF (v2) fuer einen abgeschlossenen Monat, einen Tag bis
- * heute oder einen Zeitraum (`end` ausschliesslich, hoechstens 366 Tage).
- * Laufender Monat und Zukunft liefern die Fehler `period_not_closed` bzw.
- * `period_in_future`. Nachfolger von [downloadMonthlyReport] und
+ * Kassenbericht als PDF (v2) fuer einen abgeschlossenen Monat, einen
+ * abgeschlossenen Tag (gestern oder frueher) oder einen Zeitraum (`end`
+ * ausschliesslich, hoechstens 366 Tage). Laufender Monat und heutiger Tag
+ * liefern `period_not_closed`, die Zukunft `period_in_future`. Nachfolger von [downloadMonthlyReport] und
  * [downloadDailyReport].
  */
 export async function getCashregisterReport(

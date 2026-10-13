@@ -4,6 +4,10 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.10.1
+
+- Documentation of `getCashregisterReport`: the daily report is only available for a closed day (yesterday or earlier); today returns `period_not_closed` like the current month. Reason: the backend accepts only closed days since keck#659. No code change in the package.
+
 ## 1.10.0
 
 - New `getCashregisterReport(options)`: cash register report PDF (v2) for a closed month, a day up to today or a date range (`end` exclusive, max. 366 days). Reason: one successor for the monthly and daily report downloads, same rules as the customer panel.
