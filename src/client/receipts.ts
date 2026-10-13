@@ -30,6 +30,9 @@ import {
   isCancellationReason,
   isReturnDisposition,
   RETURN_DISPOSITIONS,
+  isTipRefundSource,
+  TIP_REFUND_SOURCES,
+  type TipRefundSource,
   type ReturnDisposition,
   type ReceiptPaymentInput,
   type RegistrationInfo,
@@ -199,6 +202,20 @@ export type CancelReceiptOptions = {
   payments?: ReceiptPaymentInput[];
   /** Lade, in deren Kassenstand der Storno zaehlt; wie bei [ReceiptCommonOptions.drawerId]. */
   drawerId?: string;
+  /**
+   * Antwort auf „Trinkgeld auch zurueckgeben?“ (Schichten-Spec, Nachtrag 5). `false`: ohne das
+   * Mitarbeiter-Trinkgeld (ohne `items` = alle Restmengen ausser dem Trinkgeld); `true` mit `items`:
+   * das noch offene Trinkgeld kommt dazu. Fehlt = wie bisher (ein Vollstorno nimmt es mit). Die
+   * Positionen dazu rechnet [cancellationItemsForTip].
+   */
+  refundTip?: boolean;
+  /**
+   * Antwort auf „Woher kommt das Trinkgeld zurueck?“, nur bei Barrueckgabe ([asksTipRefundSource]):
+   * `drawer` aus der Lade, `employee` gibt die Mitarbeiterin direkt. Nicht zusammen mit
+   * `refundTip: false`. Der Server weist eine Quelle ohne Bargeld-Deckung ab
+   * (`tip_refund_source_requires_cash`).
+   */
+  tipRefundSource?: TipRefundSource;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -444,6 +461,15 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
     throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
   }
+  if (options.refundTip !== undefined && typeof options.refundTip !== 'boolean') {
+    throw new KasseneckValidationError('cancelReceipt', 'refundTip muss true oder false sein (oder weglassen)', 'request');
+  }
+  if (options.tipRefundSource !== undefined && !isTipRefundSource(options.tipRefundSource)) {
+    throw new KasseneckValidationError('cancelReceipt', `tipRefundSource: erlaubt sind ${TIP_REFUND_SOURCES.join(', ')}`, 'request');
+  }
+  if (options.tipRefundSource !== undefined && options.refundTip === false) {
+    throw new KasseneckValidationError('cancelReceipt', 'tipRefundSource nur, wenn das Trinkgeld zurueckgeht (refundTip nicht false)', 'request');
+  }
   const altfeld = ALTE_ZAHLFELDER.find((feld) => (options as unknown as Record<string, unknown>)[feld] != null);
   if (altfeld != null) {
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
@@ -463,6 +489,8 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
   if (options.drawerId !== undefined) params.drawerId = ladeKennung('cancelReceipt', options.drawerId);
+  if (options.refundTip !== undefined) params.refundTip = options.refundTip;
+  if (options.tipRefundSource !== undefined) params.tipRefundSource = options.tipRefundSource;
 
   const daten = await transport('cancelReceipt', params);
   return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));

@@ -125,6 +125,16 @@ test('Trinkgeld je Mitarbeiter: verdient immer, ueber Lohn, schon genommen und o
   assert.doesNotMatch(raster(layoutFuer(bon), 48), /Ben Kellner/);
 });
 
+test('Trinkgeld: ein negatives „offen“ steht mit Minus (Storno aus der Lade nach dem Auszahlen, Nachtrag 5)', () => {
+  const bon = structuredClone(quelle('getMyShiftReport/success_manager'));
+  bon.tips = bon.tips.map((t: Json) => ({ ...t, receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 150, openCents: -150 }));
+  const block = (text: string) => { const i = text.search(/^Trinkgeld +$/m); return i < 0 ? '' : text.slice(i); };
+  const b = block(raster(layoutFuer(bon), 48));
+  assert.match(b, /^ {2}verdient +0,00$/m);
+  assert.match(b, /^ {2}schon genommen +1,50$/m);
+  assert.match(b, /^ {2}offen +-1,50$/m);
+});
+
 test('Kassenbewegung: Nummer, Art, Betrag, Ort, Grund, Bediener; Leeres faellt weg', () => {
   const abschoepfung = raster(layoutFuer(quelle('recordMyCashMovement/success_manager_cash_drop')), 48);
   assert.match(abschoepfung, /Abschöpfung/);

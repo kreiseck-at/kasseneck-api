@@ -97,7 +97,7 @@ const MELDUNGEN_ROH = {
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
   // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
-  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht in den Kassenstand und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -190,6 +190,10 @@ const MELDUNGEN_ROH = {
   // (`unknown_reason`, `note_too_long`, `invalid_items`): am Server geschah
   // nichts, der Kassier beginnt das Storno von vorn.
   'cancellation.input_rejected': { text: 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.' },
+  // Storno eines Belegs mit Mitarbeiter-Trinkgeld (Schichten-Spec, Nachtrag 5): gesendet wird erst
+  // nach der Wahl, ohne Vorauswahl. Fehlt sie, steht dieser Satz unter dem Knopf.
+  'cancellation.tip_refund_missing': { text: 'Bitte wählen: Trinkgeld auch zurückgeben?' },
+  'cancellation.tip_source_missing': { text: 'Bitte wählen: Woher kommt das Trinkgeld zurück?' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -707,6 +711,15 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.all_cash': { text: 'Alles bar' },
   'cancellation.payment_remainder': { text: 'Rest {amount}', placeholders: ['amount'] },
   'cancellation.difference': { text: 'Differenz' },
+
+  // --- Storno mit oder ohne Trinkgeld (Schichten-Spec, Nachtrag 5) -----------
+  // Erste Frage bei offenem Mitarbeiter-Trinkgeld, zweite nur bei Ja und Barrueckgabe.
+  'cancellation.tip_refund_question': { text: 'Trinkgeld auch zurückgeben?' },
+  'cancellation.tip_refund_yes': { text: 'Ja' },
+  'cancellation.tip_refund_no': { text: 'Nein' },
+  'cancellation.tip_source_question': { text: 'Woher kommt das Trinkgeld zurück?' },
+  'cancellation.tip_source_drawer': { text: 'Aus der Lade' },
+  'cancellation.tip_source_employee': { text: 'Gibt die Mitarbeiterin direkt' },
 
   // --- Zeichensatz-Test (Testblatt und Drucker & Lade) ----------------------
   // Das Testblatt druckt diese Texte mit Ersatzbuchstaben (reines ASCII);

@@ -147,7 +147,31 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   presets the switch. Labels `checkout.tip_kept` „gleich behalten“ and
   `tip.kept_setting`, message `tip.kept_setting_hint`. Reason: a waitress
   who keeps 2 € of a 22 € cash payment left 20 € in the drawer while the
-  expected cash said 22 € — a difference that was none.
+  expected cash said 22 € — a difference that was none. The hint now says
+  „zählt nicht ins Soll der Lade“ (it never left the cash position).
+- **Cancelling with or without the tip**: `cancelReceipt` takes `refundTip`
+  (answer to „Trinkgeld auch zurückgeben?“; `false` leaves the staff tip on
+  the receipt, without `items` = every remaining quantity except the tip;
+  `true` with `items` adds the open tip) and `tipRefundSource` (`drawer` |
+  `employee`, `TIP_REFUND_SOURCES`, only for a cash refund: from the drawer,
+  or the employee hands it back herself). Without both the payload is the
+  same as before (a full cancellation takes the tip along). A wrong value
+  or a source with `refundTip: false` is refused before sending. The rules
+  both registers ask by: `openStaffTipCents(receipt)` (> 0 = ask the first
+  question, also for a partial cancellation), `cancellationItemsForTip`,
+  `cancellationCashRefundCents` and `asksTipRefundSource` (second question
+  only when the cash of the refund covers the tip and the employee already
+  had it); shared cases in `fixtures/cancellation-tip-cases.json`.
+  `CANCELLATION_ERROR_CODES` gains `tip_refund_conflict`,
+  `invalid_tip_refund_source` and `tip_refund_source_requires_cash`. Labels
+  `cancellation.tip_refund_question/yes/no`,
+  `cancellation.tip_source_question/drawer/employee`, messages
+  `cancellation.tip_refund_missing` and `cancellation.tip_source_missing`.
+  Reason: a tip is a voluntary gift to the employee; whether it goes back
+  with a cancelled sale, and from whose pocket, is a decision at the
+  register, and the drawer, „verdient“, „schon genommen“ and „offen“ must
+  follow it. A negative „offen“ (the employee owes the drawer) prints with
+  a minus; `shiftTipLines` keeps it like any value other than 0.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes

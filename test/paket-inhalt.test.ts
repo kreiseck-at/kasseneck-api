@@ -63,6 +63,7 @@ const ABNEHMER: Record<string, string> = {
   'receipts': 'Golden-Eingaben: Dart (Pruefsumme, Storno-Probe); kasseneck-web apps/admin/src/features/labor/fixtures.ts + druck.test.ts, apps/app/src/components/beleg-detail.test.tsx, apps/app/src/lib/beleg-kopf.test.ts, apps/kasse/src/test/golden-belege.test.tsx',
   'expected': 'Golden-Ausgaben (Zeilen, Raster, Blatt): Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/druck.test.ts + labor-core.test.ts, apps/app/src/components/beleg-render.test.tsx, apps/app/src/lib/beleg-kopf.test.ts',
   'manifest.json': 'Pruefsummen der Goldens: Dart-Zwilling; kasseneck-web apps/admin/src/features/labor/fixtures.ts, apps/kasse/src/test/golden-belege.test.tsx',
+  'cancellation-tip-cases.json': 'Prueffaelle Storno mit oder ohne Trinkgeld (openStaffTipCents, cancellationItemsForTip, asksTipRefundSource, cancellationCashRefundCents): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktionen',
   'code-table-preview.json': 'Vorschau je Code-Tabelle (codeTablePreviewText): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'code-table-receipts.json': 'Bons je Code-Tabelle (Faelle; Bytes unter expected/code-table-receipt.*.hex): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'code-tables.json': 'Katalog der Code-Tabellen (ESC t, Bytes je Zeichen): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',

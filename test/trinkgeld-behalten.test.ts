@@ -101,5 +101,5 @@ test('setMyPosSettings: tipKeptByDefault geht als Wahrheitswert hinaus, alles an
 test('Texte: Schalter und Einstellung (Beschriftung + Hinweis)', () => {
   assert.equal(labelText('checkout.tip_kept'), 'gleich behalten');
   assert.equal(labelText('tip.kept_setting'), 'Bar-Trinkgeld behält der Mitarbeiter gleich');
-  assert.match(messageText('tip.kept_setting_hint'), /Kassenstand/);
+  assert.match(messageText('tip.kept_setting_hint'), /zählt nicht ins Soll der Lade/);
 });

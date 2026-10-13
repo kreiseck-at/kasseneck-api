@@ -55,7 +55,9 @@ const NACH_1_0 = {
     'shift.required', 'shift.required_other', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
     'shift.already_closed', 'shift.recount_exhausted', 'shift.outcome_unknown', 'cash_movement.exceeds_balance', 'cash_movement.note_required', 'cash_movement.booked',
     'cash_movement.type_invalid', 'cash_movement.same_drawer', 'tip_payout.exceeds_claim', 'denominations.invalid', 'amount.invalid', 'drawer.not_found',
-    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off', 'tip.kept_setting_hint'],
+    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off', 'tip.kept_setting_hint',
+    // Storno mit oder ohne Trinkgeld (1.11.0)
+    'cancellation.tip_refund_missing', 'cancellation.tip_source_missing'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -76,7 +78,10 @@ const NACH_1_0 = {
     'shift_receipt.target_drawer', 'shift_receipt.note', 'shift_receipt.operator', 'shift_receipt.time',
     'cash_movement.pay_in', 'cash_movement.pay_out', 'cash_movement.print', 'drawer.recent_openings', 'drawer.reason_sale', 'drawer.reason_cash_movement', 'drawer.reason_shift_open', 'drawer.reason_shift_close', 'shift.resend', 'shift.next', 'shift.print_close', 'shift.print_again', 'shift.back_to_register', 'shift.later', 'time.yesterday',
     // Bar-Trinkgeld „gleich behalten“ (1.11.0)
-    'checkout.tip_kept', 'tip.kept_setting'],
+    'checkout.tip_kept', 'tip.kept_setting',
+    // Storno mit oder ohne Trinkgeld (1.11.0)
+    'cancellation.tip_refund_question', 'cancellation.tip_refund_yes', 'cancellation.tip_refund_no', 'cancellation.tip_source_question',
+    'cancellation.tip_source_drawer', 'cancellation.tip_source_employee'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
@@ -289,7 +294,7 @@ const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
 /** Bons je Code-Tabelle (1.1.0): die Faelle und je Fall und Tabelle eine Hex-Datei. */
 const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-table-receipts.json'), 'utf8')) as { tables: string[]; cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`])];

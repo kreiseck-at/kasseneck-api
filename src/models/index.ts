@@ -43,6 +43,13 @@ export {
   cancellationFieldErrors,
   type CancellationFieldError,
   remainingQuantities,
+  TIP_REFUND_SOURCES,
+  type TipRefundSource,
+  isTipRefundSource,
+  openStaffTipCents,
+  cancellationItemsForTip,
+  cancellationCashRefundCents,
+  asksTipRefundSource,
 } from './cancellation.js';
 export {
   type ReceiptPayment,
