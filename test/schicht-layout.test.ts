@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { cashMovementLayout, shiftReceiptLayout, labelText, type CashMovementReceipt, type ShiftSummaryReceipt } from '../src/pos/index.js';
+import { cashMovementLayout, shiftReceiptLayout, type CashMovementReceipt, type ShiftSummaryReceipt } from '../src/pos/index.js';
 import { formatCents, gridToText, renderReceiptGrid, type ReceiptLayout } from '../src/receipt/index.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 
@@ -56,15 +56,15 @@ test('Goldens: die vier Bons aus dem Vertrag ergeben Zeilen und Raster wie aufge
   }
 });
 
-test('Titel nach Art, Fuss immer „Kein Registrierkassenbeleg“', () => {
+test('Titel nach Art, kein Hinweis „Kein Registrierkassenbeleg“ (Nachtrag 1)', () => {
   const titel = (bon: Json) => layoutFuer(bon).lines.find((z) => z.kind === 'banner');
   assert.deepEqual(titel(quelle('closeMyShift/success_manager')), { kind: 'banner', text: 'Schichtabschluss', tone: 'receipt_type' });
   assert.deepEqual(titel(quelle('getMyShiftReport/success_manager')), { kind: 'banner', text: 'Zwischenbericht', tone: 'receipt_type' });
   assert.deepEqual(titel(quelle('recordMyCashMovement/success_manager_cash_drop')), { kind: 'banner', text: 'Kassenbewegung', tone: 'receipt_type' });
   for (const pfad of ['closeMyShift/success_manager', 'getMyShiftReport/success_cashier', 'recordMyCashMovement/success_owner_without_shift']) {
-    const zeilen = layoutFuer(quelle(pfad)).lines;
-    const letzte = zeilen.at(-1)!;
-    assert.deepEqual(letzte, { kind: 'text', text: labelText('shift.not_a_receipt'), align: 'center', bold: true }, pfad);
+    const layout = layoutFuer(quelle(pfad));
+    for (const zeichen of [32, 48]) assert.doesNotMatch(raster(layout, zeichen), /Registrierkassenbeleg/, pfad);
+    assert.notDeepEqual(layout.lines.at(-1), { kind: 'rule', char: '-' }, `${pfad}: keine Linie ohne Fuss`);
   }
 });
 
@@ -113,6 +113,11 @@ test('Kassenbewegung: Nummer, Art, Betrag, Ort, Grund, Bediener; Leeres faellt w
   assert.match(abschoepfung, /Bediener +Anna Chef/);
   const umbuchung = raster(layoutFuer(quelle('recordMyCashMovement/success_manager_transfer')), 48);
   assert.match(umbuchung, /Ziel-Lade +Bar/);
+  // Bank/Tresor ist freiwillig: ohne Ort keine Zeile „Ort“, die Art heisst „Wechselgeld“.
+  const wechselgeld = raster(layoutFuer(quelle('recordMyCashMovement/success_manager_change_in_without_location')), 48);
+  assert.match(wechselgeld, /^Art +Wechselgeld$/m);
+  assert.match(wechselgeld, /Betrag +30,00/);
+  assert.doesNotMatch(wechselgeld, /Ort|Bank|Tresor/);
   const inhaber = raster(layoutFuer(quelle('recordMyCashMovement/success_owner_without_shift')), 48);
   assert.doesNotMatch(inhaber, /Bediener|Ort|Grund|Schicht/);
 });

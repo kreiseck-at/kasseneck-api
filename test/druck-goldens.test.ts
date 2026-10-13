@@ -110,7 +110,8 @@ test('Druck-Goldens: die Blatt-Abbildung wirft bei unbekanntem Feld oder unbekan
 
 // Bons der Schicht (1.9.0): Z-Bon, X-Bon und Kassenbewegung aus den Bon-Daten
 // des Vertrags (Quellen in fixtures/shift-receipts.json). Aufgenommen mit
-// ihrem ersten Stand; die Ausgaben der Belege oben aendern sie nicht.
+// ihrem ersten Stand, neu aufgenommen in 1.11.0 (Art „Wechselgeld“, ohne Fuss
+// „Kein Registrierkassenbeleg“); die Ausgaben der Belege oben aendern sie nicht.
 const SCHICHT = JSON.parse(readFileSync(new URL('shift-receipts.json', wurzel), 'utf8')) as { receipts: Record<string, { source: string }> };
 const KASSE = JSON.parse(readFileSync(new URL('v3/antworten/kasse.json', wurzel), 'utf8')) as {
   endpoints: Record<string, { cases: Array<{ case: string; response: { data?: { receipt?: Record<string, unknown> } } }> }>;

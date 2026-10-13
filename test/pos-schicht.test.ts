@@ -201,6 +201,21 @@ test('Vor dem Senden: Betraege als Ganzzahl, genau eine Startgeld-Angabe, Pflich
   await abgewiesen(logMyDrawerOpenings(r, { drawerId: 'lade_bar', entries: [] }), /entries/);
   await abgewiesen(getMyShiftReport(r, { shiftId: '' }), /shiftId/);
   await abgewiesen(openMyShift(r, { idempotencyKey: 'x'.repeat(121), drawerId: 'lade_bar', takeOver: true }), /idempotencyKey/);
+  await abgewiesen(recordMyCashMovement(r, { idempotencyKey: 'b', drawerId: 'lade_bar', type: 'cash_drop', amountCents: 100, location: 'cellar' as never }), /location/);
+  await abgewiesen(recordMyCashMovement(r, { idempotencyKey: 'b', drawerId: 'lade_bar', type: 'cash_drop', amountCents: 100, location: '' as never }), /location/);
+});
+
+test('Ort ist freiwillig: Wechselgeld ohne location geht hinaus, wie der Vertragsfall', async () => {
+  const f = fall('recordMyCashMovement', 'success_manager_change_in_without_location');
+  assert.equal('location' in f.params, false);
+  const { ergebnis, fehler, gesendet } = await rufe('recordMyCashMovement', f);
+  assert.equal(fehler, undefined);
+  assert.equal(gesendet.length, 1);
+  assert.equal('location' in gesendet[0]!, false);
+  const r = ergebnis as Json;
+  assert.equal(r.movement.type, 'change_in');
+  assert.equal(r.movement.location, null);
+  assert.equal(r.receipt.movement.location, null);
 });
 
 test('Unklarer Ausgang: Oeffnen, Bewegung, Protokoll und Abschluss sind unknown, Lesen bleibt rejected', async () => {
@@ -307,13 +322,12 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
     'shift.cash_title': 'Kassenstand',
     'shift.x_report': 'Zwischenbericht',
     'shift.pay_out_tips': 'Trinkgeld auszahlen',
-    'shift.not_a_receipt': 'Kein Registrierkassenbeleg',
     'drawer.reason_title': 'Warum öffnen Sie die Lade?',
     'drawer.reason_change': 'Wechselgeld',
     'drawer.reason_check': 'Kontrolle',
     'drawer.reason_misoperation': 'Fehlbedienung',
     'drawer.reason_other': 'Sonstiges',
-    'cash_movement.type_change_in': 'Wechselgeld von Bank/Tresor',
+    'cash_movement.type_change_in': 'Wechselgeld',
     'cash_movement.type_cash_drop': 'Abschöpfung',
     'cash_movement.type_owner_deposit': 'Privateinlage',
     'cash_movement.type_owner_withdrawal': 'Privatentnahme',
@@ -334,6 +348,9 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
   }
   // Jede Bewegungsart hat ihre Beschriftung (auch die, die nur der Server vergibt: sie stehen auf dem Bon).
   for (const art of MOVEMENT_TYPES) assert.ok(`cash_movement.type_${art}` in LABELS, art);
+  // Die Bons tragen keinen Hinweis „Kein Registrierkassenbeleg“ mehr; der Text ist weg, nicht nur ungenutzt.
+  assert.ok(!('shift.not_a_receipt' in LABELS));
+  assert.ok(!Object.values(LABELS as Record<string, { text: string }>).some((l) => /Registrierkassenbeleg/.test(l.text)));
   for (const grund of MANUAL_OPENING_REASONS) assert.ok(`drawer.reason_${grund}` in LABELS, grund);
   assert.equal(messageText('shift.closed', { number: 3 }), 'Schicht 3 geschlossen.');
   assert.equal(messageText('cash_movement.booked', { type: labelText('cash_movement.type_cash_drop'), amount: '200,00 €' }), 'Abschöpfung über 200,00 € gebucht.');

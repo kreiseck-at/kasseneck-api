@@ -27,7 +27,7 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `tipClaims`, and with `cashView` `expectedCents`, `suggestedFloatCents`,
   `recentOpenings`), `openMyShift` (`openingFloatCents` with optional
   `denominations`, or `takeOver: true`, exactly one), `recordMyCashMovement`
-  (`type`, `amountCents`, `location` `bank` | `safe`, `note`, `recipientId`,
+  (`type`, `amountCents`, optional `location` `bank` | `safe`, `note`, `recipientId`,
   `targetDrawerId`; answers the movement and the receipt data),
   `logMyDrawerOpenings` (1–50 entries, each with its own `idempotencyKey`,
   optionally `drawerId` and the `operator` who opened the drawer while the
@@ -85,8 +85,7 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
 - **Receipts**: `shiftReceiptLayout(receipt, { paperSize })` (title
   „Schichtabschluss“ or „Zwischenbericht“ by `kind`) and
   `cashMovementLayout(receipt, { paperSize })` build the usual line model
-  (`ReceiptLayout`, grid, sheet, ESC/POS, ePOS). Every one ends with „Kein
-  Registrierkassenbeleg“; a line whose value is `null` (blind: expected,
+  (`ReceiptLayout`, grid, sheet, ESC/POS, ePOS). A line whose value is `null` (blind: expected,
   counted, difference, cash sales, counted denominations) is left out, never
   printed as „0,00“. Goldens from the contract answers, so layout and contract
   cannot drift: `fixtures/expected/shift-close.*`, `shift-close-blind.*`,
@@ -107,6 +106,14 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `drawer_inactive`): the register says what to do instead of the backend
   sentence. `validation`, `module_inactive` and `not_permitted` keep the
   readable sentence of the server, as before.
+- **Bank or safe is optional**: `location` on `change_in` and `cash_drop` is
+  checked only when given (`bank` | `safe`, otherwise refused before sending);
+  the movement receipt prints „Ort“ only when it is set, the label of
+  `change_in` is „Wechselgeld“, and no shift receipt prints „Kein
+  Registrierkassenbeleg“ (the text `shift.not_a_receipt` is gone). Reason:
+  the register no longer asks where the change came from or the drop went,
+  the answer had no use for the cash position, and the note at the foot was
+  not wanted on the slips.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes

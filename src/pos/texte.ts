@@ -767,7 +767,6 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.cash_title': { text: 'Kassenstand' },
   'shift.x_report': { text: 'Zwischenbericht' },
   'shift.pay_out_tips': { text: 'Trinkgeld auszahlen' },
-  'shift.not_a_receipt': { text: 'Kein Registrierkassenbeleg' },
   'drawer.reason_title': { text: 'Warum öffnen Sie die Lade?' },
   'drawer.reason_change': { text: 'Wechselgeld' },
   'drawer.reason_check': { text: 'Kontrolle' },
@@ -775,7 +774,7 @@ const BESCHRIFTUNGEN_ROH = {
   'drawer.reason_other': { text: 'Sonstiges' },
   // Je Art einer Kassenbewegung (auch die, die nur der Server vergibt: sie
   // stehen auf dem Z-Bon und im Bericht).
-  'cash_movement.type_change_in': { text: 'Wechselgeld von Bank/Tresor' },
+  'cash_movement.type_change_in': { text: 'Wechselgeld' },
   'cash_movement.type_cash_drop': { text: 'Abschöpfung' },
   'cash_movement.type_owner_deposit': { text: 'Privateinlage' },
   'cash_movement.type_owner_withdrawal': { text: 'Privatentnahme' },

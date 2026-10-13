@@ -3,6 +3,7 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { anfrage, schluessel } from '../inventory/schreiben.js';
 import { abschluss, bericht, gebucht, geoeffnet, gemeldet, ladeStand, type Ort } from './schicht-lesen.js';
 import {
+  CASH_LOCATIONS,
   EUR_DENOMINATIONS,
   type CashLocation,
   type CashMovementResult,
@@ -66,7 +67,7 @@ export interface RecordMyCashMovementOptions {
   type: ManualMovementType;
   /** Positiv; das Vorzeichen setzt der Server nach der Art. */
   amountCents: number;
-  /** Pflicht bei `change_in` und `cash_drop`. */
+  /** Freiwillig bei `change_in` und `cash_drop` (woher bzw. wohin); ohne Angabe bleibt der Ort leer. */
   location?: CashLocation;
   /** Grund; Pflicht bei `other_in` und `other_out`, hoechstens 200 Zeichen. */
   note?: string;
@@ -186,6 +187,10 @@ export async function recordMyCashMovement(transport: InternerTransport, options
   kennung(name, p, 'drawerId');
   schluessel(name, p, { pflicht: true });
   cent(name, 'amountCents', p.amountCents);
+  // Nur pruefen, wenn gesetzt: Bank/Tresor fragt die Kasse nicht mehr ab.
+  if (p.location !== undefined && !(CASH_LOCATIONS as readonly unknown[]).includes(p.location)) {
+    throw anfragefehler(name, `location muss ${CASH_LOCATIONS.join(' oder ')} sein`);
+  }
   return rufe(transport, name, p, gebucht);
 }
 

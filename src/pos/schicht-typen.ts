@@ -32,9 +32,9 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
 /**
  * Was die Kasse von Hand buchen darf. Pflichtangaben je Art (sonst lehnt der
- * Server ab): `location` bei `change_in`/`cash_drop`, `note` bei
- * `other_in`/`other_out`, `recipientId` bei `tip_payout`, `targetDrawerId`
- * bei `transfer_out`.
+ * Server ab): `note` bei `other_in`/`other_out`, `recipientId` bei
+ * `tip_payout`, `targetDrawerId` bei `transfer_out`. `location` bei
+ * `change_in`/`cash_drop` ist freiwillig.
  */
 export const MANUAL_MOVEMENT_TYPES = Object.freeze([
   'change_in', 'cash_drop', 'owner_deposit', 'owner_withdrawal', 'tip_payout', 'other_in', 'other_out', 'transfer_out',

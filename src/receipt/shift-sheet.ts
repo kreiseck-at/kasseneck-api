@@ -100,10 +100,6 @@ function wennText(zeilen: LayoutLine[], links: string, wert: string | null): voi
   if (wert !== null && wert !== '') zeilen.push(kopf(links, wert));
 }
 
-function fuss(): LayoutLine[] {
-  return [regel(), text(labelText('shift.not_a_receipt'), 'center', true)];
-}
-
 function kopfblock(zeilen: LayoutLine[], bon: ShiftSummaryReceipt | CashMovementReceipt, titel: LabelKey): void {
   zeilen.push({ kind: 'banner', text: labelText(titel), tone: 'receipt_type' });
   if (bon.business.name) zeilen.push(text(bon.business.name, 'center', true));
@@ -175,7 +171,6 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
       zeilen.push(betrag(`  ${labelText('shift_receipt.tip_paid_out')}`, t.paidOutCents));
     }
   }
-  zeilen.push(...fuss());
   return { lines: zeilen, paperSize, ruleset: CURRENT_LAYOUT_RULESET };
 }
 
@@ -202,6 +197,5 @@ export function cashMovementLayout(receipt: CashMovementReceipt, options: ShiftR
   wennText(zeilen, labelText('shift_receipt.note'), m.note);
   wennText(zeilen, labelText('shift_receipt.operator'), m.byName);
   wennText(zeilen, labelText('shift_receipt.time'), zeit(m.at));
-  zeilen.push(...fuss());
   return { lines: zeilen, paperSize, ruleset: CURRENT_LAYOUT_RULESET };
 }
