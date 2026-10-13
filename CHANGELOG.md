@@ -114,6 +114,7 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   device settings) and of `INTERNE_BELEG_FELDER` in `storno-core.js` in
   `test/fixtures/stored-zwillinge.json` follow the backend; the behaviour
   comparison of `./stored` against the backend is green.
+- **Texts**: 15 labels (`cash_movement.pay_in/pay_out/print`, `drawer.recent_openings`, `drawer.reason_sale/cash_movement/shift_open/shift_close`, `shift.resend/next/print_close/print_again/back_to_register/later`, `time.yesterday`) and 2 messages (`tip_payout.recipient_required`, `shift.pending_hint`) for the cash position and the drawer log, so the registers take every text from the package.
 
 ## 1.10.1
 
