@@ -105,10 +105,21 @@ export interface NonCashAmount {
 export interface ShiftTipTotals {
   registerUserId: string;
   name: string | null;
-  /** Schon erhalten (bar mitgenommen). */
+  /** Steht dem Mitarbeiter aus der Lade zu (bar oder Karte am Terminal des Betriebs). */
   receivedImmediatelyCents: number;
-  /** Behaelt der Betrieb und schuldet es. */
+  /** Behaelt der Betrieb und zahlt es ueber den Lohn („über Lohn“). */
   retainedCents: number;
+  /** In dieser Schicht aus der Lade ausgezahlt („schon genommen“). */
+  paidOutCents: number;
+}
+
+/**
+ * Trinkgeld eines Mitarbeiters mit seinem offenen Anspruch an die Lade
+ * (`openCents`, „offen“): im Kassenstand ([DrawerState.tips]) und auf dem
+ * Z- und X-Bon. Was davon gezeigt wird, sagt [shiftTipLines].
+ */
+export interface ShiftTip extends ShiftTipTotals {
+  openCents: number;
 }
 
 /** Laufstand der Schicht (nur mit `cashView`). */
@@ -193,6 +204,12 @@ export interface DrawerState {
   /** Schicht seit mindestens 16 Stunden offen; fehlt ohne Recht `shift`. */
   longOpenWarning?: boolean;
   tipClaims: TipClaim[];
+  /**
+   * Trinkgeld je Mitarbeiter in der laufenden Schicht und offene Ansprueche
+   * (auch aus frueheren Schichten), nach Name; fuer jede Sitzung, auch ohne
+   * `cashView` (Trinkgeld ist kein Bar-Soll). Wer ueberall 0 hat, fehlt.
+   */
+  tips: ShiftTip[];
   /** Vorschlag fuer das Startgeld (letzter Stand); bei offener Schicht `null`. Nur mit `shift` und `cashView`. */
   suggestedFloatCents?: number | null;
   /** Soll in der Lade; ohne Schicht `null`. Nur mit `shift` und `cashView`. */
@@ -236,9 +253,8 @@ export interface ShiftReceiptMovement {
   at: string | null;
 }
 
-export interface ShiftReceiptTip extends ShiftTipTotals {
-  paidOutCents: number;
-}
+/** Trinkgeld auf dem Z- und X-Bon: offen = Anspruch beim Abschluss bzw. jetzt. */
+export type ShiftReceiptTip = ShiftTip;
 
 /** Bon-Daten des Z-Bons (`shift_close`) bzw. X-Bons (`shift_interim`). */
 export interface ShiftSummaryReceipt extends ShiftReceiptHeader {

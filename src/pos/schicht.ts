@@ -2,6 +2,7 @@ import type { ApiCall, InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { anfrage, schluessel } from '../inventory/schreiben.js';
 import { abschluss, bericht, gebucht, geoeffnet, gemeldet, ladeStand, type Ort } from './schicht-lesen.js';
+import { labelText } from './texte.js';
 import {
   CASH_LOCATIONS,
   EUR_DENOMINATIONS,
@@ -15,6 +16,7 @@ import {
   type OpeningReason,
   type OpenShiftResult,
   type ShiftReport,
+  type ShiftTipTotals,
 } from './schicht-typen.js';
 
 /**
@@ -289,4 +291,34 @@ export function newIdempotencyKey(): string {
   }
   const bytes = zufall.getRandomValues(new Uint8Array(16));
   return `kasse-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Zeilen des Trinkgelds eines Mitarbeiters (siehe [shiftTipLines]). */
+export type ShiftTipLineKey = 'shift_receipt.tip_earned' | 'shift_receipt.tip_retained' | 'shift_receipt.tip_paid_out' | 'shift_receipt.tip_open';
+
+export interface ShiftTipLine {
+  key: ShiftTipLineKey;
+  /** Das Wort aus dem Katalog ([labelText]). */
+  text: string;
+  cents: number;
+}
+
+/**
+ * Was vom Trinkgeld eines Mitarbeiters dasteht – auf dem Bon, im Kassenstand
+ * und beim Abschluss gleich (Rulings R50/R51): „verdient“ (sofort + über
+ * Lohn) immer, „über Lohn“, „schon genommen“ und „offen“ nur, wenn nicht 0.
+ * Ist alles 0, gibt es keine Zeile, und der Mitarbeiter entfaellt ganz. Ohne
+ * `openCents` (Laufstand) zaehlt offen als 0. Gemeinsame Faelle mit dem
+ * Dart-Zwilling: `fixtures/shift-cases.json`.
+ */
+export function shiftTipLines(tip: ShiftTipTotals & { openCents?: number }): ShiftTipLine[] {
+  const verdient = tip.receivedImmediatelyCents + tip.retainedCents;
+  const zeilen: Array<[ShiftTipLineKey, number]> = [
+    ['shift_receipt.tip_retained', tip.retainedCents],
+    ['shift_receipt.tip_paid_out', tip.paidOutCents],
+    ['shift_receipt.tip_open', tip.openCents ?? 0],
+  ];
+  const rest = zeilen.filter(([, cents]) => cents !== 0);
+  if (verdient === 0 && rest.length === 0) return [];
+  return [['shift_receipt.tip_earned', verdient] as [ShiftTipLineKey, number], ...rest].map(([key, cents]) => ({ key, text: labelText(key), cents }));
 }

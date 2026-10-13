@@ -1,6 +1,7 @@
 import { KasseneckValidationError } from '../client/errors.js';
 import { labelText, LABELS, type LabelKey } from '../pos/texte.js';
 import { bewegungsBon, schichtBon } from '../pos/schicht-lesen.js';
+import { shiftTipLines } from '../pos/schicht.js';
 import type { CashMovementReceipt, Denominations, ShiftSummaryReceipt } from '../pos/schicht-typen.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
@@ -160,15 +161,15 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   zeilen.push(anzahl(labelText('shift_receipt.cancellations'), bon.cancellationCount));
   zeilen.push(anzahl(labelText('shift_receipt.openings_without_sale'), bon.openingsWithoutSale));
 
-  // Trinkgeld je Mitarbeiter: sofort erhalten, ueber Lohn, ausgezahlt.
-  if (bon.tips.length > 0) {
+  // Trinkgeld je Mitarbeiter (shiftTipLines): verdient immer, ueber Lohn, schon genommen und offen
+  // nur ungleich 0; wer ueberall 0 hat, entfaellt, ohne Mitarbeiter auch die Ueberschrift.
+  const trinkgeld = bon.tips.map((t) => ({ t, z: shiftTipLines(t) })).filter(({ z }) => z.length > 0);
+  if (trinkgeld.length > 0) {
     zeilen.push(regel());
     zeilen.push(text(labelText('shift_receipt.tips'), 'left', true));
-    for (const t of bon.tips) {
+    for (const { t, z } of trinkgeld) {
       zeilen.push(text(t.name ?? t.registerUserId));
-      zeilen.push(betrag(`  ${labelText('shift_receipt.tip_immediately')}`, t.receivedImmediatelyCents));
-      zeilen.push(betrag(`  ${labelText('shift_receipt.tip_retained')}`, t.retainedCents));
-      zeilen.push(betrag(`  ${labelText('shift_receipt.tip_paid_out')}`, t.paidOutCents));
+      for (const zeile of z) zeilen.push(betrag(`  ${zeile.text}`, zeile.cents));
     }
   }
   return { lines: zeilen, paperSize, ruleset: CURRENT_LAYOUT_RULESET };

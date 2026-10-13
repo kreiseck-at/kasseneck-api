@@ -32,8 +32,8 @@ import type {
   ShiftReconciliation,
   ShiftRunningTotals,
   ShiftSummaryReceipt,
+  ShiftTip,
   ShiftTipTotals,
-  ShiftReceiptTip,
   TipClaim,
 } from './schicht-typen.js';
 
@@ -134,7 +134,14 @@ function trinkgeld(ort: Ort, w: unknown): ShiftTipTotals {
     name: text(o.name),
     receivedImmediatelyCents: ganzzahl(ort, o, 'receivedImmediatelyCents'),
     retainedCents: ganzzahl(ort, o, 'retainedCents'),
+    paidOutCents: ganzzahl(ort, o, 'paidOutCents'),
   };
+}
+
+/** Trinkgeld mit offenem Anspruch (Kassenstand, Bon). */
+function trinkgeldMitOffen(ort: Ort, w: unknown): ShiftTip {
+  const o = pflichtObjekt(ort, w);
+  return { ...trinkgeld(ort, o), openCents: ganzzahl(ort, o, 'openCents') };
 }
 
 function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
@@ -243,6 +250,7 @@ export function ladeStand(ort: Ort, w: unknown): DrawerState {
       drawer: wahr(rechteOrt, rechte, 'drawer'),
     },
     tipClaims: liste(ort, o, 'tipClaims', anspruch),
+    tips: liste(ort, o, 'tips', trinkgeldMitOffen),
   };
   const r = raus as unknown as Roh;
   wennDa(r, o, 'shift', () => schichtOderNull(unter(ort, 'shift'), o.shift));
@@ -287,11 +295,6 @@ function bonKopf(ort: Ort, o: Roh): ShiftReceiptHeader {
   };
 }
 
-function bonTrinkgeld(ort: Ort, w: unknown): ShiftReceiptTip {
-  const o = pflichtObjekt(ort, w);
-  return { ...trinkgeld(ort, o), paidOutCents: ganzzahl(ort, o, 'paidOutCents') };
-}
-
 /** Bon-Daten eines Z- oder X-Bons; eine andere Art ist ein Fehler. */
 export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   const o = pflichtObjekt(ort, w);
@@ -328,7 +331,7 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
         at: text(m.at),
       };
     }),
-    tips: liste(ort, o, 'tips', bonTrinkgeld),
+    tips: liste(ort, o, 'tips', trinkgeldMitOffen),
     expectedCents: ganzzahlOderNull(ort, o, 'expectedCents'),
     countedCents: ganzzahlOderNull(ort, o, 'countedCents'),
     countedDenominations: stueckelung(ort, o, 'countedDenominations'),

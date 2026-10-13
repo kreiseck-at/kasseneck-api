@@ -124,6 +124,31 @@ test('getMyDrawerState ohne Recht shift: die offene Schicht nur mit Grunddaten, 
   for (const feld of ['openingFloatCents', 'openingFloatTakenOver', 'runningTotals', 'expectedCents', 'blind', 'closedAt']) assert.ok(!(feld in stand.shift), feld);
 });
 
+test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, offen), auch blind (Nachtrag 3)', async () => {
+  const { ergebnis } = await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_cashier_tip_taken'));
+  const stand = ergebnis as Json;
+  assert.equal(stand.rights.cashView, false);
+  assert.ok(!('expectedCents' in stand));
+  assert.deepEqual(stand.tips, [
+    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, openCents: 300 },
+    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, openCents: 150 },
+  ]);
+  // Ohne Trinkgeld eine leere Liste, nie ein fehlendes Feld.
+  const ohne = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_owner_new_main_drawer'))).ergebnis as Json;
+  assert.deepEqual(ohne.tips, []);
+});
+
+test('recordMyCashMovement: Trinkgeld an sich selbst (tip_payout + recipientId); fremd ohne cashMove ist not_permitted', async () => {
+  const eigen = fall('recordMyCashMovement', 'success_cashier_tip_own');
+  const { ergebnis, gesendet } = await rufe('recordMyCashMovement', eigen);
+  assert.deepEqual(gesendet[0], { drawerId: 'haupt_KASSE1', type: 'tip_payout', amountCents: 250, recipientId: 'ru_kellner', idempotencyKey: 'b-6' });
+  assert.equal((ergebnis as Json).movement.type, 'tip_payout');
+  assert.equal((ergebnis as Json).receipt.movement.recipientName, 'Ben Kellner');
+  const fremd = await rufe('recordMyCashMovement', fall('recordMyCashMovement', 'cashier_tip_foreign'));
+  assert.ok(isPosError(fremd.fehler), String(fremd.fehler));
+  assert.equal((fremd.fehler as { code?: string }).code, 'not_permitted');
+});
+
 test('logMyDrawerOpenings: gepufferte Eintraege senden Bediener und Lade; die Antwort nennt die wirksame Lade', async () => {
   const f = fall('logMyDrawerOpenings', 'success_operator_reported_late');
   const { ergebnis, gesendet } = await rufe('logMyDrawerOpenings', f);
@@ -322,6 +347,11 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
     'shift.cash_title': 'Kassenstand',
     'shift.x_report': 'Zwischenbericht',
     'shift.pay_out_tips': 'Trinkgeld auszahlen',
+    'shift_receipt.tips': 'Trinkgeld',
+    'shift_receipt.tip_earned': 'verdient',
+    'shift_receipt.tip_retained': 'über Lohn',
+    'shift_receipt.tip_paid_out': 'schon genommen',
+    'shift_receipt.tip_open': 'offen',
     'drawer.reason_title': 'Warum öffnen Sie die Lade?',
     'drawer.reason_change': 'Wechselgeld',
     'drawer.reason_check': 'Kontrolle',
@@ -350,6 +380,8 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
   for (const art of MOVEMENT_TYPES) assert.ok(`cash_movement.type_${art}` in LABELS, art);
   // Die Bons tragen keinen Hinweis „Kein Registrierkassenbeleg“ mehr; der Text ist weg, nicht nur ungenutzt.
   assert.ok(!('shift.not_a_receipt' in LABELS));
+  // „sofort“ steht nirgends mehr (Nachtrag 3: verdient, über Lohn, schon genommen, offen).
+  assert.ok(!('shift_receipt.tip_immediately' in LABELS));
   assert.ok(!Object.values(LABELS as Record<string, { text: string }>).some((l) => /Registrierkassenbeleg/.test(l.text)));
   for (const grund of MANUAL_OPENING_REASONS) assert.ok(`drawer.reason_${grund}` in LABELS, grund);
   assert.equal(messageText('shift.closed', { number: 3 }), 'Schicht 3 geschlossen.');

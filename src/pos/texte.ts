@@ -810,10 +810,13 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.receipts': { text: 'Belege' },
   'shift_receipt.cancellations': { text: 'Stornos' },
   'shift_receipt.openings_without_sale': { text: 'Öffnungen ohne Verkauf' },
+  // Trinkgeld je Mitarbeiter (Bon, Kassenstand, Nachtrag 3): verdient = sofort + über Lohn, schon
+  // genommen = in dieser Schicht aus der Lade ausgezahlt, offen = Anspruch an die Lade.
   'shift_receipt.tips': { text: 'Trinkgeld' },
-  'shift_receipt.tip_immediately': { text: 'sofort' },
+  'shift_receipt.tip_earned': { text: 'verdient' },
   'shift_receipt.tip_retained': { text: 'über Lohn' },
-  'shift_receipt.tip_paid_out': { text: 'ausgezahlt' },
+  'shift_receipt.tip_paid_out': { text: 'schon genommen' },
+  'shift_receipt.tip_open': { text: 'offen' },
   'shift_receipt.movement_number': { text: 'Nr.' },
   'shift_receipt.type': { text: 'Art' },
   'shift_receipt.amount': { text: 'Betrag' },

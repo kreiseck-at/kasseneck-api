@@ -247,7 +247,7 @@ extra fallback fetch field fields font format function grid group header height 
 invoice item items key kind label language layout logo lookup matrix max message month months mode module name now number options
 out outcome paper patch payload payment price query rate raw reason receipt report request reservation result rule scheme scope search
 secret serial server session setting settings shortcuts size standard status step stocktake stored stripe styles surface table
-target tax terminal text timed timeout transport twelfths type unit value values variant version voucher vouchers wanted webhook
+target tax terminal text timed timeout tip transport twelfths type unit value values variant version voucher vouchers wanted webhook
 width
 `.split(/\s+/).filter(Boolean));
 

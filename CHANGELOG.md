@@ -114,6 +114,25 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   the register no longer asks where the change came from or the drop went,
   the answer had no use for the cash position, and the note at the foot was
   not wanted on the slips.
+- **Tips during the shift**: `DrawerState.tips` lists per employee what
+  the running shift earned (`receivedImmediatelyCents`, `retainedCents`),
+  what was already paid out from the drawer in this shift (`paidOutCents`)
+  and the open claim against the drawer (`openCents`), for every session,
+  also without `cashView`. `ShiftTipTotals` gains `paidOutCents`, the new
+  `ShiftTip` adds `openCents` (`ShiftReceiptTip` is now this type, the Z and
+  X report carry the open claim at closing or now). `recordMyCashMovement`
+  with `type: 'tip_payout'` and `recipientId` is unchanged; the server now
+  also lets a user with only the right `shift` pay out the own claim (another
+  employee's claim still needs `cashMove`). New helper
+  `shiftTipLines(tip)`: the lines of one employee as the register shows and
+  prints them, „verdient“ (immediate + retained) always, „über Lohn“,
+  „schon genommen“ and „offen“ only when not 0, no line at all when
+  everything is 0; its cases are in `fixtures/shift-cases.json`. The shift
+  receipts use it. Labels `shift_receipt.tip_earned` „verdient“ and
+  `shift_receipt.tip_open` „offen“ are new, `shift_receipt.tip_paid_out`
+  now reads „schon genommen“, `shift_receipt.tip_immediately` („sofort“) is
+  gone. Reason: staff take their tips at any time, not only at the end of
+  the shift, and the slip showed lines with 0,00 nobody needed.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes

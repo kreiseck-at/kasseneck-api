@@ -71,7 +71,7 @@ const NACH_1_0 = {
     'shift_receipt.drawer', 'shift_receipt.shift', 'shift_receipt.number', 'shift_receipt.opened', 'shift_receipt.closed', 'shift_receipt.by',
     'shift_receipt.opening_float', 'shift_receipt.opening_float_taken_over', 'shift_receipt.cash_sales', 'shift_receipt.cash_cancellations', 'shift_receipt.movements', 'shift_receipt.expected',
     'shift_receipt.counted', 'shift_receipt.difference', 'shift_receipt.comment', 'shift_receipt.non_cash', 'shift_receipt.receipts', 'shift_receipt.cancellations',
-    'shift_receipt.openings_without_sale', 'shift_receipt.tips', 'shift_receipt.tip_immediately', 'shift_receipt.tip_retained', 'shift_receipt.tip_paid_out', 'shift_receipt.movement_number',
+    'shift_receipt.openings_without_sale', 'shift_receipt.tips', 'shift_receipt.tip_earned', 'shift_receipt.tip_retained', 'shift_receipt.tip_paid_out', 'shift_receipt.tip_open', 'shift_receipt.movement_number',
     'shift_receipt.type', 'shift_receipt.amount', 'shift_receipt.location', 'shift_receipt.location_bank', 'shift_receipt.location_safe', 'shift_receipt.recipient',
     'shift_receipt.target_drawer', 'shift_receipt.note', 'shift_receipt.operator', 'shift_receipt.time',
     'cash_movement.pay_in', 'cash_movement.pay_out', 'cash_movement.print', 'drawer.recent_openings', 'drawer.reason_sale', 'drawer.reason_cash_movement', 'drawer.reason_shift_open', 'drawer.reason_shift_close', 'shift.resend', 'shift.next', 'shift.print_close', 'shift.print_again', 'shift.back_to_register', 'shift.later', 'time.yesterday'],
