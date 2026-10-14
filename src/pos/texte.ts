@@ -840,6 +840,8 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.tip_paid_out': { text: 'schon genommen' },
   // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
   'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
+  // Offene Forderung beim Oeffnen der Schicht (Fix-Runde 2, R64).
+  'shift_receipt.tip_carried_over': { text: 'aus früheren Schichten' },
   'shift_receipt.tip_open': { text: 'offen' },
   'shift_receipt.movement_number': { text: 'Nr.' },
   'shift_receipt.type': { text: 'Art' },

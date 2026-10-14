@@ -81,7 +81,7 @@ const NACH_1_0 = {
     'checkout.tip_kept', 'tip.kept_setting',
     // Storno mit oder ohne Trinkgeld (1.11.0)
     'cancellation.tip_refund_question', 'cancellation.tip_refund_yes', 'cancellation.tip_refund_no', 'cancellation.tip_source_question',
-    'cancellation.tip_source_drawer', 'cancellation.tip_source_employee', 'cancellation.tip_stays', 'shift_receipt.tip_refunded_by_employee'],
+    'cancellation.tip_source_drawer', 'cancellation.tip_source_employee', 'cancellation.tip_stays', 'shift_receipt.tip_refunded_by_employee', 'shift_receipt.tip_carried_over'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

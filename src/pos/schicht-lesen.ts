@@ -143,7 +143,12 @@ function trinkgeld(ort: Ort, w: unknown): ShiftTipTotals {
 /** Trinkgeld mit offenem Anspruch (Kassenstand, Bon). */
 function trinkgeldMitOffen(ort: Ort, w: unknown): ShiftTip {
   const o = pflichtObjekt(ort, w);
-  return { ...trinkgeld(ort, o), openCents: ganzzahl(ort, o, 'openCents') };
+  return {
+    ...trinkgeld(ort, o),
+    // Fehlt bei einem Backend vor der Regel R64: dann 0.
+    carriedOverCents: o.carriedOverCents === undefined || o.carriedOverCents === null ? 0 : ganzzahl(ort, o, 'carriedOverCents'),
+    openCents: ganzzahl(ort, o, 'openCents'),
+  };
 }
 
 function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {

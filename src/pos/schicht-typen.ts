@@ -125,6 +125,13 @@ export interface ShiftTipTotals {
  * Z- und X-Bon. Was davon gezeigt wird, sagt [shiftTipLines].
  */
 export interface ShiftTip extends ShiftTipTotals {
+  /**
+   * Offene Forderung an die Lade beim Oeffnen der Schicht („aus früheren Schichten“, Fix-Runde 2,
+   * R64); ohne offene Schicht der ganze Anspruch. Fehlt es (Backend bzw. Schicht vor dieser Regel), 0.
+   * Fuer den Leser geht auf: offen = aus früheren Schichten + verdient − über Lohn − schon genommen
+   * + selbst zurückgegeben.
+   */
+  carriedOverCents: number;
   openCents: number;
 }
 

@@ -125,6 +125,14 @@ test('Trinkgeld je Mitarbeiter: verdient immer, ueber Lohn, schon genommen und o
   assert.doesNotMatch(raster(layoutFuer(bon), 48), /Ben Kellner/);
 });
 
+test('Trinkgeld: „aus früheren Schichten“ als erste Zeile, nur wenn nicht 0 (Fix-Runde 2, R64)', () => {
+  const bon = structuredClone(quelle('getMyShiftReport/success_manager'));
+  bon.tips = bon.tips.map((t: Json) => ({ ...t, carriedOverCents: 600, receivedImmediatelyCents: 900, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, openCents: 1500 }));
+  const block = (text: string) => { const i = text.search(/^Trinkgeld +$/m); return i < 0 ? '' : text.slice(i); };
+  const b = block(raster(layoutFuer(bon), 48));
+  assert.match(b, /^Ben Kellner +\n {2}aus früheren Schichten +6,00\n {2}verdient +9,00\n {2}offen +15,00$/m);
+});
+
 test('Trinkgeld: ein negatives „offen“ steht mit Minus (Storno aus der Lade nach dem Auszahlen, Nachtrag 5)', () => {
   const bon = structuredClone(quelle('getMyShiftReport/success_manager'));
   bon.tips = bon.tips.map((t: Json) => ({ ...t, receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 150, openCents: -150 }));

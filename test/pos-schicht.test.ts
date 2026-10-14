@@ -11,6 +11,7 @@ import {
   POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, posSettingsFromWire, setMyRegisterDeviceSettings,
   type LabelKey, type MessageKey,
 } from '../src/pos/index.js';
+import { shiftTipLines } from '../src/pos/index.js';
 import { createTransport, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { registerUserAuth } from '../src/client/auth.js';
 import { isKasseneckValidationError, isOutcomeUnknown, KasseneckNetworkError } from '../src/client/errors.js';
@@ -130,8 +131,8 @@ test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, 
   assert.equal(stand.rights.cashView, false);
   assert.ok(!('expectedCents' in stand));
   assert.deepEqual(stand.tips, [
-    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, openCents: 300 },
-    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, refundedByEmployeeCents: 0, openCents: 150 },
+    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, carriedOverCents: 0, openCents: 300 },
+    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, refundedByEmployeeCents: 0, carriedOverCents: 0, openCents: 150 },
   ]);
   // Ohne Trinkgeld eine leere Liste, nie ein fehlendes Feld.
   const ohne = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_owner_new_main_drawer'))).ergebnis as Json;
@@ -141,8 +142,15 @@ test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, 
 test('getMyDrawerState: selbst zurückgegeben als eigene Zahl, schon genommen bleibt 0 (Fix-Runde 1, R62)', async () => {
   const { ergebnis } = await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_cashier_tip_self_refunded'));
   assert.deepEqual((ergebnis as Json).tips, [
-    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 200, openCents: 600 },
+    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 200, carriedOverCents: 0, openCents: 600 },
   ]);
+});
+
+test('getMyDrawerState: aus früheren Schichten als eigene Zahl (Fix-Runde 2, R64)', async () => {
+  const { ergebnis } = await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_cashier_tip_carried_over'));
+  const [tip] = (ergebnis as Json).tips;
+  assert.deepEqual(tip, { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 900, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, carriedOverCents: 600, openCents: 1500 });
+  assert.deepEqual(shiftTipLines(tip).map((z) => [z.text, z.cents]), [['aus früheren Schichten', 600], ['verdient', 900], ['offen', 1500]]);
 });
 
 test('recordMyCashMovement: Trinkgeld an sich selbst (tip_payout + recipientId); fremd ohne cashMove ist not_permitted', async () => {

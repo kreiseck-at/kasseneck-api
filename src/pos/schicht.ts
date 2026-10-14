@@ -294,7 +294,7 @@ export function newIdempotencyKey(): string {
 }
 
 /** Zeilen des Trinkgelds eines Mitarbeiters (siehe [shiftTipLines]). */
-export type ShiftTipLineKey = 'shift_receipt.tip_earned' | 'shift_receipt.tip_retained' | 'shift_receipt.tip_paid_out'
+export type ShiftTipLineKey = 'shift_receipt.tip_carried_over' | 'shift_receipt.tip_earned' | 'shift_receipt.tip_retained' | 'shift_receipt.tip_paid_out'
   | 'shift_receipt.tip_refunded_by_employee' | 'shift_receipt.tip_open';
 
 export interface ShiftTipLine {
@@ -308,15 +308,18 @@ export interface ShiftTipLine {
  * Was vom Trinkgeld eines Mitarbeiters dasteht – auf dem Bon, im Kassenstand
  * und beim Abschluss gleich (Rulings R50/R51): „verdient“ (sofort + über
  * Lohn) immer, „über Lohn“, „schon genommen“, „selbst zurückgegeben“ (R62)
- * und „offen“ nur, wenn nicht 0.
+ * und „offen“ nur, wenn nicht 0. Davor „aus früheren Schichten“ (R64, nur ≠ 0):
+ * offen = aus früheren Schichten + verdient − über Lohn − schon genommen +
+ * selbst zurückgegeben.
  * Ist alles 0, gibt es keine Zeile, und der Mitarbeiter entfaellt ganz. Ohne
  * `openCents` (Laufstand) zaehlt offen als 0. Gemeinsame Faelle mit dem
  * Dart-Zwilling: `fixtures/shift-cases.json`.
  */
 export function shiftTipLines(
-  tip: Omit<ShiftTipTotals, 'refundedByEmployeeCents'> & { refundedByEmployeeCents?: number; openCents?: number },
+  tip: Omit<ShiftTipTotals, 'refundedByEmployeeCents'> & { refundedByEmployeeCents?: number; carriedOverCents?: number; openCents?: number },
 ): ShiftTipLine[] {
   const verdient = tip.receivedImmediatelyCents + tip.retainedCents;
+  const vortrag = tip.carriedOverCents ?? 0;
   const zeilen: Array<[ShiftTipLineKey, number]> = [
     ['shift_receipt.tip_retained', tip.retainedCents],
     ['shift_receipt.tip_paid_out', tip.paidOutCents],
@@ -324,6 +327,7 @@ export function shiftTipLines(
     ['shift_receipt.tip_open', tip.openCents ?? 0],
   ];
   const rest = zeilen.filter(([, cents]) => cents !== 0);
-  if (verdient === 0 && rest.length === 0) return [];
-  return [['shift_receipt.tip_earned', verdient] as [ShiftTipLineKey, number], ...rest].map(([key, cents]) => ({ key, text: labelText(key), cents }));
+  if (verdient === 0 && rest.length === 0 && vortrag === 0) return [];
+  const davor: Array<[ShiftTipLineKey, number]> = vortrag !== 0 ? [['shift_receipt.tip_carried_over', vortrag]] : [];
+  return [...davor, ['shift_receipt.tip_earned', verdient] as [ShiftTipLineKey, number], ...rest].map(([key, cents]) => ({ key, text: labelText(key), cents }));
 }

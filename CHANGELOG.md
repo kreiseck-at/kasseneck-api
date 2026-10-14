@@ -187,6 +187,13 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   herself showed „schon genommen -2,00“ — correct, but read wrong; now
   „schon genommen“ never goes negative this way, and
   open = earned − taken + handed back.
+- **Tip carried over from earlier shifts**: `ShiftTip.carriedOverCents`
+  („aus früheren Schichten“, the drawer's open claim when the shift was
+  opened; without an open shift the whole claim; read as 0 when missing) and
+  the line `shift_receipt.tip_carried_over` first in `shiftTipLines` (only
+  when not 0). Reason: „verdient 9,00 · offen 15,00“ left 6,00 unexplained;
+  now open = carried over + earned − retained − taken + handed back, with
+  exactly the lines shown.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes
