@@ -172,6 +172,21 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   register, and the drawer, „verdient“, „schon genommen“ and „offen“ must
   follow it. A negative „offen“ (the employee owes the drawer) prints with
   a minus; `shiftTipLines` keeps it like any value other than 0.
+  With a value voucher on the receipt there is no „Nein“: `asksRefundTip`
+  is false there, the registers show `cancellation.tip_refunded_with_voucher`
+  and send `refundTip: true` (the server refuses `false` with
+  `tip_keep_not_possible_with_voucher`, added to `CANCELLATION_ERROR_CODES`),
+  because only a full cancellation reverses the voucher. `refundTip: true`
+  without `tipRefundSource` on a cash refund means: from the drawer. After
+  „Nein“ the tip line of the cancellation sheet reads `cancellation.tip_stays`
+  „bleibt“.
+- **Tip handed back by the employee**: `ShiftTipTotals.refundedByEmployeeCents`
+  („selbst zurückgegeben“, read as 0 when an older backend leaves it out) and
+  a line `shift_receipt.tip_refunded_by_employee` in `shiftTipLines` (only
+  when not 0). Reason: a cancellation where the employee hands the tip back
+  herself showed „schon genommen -2,00“ — correct, but read wrong; now
+  „schon genommen“ never goes negative this way, and
+  open = earned − taken + handed back.
 - **Device setting** `drawerId` (inner `ladeId`): the drawer of this device.
   Optional like on the wire, without a default (`POS_DEVICE_OPTIONAL_FIELDS`):
   present only when a drawer is assigned, written as an id or `null` (removes

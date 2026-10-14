@@ -93,6 +93,7 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'tip_refund_conflict',                    // Wahl passt nicht zum Storno (Trinkgeld trotz Nein, Quelle ohne Trinkgeld)
   'invalid_tip_refund_source',              // tipRefundSource nicht drawer oder employee
   'tip_refund_source_requires_cash',        // eine Quelle nur, wenn das Bargeld des Stornos das Trinkgeld deckt
+  'tip_keep_not_possible_with_voucher',     // refundTip false an einem Beleg mit Wertgutschein (das Trinkgeld geht mit)
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
   'action_confirmation_required',
@@ -298,12 +299,30 @@ export function openStaffTipCents(receipt: Receipt, nowMs: number = Date.now()):
   return offenesTrinkgeld(receipt, nowMs).reduce((s, { index, quantity }) => s + quantity * (receipt.items[index]?.priceCents ?? 0), 0);
 }
 
+/** Traegt der Beleg einen Wertgutschein (verkauft oder eingeloest)? Zwilling von storno-core.hatWertgutschein. */
+function hatWertgutschein(receipt: Receipt): boolean {
+  return (receipt.vouchers ?? []).some((v) => v != null && zahlartWert(v.type) === 'value');
+}
+
+/**
+ * Fragt das Storno „Trinkgeld auch zurueckgeben?“ – nur bei noch offenem Mitarbeiter-Trinkgeld und
+ * ohne Wertgutschein am Beleg. Einen Wertgutschein spiegelt nur ein Storno, der alles nimmt; darum
+ * geht das Trinkgeld dort immer mit (der Server weist `refundTip: false` mit
+ * `tip_keep_not_possible_with_voucher` ab), die Kasse zeigt stattdessen
+ * `cancellation.tip_refunded_with_voucher` und sendet `refundTip: true`. Die Frage nach der Quelle
+ * bleibt ([asksTipRefundSource]).
+ */
+export function asksRefundTip(receipt: Receipt, nowMs: number = Date.now()): boolean {
+  return openStaffTipCents(receipt, nowMs) > 0 && !hatWertgutschein(receipt);
+}
+
 /**
  * Die Positionen, die nach der Antwort auf „Trinkgeld auch zurueckgeben?“ hinausgehen -- dieselbe
  * Regel wie im Backend. `items` fehlt = ganzer Beleg.
  * - Ja: zum Teilstorno kommt das offene Trinkgeld dazu; der ganze Beleg bleibt `undefined`.
  * - Nein: ohne das Mitarbeiter-Trinkgeld; der ganze Beleg wird zur Liste aller Restmengen ausser dem
- *   Trinkgeld (leer = nichts mehr zu stornieren). Ein Beleg ohne Mitarbeiter-Trinkgeld bleibt, wie er ist.
+ *   Trinkgeld (leer = nichts mehr zu stornieren). Ist kein Mitarbeiter-Trinkgeld mehr offen (keines
+ *   oder schon storniert), bleibt der Wunsch, wie er ist – „Nein“ wirkt dann wie keine Wahl.
  */
 export function cancellationItemsForTip(
   receipt: Receipt,
@@ -319,6 +338,7 @@ export function cancellationItemsForTip(
     return [...items, ...offenesTrinkgeld(receipt, nowMs).filter((x) => !genannt.has(x.index))];
   }
   if (items !== undefined) return items.filter((x) => !trinkgeld.has(x.index));
+  if (offenesTrinkgeld(receipt, nowMs).length === 0) return undefined;
   const rest = remainingQuantities(receipt, nowMs);
   return rest.map((quantity, index) => ({ index, quantity })).filter((x) => x.quantity > 0 && !trinkgeld.has(x.index));
 }
@@ -326,7 +346,9 @@ export function cancellationItemsForTip(
 /**
  * Was dieses Storno bar zurueckgibt (positiv, Cent): mit Rueckzahlungen deren Barteil; ohne
  * (der Server spiegelt die eine Zahlung des Originals) alles, wenn das Original bar bezahlt war.
- * Bei mehreren Zahlungen ohne Angabe 0 -- dort schickt die Kasse die Rueckzahlungen immer mit.
+ * Bei mehr als einer Zahlung ohne Angabe 0: welcher Teil bar zurueckgeht, ist dann offen (ein
+ * Teilstorno verlangt ohnehin `payments`). Beide Kassen schicken bei mehr als einer Zahlung darum
+ * immer die Rueckzahlungen mit und rechnen hier mit ihnen.
  */
 export function cancellationCashRefundCents(
   receipt: Receipt,
@@ -349,6 +371,7 @@ export function cancellationCashRefundCents(
  * die Karte zurueck; ueber Lohn behaltenes Trinkgeld kommt immer aus der Lade.
  */
 export function asksTipRefundSource(receipt: Receipt, cashRefundCents: number, nowMs: number = Date.now()): boolean {
+  // Ohne diese Frage (Karte) und mit `refundTip: true` gilt beim Server: aus der Lade, kein `direkt`.
   const offen = offenesTrinkgeld(receipt, nowMs);
   if (offen.length === 0) return false;
   if (!offen.some(({ index }) => hatteSie(receipt.items[index]!, receipt))) return false;

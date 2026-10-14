@@ -111,6 +111,12 @@ export interface ShiftTipTotals {
   retainedCents: number;
   /** In dieser Schicht aus der Lade ausgezahlt („schon genommen“). */
   paidOutCents: number;
+  /**
+   * Beim Storno selbst zurueckgegeben („Gibt die Mitarbeiterin direkt“, „selbst zurückgegeben“).
+   * Eigene Zahl, damit „schon genommen“ nie negativ wird: offen = verdient − genommen + selbst
+   * zurueckgegeben. Fehlt es in der Antwort (Backend vor dieser Regel), gilt 0.
+   */
+  refundedByEmployeeCents: number;
 }
 
 /**

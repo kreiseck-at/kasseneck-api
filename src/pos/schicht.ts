@@ -294,7 +294,8 @@ export function newIdempotencyKey(): string {
 }
 
 /** Zeilen des Trinkgelds eines Mitarbeiters (siehe [shiftTipLines]). */
-export type ShiftTipLineKey = 'shift_receipt.tip_earned' | 'shift_receipt.tip_retained' | 'shift_receipt.tip_paid_out' | 'shift_receipt.tip_open';
+export type ShiftTipLineKey = 'shift_receipt.tip_earned' | 'shift_receipt.tip_retained' | 'shift_receipt.tip_paid_out'
+  | 'shift_receipt.tip_refunded_by_employee' | 'shift_receipt.tip_open';
 
 export interface ShiftTipLine {
   key: ShiftTipLineKey;
@@ -306,16 +307,20 @@ export interface ShiftTipLine {
 /**
  * Was vom Trinkgeld eines Mitarbeiters dasteht – auf dem Bon, im Kassenstand
  * und beim Abschluss gleich (Rulings R50/R51): „verdient“ (sofort + über
- * Lohn) immer, „über Lohn“, „schon genommen“ und „offen“ nur, wenn nicht 0.
+ * Lohn) immer, „über Lohn“, „schon genommen“, „selbst zurückgegeben“ (R62)
+ * und „offen“ nur, wenn nicht 0.
  * Ist alles 0, gibt es keine Zeile, und der Mitarbeiter entfaellt ganz. Ohne
  * `openCents` (Laufstand) zaehlt offen als 0. Gemeinsame Faelle mit dem
  * Dart-Zwilling: `fixtures/shift-cases.json`.
  */
-export function shiftTipLines(tip: ShiftTipTotals & { openCents?: number }): ShiftTipLine[] {
+export function shiftTipLines(
+  tip: Omit<ShiftTipTotals, 'refundedByEmployeeCents'> & { refundedByEmployeeCents?: number; openCents?: number },
+): ShiftTipLine[] {
   const verdient = tip.receivedImmediatelyCents + tip.retainedCents;
   const zeilen: Array<[ShiftTipLineKey, number]> = [
     ['shift_receipt.tip_retained', tip.retainedCents],
     ['shift_receipt.tip_paid_out', tip.paidOutCents],
+    ['shift_receipt.tip_refunded_by_employee', tip.refundedByEmployeeCents ?? 0],
     ['shift_receipt.tip_open', tip.openCents ?? 0],
   ];
   const rest = zeilen.filter(([, cents]) => cents !== 0);

@@ -194,6 +194,8 @@ const MELDUNGEN_ROH = {
   // nach der Wahl, ohne Vorauswahl. Fehlt sie, steht dieser Satz unter dem Knopf.
   'cancellation.tip_refund_missing': { text: 'Bitte wählen: Trinkgeld auch zurückgeben?' },
   'cancellation.tip_source_missing': { text: 'Bitte wählen: Woher kommt das Trinkgeld zurück?' },
+  // Beleg mit Wertgutschein: keine Frage, das Trinkgeld geht mit (Ruling R59, asksRefundTip).
+  'cancellation.tip_refunded_with_voucher': { text: 'Beleg mit Gutschein: Das Trinkgeld wird mitstorniert.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -720,6 +722,8 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.tip_source_question': { text: 'Woher kommt das Trinkgeld zurück?' },
   'cancellation.tip_source_drawer': { text: 'Aus der Lade' },
   'cancellation.tip_source_employee': { text: 'Gibt die Mitarbeiterin direkt' },
+  // Trinkgeld-Zeile im Storno-Blatt nach „Nein“ (Fix-Runde 1, R63): sie geht nicht mit.
+  'cancellation.tip_stays': { text: 'bleibt' },
 
   // --- Zeichensatz-Test (Testblatt und Drucker & Lade) ----------------------
   // Das Testblatt druckt diese Texte mit Ersatzbuchstaben (reines ASCII);
@@ -834,6 +838,8 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.tip_earned': { text: 'verdient' },
   'shift_receipt.tip_retained': { text: 'über Lohn' },
   'shift_receipt.tip_paid_out': { text: 'schon genommen' },
+  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
+  'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
   'shift_receipt.tip_open': { text: 'offen' },
   'shift_receipt.movement_number': { text: 'Nr.' },
   'shift_receipt.type': { text: 'Art' },

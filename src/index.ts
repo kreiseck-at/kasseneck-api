@@ -96,6 +96,7 @@ export {
   cancellationItemsForTip,
   cancellationCashRefundCents,
   asksTipRefundSource,
+  asksRefundTip,
   type ReceiptCompany,
   type ReceiptCompanyPayload,
   fromReceiptCompanyPayload,

@@ -130,12 +130,19 @@ test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, 
   assert.equal(stand.rights.cashView, false);
   assert.ok(!('expectedCents' in stand));
   assert.deepEqual(stand.tips, [
-    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, openCents: 300 },
-    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, openCents: 150 },
+    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, openCents: 300 },
+    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, refundedByEmployeeCents: 0, openCents: 150 },
   ]);
   // Ohne Trinkgeld eine leere Liste, nie ein fehlendes Feld.
   const ohne = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_owner_new_main_drawer'))).ergebnis as Json;
   assert.deepEqual(ohne.tips, []);
+});
+
+test('getMyDrawerState: selbst zurückgegeben als eigene Zahl, schon genommen bleibt 0 (Fix-Runde 1, R62)', async () => {
+  const { ergebnis } = await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_cashier_tip_self_refunded'));
+  assert.deepEqual((ergebnis as Json).tips, [
+    { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 200, openCents: 600 },
+  ]);
 });
 
 test('recordMyCashMovement: Trinkgeld an sich selbst (tip_payout + recipientId); fremd ohne cashMove ist not_permitted', async () => {

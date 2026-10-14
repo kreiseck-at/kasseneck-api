@@ -50,6 +50,7 @@ export {
   cancellationItemsForTip,
   cancellationCashRefundCents,
   asksTipRefundSource,
+  asksRefundTip,
 } from './cancellation.js';
 export {
   type ReceiptPayment,

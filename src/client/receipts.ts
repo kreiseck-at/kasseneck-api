@@ -206,14 +206,16 @@ export type CancelReceiptOptions = {
    * Antwort auf „Trinkgeld auch zurueckgeben?“ (Schichten-Spec, Nachtrag 5). `false`: ohne das
    * Mitarbeiter-Trinkgeld (ohne `items` = alle Restmengen ausser dem Trinkgeld); `true` mit `items`:
    * das noch offene Trinkgeld kommt dazu. Fehlt = wie bisher (ein Vollstorno nimmt es mit). Die
-   * Positionen dazu rechnet [cancellationItemsForTip].
+   * Positionen dazu rechnet [cancellationItemsForTip]. An einem Beleg mit Wertgutschein gibt es
+   * `false` nicht (`tip_keep_not_possible_with_voucher`, siehe [asksRefundTip]).
    */
   refundTip?: boolean;
   /**
    * Antwort auf „Woher kommt das Trinkgeld zurueck?“, nur bei Barrueckgabe ([asksTipRefundSource]):
    * `drawer` aus der Lade, `employee` gibt die Mitarbeiterin direkt. Nicht zusammen mit
    * `refundTip: false`. Der Server weist eine Quelle ohne Bargeld-Deckung ab
-   * (`tip_refund_source_requires_cash`).
+   * (`tip_refund_source_requires_cash`). `refundTip: true` ohne Quelle heisst bei Barrueckgabe:
+   * aus der Lade (kein „gibt die Mitarbeiterin direkt“).
    */
   tipRefundSource?: TipRefundSource;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  asksRefundTip,
   asksTipRefundSource,
   cancellationCashRefundCents,
   cancellationItemsForTip,
@@ -28,6 +29,7 @@ import { labelText, messageText } from '../src/pos/index.js';
 type Faelle = {
   receipts: Record<string, Record<string, unknown>>;
   openStaffTipCents: Array<{ receipt: string; expected: number }>;
+  asksRefundTip: Array<{ receipt: string; expected: boolean }>;
   cancellationItemsForTip: Array<{ receipt: string; items: CancellationItem[] | null; refundTip: boolean; expected: CancellationItem[] | null }>;
   asksTipRefundSource: Array<{ receipt: string; cashRefundCents: number; expected: boolean }>;
   cancellationCashRefundCents: Array<{ receipt: string; payments: ReceiptPaymentInput[] | null; dueCents: number; expected: number }>;
@@ -51,6 +53,11 @@ const JETZT = 1_800_000_000_000;
 test('openStaffTipCents: die gemeinsamen Faelle', () => {
   assert.ok(FAELLE.openStaffTipCents.length >= 6);
   for (const f of FAELLE.openStaffTipCents) assert.equal(openStaffTipCents(beleg(f.receipt), JETZT), f.expected, f.receipt);
+});
+
+test('asksRefundTip: die gemeinsamen Faelle (mit Wertgutschein keine Frage, R59)', () => {
+  assert.ok(FAELLE.asksRefundTip.length >= 7);
+  for (const f of FAELLE.asksRefundTip) assert.equal(asksRefundTip(beleg(f.receipt), JETZT), f.expected, f.receipt);
 });
 
 test('cancellationItemsForTip: die gemeinsamen Faelle', () => {
@@ -79,7 +86,7 @@ test('Quellen und Fehlercodes wie unter /v3', () => {
   assert.equal(isTipRefundSource('mitarbeiter'), false);
   const codes = [...CANCELLATION_ERROR_CODES];
   const ab = codes.indexOf('invalid_return_disposition');
-  assert.deepEqual(codes.slice(ab + 1, ab + 4), ['tip_refund_conflict', 'invalid_tip_refund_source', 'tip_refund_source_requires_cash']);
+  assert.deepEqual(codes.slice(ab + 1, ab + 5), ['tip_refund_conflict', 'invalid_tip_refund_source', 'tip_refund_source_requires_cash', 'tip_keep_not_possible_with_voucher']);
 });
 
 test('Texte der beiden Fragen und der Hinweis zur Einstellung', () => {
@@ -92,6 +99,9 @@ test('Texte der beiden Fragen und der Hinweis zur Einstellung', () => {
   assert.equal(messageText('cancellation.tip_refund_missing'), 'Bitte wählen: Trinkgeld auch zurückgeben?');
   assert.equal(messageText('cancellation.tip_source_missing'), 'Bitte wählen: Woher kommt das Trinkgeld zurück?');
   assert.match(messageText('tip.kept_setting_hint'), /zählt nicht ins Soll der Lade/);
+  assert.equal(messageText('cancellation.tip_refunded_with_voucher'), 'Beleg mit Gutschein: Das Trinkgeld wird mitstorniert.');
+  assert.equal(labelText('cancellation.tip_stays'), 'bleibt');
+  assert.equal(labelText('shift_receipt.tip_refunded_by_employee'), 'selbst zurückgegeben');
 });
 
 // --- cancelReceipt: refundTip und tipRefundSource ----------------------------------------------

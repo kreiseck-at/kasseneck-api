@@ -135,6 +135,8 @@ function trinkgeld(ort: Ort, w: unknown): ShiftTipTotals {
     receivedImmediatelyCents: ganzzahl(ort, o, 'receivedImmediatelyCents'),
     retainedCents: ganzzahl(ort, o, 'retainedCents'),
     paidOutCents: ganzzahl(ort, o, 'paidOutCents'),
+    // Fehlt bei einem Backend vor der Regel R62: dann 0, statt die ganze Antwort zu verwerfen.
+    refundedByEmployeeCents: o.refundedByEmployeeCents === undefined || o.refundedByEmployeeCents === null ? 0 : ganzzahl(ort, o, 'refundedByEmployeeCents'),
   };
 }
 
