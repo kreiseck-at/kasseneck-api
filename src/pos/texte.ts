@@ -363,6 +363,7 @@ const MELDUNGEN_ROH = {
   'drawer.not_found': { text: 'Diese Lade gibt es nicht mehr. Bitte im Panel die Lade dieses Geräts prüfen.' },
   'drawer.inactive': { text: 'Diese Lade ist stillgelegt. Bitte im Panel eine andere Lade zuordnen.' },
   'tip_payout.recipient_required': { text: 'Bitte einen Mitarbeiter wählen.' },
+  'tip_payout.none_open': { text: 'In dieser Schicht ist kein Trinkgeld offen.' },
   'shift.pending_hint': { text: 'Noch nicht bestätigt. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.' },
 
   // --- Nur App -------------------------------------------------------------
@@ -869,6 +870,38 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.back_to_register': { text: 'Zur Kasse' },
   'shift.later': { text: 'Später senden' },
   'time.yesterday': { text: 'gestern' },
+  // Kassenstand an der Kasse (1.11.0): Karte „In der Kassenlade sollten sein“, Schichtkopf, Zahlungen.
+  'shift.drawer_should_have': { text: 'In der Kassenlade sollten sein' },
+  'shift.drawer_named': { text: 'Kassenlade: {name}', placeholders: ['name'] },
+  'shift.running_since': { text: 'läuft seit {duration}', placeholders: ['duration'] },
+  'shift.since': { text: 'seit {time}', placeholders: ['time'] },
+  'shift.collected_outside_drawer': { text: 'Kassiert, aber nicht in der Kassenlade' },
+  'shift.non_cash_short': { text: 'unbar' },
+  'shift.voucher_redeemed': { text: 'Gutschein eingelöst' },
+  'shift.all_payments': { text: 'Alle Zahlungen dieser Schicht (bar + unbar)' },
+  'shift.receipt_count_one': { text: '1 Beleg' },
+  'shift.receipt_count_other': { text: '{count} Belege', placeholders: ['count'] },
+  'shift.openings_without_sale_count': { text: '{count}× ohne Verkauf geöffnet', placeholders: ['count'] },
+  'cash_movement.pay_in_short': { text: 'Einzahlen' },
+  'cash_movement.pay_out_short': { text: 'Auszahlen' },
+  'drawer.recent_openings_full': { text: 'Letzte Öffnungen der Kassenlade' },
+  // Dauer (Zusammensetzung: durationText): ab 1 Tag „1 Tag 3 Std.“, sonst „8 Std. 32 Min.“, unter 1 Std. nur Minuten.
+  'duration.days_one': { text: '{days} Tag', placeholders: ['days'] },
+  'duration.days_other': { text: '{days} Tage', placeholders: ['days'] },
+  'duration.hours': { text: '{hours} Std.', placeholders: ['hours'] },
+  'duration.minutes': { text: '{minutes} Min.', placeholders: ['minutes'] },
+  // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
+  'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
+  'tip_payout.done': { text: 'erledigt' },
+  'tip_payout.earned_paid': { text: 'verdient {earned} · ausgezahlt {paid}', placeholders: ['earned', 'paid'] },
+  'tip_payout.for_all': { text: 'Für alle' },
+  'tip_payout.nothing': { text: 'Nichts' },
+  'tip_payout.all_open': { text: 'Alles Offene' },
+  'tip_payout.title': { text: 'Auszahlung' },
+  'tip_payout.persons_one': { text: '1 Person' },
+  'tip_payout.persons_other': { text: '{count} Personen', placeholders: ['count'] },
+  'tip_payout.pay_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
+  'tip_payout.pay_out': { text: 'Auszahlen' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

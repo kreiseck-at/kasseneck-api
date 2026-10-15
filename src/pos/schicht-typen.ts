@@ -141,6 +141,8 @@ export interface ShiftRunningTotals {
   cashCancellationsCents: number;
   /** Nach Zahlart sortiert. */
   nonCashByMethod: NonCashAmount[];
+  /** Eingelöste Gutscheine in Cent (kein Bargeld, nicht in der Lade); fehlt bei älteren Servern, dann 0. */
+  voucherRedeemedCents: number;
   receiptCount: number;
   cancellationCount: number;
   cashInCents: number;

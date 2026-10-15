@@ -92,6 +92,12 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `shift-interim.*`, `cash-movement.*` (lines, 32 and 48 character grid),
   sources and checksums in the new `fixtures/shift-receipts.json`. The
   receipt goldens of 1.10.1 are byte for byte unchanged.
+- **Cash position and tip list at the register**: `ShiftRunningTotals.voucherRedeemedCents`
+  (redeemed vouchers, not cash; 0 when an older server omits it), the helper
+  `durationText(minutes)` („8 Std. 32 Min.“, „1 Tag 3 Std.“; cases in
+  `fixtures/shift-cases.json`) and the texts for the new cash position card and
+  the tip payout list (`shift.*`, `duration.*`, `tip_payout.*`,
+  `cash_movement.pay_in_short|pay_out_short`, `drawer.recent_openings_full`).
 - **Texts** (`fixtures/pos-texts.json`): messages `shift.*`,
   `shift.required_other` (shift mode on, no shift open, the signed-in user
   lacks the `shift` right), `cash_movement.*`, `tip_payout.exceeds_claim`, `denominations.invalid`,

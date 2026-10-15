@@ -75,7 +75,7 @@ export {
   type GetMyDrawerStateOptions, type OpenMyShiftOptions, type RecordMyCashMovementOptions, type DrawerOpeningEntry,
   type LogMyDrawerOpeningsOptions, type GetMyShiftReportOptions, type TipPayout, type CloseMyShiftOptions,
   getMyDrawerState, openMyShift, recordMyCashMovement, logMyDrawerOpenings, getMyShiftReport, closeMyShift,
-  sumDenominations, parseCentsAllowZero, newIdempotencyKey, shiftTipLines, type ShiftTipLine, type ShiftTipLineKey,
+  sumDenominations, parseCentsAllowZero, newIdempotencyKey, shiftTipLines, durationText, type ShiftTipLine, type ShiftTipLineKey,
 } from './schicht.js';
 export {
   EUR_DENOMINATIONS, MOVEMENT_TYPES, MANUAL_MOVEMENT_TYPES, CASH_LOCATIONS, OPENING_REASONS, MANUAL_OPENING_REASONS, SHIFT_RECEIPT_KINDS,

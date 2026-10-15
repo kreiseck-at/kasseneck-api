@@ -244,7 +244,7 @@ const PARAMETER_ENGLISCH: ReadonlySet<string> = new Set(`
 after alternate article before binary block body budget business bytes cash cashregister cause cents certificate chars client code
 columns company connect content count customer data date denominations detail details device dimensions discount email endpoint error event
 due extra fallback fetch field fields font format function grid group header height image index inner instant interface interval
-invoice item items key kind label language layout logo lookup matrix max message month months mode module name now number options
+invoice item items key kind label language layout logo lookup matrix max message minutes month months mode module name now number options
 out outcome paper patch payload payment payments price query rate raw reason receipt refund report request reservation result rule scheme scope search
 secret serial server session setting settings shortcuts size standard status step stocktake stored stripe styles surface table
 target tax terminal text timed timeout tip transport twelfths type unit value values variant version voucher vouchers wanted webhook

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { EUR_DENOMINATIONS, labelText, parseCentsAllowZero, shiftTipLines, sumDenominations, type ShiftTip } from '../src/pos/index.js';
+import { EUR_DENOMINATIONS, durationText, labelText, parseCentsAllowZero, shiftTipLines, sumDenominations, type ShiftTip } from '../src/pos/index.js';
 
 /*
  * Die Helfer der Schicht gegen die gemeinsamen Faelle (fixtures/shift-cases.json),
@@ -14,6 +14,7 @@ type Faelle = {
   sumDenominations: Array<{ denominations: unknown; expected: number | null }>;
   parseCentsAllowZero: Array<{ text: string; expected: number | null }>;
   shiftTipLines: Array<{ tip: ShiftTip; expected: Array<{ key: string; cents: number }> }>;
+  durationText: Array<{ minutes: number; expected: string }>;
 };
 const FAELLE = JSON.parse(readFileSync(new URL('../../fixtures/shift-cases.json', import.meta.url), 'utf8')) as Faelle;
 
@@ -58,8 +59,15 @@ test('shiftTipLines: ohne openCents (Laufstand) zaehlt offen als 0; Woerter fuer
 });
 
 test('Faelle-Datei: jede Zeile hat genau ihre Felder', () => {
-  assert.deepEqual(Object.keys(FAELLE), ['_note', 'sumDenominations', 'parseCentsAllowZero', 'shiftTipLines']);
+  assert.deepEqual(Object.keys(FAELLE), ['_note', 'sumDenominations', 'parseCentsAllowZero', 'shiftTipLines', 'durationText']);
   for (const f of FAELLE.sumDenominations) assert.deepEqual(Object.keys(f), ['denominations', 'expected']);
   for (const f of FAELLE.parseCentsAllowZero) assert.deepEqual(Object.keys(f), ['text', 'expected']);
   for (const f of FAELLE.shiftTipLines) assert.deepEqual(Object.keys(f), ['tip', 'expected']);
+  for (const f of FAELLE.durationText) assert.deepEqual(Object.keys(f), ['minutes', 'expected']);
+});
+
+test('durationText: die gemeinsamen Faelle', () => {
+  assert.ok(FAELLE.durationText.length >= 12);
+  for (const { minutes, expected } of FAELLE.durationText) assert.equal(durationText(minutes), expected, String(minutes));
+  assert.equal(durationText(Number.NaN), '0 Min.');
 });

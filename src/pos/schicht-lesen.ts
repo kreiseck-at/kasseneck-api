@@ -157,6 +157,8 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
     cashSalesCents: ganzzahl(ort, o, 'cashSalesCents'),
     cashCancellationsCents: ganzzahl(ort, o, 'cashCancellationsCents'),
     nonCashByMethod: liste(ort, o, 'nonCashByMethod', unbar),
+    // Fehlt bei einem Server vor dem Gutschein-Feld: dann 0.
+    voucherRedeemedCents: o.voucherRedeemedCents === undefined || o.voucherRedeemedCents === null ? 0 : ganzzahl(ort, o, 'voucherRedeemedCents'),
     receiptCount: ganzzahl(ort, o, 'receiptCount'),
     cancellationCount: ganzzahl(ort, o, 'cancellationCount'),
     cashInCents: ganzzahl(ort, o, 'cashInCents'),

@@ -331,3 +331,26 @@ export function shiftTipLines(
   const davor: Array<[ShiftTipLineKey, number]> = vortrag !== 0 ? [['shift_receipt.tip_carried_over', vortrag]] : [];
   return [...davor, ['shift_receipt.tip_earned', verdient] as [ShiftTipLineKey, number], ...rest].map(([key, cents]) => ({ key, text: labelText(key), cents }));
 }
+
+/**
+ * Dauer für Menschen aus ganzen Minuten: unter 1 Std. „45 Min.“, unter 1 Tag
+ * „8 Std. 32 Min.“ (bei 0 Minuten nur „8 Std.“), ab 1 Tag „1 Tag 3 Std.“ bzw.
+ * „2 Tage“ (bei 0 Stunden ohne Stunden). Negatives und Unsinn zählt als 0;
+ * Bruchteile werden abgeschnitten. Gemeinsame Fälle mit dem Dart-Zwilling:
+ * `fixtures/shift-cases.json` (`durationText`).
+ */
+export function durationText(minutes: number): string {
+  const gesamt = Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 0;
+  const tage = Math.floor(gesamt / 1440);
+  const stunden = Math.floor((gesamt % 1440) / 60);
+  const rest = gesamt % 60;
+  const teile: string[] = [];
+  if (tage > 0) {
+    teile.push(labelText(tage === 1 ? 'duration.days_one' : 'duration.days_other', { days: tage }));
+    if (stunden > 0) teile.push(labelText('duration.hours', { hours: stunden }));
+  } else {
+    if (stunden > 0) teile.push(labelText('duration.hours', { hours: stunden }));
+    if (rest > 0 || stunden === 0) teile.push(labelText('duration.minutes', { minutes: rest }));
+  }
+  return teile.join(' ');
+}
