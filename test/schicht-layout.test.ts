@@ -40,7 +40,7 @@ const raster = (layout: ReceiptLayout, zeichen: number): string => gridToText(re
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 test('Goldens: die vier Bons aus dem Vertrag ergeben Zeilen und Raster wie aufgenommen', () => {
-  assert.deepEqual(Object.keys(MANIFEST.receipts).sort(), ['cash-movement', 'shift-close', 'shift-close-blind', 'shift-interim']);
+  assert.deepEqual(Object.keys(MANIFEST.receipts).sort(), ['cash-movement', 'shift-close', 'shift-close-blind', 'shift-close-put-in', 'shift-close-take-out', 'shift-interim']);
   assert.deepEqual(MANIFEST.receipts['shift-close']!.source, 'closeMyShift/success_manager');
   assert.deepEqual(MANIFEST.receipts['shift-close-blind']!.source, 'closeMyShift/success_cashier_blind');
   for (const [name, eintrag] of Object.entries(MANIFEST.receipts)) {
@@ -54,6 +54,44 @@ test('Goldens: die vier Bons aus dem Vertrag ergeben Zeilen und Raster wie aufge
       assert.equal(sha(text), eintrag[`grid${zeichen}`], `${name} grid${zeichen}`);
     }
   }
+});
+
+test('Nach der Zaehlung: „Entnommen“ negativ bzw. „Eingelegt“, dann „Bleibt in der Kassenlade“ fett (Wechselgeld, 1.11.0)', () => {
+  // Bleibt-Zeile = Ergebnis: fett im Bauplan und im Raster.
+  const bleibtZeile = (layout: ReceiptLayout) => layout.lines.find((z) => z.kind === 'columns' && z.columns[0]!.text === 'Bleibt in der Kassenlade');
+  const entnahme = quelle('closeMyShift/success_manager_take_out');
+  const layout = layoutFuer(entnahme);
+  assert.deepEqual(bleibtZeile(layout), {
+    kind: 'columns',
+    columns: [{ text: 'Bleibt in der Kassenlade', width: 8, align: 'left' }, { text: '150,00', width: 4, align: 'right' }],
+    bold: true,
+  });
+  const text = raster(layout, 48);
+  // Direkt unter Differenz (kein Kommentar), vor der Linie zum Unbar-Block.
+  assert.match(text, /^Differenz +0,00\nEntnommen +-140,00\nBleibt in der Kassenlade +150,00\n-+$/m);
+  const grid = renderReceiptGrid(layout, { charsPerLine: 48 });
+  assert.deepEqual(grid.lines.filter((z) => z.bold && z.kind === 'columns').map((z) => z.text.replace(/ +/g, ' ').trim()), ['Bleibt in der Kassenlade 150,00']);
+  // Die Entnahme steht nicht unter „Bewegungen“ (eigene Zeilen unter dem Ergebnis).
+  assert.doesNotMatch(text, /Abschöpfung/);
+  const einlage = raster(layoutFuer(quelle('closeMyShift/success_manager_put_in')), 48);
+  assert.match(einlage, /^Eingelegt +10,00\nBleibt in der Kassenlade +300,00$/m);
+  assert.doesNotMatch(einlage, /Entnommen/);
+  // Blind: „Bleibt“ ist null, die Entnahme bleibt sichtbar.
+  const blind = structuredClone(entnahme);
+  Object.assign(blind, { blind: true, expectedCents: null, countedCents: null, differenceCents: null, cashSalesCents: null, cashCancellationsCents: null, leftInDrawerCents: null });
+  const blindText = raster(layoutFuer(blind), 48);
+  assert.match(blindText, /^Entnommen +-140,00$/m);
+  assert.doesNotMatch(blindText, /Bleibt/);
+  // Ohne afterCount: keine der Zeilen, kein fettes Spaltenpaar (der Bon bleibt wie bisher).
+  const ohne = layoutFuer(quelle('closeMyShift/success_manager'));
+  assert.ok(ohne.lines.every((z) => z.kind !== 'columns' || z.bold === undefined));
+  assert.doesNotMatch(raster(ohne, 48), /Entnommen|Eingelegt|Bleibt/);
+  // Eine kuenftige Art druckt keine Betragszeile, „Bleibt“ steht trotzdem.
+  const fremd = structuredClone(entnahme);
+  fremd.afterCount = { type: 'gibtsnicht', amountCents: 5 };
+  const fremdText = raster(layoutFuer(fremd), 48);
+  assert.doesNotMatch(fremdText, /Entnommen|Eingelegt/);
+  assert.match(fremdText, /^Bleibt in der Kassenlade +150,00$/m);
 });
 
 test('Titel nach Art, kein Hinweis „Kein Registrierkassenbeleg“ (Nachtrag 1)', () => {

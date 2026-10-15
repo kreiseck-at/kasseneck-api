@@ -59,6 +59,24 @@ export type OpeningReason = (typeof OPENING_REASONS)[number];
 export const MANUAL_OPENING_REASONS = Object.freeze(['change', 'check', 'misoperation', 'other'] as const);
 export type ManualOpeningReason = (typeof MANUAL_OPENING_REASONS)[number];
 
+/**
+ * Was nach dem Zaehlen beim Schicht-Abschluss mit dem Geld geschieht (Katalog
+ * `NACH_ZAEHLUNG_ART`): `cash_drop` = entnehmen (gebucht als Abschoepfung),
+ * `change_in` = einlegen (gebucht als Wechselgeld). Beides Geldtransit, kein Umsatz.
+ */
+export const AFTER_COUNT_TYPES = Object.freeze(['cash_drop', 'change_in'] as const);
+export type AfterCountType = (typeof AFTER_COUNT_TYPES)[number];
+
+/**
+ * Entnehmen oder Einlegen nach dem Zaehlen: `amountCents` immer positiv, die
+ * Richtung sagt `type`. Gezaehlt wird immer die ganze Lade; was danach bleibt,
+ * steht in `leftInDrawerCents` (Schicht, Z-Bon).
+ */
+export interface AfterCount {
+  type: AfterCountType | string;
+  amountCents: number;
+}
+
 /** Arten der Bon-Daten (Katalog `SCHICHT_BON_ART`): Z-Bon, X-Bon, Kassenbewegung. */
 export const SHIFT_RECEIPT_KINDS = Object.freeze(['shift_close', 'shift_interim', 'cash_movement'] as const);
 export type ShiftReceiptKind = (typeof SHIFT_RECEIPT_KINDS)[number];
@@ -82,6 +100,12 @@ export interface DrawerInfo {
   /** Schichtbetrieb: verkauft wird erst nach dem Oeffnen einer Schicht. */
   shiftMode: boolean;
   cashregisterId: string | null;
+  /**
+   * Wechselgeld der Lade in Cent („Wechselgeld in der Lade“): bleibt nach jedem
+   * Schicht-Abschluss drin, mehr wird beim Schliessen entnommen. Fehlt, wenn
+   * nicht eingestellt (dann bleibt alles in der Lade, wie bisher).
+   */
+  changeFloatCents?: number;
 }
 
 /** Die vier Rechte des angemeldeten Benutzers an der Lade. */
@@ -189,6 +213,11 @@ export interface Shift {
   expectedCents?: number | null;
   differenceCents?: number | null;
   reconciliation?: ShiftReconciliation | null;
+  // Nur wenn beim Abschluss Geld entnommen oder eingelegt wurde (sonst fehlen beide):
+  /** Entnommen bzw. eingelegt nach dem Zaehlen. */
+  afterCount?: AfterCount;
+  /** Was danach in der Lade bleibt (Ist ∓ Betrag); fehlt blind (ohne `cashView`). */
+  leftInDrawerCents?: number;
 }
 
 /** Offener Trinkgeld-Anspruch eines Mitarbeiters (auszahlbar beim Abschluss oder per `tip_payout`). */
@@ -231,6 +260,12 @@ export interface DrawerState {
   expectedCents?: number | null;
   /** Die letzten Oeffnungen, neueste zuerst; nur mit `cashView`. */
   recentOpenings?: DrawerOpening[];
+  /**
+   * Nummer der Schicht, aus der der Vorschlag stammt („von Schicht {number}
+   * übernommen“). Nur ohne offene Schicht und nur, wenn die letzte Schicht
+   * mit einem Betrag „Bleibt in der Kassenlade“ schloss.
+   */
+  suggestedFromShiftNumber?: number;
 }
 
 export interface CashMovement {
@@ -292,6 +327,13 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
   differenceCents: number | null;
   comment: string | null;
   openingsWithoutSale: number;
+  /** Entnommen bzw. eingelegt nach dem Zaehlen; fehlt, wenn kein Geld bewegt wurde. */
+  afterCount?: AfterCount;
+  /**
+   * „Bleibt in der Kassenlade“; nur zusammen mit `afterCount`, blind `null`
+   * (mit „Entnommen“ ergaebe es sonst das Ist).
+   */
+  leftInDrawerCents?: number | null;
 }
 
 /** Bon-Daten einer Kassenbewegung. */
@@ -346,4 +388,11 @@ export interface ShiftReport {
  */
 export type CloseShiftResult =
   | { status: 'recount' }
-  | { status: 'closed'; shift: Shift; receipt: ShiftSummaryReceipt; lastShiftOfRegister: boolean };
+  | {
+    status: 'closed';
+    shift: Shift;
+    receipt: ShiftSummaryReceipt;
+    /** Bon „Kassenbewegung“ der Entnahme bzw. Einlage („Bon fürs Kuvert“); nur wenn Geld bewegt wurde. */
+    afterCountReceipt?: CashMovementReceipt;
+    lastShiftOfRegister: boolean;
+  };

@@ -100,6 +100,23 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `cash_movement.pay_in_short|pay_out_short`, `drawer.recent_openings_full`).
 - **Printer warning**: four short labels for the quiet warning line at the print buttons
   (`printer.warn_unreachable`, `printer.warn_none`, `printer.check`, `printer.set_up`).
+- **Change float and take out / put in at shift close**: a drawer can keep a fixed
+  change float; after counting, the register takes out the rest or puts money in.
+  `DrawerInfo.changeFloatCents` and `DrawerState.suggestedFromShiftNumber` (only
+  when sent), `CloseMyShiftOptions.afterCount` (`{ type: 'cash_drop' | 'change_in',
+  amountCents }`, catalogue `AFTER_COUNT_TYPES`, only the shape is checked before
+  sending), `Shift.afterCount`/`leftInDrawerCents`, `ShiftSummaryReceipt.afterCount`/
+  `leftInDrawerCents` (blind `null`) and `afterCountReceipt` on the close result
+  (the envelope receipt). New code `after_count_not_permitted` in
+  `POS_ERROR_CODES`. `shiftReceiptLayout` prints „Entnommen“ (negative) or
+  „Eingelegt“ and „Bleibt in der Kassenlade“ (bold) after the count; without
+  `afterCount` the Z report is byte-identical. For the bold line,
+  `LayoutColumnsLine` gains an optional `bold` (only written when `true`; grid,
+  ESC/POS, ePOS, sheet and React follow it, every existing output is unchanged).
+  New goldens `shift-close-take-out`, `shift-close-put-in`; texts `drawer.change_float*`,
+  `shift.*` for the step „Geld entnehmen“, `shift_receipt.taken_out|put_in|left_in_drawer`,
+  message `shift.change_float_missing`. Reason: the drawer kept everything after a
+  shift, so the next shift started with the whole day's cash.
 - **Texts** (`fixtures/pos-texts.json`): messages `shift.*`,
   `shift.required_other` (shift mode on, no shift open, the signed-in user
   lacks the `shift` right), `cash_movement.*`, `tip_payout.exceeds_claim`, `denominations.invalid`,

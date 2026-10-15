@@ -15,6 +15,7 @@
 import { KasseneckValidationError, type ValidationScope } from '../client/errors.js';
 import { SHIFT_RECEIPT_KINDS } from './schicht-typen.js';
 import type {
+  AfterCount,
   CashMovement,
   CashMovementReceipt,
   CashMovementResult,
@@ -106,6 +107,11 @@ function wennDa<T>(ziel: Roh, o: Roh, feld: string, lese: () => T): void {
   if (hat(o, feld)) ziel[feld] = lese();
 }
 
+/** Setzt ein Feld nur, wenn der Server einen Wert sendet; `null` gilt wie fehlend. */
+function wennWert<T>(ziel: Roh, o: Roh, feld: string, lese: () => T): void {
+  if (o[feld] !== undefined && o[feld] !== null) ziel[feld] = lese();
+}
+
 function stueckelung(ort: Ort, o: Roh, feld: string): Denominations | null {
   const w = o[feld];
   if (w === undefined || w === null) return null;
@@ -168,6 +174,12 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
   };
 }
 
+/** Entnehmen oder Einlegen nach dem Zaehlen; die Art bleibt offen fuer kuenftige Werte (Text). */
+function nachZaehlung(ort: Ort, w: unknown): AfterCount {
+  const o = pflichtObjekt(ort, w);
+  return { type: kennung(ort, o, 'type'), amountCents: ganzzahl(ort, o, 'amountCents') };
+}
+
 function abgleich(ort: Ort, w: unknown): ShiftReconciliation | null {
   if (w === undefined || w === null) return null;
   const o = pflichtObjekt(ort, w);
@@ -215,6 +227,9 @@ export function schicht(ort: Ort, w: unknown): Shift {
   wennDa(r, o, 'expectedCents', () => ganzzahlOderNull(ort, o, 'expectedCents'));
   wennDa(r, o, 'differenceCents', () => ganzzahlOderNull(ort, o, 'differenceCents'));
   wennDa(r, o, 'reconciliation', () => abgleich(unter(ort, 'reconciliation'), o.reconciliation));
+  // Nur wenn beim Abschluss Geld entnommen oder eingelegt wurde.
+  wennWert(r, o, 'afterCount', () => nachZaehlung(unter(ort, 'afterCount'), o.afterCount));
+  wennWert(r, o, 'leftInDrawerCents', () => ganzzahl(ort, o, 'leftInDrawerCents'));
   return raus;
 }
 
@@ -267,6 +282,9 @@ export function ladeStand(ort: Ort, w: unknown): DrawerState {
   wennDa(r, o, 'suggestedFloatCents', () => ganzzahlOderNull(ort, o, 'suggestedFloatCents'));
   wennDa(r, o, 'expectedCents', () => ganzzahlOderNull(ort, o, 'expectedCents'));
   wennDa(r, o, 'recentOpenings', () => liste(ort, o, 'recentOpenings', oeffnung));
+  wennWert(r, o, 'suggestedFromShiftNumber', () => ganzzahl(ort, o, 'suggestedFromShiftNumber'));
+  // Wechselgeld der Lade: nur wenn eingestellt.
+  wennWert(raus.drawer as unknown as Roh, lade, 'changeFloatCents', () => ganzzahl(ladeOrt, lade, 'changeFloatCents'));
   return raus;
 }
 
@@ -311,7 +329,7 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   if (kopf.kind === 'cash_movement') throw fehler(ort, `${ort.pfad}.kind ist cash_movement, erwartet Z- oder X-Bon`);
   const s = pflichtObjekt(unter(ort, 'shift'), o.shift);
   const sOrt = unter(ort, 'shift');
-  return {
+  const raus: ShiftSummaryReceipt = {
     ...kopf,
     kind: kopf.kind,
     shift: {
@@ -348,6 +366,11 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
     comment: text(o.comment),
     openingsWithoutSale: ganzzahl(ort, o, 'openingsWithoutSale'),
   };
+  // Nur wenn beim Abschluss Geld entnommen oder eingelegt wurde; „Bleibt“ blind `null`.
+  const r = raus as unknown as Roh;
+  wennWert(r, o, 'afterCount', () => nachZaehlung(unter(ort, 'afterCount'), o.afterCount));
+  wennDa(r, o, 'leftInDrawerCents', () => ganzzahlOderNull(ort, o, 'leftInDrawerCents'));
+  return raus;
 }
 
 /** Bon-Daten einer Kassenbewegung; eine andere Art ist ein Fehler. */
@@ -380,12 +403,15 @@ export function abschluss(ort: Ort, w: unknown): CloseShiftResult {
   const o = pflichtObjekt(ort, w);
   if (o.status === 'recount') return { status: 'recount' };
   if (o.status !== 'closed') throw fehler(ort, `${ort.pfad || 'data'}.status ist unbekannt`);
-  return {
+  const raus: CloseShiftResult = {
     status: 'closed',
     shift: schicht(unter(ort, 'shift'), o.shift),
     receipt: schichtBon(unter(ort, 'receipt'), o.receipt),
     lastShiftOfRegister: wahr(ort, o, 'lastShiftOfRegister'),
   };
+  // Bon „Kassenbewegung“ der Entnahme bzw. Einlage, nur wenn Geld bewegt wurde.
+  wennWert(raus as unknown as Roh, o, 'afterCountReceipt', () => bewegungsBon(unter(ort, 'afterCountReceipt'), o.afterCountReceipt));
+  return raus;
 }
 
 export function geoeffnet(ort: Ort, w: unknown): OpenShiftResult {

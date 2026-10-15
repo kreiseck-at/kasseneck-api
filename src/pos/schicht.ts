@@ -6,6 +6,7 @@ import { labelText } from './texte.js';
 import {
   CASH_LOCATIONS,
   EUR_DENOMINATIONS,
+  type AfterCountType,
   type CashLocation,
   type CashMovementResult,
   type CloseShiftResult,
@@ -131,6 +132,21 @@ export interface CloseMyShiftOptions {
   /** Begruendung; Pflicht, wenn die Abweichung die Schwelle uebersteigt (`comment_required`). */
   comment?: string;
   tipPayouts?: TipPayout[];
+  /**
+   * Nach dem Zaehlen Geld entnehmen (`cash_drop`) oder einlegen (`change_in`),
+   * `amountCents` positiv. Entnehmen hoechstens den gezaehlten Betrag
+   * (`cash_movement_exceeds_balance`); ein Betrag ueber 0 braucht das Recht
+   * `cashMove` (`after_count_not_permitted`). `0` oder ohne Angabe: alles
+   * bleibt in der Lade. Gebucht wird nur beim tatsaechlichen Schliessen, nie bei
+   * `recount`; die Antwort traegt dann `afterCountReceipt` („Bon fürs Kuvert“).
+   */
+  afterCount?: AfterCountOption | null;
+}
+
+/** Entnehmen oder Einlegen beim Abschluss (siehe [CloseMyShiftOptions.afterCount]). */
+export interface AfterCountOption {
+  type: AfterCountType;
+  amountCents: number;
 }
 
 type Params = Record<string, unknown>;
@@ -233,6 +249,11 @@ export async function closeMyShift(transport: InternerTransport, options: CloseM
   if (p.tipPayouts !== undefined && p.tipPayouts !== null) {
     if (!Array.isArray(p.tipPayouts)) throw anfragefehler(name, 'tipPayouts muss eine Liste sein');
     p.tipPayouts.forEach((a, i) => cent(name, `tipPayouts[${i}].cents`, a !== null && typeof a === 'object' ? (a as Params).cents : undefined));
+  }
+  // Nur die Form: die Art (Katalog) und die Grenzen prueft der Server.
+  if (p.afterCount !== undefined && p.afterCount !== null) {
+    if (typeof p.afterCount !== 'object' || Array.isArray(p.afterCount)) throw anfragefehler(name, 'afterCount muss ein Objekt { type, amountCents } sein');
+    cent(name, 'afterCount.amountCents', (p.afterCount as Params).amountCents);
   }
   return rufe(transport, name, p, abschluss);
 }

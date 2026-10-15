@@ -26,6 +26,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'account_not_found',
   'action_confirmation_required',
   'admin_required',
+  'after_count_not_permitted',
   'api_not_approved',
   'app_check_invalid',
   'app_check_missing',

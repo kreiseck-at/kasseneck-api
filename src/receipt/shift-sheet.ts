@@ -59,6 +59,8 @@ function paar(links: string, rechts: string, linksBreite: number): LayoutColumns
 const kopf = (links: string, rechts: string): LayoutColumnsLine => paar(links, rechts, 5);
 /** Betragszeilen: breiter Name, schmaler Betrag. */
 const betrag = (links: string, cents: number): LayoutColumnsLine => paar(links, formatCents(cents), 8);
+/** Betragszeile fett (Ergebnis, z. B. „Bleibt in der Kassenlade“). */
+const betragFett = (links: string, cents: number): LayoutColumnsLine => ({ ...betrag(links, cents), bold: true });
 const anzahl = (links: string, n: number): LayoutColumnsLine => paar(links, String(n), 8);
 
 const regel = (): LayoutLine => ({ kind: 'rule', char: '-' });
@@ -108,6 +110,24 @@ function kopfblock(zeilen: LayoutLine[], bon: ShiftSummaryReceipt | CashMovement
   wennText(zeilen, labelText('shift_receipt.drawer'), bon.drawer.name);
 }
 
+/**
+ * Nach der Zaehlung beim Abschluss: „Entnommen“ (negativ) bzw. „Eingelegt“,
+ * dann „Bleibt in der Kassenlade“ (fett). Nur wenn Geld bewegt wurde
+ * (`afterCount`); sonst keine Zeile, der Bon bleibt wie bisher. Blind fehlt
+ * „Bleibt“ (`null`), die Entnahme selbst bleibt sichtbar. Eine unbekannte Art
+ * (kuenftiger Katalogwert) druckt keine Betragszeile.
+ */
+function nachZaehlungZeilen(bon: ShiftSummaryReceipt): LayoutLine[] {
+  const n = bon.afterCount;
+  if (n === undefined || n === null) return [];
+  const zeilen: LayoutLine[] = [];
+  if (n.type === 'cash_drop') zeilen.push(betrag(labelText('shift_receipt.taken_out'), -n.amountCents));
+  else if (n.type === 'change_in') zeilen.push(betrag(labelText('shift_receipt.put_in'), n.amountCents));
+  const bleibt = bon.leftInDrawerCents;
+  if (bleibt !== undefined && bleibt !== null) zeilen.push(betragFett(labelText('shift_receipt.left_in_drawer'), bleibt));
+  return zeilen;
+}
+
 // ------------------------------------------------------------------ Bons
 
 /**
@@ -150,6 +170,7 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   }
   if (bon.differenceCents !== null) zeilen.push(betrag(labelText('shift_receipt.difference'), bon.differenceCents));
   if (bon.comment) zeilen.push(text(`${labelText('shift_receipt.comment')}: ${bon.comment}`));
+  zeilen.push(...nachZaehlungZeilen(bon));
 
   // Zur Information: unbar, Zaehler.
   zeilen.push(regel());

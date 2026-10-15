@@ -127,14 +127,14 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
             const zelle = ausrichten(teile[i]![r] ?? '', inhalt[i]!, c.align);
             text += i < breiten.length - 1 ? zelle + ' '.repeat(breiten[i]! - inhalt[i]!) : zelle;
           });
-          lines.push({ text: text.length === zeichen ? text : ausrichten(text, zeichen, 'left'), kind: 'columns', bold: false });
+          lines.push({ text: text.length === zeichen ? text : ausrichten(text, zeichen, 'left'), kind: 'columns', bold: z.bold === true });
         }
         if (fliesst) {
           const i = weiterlaufend[0]!;
           // Rest aus dem Originaltext (nicht aus den schmal umbrochenen Stuecken), damit
           // Bindestrich-/Hartbrueche der schmalen Spalte nicht als Leerzeichen zurueckbleiben.
           const rest = restNach(z.columns[i]!.text, teile[i]![0]!);
-          for (const t of wrapText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
+          for (const t of wrapText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: z.bold === true });
         }
         break;
       }

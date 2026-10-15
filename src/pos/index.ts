@@ -73,12 +73,13 @@ export type { StocktakeStatus } from '../inventory/vertrag.js';
 // Schicht, Kassenstand und Lade-Protokoll (1.9.0): Aufrufe, Kataloge, Helfer, Bons.
 export {
   type GetMyDrawerStateOptions, type OpenMyShiftOptions, type RecordMyCashMovementOptions, type DrawerOpeningEntry,
-  type LogMyDrawerOpeningsOptions, type GetMyShiftReportOptions, type TipPayout, type CloseMyShiftOptions,
+  type LogMyDrawerOpeningsOptions, type GetMyShiftReportOptions, type TipPayout, type CloseMyShiftOptions, type AfterCountOption,
   getMyDrawerState, openMyShift, recordMyCashMovement, logMyDrawerOpenings, getMyShiftReport, closeMyShift,
   sumDenominations, parseCentsAllowZero, newIdempotencyKey, shiftTipLines, durationText, type ShiftTipLine, type ShiftTipLineKey,
 } from './schicht.js';
 export {
   EUR_DENOMINATIONS, MOVEMENT_TYPES, MANUAL_MOVEMENT_TYPES, CASH_LOCATIONS, OPENING_REASONS, MANUAL_OPENING_REASONS, SHIFT_RECEIPT_KINDS,
+  AFTER_COUNT_TYPES, type AfterCountType, type AfterCount,
   type EurDenomination, type MovementType, type ManualMovementType, type CashLocation, type OpeningReason, type ManualOpeningReason,
   type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
   type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,

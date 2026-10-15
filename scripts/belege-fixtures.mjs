@@ -16,6 +16,9 @@ import { cashMovementLayout, shiftReceiptLayout } from '../dist/esm/pos/index.js
 export const SCHICHT_BONS = {
   'shift-close': 'closeMyShift/success_manager',
   'shift-close-blind': 'closeMyShift/success_cashier_blind',
+  // Nach der Zaehlung entnommen bzw. eingelegt (Wechselgeld der Lade, 1.11.0).
+  'shift-close-take-out': 'closeMyShift/success_manager_take_out',
+  'shift-close-put-in': 'closeMyShift/success_manager_put_in',
   'shift-interim': 'getMyShiftReport/success_manager',
   'cash-movement': 'recordMyCashMovement/success_manager_cash_drop',
 };

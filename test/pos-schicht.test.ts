@@ -243,6 +243,40 @@ test('Vor dem Senden: Betraege als Ganzzahl, genau eine Startgeld-Angabe, Pflich
   await abgewiesen(openMyShift(r, { idempotencyKey: 'x'.repeat(121), drawerId: 'lade_bar', takeOver: true }), /idempotencyKey/);
   await abgewiesen(recordMyCashMovement(r, { idempotencyKey: 'b', drawerId: 'lade_bar', type: 'cash_drop', amountCents: 100, location: 'cellar' as never }), /location/);
   await abgewiesen(recordMyCashMovement(r, { idempotencyKey: 'b', drawerId: 'lade_bar', type: 'cash_drop', amountCents: 100, location: '' as never }), /location/);
+  await abgewiesen(closeMyShift(r, { idempotencyKey: 'z', shiftId: 's1', countedCents: 100, afterCount: { type: 'cash_drop', amountCents: 0.5 } }), /afterCount\.amountCents/);
+  await abgewiesen(closeMyShift(r, { idempotencyKey: 'z', shiftId: 's1', countedCents: 100, afterCount: [] as never }), /afterCount/);
+});
+
+test('closeMyShift: Entnehmen/Einlegen nach dem Zaehlen geht hinaus; Schicht, Z-Bon und Bon fuers Kuvert kommen zurueck (Wechselgeld)', async () => {
+  const { ergebnis, gesendet } = await rufe('closeMyShift', fall('closeMyShift', 'success_manager_take_out'));
+  assert.deepEqual(gesendet[0]!.afterCount, { type: 'cash_drop', amountCents: 14000 });
+  const zu = ergebnis as Json;
+  assert.deepEqual(zu.shift.afterCount, { type: 'cash_drop', amountCents: 14000 });
+  assert.equal(zu.shift.leftInDrawerCents, 15000);
+  assert.deepEqual(zu.receipt.afterCount, { type: 'cash_drop', amountCents: 14000 });
+  assert.equal(zu.receipt.leftInDrawerCents, 15000);
+  assert.equal(zu.afterCountReceipt.kind, 'cash_movement');
+  assert.equal(zu.afterCountReceipt.movement.type, 'cash_drop');
+  assert.equal(zu.afterCountReceipt.movement.amountCents, -14000);
+  // Ohne Geldbewegung fehlen alle drei (der Abschluss bleibt wie bisher).
+  const ohne = (await rufe('closeMyShift', fall('closeMyShift', 'success_manager'))).ergebnis as Json;
+  for (const feld of ['afterCount', 'leftInDrawerCents']) {
+    assert.ok(!(feld in ohne.shift), feld);
+    assert.ok(!(feld in ohne.receipt), feld);
+  }
+  assert.ok(!('afterCountReceipt' in ohne));
+  // Ohne Recht cashMove: eigener Code, die Kasse erkennt ihn.
+  const ohneRecht = await rufe('closeMyShift', fall('closeMyShift', 'cashier_after_count_without_permission'));
+  assert.ok(isPosError(ohneRecht.fehler, 'after_count_not_permitted'), String(ohneRecht.fehler));
+});
+
+test('getMyDrawerState: Wechselgeld der Lade und „von Schicht N übernommen“ nur, wenn gesendet', async () => {
+  const mit = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_manager_change_in'))).ergebnis as Json;
+  assert.equal(mit.drawer.changeFloatCents, 15000);
+  assert.equal(typeof mit.suggestedFromShiftNumber, 'number');
+  const ohne = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_manager'))).ergebnis as Json;
+  assert.ok(!('changeFloatCents' in ohne.drawer));
+  assert.ok(!('suggestedFromShiftNumber' in ohne));
 });
 
 test('Ort ist freiwillig: Wechselgeld ohne location geht hinaus, wie der Vertragsfall', async () => {

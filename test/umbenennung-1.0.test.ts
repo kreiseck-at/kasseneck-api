@@ -59,7 +59,9 @@ const NACH_1_0 = {
     // Storno mit oder ohne Trinkgeld (1.11.0)
     'cancellation.tip_refund_missing', 'cancellation.tip_source_missing', 'cancellation.tip_refunded_with_voucher',
     // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
-    'tip_payout.none_open'],
+    'tip_payout.none_open',
+    // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
+    'shift.change_float_missing'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -92,7 +94,13 @@ const NACH_1_0 = {
     'tip_payout.open_amount', 'tip_payout.done', 'tip_payout.earned_paid', 'tip_payout.for_all', 'tip_payout.nothing', 'tip_payout.all_open',
     'tip_payout.title', 'tip_payout.persons_one', 'tip_payout.persons_other', 'tip_payout.pay_amount', 'tip_payout.pay_out',
     // Druckwarnung an der Kasse (1.11.0)
-    'printer.warn_unreachable', 'printer.warn_none', 'printer.check', 'printer.set_up'],
+    'printer.warn_unreachable', 'printer.warn_none', 'printer.check', 'printer.set_up',
+    // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
+    'shift_receipt.taken_out', 'shift_receipt.put_in', 'shift_receipt.left_in_drawer',
+    'drawer.change_float', 'drawer.change_float_hint', 'drawer.change_float_empty_hint', 'shift.step_take_out', 'shift.left_in_drawer',
+    'shift.change_float_next_shift', 'shift.take_out', 'shift.put_in', 'shift.take_out_at_most', 'shift.put_in_hint', 'shift.after_count_tap_hint',
+    'shift.take_out_amount', 'shift.put_in_amount', 'shift.continue_without_take_out', 'shift.print_envelope_receipt', 'shift.toggle_take_out_put_in',
+    'shift.put_in_change_float', 'shift.taken_over_from_shift'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
@@ -308,7 +316,7 @@ const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-t
 const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
-  ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`])];
+  ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`])];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

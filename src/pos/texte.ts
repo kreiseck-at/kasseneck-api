@@ -365,6 +365,9 @@ const MELDUNGEN_ROH = {
   'tip_payout.recipient_required': { text: 'Bitte einen Mitarbeiter wählen.' },
   'tip_payout.none_open': { text: 'In dieser Schicht ist kein Trinkgeld offen.' },
   'shift.pending_hint': { text: 'Noch nicht bestätigt. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.' },
+  // Wechselgeld der Lade (1.11.0): beim Öffnen der Schicht liegt weniger in der Lade als eingestellt.
+  // `{amount}` was fehlt, `{total}` das eingestellte Wechselgeld, beide samt Euro-Zeichen.
+  'shift.change_float_missing': { text: 'Es fehlen {amount} bis zum Wechselgeld von {total}.', placeholders: ['amount', 'total'] },
 
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
@@ -828,6 +831,10 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.expected': { text: 'Soll' },
   'shift_receipt.counted': { text: 'Ist' },
   'shift_receipt.difference': { text: 'Differenz' },
+  // Nach der Zählung beim Abschluss (1.11.0): „Entnommen“ (negativ) bzw. „Eingelegt“, dann was bleibt (fett).
+  'shift_receipt.taken_out': { text: 'Entnommen' },
+  'shift_receipt.put_in': { text: 'Eingelegt' },
+  'shift_receipt.left_in_drawer': { text: 'Bleibt in der Kassenlade' },
   'shift_receipt.comment': { text: 'Kommentar' },
   'shift_receipt.non_cash': { text: 'Unbar (nur Information)' },
   'shift_receipt.receipts': { text: 'Belege' },
@@ -907,6 +914,26 @@ const BESCHRIFTUNGEN_ROH = {
   'tip_payout.persons_other': { text: '{count} Personen', placeholders: ['count'] },
   'tip_payout.pay_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
   'tip_payout.pay_out': { text: 'Auszahlen' },
+  // Wechselgeld je Kassenlade (Einstellung) und Schritt „Geld entnehmen“ beim Schicht-Abschluss (1.11.0).
+  'drawer.change_float': { text: 'Wechselgeld in der Lade' },
+  'drawer.change_float_hint': { text: 'Bleibt nach jedem Schicht-Abschluss drin. Mehr wird beim Schließen entnommen.' },
+  'drawer.change_float_empty_hint': { text: 'Leer = alles bleibt in der Lade (wie bisher).' },
+  'shift.step_take_out': { text: 'Geld entnehmen' },
+  'shift.left_in_drawer': { text: 'Bleibt in der Kassenlade' },
+  'shift.change_float_next_shift': { text: 'Wechselgeld für die nächste Schicht' },
+  'shift.take_out': { text: 'Entnehmen' },
+  'shift.put_in': { text: 'Einlegen' },
+  'shift.take_out_at_most': { text: 'höchstens {amount}', placeholders: ['amount'] },
+  'shift.put_in_hint': { text: 'Geld in die Kassenlade legen' },
+  'shift.after_count_tap_hint': { text: 'Tippe auf einen Betrag, um ihn zu ändern – der andere rechnet sich selbst.' },
+  'shift.take_out_amount': { text: '{amount} entnehmen', placeholders: ['amount'] },
+  'shift.put_in_amount': { text: '{amount} einlegen', placeholders: ['amount'] },
+  'shift.continue_without_take_out': { text: 'Weiter ohne Entnahme' },
+  'shift.print_envelope_receipt': { text: 'Bon fürs Kuvert drucken' },
+  // Bedienhilfe (Vorlesetext) des Vorzeichen-Knopfs −/+ im Feld „Entnehmen“.
+  'shift.toggle_take_out_put_in': { text: 'Entnehmen oder Einlegen umschalten' },
+  'shift.put_in_change_float': { text: 'Wechselgeld einlegen' },
+  'shift.taken_over_from_shift': { text: 'von Schicht {number} übernommen', placeholders: ['number'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
