@@ -100,7 +100,7 @@ const NACH_1_0 = {
     'drawer.change_float', 'drawer.change_float_hint', 'drawer.change_float_empty_hint', 'shift.step_take_out', 'shift.left_in_drawer',
     'shift.change_float_next_shift', 'shift.take_out', 'shift.put_in', 'shift.take_out_at_most', 'shift.put_in_hint', 'shift.after_count_tap_hint',
     'shift.take_out_amount', 'shift.put_in_amount', 'shift.continue_without_take_out', 'shift.print_envelope_receipt', 'shift.toggle_take_out_put_in',
-    'shift.put_in_change_float', 'shift.taken_over_from_shift'],
+    'shift.put_in_change_float', 'shift.taken_over_from_shift', 'shift.counted', 'shift.back', 'shift.done', 'shift.edit_amount'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

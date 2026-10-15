@@ -73,7 +73,8 @@ export type AfterCountType = (typeof AFTER_COUNT_TYPES)[number];
  * steht in `leftInDrawerCents` (Schicht, Z-Bon).
  */
 export interface AfterCount {
-  type: AfterCountType | string;
+  /** Ein Wert aus [AFTER_COUNT_TYPES] oder ein kuenftiger. */
+  type: AfterCountType | (string & {});
   amountCents: number;
 }
 

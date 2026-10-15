@@ -934,6 +934,12 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.toggle_take_out_put_in': { text: 'Entnehmen oder Einlegen umschalten' },
   'shift.put_in_change_float': { text: 'Wechselgeld einlegen' },
   'shift.taken_over_from_shift': { text: 'von Schicht {number} übernommen', placeholders: ['number'] },
+  // Schritt „Geld entnehmen“: Zeile „Gezählt“, Knopf „Zurück“, letzter Schritt der Schrittleiste „Fertig“;
+  // Bedienhilfe der Betragsknöpfe, `{title}` ist ihre Beschriftung („Bleibt in der Kassenlade“, „Entnehmen“ …).
+  'shift.counted': { text: 'Gezählt' },
+  'shift.back': { text: 'Zurück' },
+  'shift.done': { text: 'Fertig' },
+  'shift.edit_amount': { text: '{title} ändern', placeholders: ['title'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

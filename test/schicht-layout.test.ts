@@ -67,14 +67,14 @@ test('Nach der Zaehlung: „Entnommen“ negativ bzw. „Eingelegt“, dann „B
     bold: true,
   });
   const text = raster(layout, 48);
-  // Direkt unter Differenz (kein Kommentar), vor der Linie zum Unbar-Block.
-  assert.match(text, /^Differenz +0,00\nEntnommen +-140,00\nBleibt in der Kassenlade +150,00\n-+$/m);
+  // Unter Differenz, durch eine Linie getrennt (wie die Vorschau), dann die Linie zum Unbar-Block.
+  assert.match(text, /^Differenz +0,00\n-+\nEntnommen +-140,00\nBleibt in der Kassenlade +150,00\n-+$/m);
   const grid = renderReceiptGrid(layout, { charsPerLine: 48 });
   assert.deepEqual(grid.lines.filter((z) => z.bold && z.kind === 'columns').map((z) => z.text.replace(/ +/g, ' ').trim()), ['Bleibt in der Kassenlade 150,00']);
   // Die Entnahme steht nicht unter „Bewegungen“ (eigene Zeilen unter dem Ergebnis).
   assert.doesNotMatch(text, /Abschöpfung/);
   const einlage = raster(layoutFuer(quelle('closeMyShift/success_manager_put_in')), 48);
-  assert.match(einlage, /^Eingelegt +10,00\nBleibt in der Kassenlade +300,00$/m);
+  assert.match(einlage, /^Differenz +0,00\n-+\nEingelegt +10,00\nBleibt in der Kassenlade +300,00$/m);
   assert.doesNotMatch(einlage, /Entnommen/);
   // Blind: „Bleibt“ ist null, die Entnahme bleibt sichtbar.
   const blind = structuredClone(entnahme);

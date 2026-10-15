@@ -69,3 +69,24 @@ test('58 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
 test('80 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
   assert.equal(digest('mm80', true), 'b40133de3fc03e9a3884123ebc16a5dc8bf97b089e7609952590dfb119203ace');
 });
+
+/*
+ * Bon der Schicht mit fetter Spaltenzeile („Bleibt in der Kassenlade“, Wechselgeld 1.11.0):
+ * der einzige Weg, auf dem eine Spaltenzeile fett gedruckt wird (`ESC E 1`/`ESC E 0`).
+ * Ohne Marke; dieselben Digests stehen im Dart-Paket.
+ */
+const schichtBon = (paperSize: 'mm58' | 'mm80'): string =>
+  createHash('sha256')
+    .update(escPosLayoutBytes({
+      ...(JSON.parse(readFileSync(new URL('../../fixtures/expected/shift-close-take-out.lines.json', import.meta.url), 'utf8')) as ReceiptLayout),
+      paperSize,
+    }, { brandMark: false }))
+    .digest('hex');
+
+test('Z-Bon mit Entnahme, 58 mm: Byte fuer Byte wie das Dart-Paket', () => {
+  assert.equal(schichtBon('mm58'), '289d0ec5dbdd72fdb0a4b93b316b6909a985e625c7c8845dc23f18a7a7baa9ca');
+});
+
+test('Z-Bon mit Entnahme, 80 mm: Byte fuer Byte wie das Dart-Paket', () => {
+  assert.equal(schichtBon('mm80'), 'c0bb40b6c93e0f105d704283f6c997c5bba9878c03f94ea14eebab2d98e1e3ee');
+});

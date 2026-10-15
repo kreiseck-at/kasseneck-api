@@ -111,8 +111,9 @@ function kopfblock(zeilen: LayoutLine[], bon: ShiftSummaryReceipt | CashMovement
 }
 
 /**
- * Nach der Zaehlung beim Abschluss: „Entnommen“ (negativ) bzw. „Eingelegt“,
- * dann „Bleibt in der Kassenlade“ (fett). Nur wenn Geld bewegt wurde
+ * Nach der Zaehlung beim Abschluss, durch eine Linie vom Zaehlblock getrennt:
+ * „Entnommen“ (negativ) bzw. „Eingelegt“, dann „Bleibt in der Kassenlade“
+ * (fett). Nur wenn Geld bewegt wurde
  * (`afterCount`); sonst keine Zeile, der Bon bleibt wie bisher. Blind fehlt
  * „Bleibt“ (`null`), die Entnahme selbst bleibt sichtbar. Eine unbekannte Art
  * (kuenftiger Katalogwert) druckt keine Betragszeile.
@@ -125,7 +126,7 @@ function nachZaehlungZeilen(bon: ShiftSummaryReceipt): LayoutLine[] {
   else if (n.type === 'change_in') zeilen.push(betrag(labelText('shift_receipt.put_in'), n.amountCents));
   const bleibt = bon.leftInDrawerCents;
   if (bleibt !== undefined && bleibt !== null) zeilen.push(betragFett(labelText('shift_receipt.left_in_drawer'), bleibt));
-  return zeilen;
+  return zeilen.length > 0 ? [regel(), ...zeilen] : [];
 }
 
 // ------------------------------------------------------------------ Bons
