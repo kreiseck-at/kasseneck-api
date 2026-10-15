@@ -98,6 +98,8 @@ members, so an exhaustive `switch` with a `never` check needs the new cases.
   `fixtures/shift-cases.json`) and the texts for the new cash position card and
   the tip payout list (`shift.*`, `duration.*`, `tip_payout.*`,
   `cash_movement.pay_in_short|pay_out_short`, `drawer.recent_openings_full`).
+- **Printer warning**: four short labels for the quiet warning line at the print buttons
+  (`printer.warn_unreachable`, `printer.warn_none`, `printer.check`, `printer.set_up`).
 - **Texts** (`fixtures/pos-texts.json`): messages `shift.*`,
   `shift.required_other` (shift mode on, no shift open, the signed-in user
   lacks the `shift` right), `cash_movement.*`, `tip_payout.exceeds_claim`, `denominations.invalid`,

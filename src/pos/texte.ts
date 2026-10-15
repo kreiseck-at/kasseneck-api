@@ -885,6 +885,11 @@ const BESCHRIFTUNGEN_ROH = {
   'cash_movement.pay_in_short': { text: 'Einzahlen' },
   'cash_movement.pay_out_short': { text: 'Auszahlen' },
   'drawer.recent_openings_full': { text: 'Letzte Öffnungen der Kassenlade' },
+  // Warnzeile an den Druck-Knöpfen: nur ein leiser Hinweis, die Knöpfe bleiben wie sie sind.
+  'printer.warn_unreachable': { text: 'Drucker nicht erreichbar' },
+  'printer.warn_none': { text: 'Kein Drucker eingerichtet' },
+  'printer.check': { text: 'Prüfen' },
+  'printer.set_up': { text: 'Einrichten' },
   // Dauer (Zusammensetzung: durationText): ab 1 Tag „1 Tag 3 Std.“, sonst „8 Std. 32 Min.“, unter 1 Std. nur Minuten.
   'duration.days_one': { text: '{days} Tag', placeholders: ['days'] },
   'duration.days_other': { text: '{days} Tage', placeholders: ['days'] },

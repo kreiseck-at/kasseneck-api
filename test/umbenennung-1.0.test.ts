@@ -90,7 +90,9 @@ const NACH_1_0 = {
     'cash_movement.pay_in_short', 'cash_movement.pay_out_short', 'drawer.recent_openings_full',
     'duration.days_one', 'duration.days_other', 'duration.hours', 'duration.minutes',
     'tip_payout.open_amount', 'tip_payout.done', 'tip_payout.earned_paid', 'tip_payout.for_all', 'tip_payout.nothing', 'tip_payout.all_open',
-    'tip_payout.title', 'tip_payout.persons_one', 'tip_payout.persons_other', 'tip_payout.pay_amount', 'tip_payout.pay_out'],
+    'tip_payout.title', 'tip_payout.persons_one', 'tip_payout.persons_other', 'tip_payout.pay_amount', 'tip_payout.pay_out',
+    // Druckwarnung an der Kasse (1.11.0)
+    'printer.warn_unreachable', 'printer.warn_none', 'printer.check', 'printer.set_up'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
