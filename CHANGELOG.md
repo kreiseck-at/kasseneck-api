@@ -4,6 +4,15 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.33.1
+
+`receiptSumCents`, `receiptSubSumCents` und das Bon-Layout zählen Wertgutscheine am Storno-Beleg mit umgekehrtem
+Vorzeichen; neuer Helfer `receiptValueVoucherSign`. Grund: Das Backend spiegelt Wertgutscheine beim Vollstorno mit
+unveränderter `action` und positivem Wert und dreht den Fluss dort um (`receiptDueCents` tat das schon). Der Storno
+eines teils per Gutschein bezahlten Verkaufs (22,40, davon 17,50 Gutschein, 4,90 bar) zeigte „Gesamt −39,90“ statt
+der zurückgezahlten −4,90; der Storno eines verkauften Wertgutscheins +30,00 statt −30,00. Andere Belege bleiben
+byte-gleich. Zwilling von 1.10.2.
+
 ## 0.33.0
 
 Vertragsgleichstand mit dem Backend für die UID-Prüfung beim Ausstellen (Stufe 4). Eine Rechnung ohne Steuer,

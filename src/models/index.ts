@@ -19,6 +19,7 @@ export {
   fromReceiptPayload,
   receiptSubSumCents,
   receiptSumCents,
+  receiptValueVoucherSign,
 } from './receipt.js';
 export {
   type CancellationOf,

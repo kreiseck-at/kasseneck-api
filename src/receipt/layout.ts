@@ -8,6 +8,7 @@ import {
   isTipItem,
   receiptSubSumCents,
   receiptSumCents,
+  receiptValueVoucherSign,
   voucherIsValid,
   type Receipt,
   type ReceiptCompany,
@@ -1123,18 +1124,22 @@ export function buildReceiptLayout(
 
   // --- Gutscheine: verkaufte Wertgutscheine sind Umsatz zu 0 %, eingeloeste
   //     Promotionsgutscheine mindern die Steuergruppen anteilig.
+  //     Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
+  //     (receiptValueVoucherSign): der verkaufte wird zurueckgezahlt.
+  const wgVz = receiptValueVoucherSign(receipt);
   let promoCents = 0;
   for (const voucher of receipt.vouchers) {
     const wert = voucher.valueCents ?? 0;
+    const vz = voucher.type === VoucherType.value ? wgVz : 1;
     if (voucherIsValid(voucher) && voucher.action === VoucherAction.sell) {
-      gruppeVon(steuersatz(VatRate.vat0)).bruttoCents += wert;
+      gruppeVon(steuersatz(VatRate.vat0)).bruttoCents += vz * wert;
     }
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {
       lines.push({
         kind: 'columns',
         columns: [
           { text: `1  x ${gutscheinText(voucher)}`, width: 7, align: 'left' },
-          { text: `${formatCents(wert)} ${VatRate.vat0.category}`, width: 5, align: 'right' },
+          { text: `${formatCents(vz * wert)} ${VatRate.vat0.category}`, width: 5, align: 'right' },
         ],
       });
     }
@@ -1203,7 +1208,9 @@ export function buildReceiptLayout(
       if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value) {
         // Breite 8:4 — "Wertgutschein GS-1" (Label + Code) passt so auf 58 mm
         // in die Zeile, statt den Code in eine Folgezeile fliessen zu lassen.
-        lines.push(paarZeile(gutscheinText(voucher), `-${formatCents(voucher.valueCents ?? 0)} €`, 8, 4));
+        // Am Storno-Beleg geht der Wert auf den Gutschein zurueck: ohne Minus.
+        const wert = voucher.valueCents ?? 0;
+        lines.push(paarZeile(gutscheinText(voucher), wgVz === 1 ? `-${formatCents(wert)} €` : `${formatCents(wert)} €`, 8, 4));
       }
     }
     lines.push({ kind: 'rule', char: '-' });
