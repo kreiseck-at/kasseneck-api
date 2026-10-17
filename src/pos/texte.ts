@@ -73,6 +73,9 @@ const MELDUNGEN_ROH = {
   // Wer die Abmelden-Taste ein zweites Mal drueckt, beendet die Schicht –
   // der Satz steht in der Rueckfrage, bevor es so weit ist.
   'logout.press_again': { text: 'Noch einmal drücken beendet die Schicht an dieser Kasse.' },
+  // Seit 1.11.0 an seiner Stelle: die Rueckfrage beim Abmelden mit vollem Warenkorb. Ein zweiter Druck meldet ab
+  // und leert den Korb; die Schicht der Kassenlade laeuft weiter (das alte Wort „Schicht“ fuehrte dort in die Irre).
+  'logout.cart_cleared': { text: 'Noch einmal drücken meldet dich ab – der Warenkorb wird geleert.' },
   'permissions.not_changeable': { text: 'Das darfst du nicht ändern – das Recht dafür vergibt der Inhaber im Panel.' },
 
   // --- Verkauf und Positionen ----------------------------------------------
@@ -343,7 +346,7 @@ const MELDUNGEN_ROH = {
   // „Erneut senden“ schickt denselben Vorgang mit demselben Schluessel.
   'shift.required': { text: 'Bitte zuerst die Schicht öffnen.' },
   'shift.required_other': { text: 'Die Schicht muss ein berechtigter Mitarbeiter öffnen.' },
-  'shift.recount': { text: 'Bitte noch einmal zählen.' },
+  'shift.recount': { text: 'Der gezählte Betrag weicht ab – bitte noch einmal zählen.' },
   'shift.comment_required': { text: 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.' },
   'shift.closed': { text: 'Schicht {number} geschlossen.', placeholders: ['number'] },
   'shift.long_open': { text: 'Die Schicht läuft seit {since}.', placeholders: ['since'] },
@@ -940,6 +943,12 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.back': { text: 'Zurück' },
   'shift.done': { text: 'Fertig' },
   'shift.edit_amount': { text: '{title} ändern', placeholders: ['title'] },
+  // Kassenstand: Ein- und Auszahlungen der Schicht getrennt (Trinkgeld-Auszahlungen zählen zu den Auszahlungen);
+  // Buchungsknopf im Blatt Einzahlung/Auszahlung mit Betrag.
+  'shift.pay_ins': { text: 'Einzahlungen' },
+  'shift.pay_outs': { text: 'Auszahlungen' },
+  'cash_movement.pay_in_amount': { text: '{amount} einzahlen', placeholders: ['amount'] },
+  'cash_movement.pay_out_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

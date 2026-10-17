@@ -367,7 +367,7 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
   const meldungen: Record<string, string> = {
     'shift.required': 'Bitte zuerst die Schicht öffnen.',
     'shift.required_other': 'Die Schicht muss ein berechtigter Mitarbeiter öffnen.',
-    'shift.recount': 'Bitte noch einmal zählen.',
+    'shift.recount': 'Der gezählte Betrag weicht ab – bitte noch einmal zählen.',
     'shift.comment_required': 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.',
     'shift.closed': 'Schicht {number} geschlossen.',
     'shift.long_open': 'Die Schicht läuft seit {since}.',
