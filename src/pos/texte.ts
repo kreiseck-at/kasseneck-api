@@ -908,7 +908,6 @@ const BESCHRIFTUNGEN_ROH = {
   // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
   'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
   'tip_payout.done': { text: 'erledigt' },
-  'tip_payout.earned_paid': { text: 'verdient {earned} · ausgezahlt {paid}', placeholders: ['earned', 'paid'] },
   'tip_payout.for_all': { text: 'Für alle' },
   'tip_payout.nothing': { text: 'Nichts' },
   'tip_payout.all_open': { text: 'Alles Offene' },
