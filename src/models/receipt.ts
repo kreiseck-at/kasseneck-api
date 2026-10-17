@@ -245,13 +245,16 @@ export function receiptValueVoucherSign(receipt: Receipt): 1 | -1 {
  * eingeloeste Promotionsgutscheine. Wertgutschein-Einloesungen wirken erst auf
  * [receiptSumCents], nicht hier (siehe Dart-Vorbild `subSumCents`/`sumCents`).
  * Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
- * ([receiptValueVoucherSign]).
+ * ([receiptValueVoucherSign]), und ein gespiegelter Promotionsgutschein
+ * mindert nichts: den Rabatt nimmt der Server dort ueber Ausgleichspositionen
+ * (`kind: 'discount'`) zurueck, und belegToepfe verteilt einen Promo-Eintrag
+ * nur auf eine positive Topfsumme, die ein Storno nie hat.
  */
 export function receiptSubSumCents(receipt: Receipt): number {
   const vz = receiptValueVoucherSign(receipt);
   let cents = receipt.items.reduce((acc, item) => acc + receiptItemTotalCents(item), 0);
   for (const voucher of receipt.vouchers) {
-    if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
+    if (vz === 1 && voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
       cents -= voucher.valueCents ?? 0;
     }
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {

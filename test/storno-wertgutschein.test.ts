@@ -87,3 +87,25 @@ test('Storno eines Gutschein-Verkaufs: Gesamt -30,00, Zeile und 0-%-Gruppe negat
 test('Belegtyp als roher Serverwert: dieselbe Summe', () => {
   assert.equal(receiptSumCents({ ...STORNO_EINLOESUNG, receiptType: 'cancellation' }), -490);
 });
+
+// Aktionsgutschein (type 'promo'): der Server spiegelt ihn an den Storno, nimmt den Rabatt aber ueber
+// Ausgleichspositionen (kind 'discount') zurueck; der gespiegelte Eintrag mindert dort nichts.
+const AKTION = { name: 'Aktion', code: '····-····-P3AK', action: VoucherAction.redeem, type: VoucherType.promo, valueCents: 1000 };
+const STORNO_AKTION: Receipt = {
+  ...KOPF, ...STORNO_KOPF, receiptId: 'AT0-KASSE1-45',
+  items: [
+    { name: 'Geschenkkorb', quantity: 1, vat: VatRate.vat20, priceCents: -2240 },
+    { name: 'Torte', quantity: 1, vat: VatRate.vat10, priceCents: -1190 },
+    { name: 'Gutschein-Ausgleich', quantity: 1, vat: VatRate.vat20, priceCents: 654, kind: 'discount' },
+    { name: 'Gutschein-Ausgleich', quantity: 1, vat: VatRate.vat10, priceCents: 346, kind: 'discount' },
+  ],
+  vouchers: [AKTION], paymentMethod: KeckPaymentMethod.cash,
+  payments: [{ id: 'p1', method: KeckPaymentMethod.cash, amountCents: -2430, refundOf: 'p1' }],
+};
+
+test('Storno mit Aktionsgutschein: Gesamt -24,30 = Rueckzahlung, der Gutschein nur als Bezug', () => {
+  assert.equal(receiptSumCents(STORNO_AKTION), -2430);
+  const l = buildReceiptLayout(STORNO_AKTION, FIRMA);
+  assert.equal(zeile(l, 'Gesamt:'), 'Gesamt: | -24,30 €');
+  assert.equal(zeile(l, 'Promotionsgutschein'), 'Promotionsgutschein ····-····-P3AK - Aktion | ');
+});

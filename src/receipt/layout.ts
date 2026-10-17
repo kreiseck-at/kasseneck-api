@@ -1144,12 +1144,14 @@ export function buildReceiptLayout(
       });
     }
     if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
-      promoCents += wert;
+      // Am Storno-Beleg steht der Promotionsgutschein nur als Bezug: den Rabatt
+      // nimmt dort die Position „Gutschein-Ausgleich“ zurueck (receiptSubSumCents).
+      if (wgVz === 1) promoCents += wert;
       lines.push({
         kind: 'columns',
         columns: [
           { text: gutscheinText(voucher), width: 7, align: 'left' },
-          { text: `-${formatCents(wert)} €`, width: 5, align: 'right' },
+          { text: wgVz === 1 ? `-${formatCents(wert)} €` : '', width: 5, align: 'right' },
         ],
       });
     }
