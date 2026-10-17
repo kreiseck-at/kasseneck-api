@@ -228,6 +228,15 @@ test('closeMyShift: recount ist kein Fehler, sondern ein Stand; attempt geht hin
   assert.equal(zu.receipt.kind, 'shift_close');
 });
 
+test('closeMyShift checkOnly: ready bzw. recount, checkOnly geht hinaus', async () => {
+  const bereit = await rufe('closeMyShift', fall('closeMyShift', 'success_manager_check_ready'));
+  assert.deepEqual(bereit.ergebnis, { status: 'ready' });
+  assert.equal(bereit.gesendet[0]!.checkOnly, true);
+  const nach = await rufe('closeMyShift', fall('closeMyShift', 'success_cashier_check_recount'));
+  assert.deepEqual(nach.ergebnis, { status: 'recount' });
+  assert.equal(nach.gesendet[0]!.checkOnly, true);
+});
+
 test('Vor dem Senden: Betraege als Ganzzahl, genau eine Startgeld-Angabe, Pflichtkennungen', async () => {
   const nie: FetchLike = async () => { throw new Error('darf nicht senden'); };
   const r = kassenweg(nie);

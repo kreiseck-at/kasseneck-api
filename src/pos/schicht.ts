@@ -141,6 +141,15 @@ export interface CloseMyShiftOptions {
    * `recount`; die Antwort traegt dann `afterCountReceipt` („Bon fürs Kuvert“).
    */
   afterCount?: AfterCountOption | null;
+  /**
+   * Nur pruefen, nicht schliessen: dieselbe Pruefung wie beim Schliessen, damit
+   * die Kasse vor „Geld entnehmen“ weiss, ob nachgezaehlt (`recount`) oder
+   * begruendet (`comment_required`) werden muss. Antwort `ready`, wenn das
+   * Schliessen mit diesem Betrag ginge; gebucht wird nichts (auch kein
+   * `afterCount`). Die Zaehlung zaehlt als einer der zwei Versuche; schliesst
+   * danach derselbe Betrag, gilt er als dieselbe Zaehlung.
+   */
+  checkOnly?: boolean;
 }
 
 /** Entnehmen oder Einlegen beim Abschluss (siehe [CloseMyShiftOptions.afterCount]). */
@@ -237,7 +246,8 @@ export async function getMyShiftReport(transport: InternerTransport, options: Ge
 /**
  * Schicht schliessen (Recht `shift`). `status: 'recount'` heisst: bitte noch
  * einmal zaehlen und erneut senden (kein Fehler); nach dem zweiten Zaehlen
- * schliesst der Server, bei grosser Abweichung nur mit `comment`.
+ * schliesst der Server, bei grosser Abweichung nur mit `comment`. Mit
+ * `checkOnly` nur pruefen: `status: 'ready'` statt Schliessen.
  */
 export async function closeMyShift(transport: InternerTransport, options: CloseMyShiftOptions): Promise<CloseShiftResult> {
   const name = 'closeMyShift';
@@ -250,6 +260,7 @@ export async function closeMyShift(transport: InternerTransport, options: CloseM
     if (!Array.isArray(p.tipPayouts)) throw anfragefehler(name, 'tipPayouts muss eine Liste sein');
     p.tipPayouts.forEach((a, i) => cent(name, `tipPayouts[${i}].cents`, a !== null && typeof a === 'object' ? (a as Params).cents : undefined));
   }
+  if (p.checkOnly !== undefined && typeof p.checkOnly !== 'boolean') throw anfragefehler(name, 'checkOnly muss true oder false sein');
   // Nur die Form: die Art (Katalog) und die Grenzen prueft der Server.
   if (p.afterCount !== undefined && p.afterCount !== null) {
     if (typeof p.afterCount !== 'object' || Array.isArray(p.afterCount)) throw anfragefehler(name, 'afterCount muss ein Objekt { type, amountCents } sein');

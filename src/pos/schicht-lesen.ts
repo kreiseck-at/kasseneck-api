@@ -402,6 +402,7 @@ export function bewegungsBon(ort: Ort, w: unknown): CashMovementReceipt {
 export function abschluss(ort: Ort, w: unknown): CloseShiftResult {
   const o = pflichtObjekt(ort, w);
   if (o.status === 'recount') return { status: 'recount' };
+  if (o.status === 'ready') return { status: 'ready' };
   if (o.status !== 'closed') throw fehler(ort, `${ort.pfad || 'data'}.status ist unbekannt`);
   const raus: CloseShiftResult = {
     status: 'closed',

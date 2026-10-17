@@ -385,10 +385,12 @@ export interface ShiftReport {
 
 /**
  * Ergebnis von `closeMyShift`: `recount` = bitte noch einmal zaehlen (kein
- * Fehler), `closed` = geschlossen mit Z-Bon.
+ * Fehler), `ready` = nur geprueft (`checkOnly`), Schliessen mit diesem Betrag
+ * ginge, `closed` = geschlossen mit Z-Bon.
  */
 export type CloseShiftResult =
   | { status: 'recount' }
+  | { status: 'ready' }
   | {
     status: 'closed';
     shift: Shift;
