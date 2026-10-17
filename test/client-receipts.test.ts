@@ -1103,3 +1103,24 @@ test('sellReceipt: der zurueckgelesene Beleg traegt tipCents und die Tip-Positio
   assert.equal(beleg.items[1]?.paymentMethod, 'cash');
   assert.equal(receiptSumCents(beleg), 520);
 });
+
+// --- Lade am Beleg (Schicht und Kassenstand, 1.9.0) ---------------------------
+
+test('drawerId: Verkauf und Storno nennen die Lade, in deren Kassenstand sie zaehlen; ohne Angabe geht nichts hinaus', async () => {
+  const verkauf = apiSchluesselWeg();
+  await sellReceipt(verkauf.rufen, { payments: BAR, items: [KAFFEE], drawerId: 'lade_bar' });
+  assert.equal(gesendet(verkauf.aufrufe).params.drawerId, 'lade_bar');
+  const ohne = apiSchluesselWeg();
+  await sellReceipt(ohne.rufen, { payments: BAR, items: [KAFFEE] });
+  assert.equal('drawerId' in gesendet(ohne.aufrufe).params, false);
+  const storno = apiSchluesselWeg(STORNO_ANTWORT);
+  await cancelReceipt(storno.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', drawerId: 'lade_bar' });
+  assert.equal(gesendet(storno.aufrufe).params.drawerId, 'lade_bar');
+  // Eine leere oder fremde Kennung geht nie hinaus: der Beleg zaehlte sonst in der falschen Lade.
+  const nie = apiSchluesselWeg();
+  for (const wert of ['', '  ', 12, null]) {
+    await assert.rejects(() => sellReceipt(nie.rufen, { payments: BAR, items: [KAFFEE], drawerId: wert as never }), (e) => isKasseneckValidationError(e) && /drawerId/.test(e.message), String(wert));
+    await assert.rejects(() => cancelReceipt(nie.rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', drawerId: wert as never }), /drawerId/, String(wert));
+  }
+  assert.equal(nie.aufrufe.length, 0);
+});

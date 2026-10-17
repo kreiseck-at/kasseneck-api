@@ -2,13 +2,14 @@ import { KasseneckApiError } from '../client/errors.js';
 
 /**
  * Fehler der Kassen-Aufrufe um den Verkauf herum (Einstellungen, Logo,
- * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen) auswerten:
+ * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen, Schicht,
+ * Kassenstand und Lade-Protokoll) auswerten:
  * am `code`, nie am Text.
  * Belege, Storno und Belegmail haben eigene Listen (`RECEIPT_ERROR_CODES`,
  * `CANCELLATION_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`), die Anmeldung
  * `REGISTER_ERROR_CODES` im Unterpfad `./register`.
  *
- * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser achtzehn Endpunkte in
+ * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser 24 Endpunkte in
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).
@@ -23,25 +24,34 @@ import { KasseneckApiError } from '../client/errors.js';
  */
 export const POS_ERROR_CODES = Object.freeze([
   'account_not_found',
+  'action_confirmation_required',
   'admin_required',
+  'after_count_not_permitted',
   'api_not_approved',
   'app_check_invalid',
   'app_check_missing',
   'article_not_found',
   'article_not_in_scope',
   'article_not_tracked',
+  'cash_movement_exceeds_balance',
   'cashregister_not_assigned',
   'cashregister_not_found',
   'cashregister_token_invalid',
   'cashregister_token_missing',
+  'comment_required',
   'count_already_voided',
   'count_not_found',
   'device_not_found',
   'dialect_mismatch',
+  'drawer_inactive',
+  'drawer_not_found',
   'idempotency_conflict',
   'idempotency_key_required',
   'internal_translation_error',
+  'invalid_amount',
   'invalid_cursor',
+  'invalid_denominations',
+  'invalid_movement_type',
   'invalid_quantity',
   'invalid_serial',
   'live_not_enabled',
@@ -55,25 +65,34 @@ export const POS_ERROR_CODES = Object.freeze([
   'module_inactive',
   'not_found',
   'not_permitted',
+  'note_required',
   'password_change_required',
   'print_job_not_found',
   'print_layout_failed',
   'printer_not_found',
+  'recount_exhausted',
   'register_user_no_business',
   'register_user_not_allowed',
   'register_user_not_found',
   'response_translation_failed',
+  'second_factor_required',
   'serial_already_counted',
   'serial_not_allowed',
   'serial_required',
   'server_error',
   'session_expired',
   'session_other_cashregister',
+  'shift_already_open',
+  'shift_closed',
+  'shift_mode_off',
+  'shift_not_open',
   'stocktake_closed',
   'stocktake_closing',
   'stocktake_not_found',
   'stocktake_not_open',
+  'tip_payout_exceeds_claim',
   'too_many_counts',
+  'transfer_same_drawer',
   'unauthorized',
   'user_disabled',
   'user_verification_failed',

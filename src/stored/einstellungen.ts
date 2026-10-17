@@ -1,5 +1,6 @@
 import {
-  POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS, POS_SHORTCUT_SHARED_PAIRS,
+  POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS,
+  POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, _optionalerWert,
 } from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
 import { KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
@@ -71,6 +72,25 @@ const PRUEFER: Readonly<Record<Teil, Readonly<Record<string, Pruefer>>>> = {
     drawerEnabled: bool, terminalIp: ip, terminalPort: ganz(1, 65535), terminalTid: tid, shortcutHints: bool,
   },
 };
+
+/**
+ * Optionale Geraete-Einstellungen (Zwilling von `GERAET_OPTIONAL` und
+ * `mischeGeraet` in kasse-settings-core): sie gehen nur hinaus, wenn sie als
+ * gueltiger Text gespeichert sind; sonst fehlen sie still, ohne Eintrag in
+ * `weggelassen` (der Server meldet sie dann auch nicht).
+ */
+const GERAET_OPTIONAL: Readonly<Record<string, Pruefer>> = Object.fromEntries(
+  POS_DEVICE_OPTIONAL_FIELDS.map((feld) => [feld, (v: unknown) => _optionalerWert(v, false)]),
+);
+
+/**
+ * Optionale Betriebs-Schalter (Zwilling von `BETRIEB_OPTIONAL` und
+ * `mischeBetrieb`): sie gehen nur hinaus, wenn sie als Wahrheitswert
+ * gespeichert sind; sonst fehlen sie still.
+ */
+const BETRIEB_OPTIONAL: Readonly<Record<string, Pruefer>> = Object.fromEntries(
+  POS_BUSINESS_OPTIONAL_FIELDS.map((feld) => [feld, (v: unknown) => typeof v === 'boolean']),
+);
 
 /** Aufzaehlungen (aussen, englisch) je Teil. */
 const AUFZAEHLUNGEN: Readonly<Record<Teil, Readonly<Record<string, readonly (string | number)[] | undefined>>>> = {
@@ -155,6 +175,14 @@ function teilNachAussen(teil: Teil, gespeichert: unknown, weg: string[]): Objekt
     // mische: was innen unbekannt ist, kommt gar nicht erst in den Stand.
     if (aussen === undefined || w === undefined) continue;
     const pfad = `${teil}.${aussen}`;
+    if (teil === 'device' && hat(GERAET_OPTIONAL, aussen)) {
+      if (GERAET_OPTIONAL[aussen]!(w)) raus[aussen] = w;
+      continue;
+    }
+    if (teil === 'business' && hat(BETRIEB_OPTIONAL, aussen)) {
+      if (BETRIEB_OPTIONAL[aussen]!(w)) raus[aussen] = w;
+      continue;
+    }
     if (aussen === 'shortcuts') {
       if (!w || typeof w !== 'object') { weg.push(pfad); continue; }
       let gemischt: Objekt = Object.assign({}, TASTEN_VORGABE_INNEN, w);
@@ -209,7 +237,7 @@ export function _storedPosSettingsToWire(stored: { betrieb?: unknown; geraet?: u
 
 /** Nur fuer den Test: die Feldliste der Pruefer (muss mit der Vorgabe deckungsgleich sein). */
 export const _PRUEFER_FELDER = Object.freeze({
-  business: [...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(KARTEN)],
-  device: [...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), 'shortcuts'],
-  standard: { business: Object.keys(POS_BUSINESS_DEFAULTS), device: Object.keys(POS_DEVICE_DEFAULTS) },
+  business: [...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(BETRIEB_OPTIONAL), ...Object.keys(KARTEN)],
+  device: [...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), ...Object.keys(GERAET_OPTIONAL), 'shortcuts'],
+  standard: { business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS], device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS] },
 });

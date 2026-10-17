@@ -30,6 +30,9 @@ import {
   isCancellationReason,
   isReturnDisposition,
   RETURN_DISPOSITIONS,
+  isTipRefundSource,
+  TIP_REFUND_SOURCES,
+  type TipRefundSource,
   type ReturnDisposition,
   type ReceiptPaymentInput,
   type RegistrationInfo,
@@ -91,6 +94,12 @@ export interface ReceiptCommonOptions {
    * anteilig je Steuersatz). Nur auf `standard` und `training`.
    */
   tip?: number | TipOptions;
+  /**
+   * Lade, in deren Kassenstand der Beleg zaehlt (Schichtbetrieb, Geraete-
+   * Einstellung `drawerId`). Ohne Angabe gilt die Lade des Geraets bzw. die
+   * Hauptlade der Kasse. Leer oder kein Text: wirft vor dem Senden.
+   */
+  drawerId?: string;
 }
 
 /** Trinkgeld mit eigener Zahlart und/oder Empfaengern (Kassen-Benutzer-IDs, Summe = cents). */
@@ -116,6 +125,15 @@ export interface TipOptions {
    * (ohne angemeldeten Kassen-Benutzer) gilt die Einschraenkung nicht.
    */
   receivedImmediately?: boolean;
+  /**
+   * Bar-Trinkgeld „gleich behalten“: die Mitarbeiterin steckt das Trinkgeld
+   * beim Verkauf gleich ein. Der Beleg bleibt, wie er ist (signiert, im DEP);
+   * nur im Kassenstand zaehlt der Betrag nicht ins Bar-Soll und gilt sofort als
+   * „schon genommen“. Nur `true` geht hinaus. Der Server nimmt es nur bei
+   * Mitarbeiter-Trinkgeld, bar und sofort erhalten; sonst faellt es still weg.
+   * Vorbelegung des Schalters: [posTipKeptByDefault] der Kassen-Einstellungen.
+   */
+  keptByEmployee?: boolean;
 }
 
 export interface TipRecipientShare {
@@ -182,6 +200,24 @@ export type CancelReceiptOptions = {
    * Kassenweg (Kanal `app`, `registerUserAuth`).
    */
   payments?: ReceiptPaymentInput[];
+  /** Lade, in deren Kassenstand der Storno zaehlt; wie bei [ReceiptCommonOptions.drawerId]. */
+  drawerId?: string;
+  /**
+   * Antwort auf „Trinkgeld auch zurueckgeben?“ (Schichten-Spec, Nachtrag 5). `false`: ohne das
+   * Mitarbeiter-Trinkgeld (ohne `items` = alle Restmengen ausser dem Trinkgeld); `true` mit `items`:
+   * das noch offene Trinkgeld kommt dazu. Fehlt = wie bisher (ein Vollstorno nimmt es mit). Die
+   * Positionen dazu rechnet [cancellationItemsForTip]. An einem Beleg mit Wertgutschein gibt es
+   * `false` nicht (`tip_keep_not_possible_with_voucher`, siehe [asksRefundTip]).
+   */
+  refundTip?: boolean;
+  /**
+   * Antwort auf „Woher kommt das Trinkgeld zurueck?“, nur bei Barrueckgabe ([asksTipRefundSource]):
+   * `drawer` aus der Lade, `employee` gibt die Mitarbeiterin direkt. Nicht zusammen mit
+   * `refundTip: false`. Der Server weist eine Quelle ohne Bargeld-Deckung ab
+   * (`tip_refund_source_requires_cash`). `refundTip: true` ohne Quelle heisst bei Barrueckgabe:
+   * aus der Lade (kein „gibt die Mitarbeiterin direkt“).
+   */
+  tipRefundSource?: TipRefundSource;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -351,8 +387,19 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
   if (options.legalMessage != null) {
     params['legalMessage'] = options.legalMessage.join('\n');
   }
+  if (options.drawerId !== undefined) {
+    params['drawerId'] = ladeKennung('createReceipt', options.drawerId);
+  }
 
   return params;
+}
+
+/** Die Lade eines Belegs: ein nicht leerer Text, sonst wirft der Aufruf vor dem Senden. */
+function ladeKennung(name: 'createReceipt' | 'cancelReceipt', wert: unknown): string {
+  if (typeof wert !== 'string' || wert.trim() === '') {
+    throw new KasseneckValidationError(name, 'drawerId muss eine Kennung sein (oder weglassen)', 'request');
+  }
+  return wert;
 }
 
 /** Felder des alten Einzel-Zahlungswegs; unter /v3 abgewiesen. */
@@ -416,6 +463,15 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.note !== undefined && options.note.length > NOTE_MAX) {
     throw new KasseneckValidationError('cancelReceipt', `Anmerkung ist zu lang (hoechstens ${NOTE_MAX} Zeichen)`, 'request');
   }
+  if (options.refundTip !== undefined && typeof options.refundTip !== 'boolean') {
+    throw new KasseneckValidationError('cancelReceipt', 'refundTip muss true oder false sein (oder weglassen)', 'request');
+  }
+  if (options.tipRefundSource !== undefined && !isTipRefundSource(options.tipRefundSource)) {
+    throw new KasseneckValidationError('cancelReceipt', `tipRefundSource: erlaubt sind ${TIP_REFUND_SOURCES.join(', ')}`, 'request');
+  }
+  if (options.tipRefundSource !== undefined && options.refundTip === false) {
+    throw new KasseneckValidationError('cancelReceipt', 'tipRefundSource nur, wenn das Trinkgeld zurueckgeht (refundTip nicht false)', 'request');
+  }
   const altfeld = ALTE_ZAHLFELDER.find((feld) => (options as unknown as Record<string, unknown>)[feld] != null);
   if (altfeld != null) {
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
@@ -434,6 +490,9 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.returnDisposition !== undefined) params.returnDisposition = options.returnDisposition;
   if (options.note !== undefined && options.note !== '') params.note = options.note;
   if (zahlungen !== undefined) params.payments = zahlungen;
+  if (options.drawerId !== undefined) params.drawerId = ladeKennung('cancelReceipt', options.drawerId);
+  if (options.refundTip !== undefined) params.refundTip = options.refundTip;
+  if (options.tipRefundSource !== undefined) params.tipRefundSource = options.tipRefundSource;
 
   const daten = await transport('cancelReceipt', params);
   return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));
@@ -863,6 +922,13 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
     }
     nutzlast['receivedImmediately'] = tip.receivedImmediately;
   }
+  if (tip.keptByEmployee != null) {
+    if (typeof tip.keptByEmployee !== 'boolean') {
+      throw eingabefehler('Trinkgeld: keptByEmployee muss true oder false sein.');
+    }
+    // `false` ist dasselbe wie weglassen: die Nutzlast bleibt wie bisher.
+    if (tip.keptByEmployee) nutzlast['keptByEmployee'] = true;
+  }
   if (tip.recipients != null) {
     if (!Array.isArray(tip.recipients) || tip.recipients.length === 0) {
       throw eingabefehler('Trinkgeld: recipients darf nicht leer sein.');
@@ -886,7 +952,7 @@ function gepruefterTip(tip: number | TipOptions): number | Record<string, unknow
   return nutzlast;
 }
 
-const TIP_FELDER: readonly string[] = ['cents', 'paymentMethod', 'recipients', 'receivedImmediately'];
+const TIP_FELDER: readonly string[] = ['cents', 'paymentMethod', 'recipients', 'receivedImmediately', 'keptByEmployee'];
 
 /**
  * Zahlungsart des Aufrufers pruefen — unbekannt wirft, bevor etwas rausgeht.

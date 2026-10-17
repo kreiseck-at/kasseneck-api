@@ -111,9 +111,10 @@ const ohneMarke = (o: unknown): unknown => {
 /**
  * Interne Dokumentfelder eines Belegs, die keine Antwort traegt (Zwilling von
  * storno-core.INTERNE_BELEG_FELDER): der Lager-Standort der Kasse, den
- * createReceipt fuer die Lagerbuchung an den Beleg kopiert.
+ * createReceipt fuer die Lagerbuchung an den Beleg kopiert, sowie Lade und
+ * Schicht, in deren Kassenstand der Beleg zaehlt.
  */
-const INTERNE_BELEG_FELDER = ['lagerStandortId'] as const;
+const INTERNE_BELEG_FELDER = ['lagerStandortId', 'ladeId', 'schichtId', 'ausserhalbSchicht'] as const;
 
 /** Rueckgabe-Wahl innen -> aussen (Katalog RUECKGABE; stored.test.ts vergleicht mit dem Vertrag). */
 export const _RUECKGABE_NACH_AUSSEN: Readonly<Record<string, string>> = Object.freeze({ lager: 'restock', defekt: 'defective', entsorgt: 'disposed' });
@@ -159,7 +160,7 @@ function alsIso(ts: unknown): string | null {
 
 /**
  * Ein Belegdokument, wie Handler und Rand es vor der Uebersetzung sehen:
- * ohne Storno-Marke und Lager-Standort (storno-core.ohneInterneBelegFelder,
+ * ohne Storno-Marke, Lager-Standort, Lade und Schicht (storno-core.ohneInterneBelegFelder,
  * Rand ohneStornoMarke). Alles andere bleibt woertlich, auch `pruefangaben` im
  * Beleg selbst (der Server reicht sie so durch). Wirft, wenn es kein
  * Belegdokument ist.

@@ -169,22 +169,26 @@ test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (33)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (39)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 33);
+  assert.equal(POS_CALLS.length, 39);
 });
 
-test('v3: nur ueber den Kassenweg gehen genau die 27 Namen aus endpoints.registerInternal', () => {
+test('v3: nur ueber den Kassenweg gehen genau die 33 Namen aus endpoints.registerInternal', () => {
   const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
   const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
   assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
-  assert.equal(nurKasse.length, 27);
+  assert.equal(nurKasse.length, 33);
   for (const name of ['listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation']) assert.ok(isPosOnlyCall(name), name);
   // Inventur zaehlen (1.8.0) gibt es nur am Kassenweg, die Inventur der Lager-API nur oeffentlich.
   for (const name of ['listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount']) {
     assert.ok(isPosOnlyCall(name), name);
   }
   assert.equal(isPosOnlyCall('recordStocktakeCount'), false);
+  // Schicht, Kassenstand und Lade-Protokoll (1.9.0) gibt es nur am Kassenweg.
+  for (const name of ['getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift']) {
+    assert.ok(isPosOnlyCall(name), name);
+  }
 });
 
 test('v3: jeder Aufruf des Pakets steht in PUBLIC_CALLS oder POS_CALLS', () => {

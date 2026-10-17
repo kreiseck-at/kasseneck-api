@@ -50,13 +50,58 @@ const ART = WERTE['pos-texts.json']!['errorRules[].kind']!;
 const NACH_1_0 = {
   messages: ['network.outcome_unknown', 'server.connection_disturbed', 'server.response_unreadable', 'codetable.question', 'codetable.instruction', 'codetable.question_hint', 'codetable.instruction_none', 'cancellation.input_rejected',
     'stocktake.none_open', 'stocktake.scan_or_search', 'stocktake.counted', 'stocktake.blind_hint', 'stocktake.recount_hint', 'stocktake.unknown_code',
-    'stocktake.quantity_invalid', 'stocktake.serials_capture', 'stocktake.serials_mismatch', 'stocktake.reason_missing', 'stocktake.outcome_unknown'],
+    'stocktake.quantity_invalid', 'stocktake.serials_capture', 'stocktake.serials_mismatch', 'stocktake.reason_missing', 'stocktake.outcome_unknown',
+    // Schicht und Kassenstand (1.9.0)
+    'shift.required', 'shift.required_other', 'shift.recount', 'shift.comment_required', 'shift.closed', 'shift.long_open', 'shift.already_open',
+    'shift.already_closed', 'shift.recount_exhausted', 'shift.outcome_unknown', 'cash_movement.exceeds_balance', 'cash_movement.note_required', 'cash_movement.booked',
+    'cash_movement.type_invalid', 'cash_movement.same_drawer', 'tip_payout.exceeds_claim', 'denominations.invalid', 'amount.invalid', 'drawer.not_found',
+    'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off', 'tip.kept_setting_hint',
+    // Storno mit oder ohne Trinkgeld (1.11.0)
+    'cancellation.tip_refund_missing', 'cancellation.tip_source_missing', 'cancellation.tip_refunded_with_voucher',
+    // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
+    'tip_payout.none_open',
+    // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
+    'shift.change_float_missing', 'logout.cart_cleared'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
     'stocktake.title', 'stocktake.quantity', 'stocktake.defective', 'stocktake.count_zero', 'stocktake.next', 'stocktake.void', 'stocktake.reason',
     'stocktake.progress', 'stocktake.serial_numbers', 'stocktake.recount', 'stocktake.resend', 'stocktake.my_counts', 'stocktake.sent',
-    'stocktake.unconfirmed', 'stocktake.voided'],
+    'stocktake.unconfirmed', 'stocktake.voided',
+    // Schicht und Kassenstand (1.9.0)
+    'shift.open_title', 'shift.take_over', 'shift.count', 'shift.by_denomination', 'shift.close_title', 'shift.cash_title',
+    'shift.x_report', 'shift.pay_out_tips', 'drawer.reason_title', 'drawer.reason_change', 'drawer.reason_check',
+    'drawer.reason_misoperation', 'drawer.reason_other', 'cash_movement.type_change_in', 'cash_movement.type_cash_drop', 'cash_movement.type_owner_deposit', 'cash_movement.type_owner_withdrawal',
+    'cash_movement.type_tip_payout', 'cash_movement.type_other_in', 'cash_movement.type_other_out', 'cash_movement.type_transfer_out', 'cash_movement.type_transfer_in', 'cash_movement.type_expense',
+    'cash_movement.type_count_difference', 'cash_movement.type_handover_difference', 'shift_receipt.title_close', 'shift_receipt.title_interim', 'shift_receipt.title_movement', 'shift_receipt.cashregister',
+    'shift_receipt.drawer', 'shift_receipt.shift', 'shift_receipt.number', 'shift_receipt.opened', 'shift_receipt.closed', 'shift_receipt.by',
+    'shift_receipt.opening_float', 'shift_receipt.opening_float_taken_over', 'shift_receipt.cash_sales', 'shift_receipt.cash_cancellations', 'shift_receipt.movements', 'shift_receipt.expected',
+    'shift_receipt.counted', 'shift_receipt.difference', 'shift_receipt.comment', 'shift_receipt.non_cash', 'shift_receipt.receipts', 'shift_receipt.cancellations',
+    'shift_receipt.openings_without_sale', 'shift_receipt.tips', 'shift_receipt.tip_earned', 'shift_receipt.tip_retained', 'shift_receipt.tip_paid_out', 'shift_receipt.tip_open', 'shift_receipt.movement_number',
+    'shift_receipt.type', 'shift_receipt.amount', 'shift_receipt.location', 'shift_receipt.location_bank', 'shift_receipt.location_safe', 'shift_receipt.recipient',
+    'shift_receipt.target_drawer', 'shift_receipt.note', 'shift_receipt.operator', 'shift_receipt.time',
+    'cash_movement.pay_in', 'cash_movement.pay_out', 'cash_movement.print', 'drawer.recent_openings', 'drawer.reason_sale', 'drawer.reason_cash_movement', 'drawer.reason_shift_open', 'drawer.reason_shift_close', 'shift.resend', 'shift.next', 'shift.print_close', 'shift.print_again', 'shift.back_to_register', 'shift.later', 'time.yesterday',
+    // Bar-Trinkgeld „gleich behalten“ (1.11.0)
+    'checkout.tip_kept', 'tip.kept_setting',
+    // Storno mit oder ohne Trinkgeld (1.11.0)
+    'cancellation.tip_refund_question', 'cancellation.tip_refund_yes', 'cancellation.tip_refund_no', 'cancellation.tip_source_question',
+    'cancellation.tip_source_drawer', 'cancellation.tip_source_employee', 'cancellation.tip_stays', 'shift_receipt.tip_refunded_by_employee', 'shift_receipt.tip_carried_over',
+    // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
+    'shift.drawer_should_have', 'shift.drawer_named', 'shift.running_since', 'shift.since', 'shift.collected_outside_drawer', 'shift.non_cash_short',
+    'shift.voucher_redeemed', 'shift.all_payments', 'shift.receipt_count_one', 'shift.receipt_count_other', 'shift.openings_without_sale_count',
+    'cash_movement.pay_in_short', 'cash_movement.pay_out_short', 'drawer.recent_openings_full',
+    'duration.days_one', 'duration.days_other', 'duration.hours', 'duration.minutes',
+    'tip_payout.open_amount', 'tip_payout.done', 'tip_payout.for_all', 'tip_payout.nothing', 'tip_payout.all_open',
+    'tip_payout.title', 'tip_payout.persons_one', 'tip_payout.persons_other', 'tip_payout.pay_amount', 'tip_payout.pay_out',
+    // Druckwarnung an der Kasse (1.11.0)
+    'printer.warn_unreachable', 'printer.warn_none', 'printer.check', 'printer.set_up',
+    // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
+    'shift_receipt.taken_out', 'shift_receipt.put_in', 'shift_receipt.left_in_drawer',
+    'drawer.change_float', 'drawer.change_float_hint', 'drawer.change_float_empty_hint', 'shift.step_take_out', 'shift.left_in_drawer',
+    'shift.change_float_next_shift', 'shift.take_out', 'shift.put_in', 'shift.take_out_at_most', 'shift.put_in_hint', 'shift.after_count_tap_hint',
+    'shift.take_out_amount', 'shift.put_in_amount', 'shift.continue_without_take_out', 'shift.print_envelope_receipt', 'shift.toggle_take_out_put_in',
+    'shift.put_in_change_float', 'shift.taken_over_from_shift', 'shift.counted', 'shift.back', 'shift.done', 'shift.edit_amount',
+    'shift.pay_ins', 'shift.pay_outs', 'cash_movement.pay_in_amount', 'cash_movement.pay_out_amount'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
@@ -269,7 +314,10 @@ const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
 /** Bons je Code-Tabelle (1.1.0): die Faelle und je Fall und Tabelle eine Hex-Datei. */
 const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-table-receipts.json'), 'utf8')) as { tables: string[]; cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json'];
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+  // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
+  'shift-cases.json', 'shift-receipts.json',
+  ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`])];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

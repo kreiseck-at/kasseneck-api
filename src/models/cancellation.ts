@@ -1,6 +1,8 @@
 import { KasseneckApiError } from '../client/errors.js';
 import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
 import type { Receipt } from './receipt.js';
+import type { ReceiptPaymentInput } from './receipt-payment.js';
+import { isTipItem, type ReceiptItem } from './receipt-item.js';
 
 /**
  * Storno-Metadaten — Zwilling von `functions/storno-core.js`.
@@ -87,8 +89,14 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'cancellation_refund_reference_unknown',  // refundOf nennt keine Zahlung des Originals
   'cancellation_outcome_unknown',           // Ausgang unklar: nachlesen, nie wiederholen
   'invalid_return_disposition',             // Rueckgabe-Wahl nicht restock, defective oder disposed (Lager)
+  // Trinkgeld beim Storno (refundTip/tipRefundSource, Schichten-Spec Nachtrag 5)
+  'tip_refund_conflict',                    // Wahl passt nicht zum Storno (Trinkgeld trotz Nein, Quelle ohne Trinkgeld)
+  'invalid_tip_refund_source',              // tipRefundSource nicht drawer oder employee
+  'tip_refund_source_requires_cash',        // eine Quelle nur, wenn das Bargeld des Stornos das Trinkgeld deckt
+  'tip_keep_not_possible_with_voucher',     // refundTip false an einem Beleg mit Wertgutschein (das Trinkgeld geht mit)
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
+  'action_confirmation_required',
   'admin_required',
   'api_not_approved',
   'app_check_invalid',
@@ -107,6 +115,7 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'register_user_not_allowed',
   'register_user_not_found',
   'response_translation_failed',
+  'second_factor_required',
   'session_expired',
   'session_other_cashregister',
   'unauthorized',
@@ -228,4 +237,143 @@ export interface CancellationFieldError {
 /** Die Feldfehler einer `validation`-Antwort; leer, wenn es keine sind. */
 export function cancellationFieldErrors(error: unknown): CancellationFieldError[] {
   return feldfehlerVon(error);
+}
+
+// --- Trinkgeld beim Storno (Schichten-Spec, Nachtrag 5, R56–R58) --------------------------------
+//
+// Enthaelt ein Beleg noch nicht storniertes Mitarbeiter-Trinkgeld, fragt die Kasse „Trinkgeld auch
+// zurueckgeben?“ (`refundTip`) und bei Barrueckgabe „Woher kommt das Trinkgeld zurueck?“
+// (`tipRefundSource`). Die Regeln stehen hier, damit Web-Kasse und Kassen-App dasselbe fragen;
+// Zwilling von functions/gemeinsam/storno-core.js (wunschMitTrinkgeld, trinkgeldQuelleAnwenden).
+// Faelle mit dem Dart-Zwilling: fixtures/cancellation-tip-cases.json.
+
+/**
+ * Woher das Trinkgeld beim Storno zurueckkommt: `drawer` – die Lade zahlt es aus („offen“ sinkt,
+ * kann negativ werden); `employee` – die Mitarbeiterin gibt es selbst („verdient“ und „schon
+ * genommen“ sinken, die Lade bleibt unberuehrt). Nur bei Barrueckgabe.
+ */
+export const TIP_REFUND_SOURCES = Object.freeze(['drawer', 'employee'] as const);
+
+export type TipRefundSource = (typeof TIP_REFUND_SOURCES)[number];
+
+export function isTipRefundSource(value: unknown): value is TipRefundSource {
+  return typeof value === 'string' && (TIP_REFUND_SOURCES as readonly string[]).includes(value);
+}
+
+/** Barzahlarten -- Zwilling von `BAR_ZAHLARTEN` (functions/gemeinsam/tip-core.js). */
+const BAR_ZAHLARTEN: readonly string[] = ['cash', 'uberCash', 'boltCash'];
+
+/** Zahlart als Nutzlast-Schluessel (Enum-Objekt oder Text). */
+function zahlartWert(m: unknown): string {
+  if (m !== null && typeof m === 'object' && typeof (m as { value?: unknown }).value === 'string') return (m as { value: string }).value;
+  return typeof m === 'string' ? m : '';
+}
+
+const istMitarbeiterTrinkgeld = (item: ReceiptItem): boolean => isTipItem(item) && item.recipient?.owner !== true;
+
+/**
+ * Hatte die Mitarbeiterin dieses Trinkgeld schon in der Hand (sofort erhalten, mit Empfaenger)?
+ * Ohne Merkmal (Altbestand) gilt wie im Backend: bar = erhalten, sonst nicht.
+ */
+function hatteSie(item: ReceiptItem, receipt: Receipt): boolean {
+  if (!item.recipient?.registerUserId) return false;
+  if (typeof item.receivedImmediately === 'boolean') return item.receivedImmediately;
+  return BAR_ZAHLARTEN.includes(zahlartWert(item.paymentMethod ?? receipt.paymentMethod));
+}
+
+/** Indizes des noch nicht stornierten Mitarbeiter-Trinkgelds mit ihrem Rest. */
+function offenesTrinkgeld(receipt: Receipt, nowMs: number): Array<{ index: number; quantity: number }> {
+  const rest = remainingQuantities(receipt, nowMs);
+  return receipt.items
+    .map((item, index) => ({ item, index, quantity: rest[index] ?? 0 }))
+    .filter(({ item, quantity }) => quantity > 0 && istMitarbeiterTrinkgeld(item))
+    .map(({ index, quantity }) => ({ index, quantity }));
+}
+
+/**
+ * Noch nicht storniertes Mitarbeiter-Trinkgeld in Cent. Groesser 0 heisst: das Storno fragt
+ * „Trinkgeld auch zurueckgeben?“ (auch beim Teilstorno). Inhaber-Trinkgeld ist Umsatz und folgt
+ * der Ware -- dafuer gibt es keine Frage.
+ */
+export function openStaffTipCents(receipt: Receipt, nowMs: number = Date.now()): number {
+  return offenesTrinkgeld(receipt, nowMs).reduce((s, { index, quantity }) => s + quantity * (receipt.items[index]?.priceCents ?? 0), 0);
+}
+
+/** Traegt der Beleg einen Wertgutschein (verkauft oder eingeloest)? Zwilling von storno-core.hatWertgutschein. */
+function hatWertgutschein(receipt: Receipt): boolean {
+  return (receipt.vouchers ?? []).some((v) => v != null && zahlartWert(v.type) === 'value');
+}
+
+/**
+ * Fragt das Storno „Trinkgeld auch zurueckgeben?“ – nur bei noch offenem Mitarbeiter-Trinkgeld und
+ * ohne Wertgutschein am Beleg. Einen Wertgutschein spiegelt nur ein Storno, der alles nimmt; darum
+ * geht das Trinkgeld dort immer mit (der Server weist `refundTip: false` mit
+ * `tip_keep_not_possible_with_voucher` ab), die Kasse zeigt stattdessen
+ * `cancellation.tip_refunded_with_voucher` und sendet `refundTip: true`. Die Frage nach der Quelle
+ * bleibt ([asksTipRefundSource]).
+ */
+export function asksRefundTip(receipt: Receipt, nowMs: number = Date.now()): boolean {
+  return openStaffTipCents(receipt, nowMs) > 0 && !hatWertgutschein(receipt);
+}
+
+/**
+ * Die Positionen, die nach der Antwort auf „Trinkgeld auch zurueckgeben?“ hinausgehen -- dieselbe
+ * Regel wie im Backend. `items` fehlt = ganzer Beleg.
+ * - Ja: zum Teilstorno kommt das offene Trinkgeld dazu; der ganze Beleg bleibt `undefined`.
+ * - Nein: ohne das Mitarbeiter-Trinkgeld; der ganze Beleg wird zur Liste aller Restmengen ausser dem
+ *   Trinkgeld (leer = nichts mehr zu stornieren). Ist kein Mitarbeiter-Trinkgeld mehr offen (keines
+ *   oder schon storniert), bleibt der Wunsch, wie er ist – „Nein“ wirkt dann wie keine Wahl.
+ */
+export function cancellationItemsForTip(
+  receipt: Receipt,
+  items: readonly CancellationItem[] | undefined,
+  refundTip: boolean,
+  nowMs: number = Date.now(),
+): CancellationItem[] | undefined {
+  const trinkgeld = new Set(receipt.items.map((item, i) => (istMitarbeiterTrinkgeld(item) ? i : -1)).filter((i) => i >= 0));
+  if (trinkgeld.size === 0) return items === undefined ? undefined : [...items];
+  if (refundTip) {
+    if (items === undefined) return undefined;
+    const genannt = new Set(items.map((x) => x.index));
+    return [...items, ...offenesTrinkgeld(receipt, nowMs).filter((x) => !genannt.has(x.index))];
+  }
+  if (items !== undefined) return items.filter((x) => !trinkgeld.has(x.index));
+  if (offenesTrinkgeld(receipt, nowMs).length === 0) return undefined;
+  const rest = remainingQuantities(receipt, nowMs);
+  return rest.map((quantity, index) => ({ index, quantity })).filter((x) => x.quantity > 0 && !trinkgeld.has(x.index));
+}
+
+/**
+ * Was dieses Storno bar zurueckgibt (positiv, Cent): mit Rueckzahlungen deren Barteil; ohne
+ * (der Server spiegelt die eine Zahlung des Originals) alles, wenn das Original bar bezahlt war.
+ * Bei mehr als einer Zahlung ohne Angabe 0: welcher Teil bar zurueckgeht, ist dann offen (ein
+ * Teilstorno verlangt ohnehin `payments`). Beide Kassen schicken bei mehr als einer Zahlung darum
+ * immer die Rueckzahlungen mit und rechnen hier mit ihnen.
+ */
+export function cancellationCashRefundCents(
+  receipt: Receipt,
+  payments: readonly ReceiptPaymentInput[] | undefined,
+  dueCents: number,
+): number {
+  if (payments !== undefined) {
+    return payments.reduce((s, z) => (zahlartWert(z.method) === 'cash' ? s - z.amountCents : s), 0);
+  }
+  const zahlungen = receipt.payments ?? [];
+  if (zahlungen.length > 1) return 0;
+  const methode = zahlungen.length === 1 ? zahlartWert(zahlungen[0]!.method) : zahlartWert(receipt.paymentMethod);
+  return methode === 'cash' ? dueCents : 0;
+}
+
+/**
+ * Fragt das Storno nach „Ja“ auch „Woher kommt das Trinkgeld zurueck?“ – nur, wenn das Bargeld des
+ * Stornos (`cashRefundCents`, siehe [cancellationCashRefundCents]) das offene Mitarbeiter-Trinkgeld
+ * deckt und die Mitarbeiterin wenigstens eines davon schon hatte. Bei Kartenrueckgabe geht es auf
+ * die Karte zurueck; ueber Lohn behaltenes Trinkgeld kommt immer aus der Lade.
+ */
+export function asksTipRefundSource(receipt: Receipt, cashRefundCents: number, nowMs: number = Date.now()): boolean {
+  // Ohne diese Frage (Karte) und mit `refundTip: true` gilt beim Server: aus der Lade, kein `direkt`.
+  const offen = offenesTrinkgeld(receipt, nowMs);
+  if (offen.length === 0) return false;
+  if (!offen.some(({ index }) => hatteSie(receipt.items[index]!, receipt))) return false;
+  return cashRefundCents >= openStaffTipCents(receipt, nowMs);
 }

@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { fromReceiptPayload } from '../src/models/index.js';
 import { buildReceiptLayout, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
+import { cashMovementLayout, shiftReceiptLayout } from '../src/pos/index.js';
 import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
 
 /**
@@ -29,6 +30,7 @@ const goldens = JSON.parse(readFileSync(new URL('../../test/fixtures/druck-golde
   receipts: Record<string, Record<string, string>>;
   server: Record<string, Record<string, string>>;
   ruleset1: Record<string, Record<string, string>>;
+  shift: Record<string, Record<string, string>>;
 };
 const wurzel = new URL('../../fixtures/', import.meta.url);
 
@@ -105,3 +107,26 @@ test('Druck-Goldens: die Blatt-Abbildung wirft bei unbekanntem Feld oder unbekan
   assert.throws(() => blattWieAufgenommen({ charsPerLine: 32, blocks: [{ kind: 'logo', widthFraction: 0.5, heightLines: 3, size: 'M' }] } as never), /block\.size/);
   assert.throws(() => blattWieAufgenommen({ charsPerLine: 32, blocks: [{ kind: 'bild' }] } as never), /kind\.bild/);
 });
+
+// Bons der Schicht (1.9.0): Z-Bon, X-Bon und Kassenbewegung aus den Bon-Daten
+// des Vertrags (Quellen in fixtures/shift-receipts.json). Aufgenommen mit
+// ihrem ersten Stand, neu aufgenommen in 1.11.0 (Art „Wechselgeld“, ohne Fuss
+// „Kein Registrierkassenbeleg“); die Ausgaben der Belege oben aendern sie nicht.
+const SCHICHT = JSON.parse(readFileSync(new URL('shift-receipts.json', wurzel), 'utf8')) as { receipts: Record<string, { source: string }> };
+const KASSE = JSON.parse(readFileSync(new URL('v3/antworten/kasse.json', wurzel), 'utf8')) as {
+  endpoints: Record<string, { cases: Array<{ case: string; response: { data?: { receipt?: Record<string, unknown> } } }> }>;
+};
+
+test('Druck-Goldens: jeder Bon der Schicht ist aufgenommen, keiner zu viel', () => {
+  assert.deepEqual(Object.keys(goldens.shift).sort(), Object.keys(SCHICHT.receipts).sort());
+  assert.ok(Object.keys(goldens.shift).length >= 4);
+});
+
+for (const [name, { source }] of Object.entries(SCHICHT.receipts)) {
+  test(`Druck-Golden Schicht ${name}: ESC/POS, ePOS, Blatt und HTML byte-gleich`, () => {
+    const [endpunkt, fall] = source.split('/') as [string, string];
+    const bon = KASSE.endpoints[endpunkt]!.cases.find((c) => c.case === fall)!.response.data!.receipt!;
+    const layout = bon.kind === 'cash_movement' ? cashMovementLayout(bon as never) : shiftReceiptLayout(bon as never);
+    vergleiche(`Schicht ${name}`, layout, goldens.shift[name]);
+  });
+}

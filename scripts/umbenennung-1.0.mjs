@@ -668,10 +668,14 @@ function schemaEbene(knoten) {
   return Object.fromEntries(Object.entries(knoten).filter(([k]) => k !== '__').map(([aussen, innen]) => [typeof innen === 'string' ? innen : innen.__, aussen]));
 }
 const SCHEMA = VOKABULAR.schemas.getKasseSettings.data;
+// Optionale Einstellungen ohne Standardwert (Geraet drawerId seit 1.9.0,
+// Betrieb tipKeptByDefault seit 1.11.0) gab es in 0.x nicht: nur die Felder,
+// die auch in den Standardwerten stehen.
+const DRAHT_STANDARD = JSON.parse(readFileSync(new URL('../fixtures/pos-settings-defaults.json', import.meta.url), 'utf8'));
 const EINSTELLUNGEN = {
   file: { [SCHEMA.business.__]: 'business', [SCHEMA.device.__]: 'device' },
-  business: schemaEbene(SCHEMA.business),
-  device: schemaEbene(SCHEMA.device),
+  business: Object.fromEntries(Object.entries(schemaEbene(SCHEMA.business)).filter(([, aussen]) => Object.hasOwn(DRAHT_STANDARD.business, aussen))),
+  device: Object.fromEntries(Object.entries(schemaEbene(SCHEMA.device)).filter(([, aussen]) => Object.hasOwn(DRAHT_STANDARD.device, aussen))),
   shortcuts: schemaEbene(SCHEMA.device.shortcuts),
 };
 /** Werte der Einstellungen je (neuem) Feldnamen: innen -> aussen. */

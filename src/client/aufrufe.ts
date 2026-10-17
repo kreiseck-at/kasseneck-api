@@ -141,6 +141,13 @@ export const ALL_CALLS = [
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Schicht, Kassenstand und Lade-Protokoll an der Kasse (./pos)
+  'getMyDrawerState',
+  'openMyShift',
+  'recordMyCashMovement',
+  'logMyDrawerOpenings',
+  'getMyShiftReport',
+  'closeMyShift',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -308,6 +315,13 @@ export const POS_CALLS = [
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Schicht, Kassenstand und Lade-Protokoll: nur ueber den Kassenweg.
+  'getMyDrawerState',
+  'openMyShift',
+  'recordMyCashMovement',
+  'logMyDrawerOpenings',
+  'getMyShiftReport',
+  'closeMyShift',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -338,6 +352,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'cancelReceipt',
   'cancelStocktake',
   'changeStockCondition',
+  'closeMyShift',
   'closeStocktake',
   'createArticle',
   'createCreditNote',
@@ -360,9 +375,12 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'hobexPayApi',
   'hobexRefundApi',
   'issueInvoice',
+  'logMyDrawerOpenings',
+  'openMyShift',
   'pairRegisterDevice',
   'receiveGoods',
   'recordInvoicePayment',
+  'recordMyCashMovement',
   'recordMyStocktakeCount',
   'recordStockLoss',
   'recordStocktakeCount',
@@ -445,6 +463,8 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getInvoiceSetupStatus: 'read',
   getInvoiceXml: 'read',
   getKasseSettings: 'read',
+  getMyDrawerState: 'read',
+  getMyShiftReport: 'read',
   getPartnerBilling: 'read',
   getPartnerBillingMonth: 'read',
   getPartnerCustomer: 'read',
@@ -513,13 +533,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 33 Aufrufe des Kassenwegs. */
+/** Einer der 39 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (27 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (33 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */

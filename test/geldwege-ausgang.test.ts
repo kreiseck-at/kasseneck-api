@@ -290,7 +290,8 @@ test('Geldwege: Ablehnungscodes = Anmeldung ohne Partner + Rand vor dem Handler 
     'not_permitted',
     'route_missing',
   ]);
-  assert.equal(erwartet.size, 27);
+  // 29 seit 1.11.0: second_factor_required und action_confirmation_required (Bestaetigung in der Kasseneck-App, keck#657).
+  assert.equal(erwartet.size, 29);
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [...erwartet].sort());
   assert.ok(Object.isFrozen(PAYMENT_CALL_REJECTED_CODES));
 });
@@ -310,6 +311,8 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
   // paymentCallRejectedCodes); aendert sich eine Seite, zieht die andere mit.
   assert.deepEqual([...PAYMENT_CALL_REJECTED_CODES].sort(), [
     'account_not_found',
+    // Seit 1.11.0 (Vertrag: Bestaetigung in der Kasseneck-App, vor dem Handler abgewiesen).
+    'action_confirmation_required',
     'admin_required',
     'api_not_approved',
     // Seit 1.8.0 (Vertrag: App Check der Admin-App, vor dem Handler abgewiesen).
@@ -332,6 +335,7 @@ test('Geldwege: Ablehnungscodes stehen im Vertrag (errorCodes.all) und gleichen 
     'register_user_not_allowed',
     'register_user_not_found',
     'route_missing',
+    'second_factor_required',
     'session_expired',
     'session_other_cashregister',
     'unauthorized',

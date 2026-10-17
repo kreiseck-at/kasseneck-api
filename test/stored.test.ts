@@ -153,7 +153,7 @@ test('stored: Layout aus dem gespeicherten Beleg gleicht dem Layout des Servers'
 });
 
 /** Kassen-Welt: Belege aus createReceipt mit Kopf-Version und Konto, ganz wie die Antwort. */
-const KASSE_BELEGE_FAELLE = ['start_receipt', 'sale_cashregister', 'sale_payments', 'sale_device'];
+const KASSE_BELEGE_FAELLE = ['start_receipt', 'sale_cashregister', 'sale_payments', 'sale_device', 'sale_tip_kept'];
 
 test('stored: Beleg mit Firma und Layout aus Kopf-Version und Konto (Kassen-Welt)', async () => {
   const kopfPfad = 'users/kw_betrieb1/beleg_kopf/auto1';

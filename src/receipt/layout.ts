@@ -77,6 +77,11 @@ export interface LayoutTextLine {
 export interface LayoutColumnsLine {
   kind: 'columns';
   columns: LayoutColumn[];
+  /**
+   * Die ganze Zeile fett (z. B. „Bleibt in der Kassenlade“ auf dem Z-Bon).
+   * Fehlt es, ist die Zeile normal; im Bauplan steht es nur, wenn `true`.
+   */
+  bold?: boolean;
 }
 
 /** Eine durchgehende Trennlinie aus [char]. */

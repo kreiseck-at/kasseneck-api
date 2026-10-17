@@ -1,7 +1,8 @@
 /**
  * Kachel-Kasse: Einstellungen, Artikelgruppen/Artikel fuer Kacheln,
  * Rabattverteilung, Drucker, Trinkgeld-Empfaenger, Lager (Standorte, Bestand,
- * Standort der Kasse), Inventur zaehlen. Die Aufrufe heissen 1:1 wie
+ * Standort der Kasse), Inventur zaehlen, Schicht, Kassenstand und
+ * Lade-Protokoll mit ihren Bons. Die Aufrufe heissen 1:1 wie
  * die Backend-Functions (die Rewrites-Waechter der Web-App leiten daraus ab)
  * und sprechen den Kassenweg `/api/v3` (Schluessel und Werte englisch).
  */
@@ -17,7 +18,7 @@ export {
   type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
-  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, posTipKeptByDefault, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
   sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   POS_SHORTCUT_SHARED_PAIRS, posShortcutConflict,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
@@ -68,6 +69,25 @@ export type {
   StocktakeActor, StocktakeProgress, StocktakeReview, StocktakeRecount, StocktakeScope,
 } from '../inventory/typen.js';
 export type { StocktakeStatus } from '../inventory/vertrag.js';
+
+// Schicht, Kassenstand und Lade-Protokoll (1.9.0): Aufrufe, Kataloge, Helfer, Bons.
+export {
+  type GetMyDrawerStateOptions, type OpenMyShiftOptions, type RecordMyCashMovementOptions, type DrawerOpeningEntry,
+  type LogMyDrawerOpeningsOptions, type GetMyShiftReportOptions, type TipPayout, type CloseMyShiftOptions, type AfterCountOption,
+  getMyDrawerState, openMyShift, recordMyCashMovement, logMyDrawerOpenings, getMyShiftReport, closeMyShift,
+  sumDenominations, parseCentsAllowZero, newIdempotencyKey, shiftTipLines, durationText, type ShiftTipLine, type ShiftTipLineKey,
+} from './schicht.js';
+export {
+  EUR_DENOMINATIONS, MOVEMENT_TYPES, MANUAL_MOVEMENT_TYPES, CASH_LOCATIONS, OPENING_REASONS, MANUAL_OPENING_REASONS, SHIFT_RECEIPT_KINDS,
+  AFTER_COUNT_TYPES, type AfterCountType, type AfterCount,
+  type EurDenomination, type MovementType, type ManualMovementType, type CashLocation, type OpeningReason, type ManualOpeningReason,
+  type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
+  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
+  type DrawerOpening, type DrawerState, type CashMovement, type ShiftReceiptHeader, type ShiftReceiptMovement, type ShiftReceiptTip,
+  type ShiftSummaryReceipt, type CashMovementReceipt, type ShiftReceipt, type OpenShiftResult, type CashMovementResult,
+  type DrawerOpeningsResult, type ShiftReport, type CloseShiftResult,
+} from './schicht-typen.js';
+export { type ShiftReceiptLayoutOptions, shiftReceiptLayout, cashMovementLayout } from '../receipt/shift-sheet.js';
 
 // Rueckgabe-Wahl beim Storno (Kassen-Dialog); dieselbe Liste wie an der Wurzel.
 export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from '../models/cancellation.js';

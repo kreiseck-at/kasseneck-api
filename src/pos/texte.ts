@@ -73,6 +73,9 @@ const MELDUNGEN_ROH = {
   // Wer die Abmelden-Taste ein zweites Mal drueckt, beendet die Schicht –
   // der Satz steht in der Rueckfrage, bevor es so weit ist.
   'logout.press_again': { text: 'Noch einmal drücken beendet die Schicht an dieser Kasse.' },
+  // Seit 1.11.0 an seiner Stelle: die Rueckfrage beim Abmelden mit vollem Warenkorb. Ein zweiter Druck meldet ab
+  // und leert den Korb; die Schicht der Kassenlade laeuft weiter (das alte Wort „Schicht“ fuehrte dort in die Irre).
+  'logout.cart_cleared': { text: 'Noch einmal drücken meldet dich ab – der Warenkorb wird geleert.' },
   'permissions.not_changeable': { text: 'Das darfst du nicht ändern – das Recht dafür vergibt der Inhaber im Panel.' },
 
   // --- Verkauf und Positionen ----------------------------------------------
@@ -96,6 +99,8 @@ const MELDUNGEN_ROH = {
   // Keine gesetzliche Obergrenze – steuerfrei ist aber nur ortsuebliches
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
+  // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -188,6 +193,12 @@ const MELDUNGEN_ROH = {
   // (`unknown_reason`, `note_too_long`, `invalid_items`): am Server geschah
   // nichts, der Kassier beginnt das Storno von vorn.
   'cancellation.input_rejected': { text: 'Die Eingabe wurde abgelehnt – bitte das Storno neu beginnen.' },
+  // Storno eines Belegs mit Mitarbeiter-Trinkgeld (Schichten-Spec, Nachtrag 5): gesendet wird erst
+  // nach der Wahl, ohne Vorauswahl. Fehlt sie, steht dieser Satz unter dem Knopf.
+  'cancellation.tip_refund_missing': { text: 'Bitte wählen: Trinkgeld auch zurückgeben?' },
+  'cancellation.tip_source_missing': { text: 'Bitte wählen: Woher kommt das Trinkgeld zurück?' },
+  // Beleg mit Wertgutschein: keine Frage, das Trinkgeld geht mit (Ruling R59, asksRefundTip).
+  'cancellation.tip_refunded_with_voucher': { text: 'Beleg mit Gutschein: Das Trinkgeld wird mitstorniert.' },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -327,6 +338,40 @@ const MELDUNGEN_ROH = {
   'stocktake.reason_missing': { text: 'Bitte einen Grund für das Stornieren eingeben.' },
   'stocktake.outcome_unknown': { text: 'Unklar, ob die Zählung angekommen ist. „Erneut senden“ schickt dieselbe Zählung – sie zählt auch dann nur einmal.' },
 
+  // --- Schicht und Kassenstand ---------------------------------------------
+  // Soll und Differenz nennt kein Satz: ohne Recht `cashView` wird blind
+  // gezaehlt. `{number}` ist die Schicht-Nummer, `{since}` die Startzeit
+  // („08:00“ bzw. „gestern 22:15“), `{type}` die Beschriftung der Art
+  // (`cash_movement.type_*`), `{amount}` der Betrag samt Euro-Zeichen.
+  // „Erneut senden“ schickt denselben Vorgang mit demselben Schluessel.
+  'shift.required': { text: 'Bitte zuerst die Schicht öffnen.' },
+  'shift.required_other': { text: 'Die Schicht muss ein berechtigter Mitarbeiter öffnen.' },
+  'shift.recount': { text: 'Der gezählte Betrag weicht ab – bitte noch einmal zählen.' },
+  'shift.comment_required': { text: 'Die Abweichung ist größer als erlaubt – bitte kurz begründen.' },
+  'shift.closed': { text: 'Schicht {number} geschlossen.', placeholders: ['number'] },
+  'shift.long_open': { text: 'Die Schicht läuft seit {since}.', placeholders: ['since'] },
+  'shift.already_open': { text: 'An dieser Lade läuft schon eine Schicht.' },
+  'shift.already_closed': { text: 'Diese Schicht ist schon geschlossen.' },
+  'shift.recount_exhausted': { text: 'Es wurde schon zweimal gezählt. Bitte den Betrag der zweiten Zählung senden oder den Chef rufen.' },
+  'shift.mode_off': { text: 'An dieser Lade ist der Schichtbetrieb aus. Bitte im Panel einschalten.' },
+  'shift.outcome_unknown': { text: 'Unklar, ob das angekommen ist. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.' },
+  'cash_movement.exceeds_balance': { text: 'So viel Bargeld ist laut Kassenstand nicht in der Lade.' },
+  'cash_movement.note_required': { text: 'Bitte einen Grund eingeben.' },
+  'cash_movement.booked': { text: '{type} über {amount} gebucht.', placeholders: ['type', 'amount'] },
+  'cash_movement.type_invalid': { text: 'Diese Art der Kassenbewegung ist hier nicht möglich.' },
+  'cash_movement.same_drawer': { text: 'Eine Umbuchung in dieselbe Lade geht nicht. Bitte eine andere Lade wählen.' },
+  'tip_payout.exceeds_claim': { text: 'Mehr als der offene Anspruch kann nicht ausgezahlt werden.' },
+  'denominations.invalid': { text: 'Scheine und Münzen ergeben nicht den Betrag.' },
+  'amount.invalid': { text: 'Bitte einen gültigen Betrag eingeben.' },
+  'drawer.not_found': { text: 'Diese Lade gibt es nicht mehr. Bitte im Panel die Lade dieses Geräts prüfen.' },
+  'drawer.inactive': { text: 'Diese Lade ist stillgelegt. Bitte im Panel eine andere Lade zuordnen.' },
+  'tip_payout.recipient_required': { text: 'Bitte einen Mitarbeiter wählen.' },
+  'tip_payout.none_open': { text: 'In dieser Schicht ist kein Trinkgeld offen.' },
+  'shift.pending_hint': { text: 'Noch nicht bestätigt. „Erneut senden“ schickt denselben Vorgang – er zählt nur einmal.' },
+  // Wechselgeld der Lade (1.11.0): beim Öffnen der Schicht liegt weniger in der Lade als eingestellt.
+  // `{amount}` was fehlt, `{total}` das eingestellte Wechselgeld, beide samt Euro-Zeichen.
+  'shift.change_float_missing': { text: 'Es fehlen {amount} bis zum Wechselgeld von {total}.', placeholders: ['amount', 'total'] },
+
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
@@ -386,6 +431,24 @@ export type ErrorKind = (typeof ERROR_RULES)[number]['kind'];
 export const ERROR_CODE_RULES = [
   { kind: 'api', codes: ['dialect_mismatch', 'response_translation_failed', 'response_unreadable'], key: 'server.response_unreadable' },
   { kind: 'api', codes: ['route_missing', 'not_found', 'internal_translation_error'], key: 'server.connection_disturbed' },
+  // Schicht und Kassenstand (1.9.0): die Saetze des Backends nennen Felder
+  // und Schwellen; die Kasse sagt, was zu tun ist. Der Server hat in jedem
+  // dieser Faelle nichts gebucht.
+  { kind: 'api', codes: ['shift_not_open'], key: 'shift.required' },
+  { kind: 'api', codes: ['shift_already_open'], key: 'shift.already_open' },
+  { kind: 'api', codes: ['shift_closed'], key: 'shift.already_closed' },
+  { kind: 'api', codes: ['comment_required'], key: 'shift.comment_required' },
+  { kind: 'api', codes: ['recount_exhausted'], key: 'shift.recount_exhausted' },
+  { kind: 'api', codes: ['shift_mode_off'], key: 'shift.mode_off' },
+  { kind: 'api', codes: ['cash_movement_exceeds_balance'], key: 'cash_movement.exceeds_balance' },
+  { kind: 'api', codes: ['note_required'], key: 'cash_movement.note_required' },
+  { kind: 'api', codes: ['invalid_movement_type'], key: 'cash_movement.type_invalid' },
+  { kind: 'api', codes: ['transfer_same_drawer'], key: 'cash_movement.same_drawer' },
+  { kind: 'api', codes: ['tip_payout_exceeds_claim'], key: 'tip_payout.exceeds_claim' },
+  { kind: 'api', codes: ['invalid_denominations'], key: 'denominations.invalid' },
+  { kind: 'api', codes: ['invalid_amount'], key: 'amount.invalid' },
+  { kind: 'api', codes: ['drawer_not_found'], key: 'drawer.not_found' },
+  { kind: 'api', codes: ['drawer_inactive'], key: 'drawer.inactive' },
 ] as const;
 
 /**
@@ -578,6 +641,9 @@ const BESCHRIFTUNGEN_ROH = {
   'checkout.clear_tendered': { text: 'Gegeben löschen' },
   'checkout.still_missing': { text: 'Es fehlen noch' },
   'checkout.change': { text: 'Rückgeld' },
+  // Schalter beim Trinkgeld (nur Mitarbeiter-Trinkgeld, reine Barzahlung), vorbelegt aus der Einstellung.
+  'checkout.tip_kept': { text: 'gleich behalten' },
+  'tip.kept_setting': { text: 'Bar-Trinkgeld behält der Mitarbeiter gleich' },
   // Die Warte-Karte, solange der Betrag am Terminal steht; `{time}` ist der
   // Rest des Kartenfensters als m:ss.
   'card_payment.amount_on_terminal': { text: 'Betrag steht am Terminal' },
@@ -655,6 +721,17 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.payment_remainder': { text: 'Rest {amount}', placeholders: ['amount'] },
   'cancellation.difference': { text: 'Differenz' },
 
+  // --- Storno mit oder ohne Trinkgeld (Schichten-Spec, Nachtrag 5) -----------
+  // Erste Frage bei offenem Mitarbeiter-Trinkgeld, zweite nur bei Ja und Barrueckgabe.
+  'cancellation.tip_refund_question': { text: 'Trinkgeld auch zurückgeben?' },
+  'cancellation.tip_refund_yes': { text: 'Ja' },
+  'cancellation.tip_refund_no': { text: 'Nein' },
+  'cancellation.tip_source_question': { text: 'Woher kommt das Trinkgeld zurück?' },
+  'cancellation.tip_source_drawer': { text: 'Aus der Lade' },
+  'cancellation.tip_source_employee': { text: 'Gibt die Mitarbeiterin direkt' },
+  // Trinkgeld-Zeile im Storno-Blatt nach „Nein“ (Fix-Runde 1, R63): sie geht nicht mit.
+  'cancellation.tip_stays': { text: 'bleibt' },
+
   // --- Zeichensatz-Test (Testblatt und Drucker & Lade) ----------------------
   // Das Testblatt druckt diese Texte mit Ersatzbuchstaben (reines ASCII);
   // die Knoepfe stehen nur am Bildschirm. `{chars}` sind die fehlenden Zeichen einer Zeile
@@ -709,6 +786,168 @@ const BESCHRIFTUNGEN_ROH = {
   'stocktake.sent': { text: 'gesendet' },
   'stocktake.unconfirmed': { text: 'unbestätigt' },
   'stocktake.voided': { text: 'storniert' },
+
+  // --- Schicht und Kassenstand ---------------------------------------------
+  'shift.open_title': { text: 'Schicht öffnen' },
+  'shift.take_over': { text: 'Bestand übernehmen' },
+  'shift.count': { text: 'Zählen' },
+  'shift.by_denomination': { text: 'Nach Scheinen und Münzen' },
+  'shift.close_title': { text: 'Schicht schließen' },
+  'shift.cash_title': { text: 'Kassenstand' },
+  'shift.x_report': { text: 'Zwischenbericht' },
+  'shift.pay_out_tips': { text: 'Trinkgeld auszahlen' },
+  'drawer.reason_title': { text: 'Warum öffnen Sie die Lade?' },
+  'drawer.reason_change': { text: 'Wechselgeld' },
+  'drawer.reason_check': { text: 'Kontrolle' },
+  'drawer.reason_misoperation': { text: 'Fehlbedienung' },
+  'drawer.reason_other': { text: 'Sonstiges' },
+  // Je Art einer Kassenbewegung (auch die, die nur der Server vergibt: sie
+  // stehen auf dem Z-Bon und im Bericht).
+  'cash_movement.type_change_in': { text: 'Wechselgeld' },
+  'cash_movement.type_cash_drop': { text: 'Abschöpfung' },
+  'cash_movement.type_owner_deposit': { text: 'Privateinlage' },
+  'cash_movement.type_owner_withdrawal': { text: 'Privatentnahme' },
+  'cash_movement.type_tip_payout': { text: 'Trinkgeld-Auszahlung' },
+  'cash_movement.type_other_in': { text: 'Sonstige Einzahlung' },
+  'cash_movement.type_other_out': { text: 'Sonstige Auszahlung' },
+  'cash_movement.type_transfer_out': { text: 'Umbuchung' },
+  'cash_movement.type_transfer_in': { text: 'Umbuchung (Eingang)' },
+  'cash_movement.type_expense': { text: 'Barausgabe' },
+  'cash_movement.type_count_difference': { text: 'Zähldifferenz' },
+  'cash_movement.type_handover_difference': { text: 'Übergabedifferenz' },
+  // Bon der Schicht (Z-Bon, X-Bon, Kassenbewegung): Titel und Zeilennamen.
+  'shift_receipt.title_close': { text: 'Schichtabschluss' },
+  'shift_receipt.title_interim': { text: 'Zwischenbericht' },
+  'shift_receipt.title_movement': { text: 'Kassenbewegung' },
+  'shift_receipt.cashregister': { text: 'Kasse' },
+  'shift_receipt.drawer': { text: 'Lade' },
+  'shift_receipt.shift': { text: 'Schicht' },
+  'shift_receipt.number': { text: 'Nr. {number}', placeholders: ['number'] },
+  'shift_receipt.opened': { text: 'Geöffnet' },
+  'shift_receipt.closed': { text: 'Geschlossen' },
+  'shift_receipt.by': { text: 'von' },
+  'shift_receipt.opening_float': { text: 'Startgeld' },
+  'shift_receipt.opening_float_taken_over': { text: 'Startgeld übernommen' },
+  'shift_receipt.cash_sales': { text: 'Bar aus Verkäufen' },
+  'shift_receipt.cash_cancellations': { text: 'Bar aus Storno' },
+  'shift_receipt.movements': { text: 'Bewegungen' },
+  'shift_receipt.expected': { text: 'Soll' },
+  'shift_receipt.counted': { text: 'Ist' },
+  'shift_receipt.difference': { text: 'Differenz' },
+  // Nach der Zählung beim Abschluss (1.11.0): „Entnommen“ (negativ) bzw. „Eingelegt“, dann was bleibt (fett).
+  'shift_receipt.taken_out': { text: 'Entnommen' },
+  'shift_receipt.put_in': { text: 'Eingelegt' },
+  'shift_receipt.left_in_drawer': { text: 'Bleibt in der Kassenlade' },
+  'shift_receipt.comment': { text: 'Kommentar' },
+  'shift_receipt.non_cash': { text: 'Unbar (nur Information)' },
+  'shift_receipt.receipts': { text: 'Belege' },
+  'shift_receipt.cancellations': { text: 'Stornos' },
+  'shift_receipt.openings_without_sale': { text: 'Öffnungen ohne Verkauf' },
+  // Trinkgeld je Mitarbeiter (Bon, Kassenstand, Nachtrag 3): verdient = sofort + über Lohn, schon
+  // genommen = in dieser Schicht aus der Lade ausgezahlt, offen = Anspruch an die Lade.
+  'shift_receipt.tips': { text: 'Trinkgeld' },
+  'shift_receipt.tip_earned': { text: 'verdient' },
+  'shift_receipt.tip_retained': { text: 'über Lohn' },
+  'shift_receipt.tip_paid_out': { text: 'schon genommen' },
+  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
+  'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
+  // Offene Forderung beim Oeffnen der Schicht (Fix-Runde 2, R64).
+  'shift_receipt.tip_carried_over': { text: 'aus früheren Schichten' },
+  'shift_receipt.tip_open': { text: 'offen' },
+  'shift_receipt.movement_number': { text: 'Nr.' },
+  'shift_receipt.type': { text: 'Art' },
+  'shift_receipt.amount': { text: 'Betrag' },
+  'shift_receipt.location': { text: 'Ort' },
+  'shift_receipt.location_bank': { text: 'Bank' },
+  'shift_receipt.location_safe': { text: 'Tresor' },
+  'shift_receipt.recipient': { text: 'Empfänger' },
+  'shift_receipt.target_drawer': { text: 'Ziel-Lade' },
+  'shift_receipt.note': { text: 'Grund' },
+  'shift_receipt.operator': { text: 'Bediener' },
+  'shift_receipt.time': { text: 'Zeit' },
+  'cash_movement.pay_in': { text: 'Einzahlung' },
+  'cash_movement.pay_out': { text: 'Auszahlung' },
+  'cash_movement.print': { text: 'Beleg drucken' },
+  'drawer.recent_openings': { text: 'Letzte Öffnungen' },
+  'drawer.reason_sale': { text: 'Verkauf' },
+  'drawer.reason_cash_movement': { text: 'Kassenbewegung' },
+  'drawer.reason_shift_open': { text: 'Schichtbeginn' },
+  'drawer.reason_shift_close': { text: 'Schichtabschluss' },
+  'shift.resend': { text: 'Erneut senden' },
+  'shift.next': { text: 'Weiter' },
+  'shift.print_close': { text: 'Schichtabschluss drucken' },
+  'shift.print_again': { text: 'Nochmals drucken' },
+  'shift.back_to_register': { text: 'Zur Kasse' },
+  'shift.later': { text: 'Später senden' },
+  'time.yesterday': { text: 'gestern' },
+  // Kassenstand an der Kasse (1.11.0): Karte „In der Kassenlade sollten sein“, Schichtkopf, Zahlungen.
+  'shift.drawer_should_have': { text: 'In der Kassenlade sollten sein' },
+  'shift.drawer_named': { text: 'Kassenlade: {name}', placeholders: ['name'] },
+  'shift.running_since': { text: 'läuft seit {duration}', placeholders: ['duration'] },
+  'shift.since': { text: 'seit {time}', placeholders: ['time'] },
+  'shift.collected_outside_drawer': { text: 'Kassiert, aber nicht in der Kassenlade' },
+  'shift.non_cash_short': { text: 'unbar' },
+  'shift.voucher_redeemed': { text: 'Gutschein eingelöst' },
+  'shift.all_payments': { text: 'Alle Zahlungen dieser Schicht (bar + unbar)' },
+  'shift.receipt_count_one': { text: '1 Beleg' },
+  'shift.receipt_count_other': { text: '{count} Belege', placeholders: ['count'] },
+  'shift.openings_without_sale_count': { text: '{count}× ohne Verkauf geöffnet', placeholders: ['count'] },
+  'cash_movement.pay_in_short': { text: 'Einzahlen' },
+  'cash_movement.pay_out_short': { text: 'Auszahlen' },
+  'drawer.recent_openings_full': { text: 'Letzte Öffnungen der Kassenlade' },
+  // Warnzeile an den Druck-Knöpfen: nur ein leiser Hinweis, die Knöpfe bleiben wie sie sind.
+  'printer.warn_unreachable': { text: 'Drucker nicht erreichbar' },
+  'printer.warn_none': { text: 'Kein Drucker eingerichtet' },
+  'printer.check': { text: 'Prüfen' },
+  'printer.set_up': { text: 'Einrichten' },
+  // Dauer (Zusammensetzung: durationText): ab 1 Tag „1 Tag 3 Std.“, sonst „8 Std. 32 Min.“, unter 1 Std. nur Minuten.
+  'duration.days_one': { text: '{days} Tag', placeholders: ['days'] },
+  'duration.days_other': { text: '{days} Tage', placeholders: ['days'] },
+  'duration.hours': { text: '{hours} Std.', placeholders: ['hours'] },
+  'duration.minutes': { text: '{minutes} Min.', placeholders: ['minutes'] },
+  // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
+  'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
+  'tip_payout.done': { text: 'erledigt' },
+  'tip_payout.for_all': { text: 'Für alle' },
+  'tip_payout.nothing': { text: 'Nichts' },
+  'tip_payout.all_open': { text: 'Alles Offene' },
+  'tip_payout.title': { text: 'Auszahlung' },
+  'tip_payout.persons_one': { text: '1 Person' },
+  'tip_payout.persons_other': { text: '{count} Personen', placeholders: ['count'] },
+  'tip_payout.pay_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
+  'tip_payout.pay_out': { text: 'Auszahlen' },
+  // Wechselgeld je Kassenlade (Einstellung) und Schritt „Geld entnehmen“ beim Schicht-Abschluss (1.11.0).
+  'drawer.change_float': { text: 'Wechselgeld in der Lade' },
+  'drawer.change_float_hint': { text: 'Bleibt nach jedem Schicht-Abschluss drin. Mehr wird beim Schließen entnommen.' },
+  'drawer.change_float_empty_hint': { text: 'Leer = alles bleibt in der Lade (wie bisher).' },
+  'shift.step_take_out': { text: 'Geld entnehmen' },
+  'shift.left_in_drawer': { text: 'Bleibt in der Kassenlade' },
+  'shift.change_float_next_shift': { text: 'Wechselgeld für die nächste Schicht' },
+  'shift.take_out': { text: 'Entnehmen' },
+  'shift.put_in': { text: 'Einlegen' },
+  'shift.take_out_at_most': { text: 'höchstens {amount}', placeholders: ['amount'] },
+  'shift.put_in_hint': { text: 'Geld in die Kassenlade legen' },
+  'shift.after_count_tap_hint': { text: 'Tippe auf einen Betrag, um ihn zu ändern – der andere rechnet sich selbst.' },
+  'shift.take_out_amount': { text: '{amount} entnehmen', placeholders: ['amount'] },
+  'shift.put_in_amount': { text: '{amount} einlegen', placeholders: ['amount'] },
+  'shift.continue_without_take_out': { text: 'Weiter ohne Entnahme' },
+  'shift.print_envelope_receipt': { text: 'Bon fürs Kuvert drucken' },
+  // Bedienhilfe (Vorlesetext) des Vorzeichen-Knopfs −/+ im Feld „Entnehmen“.
+  'shift.toggle_take_out_put_in': { text: 'Entnehmen oder Einlegen umschalten' },
+  'shift.put_in_change_float': { text: 'Wechselgeld einlegen' },
+  'shift.taken_over_from_shift': { text: 'von Schicht {number} übernommen', placeholders: ['number'] },
+  // Schritt „Geld entnehmen“: Zeile „Gezählt“, Knopf „Zurück“, letzter Schritt der Schrittleiste „Fertig“;
+  // Bedienhilfe der Betragsknöpfe, `{title}` ist ihre Beschriftung („Bleibt in der Kassenlade“, „Entnehmen“ …).
+  'shift.counted': { text: 'Gezählt' },
+  'shift.back': { text: 'Zurück' },
+  'shift.done': { text: 'Fertig' },
+  'shift.edit_amount': { text: '{title} ändern', placeholders: ['title'] },
+  // Kassenstand: Ein- und Auszahlungen der Schicht getrennt (Trinkgeld-Auszahlungen zählen zu den Auszahlungen);
+  // Buchungsknopf im Blatt Einzahlung/Auszahlung mit Betrag.
+  'shift.pay_ins': { text: 'Einzahlungen' },
+  'shift.pay_outs': { text: 'Auszahlungen' },
+  'cash_movement.pay_in_amount': { text: '{amount} einzahlen', placeholders: ['amount'] },
+  'cash_movement.pay_out_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

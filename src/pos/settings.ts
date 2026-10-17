@@ -180,6 +180,13 @@ export interface PosBusinessSettings {
   glass: boolean;
   /** Hilfetexte in den Chef-Einstellungen anzeigen. */
   hints: boolean;
+  /**
+   * Bar-Trinkgeld behaelt der Mitarbeiter gleich: Vorbelegung des Schalters
+   * „gleich behalten“ beim Kassieren (je Verkauf aenderbar). Optional: der
+   * Server sendet das Feld nur, wenn es gespeichert ist; fehlt es, gilt aus.
+   * Lesen ueber [posTipKeptByDefault]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
+   */
+  tipKeptByDefault?: boolean;
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen (Schluessel von `device.shortcuts`). */
@@ -264,6 +271,13 @@ export interface PosDeviceSettings {
   /** Befehl fuer den Signatur-QR auf dem Bon; 'auto' = unbestimmt, der Drucker-Wizard probiert beide aus. */
   qrMode: PosOpen<PosQrMode>;
   drawerEnabled: boolean; drawerAutoOpen: PosOpen<PosDrawerAutoOpen>;
+  /**
+   * Lade dieses Geraets (Schichtbetrieb). Optional: der Server sendet das
+   * Feld nur, wenn eine Lade zugeordnet ist; fehlt es, gilt die Hauptlade der
+   * Kasse. Beim Schreiben entfernt `null` die Zuordnung. Siehe
+   * [POS_DEVICE_OPTIONAL_FIELDS].
+   */
+  drawerId?: string | null;
   terminalIp: string; terminalPort: number; terminalVia: PosOpen<PosTerminalVia>;
   /** Art des Terminals ('none' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern payCard an). */
   terminalType: PosOpen<PosTerminalType>;
@@ -306,6 +320,40 @@ export const POS_DEVICE_DEFAULTS: Readonly<PosDeviceSettings> = Object.freeze({
   terminalIp: '', terminalPort: 8080, terminalTid: '', terminalVia: 'direct',
   terminalType: 'none', shortcutHints: true,
 });
+
+/**
+ * Optionale Geraete-Einstellungen: ohne Standardwert, der Server sendet sie
+ * nur, wenn sie gesetzt sind (Backend `GERAET_OPTIONAL`). Sie fehlen darum in
+ * [POS_DEVICE_DEFAULTS]; [mergePosSettings] uebernimmt sie, wenn sie als
+ * Kennung kommen, und der Schreibweg nimmt sie als Kennung oder `null`
+ * (Zuordnung entfernen).
+ */
+export const POS_DEVICE_OPTIONAL_FIELDS = Object.freeze(['drawerId'] as const);
+
+/** Form einer optionalen Kennung (Backend `ladeKennung`). */
+const OPTIONALE_KENNUNG = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Gilt dieser Wert fuer ein optionales Feld? Lesen: nur eine Kennung; Schreiben: auch `null`. */
+export function _optionalerWert(wert: unknown, schreiben: boolean): boolean {
+  return (schreiben && wert === null) || (typeof wert === 'string' && OPTIONALE_KENNUNG.test(wert));
+}
+
+const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
+
+/**
+ * Optionale Betriebs-Einstellungen (Schalter): ohne Standardwert, der Server
+ * sendet sie nur, wenn sie gespeichert sind (Backend `BETRIEB_OPTIONAL`).
+ * [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg
+ * nimmt nur `true`/`false`.
+ */
+export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault'] as const);
+
+const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
+
+/** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
+export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return !!business && business.tipKeptByDefault === true;
+}
 
 /**
  * Die Wertemenge je Feld, soweit das Feld eine hat: dagegen prueft der
@@ -375,7 +423,10 @@ export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALT
 /**
  * Standard + stored. Landkarten (`vatRates`, `tipSteps`, `shortcuts`)
  * werden je Schluessel gemischt, damit neue Saetze beim Altbestand ankommen;
- * Schluessel, die der Standard nicht fuehrt, bleiben draussen.
+ * Schluessel, die der Standard nicht fuehrt, bleiben draussen, ausser einer
+ * optionalen Geraete-Einstellung ([POS_DEVICE_OPTIONAL_FIELDS]) mit gueltiger
+ * Kennung und einem optionalen Betriebs-Schalter
+ * ([POS_BUSINESS_OPTIONAL_FIELDS]) als Wahrheitswert.
  *
  * **Immer** (unabhaengig davon, welches Standard-Objekt uebergeben wird, auch
  * eine Kopie oder das einer zweiten Paketkopie) faellt ein Wert der inneren
@@ -388,7 +439,14 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
   const out = JSON.parse(JSON.stringify(standard)) as Record<string, unknown>;
   if (stored && typeof stored === 'object') {
     for (const key of Object.keys(stored)) {
-      if (!eigen(out, key)) continue;
+      if (!eigen(out, key)) {
+        // Optionale Geraete-Einstellung (ohne Standardwert): nur als Kennung;
+        // optionaler Betriebs-Schalter: nur als Wahrheitswert.
+        const wert = (stored as Record<string, unknown>)[key];
+        if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
+        if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
+        continue;
+      }
       const wert = (stored as Record<string, unknown>)[key];
       const alt = out[key];
       if (alt && typeof alt === 'object' && !Array.isArray(alt) && wert && typeof wert === 'object' && !Array.isArray(wert)) {

@@ -139,7 +139,7 @@ function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutL
       );
     case 'columns':
       return (
-        <div className="keck-receipt-row" style={{ display: 'flex', width: '100%' }}>
+        <div className="keck-receipt-row" style={{ display: 'flex', width: '100%', ...(zeile.bold === true ? { fontWeight: 'bold' } : {}) }}>
           {zeile.columns.map((spalte, index) => (
             <div
               key={index}
