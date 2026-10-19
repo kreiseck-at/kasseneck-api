@@ -41,3 +41,21 @@ export function gutscheineFuerPaket(receipt: Receipt): Receipt {
   }
   return { ...receipt, items: positionen, vouchers: bleiben };
 }
+
+/*
+ * Das Backend setzt den Bon noch mit dem vendorten Paket 0.33 (functions/
+ * package.json). Es liest an einem Gutschein nur name, code, action, type und
+ * den Wert; die Kennzeichen der neuen Form (`voucherType`, `codeSuffix`,
+ * `balanceAfterCents` ...) sieht es nicht. Was nach `gutscheineFuerPaket`
+ * bleibt (Mehrzweck, Aktion), zeigt es darum wie einen Altbeleg
+ * („Wertgutschein ····-····-5KNZ - Gutschein“). Dieses Paket zeigt solche
+ * Eintraege selbst in der Form der Spec („Gutschein ····-5KNZ“ + Rest); fuer
+ * das Layout wie der Server fallen die Kennzeichen hier weg. Entfaellt, sobald
+ * der Server ein Paket mit der neuen Form vendort und nicht mehr aufbereitet.
+ */
+export function wieVendortesPaket(receipt: Receipt): Receipt {
+  const vouchers = receipt.vouchers.map((v): Voucher => ({
+    name: v.name, code: v.code, action: v.action, type: v.type, valueCents: v.valueCents,
+  }));
+  return { ...receipt, vouchers };
+}

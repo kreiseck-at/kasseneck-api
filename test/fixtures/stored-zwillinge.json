@@ -127,10 +127,10 @@
     }
   ],
   "zwilling": {
-    "src/stored/bon-layout.ts": "33b390fccfef92152390a9a9ed4102b663d44339c1e0c25f2ec6bd21d0a72357",
+    "src/stored/bon-layout.ts": "03b30b073c8a8d369c096289e5aed1ecd71d8faf6141249f00c76bdf85953178",
     "src/stored/draht.ts": "bad11b4e69bcb977c4f9f4144163525e61a0f48ab476e99926bc84ce546739bb",
     "src/stored/einstellungen.ts": "4fff519b2f02b72b0315a5ea7896e928b6a163898dd91b1841c231db7a425695",
-    "src/stored/gutscheine.ts": "fedd5067cf5d7860a969fe4f59fadfbf61540d9d97be81773336f5f7820215ad",
+    "src/stored/gutscheine.ts": "226afae8a928d122e73f02eb7a34cd08a6d45d19a2eb6ba9e58b17641c929479",
     "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }
 }
