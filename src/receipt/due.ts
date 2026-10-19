@@ -2,10 +2,12 @@ import { ReceiptType, type ReceiptTypeKey, KeckPaymentMethod, VoucherAction, Vou
 import type { ReceiptItem } from '../models/receipt-item.js';
 import type { Voucher } from '../models/voucher.js';
 import type { PosVoucherSettings, VoucherCheck } from '../pos/gutschein.js';
+import { VoucherCode } from '@kreiseck/validator';
 import { toViennaWallClock } from '../vienna-time.js';
 import {
   centSumme,
   istDeckbar,
+  kuBasisCents,
   planeGutscheine,
   topfFuerSatz,
   type Gutschein,
@@ -84,22 +86,32 @@ export interface ReceiptDueOptions {
   payments?: ReadonlyArray<{ method: KeckPaymentMethod | string; tipCents?: number }>;
   /** Pflicht, sobald Trinkgeld ohne `recipients` vorkommt (siehe Modulkommentar). */
   tipRecipient?: ReceiptDueTipRecipient;
-  /** Je Einloesung bzw. Auszahlung der neuen Form die Pruefung aus `checkVoucher`, ueber den Code zugeordnet. */
+  /**
+   * Je Einloesung bzw. Auszahlung der neuen Form die Pruefung aus
+   * `checkVoucher`, ueber den Code zugeordnet. Fehlt sie fuer einen Code,
+   * wirft die Rechnung `invalid_voucher` mit `voucherErrorCode:
+   * 'voucher_not_found'` (die Kasse hat den Code nicht geprueft).
+   */
   voucherInfo?: readonly VoucherDueInfo[];
   /**
    * Gutschein-Einstellung der Kasse (`getKasseSettings`, Block `vouchers`):
-   * Pflicht fuer den Verkauf eines Einzweckgutscheins (sein Satz). Ist sie
-   * gesetzt, muss die verkaufte Art zu ihr passen.
+   * Pflicht fuer jeden Verkauf eines Mehrzweck- oder Einzweckgutscheins (der
+   * Server verkauft nur mit Einstellung). Fehlt sie oder ist keine Art
+   * gewaehlt: `voucher_settings_missing`; eine andere Art als die
+   * eingestellte: `voucher_invalid`.
    */
   voucherSettings?: PosVoucherSettings;
-  /** Artikel fuer den Verkauf von Dienstleistungsgutscheinen (Preis und Satz, wie im Artikelstamm). */
+  /**
+   * Artikel fuer den Verkauf von Dienstleistungsgutscheinen (Preis und Satz,
+   * wie im Artikelstamm). Fehlt der verkaufte Artikel hier:
+   * `voucher_item_mismatch`, wie beim Server fuer einen unbekannten Artikel.
+   */
   voucherArticles?: readonly VoucherDueArticle[];
   /**
    * Das Konto ist Kleinunternehmer (Konto-Fakten): Einzweck/Leistung werden zu
    * 0 % verkauft, eine Einzweck-Einloesung verteilt sich anteilig auf alle
-   * Saetze des Korbs. Ein befreit verkaufter Gutschein, den ein inzwischen
-   * steuerpflichtiges Konto einloest, ist in der Pruefung nicht erkennbar; er
-   * rechnet hier im Satz 0 (Zahlbetrag gleich, Toepfe anders verteilt).
+   * Saetze des Korbs. Dasselbe gilt fuer einen befreit verkauften Gutschein
+   * (`VoucherCheck.exempt`) in jedem Konto, wie der Server (`kuEingefroren || ku`).
    */
   smallBusiness?: boolean;
   /**
@@ -215,6 +227,8 @@ interface Rechnung {
   kunde: Innen[];
   /** Summe der Einloese-Minuszeilen je Topf. */
   minusJeTopf: Map<string, number>;
+  /** Summe der Auszahlungen in Cent. */
+  auszahlungCents: number;
 }
 
 function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], receiptType: BelegArt, options: ReceiptDueOptions): Rechnung {
@@ -224,7 +238,7 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
     throw new ReceiptDueError('tip_not_allowed', `Trinkgeld gibt es nur bei standard und training, nicht bei "${art}".`);
   }
   if (!UMSATZ.has(art)) {
-    return { ergebnis: { dueCents: 0, counterDeltaCents: 0, valueVoucherFlowCents: 0, bucketsCents: null }, kunde: [], minusJeTopf: new Map() };
+    return { ergebnis: { dueCents: 0, counterDeltaCents: 0, valueVoucherFlowCents: 0, bucketsCents: null }, kunde: [], minusJeTopf: new Map(), auszahlungCents: 0 };
   }
 
   const positionen = items.map(innen);
@@ -270,6 +284,7 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
     },
     kunde,
     minusJeTopf: plan.minusJeTopf,
+    auszahlungCents: plan.auszahlungCents,
   };
 }
 
@@ -281,34 +296,67 @@ export interface VoucherRedeemContext {
 
 /**
  * Hoechstbetrag zum Vorbelegen einer Einloesung an der Kasse, in Cent, nie
- * negativ. Mehrzweck: hoechstens Saldo und offener Betrag. Einzweck:
- * hoechstens Saldo, offener Betrag und die deckbaren Positionen im Topf seines
- * Satzes (ohne Trinkgeld und Gutscheinzeilen, abzueglich schon gewaehlter
- * Einloesungen dort; als Kleinunternehmer alle Saetze). Leistung (wird ueber
- * Positionen eingeloest), Aktion (Rabatt rechnet der Server) und jeder nicht
- * aktive Gutschein: 0. Mehr nimmt der Server nicht an
- * (`voucher_exceeds_total`, `voucher_rate_mismatch`).
+ * negativ: der groesste Betrag, den der Server fuer diesen Gutschein annimmt.
+ * Gesucht wird unter einer festen Obergrenze (Saldo, offener Betrag, bei
+ * Einzweck die deckbaren Positionen im Topf seines Satzes abzueglich schon
+ * gewaehlter Einloesungen dort, befreit bzw. als Kleinunternehmer die Summe
+ * je Satz ueber den ganzen Korb); jeder Kandidat wird mit genau der Rechnung
+ * von [receiptDueCents] geprueft und bei Ablehnung um einen Cent gesenkt.
+ * So zaehlen auch die Rundungen halber Cent in den Toepfen, an denen der
+ * Server `voucher_exceeds_total` bzw. `voucher_rate_mismatch` meldet.
+ * Leistung (wird ueber Positionen eingeloest), Aktion (Rabatt rechnet der
+ * Server) und jeder nicht aktive Gutschein: 0.
  */
 export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: VoucherCheck, before: VoucherRedeemContext = {}): number {
   if (voucher.status !== 'active') return 0;
   if (voucher.type !== 'multi_purpose' && voucher.type !== 'single_purpose') return 0;
   const saldo = Number.isInteger(voucher.balanceCents) ? (voucher.balanceCents as number) : 0;
   const options = before.options ?? {};
-  const r = rechne(items, before.vouchers ?? [], 'standard', options);
-  let hoechstens = Math.min(saldo, r.ergebnis.dueCents);
+  const vorher = before.vouchers ?? [];
+  const r = rechne(items, vorher, 'standard', options);
+  // Rundung je Topf: hoechstens ein halber Cent je Topf ueber dem offenen Betrag.
+  let oben = Math.min(saldo, r.ergebnis.dueCents + r.auszahlungCents + 6, HOECHSTBETRAG_CENTS);
   if (voucher.type === 'single_purpose') {
     const deckbar = r.kunde.filter(istDeckbar);
-    if (options.smallBusiness === true) {
-      const schon = [...r.minusJeTopf.values()].reduce((s, c) => s + c, 0);
-      hoechstens = Math.min(hoechstens, centSumme(deckbar) - schon);
+    if (voucher.exempt === true || options.smallBusiness === true) {
+      // kuTeile verteilt hoechstens die Summe der Saetze; je Topf prueft der Server danach die Deckung.
+      oben = Math.min(oben, kuBasisCents(r.kunde));
     } else {
       if (!Number.isInteger(voucher.vatRateBp)) return 0;
       const topf = topfFuerSatz((voucher.vatRateBp as number) / 100);
       const basis = centSumme(deckbar.filter((it) => topfFuerSatz(it.vat) === topf));
-      hoechstens = Math.min(hoechstens, basis - (r.minusJeTopf.get(topf) ?? 0));
+      oben = Math.min(oben, basis - (r.minusJeTopf.get(topf) ?? 0));
     }
   }
-  return Math.max(0, hoechstens);
+  const code = probeCode(vorher);
+  const info = [...(options.voucherInfo ?? []), { code, check: voucher }];
+  const passt = (cents: number): boolean => {
+    try {
+      rechne(items, [...vorher, { action: 'redeem', type: voucher.type, code, amountCents: cents }], 'standard', { ...options, voucherInfo: info });
+      return true;
+    } catch (fehler) {
+      if (fehler instanceof ReceiptDueError) return false;
+      throw fehler;
+    }
+  };
+  for (let cents = oben, schritte = 0; cents > 0 && schritte < 64; cents--, schritte++) {
+    if (passt(cents)) return cents;
+  }
+  return 0;
+}
+
+const HOECHSTBETRAG_CENTS = 1_000_000;
+
+/** Ein gueltiger Code, der unter den schon gewaehlten Gutscheinen nicht vorkommt (nur fuer die Probe-Rechnung). */
+function probeCode(vorher: readonly Voucher[]): string {
+  const belegt = new Set(vorher.map((v) => {
+    const g = typeof v.code === 'string' ? VoucherCode.validate(v.code) : null;
+    return g && g.ok ? g.normalized : null;
+  }));
+  for (let i = 0; ; i++) {
+    const code = VoucherCode.generate(Uint8Array.from({ length: 11 }, (_, k) => (i + k * 7) & 31));
+    if (!belegt.has(code)) return code;
+  }
 }
 
 /** Heute in Wien als `YYYY-MM-DD`. */
@@ -342,7 +390,8 @@ function innen(item: ReceiptItem, i: number): Innen {
     priceOne: Math.round(item.priceCents) / 100,
     vat: satz,
     tip,
-    ...(item.kind !== undefined ? { kind: item.kind } : {}),
+    // `kind: null` ist wie keines (der Server prueft `!it.kind`).
+    ...(item.kind != null ? { kind: item.kind } : {}),
     ...(item.articleId != null ? { articleId: item.articleId } : {}),
   };
 }

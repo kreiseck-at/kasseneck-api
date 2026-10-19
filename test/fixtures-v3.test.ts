@@ -277,6 +277,20 @@ test('Fixtures: fixtures/v3 ist byte-gleich mit dem Export des Backends (KASSENE
   for (const d of hier) assert.ok(readFileSync(join(fixtures, 'v3', d)).equals(readFileSync(join(quelle, d))), `fixtures/v3/${d} weicht vom Backend ab`);
 });
 
+test('Fixtures: receipt-due-voucher-generated.json stammt vom Backend-Stand in KASSENECK_BACKEND (_source)', (t) => {
+  const backend = process.env['KASSENECK_BACKEND'];
+  if (!backend) {
+    t.skip('KASSENECK_BACKEND fehlt; vor der Veroeffentlichung mit frischem keck main laufen lassen');
+    return;
+  }
+  const quelle = (lies('receipt-due-voucher-generated.json') as { _source: Record<string, string> })._source;
+  assert.deepEqual(Object.keys(quelle).sort(), ['beleg-toepfe.js', 'gutschein-beleg.js', 'gutschein-core.js', 'tip-core.js', 'vat-buckets.js', 'zahlungen-core.js']);
+  for (const [datei, hash] of Object.entries(quelle)) {
+    const ist: string = createHash('sha256').update(readFileSync(join(backend, 'functions', 'gemeinsam', datei))).digest('hex');
+    assert.equal(ist, hash, `${datei}: Backend weicht ab, KASSENECK_BACKEND=... node scripts/v3-zahlbetrag-gutscheine-generieren.mjs`);
+  }
+});
+
 test('Fixtures: receipt-due-generated.json stammt vom Backend-Stand in KASSENECK_BACKEND (_source)', (t) => {
   const backend = process.env['KASSENECK_BACKEND'];
   if (!backend) {

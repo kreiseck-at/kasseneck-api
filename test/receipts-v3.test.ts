@@ -238,6 +238,7 @@ function gutscheinWelt(fall: Fall): ReceiptDueOptions {
     if (g == null || g.voucherType == null) return;
     if (w.action === 'sell') {
       if (g.voucherType === 'single_purpose') voucherSettings = { sale: true, valueVoucherType: 'single_purpose', vatRateBp: g.vatRateBp };
+      if (g.voucherType === 'multi_purpose') voucherSettings = { sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null };
       if (g.voucherType === 'service') voucherArticles.push({ id: g.article.id, priceCents: g.article.priceCents, vatRateBp: g.article.vatRateBp });
       return;
     }

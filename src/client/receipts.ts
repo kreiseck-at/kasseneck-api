@@ -387,7 +387,9 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     }
     // Beleg nur aus Gutschein-Auszahlungen (Server gutschein-beleg.istNurAuszahlung):
     // genau eine Barzahlung ueber den negativen Zahlbetrag.
-    const nurAuszahlung = (vouchers?.length ?? 0) > 0 && vouchers!.every((v) => v.action === VoucherAction.payout) && (items?.length ?? 0) === 0;
+    // Wie der Server erst nach dem Anhaengen des Trinkgelds: eine Trinkgeldzeile ist keine Gutscheinzeile.
+    const nurAuszahlung = (vouchers?.length ?? 0) > 0 && vouchers!.every((v) => v.action === VoucherAction.payout)
+      && (items?.length ?? 0) === 0 && options.tip == null;
     params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt', nurAuszahlung);
   } else if (options.payments != null) {
     throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);

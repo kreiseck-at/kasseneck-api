@@ -114,23 +114,41 @@ test('Mehrzweck ueber dem Saldo: voucher_insufficient_balance', () => {
   wirft(() => receiptDueCents(items, v, 'standard', { voucherInfo: [{ code: CODE_M, check: mehrzweck(1999) }] }), 'voucher_insufficient_balance');
 });
 
+const MEHRZWECK_EIN: ReceiptDueOptions = { voucherSettings: { sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null } };
+
 test('Mehrzweck verkaufen: vor dem Stichtag Fluss, ab dem Stichtag Position im 0-%-Topf', () => {
   const v: Voucher[] = [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }];
   assert.equal(VOUCHER_ZERO_RATE_BUCKET_FROM, '2099-12-31');
-  assert.deepEqual(receiptDueBreakdown([], v, 'standard'), {
+  assert.deepEqual(receiptDueBreakdown([], v, 'standard', MEHRZWECK_EIN), {
     dueCents: 5000, counterDeltaCents: 0, valueVoucherFlowCents: 5000, bucketsCents: toepfe({}),
   });
-  const ab = { zeroRateBucketFrom: '2026-10-01', today: '2026-10-19' };
+  const ab = { ...MEHRZWECK_EIN, zeroRateBucketFrom: '2026-10-01', today: '2026-10-19' };
   assert.deepEqual(receiptDueBreakdown([], v, 'standard', ab), {
     dueCents: 5000, counterDeltaCents: 5000, valueVoucherFlowCents: 0, bucketsCents: toepfe({ amountRateZero: 5000 }),
   });
   // Vor dem Stichtag (heute davor): wie bisher.
-  assert.equal(receiptDueBreakdown([], v, 'standard', { zeroRateBucketFrom: '2026-10-20', today: '2026-10-19' }).valueVoucherFlowCents, 5000);
+  assert.equal(receiptDueBreakdown([], v, 'standard', { ...MEHRZWECK_EIN, zeroRateBucketFrom: '2026-10-20', today: '2026-10-19' }).valueVoucherFlowCents, 5000);
   // Altform-Verkauf ab dem Stichtag ebenso in den 0-%-Topf.
   const alt: Voucher[] = [{ action: 'sell', type: 'value', valueCents: 2500, code: 'G1' }];
   assert.deepEqual(receiptDueBreakdown([pos('Kaffee', 320, 20)], alt, 'standard', ab), {
     dueCents: 2820, counterDeltaCents: 2820, valueVoucherFlowCents: 0, bucketsCents: toepfe({ amountRateStandard: 320, amountRateZero: 2500 }),
   });
+});
+
+test('Verkauf ohne Gutschein-Einstellung: voucher_settings_missing (Mehrzweck wie Einzweck), sonst nichts kassieren', () => {
+  for (const type of ['multi_purpose', 'single_purpose'] as const) {
+    const v: Voucher[] = [{ action: 'sell', type, amountCents: 5000 }];
+    wirft(() => receiptDueCents([], v, 'standard'), 'voucher_settings_missing');
+    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_settings_missing');
+  }
+});
+
+test('Altform nach dem Stichtag: plane laeuft, ein negativer Zahlbetrag ist voucher_exceeds_total', () => {
+  const v: Voucher[] = [{ action: 'sell', type: 'value', valueCents: 1000, code: 'G1' }, { action: 'redeem', type: 'value', valueCents: 5000, code: 'G2' }];
+  const items = [pos('Kaffee', 320, 20)];
+  // Vor dem Stichtag wie bisher (der Server prueft das Vorzeichen erst an den Zahlungen).
+  assert.equal(receiptDueCents(items, v, 'standard', { today: '2026-10-19' }), -3680);
+  wirft(() => receiptDueCents(items, v, 'standard', { today: '2026-10-19', zeroRateBucketFrom: '2026-01-01' }), 'voucher_exceeds_total');
 });
 
 test('Mehrzweck verkaufen mit Einzweck-Einstellung: voucher_invalid', () => {
@@ -191,6 +209,16 @@ test('Einzweck als Kleinunternehmer: anteilig auf alle Saetze, groesster Rest', 
   });
 });
 
+test('Einzweck befreit verkauft (exempt) in einem steuerpflichtigen Konto: anteilig wie Kleinunternehmer', () => {
+  const items = [pos('Maniküre', 3500, 20), pos('Shampoo', 1200, 10)];
+  const v: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 1000 }];
+  const check: VoucherCheck = { ...einzweck(5000, 0), exempt: true };
+  assert.deepEqual(receiptDueBreakdown(items, v, 'standard', { voucherInfo: [{ code: CODE_E, check }] }).bucketsCents,
+    toepfe({ amountRateStandard: 2755, amountRateReduced1: 945 }));
+  // Ohne exempt waere es eine Minuszeile zu 0 %, die hier keine Position deckt.
+  wirft(() => receiptDueCents(items, v, 'standard', { voucherInfo: [{ code: CODE_E, check: einzweck(5000, 0) }] }), 'voucher_rate_mismatch');
+});
+
 test('Einzweck verkaufen: Position im Satz der Einstellung; ohne Einstellung nicht rechenbar', () => {
   const v: Voucher[] = [{ action: 'sell', type: 'single_purpose', amountCents: 5000 }];
   const o: ReceiptDueOptions = { voucherSettings: { sale: true, valueVoucherType: 'single_purpose', vatRateBp: 1000 } };
@@ -217,6 +245,12 @@ test('Leistung einloesen: je Satz eine Minuszeile ueber die gewaehlten Positione
   wirft(() => receiptDueCents(items, v, 'standard', { voucherInfo: [{ code: CODE_L, check: leistung(1) }] }), 'voucher_insufficient_balance');
   wirft(() => receiptDueCents(items, [{ ...v[0]!, positions: [1] }], 'standard', { voucherInfo: [{ code: CODE_L, check: leistung(3) }] }), 'voucher_item_mismatch');
   wirft(() => receiptDueCents(items, [{ ...v[0]!, positions: [5] }], 'standard', { voucherInfo: [{ code: CODE_L, check: leistung(3) }] }), 'voucher_item_mismatch');
+});
+
+test('Leistung einloesen: eine Position mit kind null gilt als Ware (der Server prueft !kind)', () => {
+  const items = [pos('Maniküre', 3500, 20, { articleId: 'art_mani', kind: null as unknown as undefined })];
+  const v: Voucher[] = [{ action: 'redeem', type: 'service', code: CODE_L, positions: [0] }];
+  assert.equal(receiptDueCents(items, v, 'standard', { voucherInfo: [{ code: CODE_L, check: leistung(3) }] }), 0);
 });
 
 test('Leistung verkaufen: Stueck mal Artikelpreis im Artikelsatz; ohne Artikel nicht rechenbar', () => {
@@ -306,6 +340,26 @@ test('Vorbelegung: Mehrzweck hoechstens der offene Betrag, Leistung und Aktion k
   assert.equal(voucherRedeemMaxCents([pos('Rabatt', -500, 20)], mehrzweck(5000)), 0);
 });
 
+test('Vorbelegung an halben Cent: 1478 x 0,25 zu 4,9 % deckt 369, nicht 370 (der Topf liefe auf -1 Cent)', () => {
+  const items = [pos('Brot', 1478, 4.9, { quantity: 0.25 })];
+  const check = einzweck(5000, 490);
+  assert.equal(voucherRedeemMaxCents(items, check), 369);
+  const mit = (cents: number) => receiptDueCents(items, [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: cents }], 'standard', { voucherInfo: [{ code: CODE_E, check }] });
+  assert.equal(mit(369), 0);
+  wirft(() => mit(370), 'voucher_exceeds_total');
+});
+
+test('Vorbelegung Kleinunternehmer: Summe je Satz (kuTeile), nicht die Summe ueber den Korb', () => {
+  // 2931 x 0,25 zu 4,9 % = 732,75 -> 733; 443 x 0,25 zu 20 % = 110,75 -> 111; Korb 843, je Satz 844 (Server-Hoechstbetrag).
+  const items = [pos('Brot', 2931, 4.9, { quantity: 0.25 }), pos('Kaffee', 443, 20, { quantity: 0.25 })];
+  const check = einzweck(100000, 2000);
+  assert.equal(voucherRedeemMaxCents(items, check, { options: { smallBusiness: true } }), 844);
+  assert.equal(voucherRedeemMaxCents(items, { ...check, exempt: true }), 844);
+  const mit = (cents: number) => receiptDueCents(items, [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: cents }], 'standard', { voucherInfo: [{ code: CODE_E, check }], smallBusiness: true });
+  assert.equal(mit(844), 0);
+  wirft(() => mit(845));
+});
+
 test('Vorbelegung mit schon gewaehlten Gutscheinen: der Rest des Topfs und des Betrags', () => {
   const items = [pos('Maniküre', 3500, 20), pos('Shampoo', 1200, 10)];
   const vorher: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 3000 }];
@@ -329,6 +383,8 @@ test('Beleg nur aus einer Auszahlung: genau eine negative Barzahlung ueber den Z
   falsch([{ method: 'cash', amountCents: -1000 }, { method: 'cash', amountCents: -2000 }]);
   falsch([{ method: 'cash', amountCents: -3000, tenderedCents: 0 }]);
   falsch([{ method: 'cash', amountCents: -3000, tipCents: 100 }]);
+  // Mit Trinkgeld ist es keine reine Auszahlung mehr (der Server haengt die Trinkgeldzeile an).
+  assert.throws(() => createReceiptParams({ receiptType: 'standard', items: [], vouchers, tip: 100, payments: [{ method: 'cash', amountCents: -3000 }] }), (e: unknown) => isKasseneckValidationError(e));
   // Mit Ware ist es ein gewoehnlicher Verkauf: Zahlungen positiv.
   assert.throws(() => createReceiptParams({
     receiptType: 'standard', items: [pos('Kaffee', 320, 20)], vouchers, payments: [{ method: 'cash', amountCents: -2680 }],
@@ -338,4 +394,53 @@ test('Beleg nur aus einer Auszahlung: genau eine negative Barzahlung ueber den Z
 test('Wurzel exportiert die Gutschein-Teile des Zahlbetrags', () => {
   assert.equal(wurzel.voucherRedeemMaxCents, voucherRedeemMaxCents);
   assert.equal(wurzel.VOUCHER_ZERO_RATE_BUCKET_FROM, '2099-12-31');
+});
+
+// --- Generierte Faelle (echter Backend-Code, scripts/v3-zahlbetrag-gutscheine-generieren.mjs) ---
+
+interface GenFall {
+  name: string;
+  input: ReceiptDueOptions & {
+    receiptType: string;
+    items: Array<{ name: string; quantity: number; priceCents: number; vatRate: number; kind?: 'discount'; articleId?: string }>;
+    vouchers: VoucherPayload[];
+    today: string;
+  };
+  expected: { dueCents: number; counterDeltaCents: number; valueVoucherFlowCents: number; bucketsCents: Record<string, number> } | { voucherError: string } | { error: string };
+}
+const GENERIERT = (JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/receipt-due-voucher-generated.json', import.meta.url)), 'utf8')) as { cases: GenFall[] }).cases;
+
+test('Generierte Gutscheinfaelle: genug und von jeder Art (Bruchmengen, Trinkgeld, Kleinunternehmer, befreit, Stichtag, Abweisungen)', () => {
+  const c = GENERIERT;
+  assert.ok(c.length >= 400, `nur ${c.length}`);
+  assert.ok(c.filter((f) => f.input.items.some((p) => !Number.isInteger(p.quantity))).length >= 150);
+  assert.ok(c.filter((f) => f.input.tip != null).length >= 50);
+  assert.ok(c.filter((f) => f.input.smallBusiness === true).length >= 50);
+  assert.ok(c.filter((f) => f.input.voucherInfo?.some((i) => i.check.exempt === true)).length >= 20);
+  assert.ok(c.filter((f) => f.input.today >= VOUCHER_ZERO_RATE_BUCKET_FROM).length >= 100);
+  for (const art of ['multi_purpose', 'single_purpose', 'service', 'promotion']) {
+    assert.ok(c.some((f) => f.input.vouchers.some((v) => v.type === art && v.action === 'redeem') && 'dueCents' in f.expected), art);
+  }
+  for (const a of ['sell', 'payout']) assert.ok(c.some((f) => f.input.vouchers.some((v) => v.action === a) && 'dueCents' in f.expected), a);
+  for (const code of ['voucher_rate_mismatch', 'voucher_exceeds_total', 'voucher_insufficient_balance', 'voucher_item_mismatch', 'voucher_settings_missing']) {
+    assert.ok(c.some((f) => 'voucherError' in f.expected && f.expected.voucherError === code), code);
+  }
+});
+
+test('Generierte Gutscheinfaelle: jeder stimmt exakt mit dem Backend (Betrag, Toepfe, Fluss bzw. Abweisungscode)', () => {
+  const abweichend: string[] = [];
+  for (const f of GENERIERT) {
+    const { receiptType, items, vouchers, ...optionen } = f.input;
+    const positionen: ReceiptItem[] = items.map((p) => ({ name: p.name, quantity: p.quantity, priceCents: p.priceCents, vat: p.vatRate, ...(p.kind ? { kind: p.kind } : {}), ...(p.articleId ? { articleId: p.articleId } : {}) }));
+    const wuensche = vouchers.map((v) => fromVoucherPayload(v));
+    let ist: unknown;
+    try {
+      ist = receiptDueBreakdown(positionen, wuensche, receiptType, { ...optionen, tipRecipient: optionen.tipRecipient });
+    } catch (e) {
+      ist = e instanceof ReceiptDueError ? (e.voucherErrorCode ? { voucherError: e.voucherErrorCode } : { error: e.reason }) : { error: String(e) };
+    }
+    const soll = 'error' in f.expected ? { error: 'tip_without_goods' } : f.expected;
+    if (JSON.stringify(ist) !== JSON.stringify(soll)) abweichend.push(`${f.name}: ${JSON.stringify(ist)} statt ${JSON.stringify(soll)}`);
+  }
+  assert.deepEqual(abweichend.slice(0, 5), []);
 });

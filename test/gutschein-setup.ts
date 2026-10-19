@@ -28,6 +28,7 @@ export function pruefungAus(daten: Json): VoucherCheck {
   feld('vatRateBp', daten.satzBp);
   feld('discountCents', daten.rabattCents);
   feld('discountPercentBp', daten.rabattProzentBp);
+  if (daten.kleinunternehmer === true && daten.satzBp === 0) raus.exempt = true;
   if (daten.artikel) {
     raus.article = { id: daten.artikel.id, name: daten.artikel.name, vatRateBp: daten.artikel.satzBp, priceCents: daten.artikel.preisCents };
   }

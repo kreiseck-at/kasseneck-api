@@ -79,6 +79,18 @@ test('checkVoucher: unbekannte Art oder Status in der Antwort ist ein Lesefehler
   await assert.rejects(checkVoucher(kasse(g, []), 'B1KK5EQ57DHP'), (e: unknown) => isKasseneckValidationError(e));
 });
 
+test('checkVoucher: exempt (befreit verkauft) wird als Wahrheitswert gelesen, alles andere ist ein Lesefehler', async () => {
+  const f = structuredClone(fall('checkVoucher', 'success_cashier'));
+  f.response.data.exempt = true;
+  assert.equal((await checkVoucher(kasse(f, []), 'B1KK5EQ57DHP')).exempt, true);
+  f.response.data.exempt = false;
+  assert.equal((await checkVoucher(kasse(f, []), 'B1KK5EQ57DHP')).exempt, false);
+  f.response.data.exempt = null;
+  assert.ok(!('exempt' in (await checkVoucher(kasse(f, []), 'B1KK5EQ57DHP'))));
+  f.response.data.exempt = 'ja';
+  await assert.rejects(checkVoucher(kasse(f, []), 'B1KK5EQ57DHP'), (e: unknown) => isKasseneckValidationError(e));
+});
+
 test('reprintVoucherLabel: sendet die Id und liefert den Klartext-Code', async () => {
   const f = fall('reprintVoucherLabel', 'success_manager');
   const gesendet: Json[] = [];

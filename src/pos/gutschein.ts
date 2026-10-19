@@ -53,6 +53,12 @@ export interface VoucherCheck {
   discountCents?: number;
   discountPercentBp?: number;
   validity?: VoucherValidity;
+  /**
+   * Befreit verkauft (Kleinunternehmer beim Verkauf, Satz 0): eine Einloesung
+   * verteilt sich anteilig auf alle Saetze des Korbs, auch in einem
+   * inzwischen steuerpflichtigen Konto. Fehlt bei aelteren Servern.
+   */
+  exempt?: boolean;
 }
 
 /** Gutschein-Einstellungen der Kasse (Block `vouchers` aus `getKasseSettings`). */
@@ -160,6 +166,10 @@ function leseCheck(name: string, w: unknown): VoucherCheck {
   }
   if (!fehlt(o.article)) raus.article = artikel(name, o.article);
   if (!fehlt(o.validity)) raus.validity = gueltigkeit(name, o.validity);
+  if (!fehlt(o.exempt)) {
+    if (typeof o.exempt !== 'boolean') throw fehler(name, 'data.exempt ist kein Wahrheitswert');
+    raus.exempt = o.exempt;
+  }
   return raus as unknown as VoucherCheck;
 }
 

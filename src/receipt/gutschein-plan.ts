@@ -156,6 +156,18 @@ const STATUS_FEHLER: Record<string, string> = {
   used_up: 'voucher_used_up', paid_out: 'voucher_used_up', cancelled: 'voucher_cancelled', blocked: 'voucher_blocked', expired: 'voucher_expired',
 };
 
+/** Summe, die `kuTeile` hoechstens verteilt: je Satz `centSumme` der deckbaren Positionen, nur positive. */
+export function kuBasisCents(kunde: readonly Innen[]): number {
+  const jeSatz = new Map<number, Innen[]>();
+  for (const it of kunde) {
+    if (!istDeckbar(it)) continue;
+    const s = satzBp(it.vat);
+    if (!jeSatz.has(s)) jeSatz.set(s, []);
+    jeSatz.get(s)!.push(it);
+  }
+  return [...jeSatz.values()].map(centSumme).filter((c) => c > 0).reduce((a, b) => a + b, 0);
+}
+
 /** `gutschein-core.kuTeile`: anteilig zur Positionssumme je Satz, groesster Rest, Topf-Reihenfolge bei Gleichstand. */
 function kuTeile(kunde: readonly Innen[], betragCents: number): Array<{ satzBp: number; cents: number }> | null {
   const jeSatz = new Map<number, Innen[]>();
@@ -201,6 +213,9 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
 
   if (wuensche.length === 0) {
     const nulltopf = !storno && o.today >= (o.zeroRateBucketFrom ?? VOUCHER_ZERO_RATE_BUCKET_FROM);
+    // `gutschein-transaktion.brauchtPlan`: ab dem Stichtag laeuft plane auch fuer einen Altform-Verkauf.
+    const mitPlan = nulltopf && vouchers.some((v) => !istGelesen(v) && v.action === 'sell' && v.type === 'value');
+    if (mitPlan && kunde.some(istGutscheinZeile)) return nein('voucher_invalid', 'Gutschein-Positionen setzt nur der Server.');
     for (const [i, v] of vouchers.entries()) {
       // Gelesene Eintraege der neuen Form ohne Wert/Rabatt: ihr Geld steht in den Positionen.
       if (istGelesen(v) && v.type !== 'value' && v.type !== 'promo') continue;
@@ -213,7 +228,7 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
       }
       gutscheine.push(g);
     }
-    return { zusatz, gutscheine, auszahlungCents: 0, mitPlan: false, minusJeTopf: new Map() };
+    return { zusatz, gutscheine, auszahlungCents: 0, mitPlan, minusJeTopf: new Map() };
   }
 
   // Ab hier: mindestens ein Wunsch der neuen Form (createReceipt fuehrt `plane` aus).
@@ -246,8 +261,9 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
   let auszahlungCents = 0;
   const einstellung = (gewollt: 'multi_purpose' | 'single_purpose'): PlanFehler | null => {
     const e = o.voucherSettings;
+    // Der Server verkauft nur mit bestaetigter Einstellung (`voucher_settings_missing`), auch Mehrzweck.
     if (e == null || e.valueVoucherType == null) {
-      return gewollt === 'single_purpose' ? nein('voucher_settings_missing', 'Der Satz des Einzweckgutscheins fehlt (Gutschein-Einstellung der Kasse).') : null;
+      return nein('voucher_settings_missing', 'Die Gutschein-Einstellung der Kasse fehlt (voucherSettings).');
     }
     return e.valueVoucherType === gewollt ? null : nein('voucher_invalid', 'Die Gutschein-Einstellung der Kasse verkauft eine andere Art.');
   };
@@ -340,8 +356,9 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
       if (f) return f;
       if (v.type === 'multi_purpose') {
         gutscheine.push({ action: 'redeem', type: 'value', value: c / 100 });
-      } else if (ku) {
-        // Kleinunternehmer: der gedeckte Teil verlaesst anteilig alle Toepfe des Korbs.
+      } else if (check.exempt === true || ku) {
+        // Befreit verkauft (`kuEingefroren`) oder Kleinunternehmer-Konto: der gedeckte Teil
+        // verlaesst anteilig alle Toepfe des Korbs.
         const teile = kuTeile(kunde, c);
         if (!teile) return nein('voucher_rate_mismatch', `Gutschein ${i + 1}: der Korb deckt den Betrag nicht.`);
         for (const t of teile) {
