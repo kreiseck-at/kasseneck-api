@@ -2,9 +2,9 @@
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
     "default": {
-      "sha256": "c5699c1e4da8aa70444c7f869e0c68fc7551c94c036271b9022634540275d493",
+      "sha256": "016031af787794cf6e72932fd203138b45b7a758510af990475d9f68d35ac556",
       "head": [],
-      "inputsSha256": "8d71fd794a184b86bd5a3be1d4827c680d3cd3e65da9258789b8c3b64ee6572c",
+      "inputsSha256": "684e236f4e84e7befba5ebda44021eefc4de50a6f2507cf4de5b456e9a2ed790",
       "backendPackage": "@kreiseck/kasseneck-api@0.33.1",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -24,7 +24,7 @@
         "channel",
         "note"
       ],
-      "inputsSha256": "a2bf1d0367b62f36df4acbd2c43cbd9ffc6356be4937958b16e529de89e6b8c3",
+      "inputsSha256": "1efd9f548d9b578193c3dbf4aae041f4ffaa1adcaba01a7c5e2df7ba882efa94",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -17167,6 +17167,39 @@
                 "validUntil": null
               },
               "codeSuffix": "7DJG"
+            }
+          }
+        },
+        {
+          "case": "success_exempt",
+          "method": "POST",
+          "caller": "register_user_manager",
+          "params": {
+            "code": "B1KK5EQ57DMW",
+            "cashregisterId": "KASSE1"
+          },
+          "httpStatus": 200,
+          "headers": {
+            "Kasseneck-Api-Version": "v3",
+            "Access-Control-Expose-Headers": "Kasseneck-Api-Version"
+          },
+          "response": {
+            "status": "success",
+            "message": "",
+            "data": {
+              "type": "single_purpose",
+              "status": "active",
+              "balanceCents": 4000,
+              "faceValueCents": 4000,
+              "vatRateBp": 0,
+              "validity": {
+                "pattern": "unlimited",
+                "redeemableUntil": null,
+                "refundableUntil": null,
+                "validUntil": null
+              },
+              "codeSuffix": "7DMW",
+              "exempt": true
             }
           }
         },

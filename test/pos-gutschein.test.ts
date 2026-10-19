@@ -91,6 +91,13 @@ test('checkVoucher: exempt (befreit verkauft) wird als Wahrheitswert gelesen, al
   await assert.rejects(checkVoucher(kasse(f, []), 'B1KK5EQ57DHP'), (e: unknown) => isKasseneckValidationError(e));
 });
 
+test('checkVoucher: das Vertragsbeispiel success_exempt liest exempt als true', async () => {
+  const f = fall('checkVoucher', 'success_exempt');
+  const r = await checkVoucher(kasse(f, []), String(f.params.code));
+  assert.equal(r.exempt, true);
+  assert.equal(r.balanceCents, 4000);
+});
+
 test('reprintVoucherLabel: sendet die Id und liefert den Klartext-Code', async () => {
   const f = fall('reprintVoucherLabel', 'success_manager');
   const gesendet: Json[] = [];

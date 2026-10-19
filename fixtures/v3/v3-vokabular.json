@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "d3b4471e7d0be528d73c1d9bf0af8d23915bf5c0455e3ce4777dd2581c950ab1",
-    "inputsSha256": "f951edaa16f116688cdc2e700831ffab4e9c539fd9ff5c20bf57cc0bb87306df",
+    "sha256": "733e4385baf4b2aa50605e2ebe5903948ce77b3346aa3bb65c5fd0d450a6898f",
+    "inputsSha256": "29f295ee139942d79758255d7b6284e2810477e4e22249d9b703c0110129e78b",
     "backendPackage": "@kreiseck/kasseneck-api@0.33.1",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -2831,7 +2831,8 @@
           "refundableUntil": "rueckzahlbarBis",
           "validUntil": "gueltigBis"
         },
-        "codeSuffix": "codeEnde"
+        "codeSuffix": "codeEnde",
+        "exempt": "befreit"
       },
       "werte": {
         "type": {

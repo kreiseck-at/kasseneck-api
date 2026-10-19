@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo, RETURN_DISPOSITION_LABELS } from '../src/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, voucherErrorMessage } from '../src/pos/texte.js';
 import type { MessageKey, LabelKey } from '../src/pos/texte.js';
 import { CANCELLATION_ERROR_CODES, RETURN_DISPOSITIONS } from '../src/models/cancellation.js';
 import { readFileSync } from 'node:fs';
@@ -621,4 +621,18 @@ test('Storno: abgelehnte Eingabe – Wortlaut exakt, Halbgeviertstrich mit Leerr
   assert.ok(!eintrag.text.includes('\u2014'));
   assert.equal(eintrag.placeholders, undefined);
   assert.equal(eintrag.only, undefined);
+});
+
+test('Gutschein-Fehler: jeder Gutschein-Code des /v3-Vokabulars hat einen Satz, sonst keiner', () => {
+  const vokabular = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url)), 'utf8')) as { errorCodes: { all: string[] } };
+  const serverCodes = vokabular.errorCodes.all.filter((c) => c.startsWith('voucher_') || c === 'too_many_voucher_checks').sort();
+  assert.deepEqual(Object.keys(VOUCHER_ERROR_MESSAGES).sort(), serverCodes);
+  for (const code of serverCodes) {
+    const key = voucherErrorMessage(code);
+    assert.ok(key, code);
+    assert.match(messageText(key, { rate: 20 }), /^[A-ZÄÖÜ].*[.!?]$/, code);
+  }
+  assert.equal(voucherErrorMessage('server_error'), undefined);
+  assert.equal(messageText('voucher_error.rate_mismatch', { rate: 10 }), 'Dieser Gutschein gilt nur für Leistungen mit 10 %.');
+  assert.equal(labelText('voucher.balance', { amount: '4,00 €' }), 'Rest am Gutschein: 4,00 €');
 });

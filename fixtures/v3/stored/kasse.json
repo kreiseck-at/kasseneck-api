@@ -2,9 +2,9 @@
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
     "default": {
-      "sha256": "66cca83c5de237d12dd361be64a6d3f96c3a4b961db15d9fde335dcab52bddb9",
+      "sha256": "2cc77736cae05b3d7c2e67d59bd6bd7cfb9f5484eed54cf236e3a412ab9e78f9",
       "head": [],
-      "inputsSha256": "8d71fd794a184b86bd5a3be1d4827c680d3cd3e65da9258789b8c3b64ee6572c",
+      "inputsSha256": "684e236f4e84e7befba5ebda44021eefc4de50a6f2507cf4de5b456e9a2ed790",
       "backendPackage": "@kreiseck/kasseneck-api@0.33.1",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -24,7 +24,7 @@
         "note",
         "baseline"
       ],
-      "inputsSha256": "a2bf1d0367b62f36df4acbd2c43cbd9ffc6356be4937958b16e529de89e6b8c3",
+      "inputsSha256": "1efd9f548d9b578193c3dbf4aae041f4ffaa1adcaba01a7c5e2df7ba882efa94",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -4953,6 +4953,12 @@
           }
         },
         "success_service": {
+          "rate_limits/gutscheinpruef_konto_88ddbabbd47036960630df27c625f9c1": {
+            "count": 1,
+            "windowStart": 1790409600000
+          }
+        },
+        "success_exempt": {
           "rate_limits/gutscheinpruef_konto_88ddbabbd47036960630df27c625f9c1": {
             "count": 1,
             "windowStart": 1790409600000
