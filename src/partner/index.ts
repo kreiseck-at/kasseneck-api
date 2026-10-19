@@ -144,6 +144,7 @@ export type {
   FeeInterval,
   PartnerFee,
   SignatureHistoryReason,
+  SignatureFulfillment,
   SignatureErrorCode,
   RequestSignatureOptions,
   CustomerSignature,

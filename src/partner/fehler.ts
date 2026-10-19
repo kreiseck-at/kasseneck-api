@@ -103,6 +103,7 @@ export const PARTNER_ERROR_CODES = [
   'text_changed',
   'already_accepted',
   'activation_failed',
+  'activation_in_progress',
   // Webhooks
   'webhook_limit',
   'webhook_inactive',
@@ -244,6 +245,8 @@ const RAT: Record<PartnerCode, string> = {
   already_accepted: 'Diese Fassung ist bereits bestaetigt (data.contractId). Nichts weiter zu tun.',
   activation_failed:
     'Die Inbetriebnahme blieb an data.step haengen (ggf. data.rc). activateCashregister erneut aufrufen — jeder Schritt ist idempotent, der Lauf setzt an der Bruchstelle an.',
+  activation_in_progress:
+    'Die Inbetriebnahme dieser Kasse laeuft bereits. Kurz warten und den Stand abfragen, nicht erneut anstossen.',
   webhook_limit: 'Hoechstens 10 Webhook-Endpunkte je Partner. Einen ungenutzten loeschen.',
   webhook_inactive: 'Der Webhook steht auf active:false. Zuerst aktivieren, dann erneut proben.',
   event_not_subscribed:

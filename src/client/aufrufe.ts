@@ -135,6 +135,9 @@ export const ALL_CALLS = [
   'closeStocktake',
   'cancelStocktake',
   'getStocktakePdf',
+  // Signaturkarte bestellen und Bestellung lesen
+  'orderSignatureCard',
+  'getSignatureCardOrder',
   // Inventur zaehlen an der Kasse (Lager-Kern Stufe 3, ./pos)
   'listMyStocktakes',
   'listMyStocktakeItems',
@@ -274,6 +277,8 @@ export const PUBLIC_CALLS = [
   'closeStocktake',
   'cancelStocktake',
   'getStocktakePdf',
+  'orderSignatureCard',
+  'getSignatureCardOrder',
 ] as const;
 
 /**
@@ -383,6 +388,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'issueInvoice',
   'logMyDrawerOpenings',
   'openMyShift',
+  'orderSignatureCard',
   'pairRegisterDevice',
   'receiveGoods',
   'recordInvoicePayment',
@@ -482,6 +488,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getReservation: 'read',
   getStock: 'read',
   getStocktake: 'read',
+  getSignatureCardOrder: 'read',
   getStocktakePdf: 'read',
   getVariantGroup: 'read',
   hobexGetStatus: 'read',

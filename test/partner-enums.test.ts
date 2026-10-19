@@ -179,7 +179,7 @@ test('Partner: jeder Code des Abzugs hat hier auch einen Handlungssatz', () => {
   ]
     .filter((c) => !gestrichen.has(c))
     .map((c) => uebersetzt[c] ?? c);
-  assert.equal(codes.length, 38, 'der Katalog des Backends hat 26 API- und 12 Portal-Codes ohne die zwei Streichungen');
+  assert.equal(codes.length, 39, 'der Katalog des Backends hat 27 API- und 12 Portal-Codes ohne die zwei Streichungen');
   for (const code of codes) {
     const rat = partnerErrorAdvice(code);
     assert.ok(rat && rat.length > 20, `${code}: kein brauchbarer Handlungssatz`);
