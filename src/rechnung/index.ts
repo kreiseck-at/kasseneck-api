@@ -66,6 +66,8 @@ export type {
   InvoicePayment,
   InvoicePreview,
   InvoiceRateTotals,
+  InvoiceVatIdProof,
+  InvoiceVatIdRisk,
   IssueInvoiceRequest,
   IssueResult,
   PaymentInput,
