@@ -61,13 +61,33 @@ test('Einstellungen: fehlt der Block, ist Verkaufen aus', () => {
   assert.deepEqual(posVoucherSettingsFromWire({ sale: 'ja' }), aus);
 });
 
-test('Einstellungen: Verkauf mit Einzweck und Satz', () => {
-  assert.deepEqual(posVoucherSettingsFromWire({ sale: true, valueVoucherType: 'single_purpose', vatRateBp: 1000 }), {
-    sale: true, valueVoucherType: 'single_purpose', vatRateBp: 1000,
-  });
-  assert.deepEqual(posVoucherSettingsFromWire({ sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null }).valueVoucherType, 'multi_purpose');
-  // unbekannte Art / kein ganzer Satz: nicht erhoben
-  assert.deepEqual(posVoucherSettingsFromWire({ sale: true, valueVoucherType: 'xyz', vatRateBp: 10.5 }), { sale: true, valueVoucherType: null, vatRateBp: null });
+test('Einstellungen: stimmige Bloecke gehen unveraendert durch', () => {
+  const ok = (b: Json) => assert.deepEqual(posVoucherSettingsFromWire(b), b);
+  ok({ sale: true, valueVoucherType: 'single_purpose', vatRateBp: 2000 });
+  ok({ sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null });
+  // ausgeschaltet, aber Art bleibt bestaetigt
+  ok({ sale: false, valueVoucherType: 'single_purpose', vatRateBp: 1000 });
+  ok({ sale: false, valueVoucherType: 'multi_purpose', vatRateBp: null });
+  ok({ sale: false, valueVoucherType: null, vatRateBp: null });
+});
+
+test('Einstellungen: ein unstimmiges Feld schliesst den ganzen Block', () => {
+  const zu = { sale: false, valueVoucherType: null, vatRateBp: null };
+  const faelle: Json[] = [
+    { sale: 'ja', valueVoucherType: null, vatRateBp: null },
+    { sale: undefined, valueVoucherType: 'multi_purpose', vatRateBp: null },
+    { sale: true, valueVoucherType: 'xyz', vatRateBp: null },
+    { sale: true, valueVoucherType: 5, vatRateBp: null },
+    { sale: true, valueVoucherType: 'single_purpose', vatRateBp: 10.5 },
+    { sale: true, valueVoucherType: 'single_purpose', vatRateBp: -1 },
+    { sale: true, valueVoucherType: 'single_purpose', vatRateBp: '2000' },
+    { sale: true, valueVoucherType: null, vatRateBp: null },
+    { sale: true, valueVoucherType: 'single_purpose', vatRateBp: null },
+    { sale: false, valueVoucherType: 'single_purpose', vatRateBp: null },
+    { sale: true, valueVoucherType: 'multi_purpose', vatRateBp: 2000 },
+  ];
+  for (const f of faelle) assert.deepEqual(posVoucherSettingsFromWire(f), zu, JSON.stringify(f));
+  for (const f of [[], 'x', 3, true]) assert.deepEqual(posVoucherSettingsFromWire(f), zu);
 });
 
 test('Einstellungen: business und device bleiben unberuehrt', () => {

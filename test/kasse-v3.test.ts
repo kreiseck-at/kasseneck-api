@@ -179,8 +179,11 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
     ...Object.fromEntries(Object.entries(POS_DEVICE_VALUES).map(([k, v]) => [`device.${k}`, v])),
   };
   for (const [pfad, verweis] of Object.entries(werte)) {
-    // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts), nicht die Wertelisten.
-    if (pfad.startsWith('vouchers.')) continue;
+    // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts); seine Werte stehen fest.
+    if (pfad.startsWith('vouchers.')) {
+      assert.deepEqual(Object.values(zuordnung(verweis)).sort(), ['multi_purpose', 'single_purpose'], pfad);
+      continue;
+    }
     assert.deepEqual([...(paket[pfad] ?? [])], Object.values(zuordnung(verweis)), pfad);
   }
   // Jede Liste heisst wie ihr Feld (TILE_STYLE -> tileStyle).

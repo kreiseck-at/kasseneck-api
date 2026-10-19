@@ -68,20 +68,29 @@ export const VOUCHER_SETTINGS_DEFAULTS: Readonly<PosVoucherSettings> = Object.fr
 });
 
 /**
- * Block `vouchers` einer Einstellungs-Antwort. Nur ein ausdruecklich
- * wahres `sale` oeffnet den Verkauf; eine unbekannte Wertgutschein-Art oder
- * ein nicht ganzzahliger Satz wird nicht erhoben, sondern faellt auf `null`.
+ * Block `vouchers` einer Einstellungs-Antwort, geschlossen im Zweifel: ist
+ * irgendein Feld unstimmig, gilt der ganze Block als nicht gelesen und
+ * Verkaufen bleibt aus (kein Wurf, sonst ginge das Laden aller Einstellungen
+ * verloren). Stimmig heisst: `sale` ein Wahrheitswert, die Art
+ * `multi_purpose`/`single_purpose`/`null`, der Satz eine ganze Zahl >= 0 oder
+ * `null`; Mehrzweck traegt keinen Satz, Einzweck braucht einen, und ein
+ * eingeschalteter Verkauf braucht eine Art. Ein ausgeschalteter Verkauf darf
+ * eine Art behalten.
  */
 export function posVoucherSettingsFromWire(block: unknown): PosVoucherSettings {
-  if (block === null || typeof block !== 'object' || Array.isArray(block)) return { ...VOUCHER_SETTINGS_DEFAULTS };
+  const zu = (): PosVoucherSettings => ({ ...VOUCHER_SETTINGS_DEFAULTS });
+  if (block === null || typeof block !== 'object' || Array.isArray(block)) return zu();
   const b = block as Record<string, unknown>;
-  const art = b['valueVoucherType'];
-  const satz = b['vatRateBp'];
-  return {
-    sale: b['sale'] === true,
-    valueVoucherType: art === 'multi_purpose' || art === 'single_purpose' ? art : null,
-    vatRateBp: typeof satz === 'number' && Number.isInteger(satz) && satz >= 0 ? satz : null,
-  };
+  const sale = b['sale'];
+  const art = b['valueVoucherType'] ?? null;
+  const satz = b['vatRateBp'] ?? null;
+  if (typeof sale !== 'boolean') return zu();
+  if (art !== null && art !== 'multi_purpose' && art !== 'single_purpose') return zu();
+  if (satz !== null && !(typeof satz === 'number' && Number.isInteger(satz) && satz >= 0)) return zu();
+  if (sale && art === null) return zu();
+  if (art === 'single_purpose' && satz === null) return zu();
+  if (art === 'multi_purpose' && satz !== null) return zu();
+  return { sale, valueVoucherType: art, vatRateBp: satz };
 }
 
 type Roh = Record<string, unknown>;
