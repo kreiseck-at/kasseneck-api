@@ -89,4 +89,9 @@ export {
   ReceiptDueError,
   RECEIPT_DUE_ERROR_REASONS,
   isReceiptDueError,
+  type VoucherDueInfo,
+  type VoucherDueArticle,
+  type VoucherRedeemContext,
+  voucherRedeemMaxCents,
+  VOUCHER_ZERO_RATE_BUCKET_FROM,
 } from './due.js';

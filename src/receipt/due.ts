@@ -1,6 +1,20 @@
 import { ReceiptType, type ReceiptTypeKey, KeckPaymentMethod, VoucherAction, VoucherType } from '../enums/index.js';
 import type { ReceiptItem } from '../models/receipt-item.js';
 import type { Voucher } from '../models/voucher.js';
+import type { PosVoucherSettings, VoucherCheck } from '../pos/gutschein.js';
+import { toViennaWallClock } from '../vienna-time.js';
+import {
+  centSumme,
+  istDeckbar,
+  planeGutscheine,
+  topfFuerSatz,
+  type Gutschein,
+  type Innen,
+  type VoucherDueArticle,
+  type VoucherDueInfo,
+} from './gutschein-plan.js';
+
+export { VOUCHER_ZERO_RATE_BUCKET_FROM, type VoucherDueArticle, type VoucherDueInfo } from './gutschein-plan.js';
 
 /**
  * Zahlbetrag eines Belegs in ganzen Cent: Zwilling von `createReceipt` im
@@ -35,6 +49,19 @@ import type { Voucher } from '../models/voucher.js';
  * sobald Trinkgeld ohne `recipients` vorkommt. Ohne angemeldeten Benutzer
  * (Geraete-Schluessel) gilt `'staff'`.
  *
+ * **Gutscheine der neuen Form** (Mehrzweck, Einzweck, Leistung, Aktion,
+ * Auszahlung): der Server macht daraus Positionen und Eintraege
+ * (`gutschein-beleg.plane`, Zwilling in `gutschein-plan.ts`). Was er dafuer
+ * aus seinen Daten liest, gibt die Kasse mit: je Einloesung/Auszahlung die
+ * Pruefung aus `checkVoucher` (`voucherInfo`, ueber den Code zugeordnet), fuer
+ * einen Einzweck-Verkauf die Gutschein-Einstellung der Kasse
+ * (`voucherSettings`, Satz), fuer einen Leistungsgutschein-Verkauf den Artikel
+ * (`voucherArticles`, Preis und Satz) und `smallBusiness` fuer ein
+ * Kleinunternehmer-Konto. Was fehlt oder was der Server abwiese, wirft
+ * `invalid_voucher` mit dem erwarteten Server-Code in `voucherErrorCode`.
+ * Ein Beleg nur aus Auszahlungen hat einen negativen Zahlbetrag (genau eine
+ * Barzahlung ueber diesen Betrag).
+ *
  * **Nicht rechenbar:** jede unbrauchbare Eingabe wirft [ReceiptDueError]
  * (`code: 'receipt_due_unavailable'`, `reason` im Einzelnen), nie still eine
  * falsche Zahl. Dann ist nichts gesendet.
@@ -57,6 +84,32 @@ export interface ReceiptDueOptions {
   payments?: ReadonlyArray<{ method: KeckPaymentMethod | string; tipCents?: number }>;
   /** Pflicht, sobald Trinkgeld ohne `recipients` vorkommt (siehe Modulkommentar). */
   tipRecipient?: ReceiptDueTipRecipient;
+  /** Je Einloesung bzw. Auszahlung der neuen Form die Pruefung aus `checkVoucher`, ueber den Code zugeordnet. */
+  voucherInfo?: readonly VoucherDueInfo[];
+  /**
+   * Gutschein-Einstellung der Kasse (`getKasseSettings`, Block `vouchers`):
+   * Pflicht fuer den Verkauf eines Einzweckgutscheins (sein Satz). Ist sie
+   * gesetzt, muss die verkaufte Art zu ihr passen.
+   */
+  voucherSettings?: PosVoucherSettings;
+  /** Artikel fuer den Verkauf von Dienstleistungsgutscheinen (Preis und Satz, wie im Artikelstamm). */
+  voucherArticles?: readonly VoucherDueArticle[];
+  /**
+   * Das Konto ist Kleinunternehmer (Konto-Fakten): Einzweck/Leistung werden zu
+   * 0 % verkauft, eine Einzweck-Einloesung verteilt sich anteilig auf alle
+   * Saetze des Korbs. Ein befreit verkaufter Gutschein, den ein inzwischen
+   * steuerpflichtiges Konto einloest, ist in der Pruefung nicht erkennbar; er
+   * rechnet hier im Satz 0 (Zahlbetrag gleich, Toepfe anders verteilt).
+   */
+  smallBusiness?: boolean;
+  /**
+   * Stichtag des 0-%-Topfs fuer Mehrzweck-Verkaeufe (`YYYY-MM-DD`). Vorgabe
+   * [VOUCHER_ZERO_RATE_BUCKET_FROM], wie im Backend. Nur angeben, wenn der
+   * Server ihn nachweislich anders fuehrt (Test-Umgebung).
+   */
+  zeroRateBucketFrom?: string;
+  /** Wiener Tag des Belegs (`YYYY-MM-DD`); Vorgabe: heute in Wien. */
+  today?: string;
 }
 
 /** Die sechs RKSV-Toepfe in Cent, Namen wie am Beleg des Backends. */
@@ -117,10 +170,17 @@ export class ReceiptDueError extends Error {
   readonly reason: ReceiptDueErrorReason;
   /** Immer `'rejected'`: es ging nichts hinaus. */
   readonly outcome = 'rejected' as const;
+  /**
+   * Nur bei `invalid_voucher`: der Gutschein-Code, mit dem der Server
+   * denselben Beleg abwiese (`voucher_rate_mismatch`, `voucher_exceeds_total`,
+   * `voucher_not_found` …), fuer die Meldung an der Kasse.
+   */
+  readonly voucherErrorCode?: string;
 
-  constructor(reason: ReceiptDueErrorReason, message: string) {
+  constructor(reason: ReceiptDueErrorReason, message: string, voucherErrorCode?: string) {
     super(`Zahlbetrag: ${message}`);
     this.reason = reason;
+    if (voucherErrorCode !== undefined) this.voucherErrorCode = voucherErrorCode;
   }
 }
 
@@ -129,20 +189,6 @@ export function isReceiptDueError(error: unknown): error is ReceiptDueError {
 }
 
 type BelegArt = ReceiptType | ReceiptTypeKey | string;
-
-/** Position in der inneren Form des Backends (`beleg-toepfe.interneForm`). */
-interface Innen {
-  amount: number;
-  priceOne: number;
-  vat: number;
-  tip: 'staff' | 'owner' | null;
-}
-
-interface Gutschein {
-  action: string;
-  type: string;
-  value: number;
-}
 
 const UMSATZ = new Set(['standard', 'cancellation', 'training']);
 const TRINKGELD_ERLAUBT = new Set(['standard', 'training']);
@@ -160,36 +206,115 @@ export function receiptDueBreakdown(
   receiptType: BelegArt,
   options: ReceiptDueOptions = {},
 ): ReceiptDueBreakdown {
+  return rechne(items, vouchers, receiptType, options).ergebnis;
+}
+
+interface Rechnung {
+  ergebnis: ReceiptDueBreakdown;
+  /** Ware und Trinkgeld in innerer Form (ohne Gutscheinzeilen). */
+  kunde: Innen[];
+  /** Summe der Einloese-Minuszeilen je Topf. */
+  minusJeTopf: Map<string, number>;
+}
+
+function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], receiptType: BelegArt, options: ReceiptDueOptions): Rechnung {
   const art = belegArt(receiptType);
   const trinkgelder = trinkgeldAuftraege(options);
   if (trinkgelder.length > 0 && !TRINKGELD_ERLAUBT.has(art)) {
     throw new ReceiptDueError('tip_not_allowed', `Trinkgeld gibt es nur bei standard und training, nicht bei "${art}".`);
   }
   if (!UMSATZ.has(art)) {
-    return { dueCents: 0, counterDeltaCents: 0, valueVoucherFlowCents: 0, bucketsCents: null };
+    return { ergebnis: { dueCents: 0, counterDeltaCents: 0, valueVoucherFlowCents: 0, bucketsCents: null }, kunde: [], minusJeTopf: new Map() };
   }
 
   const positionen = items.map(innen);
-  const gutscheine = vouchers.map(gutscheinInnen);
   // index.js createReceipt: erst `tip`, dann je Zahlart aus payments[].tipCents;
   // jede Runde haengt ihre Positionen hinten an (die Basis bleibt die Ware).
   for (const auftrag of trinkgelder) positionen.push(...trinkgeldPositionen(auftrag, positionen, options.tipRecipient));
 
+  // Danach der Gutschein-Plan (gutschein-beleg.plane): seine Positionen stehen hinter Ware und Trinkgeld.
+  const plan = planeGutscheine(positionen, vouchers, art, {
+    voucherInfo: options.voucherInfo,
+    voucherSettings: options.voucherSettings,
+    voucherArticles: options.voucherArticles,
+    smallBusiness: options.smallBusiness,
+    zeroRateBucketFrom: options.zeroRateBucketFrom,
+    today: options.today ?? wienerTag(),
+  });
+  if ('fehler' in plan) throw new ReceiptDueError('invalid_voucher', plan.text, plan.fehler);
+  const kunde = positionen.slice();
+  positionen.push(...plan.zusatz);
+  // gutschein-beleg.zahlbetrag: nur Wert und Rabatt, ohne Mehrzweck-Verkaeufe im 0-%-Topf.
+  const gutscheine = plan.gutscheine.filter((g) => !(g.action === VoucherAction.sell && g.imNullTopf === true));
+
   const t = belegToepfe(positionen, gutscheine);
   const fluss = wertgutscheinFlussCents(gutscheine, art);
+  const dueCents = t.zaehlerDeltaCents + fluss;
+  // Ohne Auszahlungen darf der Zahlbetrag nicht negativ werden (Einloesung hoeher als die Summe).
+  if (plan.mitPlan && dueCents + plan.auszahlungCents < 0) {
+    throw new ReceiptDueError('invalid_voucher', 'die Gutscheine uebersteigen die Summe des Belegs.', 'voucher_exceeds_total');
+  }
   return {
-    dueCents: t.zaehlerDeltaCents + fluss,
-    counterDeltaCents: t.zaehlerDeltaCents,
-    valueVoucherFlowCents: fluss,
-    bucketsCents: {
-      amountRateStandard: euroToCent(t.amountRateStandard),
-      amountRateReduced1: euroToCent(t.amountRateReduced1),
-      amountRateReduced2: euroToCent(t.amountRateReduced2),
-      amountRateZero: euroToCent(t.amountRateZero),
-      amountRateSpecial: euroToCent(t.amountRateSpecial),
-      amountRatOthers: euroToCent(t.amountRatOthers),
+    ergebnis: {
+      dueCents,
+      counterDeltaCents: t.zaehlerDeltaCents,
+      valueVoucherFlowCents: fluss,
+      bucketsCents: {
+        amountRateStandard: euroToCent(t.amountRateStandard),
+        amountRateReduced1: euroToCent(t.amountRateReduced1),
+        amountRateReduced2: euroToCent(t.amountRateReduced2),
+        amountRateZero: euroToCent(t.amountRateZero),
+        amountRateSpecial: euroToCent(t.amountRateSpecial),
+        amountRatOthers: euroToCent(t.amountRatOthers),
+      },
     },
+    kunde,
+    minusJeTopf: plan.minusJeTopf,
   };
+}
+
+/** Schon gewaehlte Gutscheine und Optionen des Belegs, vor dem Gutschein, der vorbelegt wird. */
+export interface VoucherRedeemContext {
+  vouchers?: readonly Voucher[];
+  options?: ReceiptDueOptions;
+}
+
+/**
+ * Hoechstbetrag zum Vorbelegen einer Einloesung an der Kasse, in Cent, nie
+ * negativ. Mehrzweck: hoechstens Saldo und offener Betrag. Einzweck:
+ * hoechstens Saldo, offener Betrag und die deckbaren Positionen im Topf seines
+ * Satzes (ohne Trinkgeld und Gutscheinzeilen, abzueglich schon gewaehlter
+ * Einloesungen dort; als Kleinunternehmer alle Saetze). Leistung (wird ueber
+ * Positionen eingeloest), Aktion (Rabatt rechnet der Server) und jeder nicht
+ * aktive Gutschein: 0. Mehr nimmt der Server nicht an
+ * (`voucher_exceeds_total`, `voucher_rate_mismatch`).
+ */
+export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: VoucherCheck, before: VoucherRedeemContext = {}): number {
+  if (voucher.status !== 'active') return 0;
+  if (voucher.type !== 'multi_purpose' && voucher.type !== 'single_purpose') return 0;
+  const saldo = Number.isInteger(voucher.balanceCents) ? (voucher.balanceCents as number) : 0;
+  const options = before.options ?? {};
+  const r = rechne(items, before.vouchers ?? [], 'standard', options);
+  let hoechstens = Math.min(saldo, r.ergebnis.dueCents);
+  if (voucher.type === 'single_purpose') {
+    const deckbar = r.kunde.filter(istDeckbar);
+    if (options.smallBusiness === true) {
+      const schon = [...r.minusJeTopf.values()].reduce((s, c) => s + c, 0);
+      hoechstens = Math.min(hoechstens, centSumme(deckbar) - schon);
+    } else {
+      if (!Number.isInteger(voucher.vatRateBp)) return 0;
+      const topf = topfFuerSatz((voucher.vatRateBp as number) / 100);
+      const basis = centSumme(deckbar.filter((it) => topfFuerSatz(it.vat) === topf));
+      hoechstens = Math.min(hoechstens, basis - (r.minusJeTopf.get(topf) ?? 0));
+    }
+  }
+  return Math.max(0, hoechstens);
+}
+
+/** Heute in Wien als `YYYY-MM-DD`. */
+function wienerTag(): string {
+  const w = toViennaWallClock(new Date());
+  return `${w.year}-${String(w.month).padStart(2, '0')}-${String(w.day).padStart(2, '0')}`;
 }
 
 function belegArt(wert: BelegArt): string {
@@ -212,12 +337,14 @@ function innen(item: ReceiptItem, i: number): Innen {
   if (!Number.isSafeInteger(item.priceCents)) throw new ReceiptDueError('invalid_item', `Position ${i + 1} hat keinen ganzen Cent-Preis.`);
   if (typeof item.quantity !== 'number' || !Number.isFinite(item.quantity)) throw new ReceiptDueError('invalid_item', `Position ${i + 1} hat keine gueltige Menge.`);
   const tip = item.kind === 'tip' ? (item.recipient?.owner === true ? 'owner' : 'staff') : null;
-  return { amount: item.quantity, priceOne: Math.round(item.priceCents) / 100, vat: satz, tip };
-}
-
-function gutscheinInnen(v: Voucher, i: number): Gutschein {
-  if (!Number.isSafeInteger(v.valueCents)) throw new ReceiptDueError('invalid_voucher', `Gutschein ${i + 1} hat keinen ganzen Cent-Wert.`);
-  return { action: String(v.action), type: String(v.type), value: Math.round(v.valueCents as number) / 100 };
+  return {
+    amount: item.quantity,
+    priceOne: Math.round(item.priceCents) / 100,
+    vat: satz,
+    tip,
+    ...(item.kind !== undefined ? { kind: item.kind } : {}),
+    ...(item.articleId != null ? { articleId: item.articleId } : {}),
+  };
 }
 
 interface Auftrag {
@@ -332,21 +459,8 @@ function splitOwnerTip(cents: number, jeSatz: Record<string, number>): Array<{ v
   return verteilt.map(({ vat, cents: c }) => ({ vat, cents: c }));
 }
 
-type TopfName = 'amountRateStandard' | 'amountRateReduced1' | 'amountRateReduced2' | 'amountRateZero' | 'amountRateSpecial' | 'amountRatOthers';
+type TopfName = ReturnType<typeof topfFuerSatz>;
 const FUENF = ['amountRateStandard', 'amountRateReduced1', 'amountRateReduced2', 'amountRateZero', 'amountRateSpecial'] as const;
-
-/** `vat-buckets.bucketFuerSatz`. */
-function topfFuerSatz(vat: number): TopfName {
-  switch (vat) {
-    case 20: return 'amountRateStandard';
-    case 10: return 'amountRateReduced1';
-    case 13: return 'amountRateReduced2';
-    case 0: return 'amountRateZero';
-    case 19: return 'amountRateSpecial';
-    case 4.9: return 'amountRateSpecial';
-    default: return 'amountRatOthers';
-  }
-}
 
 /** `beleg-toepfe.belegToepfe`, Schritt fuer Schritt. */
 function belegToepfe(positionen: readonly Innen[], gutscheine: readonly Gutschein[]): Record<TopfName, number> & { zaehlerDeltaCents: number } {
@@ -388,15 +502,19 @@ function belegToepfe(positionen: readonly Innen[], gutscheine: readonly Gutschei
   return { ...t, zaehlerDeltaCents };
 }
 
-/** `zahlungen-core.wertgutscheinFlussCents`. */
+/**
+ * `zahlungen-core.wertgutscheinFlussCents`: Eintraege im 0-%-Topf
+ * (`imNullTopf`) stehen schon als Position; eine Auszahlung ohne
+ * Topf-Position mindert den Zahlbetrag.
+ */
 function wertgutscheinFlussCents(gutscheine: readonly Gutschein[], art: string): number {
   const vz = art === 'cancellation' ? -1 : 1;
   let cents = 0;
   for (const v of gutscheine) {
-    if (v.type !== VoucherType.value || !Number.isFinite(v.value)) continue;
+    if (v.type !== VoucherType.value || v.imNullTopf === true || !Number.isFinite(v.value)) continue;
     const c = euroToCent(v.value);
     if (v.action === VoucherAction.sell) cents += c;
-    else if (v.action === VoucherAction.redeem) cents -= c;
+    else if (v.action === VoucherAction.redeem || v.action === VoucherAction.payout) cents -= c;
   }
   return vz * cents + 0;
 }

@@ -85,7 +85,9 @@ test('Verkaufswunsch der neuen Form wird gesendet, wie er ist', () => {
 test('alle Wunschformen aus dem Vertrag gehen unveraendert hinaus', () => {
   for (const name of ['sale_single_purpose_voucher', 'sale_multi_purpose_voucher', 'sale_service_voucher', 'redeem_multi_purpose_voucher', 'redeem_single_purpose_voucher', 'redeem_service_voucher', 'redeem_promotion_voucher', 'payout_multi_purpose_voucher']) {
     const wunsch = beispiel(name).params.vouchers;
-    const p = createReceiptParams({ receiptType: 'standard', items: wunsch[0].action === 'redeem' ? posi : [], vouchers: wunsch, payments: ZAHLUNG } as any);
+    // Eine reine Auszahlung geht mit genau einer negativen Barzahlung hinaus (wie im Vertrag).
+    const payments = wunsch[0].action === 'payout' ? beispiel(name).params.payments : ZAHLUNG;
+    const p = createReceiptParams({ receiptType: 'standard', items: wunsch[0].action === 'redeem' ? posi : [], vouchers: wunsch, payments } as any);
     assert.deepEqual(p['vouchers'], wunsch, name);
   }
 });

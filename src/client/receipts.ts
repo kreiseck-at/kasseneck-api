@@ -385,7 +385,10 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     if (options.payments == null) {
       throw eingabefehler('payments fehlt: unter /v3 ist die Zahlungsliste Pflicht (Summe = receiptDueCents).');
     }
-    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt');
+    // Beleg nur aus Gutschein-Auszahlungen (Server gutschein-beleg.istNurAuszahlung):
+    // genau eine Barzahlung ueber den negativen Zahlbetrag.
+    const nurAuszahlung = (vouchers?.length ?? 0) > 0 && vouchers!.every((v) => v.action === VoucherAction.payout) && (items?.length ?? 0) === 0;
+    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt', nurAuszahlung);
   } else if (options.payments != null) {
     throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
   }
@@ -1024,10 +1027,22 @@ const MAX_ZAHLUNGEN = 20;
  * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
  * etwas hinausgeht.
  */
-function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string): Record<string, unknown>[] {
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false): Record<string, unknown>[] {
   const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
   if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
   if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
+  // Auszahlung eines Gutscheins: der Betrag geht bar hinaus, ohne gegeben und ohne Trinkgeld (Server pruefeZahlungen).
+  const negativ = storno || auszahlung;
+  if (auszahlung) {
+    const e = roh[0] as Record<string, unknown> | undefined;
+    if (roh.length !== 1) throw fehler('Auszahlung: genau eine Barzahlung angeben.');
+    if (e != null && typeof e === 'object') {
+      const m = e['method'];
+      if ((typeof m === 'object' && m !== null ? (m as { value?: unknown }).value : m) !== 'cash') throw fehler('Auszahlung: nur in bar moeglich.');
+      if (e['tenderedCents'] !== undefined) throw fehler('Auszahlung: tenderedCents ist nicht moeglich.');
+      if (e['tipCents'] !== undefined) throw fehler('Auszahlung: tipCents ist nicht moeglich.');
+    }
+  }
   return roh.map((eintrag: unknown, i) => {
     const nr = i + 1;
     if (eintrag == null || typeof eintrag !== 'object' || Array.isArray(eintrag)) {
@@ -1036,8 +1051,8 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string)
     const z = eintrag as Record<string, unknown>;
     const method = gepruefteZahlungsart(z['method'] as KeckPaymentMethod | KeckPaymentMethodKey);
     const betrag = z['amountCents'];
-    if (typeof betrag !== 'number' || !Number.isInteger(betrag) || (storno ? betrag >= 0 : betrag <= 0)) {
-      throw fehler(`Zahlung ${nr}: amountCents muss eine ganze Zahl ${storno ? 'kleiner' : 'groesser'} als 0 sein.`);
+    if (typeof betrag !== 'number' || !Number.isInteger(betrag) || (negativ ? betrag >= 0 : betrag <= 0)) {
+      throw fehler(`Zahlung ${nr}: amountCents muss eine ganze Zahl ${negativ ? 'kleiner' : 'groesser'} als 0 sein.`);
     }
     const aus: Record<string, unknown> = { method, amountCents: betrag };
     if (z['tenderedCents'] !== undefined) {

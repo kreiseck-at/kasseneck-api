@@ -26,6 +26,7 @@ import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
   fromReceiptItemPayload,
   fromVoucherPayload,
+  isNewFormVoucher,
   CANCELLATION_ERROR_CODES,
   CANCELLATION_REASONS,
   CANCELLATION_STATUSES,
@@ -54,7 +55,7 @@ import {
   type VoucherPayload,
 } from '../src/models/index.js';
 import { KeckPaymentMethod } from '../src/enums/index.js';
-import { receiptDueCents } from '../src/receipt/due.js';
+import { receiptDueCents, type ReceiptDueOptions, type VoucherDueArticle, type VoucherDueInfo } from '../src/receipt/due.js';
 import { getReportV2 } from '../src/client/reports.js';
 import * as wurzel from '../src/index.js';
 import { randUndAnmeldung } from './kassenweg-codes.js';
@@ -220,14 +221,59 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
   }
 }
 
+/**
+ * Was die Kasse vor dem Senden ueber die Gutscheine eines Falls weiss: je
+ * Einloesung/Auszahlung die Pruefung (checkVoucher), zurueckgerechnet aus dem
+ * gelesenen Eintrag (Saldo davor = Saldo danach + Betrag), dazu fuer Verkaeufe
+ * die Gutschein-Einstellung (Einzweck-Satz) und den Artikel (Leistung).
+ */
+function gutscheinWelt(fall: Fall): ReceiptDueOptions {
+  const wuensche = (fall.params.vouchers ?? []) as Json[];
+  const gelesen = (fall.response.data?.receipt?.vouchers ?? []) as Json[];
+  const voucherInfo: VoucherDueInfo[] = [];
+  const voucherArticles: VoucherDueArticle[] = [];
+  let voucherSettings: ReceiptDueOptions['voucherSettings'];
+  wuensche.forEach((w, i) => {
+    const g = gelesen[i];
+    if (g == null || g.voucherType == null) return;
+    if (w.action === 'sell') {
+      if (g.voucherType === 'single_purpose') voucherSettings = { sale: true, valueVoucherType: 'single_purpose', vatRateBp: g.vatRateBp };
+      if (g.voucherType === 'service') voucherArticles.push({ id: g.article.id, priceCents: g.article.priceCents, vatRateBp: g.article.vatRateBp });
+      return;
+    }
+    const check: Json = { type: g.voucherType, status: 'active', codeSuffix: g.codeSuffix };
+    const betrag = g.valueCents ?? g.amountCents;
+    if (g.balanceAfterCents != null) check.balanceCents = g.balanceAfterCents + betrag;
+    if (g.vatRateBp != null) check.vatRateBp = g.vatRateBp;
+    if (g.voucherType === 'service') {
+      check.remainingQuantity = g.remainingQuantityAfter + g.quantity;
+      check.article = { id: g.articleId, name: 'Artikel', vatRateBp: g.vatRateBp, priceCents: 1 };
+    }
+    if (g.voucherType === 'promotion') check.discountCents = g.valueCents;
+    voucherInfo.push({ code: w.code, check: check as VoucherDueInfo['check'] });
+  });
+  return { voucherInfo, voucherArticles, ...(voucherSettings ? { voucherSettings } : {}) };
+}
+
 test('Zahlbetrag-Zwilling: jede angenommene Zahlungsliste ist genau receiptDueCents', () => {
+  const mitNeuerForm = new Set<string>();
   for (const fall of [...umsatzFaelle(BELEGE), ...umsatzFaelle(KASSE_BELEGE)]) {
     if (fall.params.receiptType !== 'standard') continue;
     const o = verkaufAus(fall.params);
     const summe = o.payments.reduce((s, z) => s + z.amountCents, 0);
     const tip = o.tip == null ? undefined : typeof o.tip === 'number' ? o.tip : o.tip.cents;
+    if ((o.vouchers ?? []).some(isNewFormVoucher)) mitNeuerForm.add(fall.name);
     // Die Vertragswelt verkauft ueber einen Geraete-Schluessel: Personal-Trinkgeld.
-    assert.equal(receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip, payments: o.payments, tipRecipient: 'staff' }), summe, fall.name);
+    assert.equal(
+      receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip, payments: o.payments, tipRecipient: 'staff', ...gutscheinWelt(fall) }),
+      summe,
+      fall.name,
+    );
+  }
+  // Alle Arten der neuen Form sind dabei, auch die Auszahlung (negativer Zahlbetrag).
+  for (const n of ['sale_single_purpose_voucher', 'sale_multi_purpose_voucher', 'sale_service_voucher', 'redeem_multi_purpose_voucher',
+    'redeem_single_purpose_voucher', 'redeem_service_voucher', 'redeem_promotion_voucher', 'payout_multi_purpose_voucher']) {
+    assert.ok(mitNeuerForm.has(n), n);
   }
 });
 
