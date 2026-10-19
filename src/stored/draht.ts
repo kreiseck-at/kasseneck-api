@@ -151,6 +151,45 @@ function belegRueckgabeNachAussen(beleg: Objekt): Objekt {
   return raus;
 }
 
+// ---- Gutschein-Eintraege am Beleg ---------------------------------------------
+
+/** Zwilling von `BELEG_GUTSCHEIN` (api-vokabular-v3): aussen -> innen. */
+const BELEG_GUTSCHEIN: Readonly<Record<string, string>> = {
+  voucherType: 'art', voucherId: 'gutscheinId', codeSuffix: 'codeEnde', amountCents: 'betragCents', vatRateBp: 'satzBp',
+  article: 'artikel', articleId: 'artikelId', quantity: 'stueck', positions: 'positionen',
+  balanceAfterCents: 'saldoNachCents', remainingQuantityAfter: 'stueckOffenNach', taxedWith: 'versteuertMit', exempt: 'befreit',
+  reason: 'grund', zeroRateBucket: 'imNullTopf',
+};
+const BELEG_GUTSCHEIN_AUSSEN: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(BELEG_GUTSCHEIN).map(([aussen, innen]) => [innen, aussen]));
+const GUTSCHEIN_ARTIKEL_AUSSEN: Readonly<Record<string, string>> = { satzBp: 'vatRateBp', preisCents: 'priceCents' };
+
+function umbenannt(o: Objekt, namen: Readonly<Record<string, string>>): Objekt {
+  return Object.fromEntries(Object.entries(o).map(([k, w]) => [hat(namen, k) ? namen[k]! : k, w]));
+}
+
+/** Zwilling von `gutscheinEintragNachAussen`: ohne deutschen Schluessel/Wert dasselbe Objekt (Altbeleg). */
+function gutscheinEintragNachAussen(v: unknown): unknown {
+  if (!istObjekt(v)) return v;
+  const art = KATALOGE.GUTSCHEIN_ART ?? {};
+  const typNeu = typeof v.type === 'string' && hat(art, v.type);
+  if (!typNeu && !Object.keys(v).some((k) => hat(BELEG_GUTSCHEIN_AUSSEN, k))) return v;
+  const raus: Objekt = {};
+  for (const [k, w] of Object.entries(v)) {
+    if (k === 'type') raus.type = typNeu ? art[w as string] : w;
+    else if (k === 'art') raus.voucherType = typeof w === 'string' && hat(art, w) ? art[w] : w;
+    else if (k === 'artikel') raus.article = istObjekt(w) ? umbenannt(w, GUTSCHEIN_ARTIKEL_AUSSEN) : w;
+    else raus[hat(BELEG_GUTSCHEIN_AUSSEN, k) ? BELEG_GUTSCHEIN_AUSSEN[k]! : k] = w;
+  }
+  return raus;
+}
+
+/** Zwilling von `belegGutscheineNachAussen`: `vouchers[]` eines Belegs an Ort und Stelle nach aussen. */
+function belegGutscheineNachAussen(beleg: Objekt): Objekt {
+  if (!Array.isArray(beleg.vouchers)) return beleg;
+  const neu = beleg.vouchers.map(gutscheinEintragNachAussen);
+  return neu.every((v, i) => v === (beleg.vouchers as unknown[])[i]) ? beleg : { ...beleg, vouchers: neu };
+}
+
 /**
  * Zwilling von `beleg-pruefangaben.alsIso`: leer (auch 0, '') -> null;
  * Firestore-Zeitstempel, Zahl oder Zeichenkette -> ISO-Zeitpunkt in UTC;
@@ -199,7 +238,7 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
 export function _receiptEnvelopeToWire(huelle: Objekt): Objekt {
   const schema = SCHEMAS.getReceipt;
   const draht = werteNachAussen(schluesselNachAussen(huelle, schema.data), schema.werte) as Objekt;
-  return istObjekt(draht.receipt) ? { ...draht, receipt: belegRueckgabeNachAussen(draht.receipt) } : draht;
+  return istObjekt(draht.receipt) ? { ...draht, receipt: belegGutscheineNachAussen(belegRueckgabeNachAussen(draht.receipt)) } : draht;
 }
 
 /**

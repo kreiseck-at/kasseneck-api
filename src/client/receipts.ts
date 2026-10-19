@@ -329,6 +329,11 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     throw eingabefehler('Ein Storno geht nur ueber cancelReceipt (Bezug, Grund, Restmengen).');
   }
 
+  // Gutschein-Positionen setzt nur der Server; vor jeder anderen Positionspruefung.
+  if (items?.some((item) => item.kind === 'voucher' || item.kind === 'voucher_float') ?? false) {
+    throw eingabefehler('voucher_invalid: Gutschein-Positionen (kind voucher, voucher_float) setzt nur der Server.');
+  }
+
   if (typ.needsItems) {
     // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen, deshalb
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
@@ -343,11 +348,6 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
   }
 
   const params: Record<string, unknown> = { receiptType: typ.value };
-
-  // Gutschein-Positionen und Serverfelder setzt nur der Server.
-  if (items?.some((item) => item.kind === 'voucher' || item.kind === 'voucher_float') ?? false) {
-    throw eingabefehler('voucher_invalid: Gutschein-Positionen (kind voucher, voucher_float) setzt nur der Server.');
-  }
 
   if (vouchers != null && vouchers.length > 0) {
     if (!typ.allowsVouchers) {
@@ -854,36 +854,29 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
     }
   }
 
-  // Neue Form: ein Beleg traegt entweder Verkauf oder Einloesung oder
-  // Auszahlung; der Aktionsgutschein steht allein; eine Auszahlung gibt es
-  // nur mit Mehrzweck/Einzweck, nie mit der Altform.
+  // Neue Form, Regeln wie gutschein-beleg.plane des Servers:
+  // - Verkauf und Einloesung nie zusammen, sobald einer davon die neue Form
+  //   hat (auch gegen die Altform); eine Auszahlung zaehlt hier nicht.
+  // - der Aktionsgutschein (promotion) steht allein.
+  // - eine Auszahlung nie mit einem Altform-Rabatt (promo).
+  // Die Altform-Zaehler unten zaehlen die neue Form bewusst nicht mit.
   const neu = vouchers.filter((v) => isNewFormVoucher(v));
-  const neuAktionen = new Set(neu.map((v) => v.action));
-  if (neuAktionen.size > 1) {
-    return 'Ungueltige Daten: Ein Beleg kann Gutscheine der neuen Form nur verkaufen, nur einloesen oder nur auszahlen';
+  const verkaufEinloesung = vouchers.filter((v) => v.action === VoucherAction.sell || v.action === VoucherAction.redeem);
+  if (verkaufEinloesung.some((v) => v.action === VoucherAction.sell)
+    && verkaufEinloesung.some((v) => v.action === VoucherAction.redeem)
+    && verkaufEinloesung.some((v) => isNewFormVoucher(v))) {
+    return 'Ungueltige Daten: Ein Beleg kann Gutscheine der neuen Form nicht zugleich verkaufen und einloesen';
   }
   if (neu.some((v) => v.type === VoucherType.promotion) && vouchers.length > 1) {
     return 'Ungueltige Daten: Ein Aktionsgutschein (type promotion) darf nicht mit anderen Gutscheinen kombiniert werden';
   }
-  if (neu.some((v) => v.action === VoucherAction.payout) && vouchers.length > neu.length) {
-    return 'Ungueltige Daten: Eine Auszahlung (action payout) darf nicht mit Gutscheinen der Altform kombiniert werden';
+  if (neu.some((v) => v.action === VoucherAction.payout) && vouchers.some((v) => !isNewFormVoucher(v) && v.type === VoucherType.promo)) {
+    return 'Ungueltige Daten: Eine Auszahlung (action payout) darf nicht mit einem Gutschein mit type promo kombiniert werden';
   }
-  // Neue Einloesungen und Auszahlungen vertragen sich nicht mit einem
-  // Verkauf der Altform (und umgekehrt): eine Aktion je Beleg.
-  const neuVerkauf = neu.filter((v) => v.action === VoucherAction.sell).length;
-  const neuEinloesen = neu.filter((v) => v.action === VoucherAction.redeem).length;
-  if (neu.length > 0 && vouchers.length > neu.length) {
-    const alt = vouchers.filter((v) => !isNewFormVoucher(v));
-    if (neuEinloesen > 0 && alt.some((v) => v.action === VoucherAction.sell)) {
-      return 'Ungueltige Daten: Ein Beleg kann Gutscheine nur verkaufen oder nur einloesen';
-    }
-    if (neuVerkauf > 0 && alt.some((v) => v.action === VoucherAction.redeem)) {
-      return 'Ungueltige Daten: Ein Beleg kann Gutscheine nur verkaufen oder nur einloesen';
-    }
-  }
+  const einloesenNeu = neu.filter((v) => v.action === VoucherAction.redeem).length;
 
-  const einloesenGesamt = einloesenWert + einloesenPromo + neuEinloesen;
-  const verkaufenGesamt = verkaufenWert + verkaufenPromo + neuVerkauf;
+  const einloesenGesamt = einloesenWert + einloesenPromo;
+  const verkaufenGesamt = verkaufenWert + verkaufenPromo;
 
   if (verkaufenPromo > 0) {
     return 'Ungueltige Daten: Gutscheine mit type promo duerfen nicht verkauft werden';
@@ -897,7 +890,7 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
   if (einloesenPromo > 0 && verkaufenGesamt > 0) {
     return 'Ungueltige Daten: Mit einem Gutschein mit type promo duerfen nicht andere Gutscheine verkauft werden';
   }
-  if (einloesenGesamt > 0 && items.length === 0) {
+  if ((einloesenGesamt > 0 || einloesenNeu > 0) && items.length === 0) {
     return 'Ungueltige Daten: Gutscheine mit action redeem benoetigen mindestens ein item';
   }
   return null;

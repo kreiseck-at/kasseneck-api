@@ -10,6 +10,7 @@ import { _storedArticleToWire } from '../src/stored/draht.js';
 import { belegMitFirmaAusHuelle } from '../src/client/receipts.js';
 import { posSettingsFromWire } from '../src/pos/client.js';
 import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
+import { FAELLE_NEU, dokument } from './stored-gutschein-docs.js';
 import { unknownPosSettingValues, type PosSettings } from '../src/pos/settings.js';
 
 /**
@@ -157,7 +158,9 @@ test('stored-backend: Belege mit Firma und Layout wie belegAntwort und Rand des 
     { ...storno, items: storno.items.map((it: Json) => ({ ...it, articleId: 'rye-bread', rueckgabe: 'verloren' })) },
     { ...docs[2], lagerStandortId: 'store-1', cancellations: [{ receiptId: 'X-2', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] },
   ];
-  for (const doc of [...docs, ...extra]) {
+  // Gespeicherte Belege der neuen Gutscheinform (Einzweck, Leistung, Mehrzweck im Nulltopf, Auszahlung ...).
+  const gutscheinDocs: Json[] = FAELLE_NEU.map((name) => dokument(name).doc);
+  for (const doc of [...docs, ...extra, ...gutscheinDocs]) {
     for (const data of versionen) {
       for (const konto of konten) {
         for (const testKasse of [false, true]) {

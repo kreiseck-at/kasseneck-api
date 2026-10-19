@@ -147,9 +147,24 @@ test('Kombinationen: Verkauf ODER Einloesung, Aktion allein, Aktion nie mit Altf
   assert.match(checkVoucherCombinationError([sell, red], posi)!, /\S/);
   assert.match(checkVoucherCombinationError([promo, red], posi)!, /\S/);
   assert.match(checkVoucherCombinationError([promo, v({ action: 'redeem', type: 'value', valueCents: 5 })], posi)!, /\S/);
-  assert.match(checkVoucherCombinationError([pay, red], posi)!, /\S/);
   assert.match(checkVoucherCombinationError([pay, v({ action: 'redeem', type: 'promo', valueCents: 5 })], posi)!, /\S/);
   assert.equal(checkVoucherCombinationError([pay], []), null);
+
+  // Regel 1: Verkauf und Einloesung nie zusammen, sobald einer die neue Form hat (auch gegen die Altform).
+  assert.match(checkVoucherCombinationError([sell, v({ action: 'redeem', type: 'value', valueCents: 5 })], posi)!, /\S/);
+  assert.match(checkVoucherCombinationError([v({ action: 'sell', type: 'value', valueCents: 5 }), red], posi)!, /\S/);
+  // ... reine Altform bleibt Sache der alten Regeln (Wert verkaufen + Wert einloesen ist dort erlaubt).
+  assert.equal(checkVoucherCombinationError([v({ action: 'sell', type: 'value', valueCents: 5 }), v({ action: 'redeem', type: 'value', valueCents: 5 })], posi), null);
+  // Regel 2: Auszahlung neben Verkauf oder Einloesung anderer Gutscheine ist erlaubt.
+  assert.equal(checkVoucherCombinationError([pay, red], posi), null);
+  assert.equal(checkVoucherCombinationError([pay, sell], posi), null);
+  assert.equal(checkVoucherCombinationError([pay, v({ action: 'sell', type: 'value', valueCents: 5 })], posi), null);
+  assert.equal(checkVoucherCombinationError([pay, v({ action: 'redeem', type: 'value', valueCents: 5, code: 'W' })], posi), null);
+  // Regel 3: Auszahlung nur mit einem Altform-Rabatt (promo) nicht.
+  assert.match(checkVoucherCombinationError([pay, v({ action: 'redeem', type: 'promo', valueCents: 5 })], posi)!, /\S/);
+  // Regel 4: Altform-Rabatt + Einloesung der neuen Form geht durch (die neue Einloesung zaehlt nicht zur Altform-Summe).
+  assert.equal(checkVoucherCombinationError([v({ action: 'redeem', type: 'promo', valueCents: 5 }), red], posi), null);
+  assert.equal(checkVoucherCombinationError([red, v({ action: 'redeem', type: 'promo', valueCents: 5 })], posi), null);
   assert.equal(checkVoucherCombinationError([promo], posi), null);
 });
 
@@ -161,4 +176,27 @@ test('neue Form nicht auf Schulungsbelegen', () => {
 test('Altform bleibt unveraendert', () => {
   const p = createReceiptParams({ receiptType: 'standard', items: posi, vouchers: [{ action: VoucherAction.redeem, type: VoucherType.value, valueCents: 500, code: 'WG-1' }], payments: ZAHLUNG });
   assert.deepEqual(p['vouchers'], [{ action: 'redeem', type: 'value', valueCents: 500, code: 'WG-1' }]);
+});
+
+test('Grenzen wie der Server: Betrag, Menge, Positionen, Grund und Code getrimmt', () => {
+  const ok = (g: Json) => voucherIsValid(v(g));
+  assert.ok(ok({ action: 'sell', type: 'multi_purpose', amountCents: 1_000_000 }));
+  assert.ok(!ok({ action: 'sell', type: 'multi_purpose', amountCents: 1_000_001 }));
+  assert.ok(!ok({ action: 'redeem', type: 'single_purpose', code: 'C', amountCents: 1_000_001 }));
+  assert.ok(ok({ action: 'sell', type: 'service', articleId: 'a', quantity: 100 }));
+  assert.ok(!ok({ action: 'sell', type: 'service', articleId: 'a', quantity: 101 }));
+  assert.ok(!ok({ action: 'redeem', type: 'service', code: 'C', positions: [0, 0] }));
+  assert.ok(ok({ action: 'redeem', type: 'service', code: 'C', positions: [0, 1] }));
+  assert.ok(!ok({ action: 'redeem', type: 'multi_purpose', code: '   ', amountCents: 1 }));
+  assert.ok(!ok({ action: 'payout', type: 'multi_purpose', code: 'C', amountCents: 1, reason: '   ' }));
+  assert.ok(ok({ action: 'payout', type: 'multi_purpose', code: 'C', amountCents: 1, reason: ` ${'x'.repeat(200)} ` }));
+  assert.ok(!ok({ action: 'payout', type: 'multi_purpose', code: 'C', amountCents: 1, reason: 'x'.repeat(201) }));
+});
+
+test('eine Gutschein-Position gibt vor jeder anderen Positionspruefung voucher_invalid', () => {
+  // Leerer Name waere sonst "Ungueltige Position uebergeben."
+  assert.throws(
+    () => createReceiptParams({ receiptType: 'standard', items: [{ name: '', quantity: 1, priceCents: -100, vat: 20, kind: 'voucher_float' } as any], payments: ZAHLUNG }),
+    /voucher_invalid/,
+  );
 });

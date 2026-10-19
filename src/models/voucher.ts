@@ -192,8 +192,13 @@ function lesenNeu(payload: VoucherPayload): Partial<Voucher> {
   return neu as Partial<Voucher>;
 }
 
-const istCent = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n > 0;
-const hatText = (t: unknown): boolean => typeof t === 'string' && t.length > 0;
+/** Grenzen wie der Server (gutschein-beleg): Betrag 1 bis 1.000.000 Cent, Menge 1 bis 100. */
+const MAX_BETRAG_CENTS = 1_000_000;
+const MAX_STUECK = 100;
+const MAX_GRUND = 200;
+const istCent = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_BETRAG_CENTS;
+const istMenge = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_STUECK;
+const hatText = (t: unknown): boolean => typeof t === 'string' && t.trim().length > 0;
 
 /**
  * Wunsch der neuen Form sendbar? Bildet die Regeln des Servers ab: Serverfelder
@@ -212,7 +217,7 @@ function newFormVoucherIsValid(v: Voucher): boolean {
   if (v.valueCents != null) return false;
   const allein = v.type === VoucherType.multi_purpose || v.type === VoucherType.single_purpose;
   if (v.action === VoucherAction.payout) {
-    return allein && hatText(v.code) && istCent(v.amountCents) && hatText(v.reason) && v.reason!.length <= 200
+    return allein && hatText(v.code) && istCent(v.amountCents) && hatText(v.reason) && v.reason!.trim().length <= MAX_GRUND
       && v.articleId == null && v.quantity == null && v.positions == null;
   }
   if (v.reason != null) return false;
@@ -225,11 +230,11 @@ function newFormVoucherIsValid(v: Voucher): boolean {
   if (v.type === VoucherType.service) {
     if (v.amountCents != null) return false;
     if (v.action === VoucherAction.sell) {
-      return hatText(v.articleId) && istCent(v.quantity) && v.positions == null;
+      return hatText(v.articleId) && istMenge(v.quantity) && v.positions == null;
     }
     if (v.action === VoucherAction.redeem) {
       return hatText(v.code) && Array.isArray(v.positions) && v.positions.length > 0
-        && v.positions.every((i) => Number.isInteger(i) && i >= 0) && v.articleId == null && v.quantity == null;
+        && v.positions.every((i) => Number.isInteger(i) && i >= 0) && new Set(v.positions).size === v.positions.length && v.articleId == null && v.quantity == null;
     }
     return false;
   }

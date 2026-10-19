@@ -48,7 +48,7 @@ export const BACKEND_STELLEN = [
 ];
 
 /** Die Dateien des Zwillings (vokabular.ts ist erzeugt und eigens gegen den Vertrag geprueft). */
-export const ZWILLING_DATEIEN = ['src/stored/draht.ts', 'src/stored/einstellungen.ts', 'src/stored/index.ts'];
+export const ZWILLING_DATEIEN = ['src/stored/bon-layout.ts', 'src/stored/draht.ts', 'src/stored/einstellungen.ts', 'src/stored/gutscheine.ts', 'src/stored/index.ts'];
 
 const sha = (text) => createHash('sha256').update(text).digest('hex');
 

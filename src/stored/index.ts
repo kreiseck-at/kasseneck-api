@@ -23,6 +23,7 @@ import { KasseneckValidationError } from '../client/errors.js';
 import {
   _receiptEnvelopeToWire, _storedArticleToWire, _storedReceiptInner, _storedReceiptToWire, pruefangabenDerHuelle,
 } from './draht.js';
+import { layoutWieServer } from './bon-layout.js';
 import { _storedPosSettingsToWire } from './einstellungen.js';
 
 type Objekt = Record<string, unknown>;
@@ -127,22 +128,6 @@ function pruefangabenFuer(beleg: Objekt, angabe: RegistrationInfo | undefined): 
   if (beleg.receiptType !== 'zero') return null;
   if (beleg.pruefangaben && typeof beleg.pruefangaben === 'object') return pruefangabenDerHuelle(beleg.pruefangaben as Objekt);
   return { karteRegistriertAm: angabe?.cardRegisteredAt ?? null, kasseRegistriertAm: angabe?.cashregisterRegisteredAt ?? null };
-}
-
-/**
- * Layout wie `beleg-layout.layoutFuerBeleg`: 80 mm, Regelwerk mindestens das
- * aktuelle. Kann der Server es nicht bauen, liefert er `null` (dann baut
- * [receiptLayoutFromResult] selbst); ebenso hier.
- */
-function layoutWieServer(b: ReceiptWithCompany, regelwerk: unknown): ReceiptLayout | null {
-  const ruleset = Math.max(Number(regelwerk) || 1, CURRENT_LAYOUT_RULESET) as LayoutRuleset;
-  try {
-    return buildReceiptLayout(b.receipt, b.company, {
-      paperSize: 'mm80', ruleset, testCashregister: b.testCashregister, testSignature: b.testSignature, registrationInfo: b.registrationInfo,
-    });
-  } catch {
-    return null;
-  }
 }
 
 // ---- Firma ------------------------------------------------------------------
