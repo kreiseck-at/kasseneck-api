@@ -1,6 +1,70 @@
 {
   "regelwerk": 2,
   "belege": {
+    "gutschein-auszahlung": {
+      "eingabe": "9f50c4d26bda61688a981d5a970b9d6fdb1cf5c1d821d30e4ec72148812bb244",
+      "erwartet": "1a50145165d3afa8c877f4c17aa5488dcdd1bf5fc2e45cea7cf74be5f1f3f840",
+      "grid32": "8be8b745268dfca2e3c6bbbf07c71a5680474fa04d353e2bfe1ddbacd57e4c61",
+      "grid48": "65e124fdfcfc2ea46f55ab76d4b1443dad38e46feb4b317181f4b41172d2c1aa",
+      "blatt32": "51b69fbaa1a9a03eecd3dc8cb9184769b952d015cf0a5264d45d5aad67947f01",
+      "blatt48": "adb0dfe3ab03f3234d907153fdd4e16b5048b24f22252119e21b484a64c5fc1d"
+    },
+    "gutschein-einzweck-einloesung": {
+      "eingabe": "2d715e960a0ea9e0410c19a01eb82227e86490eebe846b05cd9a6854fe891ef5",
+      "erwartet": "825dd31006febab3196094150020a9ef7fb9a3c52b103ca97434fac14524c833",
+      "grid32": "3a21155004e45efb7d52013f7f29a88541e36f356af0a0198f62e14e95d3e1c4",
+      "grid48": "14b3326bafc6f7e3b823fab0a424e8ee1efc5f3e24ef097d6a01dd8cd6ad30a7",
+      "blatt32": "40287a9f8f150ba1bedaa3c151bf1a184c3a5c6b4fefb18323e3ab9505fb127f",
+      "blatt48": "5fd84d1925467baea1fd0e3cc4a9654fa2eb6e97df1d4260cbe496fda8d145ac"
+    },
+    "gutschein-einzweck-einloesung-befreit": {
+      "eingabe": "6f3d2ba880302c04df13dd0ba439accb19ee3c4563433045bd6857fc88690072",
+      "erwartet": "fd27e5193089a89a49e0bd6a1417dc677a33436da65a92755d56caa411519632",
+      "grid32": "3f1a6fbf95fea0dd62185eb966e6326868d691408655eca0d0b689e3b3aa6e79",
+      "grid48": "372a639cfd586e87f42ac73c34d5c21cc47d53ecab4c4078877a4bc472dccbcc",
+      "blatt32": "91dfb06c22cb5f4b5f662e010346ad4eeea4baaa79122b90b6762819cdedfd81",
+      "blatt48": "ff255a9fbde486f12317d82a11f63bc11a69262eb2b1a5f4ebe67845479ed101"
+    },
+    "gutschein-einzweck-leistung-verkauf": {
+      "eingabe": "01f75fd07ffe34aa95f86da70a995eb944083d3215c88bb03685f976cf475f2e",
+      "erwartet": "bd509debebb576f0667c0872d1b982cc507e5305804e6f81328231392a3ceed9",
+      "grid32": "d18d949f96406c2885ee9d69f42c1ac81dd39757b017c380afe2146894023f4f",
+      "grid48": "b3ff2f94508a6904e51230b2af7364ea880d9c6903e80648ac09f07cf91aef71",
+      "blatt32": "422f8d6c888a6866e82735d5dd9e3766312566a6cfe18b4a63560de77ed73ca0",
+      "blatt48": "223a3c04fe14b6b9468459ff057384f86e69b0be7c39bf10b196e2961d33d88a"
+    },
+    "gutschein-leistung-einloesung": {
+      "eingabe": "03b0330e71f08c2dfbebb9704b2fc0b3c066d6f9e6875718f9e3bf9a17ee7beb",
+      "erwartet": "30f6c626164654b2c30731c0069a0963afab5e75696e1899398dfd0fb8322fb1",
+      "grid32": "948fd297dd33f0462eda06980ff5854ee6d410e9ef528b3b804af144d5cf9aeb",
+      "grid48": "95a232e712e8408721d1b0c24fb4991171a26f26f404494a43cff81922020ed6",
+      "blatt32": "a6764b435f79302dcf57d89ccef0498e3cc0cb35d771f5d89b07cc7e83bcefe3",
+      "blatt48": "84e6dd52035e85dc42bd6a84f0ea0ac22eb312a0d017daf6f5713f1b56dbdda2"
+    },
+    "gutschein-mehrzweck-einloesung": {
+      "eingabe": "8103ef61cb8829dabadf060668cd2cb8e083055c033534961b48afc9beb197a8",
+      "erwartet": "260deeb4f78d6665363e81aafbd21ab53c59a62a2b53b5fe6a6c45e697a9b766",
+      "grid32": "8ad6ac1ccfc844061bee9919f1de8b1e3a7352835af326817aef9183ec9d45c1",
+      "grid48": "31a9307be38cb9ed12b21a3bb83fb151f09c7996acbdf00a511bc22390812a37",
+      "blatt32": "87dbf211630214d1c9c372801d5af6beb61429f7685fe19363f54dddf19bd447",
+      "blatt48": "0c51fd20cf1d7376f001f131e4fd926eca7370bb44b92bfca1be045e02240648"
+    },
+    "gutschein-mehrzweck-verkauf": {
+      "eingabe": "439066ed2ef8803526e42ce154b5f76266e4df4eb1822fea621045bf6cea098e",
+      "erwartet": "079f2ed94bb28510fd1e101007ad9bfe8c1c399fe9be3d0510cb5c5ca34c4c5c",
+      "grid32": "6efb9d4477f59f620135738dbd45a36e113215446bdb8577898a0dde48370630",
+      "grid48": "2a1eac91bbfc583f2f848068645bb7528b020885f95da050ad5ae9f3b164f62b",
+      "blatt32": "9ba6ce61614181f15eefaece157d8bafe37ccebb4c5792c5a503dedd86c618b9",
+      "blatt48": "b86bc98857f52ed4b4e2844874a96f9ac36f18c9a0b015f1f4b6969ead977b6f"
+    },
+    "gutschein-storno-einzweck": {
+      "eingabe": "b63262fd7017df0f5f101aaaab1c0d764ec90ba6fb76d08ed7294e53bc1d26fd",
+      "erwartet": "671c3b4fae224dce5634bc728789f895cf32a19cbb40326f57c0a64ad69f9c28",
+      "grid32": "27717798bb7f1178eb688ee8ac0510e5981e98463960eb7e6e62a7b5b869ad56",
+      "grid48": "138d0c26811216a5f12103afe18f625aea0443b973227f9d4658cf7bf9cb6201",
+      "blatt32": "09b03d06b3bdb89a00bf4993af03eb5182977286b69cdf0538bc6aed9c9c1141",
+      "blatt48": "b9f5024a2f30f6dee402a559ceef94dad6fdeb6a2e1b07fb51c2fb33247c3c09"
+    },
     "karte-eigener": {
       "eingabe": "61c0c2ea12a1b0e7031a8cf6be3bd06fd73f7975f22c1ff694bd736b392a2d86",
       "erwartet": "953b588213f05532247f968a8a705949c8027c9bd0e1250bd23e0d238b6c871c",

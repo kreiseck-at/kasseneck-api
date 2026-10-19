@@ -4,6 +4,42 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.34.0
+
+Gutscheine der neuen Form (Mehrzweck, Einzweck, Leistung, Aktion) im Modell und im Beleg-Blatt. Das Backend vendort
+die 0.x-Linie und setzt damit Bon, PDF und Mail; darum kommen hier genau die Teile hinzu, die es dafür braucht. Kein
+neuer Kassenaufruf (`checkVoucher`), keine Gutschein-Rechte, -Einstellungen, -Texte und kein Zahlbetrag – die gibt es
+nur in 1.x. Zwilling von 1.12.0.
+
+- **Modell, Lesen und Schreiben der neuen Form.** `VoucherType` kennt `multi_purpose`, `single_purpose`, `service`,
+  `promotion`, `VoucherAction` kennt `payout`; `Voucher` trägt die Felder der neuen Form (`amountCents`,
+  `voucherType`, `codeSuffix`, `balanceAfterCents`, `taxedWith`, `exempt`, `zeroRateBucket` …), Positionen kennen
+  `kind: 'voucher' | 'voucher_float'` (`isVoucherItem`, `isVoucherFloatItem`). Gelesen wird die interne Form, die
+  das Backend ablegt (`type: 'einzweck'`, `art`, `betragCents`, `imNullTopf` …), ebenso die `/v3`-Form; geschrieben
+  wird die interne. Grund: ein Beleg der neuen Form ließ sich bisher nur ohne seine Gutscheinangaben lesen, und
+  `toReceiptPayload` warf an der unbekannten Gutscheinart.
+- **Wunschprüfung wie der Server.** `voucherIsValid`, `checkVoucherCombinationError` und `createReceipt` bilden die
+  Regeln von `gutschein-beleg` ab (Serverfelder und Gutschein-Positionen im Wunsch sind `voucher_invalid`, keine neue
+  Form auf Schulungsbelegen, Auszahlung ohne Positionen). Grund: ein Wunsch, den der Server abweist, soll gar nicht
+  erst hinausgehen.
+- **Summen zählen jeden Betrag einmal.** `receiptSubSumCents`/`receiptSumCents` überspringen Einträge mit
+  `zeroRateBucket` (ihr Betrag steht als Position im 0-%-Topf); Einzweck und Leistung zählen nur über ihre
+  Positionen; die Auszahlung eines Wertgutscheins ohne `zeroRateBucket` mindert wie eine Einlösung. Grund: Vorfall
+  16.10.2026, der Verkauf eines Wertgutscheins über 30 € zeigte „Gesamt 60,00“.
+- **Beleg-Blatt laut Spec „Bon und Beleg“.** Verkauf mit Code an der Position (Mehrzweck mit „USt bei Einlösung“),
+  Einlösung Einzweck/Leistung als Gutscheinzeile mit Vermerk („versteuert mit Beleg …“ bzw. „befreit verkauft
+  (Kleinunternehmer)“) und Rest, Mehrzweck nach der Zwischensumme mit Rest, Auszahlung mit Grund. Zuordnung je Aktion
+  und der Reihe nach bis zum Betrag, der Platzhalter `no-code` steht nie am Bon. Grund: der Bon soll zeigen, welcher
+  Gutschein was gedeckt hat und was übrig bleibt, ohne Aufbereitung im Server.
+- **Hängender Einzug.** Ein linksbündiger Text mit führenden Leerzeichen bricht im Zeichenraster und auf dem Bildschirm
+  mit demselben Einzug um. Grund: lange Vermerke („  Grund: …“) stünden sonst auf 58 mm nicht unter ihrer Zeile.
+- **Golden-Belege `gutschein-*` (8).** Die Raster gleichen denen von 1.12.0 Zeichen für Zeichen. Grund: der Bon des
+  Servers soll derselbe sein wie der der Kassen.
+
+Altbelege und Belege ohne Gutschein bleiben byte-gleich (bestehende Goldens unverändert). Am Server-Layout ändern
+sich nur Belege mit Mehrzweck-Einträgen („Gutschein ····-5KNZ“ mit Rest statt „Wertgutschein ····-····-5KNZ –
+Gutschein“).
+
 ## 0.33.1
 
 `receiptSumCents`, `receiptSubSumCents` und das Bon-Layout zählen Wertgutscheine am Storno-Beleg mit umgekehrtem

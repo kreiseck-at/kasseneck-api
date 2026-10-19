@@ -36,8 +36,10 @@ export interface ReceiptItem {
    * Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Rabatt-Positionen sind
    * negative Entgeltminderungen je Steuersatz; die Kennzeichnung steuert nur
    * die Bon-Darstellung (Summenzeile mit Aufteilung), nie die Beträge.
+   * `voucher`/`voucher_float`: Gutschein-Position der neuen Gutscheinform,
+   * setzt nur der Server (siehe [isVoucherItem], [isVoucherFloatItem]).
    */
-  kind?: 'tip' | 'discount';
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float';
   /** Empfaenger der Trinkgeld-Position; `null` = nicht zugeordnet. */
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
@@ -68,6 +70,20 @@ export function isDiscountItem(item: ReceiptItem | ReceiptItemPayloadRead): bool
 }
 
 /**
+ * Gutschein-Position (Server, neue Gutscheinform)? `voucher` ist eine
+ * Einloesung oder ein Verkauf mit Umsatzsteuer-Wirkung, siehe
+ * [isVoucherFloatItem] fuer den durchlaufenden Posten.
+ */
+export function isVoucherItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'voucher';
+}
+
+/** Gutschein-Position als durchlaufender Posten (Mehrzweck im 0-%-Topf: Verkauf, Auszahlung)? */
+export function isVoucherFloatItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'voucher_float';
+}
+
+/**
  * Nutzlast-Form, die dieses Paket **schreibt** (v2):
  * `{ name, quantity, unitPriceCents, vatRate }`.
  */
@@ -76,8 +92,8 @@ export interface ReceiptItemPayload {
   quantity: number;
   unitPriceCents: number;
   vatRate: number;
-  /** Trinkgeld-/Rabatt-Kennzeichnung, siehe [ReceiptItem.kind]. */
-  kind?: 'tip' | 'discount';
+  /** Trinkgeld-/Rabatt-/Gutschein-Kennzeichnung, siehe [ReceiptItem.kind]. */
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
@@ -144,6 +160,10 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   // Rabatt-Kennzeichnung reist mit — sonst kaeme ein Storno dieser Position
   // am Bon wieder als gewoehnliche Warenzeile mit "1 x" an.
   if (item.kind === 'discount') nutzlast.kind = 'discount';
+  // Gutschein-Positionen (vom Server) reisen mit: ein gelesener Beleg geht so
+  // wieder hinaus, wie er war; ein Wunsch an den Server traegt sie nie
+  // (createReceipt weist sie als voucher_invalid ab).
+  if (item.kind === 'voucher' || item.kind === 'voucher_float') nutzlast.kind = item.kind;
   // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
   if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
   return nutzlast;
@@ -186,7 +206,9 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
         }
       : payload.kind === 'discount'
         ? { kind: 'discount' as const }
-        : {}),
+        : payload.kind === 'voucher' || payload.kind === 'voucher_float'
+          ? { kind: payload.kind }
+          : {}),
     // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
     ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
   };

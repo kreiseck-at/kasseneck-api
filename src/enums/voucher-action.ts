@@ -5,6 +5,8 @@
 export const VoucherAction = {
   sell: 'sell',
   redeem: 'redeem',
+  /** Neue Form: Restwert auszahlen (Mehrzweck/Einzweck). */
+  payout: 'payout',
 } as const;
 
 export type VoucherActionKey = keyof typeof VoucherAction;
