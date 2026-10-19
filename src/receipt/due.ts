@@ -7,7 +7,7 @@ import { toViennaWallClock } from '../vienna-time.js';
 import {
   centSumme,
   istDeckbar,
-  kuBasisCents,
+  kuSaetze,
   planeGutscheine,
   topfFuerSatz,
   type Gutschein,
@@ -297,15 +297,20 @@ export interface VoucherRedeemContext {
 /**
  * Hoechstbetrag zum Vorbelegen einer Einloesung an der Kasse, in Cent, nie
  * negativ: der groesste Betrag, den der Server fuer diesen Gutschein annimmt.
- * Gesucht wird unter einer festen Obergrenze (Saldo, offener Betrag, bei
- * Einzweck die deckbaren Positionen im Topf seines Satzes abzueglich schon
- * gewaehlter Einloesungen dort, befreit bzw. als Kleinunternehmer die Summe
- * je Satz ueber den ganzen Korb); jeder Kandidat wird mit genau der Rechnung
- * von [receiptDueCents] geprueft und bei Ablehnung um einen Cent gesenkt.
- * So zaehlen auch die Rundungen halber Cent in den Toepfen, an denen der
- * Server `voucher_exceeds_total` bzw. `voucher_rate_mismatch` meldet.
- * Leistung (wird ueber Positionen eingeloest), Aktion (Rabatt rechnet der
- * Server) und jeder nicht aktive Gutschein: 0.
+ *
+ * Obergrenze: Saldo, offener Betrag; bei Einzweck die deckbaren Positionen im
+ * Topf seines Satzes abzueglich der schon gewaehlten Einloesungen dort. Befreit
+ * verkauft bzw. als Kleinunternehmer verteilt der Server anteilig auf alle
+ * Saetze (`kuTeile`); dann begrenzt jeder Topf: sein Anteil plus die schon
+ * gewaehlten Einloesungen dort darf seine Positionen nicht uebersteigen.
+ *
+ * Unter dieser Grenze wird jeder Kandidat mit genau der Rechnung von
+ * [receiptDueCents] geprueft (Rundung halber Cent, groesster Rest), zuerst
+ * Cent fuer Cent abwaerts (64 Schritte). Findet das nichts, sucht eine
+ * Bisektion ueber [1, Grenze] und prueft danach 16 Cent aufwaerts: am Rand
+ * des groessten Rests ist die Annahme nicht monoton. Leistung (wird ueber
+ * Positionen eingeloest), Aktion (Rabatt rechnet der Server) und jeder nicht
+ * aktive Gutschein: 0.
  */
 export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: VoucherCheck, before: VoucherRedeemContext = {}): number {
   if (voucher.status !== 'active') return 0;
@@ -318,16 +323,16 @@ export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: Vo
   let oben = Math.min(saldo, r.ergebnis.dueCents + r.auszahlungCents + 6, HOECHSTBETRAG_CENTS);
   if (voucher.type === 'single_purpose') {
     const deckbar = r.kunde.filter(istDeckbar);
+    const topfBasis = (topf: string) => centSumme(deckbar.filter((it) => topfFuerSatz(it.vat) === topf));
     if (voucher.exempt === true || options.smallBusiness === true) {
-      // kuTeile verteilt hoechstens die Summe der Saetze; je Topf prueft der Server danach die Deckung.
-      oben = Math.min(oben, kuBasisCents(r.kunde));
+      oben = Math.min(oben, kuGrenze(r.kunde, topfBasis, r.minusJeTopf));
     } else {
       if (!Number.isInteger(voucher.vatRateBp)) return 0;
       const topf = topfFuerSatz((voucher.vatRateBp as number) / 100);
-      const basis = centSumme(deckbar.filter((it) => topfFuerSatz(it.vat) === topf));
-      oben = Math.min(oben, basis - (r.minusJeTopf.get(topf) ?? 0));
+      oben = Math.min(oben, topfBasis(topf) - (r.minusJeTopf.get(topf) ?? 0));
     }
   }
+  if (oben <= 0) return 0;
   const code = probeCode(vorher);
   const info = [...(options.voucherInfo ?? []), { code, check: voucher }];
   const passt = (cents: number): boolean => {
@@ -339,10 +344,59 @@ export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: Vo
       throw fehler;
     }
   };
-  for (let cents = oben, schritte = 0; cents > 0 && schritte < 64; cents--, schritte++) {
+  return groessterBetrag(oben, passt);
+}
+
+/** Schritte der linearen Suche, bevor die Bisektion uebernimmt. */
+const LINEAR_SCHRITTE = 64;
+/** Cent, die nach der Bisektion aufwaerts geprueft werden (nicht monotoner Rand). */
+const NACHPRUEFEN = 16;
+
+/** Groesster Betrag in [1, oben], den `passt` annimmt; 0, wenn keiner gefunden wird. */
+function groessterBetrag(oben: number, passt: (cents: number) => boolean): number {
+  const untenLinear = Math.max(0, oben - LINEAR_SCHRITTE);
+  for (let cents = oben; cents > untenLinear; cents--) {
     if (passt(cents)) return cents;
   }
-  return 0;
+  // Bisektion ueber [1, untenLinear]: `ja` angenommen (0 gilt als angenommen), `nein` abgewiesen.
+  let ja = 0;
+  let nein = untenLinear + 1;
+  while (nein - ja > 1) {
+    const mitte = ja + Math.floor((nein - ja) / 2);
+    if (passt(mitte)) ja = mitte;
+    else nein = mitte;
+  }
+  let bester = ja;
+  for (let cents = ja + 1; cents <= Math.min(untenLinear, ja + NACHPRUEFEN); cents++) {
+    if (passt(cents)) bester = cents;
+  }
+  return bester;
+}
+
+/**
+ * Obergrenze fuer eine anteilige Einloesung (`kuTeile`): je Satz ist der Anteil
+ * mindestens `floor(c * basis / summe)`, je Topf also mehr als
+ * `c * basisTopf / summe - saetzeImTopf`. Mit dem freien Rest des Topfs
+ * (Positionen minus schon gewaehlte Einloesungen) folgt
+ * `c <= (frei + saetzeImTopf) * summe / basisTopf`.
+ */
+function kuGrenze(kunde: readonly Innen[], topfBasis: (topf: string) => number, minusJeTopf: Map<string, number>): number {
+  const saetze = kuSaetze(kunde);
+  const summe = saetze.reduce((a, x) => a + x.basis, 0);
+  let grenze = summe;
+  const jeTopf = new Map<string, { basis: number; anzahl: number }>();
+  for (const x of saetze) {
+    const topf = topfFuerSatz(x.satzBp / 100);
+    const t = jeTopf.get(topf) ?? { basis: 0, anzahl: 0 };
+    t.basis += x.basis;
+    t.anzahl += 1;
+    jeTopf.set(topf, t);
+  }
+  for (const [topf, t] of jeTopf) {
+    const frei = topfBasis(topf) - (minusJeTopf.get(topf) ?? 0);
+    grenze = Math.min(grenze, Math.floor(((frei + t.anzahl) * summe) / t.basis));
+  }
+  return Math.max(0, grenze);
 }
 
 const HOECHSTBETRAG_CENTS = 1_000_000;

@@ -360,6 +360,39 @@ test('Vorbelegung Kleinunternehmer: Summe je Satz (kuTeile), nicht die Summe ueb
   wirft(() => mit(845));
 });
 
+// Erwartete Hoechstbetraege mit dem Server-Code (gutschein-beleg.plane) durch Abzaehlen aller Betraege ermittelt.
+const befreit = (): VoucherCheck => ({ ...einzweck(1000000, 0), exempt: true });
+
+test('Vorbelegung befreit neben einem schon gewaehlten Einzweck: Anteil je Topf plus Vorgaenger (Server 3357, nicht 0)', () => {
+  // 3500 zu 20 %, 1200 zu 10 %; schon gewaehlt 1000 Einzweck 20 %. Der 20-%-Anteil 3500/4700 * c plus 1000 darf 3500 nicht uebersteigen.
+  const items = [pos('Maniküre', 3500, 20), pos('Shampoo', 1200, 10)];
+  const vorher: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 1000 }];
+  const options: ReceiptDueOptions = { voucherInfo: [{ code: CODE_E, check: einzweck(1000000, 2000) }] };
+  assert.equal(voucherRedeemMaxCents(items, befreit(), { vouchers: vorher, options }), 3357);
+  // Als Kleinunternehmer verteilt sich auch der schon gewaehlte Gutschein anteilig: dann begrenzt nur der offene Betrag (Server 3700).
+  assert.equal(voucherRedeemMaxCents(items, einzweck(1000000, 2000), { vouchers: vorher, options: { ...options, smallBusiness: true } }), 3700);
+  const mit = (cents: number) => receiptDueCents(items, [...vorher, { action: 'redeem', type: 'single_purpose', code: CODE_M, amountCents: cents }], 'standard',
+    { voucherInfo: [...options.voucherInfo!, { code: CODE_M, check: befreit() }] });
+  assert.equal(mit(3357), 343);
+  wirft(() => mit(3358), 'voucher_rate_mismatch');
+});
+
+test('Vorbelegung: mehr als 64 Cent unter der Grenze findet die Bisektion den Hoechstbetrag (Server 67)', () => {
+  // 20000 zu 20 %, je 100 zu 19 % und 4,9 %; der Topf Besonders ist durch 200 Einzweck 19 % voll. Angenommen wird
+  // nur, solange kein Cent dorthin faellt: bis 67 (danach erhalten 19 % und 4,9 % den groessten Rest). Grenze 202.
+  const items = [pos('Ware', 20000, 20), pos('Wein', 100, 19), pos('Brot', 100, 4.9)];
+  const vorher: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 200 }];
+  const options: ReceiptDueOptions = { voucherInfo: [{ code: CODE_E, check: einzweck(1000000, 1900) }] };
+  assert.equal(voucherRedeemMaxCents(items, befreit(), { vouchers: vorher, options }), 67);
+});
+
+test('kuTeile: gleicher Rest in zwei Saetzen, der Cent geht an den Topf in fester Reihenfolge (20 % vor 10 %)', () => {
+  const items = [pos('Kaffee', 100, 20), pos('Semmel', 100, 10)];
+  const v: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 1 }];
+  assert.deepEqual(receiptDueBreakdown(items, v, 'standard', { voucherInfo: [{ code: CODE_E, check: befreit() }] }).bucketsCents,
+    toepfe({ amountRateStandard: 99, amountRateReduced1: 100 }));
+});
+
 test('Vorbelegung mit schon gewaehlten Gutscheinen: der Rest des Topfs und des Betrags', () => {
   const items = [pos('Maniküre', 3500, 20), pos('Shampoo', 1200, 10)];
   const vorher: Voucher[] = [{ action: 'redeem', type: 'single_purpose', code: CODE_E, amountCents: 3000 }];

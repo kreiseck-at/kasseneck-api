@@ -156,8 +156,8 @@ const STATUS_FEHLER: Record<string, string> = {
   used_up: 'voucher_used_up', paid_out: 'voucher_used_up', cancelled: 'voucher_cancelled', blocked: 'voucher_blocked', expired: 'voucher_expired',
 };
 
-/** Summe, die `kuTeile` hoechstens verteilt: je Satz `centSumme` der deckbaren Positionen, nur positive. */
-export function kuBasisCents(kunde: readonly Innen[]): number {
+/** Die Saetze, auf die `kuTeile` verteilt: je Satz `centSumme` der deckbaren Positionen, nur positive. */
+export function kuSaetze(kunde: readonly Innen[]): Array<{ satzBp: number; basis: number }> {
   const jeSatz = new Map<number, Innen[]>();
   for (const it of kunde) {
     if (!istDeckbar(it)) continue;
@@ -165,7 +165,7 @@ export function kuBasisCents(kunde: readonly Innen[]): number {
     if (!jeSatz.has(s)) jeSatz.set(s, []);
     jeSatz.get(s)!.push(it);
   }
-  return [...jeSatz.values()].map(centSumme).filter((c) => c > 0).reduce((a, b) => a + b, 0);
+  return [...jeSatz].map(([s, liste]) => ({ satzBp: s, basis: centSumme(liste) })).filter((x) => x.basis > 0);
 }
 
 /** `gutschein-core.kuTeile`: anteilig zur Positionssumme je Satz, groesster Rest, Topf-Reihenfolge bei Gleichstand. */
