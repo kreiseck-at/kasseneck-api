@@ -70,6 +70,12 @@ export type {
 } from '../inventory/typen.js';
 export type { StocktakeStatus } from '../inventory/vertrag.js';
 
+// Gutschein pruefen und Etikett nachdrucken an der Kasse.
+export {
+  VOUCHER_KINDS, VOUCHER_STATUSES, checkVoucher, reprintVoucherLabel,
+  type VoucherKind, type VoucherStatus, type VoucherValidity, type VoucherArticle, type VoucherCheck, type PosVoucherSettings,
+} from './gutschein.js';
+
 // Schicht, Kassenstand und Lade-Protokoll (1.9.0): Aufrufe, Kataloge, Helfer, Bons.
 export {
   type GetMyDrawerStateOptions, type OpenMyShiftOptions, type RecordMyCashMovementOptions, type DrawerOpeningEntry,

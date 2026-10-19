@@ -135,6 +135,8 @@
       "listMyStocktakeCounts",
       "recordMyStocktakeCount",
       "voidMyStocktakeCount",
+      "checkVoucher",
+      "reprintVoucherLabel",
       "getMyDrawerState",
       "openMyShift",
       "recordMyCashMovement",
@@ -285,6 +287,8 @@
       "listMyStocktakeCounts",
       "recordMyStocktakeCount",
       "voidMyStocktakeCount",
+      "checkVoucher",
+      "reprintVoucherLabel",
       "getMyDrawerState",
       "openMyShift",
       "recordMyCashMovement",
@@ -797,6 +801,20 @@
       "store",
       "vehicle",
       "other"
+    ],
+    "voucherKinds": [
+      "multi_purpose",
+      "single_purpose",
+      "service",
+      "promotion"
+    ],
+    "voucherStatuses": [
+      "active",
+      "used_up",
+      "expired",
+      "paid_out",
+      "cancelled",
+      "blocked"
     ]
   },
   "partner": {

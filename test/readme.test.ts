@@ -157,7 +157,9 @@ test('README: die genannten Befehle stehen in den scripts', () => {
 });
 
 test('README: die Zusagen zu Abhaengigkeiten und Node-Version stimmen', () => {
-  assert.equal(PAKET.dependencies, undefined, 'README sagt "keine Laufzeitabhaengigkeiten" zu');
+  // Einzige Laufzeitabhaengigkeit: der Validator (Pruefzeichen des Gutscheincodes).
+  assert.deepEqual(Object.keys(PAKET.dependencies ?? {}), ['@kreiseck/validator'], 'README nennt genau eine Laufzeitabhaengigkeit');
+  assert.ok(README.includes('@kreiseck/validator'), 'README nennt die Laufzeitabhaengigkeit nicht');
   assert.ok(PAKET.peerDependencies?.['react'], 'README nennt React als optionale Peer-Abhaengigkeit');
   assert.ok(README.includes('20.18'), 'README nennt die Node-Untergrenze nicht');
   assert.ok(PAKET.engines.node.includes('20.18'), 'engines.node und README sind auseinander');

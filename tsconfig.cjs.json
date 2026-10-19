@@ -3,6 +3,8 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node10",
+    // Node10 liest `exports` nicht; der Validator nennt seine Typen nur dort.
+    "paths": { "@kreiseck/validator": ["./node_modules/@kreiseck/validator/dist/index.d.cts"] },
     "outDir": "dist/cjs"
   }
 }

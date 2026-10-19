@@ -141,6 +141,9 @@ export const ALL_CALLS = [
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Gutschein pruefen und Etikett nachdrucken (./pos)
+  'checkVoucher',
+  'reprintVoucherLabel',
   // Schicht, Kassenstand und Lade-Protokoll an der Kasse (./pos)
   'getMyDrawerState',
   'openMyShift',
@@ -315,6 +318,9 @@ export const POS_CALLS = [
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Gutschein pruefen und Etikett nachdrucken: nur ueber den Kassenweg.
+  'checkVoucher',
+  'reprintVoucherLabel',
   // Schicht, Kassenstand und Lade-Protokoll: nur ueber den Kassenweg.
   'getMyDrawerState',
   'openMyShift',
@@ -445,6 +451,7 @@ export type CallWithoutEffectReason = 'read' | 'repeatable';
  */
 export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReason>> = Object.freeze({
   checkPartnerCustomerEmail: 'read',
+  checkVoucher: 'read',
   downloadDailyReport: 'read',
   downloadReceipt: 'read',
   downloadReport: 'read',
@@ -513,6 +520,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   registerPinLogin: 'repeatable',
   registerUserLogin: 'repeatable',
   renewRegisterSession: 'repeatable',
+  reprintVoucherLabel: 'repeatable',
   searchCustomers: 'read',
 });
 
