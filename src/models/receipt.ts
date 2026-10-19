@@ -264,29 +264,53 @@ function gueltigeRueckzahlungen(rueckzahlungen: Record<string, unknown>): Record
 }
 
 /**
+ * Vorzeichen der Wertgutscheine am Beleg: am Storno-Beleg -1, sonst 1.
+ *
+ * Das Backend spiegelt Wertgutscheine beim Vollstorno mit UNVERAENDERTER
+ * `action` und positivem Wert (storno-core.stornoVouchers); der Fluss dreht
+ * sich am Storno um (zahlungen-core.wertgutscheinFlussCents, hier
+ * `receiptDueCents`): ein verkaufter Gutschein wird zurueckgezahlt, ein
+ * eingeloester mindert die Rueckzahlung.
+ */
+export function receiptValueVoucherSign(receipt: Receipt): 1 | -1 {
+  const typ = typeof receipt.receiptType === 'object' ? receipt.receiptType.value : receipt.receiptType;
+  return typ === ReceiptType.cancellation.value ? -1 : 1;
+}
+
+/**
  * Zwischensumme in **Cent** — Positionen plus verkaufte Wertgutscheine minus
  * eingeloeste Promotionsgutscheine. Wertgutschein-Einloesungen wirken erst auf
  * [receiptSumCents], nicht hier (siehe Dart-Vorbild `subSumCents`/`sumCents`).
+ * Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
+ * ([receiptValueVoucherSign]), und ein gespiegelter Promotionsgutschein
+ * mindert nichts: den Rabatt nimmt der Server dort ueber Ausgleichspositionen
+ * (`kind: 'discount'`) zurueck, und belegToepfe verteilt einen Promo-Eintrag
+ * nur auf eine positive Topfsumme, die ein Storno nie hat.
  */
 export function receiptSubSumCents(receipt: Receipt): number {
+  const vz = receiptValueVoucherSign(receipt);
   let cents = receipt.items.reduce((acc, item) => acc + receiptItemTotalCents(item), 0);
   for (const voucher of receipt.vouchers) {
-    if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
+    if (vz === 1 && voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
       cents -= voucher.valueCents ?? 0;
     }
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {
-      cents += voucher.valueCents ?? 0;
+      cents += vz * (voucher.valueCents ?? 0);
     }
   }
   return cents;
 }
 
-/** Gesamtsumme in **Cent** — Zwischensumme minus eingeloeste Wertgutscheine. */
+/**
+ * Gesamtsumme in **Cent** — Zwischensumme minus eingeloeste Wertgutscheine
+ * (am Storno-Beleg plus, siehe [receiptValueVoucherSign]).
+ */
 export function receiptSumCents(receipt: Receipt): number {
+  const vz = receiptValueVoucherSign(receipt);
   let cents = receiptSubSumCents(receipt);
   for (const voucher of receipt.vouchers) {
     if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value) {
-      cents -= voucher.valueCents ?? 0;
+      cents -= vz * (voucher.valueCents ?? 0);
     }
   }
   return cents;
