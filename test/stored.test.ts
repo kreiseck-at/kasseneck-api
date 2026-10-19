@@ -93,7 +93,7 @@ test('stored: das Vokabular stammt woertlich aus dem Vertrags-Export', () => {
     assert.deepEqual(SCHEMAS[name].werte, VOKABULAR.schemas[name].werte, `${name}.werte`);
   }
   assert.deepEqual(ARTIKEL_FELDER, VOKABULAR.articleFields.outer);
-  const verwiesen = new Set(Object.values(SCHEMAS).flatMap((s) => Object.values(s.werte).map((w) => w.$catalog)));
+  const verwiesen = new Set(Object.values(SCHEMAS).flatMap((s) => Object.values(s.werte).map((w) => (w as { $catalog?: string }).$catalog).filter((n): n is string => typeof n === 'string')));
   assert.deepEqual(Object.keys(KATALOGE).sort(), [...verwiesen].sort());
   for (const [name, katalog] of Object.entries(KATALOGE)) assert.deepEqual(katalog, VOKABULAR.catalogs[name], name);
 });

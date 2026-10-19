@@ -2,16 +2,19 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "e061453f62c8f4af21528eb51a677d6f947553f5b78621d64497f45833dd8b09";
+export const VOKABULAR_QUELLE = "d3b4471e7d0be528d73c1d9bf0af8d23915bf5c0455e3ce4777dd2581c950ab1";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
 export interface SchemaObjekt { readonly [aussen: string]: SchemaEintrag }
 
+/** Wertverweis: Name eines Katalogs oder eine eingebettete Zuordnung innen -> aussen. */
+export type Wertverweis = { readonly $catalog: string } | Readonly<Record<string, string>>;
+
 /** Schema je Endpunkt (aussen -> innen) und Wertverweise auf die Kataloge. */
 export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listMyArticles', {
   readonly data: SchemaObjekt;
-  readonly werte: Readonly<Record<string, { readonly $catalog: string }>>;
+  readonly werte: Readonly<Record<string, Wertverweis>>;
 }>> = {
   "getReceipt": {
     "data": {
@@ -52,7 +55,22 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "tone": "ton"
           }
         ]
-      }
+      },
+      "issuedVouchers": [
+        {
+          "__": "gutscheine",
+          "codeSuffix": "codeEnde",
+          "faceValueCents": "nennwertCents",
+          "quantity": "stueck",
+          "validity": {
+            "__": "gueltigkeit",
+            "pattern": "muster",
+            "redeemableUntil": "einloesbarBis",
+            "refundableUntil": "rueckzahlbarBis",
+            "validUntil": "gueltigBis"
+          }
+        }
+      ]
     },
     "werte": {
       "receipt.cancellationReason": {
@@ -60,6 +78,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "layout.lines[].tone": {
         "$catalog": "LAYOUT_TON"
+      },
+      "issuedVouchers[].type": {
+        "$catalog": "GUTSCHEIN_ART"
+      },
+      "issuedVouchers[].validity.pattern": {
+        "$catalog": "GUTSCHEIN_MUSTER"
       }
     }
   },
@@ -166,6 +190,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "terminalVia": "terminalVia",
         "terminalType": "terminalArt",
         "shortcutHints": "tastenMarken"
+      },
+      "vouchers": {
+        "__": "gutscheine",
+        "sale": "verkauf",
+        "valueVoucherType": "wertArt",
+        "vatRateBp": "satzBp"
       }
     },
     "werte": {
@@ -216,6 +246,10 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "device.terminalType": {
         "$catalog": "KASSE_GERAET_WERTE.terminalType"
+      },
+      "vouchers.valueVoucherType": {
+        "mehrzweck": "multi_purpose",
+        "einzweck": "single_purpose"
       }
     }
   },
@@ -312,6 +346,7 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "afa_gebaeude": "building_depreciation",
     "anlagenabgang": "asset_disposal_book_value",
     "instandhaltung_gebaeude": "building_maintenance",
+    "bauarbeiten": "construction_work",
     "reise": "travel_expenses",
     "fahrkarten": "travel_tickets",
     "naechtigung_beleg": "lodging_invoice",
@@ -346,6 +381,8 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "geschenke_geschaeftsfreunde": "business_gifts",
     "bewirtung": "hospitality",
     "bewirtung_werbung": "hospitality_advertising",
+    "kundschaft_aufmerksamkeit": "customer_courtesy",
+    "lebensmittel": "groceries",
     "bewirtung_voll": "hospitality_full",
     "bewirtung_repraesentation": "hospitality_representation",
     "sponsoring": "sponsorship",
@@ -376,6 +413,7 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "arbeitslosen_optin": "voluntary_unemployment_insurance",
     "uebrige_ausgaben": "other_expenses",
     "telefon_internet": "phone_internet",
+    "energie": "energy_utilities",
     "buero": "office_supplies",
     "software": "software_subscriptions",
     "fachliteratur": "professional_literature",
@@ -406,6 +444,17 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "fitness_fuehrerschein": "non_deductible_fitness_licence",
     "ball_kultur": "non_deductible_events",
     "durchlaufend_ausgabe": "pass_through_payment"
+  },
+  "GUTSCHEIN_ART": {
+    "mehrzweck": "multi_purpose",
+    "einzweck": "single_purpose",
+    "leistung": "service",
+    "aktion": "promotion"
+  },
+  "GUTSCHEIN_MUSTER": {
+    "unbefristet": "unlimited",
+    "1+3": "1+3",
+    "frei": "custom"
   },
   "KASSE_BETRIEB_WERTE.cardProvider": {
     "keiner": "none",

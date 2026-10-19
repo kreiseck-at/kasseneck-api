@@ -1,5 +1,5 @@
 import { KasseneckValidationError } from '../client/errors.js';
-import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
+import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt, type Wertverweis } from './vokabular.js';
 
 /*
  * Gespeicherte Form (Firestore, innen, deutsch) -> Drahtform `/v3` (englisch),
@@ -79,18 +79,24 @@ function anPfad(obj: unknown, teile: readonly string[], fn: (w: unknown) => unkn
  * `werteAbbilden`). Ein Wert, den der Katalog nicht kennt, bleibt woertlich
  * stehen, wie am Server.
  */
-function werteNachAussen(obj: unknown, werte: Readonly<Record<string, { readonly $catalog: string }>>): unknown {
+function werteNachAussen(obj: unknown, werte: Readonly<Record<string, Wertverweis>>): unknown {
   let raus = obj;
-  for (const [pfad, { $catalog }] of Object.entries(werte)) {
-    const katalog = KATALOGE[$catalog];
-    if (!katalog) throw new Error(`stored: Katalog ${$catalog} fehlt im Vokabular`);
+  for (const [pfad, verweis] of Object.entries(werte)) {
+    const katalog = katalogVon(verweis);
+    if (!katalog) throw new Error(`stored: Katalog ${(verweis as { $catalog?: string }).$catalog} fehlt im Vokabular`);
     raus = anPfad(raus, pfad.split('.'), (v) => (typeof v === 'string' && hat(katalog, v) ? katalog[v] : v));
   }
   return raus;
 }
 
+/** Zuordnung eines Wertverweises: benannter Katalog oder eingebettet. */
+export function katalogVon(verweis: Wertverweis): Readonly<Record<string, string>> | undefined {
+  const name = (verweis as { $catalog?: unknown }).$catalog;
+  return typeof name === 'string' ? KATALOGE[name] : (verweis as Readonly<Record<string, string>>);
+}
+
 /** Englische Werte eines Katalogs (was an dieser Stelle hinaus darf). */
-const aeussereWerte = (name: string): ReadonlySet<string> => new Set(Object.values(KATALOGE[name] ?? {}));
+const aeussereWerte = (verweis: Wertverweis): ReadonlySet<string> => new Set(Object.values(katalogVon(verweis) ?? {}));
 
 // ---- Belege -----------------------------------------------------------------
 
@@ -252,7 +258,7 @@ export function _storedArticleToWire(id: string, doc: unknown, functionName = 'f
   const schema = SCHEMAS.listMyArticles;
   const huelle = werteNachAussen(schluesselNachAussen({ articles: [handler] }, schema.data), schema.werte) as { articles: Objekt[] };
   const artikel = huelle.articles[0]!;
-  const katalog = (pfad: string): ReadonlySet<string> => aeussereWerte(schema.werte[pfad]!.$catalog);
+  const katalog = (pfad: string): ReadonlySet<string> => aeussereWerte(schema.werte[pfad]!);
   const raus = nurBekannte(artikel, new Set(ARTIKEL_FELDER), {
     quantityRule: katalog('articles[].quantityRule'), e1aGroup: katalog('articles[].e1aGroup'),
   });

@@ -20,6 +20,8 @@ import {
   toVoucherPayload,
   receiptItemIsValid,
   voucherIsValid,
+  isNewFormVoucher,
+  voucherServerFields,
   fromReceiptSummaryPayload,
   type ReceiptSummary,
   type ReceiptSummaryPayload,
@@ -313,7 +315,7 @@ async function createReceiptWithCompany(
  * Baut die Nutzlast von `createReceipt` und prueft die Eingabe. Wirft, bevor
  * irgendetwas rausgeht — ein Beleg ist nicht folgenlos wiederholbar.
  */
-function createReceiptParams(options: CreateReceiptOptions): Record<string, unknown> {
+export function createReceiptParams(options: CreateReceiptOptions): Record<string, unknown> {
   const typ = belegtyp(options.receiptType);
   const { items, vouchers } = options;
 
@@ -330,7 +332,8 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
   if (typ.needsItems) {
     // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen, deshalb
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
-    const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell) ?? false;
+    // (Eine Auszahlung der neuen Form braucht ebenfalls keine Positionen.)
+    const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell || v.action === VoucherAction.payout) ?? false;
     if ((items == null || items.length === 0) && !hatVerkaufsgutschein) {
       throw eingabefehler(`Positionen sind Pflicht bei receiptType "${typ.value}" und duerfen nicht leer sein.`);
     }
@@ -341,9 +344,21 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 
   const params: Record<string, unknown> = { receiptType: typ.value };
 
+  // Gutschein-Positionen und Serverfelder setzt nur der Server.
+  if (items?.some((item) => item.kind === 'voucher' || item.kind === 'voucher_float') ?? false) {
+    throw eingabefehler('voucher_invalid: Gutschein-Positionen (kind voucher, voucher_float) setzt nur der Server.');
+  }
+
   if (vouchers != null && vouchers.length > 0) {
     if (!typ.allowsVouchers) {
       throw eingabefehler(`Gutscheine sind nicht erlaubt bei receiptType "${typ.value}".`);
+    }
+    const serverfeld = vouchers.flatMap(voucherServerFields)[0];
+    if (serverfeld != null) {
+      throw eingabefehler(`voucher_invalid: Das Feld ${serverfeld} setzt nur der Server.`);
+    }
+    if (typ.value === ReceiptType.training.value && vouchers.some(isNewFormVoucher)) {
+      throw eingabefehler('Gutscheine der neuen Form gibt es nicht auf Schulungsbelegen (receiptType training).');
     }
     if (vouchers.some((voucher) => !voucherIsValid(voucher))) {
       throw eingabefehler('Ungueltiger Gutschein uebergeben.');
@@ -357,6 +372,10 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 
   if (items != null && items.length > 0) {
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
+  } else if (items != null && (vouchers?.some(isNewFormVoucher) ?? false)) {
+    // Verkauf/Auszahlung der neuen Form ohne Positionen: die leere Liste geht
+    // mit, wie der Vertrag es zeigt (Altform ohne Positionen bleibt byte-gleich).
+    params['items'] = [];
   }
 
   const umsatz = typ.value === ReceiptType.standard.value || typ.value === ReceiptType.training.value;
@@ -835,8 +854,36 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
     }
   }
 
-  const einloesenGesamt = einloesenWert + einloesenPromo;
-  const verkaufenGesamt = verkaufenWert + verkaufenPromo;
+  // Neue Form: ein Beleg traegt entweder Verkauf oder Einloesung oder
+  // Auszahlung; der Aktionsgutschein steht allein; eine Auszahlung gibt es
+  // nur mit Mehrzweck/Einzweck, nie mit der Altform.
+  const neu = vouchers.filter((v) => isNewFormVoucher(v));
+  const neuAktionen = new Set(neu.map((v) => v.action));
+  if (neuAktionen.size > 1) {
+    return 'Ungueltige Daten: Ein Beleg kann Gutscheine der neuen Form nur verkaufen, nur einloesen oder nur auszahlen';
+  }
+  if (neu.some((v) => v.type === VoucherType.promotion) && vouchers.length > 1) {
+    return 'Ungueltige Daten: Ein Aktionsgutschein (type promotion) darf nicht mit anderen Gutscheinen kombiniert werden';
+  }
+  if (neu.some((v) => v.action === VoucherAction.payout) && vouchers.length > neu.length) {
+    return 'Ungueltige Daten: Eine Auszahlung (action payout) darf nicht mit Gutscheinen der Altform kombiniert werden';
+  }
+  // Neue Einloesungen und Auszahlungen vertragen sich nicht mit einem
+  // Verkauf der Altform (und umgekehrt): eine Aktion je Beleg.
+  const neuVerkauf = neu.filter((v) => v.action === VoucherAction.sell).length;
+  const neuEinloesen = neu.filter((v) => v.action === VoucherAction.redeem).length;
+  if (neu.length > 0 && vouchers.length > neu.length) {
+    const alt = vouchers.filter((v) => !isNewFormVoucher(v));
+    if (neuEinloesen > 0 && alt.some((v) => v.action === VoucherAction.sell)) {
+      return 'Ungueltige Daten: Ein Beleg kann Gutscheine nur verkaufen oder nur einloesen';
+    }
+    if (neuVerkauf > 0 && alt.some((v) => v.action === VoucherAction.redeem)) {
+      return 'Ungueltige Daten: Ein Beleg kann Gutscheine nur verkaufen oder nur einloesen';
+    }
+  }
+
+  const einloesenGesamt = einloesenWert + einloesenPromo + neuEinloesen;
+  const verkaufenGesamt = verkaufenWert + verkaufenPromo + neuVerkauf;
 
   if (verkaufenPromo > 0) {
     return 'Ungueltige Daten: Gutscheine mit type promo duerfen nicht verkauft werden';
