@@ -308,26 +308,26 @@
     "voucher-service-redeem": {
       "input": "713095a9074c9b9bf11b80999a27e3a90807f28a58df19f4e78a768307351b42",
       "expected": "437936515c8e20fe4e839de84f4a394217d7eed0c9fd9e833a39674db6671351",
-      "grid32": "21ad3f3f15bc2eb81d485899a27bece35294c3f73b545445eb87f67dac87e059",
+      "grid32": "948fd297dd33f0462eda06980ff5854ee6d410e9ef528b3b804af144d5cf9aeb",
       "grid48": "95a232e712e8408721d1b0c24fb4991171a26f26f404494a43cff81922020ed6",
-      "sheet32": "1c12c31c8c63a56163fae2675887f1194be455c5854c1929e9c9d51035ddc9dc",
+      "sheet32": "4b0f93a32502574fea73d0632274f5bd37e1999281e7b4cec218f9435b9d3055",
       "sheet48": "2f41f292ff23676ff302a9b40465c11dd2c91ac9f1bc695afaffdebed4029d96"
     },
     "voucher-single-purpose-redeem": {
       "input": "122878aabbb795fdbc25509755e1e460bbc8f72bc7afef05542c41345ede7ea5",
       "expected": "933e6a93fe608c5d0a03b392dcfcc9d8ec789dd5b508bada60d8079568cd51b2",
-      "grid32": "37704a18bb0487a67e03701ff76c268f873c15b52fccacbaf244895cb8ecd2a2",
+      "grid32": "3a21155004e45efb7d52013f7f29a88541e36f356af0a0198f62e14e95d3e1c4",
       "grid48": "14b3326bafc6f7e3b823fab0a424e8ee1efc5f3e24ef097d6a01dd8cd6ad30a7",
-      "sheet32": "8ae1b7c3cf152e7efa463300e0ea3576e5d2c87ea93a51176d2a53695e65aa87",
+      "sheet32": "a4978b5faf1ec1d4ae9ca5602ca208b2af961b224528a213a42c30a0173870e4",
       "sheet48": "3e22a68e9d5690fd66523ddab3899fff413cc427f444ce362417d9c280d55da7"
     },
     "voucher-single-purpose-redeem-exempt": {
       "input": "8780cb6bfbbdcc1326798c6b99b91b9231252b055a21fa93c3468aacaf9ce85f",
-      "expected": "2ce415f5f9c25f3ee7e23c1f9caa684d35f9debe1a331b6e92fd4cccc9ed78d1",
-      "grid32": "eba3180587dde4d1b51743aabbc83773e8e3ff1b3f9a37a4f20fec2a9b2fdc3d",
-      "grid48": "4e1b08db38119f394f7912e3bb117ef2cf5915ba9b4b5a795692ad2a6585fa81",
-      "sheet32": "e28ec8910b90a505827b355fcd5cf2aad505231b55f86fa3cc5ed5a086f851e3",
-      "sheet48": "cebe73327cc7f3c9cc0ebcabfd15148075ea36560db84531e75b2013fea7fd35"
+      "expected": "15c0623cd21263c76e04ae4fe359b915c9dd17cd3a8b379b6ecc0201f29805ad",
+      "grid32": "3f1a6fbf95fea0dd62185eb966e6326868d691408655eca0d0b689e3b3aa6e79",
+      "grid48": "372a639cfd586e87f42ac73c34d5c21cc47d53ecab4c4078877a4bc472dccbcc",
+      "sheet32": "5fb94ad7dc8d1a27ec1fd1607f0b8743f3e0b03883210466b90ee236edd1d809",
+      "sheet48": "d23a0198af050f7b35a4545795a15820d8c355e03e57339076f6176013d726a9"
     },
     "voucher-single-purpose-sale": {
       "input": "bbb3a5de366a5ca05eaee3fd7d1f699c78f54ed1bed818e19b6eebc5b88f2e82",

@@ -12,7 +12,7 @@ Beleg-ID:          AT0-KASSE1-72
 1  x Kaffee               3,20 A
 Gutschein ····-RRRF     -35,00 A
   Leistung, versteuert mit Beleg
-K1-ID-4712                      
+  K1-ID-4712                    
   Rest am Gutschein      9 Stück
                                 
 MwSt%   MwSt    Netto     Brutto

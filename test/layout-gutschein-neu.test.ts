@@ -175,14 +175,14 @@ test('Spec-Beispiel im Zeichenraster (80 mm und 58 mm)', () => {
   assert.deepEqual(z32.slice(k, k + 4), [
     'Gutschein ····-9DWT     -30,50 A',
     '  Einzweck, versteuert mit Beleg',
-    'K1-ID-4711                      ',
+    '  K1-ID-4711                    ',
     '  Rest am Gutschein      19,50  ',
   ]);
 });
 
 test('Einzweck als Kleinunternehmer befreit verkauft: Vermerk statt Belegnummer', () => {
   const l = bauen(specBeispiel({ taxedWith: undefined, exempt: true }));
-  assert.ok(hatText(l, '  Einzweck, als Kleinunternehmer befreit verkauft'), texte(l).join('\n'));
+  assert.ok(hatText(l, '  Einzweck, befreit verkauft (Kleinunternehmer)'), texte(l).join('\n'));
   assert.ok(!texte(l).some((t) => t.includes('versteuert mit')));
 });
 
@@ -286,3 +286,92 @@ test('Altbeleg ohne neue Form: Wertgutschein-Zeilen wie bisher', () => {
   const b = BEISPIELE.find((x) => x.name === 'kasse-belege/sale_v2_items_value_voucher')!;
   assert.deepEqual(bauen(ausAntwort(b.daten)), b.daten.layout);
 });
+
+// ---- Nachschliff (Task 9b) ---------------------------------------------------------------
+
+const raster = (l: ReceiptLayout, zeichen: 32 | 48): string[] => gridToText(renderReceiptGrid(l, { charsPerLine: zeichen })).split('\n');
+
+test('Vermerke brechen mit demselben Einzug um, auf 32 und 48 Zeichen', () => {
+  const befreit = bauen(specBeispiel({ taxedWith: undefined, exempt: true }));
+  // 47 Zeichen: auf 80 mm eine Zeile.
+  assert.ok(raster(befreit, 48).includes('  Einzweck, befreit verkauft (Kleinunternehmer) '));
+  const z32 = raster(befreit, 32);
+  const i = z32.findIndex((z) => z.startsWith('  Einzweck, befreit'));
+  assert.deepEqual(z32.slice(i, i + 2), ['  Einzweck, befreit verkauft    ', '  (Kleinunternehmer)            ']);
+  // Ein langer Grund: jede Folgezeile mit zwei Zeichen Einzug.
+  const daten = JSON.parse(JSON.stringify(beispiel('kasse-belege/payout_multi_purpose_voucher')));
+  daten.receipt.vouchers[0].reason = 'Kundin zieht in ein anderes Bundesland und kommt nicht mehr vorbei';
+  const l = bauen(ausAntwort(daten));
+  for (const zeichen of [32, 48] as const) {
+    const z = raster(l, zeichen);
+    const k = z.findIndex((x) => x.startsWith('  Grund:'));
+    const folgen = z.slice(k + 1, k + 4).filter((x) => x.trim() !== '' && !x.startsWith('MwSt'));
+    assert.ok(folgen.length >= 1, z.join('\n'));
+    for (const f of folgen) assert.ok(f.startsWith('  ') && f[2] !== ' ', `${zeichen}: ${f}`);
+  }
+});
+
+test('Zwei Gutscheine mit derselben Endung: jede Position genau einem Eintrag, der Reihe nach', () => {
+  const b = specBeispiel();
+  const r: Receipt = {
+    ...b.receipt,
+    items: [
+      { ...b.receipt.items[0]!, priceCents: 5000 },
+      { ...b.receipt.items[1]!, priceCents: -1000 },
+      { ...b.receipt.items[1]!, priceCents: -500 },
+    ],
+    vouchers: [
+      { ...b.receipt.vouchers[0]!, amountCents: 1000, balanceAfterCents: 4000, taxedWith: 'K1-ID-1', voucherId: 'a' },
+      { ...b.receipt.vouchers[0]!, amountCents: 500, balanceAfterCents: 0, taxedWith: 'K1-ID-2', voucherId: 'b' },
+    ],
+    payments: [{ id: 'p1', method: 'cash' as never, amountCents: 3500 }],
+  };
+  const t = texte(bauen(b, r));
+  const i = t.indexOf('Gutschein ····-9DWT | -10,00 A');
+  assert.deepEqual(t.slice(i, i + 6), [
+    'Gutschein ····-9DWT | -10,00 A', '  Einzweck, versteuert mit Beleg K1-ID-1', '  Rest am Gutschein | 40,00  ',
+    'Gutschein ····-9DWT | -5,00 A', '  Einzweck, versteuert mit Beleg K1-ID-2', '  Rest am Gutschein | 0,00  ',
+  ], t.join('\n'));
+  assert.equal(receiptSumCents(r), 3500);
+});
+
+test('Auszahlungsposition nur zum Auszahlungseintrag, Einloesungsposition nur zur Einloesung (gleiche Endung)', () => {
+  const b = specBeispiel();
+  const r: Receipt = {
+    ...b.receipt,
+    items: [
+      ...b.receipt.items,
+      { ...b.receipt.items[1]!, name: 'Auszahlung Gutschein ····-9DWT', priceCents: -500 },
+    ],
+    vouchers: [
+      { action: 'payout', type: 'single_purpose', voucherType: 'single_purpose', amountCents: 500, vatRateBp: 2000, reason: 'Rest bar', code: '····-····-9DWT', codeSuffix: '9DWT', voucherId: 'p' },
+      ...b.receipt.vouchers,
+    ],
+  };
+  const t = texte(bauen(b, r));
+  const i = t.indexOf('Gutschein ····-9DWT | -30,50 A');
+  assert.deepEqual(t.slice(i, i + 3), ['Gutschein ····-9DWT | -30,50 A', '  Einzweck, versteuert mit Beleg K1-ID-4711', '  Rest am Gutschein | 19,50  '], t.join('\n'));
+  const k = t.indexOf('Auszahlung Gutschein ····-9DWT | -5,00 A');
+  assert.deepEqual(t.slice(k, k + 2), ['Auszahlung Gutschein ····-9DWT | -5,00 A', '  Grund: Rest bar'], t.join('\n'));
+});
+
+test('Verkauf Einzweck: keine 0-%-Zeile aus dem Eintrag (rohe Zeilen)', () => {
+  for (const name of ['kasse-belege/sale_single_purpose_voucher', 'kasse-belege/sale_service_voucher']) {
+    const l = bauen(ausAntwort(beispiel(name)));
+    const d = l.lines.filter((z) => z.kind === 'columns' && /^D /.test(z.columns[0]!.text));
+    assert.deepEqual(d, [], name);
+    assert.equal(texte(l).filter((z) => z.endsWith(' D')).length, 0, name);
+  }
+});
+
+test('Platzhalter no-code des Servers steht nie an der Verkaufszeile', () => {
+  const daten = JSON.parse(JSON.stringify(beispiel('kasse-belege/sale_multi_purpose_voucher')));
+  daten.receipt.items = [{ name: 'Mehrzweckgutschein', vat: 0, vatRate: 0, priceOne: 50, priceOneCents: 5000, unitPriceCents: 5000, amount: 1, quantity: 1, kind: 'voucher_float' }];
+  // Alt-Verkauf ohne Code ab dem Stichtag: der Server setzt code 'no-code' und imNullTopf.
+  daten.receipt.vouchers = [{ action: 'sell', type: 'value', value: 50, valueCents: 5000, name: 'Wertgutschein', code: 'no-code', zeroRateBucket: true }];
+  const l = bauen(ausAntwort(daten));
+  assert.ok(hatSpalten(l, [['1  x Mehrzweckgutschein', 7], ['50,00 D', 5]]), texte(l).join('\n'));
+  assert.ok(!texte(l).some((z) => z.includes('no-code')), texte(l).join('\n'));
+  assert.equal(gesamt(l), '50,00 €');
+});
+

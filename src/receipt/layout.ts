@@ -777,14 +777,19 @@ function gutscheinText(voucher: Voucher): string {
  *                              Stichtag, aus dem Eintrag) + Text „  USt bei Einlösung“
  *   Einloesung Einzweck/       8:4 „Gutschein ····-9DWT“ | „-30,50 A“, nach der letzten
  *   Leistung                   Zeile dieses Gutscheins Text „  Einzweck, versteuert mit
- *                              Beleg K1-ID-4711“ (bzw. „Leistung, …“, „…, als
- *                              Kleinunternehmer befreit verkauft“) und 8:4
- *                              „  Rest am Gutschein“ | „19,50  “ bzw. „2 Stück“
+ *                              Beleg K1-ID-4711“ (bzw. „Leistung, …“, „…, befreit
+ *                              verkauft (Kleinunternehmer)“, 47 Zeichen: passt auf
+ *                              80 mm) und 8:4 „  Rest am Gutschein“ | „19,50  “ bzw.
+ *                              „2 Stück“
  *   Einloesung Mehrzweck       nach „Zwischensumme“ 8:4 „Gutschein ····-9DWT“ |
  *                              „-17,50 €“ und „  Rest am Gutschein“ | „32,50 €“
  *   Auszahlung                 8:4 „Auszahlung Gutschein ····-9DWT“ | „-12,00 D“,
  *                              Text „  Grund: <Grund>“
  *   Aktion                     Rabattzeile wie bisher (Promotionsgutschein)
+ *
+ * Vermerke sind Textzeilen mit zwei fuehrenden Leerzeichen; das Raster bricht
+ * sie mit demselben Einzug um (grid.ts, haengender Einzug), auf 58 mm etwa
+ * „  Einzweck, versteuert mit“ / „  Beleg K1-ID-4711“.
  *
  * Die Zusatzzeilen kommen nur aus dem Eintrag: ein Beleg, den der Server fuer
  * ein aelteres Paket aufbereitet hat (Eintraege mit Position entfernt, Code an
@@ -803,10 +808,19 @@ function istMehrzweckMitCode(voucher: Voucher): boolean {
   return voucher.type === VoucherType.value && voucher.voucherType === VoucherType.multi_purpose;
 }
 
+/**
+ * Code fuer die Belegzeile: die Maske des Eintrags, ohne den Platzhalter
+ * `no-code`, den der Server Alt-Eintraegen ohne Code setzt (index.js
+ * checkVouchersIsValid). Leer, wenn es keinen gibt.
+ */
+function gutscheinCodeZusatz(voucher: Voucher): string {
+  return typeof voucher.code === 'string' && voucher.code !== '' && voucher.code !== 'no-code' ? ` ${voucher.code}` : '';
+}
+
 /** Die vier letzten Zeichen des Codes (`codeSuffix`, sonst aus der Maske), oder null. */
 function gutscheinEndung(voucher: Voucher): string | null {
   if (typeof voucher.codeSuffix === 'string' && voucher.codeSuffix !== '') return voucher.codeSuffix;
-  return typeof voucher.code === 'string' && voucher.code.length >= 4 ? voucher.code.slice(-4) : null;
+  return typeof voucher.code === 'string' && voucher.code.length >= 4 && voucher.code !== 'no-code' ? voucher.code.slice(-4) : null;
 }
 
 const MEHRZWECK_UST_TEXT = '  USt bei Einlösung';
@@ -819,11 +833,16 @@ interface GutscheinPosition {
 
 /**
  * Welche Gutscheinposition (`voucher`/`voucher_float`) gehoert zu welchem
- * Eintrag? Verkauf: erste freie Position der Art mit demselben Betrag und
- * ohne Code im Namen (wie `gutscheineFuerPaket` des Servers). Einloesung und
- * Auszahlung: alle Positionen, deren Name auf `····-<Endung>` endet (ein
- * Kleinunternehmer-Einzweck oder eine Leistung ueber mehrere Saetze hat je Satz
- * eine Position).
+ * Eintrag? Jede Position hoechstens einem Eintrag, Eintraege in ihrer
+ * Reihenfolge (der Server haengt die Positionen in derselben Reihenfolge an).
+ * Verkauf: erste freie Position der Art mit demselben Betrag und ohne Code im
+ * Namen (wie `gutscheineFuerPaket` des Servers). Einloesung: freie Positionen
+ * mit genau dem Namen `Gutschein ····-<Endung>`, Auszahlung: `Auszahlung
+ * Gutschein ····-<Endung>` (gutschein-beleg.plane) -- der Reihe nach, bis
+ * ihr Betrag den des Eintrags erreicht (ein Kleinunternehmer-Einzweck oder
+ * eine Leistung ueber mehrere Saetze hat je Satz eine Position; zwei
+ * Gutscheine mit derselben Endung teilen sich so nie eine Position). Ohne
+ * Betrag am Eintrag genau eine Position.
  */
 function gutscheinPositionen(receipt: Receipt): Map<number, GutscheinPosition> {
   const zuordnung = new Map<number, GutscheinPosition>();
@@ -839,11 +858,18 @@ function gutscheinPositionen(receipt: Receipt): Map<number, GutscheinPosition> {
       continue;
     }
     const endung = gutscheinEndung(voucher);
-    if (endung == null) continue;
-    const treffer = receipt.items
-      .map((it, k) => ({ it, k }))
-      .filter(({ it, k }) => !zuordnung.has(k) && istGutscheinzeile(it) && it.name.endsWith(`····-${endung}`));
-    treffer.forEach(({ k }, n) => zuordnung.set(k, { voucher, letzte: n === treffer.length - 1 }));
+    if (endung == null || (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout)) continue;
+    const name = `${voucher.action === VoucherAction.payout ? 'Auszahlung ' : ''}Gutschein ····-${endung}`;
+    const ziel = Number.isInteger(voucher.amountCents) ? Math.abs(voucher.amountCents!) : Math.abs(voucher.valueCents ?? 0);
+    const genommen: number[] = [];
+    let summe = 0;
+    receipt.items.forEach((it, k) => {
+      if (zuordnung.has(k) || !istGutscheinzeile(it) || it.name !== name) return;
+      if (genommen.length > 0 && (ziel <= 0 || summe >= ziel)) return;
+      genommen.push(k);
+      summe += Math.abs(receiptItemTotalCents(it));
+    });
+    genommen.forEach((k, n) => zuordnung.set(k, { voucher, letzte: n === genommen.length - 1 }));
   }
   return zuordnung;
 }
@@ -857,8 +883,7 @@ function gutscheinPositionen(receipt: Receipt): Map<number, GutscheinPosition> {
 function gutscheinPositionsZeilen(item: ReceiptItem, satz: Steuersatz, zu: GutscheinPosition): LayoutLine[] {
   const v = zu.voucher;
   if (v.action === VoucherAction.sell) {
-    const code = typeof v.code === 'string' && v.code !== '' ? ` ${v.code}` : '';
-    const zeilen: LayoutLine[] = [positionsZeile({ ...item, name: `${item.name}${code}` }, satz)];
+    const zeilen: LayoutLine[] = [positionsZeile({ ...item, name: `${item.name}${gutscheinCodeZusatz(v)}` }, satz)];
     if (v.type === VoucherType.value) zeilen.push(textZeile(MEHRZWECK_UST_TEXT));
     return zeilen;
   }
@@ -879,7 +904,7 @@ function gutscheinPositionsZeilen(item: ReceiptItem, satz: Steuersatz, zu: Gutsc
   if (typeof v.taxedWith === 'string' && v.taxedWith !== '') {
     zeilen.push(textZeile(`  ${art}, versteuert mit Beleg ${v.taxedWith}`));
   } else if (v.exempt === true) {
-    zeilen.push(textZeile(`  ${art}, als Kleinunternehmer befreit verkauft`));
+    zeilen.push(textZeile(`  ${art}, befreit verkauft (Kleinunternehmer)`));
   }
   // Rest: Betrag fluchtet mit den Positionsbetraegen (zwei Zeichen statt
   // „ A“), Stueck rechtsbuendig. Die Gesamtzahl kennt der Beleg nicht.
@@ -1296,7 +1321,8 @@ export function buildReceiptLayout(
   const wgVz = receiptValueVoucherSign(receipt);
   let promoCents = 0;
   for (const voucher of receipt.vouchers) {
-    if (voucher.zeroRateBucket === true) continue;
+    // Betrag steht als Position (Einzweck, Leistung, 0-%-Topf): weder Zeile noch 0-%-Zeile aus dem Eintrag.
+    if (gutscheinStehtAlsPosition(voucher)) continue;
     const wert = voucher.valueCents ?? 0;
     const vz = voucher.type === VoucherType.value ? wgVz : 1;
     if (voucherIsValid(voucher) && voucher.action === VoucherAction.sell) {
@@ -1305,7 +1331,7 @@ export function buildReceiptLayout(
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {
       // Mehrzweck mit Code (vor dem Stichtag nur als Eintrag): wie die Position im 0-%-Topf.
       const mehrzweck = istMehrzweckMitCode(voucher);
-      const code = typeof voucher.code === 'string' && voucher.code !== '' ? ` ${voucher.code}` : '';
+      const code = gutscheinCodeZusatz(voucher);
       lines.push({
         kind: 'columns',
         columns: [

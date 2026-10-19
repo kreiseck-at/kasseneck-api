@@ -87,9 +87,20 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
   const lines: GridLine[] = [];
   for (const z of layout.lines as LayoutLine[]) {
     switch (z.kind) {
-      case 'text':
+      case 'text': {
+        // Haengender Einzug: ein linksbuendiger Text mit fuehrenden Leerzeichen
+        // (Vermerke unter einer Gutscheinzeile, „  Grund: …“) bricht mit
+        // demselben Einzug um, auf 32 wie auf 48 Zeichen. Passt er in eine
+        // Zeile, ergibt das dieselben Zeichen wie ohne Einzugsregel.
+        const einzug = z.align === 'left' ? z.text.length - z.text.trimStart().length : 0;
+        if (einzug > 0 && einzug < zeichen && z.text.trimStart() !== '') {
+          const vorn = ' '.repeat(einzug);
+          for (const t of wrapText(z.text.slice(einzug), zeichen - einzug)) lines.push({ text: ausrichten(vorn + t, zeichen, 'left'), kind: 'text', bold: z.bold });
+          break;
+        }
         for (const t of wrapText(z.text, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.align), kind: 'text', bold: z.bold });
         break;
+      }
       case 'banner': {
         // Der Rahmen ist Teil des Rasters: eine Zeile '=' ueber die volle Breite
         // davor und danach. So setzt ihn jeder Weg -- Bildschirm, Bon, ePOS, PDF,

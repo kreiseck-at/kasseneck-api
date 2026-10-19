@@ -12,8 +12,8 @@ Beleg-ID:          AT0-KASSE1-71
 1  x Handcreme            8,00 B
 Gutschein ····-7KQM      -9,00 A
 Gutschein ····-7KQM      -6,00 B
-  Einzweck, als Kleinunternehmer
-befreit verkauft                
+  Einzweck, befreit verkauft    
+  (Kleinunternehmer)            
   Rest am Gutschein       5,00  
                                 
 MwSt%   MwSt    Netto     Brutto
