@@ -58,7 +58,7 @@ function eposFolge(xml: string): Gesetzt[] {
 }
 
 test('Blatt-Zeichner: alle Golden-Belege liegen vor', () => {
-  assert.equal(namen.length, 40);
+  assert.equal(namen.length, 48);
 });
 
 for (const name of namen) {

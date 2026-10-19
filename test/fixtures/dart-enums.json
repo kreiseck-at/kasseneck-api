@@ -37,7 +37,7 @@
     "stripe",
     "custom"
   ],
-  "VoucherType": ["value", "promo"],
-  "VoucherAction": ["sell", "redeem"],
+  "VoucherType": ["value", "promo", "multi_purpose", "single_purpose", "service", "promotion"],
+  "VoucherAction": ["sell", "redeem", "payout"],
   "StripeLinkMode": ["payment", "authorization"]
 }

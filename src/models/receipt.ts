@@ -249,11 +249,21 @@ export function receiptValueVoucherSign(receipt: Receipt): 1 | -1 {
  * mindert nichts: den Rabatt nimmt der Server dort ueber Ausgleichspositionen
  * (`kind: 'discount'`) zurueck, und belegToepfe verteilt einen Promo-Eintrag
  * nur auf eine positive Topfsumme, die ein Storno nie hat.
+ *
+ * Gutscheine der neuen Form (Spec 2026-10-14): ihr Betrag steht als Position
+ * (`kind: 'voucher'` bei Einzweck/Leistung, `'voucher_float'` im 0-%-Topf) und
+ * zaehlt hier schon mit den Positionen. Ein Eintrag mit `zeroRateBucket`
+ * (intern `imNullTopf`, Mehrzweck-Verkauf ab dem Stichtag, Auszahlung) zaehlt
+ * darum nicht noch einmal -- sonst stuende der Betrag doppelt am Bon
+ * (Vorfall 16.10.2026: Verkauf ueber 30 € mit „Gesamt 60,00“). Eintraege der
+ * Arten `single_purpose`/`service` tragen keinen Fluss (wie
+ * gutschein-beleg.zahlbetrag, das nur `value`/`promo` an den Fluss gibt).
  */
 export function receiptSubSumCents(receipt: Receipt): number {
   const vz = receiptValueVoucherSign(receipt);
   let cents = receipt.items.reduce((acc, item) => acc + receiptItemTotalCents(item), 0);
   for (const voucher of receipt.vouchers) {
+    if (voucher.zeroRateBucket === true) continue;
     if (vz === 1 && voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
       cents -= voucher.valueCents ?? 0;
     }
@@ -266,13 +276,17 @@ export function receiptSubSumCents(receipt: Receipt): number {
 
 /**
  * Gesamtsumme in **Cent** — Zwischensumme minus eingeloeste Wertgutscheine
- * (am Storno-Beleg plus, siehe [receiptValueVoucherSign]).
+ * (am Storno-Beleg plus, siehe [receiptValueVoucherSign]). Zwilling von
+ * zahlungen-core.wertgutscheinFlussCents: eine Auszahlung (`payout`) eines
+ * Wertgutscheins ohne `zeroRateBucket` mindert wie eine Einloesung; mit
+ * `zeroRateBucket` steht sie als Position und zaehlt nur dort.
  */
 export function receiptSumCents(receipt: Receipt): number {
   const vz = receiptValueVoucherSign(receipt);
   let cents = receiptSubSumCents(receipt);
   for (const voucher of receipt.vouchers) {
-    if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value) {
+    if (voucher.zeroRateBucket === true || voucher.type !== VoucherType.value) continue;
+    if (voucher.action === VoucherAction.redeem || voucher.action === VoucherAction.payout) {
       cents -= vz * (voucher.valueCents ?? 0);
     }
   }
