@@ -39,6 +39,7 @@ export {
   fromReceiptPayload,
   receiptSubSumCents,
   receiptSumCents,
+  receiptValueVoucherSign,
   type CancellationOf,
   type CancellationItem,
   type Cancellation,

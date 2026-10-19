@@ -4,6 +4,12 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.11.1
+
+- `receiptSumCents`, `receiptSubSumCents` and the receipt layout count value vouchers with the opposite sign on a cancellation receipt; new helper `receiptValueVoucherSign`. Reason: the backend mirrors value vouchers onto a full cancellation with the same `action` and a positive value, and reverses the flow there (`receiptDueCents` already did). The cancellation of a sale paid partly with a value voucher (22.40, 17.50 by voucher, 4.90 cash) showed "Total -39.90" instead of the -4.90 actually refunded; the cancelled sale of a value voucher showed +30.00 instead of -30.00.
+- On a cancellation receipt a mirrored promotional voucher no longer reduces `receiptSubSumCents`/`receiptSumCents`; the layout shows it as a reference without an amount. Reason: the backend takes the discount back through compensation items (`kind: 'discount'`, "Gutschein-Ausgleich") and applies a promo entry only to a positive bucket total, which a cancellation never has. The cancellation of a 34.30 sale with a 10.00 promotional voucher showed "Total -34.30" instead of the -24.30 refunded.
+- Receipts other than cancellations print the same bytes as in 1.11.0.
+
 ## 1.11.0
 
 Shifts, cash position and drawer log at the register: `./pos` gains the six
