@@ -4,6 +4,21 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.12.0
+
+Vouchers in the new form at the register (multi-purpose, single-purpose, service, promotional; code shown once). Additive for existing calls, with three notes for callers:
+`PosSettings.vouchers` is a required field (fail-closed block of the register settings); a sale with a multi- or single-purpose voucher requires `voucherSettings` in the due options and throws `voucher_settings_missing` without it; new runtime dependency `@kreiseck/validator ^0.14.1`.
+
+- **Model, reading, writing and request checks for new-form vouchers.** Reason: the backend moves vouchers from a plain value to a typed record (type, balance, validity, rate); the register must read them exactly and reject a request the server would reject before anything is sent, so no receipt number is wasted.
+- **`checkVoucher` and `reprintVoucherLabel` at the register** (`./pos`, register path). The code goes over the wire as a secret, never into a log, cache or receipt. Reason: the cashier checks a code before selling or redeeming it; the label reprint needs the clear code once.
+- **Voucher rights and `voucherPermsOf`.** Reason: redeem, sell and pay out are separate rights per role; both registers decide on the same function.
+- **Settings block `vouchers` (fail-closed).** Reason: a missing or unreadable block must switch vouchers off, not on.
+- **Due amount with new-form vouchers and `voucherRedeemMaxCents`.** Reason: a single-purpose voucher covers at most the items of its rate and at most its balance; the register pre-fills exactly that, so the server never answers `voucher_exceeds_total`/`voucher_rate_mismatch` for an honest input. A voucher that covers everything yields a due amount of 0 (no payment line, no card terminal).
+- **Receipt layout and sums for the new form: each amount appears once.** Reason: incident of 16.10., where an amount was printed twice; the receipt shows `····-XXXX` for the position and `····-····-XXXX` for the entry, never the clear code.
+- **`./stored` mirrors the server's voucher handling** (including `exempt`). Reason: the stored-document twin has to produce the same wire form as the server, or a receipt with the new form reads differently in the list than in the detail.
+- **Contract catch-up** (signature card order, `activation_in_progress`; `RECEIPT_ERROR_CODES` now equals the `/v3` vocabulary, adding `server_error` and `voucher_balance_changed`). Reason: the re-fetched export contains them, and a test keeps the list equal to the vocabulary.
+- **Texts and error sentences:** 22 labels (`voucher.*`, `cancellation.voucher_back`) and 17 sentences (`voucher_error.*`); `VOUCHER_ERROR_MESSAGES`/`voucherErrorMessage` map each voucher error code (`voucher_not_found` ... `too_many_voucher_checks`) to a sentence, also in `fixtures/pos-texts.json` (`voucherErrors`). Reason: both registers say the same words for the same error and decide on the code, never on the server's text.
+
 ## 1.11.1
 
 - `receiptSumCents`, `receiptSubSumCents` and the receipt layout count value vouchers with the opposite sign on a cancellation receipt; new helper `receiptValueVoucherSign`. Reason: the backend mirrors value vouchers onto a full cancellation with the same `action` and a positive value, and reverses the flow there (`receiptDueCents` already did). The cancellation of a sale paid partly with a value voucher (22.40, 17.50 by voucher, 4.90 cash) showed "Total -39.90" instead of the -4.90 actually refunded; the cancelled sale of a value voucher showed +30.00 instead of -30.00.
