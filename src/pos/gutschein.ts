@@ -62,6 +62,28 @@ export interface PosVoucherSettings {
   vatRateBp: number | null;
 }
 
+/** Ohne Block `vouchers` (alter Server, Konto ohne Schalter): Verkaufen ist aus. */
+export const VOUCHER_SETTINGS_DEFAULTS: Readonly<PosVoucherSettings> = Object.freeze({
+  sale: false, valueVoucherType: null, vatRateBp: null,
+});
+
+/**
+ * Block `vouchers` einer Einstellungs-Antwort. Nur ein ausdruecklich
+ * wahres `sale` oeffnet den Verkauf; eine unbekannte Wertgutschein-Art oder
+ * ein nicht ganzzahliger Satz wird nicht erhoben, sondern faellt auf `null`.
+ */
+export function posVoucherSettingsFromWire(block: unknown): PosVoucherSettings {
+  if (block === null || typeof block !== 'object' || Array.isArray(block)) return { ...VOUCHER_SETTINGS_DEFAULTS };
+  const b = block as Record<string, unknown>;
+  const art = b['valueVoucherType'];
+  const satz = b['vatRateBp'];
+  return {
+    sale: b['sale'] === true,
+    valueVoucherType: art === 'multi_purpose' || art === 'single_purpose' ? art : null,
+    vatRateBp: typeof satz === 'number' && Number.isInteger(satz) && satz >= 0 ? satz : null,
+  };
+}
+
 type Roh = Record<string, unknown>;
 
 function fehler(name: string, grund: string): KasseneckValidationError {

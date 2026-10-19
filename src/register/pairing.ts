@@ -246,6 +246,12 @@ export interface RegisterUserPerms {
   stocktakeClose?: boolean;
   /** Standort der Kasse waehlen (setMyCashregisterStockLocation). */
   stockLocation?: boolean;
+  /** Gutschein verkaufen (fehlt bei altem Server: gilt wie beim Kassier, siehe [voucherPermsOf]). */
+  voucherSell?: boolean;
+  /** Gutschein einloesen (fehlt bei altem Server: gilt wie beim Kassier). */
+  voucherRedeem?: boolean;
+  /** Gutscheine verwalten, z. B. Etikett nachdrucken (fehlt: verweigert). */
+  voucherManage?: boolean;
   [weiteresRecht: string]: boolean | RegisterScope | undefined;
 }
 
@@ -279,6 +285,7 @@ export const REGISTER_PERMS = [
   'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
   'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
   'stockView', 'stockCosts', 'stockMove', 'stockLoss', 'stocktakeCount', 'stocktakeClose', 'stockLocation',
+  'voucherSell', 'voucherRedeem', 'voucherManage',
 ] as const satisfies readonly BenanntesRecht[];
 
 /**
@@ -321,6 +328,29 @@ export function receiptsScopeOf(perms: RegisterUserPerms | null | undefined): Re
 export function stockViewOf(perms: RegisterUserPerms | null | undefined): boolean {
   if (!perms) return false;
   return perms.stockView === undefined ? true : perms.stockView === true;
+}
+
+/** Die drei Gutschein-Rechte, aufgeloest (kein Schluessel fehlt mehr). */
+export interface VoucherPerms {
+  voucherSell: boolean;
+  voucherRedeem: boolean;
+  voucherManage: boolean;
+}
+
+/**
+ * Gutschein-Rechte lesen. Das Backend loest sie bei der Anmeldung auf; ein
+ * alter Server (und `/api`-Antworten) kennt sie nicht. Dann gilt je fehlendem
+ * Schluessel die Vorgabe des Kassiers: verkaufen und einloesen ja, verwalten
+ * nein. Ein ausdrueckliches `false` sperrt; was kein Wahrheitswert ist,
+ * erteilt nichts.
+ */
+export function voucherPermsOf(perms: Partial<RegisterUserPerms> | null | undefined): VoucherPerms {
+  const lies = (wert: unknown, vorgabe: boolean): boolean => (wert === undefined ? vorgabe : wert === true);
+  return {
+    voucherSell: lies(perms?.voucherSell, true),
+    voucherRedeem: lies(perms?.voucherRedeem, true),
+    voucherManage: lies(perms?.voucherManage, false),
+  };
 }
 
 /** Der angemeldete Kassen-Benutzer. */

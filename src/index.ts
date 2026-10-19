@@ -263,4 +263,5 @@ export {
   cancelScopeOf,
   receiptsScopeOf,
   stockViewOf,
+  voucherPermsOf,
 } from './pos/index.js';

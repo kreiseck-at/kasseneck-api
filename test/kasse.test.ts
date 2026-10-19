@@ -380,6 +380,7 @@ test('Die Rechte-Schluessel stehen als Liste bereit', () => {
     'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
     'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
     'stockView', 'stockCosts', 'stockMove', 'stockLoss', 'stocktakeCount', 'stocktakeClose', 'stockLocation',
+    'voucherSell', 'voucherRedeem', 'voucherManage',
   ]);
 });
 

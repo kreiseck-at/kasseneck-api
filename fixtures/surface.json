@@ -547,7 +547,10 @@
     "stockLoss",
     "stocktakeCount",
     "stocktakeClose",
-    "stockLocation"
+    "stockLocation",
+    "voucherSell",
+    "voucherRedeem",
+    "voucherManage"
   ],
   "registerErrorCodes": [
     "account_not_found",
