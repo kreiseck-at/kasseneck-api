@@ -95,3 +95,28 @@ test('reprintVoucherLabel: fehlendes Recht und unbekannter Gutschein am Code', a
     await assert.rejects(reprintVoucherLabel(kasse(f, []), String(f.params.id)), (e: unknown) => e instanceof KasseneckApiError && e.code === code);
   }
 });
+
+test('checkVoucher: ein Servertext, der den Code wiederholt, erreicht den Fehler nie im Klartext', async () => {
+  const f = structuredClone(fall('checkVoucher', 'unknown'));
+  f.response.message = 'Gutschein B1KK5EQ57DKJ (B1KK-5EQ5-7DKJ) gibt es nicht.';
+  let fehler: unknown;
+  try { await checkVoucher(kasse(f, []), 'b1kk-5eq5-7dkj'); } catch (e) { fehler = e; }
+  assert.ok(fehler instanceof KasseneckApiError);
+  const text = `${(fehler as Error).message} ${JSON.stringify(fehler)}`;
+  assert.ok(!text.includes('B1KK5EQ57DKJ') && !text.includes('B1KK-5EQ5-7DKJ'), text);
+});
+
+test('reprintVoucherLabel: ein Lesefehler der Antwort nennt den Code nicht', async () => {
+  const f = structuredClone(fall('reprintVoucherLabel', 'success_manager'));
+  f.response.data = { code: 12345 };
+  let fehler: unknown;
+  try { await reprintVoucherLabel(kasse(f, []), 'gmz1'); } catch (e) { fehler = e; }
+  assert.ok(isKasseneckValidationError(fehler));
+  assert.ok(!String((fehler as Error).message).includes('12345'));
+  const g = structuredClone(fall('reprintVoucherLabel', 'success_manager'));
+  g.response.data = { code: '' , voucher: { code: 'B1KK-5EQ5-7DHP' } };
+  try { await reprintVoucherLabel(kasse(g, []), 'gmz1'); assert.fail('kein Fehler'); } catch (e) {
+    assert.ok(isKasseneckValidationError(e));
+    assert.ok(!String((e as Error).message).includes('B1KK'));
+  }
+});

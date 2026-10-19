@@ -1,6 +1,6 @@
 import { VoucherCode } from '@kreiseck/validator';
 import type { InternerTransport } from '../client/aufrufe.js';
-import { KasseneckValidationError } from '../client/errors.js';
+import { KasseneckApiError, KasseneckValidationError } from '../client/errors.js';
 
 /**
  * Gutschein pruefen und Etikett nachdrucken an der Kasse (Backend
@@ -145,13 +145,27 @@ export async function checkVoucher(transport: InternerTransport, code: string): 
   const geprueft = typeof code === 'string' ? VoucherCode.validate(code) : null;
   // Der Code steht bewusst nicht in der Meldung.
   if (!geprueft || !geprueft.ok) throw new KasseneckValidationError(name, 'code ist kein gueltiger Gutscheincode', 'request');
-  return leseCheck(name, await transport(name, { code: geprueft.normalized }));
+  // Der Code reist im Rumpf: als Geheimnis nennen, damit er in keinem Fehler (Servertext, Ursache) auftaucht.
+  const geheim = [geprueft.normalized, VoucherCode.format(geprueft.normalized)];
+  let antwort: unknown;
+  try {
+    antwort = await transport(name, { code: geprueft.normalized }, undefined, geheim);
+  } catch (fehler) {
+    // Der Transport siebt nur Ursachen; ein Servertext, der den Code wiederholt, wird hier geschwaerzt.
+    if (fehler instanceof KasseneckApiError && geheim.some((g) => fehler.serverMessage.includes(g))) {
+      const text = geheim.reduce((t, g) => t.split(g).join('****'), fehler.serverMessage);
+      throw new KasseneckApiError(name, text, fehler.details, fehler.code);
+    }
+    throw fehler;
+  }
+  return leseCheck(name, antwort);
 }
 
 /**
  * Etikett eines Gutscheins noch einmal drucken (Gutschein-Recht
  * `voucherManage`). Antwort ist der Klartext-Code zum Drucken; er gehoert
- * nur in den Speicher bis zum Druck.
+ * nur in den Speicher bis zum Druck. Aufrufer duerfen ihn nicht protokollieren,
+ * speichern oder in Meldungen nennen; Lesefehler dieser Antwort nennen ihn nie.
  */
 export async function reprintVoucherLabel(transport: InternerTransport, id: string): Promise<{ code: string }> {
   const name = 'reprintVoucherLabel';
