@@ -63,7 +63,9 @@ const NACH_1_0 = {
     // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
     'shift.change_float_missing', 'logout.cart_cleared',
     // Gutscheine an der Kasse (1.12.0)
-    'voucher_error.not_found', 'voucher_error.invalid', 'voucher_error.invalid_code', 'voucher_error.expired', 'voucher_error.used_up', 'voucher_error.blocked', 'voucher_error.cancelled', 'voucher_error.insufficient_balance', 'voucher_error.exceeds_total', 'voucher_error.balance_changed', 'voucher_error.rate_mismatch', 'voucher_error.item_mismatch', 'voucher_error.already_used', 'voucher_error.partial_cancel', 'voucher_error.settings_missing', 'voucher_error.too_many_checks', 'voucher_error.sale_off'],
+    'voucher_error.not_found', 'voucher_error.invalid', 'voucher_error.invalid_code', 'voucher_error.expired', 'voucher_error.used_up', 'voucher_error.blocked', 'voucher_error.cancelled', 'voucher_error.insufficient_balance', 'voucher_error.exceeds_total', 'voucher_error.balance_changed', 'voucher_error.rate_mismatch', 'voucher_error.item_mismatch', 'voucher_error.already_used', 'voucher_error.partial_cancel', 'voucher_error.settings_missing', 'voucher_error.too_many_checks', 'voucher_error.sale_off',
+    // Gutscheine an der Kasse, Stufe 3 (1.13.0)
+    'voucher.reentry_needed', 'voucher.reentry_mismatch', 'voucher.not_this_voucher', 'voucher.reentry_no_permission', 'voucher.already_covered', 'voucher.payout_reason_too_long', 'voucher.payout_reason_missing', 'voucher.payout_check_first', 'voucher.sale_max_amount', 'voucher.sale_not_at_terminal', 'voucher.no_redeem_with_sale', 'voucher.code_not_on_receipt', 'cancellation.voucher_sale_cancelled', 'cancellation.promo_valid_again'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -105,7 +107,9 @@ const NACH_1_0 = {
     'shift.put_in_change_float', 'shift.taken_over_from_shift', 'shift.counted', 'shift.back', 'shift.done', 'shift.edit_amount',
     'shift.pay_ins', 'shift.pay_outs', 'cash_movement.pay_in_amount', 'cash_movement.pay_out_amount',
     // Gutscheine an der Kasse (1.12.0)
-    'voucher.button', 'voucher.redeem', 'voucher.sell', 'voucher.payout', 'voucher.code', 'voucher.scan', 'voucher.check', 'voucher.amount', 'voucher.balance', 'voucher.remaining_quantity', 'voucher.reason', 'voucher.multi_purpose', 'voucher.single_purpose', 'voucher.service', 'voucher.promotion', 'voucher.payment_line', 'voucher.covers_items', 'voucher.code_shown_once', 'voucher.not_in_split', 'voucher.payout_not_possible', 'voucher.add_article', 'voucher.payout_confirm', 'cancellation.voucher_back'],
+    'voucher.button', 'voucher.redeem', 'voucher.sell', 'voucher.payout', 'voucher.code', 'voucher.scan', 'voucher.check', 'voucher.amount', 'voucher.balance', 'voucher.remaining_quantity', 'voucher.reason', 'voucher.multi_purpose', 'voucher.single_purpose', 'voucher.service', 'voucher.promotion', 'voucher.payment_line', 'voucher.covers_items', 'voucher.code_shown_once', 'voucher.not_in_split', 'voucher.payout_not_possible', 'voucher.add_article', 'voucher.payout_confirm', 'cancellation.voucher_back',
+    // Gutscheine an der Kasse, Stufe 3 (1.13.0)
+    'voucher.apply', 'voucher.redeemable_until', 'voucher.remove_line', 'voucher.reenter_code', 'voucher.refundable_until', 'voucher.code_done', 'voucher.article', 'voucher.add'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

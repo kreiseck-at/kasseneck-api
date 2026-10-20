@@ -218,6 +218,21 @@ const MELDUNGEN_ROH = {
   'voucher_error.settings_missing': { text: 'Die Gutschein-Einstellungen fehlen. Bitte die Kasse neu laden.' },
   'voucher_error.too_many_checks': { text: 'Zu viele Versuche. Bitte in einer Stunde wieder.' },
   'voucher_error.sale_off': { text: 'Gutscheine verkaufen geht hier noch nicht.' },
+  // Gutscheine an der Kasse, Stufe 3 (1.13.0): Sätze der Kasse selbst (nicht des Servers).
+  'voucher.reentry_needed': { text: 'Die Karte ist belastet, der Beleg fehlt noch: zu jedem Gutschein den Code erneut eingeben, dann den Beleg abschließen.' },
+  'voucher.reentry_mismatch': { text: 'Mit diesen Gutscheinen ergibt der Beleg nicht mehr den belasteten Betrag – die Karte zurückbuchen.' },
+  'voucher.not_this_voucher': { text: 'Das ist nicht der Gutschein ····-{suffix}.', placeholders: ['suffix'] },
+  'voucher.reentry_no_permission': { text: 'Die Karte ist belastet, der Beleg fehlt noch: den Gutschein-Code kann nur jemand mit dem Recht zum Einlösen nachtragen – sonst die Karte zurückbuchen.' },
+  'voucher.already_covered': { text: 'Diese Positionen deckt schon ein anderer Gutschein.' },
+  'voucher.payout_reason_too_long': { text: 'Der Grund hat höchstens 200 Zeichen.' },
+  'voucher.payout_reason_missing': { text: 'Für die Auszahlung fehlt der Grund.' },
+  'voucher.payout_check_first': { text: 'Die letzte Auszahlung ging unklar aus und kann schon gebucht sein. Erst unter „Belege“ die Liste neu laden und nachsehen, dann ist eine neue möglich.' },
+  'voucher.sale_max_amount': { text: 'Höchstens {amount} je Gutschein.', placeholders: ['amount'] },
+  'voucher.sale_not_at_terminal': { text: 'Gutscheine mit Karte am Terminal zu verkaufen geht an dieser Kasse noch nicht – bar kassieren.' },
+  'voucher.no_redeem_with_sale': { text: 'Auf einem Beleg, der Gutscheine verkauft, lässt sich kein Gutschein einlösen.' },
+  'voucher.code_not_on_receipt': { text: 'Der Code steht nicht auf dem Bon – jetzt auf den Gutschein schreiben.' },
+  'cancellation.voucher_sale_cancelled': { text: 'Der Gutschein ····-{suffix} wird mitstorniert und gilt danach nicht mehr.', placeholders: ['suffix'] },
+  'cancellation.promo_valid_again': { text: 'Der Aktionsgutschein ····-{suffix} gilt danach wieder.', placeholders: ['suffix'] },
 
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
@@ -963,6 +978,15 @@ const BESCHRIFTUNGEN_ROH = {
   'voucher.add_article': { text: '{article} hinzufügen', placeholders: ['article'] },
   'voucher.payout_confirm': { text: '{amount} bar auszahlen?', placeholders: ['amount'] },
   'cancellation.voucher_back': { text: '{amount} geht zurück auf den Gutschein', placeholders: ['amount'] },
+  // Gutscheine an der Kasse, Stufe 3 (1.13.0)
+  'voucher.apply': { text: 'Übernehmen' },
+  'voucher.redeemable_until': { text: 'einlösbar bis {date}', placeholders: ['date'] },
+  'voucher.remove_line': { text: '{line} entfernen', placeholders: ['line'] },
+  'voucher.reenter_code': { text: 'Code erneut eingeben' },
+  'voucher.refundable_until': { text: 'rückzahlbar bis {date}', placeholders: ['date'] },
+  'voucher.code_done': { text: 'Fertig' },
+  'voucher.article': { text: 'Artikel' },
+  'voucher.add': { text: 'Hinzufügen' },
   'shift.all_payments': { text: 'Alle Zahlungen dieser Schicht (bar + unbar)' },
   'shift.receipt_count_one': { text: '1 Beleg' },
   'shift.receipt_count_other': { text: '{count} Belege', placeholders: ['count'] },

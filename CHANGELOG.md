@@ -4,6 +4,12 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.13.0
+
+Vouchers at the register, stage 3: the sentences and words of the voucher screens move into the shared text catalogue, so the web register and the app register say the same. Additive; no existing key changes.
+
+- **14 sentences in `MESSAGES`** (`voucher.reentry_needed`, `voucher.reentry_mismatch`, `voucher.not_this_voucher`, `voucher.reentry_no_permission`, `voucher.already_covered`, `voucher.payout_reason_too_long`, `voucher.payout_reason_missing`, `voucher.payout_check_first`, `voucher.sale_max_amount`, `voucher.sale_not_at_terminal`, `voucher.no_redeem_with_sale`, `voucher.code_not_on_receipt`, `cancellation.voucher_sale_cancelled`, `cancellation.promo_valid_again`) and 8 labels in `LABELS` (`voucher.apply`, `voucher.redeemable_until`, `voucher.remove_line`, `voucher.reenter_code`, `voucher.refundable_until`, `voucher.code_done`, `voucher.article`, `voucher.add`). Reason: the web register kept these words in its own constant until the catalogue had keys for them; both registers now take them from here, and the contract file `fixtures/pos-texts.json` carries them to the app.
+
 ## 1.12.0
 
 Vouchers in the new form at the register (multi-purpose, single-purpose, service, promotional; code shown once). Additive for existing calls, with three notes for callers:
