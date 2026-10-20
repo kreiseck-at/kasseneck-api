@@ -511,7 +511,7 @@ test('Partner: jeder Fehlercode kommt maschinenlesbar an und traegt einen Handlu
  * faellt sofort mit dem fehlenden Namen. Ein Code, den nur eine Seite kennt,
  * ist fuer einen Aufrufer nicht von "gibt es nicht" zu unterscheiden.
  */
-test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 12 des Portals', () => {
+test('Partner: der Fehlerkatalog ist vollstaendig: 37 Codes der Schnittstelle, 12 des Portals', () => {
   assert.deepEqual([...PARTNER_ERROR_CODES], [
     'validation',
     'rate_limited',
@@ -546,11 +546,12 @@ test('Partner: der Fehlerkatalog ist vollstaendig: 36 Codes der Schnittstelle, 1
     'text_changed',
     'already_accepted',
     'activation_failed',
+    'activation_in_progress',
     'webhook_limit',
     'webhook_inactive',
     'event_not_subscribed',
   ]);
-  assert.equal(PARTNER_ERROR_CODES.length, 36);
+  assert.equal(PARTNER_ERROR_CODES.length, 37);
 
   assert.deepEqual([...PARTNER_PORTAL_ERROR_CODES], [
     'app_locked',

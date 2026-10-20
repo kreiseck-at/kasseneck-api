@@ -194,7 +194,8 @@ to take payments, there is nothing to program:
 
 **Runs in the browser and in Node.js.** ESM is the main format, CommonJS ships
 alongside it, both with their own type declarations. Node 20.18 or later
-(`fetch` must be available). There are no runtime dependencies. React 18 or
+(`fetch` must be available). The only runtime dependency is `@kreiseck/validator`
+(check digit of voucher codes). React 18 or
 later is an optional peer dependency, needed only for `./react`.
 
 Import only the subpath you need, so a Node program never pulls in the React

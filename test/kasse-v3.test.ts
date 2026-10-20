@@ -127,6 +127,12 @@ test('Standardwerte: die Drahtform ist die Antwort ohne gespeicherte Einstellung
   assert.deepEqual({ ...POS_SHORTCUT_DEFAULTS }, STANDARD.device.shortcuts);
 });
 
+/** Zuordnung innen -> aussen eines Wertverweises: benannter Katalog oder im Vertrag eingebettet. */
+function zuordnung(verweis: { $catalog?: string } | Record<string, string>): Record<string, string> {
+  const name = (verweis as { $catalog?: string }).$catalog;
+  return (name === undefined ? verweis : VOKABULAR.catalogs[name]) as Record<string, string>;
+}
+
 /** Drahtform -> innere Form mit dem Schema `getPosSettings` und den Katalogen, unabhaengig vom Erzeuger. */
 function nachInnen(teil: 'business' | 'device', block: Json): Json {
   const schema = VOKABULAR.schemas.getKasseSettings;
@@ -140,7 +146,7 @@ function nachInnen(teil: 'business' | 'device', block: Json): Json {
     }
     const verweis = schema.werte[`${teil}.${aussen}`];
     const innen = verweis
-      ? Object.entries(VOKABULAR.catalogs[verweis.$catalog] as Record<string, string>).find(([, a]) => a === wert)?.[0]
+      ? Object.entries(zuordnung(verweis)).find(([, a]) => a === wert)?.[0]
       : wert;
     raus[eintrag] = innen;
   }
@@ -167,13 +173,18 @@ test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide
 });
 
 test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert und in der Reihenfolge', () => {
-  const werte = VOKABULAR.schemas.getKasseSettings.werte as Record<string, { $catalog: string }>;
+  const werte = VOKABULAR.schemas.getKasseSettings.werte as Record<string, { $catalog?: string }>;
   const paket: Record<string, readonly (string | number)[] | undefined> = {
     ...Object.fromEntries(Object.entries(POS_BUSINESS_VALUES).map(([k, v]) => [`business.${k}`, v])),
     ...Object.fromEntries(Object.entries(POS_DEVICE_VALUES).map(([k, v]) => [`device.${k}`, v])),
   };
-  for (const [pfad, { $catalog }] of Object.entries(werte)) {
-    assert.deepEqual([...(paket[pfad] ?? [])], Object.values(VOKABULAR.catalogs[$catalog]), pfad);
+  for (const [pfad, verweis] of Object.entries(werte)) {
+    // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts); seine Werte stehen fest.
+    if (pfad.startsWith('vouchers.')) {
+      assert.deepEqual(Object.values(zuordnung(verweis)).sort(), ['multi_purpose', 'single_purpose'], pfad);
+      continue;
+    }
+    assert.deepEqual([...(paket[pfad] ?? [])], Object.values(zuordnung(verweis)), pfad);
   }
   // Jede Liste heisst wie ihr Feld (TILE_STYLE -> tileStyle).
   const raum = kasse as unknown as Record<string, unknown>;
@@ -194,7 +205,7 @@ test('getPosSettings: sendet deviceId wie der Fall, liest {business, device}', a
     const { rufen, aufrufe } = kassenweg(f);
     const stand = await getPosSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
     assert.deepEqual(gesendet(aufrufe, 'getKasseSettings', f), f.params, f.case);
-    assert.deepEqual(stand, { business: f.response.data.business, device: f.response.data.device }, f.case);
+    assert.deepEqual(stand, { business: f.response.data.business, device: f.response.data.device, vouchers: f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
   }
 });
 
@@ -399,7 +410,7 @@ test('listRegisterUsersForDevice: englische Antwort, Einstellungen, Belegkopf, K
     assert.equal(stand.loginMode, d.loginMode, f.case);
     assert.deepEqual(stand.policy, d.policy, f.case);
     assert.deepEqual(stand.users, d.users.map((u: Json) => ({ ...u, pinPolicyOutdated: u.pinPolicyOutdated === true })), f.case);
-    assert.deepEqual(stand.settings, d.settings, f.case);
+    assert.deepEqual(stand.settings, { ...d.settings, vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
     assert.equal(stand.locationLock, d.locationLock, f.case);
     assert.equal(stand.testEnvironment, d.testEnvironment, f.case);
     assert.deepEqual(stand.cashregister, { ready: d.cashregister.ready, reason: d.cashregister.reason ?? null }, f.case);
@@ -668,16 +679,18 @@ test('F2: der 0.x-Filter gilt immer, auch fuer eine Kopie der Standards', () => 
   assert.equal(s.business.theme, 'clear');
   assert.equal(s.business.fontSize, 'L');
   assert.equal(s.device.layout, 'right');
-  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)) });
+  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } });
   // Ein neuer englischer Wert ist kein Altwert und bleibt.
   assert.equal(kasse.sanitizePosSettings({ business: { theme: 'sepia' } }).business.theme, 'sepia');
 });
 
 test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere Werte ohne die gleichlautenden)', () => {
-  const werte = VOKABULAR.schemas.getKasseSettings.werte as Record<string, { $catalog: string }>;
+  const werte = VOKABULAR.schemas.getKasseSettings.werte as Record<string, { $catalog?: string }>;
   const erwartet: Record<string, string[]> = {};
-  for (const [pfad, { $catalog }] of Object.entries(werte)) {
-    const karte = VOKABULAR.catalogs[$catalog] as Record<string, string>;
+  for (const [pfad, verweis] of Object.entries(werte)) {
+    // Der Block `vouchers` ist kein Teil von business/device und hat keine 0.x-Form.
+    if (pfad.startsWith('vouchers.')) continue;
+    const karte = zuordnung(verweis);
     const aussen = new Set(Object.values(karte));
     const alt = Object.keys(karte).filter((innen) => !aussen.has(innen));
     if (alt.length) erwartet[pfad.split('.')[1]!] = alt;

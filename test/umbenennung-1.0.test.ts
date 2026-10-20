@@ -61,7 +61,9 @@ const NACH_1_0 = {
     // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
     'tip_payout.none_open',
     // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
-    'shift.change_float_missing', 'logout.cart_cleared'],
+    'shift.change_float_missing', 'logout.cart_cleared',
+    // Gutscheine an der Kasse (1.12.0)
+    'voucher_error.not_found', 'voucher_error.invalid', 'voucher_error.invalid_code', 'voucher_error.expired', 'voucher_error.used_up', 'voucher_error.blocked', 'voucher_error.cancelled', 'voucher_error.insufficient_balance', 'voucher_error.exceeds_total', 'voucher_error.balance_changed', 'voucher_error.rate_mismatch', 'voucher_error.item_mismatch', 'voucher_error.already_used', 'voucher_error.partial_cancel', 'voucher_error.settings_missing', 'voucher_error.too_many_checks', 'voucher_error.sale_off'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -101,12 +103,14 @@ const NACH_1_0 = {
     'shift.change_float_next_shift', 'shift.take_out', 'shift.put_in', 'shift.take_out_at_most', 'shift.put_in_hint', 'shift.after_count_tap_hint',
     'shift.take_out_amount', 'shift.put_in_amount', 'shift.continue_without_take_out', 'shift.print_envelope_receipt', 'shift.toggle_take_out_put_in',
     'shift.put_in_change_float', 'shift.taken_over_from_shift', 'shift.counted', 'shift.back', 'shift.done', 'shift.edit_amount',
-    'shift.pay_ins', 'shift.pay_outs', 'cash_movement.pay_in_amount', 'cash_movement.pay_out_amount'],
+    'shift.pay_ins', 'shift.pay_outs', 'cash_movement.pay_in_amount', 'cash_movement.pay_out_amount',
+    // Gutscheine an der Kasse (1.12.0)
+    'voucher.button', 'voucher.redeem', 'voucher.sell', 'voucher.payout', 'voucher.code', 'voucher.scan', 'voucher.check', 'voucher.amount', 'voucher.balance', 'voucher.remaining_quantity', 'voucher.reason', 'voucher.multi_purpose', 'voucher.single_purpose', 'voucher.service', 'voucher.promotion', 'voucher.payment_line', 'voucher.covers_items', 'voucher.code_shown_once', 'voucher.not_in_split', 'voucher.payout_not_possible', 'voucher.add_article', 'voucher.payout_confirm', 'cancellation.voucher_back'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
-  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'returnDispositionLabels'],
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'voucherErrors', 'returnDispositionLabels'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
@@ -314,10 +318,13 @@ const FILES = TABELLE.files as Record<string, string>;
 /** Dateien, die erst mit 1.0 kamen (kein 0.x-Vorgaenger). Der v3-Export des Backends kommt dazu, ohne Eintrag hier. */
 /** Bons je Code-Tabelle (1.1.0): die Faelle und je Fall und Tabelle eine Hex-Datei. */
 const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-table-receipts.json'), 'utf8')) as { tables: string[]; cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
-  ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`])];
+  ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
+  // Gutscheine der neuen Form (1.12.0): Golden-Belege mit Zeilen, Raster und Blatt.
+  ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`])];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

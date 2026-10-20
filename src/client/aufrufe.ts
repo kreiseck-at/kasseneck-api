@@ -135,12 +135,18 @@ export const ALL_CALLS = [
   'closeStocktake',
   'cancelStocktake',
   'getStocktakePdf',
+  // Signaturkarte bestellen und Bestellung lesen
+  'orderSignatureCard',
+  'getSignatureCardOrder',
   // Inventur zaehlen an der Kasse (Lager-Kern Stufe 3, ./pos)
   'listMyStocktakes',
   'listMyStocktakeItems',
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Gutschein pruefen und Etikett nachdrucken (./pos)
+  'checkVoucher',
+  'reprintVoucherLabel',
   // Schicht, Kassenstand und Lade-Protokoll an der Kasse (./pos)
   'getMyDrawerState',
   'openMyShift',
@@ -271,6 +277,8 @@ export const PUBLIC_CALLS = [
   'closeStocktake',
   'cancelStocktake',
   'getStocktakePdf',
+  'orderSignatureCard',
+  'getSignatureCardOrder',
 ] as const;
 
 /**
@@ -315,6 +323,9 @@ export const POS_CALLS = [
   'listMyStocktakeCounts',
   'recordMyStocktakeCount',
   'voidMyStocktakeCount',
+  // Gutschein pruefen und Etikett nachdrucken: nur ueber den Kassenweg.
+  'checkVoucher',
+  'reprintVoucherLabel',
   // Schicht, Kassenstand und Lade-Protokoll: nur ueber den Kassenweg.
   'getMyDrawerState',
   'openMyShift',
@@ -377,6 +388,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'issueInvoice',
   'logMyDrawerOpenings',
   'openMyShift',
+  'orderSignatureCard',
   'pairRegisterDevice',
   'receiveGoods',
   'recordInvoicePayment',
@@ -445,6 +457,7 @@ export type CallWithoutEffectReason = 'read' | 'repeatable';
  */
 export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReason>> = Object.freeze({
   checkPartnerCustomerEmail: 'read',
+  checkVoucher: 'read',
   downloadDailyReport: 'read',
   downloadReceipt: 'read',
   downloadReport: 'read',
@@ -475,6 +488,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getReservation: 'read',
   getStock: 'read',
   getStocktake: 'read',
+  getSignatureCardOrder: 'read',
   getStocktakePdf: 'read',
   getVariantGroup: 'read',
   hobexGetStatus: 'read',
@@ -513,6 +527,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   registerPinLogin: 'repeatable',
   registerUserLogin: 'repeatable',
   renewRegisterSession: 'repeatable',
+  reprintVoucherLabel: 'repeatable',
   searchCustomers: 'read',
 });
 

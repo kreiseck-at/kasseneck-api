@@ -1,5 +1,5 @@
 import { KasseneckValidationError } from '../client/errors.js';
-import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
+import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt, type Wertverweis } from './vokabular.js';
 
 /*
  * Gespeicherte Form (Firestore, innen, deutsch) -> Drahtform `/v3` (englisch),
@@ -79,18 +79,24 @@ function anPfad(obj: unknown, teile: readonly string[], fn: (w: unknown) => unkn
  * `werteAbbilden`). Ein Wert, den der Katalog nicht kennt, bleibt woertlich
  * stehen, wie am Server.
  */
-function werteNachAussen(obj: unknown, werte: Readonly<Record<string, { readonly $catalog: string }>>): unknown {
+function werteNachAussen(obj: unknown, werte: Readonly<Record<string, Wertverweis>>): unknown {
   let raus = obj;
-  for (const [pfad, { $catalog }] of Object.entries(werte)) {
-    const katalog = KATALOGE[$catalog];
-    if (!katalog) throw new Error(`stored: Katalog ${$catalog} fehlt im Vokabular`);
+  for (const [pfad, verweis] of Object.entries(werte)) {
+    const katalog = katalogVon(verweis);
+    if (!katalog) throw new Error(`stored: Katalog ${(verweis as { $catalog?: string }).$catalog} fehlt im Vokabular`);
     raus = anPfad(raus, pfad.split('.'), (v) => (typeof v === 'string' && hat(katalog, v) ? katalog[v] : v));
   }
   return raus;
 }
 
+/** Zuordnung eines Wertverweises: benannter Katalog oder eingebettet. */
+export function katalogVon(verweis: Wertverweis): Readonly<Record<string, string>> | undefined {
+  const name = (verweis as { $catalog?: unknown }).$catalog;
+  return typeof name === 'string' ? KATALOGE[name] : (verweis as Readonly<Record<string, string>>);
+}
+
 /** Englische Werte eines Katalogs (was an dieser Stelle hinaus darf). */
-const aeussereWerte = (name: string): ReadonlySet<string> => new Set(Object.values(KATALOGE[name] ?? {}));
+const aeussereWerte = (verweis: Wertverweis): ReadonlySet<string> => new Set(Object.values(katalogVon(verweis) ?? {}));
 
 // ---- Belege -----------------------------------------------------------------
 
@@ -145,6 +151,45 @@ function belegRueckgabeNachAussen(beleg: Objekt): Objekt {
   return raus;
 }
 
+// ---- Gutschein-Eintraege am Beleg ---------------------------------------------
+
+/** Zwilling von `BELEG_GUTSCHEIN` (api-vokabular-v3): aussen -> innen. */
+const BELEG_GUTSCHEIN: Readonly<Record<string, string>> = {
+  voucherType: 'art', voucherId: 'gutscheinId', codeSuffix: 'codeEnde', amountCents: 'betragCents', vatRateBp: 'satzBp',
+  article: 'artikel', articleId: 'artikelId', quantity: 'stueck', positions: 'positionen',
+  balanceAfterCents: 'saldoNachCents', remainingQuantityAfter: 'stueckOffenNach', taxedWith: 'versteuertMit', exempt: 'befreit',
+  reason: 'grund', zeroRateBucket: 'imNullTopf',
+};
+const BELEG_GUTSCHEIN_AUSSEN: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(BELEG_GUTSCHEIN).map(([aussen, innen]) => [innen, aussen]));
+const GUTSCHEIN_ARTIKEL_AUSSEN: Readonly<Record<string, string>> = { satzBp: 'vatRateBp', preisCents: 'priceCents' };
+
+function umbenannt(o: Objekt, namen: Readonly<Record<string, string>>): Objekt {
+  return Object.fromEntries(Object.entries(o).map(([k, w]) => [hat(namen, k) ? namen[k]! : k, w]));
+}
+
+/** Zwilling von `gutscheinEintragNachAussen`: ohne deutschen Schluessel/Wert dasselbe Objekt (Altbeleg). */
+function gutscheinEintragNachAussen(v: unknown): unknown {
+  if (!istObjekt(v)) return v;
+  const art = KATALOGE.GUTSCHEIN_ART ?? {};
+  const typNeu = typeof v.type === 'string' && hat(art, v.type);
+  if (!typNeu && !Object.keys(v).some((k) => hat(BELEG_GUTSCHEIN_AUSSEN, k))) return v;
+  const raus: Objekt = {};
+  for (const [k, w] of Object.entries(v)) {
+    if (k === 'type') raus.type = typNeu ? art[w as string] : w;
+    else if (k === 'art') raus.voucherType = typeof w === 'string' && hat(art, w) ? art[w] : w;
+    else if (k === 'artikel') raus.article = istObjekt(w) ? umbenannt(w, GUTSCHEIN_ARTIKEL_AUSSEN) : w;
+    else raus[hat(BELEG_GUTSCHEIN_AUSSEN, k) ? BELEG_GUTSCHEIN_AUSSEN[k]! : k] = w;
+  }
+  return raus;
+}
+
+/** Zwilling von `belegGutscheineNachAussen`: `vouchers[]` eines Belegs an Ort und Stelle nach aussen. */
+function belegGutscheineNachAussen(beleg: Objekt): Objekt {
+  if (!Array.isArray(beleg.vouchers)) return beleg;
+  const neu = beleg.vouchers.map(gutscheinEintragNachAussen);
+  return neu.every((v, i) => v === (beleg.vouchers as unknown[])[i]) ? beleg : { ...beleg, vouchers: neu };
+}
+
 /**
  * Zwilling von `beleg-pruefangaben.alsIso`: leer (auch 0, '') -> null;
  * Firestore-Zeitstempel, Zahl oder Zeichenkette -> ISO-Zeitpunkt in UTC;
@@ -193,7 +238,7 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
 export function _receiptEnvelopeToWire(huelle: Objekt): Objekt {
   const schema = SCHEMAS.getReceipt;
   const draht = werteNachAussen(schluesselNachAussen(huelle, schema.data), schema.werte) as Objekt;
-  return istObjekt(draht.receipt) ? { ...draht, receipt: belegRueckgabeNachAussen(draht.receipt) } : draht;
+  return istObjekt(draht.receipt) ? { ...draht, receipt: belegGutscheineNachAussen(belegRueckgabeNachAussen(draht.receipt)) } : draht;
 }
 
 /**
@@ -252,7 +297,7 @@ export function _storedArticleToWire(id: string, doc: unknown, functionName = 'f
   const schema = SCHEMAS.listMyArticles;
   const huelle = werteNachAussen(schluesselNachAussen({ articles: [handler] }, schema.data), schema.werte) as { articles: Objekt[] };
   const artikel = huelle.articles[0]!;
-  const katalog = (pfad: string): ReadonlySet<string> => aeussereWerte(schema.werte[pfad]!.$catalog);
+  const katalog = (pfad: string): ReadonlySet<string> => aeussereWerte(schema.werte[pfad]!);
   const raus = nurBekannte(artikel, new Set(ARTIKEL_FELDER), {
     quantityRule: katalog('articles[].quantityRule'), e1aGroup: katalog('articles[].e1aGroup'),
   });

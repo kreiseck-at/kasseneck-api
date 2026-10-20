@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -147,6 +147,10 @@ function paketMitReactFalle(): string {
   // uebersetzten ESM-Dateien schluege fehl — der Test wuerde dann aus dem
   // falschen Grund rot.
   writeFileSync(join(wurzel, 'package.json'), JSON.stringify({ type: 'module' }));
+
+  // Die einzige echte Laufzeitabhaengigkeit (Gutscheincode) bleibt erreichbar.
+  mkdirSync(join(wurzel, 'node_modules', '@kreiseck'), { recursive: true });
+  symlinkSync(fileURLToPath(new URL('../../node_modules/@kreiseck/validator', import.meta.url)), join(wurzel, 'node_modules', '@kreiseck', 'validator'), 'dir');
 
   const reactVerzeichnis = join(wurzel, 'node_modules', 'react');
   mkdirSync(reactVerzeichnis, { recursive: true });

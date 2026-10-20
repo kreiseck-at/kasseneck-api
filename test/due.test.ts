@@ -7,6 +7,7 @@ import { isOutcomeUnknown } from '../src/client/errors.js';
 import * as wurzel from '../src/index.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
 import { VatRate } from '../src/enums/index.js';
+import { optionenAusSetup } from './gutschein-setup.js';
 
 /*
  * Zahlbetrag als Zwilling des Backends (Nachtrag §8): jeder Fall aus
@@ -32,6 +33,8 @@ interface Fall {
     bucketsCents: Record<string, number> | null;
   };
   serverItems?: Array<Record<string, unknown>>;
+  /** Gutscheine, Einstellung und Artikel der Welt (nur Faelle mit Gutscheinen der neuen Form). */
+  setup?: Record<string, unknown>;
 }
 
 const datei = fileURLToPath(new URL('../../fixtures/v3/zahlbetrag-faelle.json', import.meta.url));
@@ -43,6 +46,8 @@ const gutscheine = (roh: Array<Record<string, unknown>>): Voucher[] => roh.map((
 /** Der Vertrag rechnet Personal-Trinkgeld ohne Empfaenger, Inhaber-Trinkgeld mit einem Inhaber als Empfaenger. */
 const trinkgeld = (tip: Fall['input']['tip']): ReceiptDueOptions =>
   tip == null ? {} : { tip: tip.cents, tipRecipient: tip.owner === true ? 'owner' : 'staff' };
+/** Optionen eines Falls: Trinkgeld und, bei Gutscheinen der neuen Form, die Welt der Kasse (setup). */
+const optionen = (fall: Fall): ReceiptDueOptions => ({ ...trinkgeld(fall.input.tip), ...optionenAusSetup(fall.setup) });
 
 test('Zahlbetrag-Faelle: die Datei deckt alle Arten ab (sonst prueft der Zwilling zu wenig)', () => {
   const namen = FAELLE.map((f) => f.name);
@@ -58,11 +63,11 @@ for (const fall of FAELLE) {
       positionen(fall.input.items),
       gutscheine(fall.input.vouchers),
       fall.input.receiptType,
-      trinkgeld(fall.input.tip),
+      optionen(fall),
     );
     assert.deepEqual(ergebnis, fall.expected);
     assert.equal(
-      receiptDueCents(positionen(fall.input.items), gutscheine(fall.input.vouchers), fall.input.receiptType, trinkgeld(fall.input.tip)),
+      receiptDueCents(positionen(fall.input.items), gutscheine(fall.input.vouchers), fall.input.receiptType, optionen(fall)),
       fall.expected.dueCents,
     );
   });
@@ -97,7 +102,7 @@ test('Ergebnis ist immer ein ganzer Cent-Betrag, die Eingaben bleiben unveraende
     const items = positionen(fall.input.items);
     const vouchers = gutscheine(fall.input.vouchers);
     const vorher = JSON.stringify([items, vouchers]);
-    const e = receiptDueBreakdown(items, vouchers, fall.input.receiptType, trinkgeld(fall.input.tip));
+    const e = receiptDueBreakdown(items, vouchers, fall.input.receiptType, optionen(fall));
     for (const wert of [e.dueCents, e.counterDeltaCents, e.valueVoucherFlowCents, ...Object.values(e.bucketsCents ?? {})]) {
       assert.ok(Number.isSafeInteger(wert), `${fall.name}: ${wert}`);
     }

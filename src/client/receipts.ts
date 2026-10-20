@@ -20,6 +20,8 @@ import {
   toVoucherPayload,
   receiptItemIsValid,
   voucherIsValid,
+  isNewFormVoucher,
+  voucherServerFields,
   fromReceiptSummaryPayload,
   type ReceiptSummary,
   type ReceiptSummaryPayload,
@@ -313,7 +315,7 @@ async function createReceiptWithCompany(
  * Baut die Nutzlast von `createReceipt` und prueft die Eingabe. Wirft, bevor
  * irgendetwas rausgeht — ein Beleg ist nicht folgenlos wiederholbar.
  */
-function createReceiptParams(options: CreateReceiptOptions): Record<string, unknown> {
+export function createReceiptParams(options: CreateReceiptOptions): Record<string, unknown> {
   const typ = belegtyp(options.receiptType);
   const { items, vouchers } = options;
 
@@ -327,10 +329,16 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     throw eingabefehler('Ein Storno geht nur ueber cancelReceipt (Bezug, Grund, Restmengen).');
   }
 
+  // Gutschein-Positionen setzt nur der Server; vor jeder anderen Positionspruefung.
+  if (items?.some((item) => item.kind === 'voucher' || item.kind === 'voucher_float') ?? false) {
+    throw eingabefehler('voucher_invalid: Gutschein-Positionen (kind voucher, voucher_float) setzt nur der Server.');
+  }
+
   if (typ.needsItems) {
     // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen, deshalb
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
-    const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell) ?? false;
+    // (Eine Auszahlung der neuen Form braucht ebenfalls keine Positionen.)
+    const hatVerkaufsgutschein = vouchers?.some((v) => v.action === VoucherAction.sell || v.action === VoucherAction.payout) ?? false;
     if ((items == null || items.length === 0) && !hatVerkaufsgutschein) {
       throw eingabefehler(`Positionen sind Pflicht bei receiptType "${typ.value}" und duerfen nicht leer sein.`);
     }
@@ -345,6 +353,13 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     if (!typ.allowsVouchers) {
       throw eingabefehler(`Gutscheine sind nicht erlaubt bei receiptType "${typ.value}".`);
     }
+    const serverfeld = vouchers.flatMap(voucherServerFields)[0];
+    if (serverfeld != null) {
+      throw eingabefehler(`voucher_invalid: Das Feld ${serverfeld} setzt nur der Server.`);
+    }
+    if (typ.value === ReceiptType.training.value && vouchers.some(isNewFormVoucher)) {
+      throw eingabefehler('Gutscheine der neuen Form gibt es nicht auf Schulungsbelegen (receiptType training).');
+    }
     if (vouchers.some((voucher) => !voucherIsValid(voucher))) {
       throw eingabefehler('Ungueltiger Gutschein uebergeben.');
     }
@@ -357,6 +372,10 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
 
   if (items != null && items.length > 0) {
     params['items'] = alsNutzlast(items, toReceiptItemPayload);
+  } else if (items != null && (vouchers?.some(isNewFormVoucher) ?? false)) {
+    // Verkauf/Auszahlung der neuen Form ohne Positionen: die leere Liste geht
+    // mit, wie der Vertrag es zeigt (Altform ohne Positionen bleibt byte-gleich).
+    params['items'] = [];
   }
 
   const umsatz = typ.value === ReceiptType.standard.value || typ.value === ReceiptType.training.value;
@@ -366,7 +385,12 @@ function createReceiptParams(options: CreateReceiptOptions): Record<string, unkn
     if (options.payments == null) {
       throw eingabefehler('payments fehlt: unter /v3 ist die Zahlungsliste Pflicht (Summe = receiptDueCents).');
     }
-    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt');
+    // Beleg nur aus Gutschein-Auszahlungen (Server gutschein-beleg.istNurAuszahlung):
+    // genau eine Barzahlung ueber den negativen Zahlbetrag.
+    // Wie der Server erst nach dem Anhaengen des Trinkgelds: eine Trinkgeldzeile ist keine Gutscheinzeile.
+    const nurAuszahlung = (vouchers?.length ?? 0) > 0 && vouchers!.every((v) => v.action === VoucherAction.payout)
+      && (items?.length ?? 0) === 0 && options.tip == null;
+    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt', nurAuszahlung);
   } else if (options.payments != null) {
     throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
   }
@@ -835,6 +859,27 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
     }
   }
 
+  // Neue Form, Regeln wie gutschein-beleg.plane des Servers:
+  // - Verkauf und Einloesung nie zusammen, sobald einer davon die neue Form
+  //   hat (auch gegen die Altform); eine Auszahlung zaehlt hier nicht.
+  // - der Aktionsgutschein (promotion) steht allein.
+  // - eine Auszahlung nie mit einem Altform-Rabatt (promo).
+  // Die Altform-Zaehler unten zaehlen die neue Form bewusst nicht mit.
+  const neu = vouchers.filter((v) => isNewFormVoucher(v));
+  const verkaufEinloesung = vouchers.filter((v) => v.action === VoucherAction.sell || v.action === VoucherAction.redeem);
+  if (verkaufEinloesung.some((v) => v.action === VoucherAction.sell)
+    && verkaufEinloesung.some((v) => v.action === VoucherAction.redeem)
+    && verkaufEinloesung.some((v) => isNewFormVoucher(v))) {
+    return 'Ungueltige Daten: Ein Beleg kann Gutscheine der neuen Form nicht zugleich verkaufen und einloesen';
+  }
+  if (neu.some((v) => v.type === VoucherType.promotion) && vouchers.length > 1) {
+    return 'Ungueltige Daten: Ein Aktionsgutschein (type promotion) darf nicht mit anderen Gutscheinen kombiniert werden';
+  }
+  if (neu.some((v) => v.action === VoucherAction.payout) && vouchers.some((v) => !isNewFormVoucher(v) && v.type === VoucherType.promo)) {
+    return 'Ungueltige Daten: Eine Auszahlung (action payout) darf nicht mit einem Gutschein mit type promo kombiniert werden';
+  }
+  const einloesenNeu = neu.filter((v) => v.action === VoucherAction.redeem).length;
+
   const einloesenGesamt = einloesenWert + einloesenPromo;
   const verkaufenGesamt = verkaufenWert + verkaufenPromo;
 
@@ -850,7 +895,7 @@ export function checkVoucherCombinationError(vouchers: Voucher[], items: Receipt
   if (einloesenPromo > 0 && verkaufenGesamt > 0) {
     return 'Ungueltige Daten: Mit einem Gutschein mit type promo duerfen nicht andere Gutscheine verkauft werden';
   }
-  if (einloesenGesamt > 0 && items.length === 0) {
+  if ((einloesenGesamt > 0 || einloesenNeu > 0) && items.length === 0) {
     return 'Ungueltige Daten: Gutscheine mit action redeem benoetigen mindestens ein item';
   }
   return null;
@@ -984,10 +1029,22 @@ const MAX_ZAHLUNGEN = 20;
  * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
  * etwas hinausgeht.
  */
-function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string): Record<string, unknown>[] {
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false): Record<string, unknown>[] {
   const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
   if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
   if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
+  // Auszahlung eines Gutscheins: der Betrag geht bar hinaus, ohne gegeben und ohne Trinkgeld (Server pruefeZahlungen).
+  const negativ = storno || auszahlung;
+  if (auszahlung) {
+    const e = roh[0] as Record<string, unknown> | undefined;
+    if (roh.length !== 1) throw fehler('Auszahlung: genau eine Barzahlung angeben.');
+    if (e != null && typeof e === 'object') {
+      const m = e['method'];
+      if ((typeof m === 'object' && m !== null ? (m as { value?: unknown }).value : m) !== 'cash') throw fehler('Auszahlung: nur in bar moeglich.');
+      if (e['tenderedCents'] !== undefined) throw fehler('Auszahlung: tenderedCents ist nicht moeglich.');
+      if (e['tipCents'] !== undefined) throw fehler('Auszahlung: tipCents ist nicht moeglich.');
+    }
+  }
   return roh.map((eintrag: unknown, i) => {
     const nr = i + 1;
     if (eintrag == null || typeof eintrag !== 'object' || Array.isArray(eintrag)) {
@@ -996,8 +1053,8 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string)
     const z = eintrag as Record<string, unknown>;
     const method = gepruefteZahlungsart(z['method'] as KeckPaymentMethod | KeckPaymentMethodKey);
     const betrag = z['amountCents'];
-    if (typeof betrag !== 'number' || !Number.isInteger(betrag) || (storno ? betrag >= 0 : betrag <= 0)) {
-      throw fehler(`Zahlung ${nr}: amountCents muss eine ganze Zahl ${storno ? 'kleiner' : 'groesser'} als 0 sein.`);
+    if (typeof betrag !== 'number' || !Number.isInteger(betrag) || (negativ ? betrag >= 0 : betrag <= 0)) {
+      throw fehler(`Zahlung ${nr}: amountCents muss eine ganze Zahl ${negativ ? 'kleiner' : 'groesser'} als 0 sein.`);
     }
     const aus: Record<string, unknown> = { method, amountCents: betrag };
     if (z['tenderedCents'] !== undefined) {

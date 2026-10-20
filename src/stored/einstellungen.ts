@@ -3,6 +3,7 @@ import {
   POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, _optionalerWert,
 } from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
+import { katalogVon } from './draht.js';
 import { KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
 
 /*
@@ -112,7 +113,7 @@ function teilSchema(teil: Teil): SchemaObjekt {
 }
 function katalogFuer(teil: Teil, aussen: string): Readonly<Record<string, string>> | null {
   const verweis = SCHEMAS.getKasseSettings.werte[`${teil}.${aussen}`];
-  return verweis ? KATALOGE[verweis.$catalog] ?? null : null;
+  return verweis ? katalogVon(verweis) ?? null : null;
 }
 
 /** Tasten: aeussere und innere Aktionsnamen, Vorgabe und Paare in innerer Form. */

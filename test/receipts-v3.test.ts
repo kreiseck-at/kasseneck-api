@@ -20,12 +20,14 @@ import {
   type TipOptions,
 } from '../src/client/receipts.js';
 import { buildReceiptLayout, escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
+import { layoutWieServer } from '../src/stored/bon-layout.js';
 import { CLIENT_ERROR_CODES, KasseneckApiError, isKasseneckApiError, isKasseneckValidationError, isOutcomeUnknown } from '../src/client/errors.js';
 import { createTransport, DEFAULT_BASE_URL, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
   fromReceiptItemPayload,
   fromVoucherPayload,
+  isNewFormVoucher,
   CANCELLATION_ERROR_CODES,
   CANCELLATION_REASONS,
   CANCELLATION_STATUSES,
@@ -54,7 +56,7 @@ import {
   type VoucherPayload,
 } from '../src/models/index.js';
 import { KeckPaymentMethod } from '../src/enums/index.js';
-import { receiptDueCents } from '../src/receipt/due.js';
+import { receiptDueCents, type ReceiptDueOptions, type VoucherDueArticle, type VoucherDueInfo } from '../src/receipt/due.js';
 import { getReportV2 } from '../src/client/reports.js';
 import * as wurzel from '../src/index.js';
 import { randUndAnmeldung } from './kassenweg-codes.js';
@@ -220,14 +222,60 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
   }
 }
 
+/**
+ * Was die Kasse vor dem Senden ueber die Gutscheine eines Falls weiss: je
+ * Einloesung/Auszahlung die Pruefung (checkVoucher), zurueckgerechnet aus dem
+ * gelesenen Eintrag (Saldo davor = Saldo danach + Betrag), dazu fuer Verkaeufe
+ * die Gutschein-Einstellung (Einzweck-Satz) und den Artikel (Leistung).
+ */
+function gutscheinWelt(fall: Fall): ReceiptDueOptions {
+  const wuensche = (fall.params.vouchers ?? []) as Json[];
+  const gelesen = (fall.response.data?.receipt?.vouchers ?? []) as Json[];
+  const voucherInfo: VoucherDueInfo[] = [];
+  const voucherArticles: VoucherDueArticle[] = [];
+  let voucherSettings: ReceiptDueOptions['voucherSettings'];
+  wuensche.forEach((w, i) => {
+    const g = gelesen[i];
+    if (g == null || g.voucherType == null) return;
+    if (w.action === 'sell') {
+      if (g.voucherType === 'single_purpose') voucherSettings = { sale: true, valueVoucherType: 'single_purpose', vatRateBp: g.vatRateBp };
+      if (g.voucherType === 'multi_purpose') voucherSettings = { sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null };
+      if (g.voucherType === 'service') voucherArticles.push({ id: g.article.id, priceCents: g.article.priceCents, vatRateBp: g.article.vatRateBp });
+      return;
+    }
+    const check: Json = { type: g.voucherType, status: 'active', codeSuffix: g.codeSuffix };
+    const betrag = g.valueCents ?? g.amountCents;
+    if (g.balanceAfterCents != null) check.balanceCents = g.balanceAfterCents + betrag;
+    if (g.vatRateBp != null) check.vatRateBp = g.vatRateBp;
+    if (g.voucherType === 'service') {
+      check.remainingQuantity = g.remainingQuantityAfter + g.quantity;
+      check.article = { id: g.articleId, name: 'Artikel', vatRateBp: g.vatRateBp, priceCents: 1 };
+    }
+    if (g.voucherType === 'promotion') check.discountCents = g.valueCents;
+    voucherInfo.push({ code: w.code, check: check as VoucherDueInfo['check'] });
+  });
+  return { voucherInfo, voucherArticles, ...(voucherSettings ? { voucherSettings } : {}) };
+}
+
 test('Zahlbetrag-Zwilling: jede angenommene Zahlungsliste ist genau receiptDueCents', () => {
+  const mitNeuerForm = new Set<string>();
   for (const fall of [...umsatzFaelle(BELEGE), ...umsatzFaelle(KASSE_BELEGE)]) {
     if (fall.params.receiptType !== 'standard') continue;
     const o = verkaufAus(fall.params);
     const summe = o.payments.reduce((s, z) => s + z.amountCents, 0);
     const tip = o.tip == null ? undefined : typeof o.tip === 'number' ? o.tip : o.tip.cents;
+    if ((o.vouchers ?? []).some(isNewFormVoucher)) mitNeuerForm.add(fall.name);
     // Die Vertragswelt verkauft ueber einen Geraete-Schluessel: Personal-Trinkgeld.
-    assert.equal(receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip, payments: o.payments, tipRecipient: 'staff' }), summe, fall.name);
+    assert.equal(
+      receiptDueCents(o.items ?? [], o.vouchers ?? [], 'standard', { tip, payments: o.payments, tipRecipient: 'staff', ...gutscheinWelt(fall) }),
+      summe,
+      fall.name,
+    );
+  }
+  // Alle Arten der neuen Form sind dabei, auch die Auszahlung (negativer Zahlbetrag).
+  for (const n of ['sale_single_purpose_voucher', 'sale_multi_purpose_voucher', 'sale_service_voucher', 'redeem_multi_purpose_voucher',
+    'redeem_single_purpose_voucher', 'redeem_service_voucher', 'redeem_promotion_voucher', 'payout_multi_purpose_voucher']) {
+    assert.ok(mitNeuerForm.has(n), n);
   }
 });
 
@@ -657,19 +705,41 @@ test('Server-Layout ist ein ReceiptLayout: druckbar ohne Umweg, identisch mit de
  * englischen Optionen aus derselben Antwort und bekommt im Kanal `app` Zeile
  * fuer Zeile, was der Server baut: Testrahmen, Pruefangaben, Kartenblock.
  */
+/*
+ * Gutscheine der neuen Form: der Server setzt den Bon mit seinem vendorten
+ * Paket (Stempel `_quelle.backendPackage`). Bis zu 0.33 bereitet er die Belege
+ * dafuer auf (functions/beleg-layout.js `gutscheineFuerPaket`), und der Bon
+ * zeigt die Eintraege noch in der alten Form; dieses Paket zeigt die Zeilen der
+ * Spec (Vermerk, Rest, Grund). Solange gilt fuer diese Faelle: das Server-Layout
+ * ist das aufbereitete (layoutWieServer). Mit einem vendorten Paket ab 0.34
+ * (Bon der neuen Form aus dem Paket) gilt wieder Zeile fuer Zeile.
+ */
+const SERVER_PAKET = /^@kreiseck\/kasseneck-api@0\.(\d+)\./.exec(String(lies('antworten/kasse-belege.json')._quelle?.backendPackage ?? ''));
+const SERVER_BEREITET_GUTSCHEINE_AUF = SERVER_PAKET != null && Number(SERVER_PAKET[1]) < 34;
+const gutscheinNeueForm = (receipt: Json): boolean =>
+  (receipt.items ?? []).some((it: Json) => it.kind === 'voucher' || it.kind === 'voucher_float') || (receipt.vouchers ?? []).some((v: Json) => v.voucherType != null);
+
 test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Server-Layout', async () => {
   const faelle = await mitLayout(KASSE_BELEGE);
   assert.ok(faelle.length >= 7);
   let mitPruefangaben = 0;
+  let aufbereitet = 0;
   for (const { fall, ergebnis } of faelle) {
     const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
     const selbst = buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo });
-    assert.deepEqual(selbst, fall.response.data.layout, fall.name);
+    if (SERVER_BEREITET_GUTSCHEINE_AUF && gutscheinNeueForm(fall.response.data.receipt)) {
+      assert.deepEqual(layoutWieServer(ergebnis, fall.response.data.receipt.layoutRuleset), fall.response.data.layout, fall.name);
+      aufbereitet += 1;
+    } else {
+      assert.deepEqual(selbst, fall.response.data.layout, fall.name);
+    }
     // Ohne Server-Layout baut der Helfer genau das.
     assert.deepEqual(receiptLayoutFromResult({ ...ergebnis, layout: null }, { fallbackPaperSize: 'mm80' }), selbst, fall.name);
     if (registrationInfo != null) mitPruefangaben += 1;
   }
   assert.ok(mitPruefangaben >= 1, 'kein Nullbeleg mit Registrierdaten dabei');
+  // Alle Faelle ohne neue Form bleiben Zeile fuer Zeile das Server-Layout.
+  assert.ok(faelle.length - aufbereitet >= 7);
 });
 
 test('receiptLayoutFromResult: Server-Layout gewinnt, fallbackPaperSize gilt nur ohne, Vorgabe mm58 wie 0.x', async () => {

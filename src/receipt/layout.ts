@@ -768,6 +768,154 @@ function gutscheinText(voucher: Voucher): string {
   return text;
 }
 
+/*
+ * Gutscheine der neuen Form (Spec 2026-10-14, „Bon und Beleg“). Der Dart-
+ * Zwilling uebernimmt Texte und Spaltenbreiten (Zwoelftel) genau so:
+ *
+ *   Verkauf Einzweck/Leistung  Positionszeile 7:5 „1  x <Name> <Code>“ | „50,00 A“
+ *   Verkauf Mehrzweck          dieselbe Zeile (Position im 0-%-Topf oder, vor dem
+ *                              Stichtag, aus dem Eintrag) + Text „  USt bei Einlösung“
+ *   Einloesung Einzweck/       8:4 „Gutschein ····-9DWT“ | „-30,50 A“, nach der letzten
+ *   Leistung                   Zeile dieses Gutscheins Text „  Einzweck, versteuert mit
+ *                              Beleg K1-ID-4711“ (bzw. „Leistung, …“, „…, befreit
+ *                              verkauft (Kleinunternehmer)“, 47 Zeichen: passt auf
+ *                              80 mm) und 8:4 „  Rest am Gutschein“ | „19,50  “ bzw.
+ *                              „2 Stück“
+ *   Einloesung Mehrzweck       nach „Zwischensumme“ 8:4 „Gutschein ····-9DWT“ |
+ *                              „-17,50 €“ und „  Rest am Gutschein“ | „32,50 €“
+ *   Auszahlung                 8:4 „Auszahlung Gutschein ····-9DWT“ | „-12,00 D“,
+ *                              Text „  Grund: <Grund>“
+ *   Aktion                     Rabattzeile wie bisher (Promotionsgutschein)
+ *
+ * Vermerke sind Textzeilen mit zwei fuehrenden Leerzeichen; das Raster bricht
+ * sie mit demselben Einzug um (grid.ts, haengender Einzug), auf 58 mm etwa
+ * „  Einzweck, versteuert mit“ / „  Beleg K1-ID-4711“.
+ *
+ * Die Zusatzzeilen kommen nur aus dem Eintrag: ein Beleg, den der Server fuer
+ * ein aelteres Paket aufbereitet hat (Eintraege mit Position entfernt, Code an
+ * der Position, functions/beleg-layout.js `gutscheineFuerPaket`), zeigt seine
+ * Positionen wie jede andere Position. Ein Betrag zaehlt immer genau einmal:
+ * Positionen in der Steuertabelle, Eintraege mit `zeroRateBucket` nie.
+ */
+
+/** Steht der Betrag des Eintrags als Position am Beleg (Einzweck, Leistung, 0-%-Topf)? */
+function gutscheinStehtAlsPosition(voucher: Voucher): boolean {
+  return voucher.type === VoucherType.single_purpose || voucher.type === VoucherType.service || voucher.zeroRateBucket === true;
+}
+
+/** Mehrzweckgutschein mit Code (Altart `value`, vom Server als `multi_purpose` gekennzeichnet). */
+function istMehrzweckMitCode(voucher: Voucher): boolean {
+  return voucher.type === VoucherType.value && voucher.voucherType === VoucherType.multi_purpose;
+}
+
+/**
+ * Code fuer die Belegzeile: die Maske des Eintrags, ohne den Platzhalter
+ * `no-code`, den der Server Alt-Eintraegen ohne Code setzt (index.js
+ * checkVouchersIsValid). Leer, wenn es keinen gibt.
+ */
+function gutscheinCodeZusatz(voucher: Voucher): string {
+  return typeof voucher.code === 'string' && voucher.code !== '' && voucher.code !== 'no-code' ? ` ${voucher.code}` : '';
+}
+
+/** Die vier letzten Zeichen des Codes (`codeSuffix`, sonst aus der Maske), oder null. */
+function gutscheinEndung(voucher: Voucher): string | null {
+  if (typeof voucher.codeSuffix === 'string' && voucher.codeSuffix !== '') return voucher.codeSuffix;
+  return typeof voucher.code === 'string' && voucher.code.length >= 4 && voucher.code !== 'no-code' ? voucher.code.slice(-4) : null;
+}
+
+const MEHRZWECK_UST_TEXT = '  USt bei Einlösung';
+
+interface GutscheinPosition {
+  voucher: Voucher;
+  /** Letzte Position dieses Gutscheins (darunter stehen Vermerk und Rest). */
+  letzte: boolean;
+}
+
+/**
+ * Welche Gutscheinposition (`voucher`/`voucher_float`) gehoert zu welchem
+ * Eintrag? Jede Position hoechstens einem Eintrag, Eintraege in ihrer
+ * Reihenfolge (der Server haengt die Positionen in derselben Reihenfolge an).
+ * Verkauf: erste freie Position der Art mit demselben Betrag und ohne Code im
+ * Namen (wie `gutscheineFuerPaket` des Servers). Einloesung: freie Positionen
+ * mit genau dem Namen `Gutschein ····-<Endung>`, Auszahlung: `Auszahlung
+ * Gutschein ····-<Endung>` (gutschein-beleg.plane) -- der Reihe nach, bis
+ * ihr Betrag den des Eintrags erreicht (ein Kleinunternehmer-Einzweck oder
+ * eine Leistung ueber mehrere Saetze hat je Satz eine Position; zwei
+ * Gutscheine mit derselben Endung teilen sich so nie eine Position). Ohne
+ * Betrag am Eintrag genau eine Position.
+ */
+function gutscheinPositionen(receipt: Receipt): Map<number, GutscheinPosition> {
+  const zuordnung = new Map<number, GutscheinPosition>();
+  const istGutscheinzeile = (it: ReceiptItem): boolean => it.kind === 'voucher' || it.kind === 'voucher_float';
+  for (const voucher of receipt.vouchers) {
+    if (!gutscheinStehtAlsPosition(voucher)) continue;
+    if (voucher.action === VoucherAction.sell) {
+      const art = voucher.zeroRateBucket === true ? 'voucher_float' : 'voucher';
+      const cents = Number.isInteger(voucher.amountCents) ? Math.abs(voucher.amountCents!) : Math.abs(voucher.valueCents ?? 0);
+      const i = receipt.items.findIndex((it, k) => !zuordnung.has(k) && it.kind === art
+        && Math.abs(receiptItemTotalCents(it)) === cents && !it.name.includes('····'));
+      if (i >= 0) zuordnung.set(i, { voucher, letzte: true });
+      continue;
+    }
+    const endung = gutscheinEndung(voucher);
+    if (endung == null || (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout)) continue;
+    const name = `${voucher.action === VoucherAction.payout ? 'Auszahlung ' : ''}Gutschein ····-${endung}`;
+    const ziel = Number.isInteger(voucher.amountCents) ? Math.abs(voucher.amountCents!) : Math.abs(voucher.valueCents ?? 0);
+    const genommen: number[] = [];
+    let summe = 0;
+    receipt.items.forEach((it, k) => {
+      if (zuordnung.has(k) || !istGutscheinzeile(it) || it.name !== name) return;
+      if (genommen.length > 0 && (ziel <= 0 || summe >= ziel)) return;
+      genommen.push(k);
+      summe += Math.abs(receiptItemTotalCents(it));
+    });
+    genommen.forEach((k, n) => zuordnung.set(k, { voucher, letzte: n === genommen.length - 1 }));
+  }
+  return zuordnung;
+}
+
+/**
+ * Zeilen einer Gutscheinposition mit ihrem Eintrag. Verkauf als gewoehnliche
+ * Positionszeile mit dem Code des Eintrags; Einloesung und Auszahlung ohne
+ * Menge in der Breite der Rabattzeilen (8:4), damit „Gutschein ····-9DWT“ auch
+ * auf 58 mm in einer Zeile steht.
+ */
+function gutscheinPositionsZeilen(item: ReceiptItem, satz: Steuersatz, zu: GutscheinPosition): LayoutLine[] {
+  const v = zu.voucher;
+  if (v.action === VoucherAction.sell) {
+    const zeilen: LayoutLine[] = [positionsZeile({ ...item, name: `${item.name}${gutscheinCodeZusatz(v)}` }, satz)];
+    if (v.type === VoucherType.value) zeilen.push(textZeile(MEHRZWECK_UST_TEXT));
+    return zeilen;
+  }
+  const zeilen: LayoutLine[] = [{
+    kind: 'columns',
+    columns: [
+      { text: item.name, width: 8, align: 'left' },
+      { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 4, align: 'right' },
+    ],
+  }];
+  if (!zu.letzte) return zeilen;
+  if (v.action === VoucherAction.payout) {
+    const grund = typeof v.reason === 'string' ? v.reason.trim() : '';
+    if (grund !== '') zeilen.push(textZeile(`  Grund: ${grund}`));
+    return zeilen;
+  }
+  const art = v.type === VoucherType.service ? 'Leistung' : 'Einzweck';
+  if (typeof v.taxedWith === 'string' && v.taxedWith !== '') {
+    zeilen.push(textZeile(`  ${art}, versteuert mit Beleg ${v.taxedWith}`));
+  } else if (v.exempt === true) {
+    zeilen.push(textZeile(`  ${art}, befreit verkauft (Kleinunternehmer)`));
+  }
+  // Rest: Betrag fluchtet mit den Positionsbetraegen (zwei Zeichen statt
+  // „ A“), Stueck rechtsbuendig. Die Gesamtzahl kennt der Beleg nicht.
+  if (v.type === VoucherType.service) {
+    if (Number.isInteger(v.remainingQuantityAfter)) zeilen.push(paarZeile('  Rest am Gutschein', `${v.remainingQuantityAfter} Stück`, 8, 4));
+  } else if (Number.isInteger(v.balanceAfterCents)) {
+    zeilen.push(paarZeile('  Rest am Gutschein', `${formatCents(v.balanceAfterCents!)}  `, 8, 4));
+  }
+  return zeilen;
+}
+
 // ----------------------------------------------------------------- Bauteile
 
 function textZeile(text: string, align: LayoutAlign = 'left', bold = false): LayoutTextLine {
@@ -1125,13 +1273,15 @@ export function buildReceiptLayout(
     .filter((it) => !isTipItem(it) && !isDiscountItem(it))
     .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
   let zwischensummeGezeigt = false;
+  const gutscheinZuordnung = gutscheinPositionen(receipt);
   let i = 0;
   while (i < receipt.items.length) {
     const item = receipt.items[i]!;
     if (!isTipItem(item) && !isDiscountItem(item)) {
       const satz = steuersatz(item.vat);
       gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
-      lines.push(positionsZeile(item, satz));
+      const gutschein = gutscheinZuordnung.get(i);
+      lines.push(...(gutschein ? gutscheinPositionsZeilen(item, satz, gutschein) : [positionsZeile(item, satz)]));
       i += 1;
       continue;
     }
@@ -1167,22 +1317,29 @@ export function buildReceiptLayout(
   //     Promotionsgutscheine mindern die Steuergruppen anteilig.
   //     Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
   //     (receiptValueVoucherSign): der verkaufte wird zurueckgezahlt.
+  //     Eintraege mit `zeroRateBucket` stehen schon als Position (0-%-Topf).
   const wgVz = receiptValueVoucherSign(receipt);
   let promoCents = 0;
   for (const voucher of receipt.vouchers) {
+    // Betrag steht als Position (Einzweck, Leistung, 0-%-Topf): weder Zeile noch 0-%-Zeile aus dem Eintrag.
+    if (gutscheinStehtAlsPosition(voucher)) continue;
     const wert = voucher.valueCents ?? 0;
     const vz = voucher.type === VoucherType.value ? wgVz : 1;
     if (voucherIsValid(voucher) && voucher.action === VoucherAction.sell) {
       gruppeVon(steuersatz(VatRate.vat0)).bruttoCents += vz * wert;
     }
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {
+      // Mehrzweck mit Code (vor dem Stichtag nur als Eintrag): wie die Position im 0-%-Topf.
+      const mehrzweck = istMehrzweckMitCode(voucher);
+      const code = gutscheinCodeZusatz(voucher);
       lines.push({
         kind: 'columns',
         columns: [
-          { text: `1  x ${gutscheinText(voucher)}`, width: 7, align: 'left' },
+          { text: `1  x ${mehrzweck ? `Mehrzweckgutschein${code}` : gutscheinText(voucher)}`, width: 7, align: 'left' },
           { text: `${formatCents(vz * wert)} ${VatRate.vat0.category}`, width: 5, align: 'right' },
         ],
       });
+      if (mehrzweck) lines.push(textZeile(MEHRZWECK_UST_TEXT));
     }
     if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
       // Am Storno-Beleg steht der Promotionsgutschein nur als Bezug: den Rabatt
@@ -1248,12 +1405,20 @@ export function buildReceiptLayout(
   if (summeCents !== zwischensummeCents) {
     lines.push(paarZeile('Zwischensumme', `${formatCents(zwischensummeCents)} €`));
     for (const voucher of receipt.vouchers) {
-      if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value) {
-        // Breite 8:4 — "Wertgutschein GS-1" (Label + Code) passt so auf 58 mm
-        // in die Zeile, statt den Code in eine Folgezeile fliessen zu lassen.
-        // Am Storno-Beleg geht der Wert auf den Gutschein zurueck: ohne Minus.
-        const wert = voucher.valueCents ?? 0;
-        lines.push(paarZeile(gutscheinText(voucher), wgVz === 1 ? `-${formatCents(wert)} €` : `${formatCents(wert)} €`, 8, 4));
+      if (voucher.type !== VoucherType.value || voucher.zeroRateBucket === true) continue;
+      if (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout) continue;
+      // Breite 8:4 — "Wertgutschein GS-1" (Label + Code) passt so auf 58 mm
+      // in die Zeile, statt den Code in eine Folgezeile fliessen zu lassen.
+      // Am Storno-Beleg geht der Wert auf den Gutschein zurueck: ohne Minus.
+      // Mehrzweck mit Code: „Gutschein ····-9DWT“ und darunter der Rest
+      // (Zahlungszeile laut Spec); eine Auszahlung ohne `zeroRateBucket`
+      // (schreibt der Server nicht) zaehlt wie in receiptSumCents.
+      const wert = voucher.valueCents ?? 0;
+      const endung = istMehrzweckMitCode(voucher) ? gutscheinEndung(voucher) : null;
+      const text = endung != null ? `Gutschein ····-${endung}` : gutscheinText(voucher);
+      lines.push(paarZeile(voucher.action === VoucherAction.payout ? `Auszahlung ${text}` : text, wgVz === 1 ? `-${formatCents(wert)} €` : `${formatCents(wert)} €`, 8, 4));
+      if (endung != null && wgVz === 1 && Number.isInteger(voucher.balanceAfterCents)) {
+        lines.push(paarZeile('  Rest am Gutschein', `${formatCents(voucher.balanceAfterCents!)} €`, 8, 4));
       }
     }
     lines.push({ kind: 'rule', char: '-' });

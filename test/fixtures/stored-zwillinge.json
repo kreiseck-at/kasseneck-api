@@ -33,7 +33,7 @@
     {
       "datei": "functions/beleg-layout.js",
       "marke": null,
-      "sha256": "fc674ad7d3cbab8d4ef8572af958a8b9a3b8ec1854365841f340857c8c0e2a6c"
+      "sha256": "706946f04ae05b68c6fba19fe12310efcfd45d88ef2ff97f9194d669ffc2c0f1"
     },
     {
       "datei": "functions/beleg-pruefangaben.js",
@@ -98,7 +98,7 @@
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "const belegJeKanal = ",
-      "sha256": "4efd04f9e0c0fc81ba35e2e7b66568c49e1df002ab15112728ee177c068fb604"
+      "sha256": "0f0e7c6bf8c1a6efc1dae78cd24c1bd2c68155ab1c6ad8dda439b30b14d23de6"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -127,8 +127,10 @@
     }
   ],
   "zwilling": {
-    "src/stored/draht.ts": "f8f5868f28a597b1e0f2be30eba58f26186ae4461f0e5cc287f24d69860c9ed7",
-    "src/stored/einstellungen.ts": "81808c31adce2ad3e76d46bca6d82ec3f7acf89c08829cb443db0b5d5843e1f4",
-    "src/stored/index.ts": "87c8b5bf79e34c779359278a03aa9a157673d6521381ceb859d6d87fa421ef47"
+    "src/stored/bon-layout.ts": "03b30b073c8a8d369c096289e5aed1ecd71d8faf6141249f00c76bdf85953178",
+    "src/stored/draht.ts": "bad11b4e69bcb977c4f9f4144163525e61a0f48ab476e99926bc84ce546739bb",
+    "src/stored/einstellungen.ts": "4fff519b2f02b72b0315a5ea7896e928b6a163898dd91b1841c231db7a425695",
+    "src/stored/gutscheine.ts": "226afae8a928d122e73f02eb7a34cd08a6d45d19a2eb6ba9e58b17641c929479",
+    "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }
 }

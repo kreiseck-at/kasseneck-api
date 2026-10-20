@@ -30,6 +30,7 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'receipt_not_found',
   'receipt_outcome_unknown',
   'receipt_type_invalid',
+  'server_error',
   'signature_incomplete',
   'signature_missing',
   'signing_failed',
@@ -38,6 +39,7 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'tip_not_allowed',
   'tip_recipient_unknown',
   'validation',
+  'voucher_balance_changed',
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
   'action_confirmation_required',

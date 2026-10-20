@@ -200,6 +200,25 @@ const MELDUNGEN_ROH = {
   // Beleg mit Wertgutschein: keine Frage, das Trinkgeld geht mit (Ruling R59, asksRefundTip).
   'cancellation.tip_refunded_with_voucher': { text: 'Beleg mit Gutschein: Das Trinkgeld wird mitstorniert.' },
 
+  // --- Gutscheine: Fehlersätze (Zuordnung in VOUCHER_ERROR_MESSAGES) ---------
+  'voucher_error.not_found': { text: 'Diesen Gutschein gibt es in diesem Betrieb nicht.' },
+  'voucher_error.invalid': { text: 'Dieser Gutschein ist nicht gültig.' },
+  'voucher_error.invalid_code': { text: 'Der Code ist nicht vollständig oder falsch abgetippt.' },
+  'voucher_error.expired': { text: 'Der Gutschein ist abgelaufen.' },
+  'voucher_error.used_up': { text: 'Der Gutschein ist bereits aufgebraucht.' },
+  'voucher_error.blocked': { text: 'Der Gutschein ist gesperrt.' },
+  'voucher_error.cancelled': { text: 'Der Gutschein wurde storniert.' },
+  'voucher_error.insufficient_balance': { text: 'Auf dem Gutschein ist nicht genug Guthaben.' },
+  'voucher_error.exceeds_total': { text: 'Der Gutschein deckt mehr, als offen ist. Bitte den Betrag anpassen.' },
+  'voucher_error.balance_changed': { text: 'Der Gutschein wurde gerade anderswo verwendet. Bitte neu prüfen.' },
+  'voucher_error.rate_mismatch': { text: 'Dieser Gutschein gilt nur für Leistungen mit {rate} %.', placeholders: ['rate'] },
+  'voucher_error.item_mismatch': { text: 'Dieser Gutschein gilt nicht für die gewählten Positionen.' },
+  'voucher_error.already_used': { text: 'Dieser Gutschein wurde bereits verwendet.' },
+  'voucher_error.partial_cancel': { text: 'Belege mit Gutschein lassen sich nur ganz stornieren.' },
+  'voucher_error.settings_missing': { text: 'Die Gutschein-Einstellungen fehlen. Bitte die Kasse neu laden.' },
+  'voucher_error.too_many_checks': { text: 'Zu viele Versuche. Bitte in einer Stunde wieder.' },
+  'voucher_error.sale_off': { text: 'Gutscheine verkaufen geht hier noch nicht.' },
+
   // --- Getrennt zahlen -----------------------------------------------------
   // Ein Tisch zahlt in Teilen, ein Beleg fuer alles. Das Teure ist eine schon
   // belastete Karte: jeder Satz, der sie betrifft, nennt den Betrag, und keiner
@@ -600,6 +619,38 @@ export function cancellationPaymentErrorMessage(code: string | undefined | null)
 }
 
 /**
+ * Gutschein-Fehler (`/v3`): welcher `code` des Backends welchen Satz bekommt.
+ * Wie RECEIPT_EMAIL_ERROR_MESSAGES: beide Kassen entscheiden am Code. Ein
+ * unbekannter Code geht den allgemeinen Weg des Aufrufs.
+ */
+export const VOUCHER_ERROR_MESSAGES = {
+  voucher_not_found: 'voucher_error.not_found',
+  voucher_invalid: 'voucher_error.invalid',
+  voucher_invalid_code: 'voucher_error.invalid_code',
+  voucher_expired: 'voucher_error.expired',
+  voucher_used_up: 'voucher_error.used_up',
+  voucher_blocked: 'voucher_error.blocked',
+  voucher_cancelled: 'voucher_error.cancelled',
+  voucher_insufficient_balance: 'voucher_error.insufficient_balance',
+  voucher_exceeds_total: 'voucher_error.exceeds_total',
+  voucher_balance_changed: 'voucher_error.balance_changed',
+  voucher_rate_mismatch: 'voucher_error.rate_mismatch',
+  voucher_item_mismatch: 'voucher_error.item_mismatch',
+  voucher_already_used: 'voucher_error.already_used',
+  voucher_partial_cancel: 'voucher_error.partial_cancel',
+  voucher_settings_missing: 'voucher_error.settings_missing',
+  too_many_voucher_checks: 'voucher_error.too_many_checks',
+} as const satisfies Record<string, MessageKey>;
+
+export type VoucherMessageCode = keyof typeof VOUCHER_ERROR_MESSAGES;
+
+/** Der Satz zu einem Gutschein-`code`; `undefined` für jeden anderen Code. */
+export function voucherErrorMessage(code: string | undefined | null): MessageKey | undefined {
+  const fehler: Record<string, MessageKey> = VOUCHER_ERROR_MESSAGES;
+  return code !== undefined && code !== null ? fehler[code] : undefined;
+}
+
+/**
  * Beschriftungen: Knoepfe, Ueberschriften, Zeilennamen – was kein Satz ist.
  *
  * Getrennt von MESSAGES, weil dort jeder Eintrag ein Satz ist (gross am
@@ -888,6 +939,30 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.collected_outside_drawer': { text: 'Kassiert, aber nicht in der Kassenlade' },
   'shift.non_cash_short': { text: 'unbar' },
   'shift.voucher_redeemed': { text: 'Gutschein eingelöst' },
+  // Gutscheine an der Kasse (1.12.0)
+  'voucher.button': { text: 'Gutschein' },
+  'voucher.redeem': { text: 'Gutschein einlösen' },
+  'voucher.sell': { text: 'Gutschein verkaufen' },
+  'voucher.payout': { text: 'Gutschein auszahlen' },
+  'voucher.code': { text: 'Code' },
+  'voucher.scan': { text: 'Code scannen' },
+  'voucher.check': { text: 'Prüfen' },
+  'voucher.amount': { text: 'Betrag' },
+  'voucher.balance': { text: 'Rest am Gutschein: {amount}', placeholders: ['amount'] },
+  'voucher.remaining_quantity': { text: '{n} von {total} übrig', placeholders: ['n', 'total'] },
+  'voucher.reason': { text: 'Grund' },
+  'voucher.multi_purpose': { text: 'Mehrzweckgutschein' },
+  'voucher.single_purpose': { text: 'Einzweckgutschein {rate} %', placeholders: ['rate'] },
+  'voucher.service': { text: 'Leistungsgutschein' },
+  'voucher.promotion': { text: 'Aktionsgutschein' },
+  'voucher.payment_line': { text: 'Gutschein ····-{suffix}', placeholders: ['suffix'] },
+  'voucher.covers_items': { text: 'Deckt: {items}', placeholders: ['items'] },
+  'voucher.code_shown_once': { text: 'Code nur jetzt sichtbar: {code}', placeholders: ['code'] },
+  'voucher.not_in_split': { text: 'Gutscheine gehen beim getrennten Kassieren nicht.' },
+  'voucher.payout_not_possible': { text: 'Dieser Gutschein lässt sich nicht auszahlen.' },
+  'voucher.add_article': { text: '{article} hinzufügen', placeholders: ['article'] },
+  'voucher.payout_confirm': { text: '{amount} bar auszahlen?', placeholders: ['amount'] },
+  'cancellation.voucher_back': { text: '{amount} geht zurück auf den Gutschein', placeholders: ['amount'] },
   'shift.all_payments': { text: 'Alle Zahlungen dieser Schicht (bar + unbar)' },
   'shift.receipt_count_one': { text: '1 Beleg' },
   'shift.receipt_count_other': { text: '{count} Belege', placeholders: ['count'] },

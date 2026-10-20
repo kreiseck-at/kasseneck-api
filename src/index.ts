@@ -26,7 +26,10 @@ export {
   negateReceiptItem,
   type TipRecipient,
   isTipItem,
+  isVoucherItem,
+  isVoucherFloatItem,
   type Voucher,
+  type VoucherArticle,
   type VoucherPayload,
   toVoucherPayload,
   fromVoucherPayload,
@@ -236,6 +239,11 @@ export {
   ReceiptDueError,
   RECEIPT_DUE_ERROR_REASONS,
   isReceiptDueError,
+  type VoucherDueInfo,
+  type VoucherDueArticle,
+  type VoucherRedeemContext,
+  voucherRedeemMaxCents,
+  VOUCHER_ZERO_RATE_BUCKET_FROM,
 } from './receipt/due.js';
 
 export { parseServerTimeStamp, toViennaWallClock, type ViennaWallClock } from './vienna-time.js';
@@ -260,4 +268,5 @@ export {
   cancelScopeOf,
   receiptsScopeOf,
   stockViewOf,
+  voucherPermsOf,
 } from './pos/index.js';

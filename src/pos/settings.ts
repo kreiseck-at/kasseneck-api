@@ -11,6 +11,8 @@
  * derselben Werte liegt unter `fixtures/stored/`. Trinkgeld ist bewusst AUS,
  * bis die Buchung geklaert ist (Spec kachel-kasse § 9).
  */
+import { posVoucherSettingsFromWire, type PosVoucherSettings } from './gutschein.js';
+
 
 /*
  * Jedes Enum steht als Liste zur Laufzeit da, der Typ leitet sich daraus ab
@@ -290,6 +292,8 @@ export interface PosDeviceSettings {
 export interface PosSettings {
   business: PosBusinessSettings;
   device: PosDeviceSettings;
+  /** Gutschein-Verkauf der Kasse (Block `vouchers`); ohne Block ist Verkaufen aus. */
+  vouchers: PosVoucherSettings;
 }
 
 export const POS_BUSINESS_DEFAULTS: Readonly<PosBusinessSettings> = Object.freeze({
@@ -483,6 +487,7 @@ export function sanitizePosSettings(stored: unknown): PosSettings {
   return {
     business: mergePosSettings(POS_BUSINESS_DEFAULTS, teil('business') as Partial<PosBusinessSettings> | null),
     device: mergePosSettings(POS_DEVICE_DEFAULTS, teil('device') as Partial<PosDeviceSettings> | null),
+    vouchers: posVoucherSettingsFromWire(eigen(roh, 'vouchers') ? roh['vouchers'] : undefined),
   };
 }
 

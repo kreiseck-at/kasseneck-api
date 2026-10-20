@@ -26,6 +26,9 @@ for (const name of ENDPUNKTE) {
 const katalogNamen = new Set();
 for (const s of Object.values(schemas)) {
   for (const verweis of Object.values(s.werte)) {
+    // Eine eingebettete Zuordnung (innen -> aussen ohne Katalogname, z. B.
+    // `vouchers.valueVoucherType`) ist kein Verweis auf einen Katalog.
+    if (verweis && typeof verweis.$catalog === 'undefined' && Object.values(verweis).every((w) => typeof w === 'string')) continue;
     if (!verweis || typeof verweis.$catalog !== 'string') throw new Error(`Wertverweis ohne $catalog: ${JSON.stringify(verweis)}`);
     katalogNamen.add(verweis.$catalog);
   }
@@ -47,10 +50,13 @@ export const VOKABULAR_QUELLE = ${json(vokabular._quelle.sha256)};
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
 export interface SchemaObjekt { readonly [aussen: string]: SchemaEintrag }
 
+/** Wertverweis: Name eines Katalogs oder eine eingebettete Zuordnung innen -> aussen. */
+export type Wertverweis = { readonly $catalog: string } | Readonly<Record<string, string>>;
+
 /** Schema je Endpunkt (aussen -> innen) und Wertverweise auf die Kataloge. */
 export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listMyArticles', {
   readonly data: SchemaObjekt;
-  readonly werte: Readonly<Record<string, { readonly $catalog: string }>>;
+  readonly werte: Readonly<Record<string, Wertverweis>>;
 }>> = ${json(schemas)};
 
 /** Die Felder eines Artikels in der Antwort (\`listMyArticles\`), aussen. */

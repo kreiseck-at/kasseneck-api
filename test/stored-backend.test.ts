@@ -10,7 +10,11 @@ import { _storedArticleToWire } from '../src/stored/draht.js';
 import { belegMitFirmaAusHuelle } from '../src/client/receipts.js';
 import { posSettingsFromWire } from '../src/pos/client.js';
 import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
+import { FAELLE_NEU, dokument } from './stored-gutschein-docs.js';
 import { unknownPosSettingValues, type PosSettings } from '../src/pos/settings.js';
+import { gutscheineFuerPaket } from '../src/stored/gutscheine.js';
+import { buildReceiptLayout, type ReceiptLayout } from '../src/receipt/index.js';
+import { receiptSumCents } from '../src/models/index.js';
 
 /**
  * Backend-Vergleich fuer `./stored`: dieselben gespeicherten Dokumente laufen
@@ -157,7 +161,9 @@ test('stored-backend: Belege mit Firma und Layout wie belegAntwort und Rand des 
     { ...storno, items: storno.items.map((it: Json) => ({ ...it, articleId: 'rye-bread', rueckgabe: 'verloren' })) },
     { ...docs[2], lagerStandortId: 'store-1', cancellations: [{ receiptId: 'X-2', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] },
   ];
-  for (const doc of [...docs, ...extra]) {
+  // Gespeicherte Belege der neuen Gutscheinform (Einzweck, Leistung, Mehrzweck im Nulltopf, Auszahlung ...).
+  const gutscheinDocs: Json[] = FAELLE_NEU.map((name) => dokument(name).doc);
+  for (const doc of [...docs, ...extra, ...gutscheinDocs]) {
     for (const data of versionen) {
       for (const konto of konten) {
         for (const testKasse of [false, true]) {
@@ -203,5 +209,86 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
     const erwartet = artikelServer(id, doc);
     assert.deepEqual(_storedArticleToWire(id, doc), erwartet, `${id} Draht`);
     assert.deepEqual(stored.fromStoredArticle(id, doc), fromPosArticlePayload(erwartet as PosArticlePayload), `${id} Modell`);
+  }
+});
+
+// ---- Gutschein-Katalog des Backends ---------------------------------------------
+
+/*
+ * Jeder Erfolgsfall des Gutschein-Katalogs (functions/test/unit/fixtures/gutschein-faelle.json) und sein
+ * Storno, gespeichert wie createReceipt/cancelReceipt (Helfer gutschein-gespeichert): das Paket zeigt den
+ * Beleg roh (neue Form) und aufbereitet (gutscheineFuerPaket) mit Gesamt = Zahlbetrag des Servers
+ * (gutschein-beleg.zahlbetrag) und der Steuertabelle = signierte Toepfe. Dieselbe Pruefung wie
+ * beleg-layout-gutschein.test.js im Backend, hier ohne die Aufbereitung (Vorfall 16.10.2026).
+ */
+const GUTSCHEIN_VOR_STICHTAG = ['mz_verkauf_vor_stichtag', 'alt_value_verkauf_vor_stichtag_unveraendert'];
+// Rabattgutschein + Trinkgeld verteilt das Paket anders als belegToepfe (Backend-Test: BEKANNT).
+const GUTSCHEIN_BEKANNT = ['ak_prozent_mit_trinkgeld'];
+
+test('stored-backend: Gutschein-Katalog roh und aufbereitet - Gesamt = Zahlbetrag, Steuertabelle = Toepfe', (t: TestContext) => {
+  if (!lade) { t.skip(HINWEIS); return; }
+  const g = globalThis as Json;
+  const vorher = { beforeAll: g.beforeAll, afterAll: g.afterAll, emu: process.env['FUNCTIONS_EMULATOR'], ab: process.env['GUTSCHEIN_NULLTOPF_AB_TEST'] };
+  g.beforeAll = g.beforeAll ?? (() => {});
+  g.afterAll = g.afterAll ?? (() => {});
+  const welt = lade('./test/unit/helpers/gutschein-gespeichert.js');
+  const gb = lade('./gemeinsam/gutschein-beleg.js');
+  // Stichtag des 0-%-Topfs aus dem Katalog (wie welt.stichtagAusKatalog im Backend).
+  process.env['FUNCTIONS_EMULATOR'] = 'true';
+  process.env['GUTSCHEIN_NULLTOPF_AB_TEST'] = welt.katalog.nulltopfAb;
+  try {
+    const firma = { companyName: 'Bäckerei Kornblum', street: 'Neubaugasse 12', zip: '1070', city: 'Wien', vatId: 'ATU12345675', taxNumber: '', isSmallBusiness: false, thanksMessage: [], showKreiseckLogo: false } as Json;
+    const euro = (c: number): string => `${(c / 100).toFixed(2).replace('.', ',')} €`;
+    const gesamt = (l: ReceiptLayout): string | null => {
+      const z = l.lines.find((x) => x.kind === 'columns' && x.columns[0]!.text === 'Gesamt:');
+      return z && z.kind === 'columns' ? z.columns[1]!.text : null;
+    };
+    const kategorie: Record<string, string> = { A: 'amountRateStandard', B: 'amountRateReduced1', C: 'amountRateReduced2', D: 'amountRateZero', E: 'amountRateSpecial' };
+    const steuer = (l: ReceiptLayout): Record<string, number> => {
+      const r: Record<string, number> = {};
+      for (const z of l.lines) {
+        if (z.kind !== 'columns' || z.columns.length !== 4) continue;
+        const m = /^([A-E]) /.exec(z.columns[0]!.text);
+        const c = m ? Math.round(Number(z.columns[3]!.text.replace(/\./g, '').replace(',', '.')) * 100) : 0;
+        if (m && c !== 0) r[m[1]!] = c;
+      }
+      return r;
+    };
+    const toepfe = (b: Json): Record<string, number> => {
+      const r: Record<string, number> = {};
+      for (const [k, feld] of Object.entries(kategorie)) {
+        const c = Math.round((Number(b[feld]) || 0) * 100);
+        if (c !== 0) r[k] = c;
+      }
+      return r;
+    };
+    const abweichend: string[] = [];
+    let geprueft = 0;
+    for (const f of welt.erfolgsFaelle() as Json[]) {
+      const o = welt.gespeichert(f);
+      const belege: Array<[string, Json]> = [['', o]];
+      try { belege.push([' (Storno)', welt.storniert(o)]); } catch { /* nicht stornierbar */ }
+      for (const [zusatz, doc] of belege) {
+        geprueft += 1;
+        const soll = gb.zahlbetrag(doc.items, doc.vouchers, doc.receiptType) as number;
+        const r = stored.fromStoredReceipt({ sig: '', qr: '', fullReceiptId: '', cashregisterId: 'KECK-1', ...doc });
+        for (const [weg, beleg] of [['roh', r], ['aufbereitet', gutscheineFuerPaket(r)]] as const) {
+          const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
+          const name = `${f.name}${zusatz} ${weg}`;
+          if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
+          if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
+          const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
+          if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
+        }
+      }
+    }
+    assert.ok(geprueft > 30, `nur ${geprueft} Belege`);
+    assert.deepEqual(abweichend, []);
+  } finally {
+    g.beforeAll = vorher.beforeAll;
+    g.afterAll = vorher.afterAll;
+    for (const [k, v] of [['FUNCTIONS_EMULATOR', vorher.emu], ['GUTSCHEIN_NULLTOPF_AB_TEST', vorher.ab]] as const) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
   }
 });

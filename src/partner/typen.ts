@@ -459,6 +459,9 @@ export const SIGNATURE_HISTORY_REASONS = [
   'automation_off',
   'test_environment',
   'no_stock',
+  'card_pool_activated',
+  'activation_run',
+  'finanzonline_completed',
 ] as const;
 
 /** Offen fuer spaeter ergaenzte Gruende, siehe [SIGNATURE_HISTORY_REASONS]. */
@@ -482,6 +485,9 @@ export interface SignatureHistoryEntry {
   reason: SignatureHistoryReason | null;
 }
 
+/** Erfuellungsweg eines Signaturantrags; offen fuer spaeter ergaenzte Werte. */
+export type SignatureFulfillment = 'automatic' | 'manual' | (string & {});
+
 export interface SignatureRequest {
   requestId: string;
   status: SignatureRequestStatus;
@@ -490,6 +496,8 @@ export interface SignatureRequest {
   kind: string;
   vdaId: string | null;
   signatureId: string | null;
+  /** Wie der Antrag erfuellt wird: aus dem Kartenvorrat oder von Hand. */
+  fulfillment?: SignatureFulfillment;
   error: { code: SignatureErrorCode | null; message: string | null; rc: string | null } | null;
   requestedVia: string | null;
   createdAt: number | null;
@@ -523,6 +531,8 @@ export interface CustomerSignature {
   status: SignatureRequestStatus | 'decommissioned';
   statusText: string;
   inProgress: boolean;
+  /** Wie der Antrag erfuellt wird: aus dem Kartenvorrat oder von Hand. */
+  fulfillment?: SignatureFulfillment;
   ready: boolean;
   kind: string;
   vdaId: string | null;

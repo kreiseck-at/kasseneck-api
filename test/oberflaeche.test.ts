@@ -161,24 +161,24 @@ const vokabular = JSON.parse(
 ) as { endpoints: Record<string, string[]>; names: Record<string, string> };
 const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
 
-test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 105)', () => {
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 107)', () => {
   const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
   assert.deepEqual([...PUBLIC_CALLS], erwartet);
-  assert.equal(PUBLIC_CALLS.length, 105);
+  assert.equal(PUBLIC_CALLS.length, 107);
   // Unter /v3 geroutet ist genau die oeffentliche Liste.
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (39)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (41)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 39);
+  assert.equal(POS_CALLS.length, 41);
 });
 
-test('v3: nur ueber den Kassenweg gehen genau die 33 Namen aus endpoints.registerInternal', () => {
+test('v3: nur ueber den Kassenweg gehen genau die 35 Namen aus endpoints.registerInternal', () => {
   const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
   const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
   assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
-  assert.equal(nurKasse.length, 33);
+  assert.equal(nurKasse.length, 35);
   for (const name of ['listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation']) assert.ok(isPosOnlyCall(name), name);
   // Inventur zaehlen (1.8.0) gibt es nur am Kassenweg, die Inventur der Lager-API nur oeffentlich.
   for (const name of ['listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount']) {

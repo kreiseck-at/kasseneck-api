@@ -127,16 +127,22 @@ export function HiddenQr({ data, text = 'Antippen zum Anzeigen', children }: { d
 
 function Zeile({ zeile, renderQr, qrVerdeckt, qrVerdecktText }: { zeile: LayoutLine; renderQr?: (data: string) => ReactNode; qrVerdeckt?: boolean; qrVerdecktText?: string }): ReactNode {
   switch (zeile.kind) {
-    case 'text':
+    case 'text': {
+      // Haengender Einzug wie im Zeichenraster: fuehrende Leerzeichen eines
+      // linksbuendigen Textes werden zum Einzug aller Zeilen (HTML liesse sie
+      // sonst wegfallen). Ohne fuehrende Leerzeichen bleibt alles wie bisher.
+      const einzug = zeile.align === 'left' && zeile.text.trimStart() !== '' ? zeile.text.length - zeile.text.trimStart().length : 0;
+      const text = einzug > 0 ? zeile.text.trimStart() : zeile.text;
       return (
         <div
           className="keck-receipt-text"
-          style={{ textAlign: AUSRICHTUNG[zeile.align], fontWeight: zeile.bold ? 'bold' : 'normal' }}
+          style={{ textAlign: AUSRICHTUNG[zeile.align], fontWeight: zeile.bold ? 'bold' : 'normal', ...(einzug > 0 ? { paddingLeft: `${einzug}ch` } : {}) }}
         >
           {/* Leere Zeilen wuerden ohne Inhalt zusammenfallen. */}
-          {zeile.text.length > 0 ? zeile.text : ' '}
+          {text.length > 0 ? text : ' '}
         </div>
       );
+    }
     case 'columns':
       return (
         <div className="keck-receipt-row" style={{ display: 'flex', width: '100%', ...(zeile.bold === true ? { fontWeight: 'bold' } : {}) }}>

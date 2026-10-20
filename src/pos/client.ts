@@ -1,5 +1,6 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
+import { posVoucherSettingsFromWire } from './gutschein.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
   POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
@@ -30,13 +31,14 @@ import {
 export async function getPosSettings(transport: InternerTransport, options: { deviceId?: string } = {}): Promise<PosSettings> {
   const params: Record<string, unknown> = {};
   if (options.deviceId) params.deviceId = options.deviceId;
-  const daten = await transport<{ business?: unknown; device?: unknown }>('getKasseSettings', params);
+  const daten = await transport<{ business?: unknown; device?: unknown; vouchers?: unknown }>('getKasseSettings', params);
   return posSettingsFromWire(daten);
 }
 
-/** `{business, device}` einer Antwort, gemischt mit den Standardwerten. */
-export function posSettingsFromWire(data: { business?: unknown; device?: unknown } | null | undefined): PosSettings {
+/** `{business, device, vouchers}` einer Antwort, gemischt mit den Standardwerten. */
+export function posSettingsFromWire(data: { business?: unknown; device?: unknown; vouchers?: unknown } | null | undefined): PosSettings {
   return {
+    vouchers: posVoucherSettingsFromWire(data?.vouchers),
     business: mergePosSettings(POS_BUSINESS_DEFAULTS, objekt(data?.business) as Partial<PosBusinessSettings> | null),
     device: mergePosSettings(POS_DEVICE_DEFAULTS, objekt(data?.device) as Partial<PosDeviceSettings> | null),
   };

@@ -45,7 +45,7 @@ export {
 export { distributeDiscount } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
-export { cancelScopeOf, receiptsScopeOf, stockViewOf, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
+export { cancelScopeOf, receiptsScopeOf, stockViewOf, voucherPermsOf, type VoucherPerms, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
 export {
   type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES, isPrintJobFinished,
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
@@ -69,6 +69,12 @@ export type {
   StocktakeActor, StocktakeProgress, StocktakeReview, StocktakeRecount, StocktakeScope,
 } from '../inventory/typen.js';
 export type { StocktakeStatus } from '../inventory/vertrag.js';
+
+// Gutschein pruefen und Etikett nachdrucken an der Kasse.
+export {
+  VOUCHER_KINDS, VOUCHER_STATUSES, checkVoucher, reprintVoucherLabel, VOUCHER_SETTINGS_DEFAULTS, posVoucherSettingsFromWire,
+  type VoucherKind, type VoucherStatus, type VoucherValidity, type VoucherArticle, type VoucherCheck, type PosVoucherSettings,
+} from './gutschein.js';
 
 // Schicht, Kassenstand und Lade-Protokoll (1.9.0): Aufrufe, Kataloge, Helfer, Bons.
 export {
@@ -96,7 +102,7 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';
