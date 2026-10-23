@@ -802,9 +802,8 @@ function gutscheinText(voucher: Voucher): string {
  * sie mit demselben Einzug um (grid.ts, haengender Einzug), auf 58 mm etwa
  * „  Einzweck, versteuert mit“ / „  Beleg K1-ID-4711“.
  *
- * Die Zusatzzeilen kommen nur aus dem Eintrag: ein Beleg, den der Server fuer
- * ein aelteres Paket aufbereitet hat (Eintraege mit Position entfernt, Code an
- * der Position, functions/beleg-layout.js `gutscheineFuerPaket`), zeigt seine
+ * Die Zusatzzeilen kommen nur aus dem Eintrag: ein Beleg ohne Eintrag (aeltere
+ * Belege, bei denen der Code schon an der Position steht) zeigt seine
  * Positionen wie jede andere Position. Ein Betrag zaehlt immer genau einmal:
  * Positionen in der Steuertabelle, Eintraege mit `zeroRateBucket` nie.
  */
@@ -858,7 +857,7 @@ interface GutscheinPosition {
  * Eintrag? Jede Position hoechstens einem Eintrag, Eintraege in ihrer
  * Reihenfolge (der Server haengt die Positionen in derselben Reihenfolge an).
  * Verkauf: erste freie Position der Art mit demselben Betrag und ohne Code im
- * Namen (wie `gutscheineFuerPaket` des Servers). Einloesung: freie Positionen
+ * Namen (wie die Zuordnung des Servers). Einloesung: freie Positionen
  * mit genau dem Namen `Gutschein ····-<Endung>`, Auszahlung: `Auszahlung
  * Gutschein ····-<Endung>` (gutschein-beleg.plane) -- der Reihe nach, bis
  * ihr Betrag den des Eintrags erreicht (ein Kleinunternehmer-Einzweck oder

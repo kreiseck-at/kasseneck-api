@@ -193,7 +193,8 @@ export type CancelReceiptOptions = {
   /**
    * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
    * Originalzahlung). Ohne Angabe spiegelt der Server die Restbetraege jeder
-   * Originalzahlung; ein Teilstorno eines Belegs mit mehreren Zahlungen
+   * Originalzahlung (Ausnahme Storno einer Gutschein-Auszahlung: genau eine
+   * positive Barzahlung ohne `refundOf`); ein Teilstorno eines Belegs mit mehreren Zahlungen
    * braucht sie (`cancellation_payments_required`).
    *
    * **Karten-Storno:** `provider`, `providerPaymentId` und `providerData`
@@ -484,6 +485,20 @@ function pruefeRueckgabeWahl(wert: unknown, pfad: string): void {
 }
 
 /**
+ * Storno einer Gutschein-Auszahlung: genau eine positive Barzahlung ohne `refundOf`
+ * (das Geld kommt in die Lade zurueck). Alles andere bleibt Rueckzahlung mit negativem Betrag;
+ * ob der Beleg eine Auszahlung war, entscheidet der Server.
+ */
+function istStornoAuszahlung(payments: unknown): boolean {
+  if (!Array.isArray(payments) || payments.length !== 1) return false;
+  const z = payments[0] as Record<string, unknown> | null;
+  if (z == null || typeof z !== 'object') return false;
+  const m = z['method'];
+  const art = typeof m === 'object' && m !== null ? (m as { value?: unknown }).value : m;
+  return art === 'cash' && typeof z['amountCents'] === 'number' && z['amountCents'] > 0 && z['refundOf'] === undefined;
+}
+
+/**
  * Storno-Beleg zu einem bestehenden Beleg — voll oder in Teilen. Prueft die
  * Eingabe, bevor etwas hinausgeht; der Server haelt die Restmengen und die
  * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
@@ -530,7 +545,7 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
   }
   // `payments: null` gilt wie im Backend als nicht angegeben.
-  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt') : undefined;
+  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt', false, istStornoAuszahlung(options.payments)) : undefined;
   if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) {
@@ -1058,12 +1073,13 @@ const MAX_ZAHLUNGEN = 20;
  * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
  * etwas hinausgeht.
  */
-function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false): Record<string, unknown>[] {
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false, stornoAuszahlung = false): Record<string, unknown>[] {
   const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
   if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
   if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
   // Auszahlung eines Gutscheins: der Betrag geht bar hinaus, ohne gegeben und ohne Trinkgeld (Server pruefeZahlungen).
-  const negativ = storno || auszahlung;
+  // Storno einer Auszahlung: der Kunde gibt das Geld zurueck, die eine Barzahlung ist positiv (zahlungen-core stornoAuszahlung).
+  const negativ = (storno && !stornoAuszahlung) || auszahlung;
   if (auszahlung) {
     const e = roh[0] as Record<string, unknown> | undefined;
     if (roh.length !== 1) throw fehler('Auszahlung: genau eine Barzahlung angeben.');

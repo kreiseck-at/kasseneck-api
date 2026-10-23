@@ -9,8 +9,7 @@ import { layoutWieServer } from '../src/stored/bon-layout.js';
 
 /**
  * Bon der neuen Gutscheinform (Spec 2026-10-14, „Bon und Beleg“): das Paket
- * zeigt die Belege selbst, ohne die Aufbereitung des Servers
- * (`gutscheineFuerPaket`). Jeder Betrag zaehlt genau einmal: „Gesamt“ ist die
+ * zeigt die Belege selbst. Jeder Betrag zaehlt genau einmal: „Gesamt“ ist die
  * Summe der Zahlungen, die Steuertabelle sind die signierten Toepfe.
  *
  * Vorfall 16.10.2026: ein Verkauf ueber 30 € zeigte „Gesamt 60,00“, weil das
@@ -80,7 +79,7 @@ const beispiel = (name: string): Json => {
 
 test('Vertragsbeispiele der neuen Form sind da (Verkauf, Einloesung, Auszahlung, Storno)', () => {
   const namen = NEUE_FORM.map((b) => b.name);
-  for (const n of ['kasse-belege/sale_single_purpose_voucher', 'kasse-belege/redeem_service_voucher', 'kasse-belege/payout_multi_purpose_voucher', 'storno/app/cancel_redeemed_multi_purpose_voucher']) {
+  for (const n of ['kasse-belege/sale_single_purpose_voucher', 'kasse-belege/redeem_service_voucher', 'kasse-belege/payout_multi_purpose_voucher', 'storno/app/cancel_redeemed_multi_purpose_voucher', 'storno/app/cancel_payout_voucher', 'storno/api/cancel_payout_voucher']) {
     assert.ok(namen.includes(n), `${n} fehlt: ${namen.join(', ')}`);
   }
 });
@@ -105,20 +104,10 @@ test('jedes Vertragsbeispiel der neuen Form: Gesamt am Bon = bezahlt, Steuertabe
   }
 });
 
-// Der Vertrag im Repo kennt den neuen Bon (kurze Maske, Rest mit Euro, Aktionsgutschein, keine Zahlungsart bei
-// voller Deckung) erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['belege/sale_single_purpose_voucher', 'belege/sale_multi_purpose_voucher', 'belege/sale_service_voucher', 'belege/redeem_single_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/get_receipt_single_purpose_redeemed', 'kasse-belege/sale_single_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'kasse-belege/sale_service_voucher', 'kasse-belege/redeem_single_purpose_voucher', 'kasse-belege/redeem_promotion_voucher', 'kasse-belege/get_receipt_single_purpose_redeemed']);
-// Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
-for (const name of VERTRAG_FOLGT) {
-  test(`aufbereitet wie der Server: das Server-Layout des Vertrags: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
-    const b = NEUE_FORM.find((x) => x.name === name)!;
-    assert.deepEqual(layoutWieServer(ausAntwort(b.daten), b.daten.receipt.layoutRuleset), b.daten.layout, name);
-  });
-}
-
-test('aufbereitet wie der Server: das Server-Layout des Vertrags, Zeile fuer Zeile (layoutWieServer)', () => {
+// Das Layout des Vertrags (vendortes Paket 0.35.0) ist das, was layoutWieServer aus dem Beleg setzt, Zeile fuer Zeile.
+test('Server-Layout des Vertrags, Zeile fuer Zeile (layoutWieServer)', () => {
   for (const b of NEUE_FORM) {
-    if (b.daten.layout == null || VERTRAG_FOLGT.has(b.name)) continue;
+    if (b.daten.layout == null) continue;
     assert.deepEqual(layoutWieServer(ausAntwort(b.daten), b.daten.receipt.layoutRuleset), b.daten.layout, b.name);
   }
 });
@@ -249,7 +238,7 @@ test('Auszahlung Mehrzweck: Zeile mit Betrag und Grund, Gesamt negativ', () => {
   assert.equal(gesamt(l), '-30,00 €');
 });
 
-test('Aktion bleibt die Rabattzeile wie bisher', { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
+test('Aktion bleibt die Rabattzeile wie bisher', () => {
   const b = beispiel('kasse-belege/redeem_promotion_voucher');
   assert.deepEqual(bauen(ausAntwort(b)), b.layout);
 });
@@ -269,6 +258,13 @@ test('Aktion: Zeile „Aktionsgutschein ····-5KNJ - Aktion“ (kurze Maske, 
   const l = bauen(ausAntwort(beispiel('kasse-belege/redeem_promotion_voucher')));
   assert.ok(texte(l).some((t) => t.startsWith('Aktionsgutschein ····-5KNJ - Aktion')), texte(l).join('\n'));
   assert.ok(!texte(l).some((t) => t.includes('Promotionsgutschein')), texte(l).join('\n'));
+});
+
+test('Storno einer Mehrzweck-Auszahlung: Auszahlungszeile ohne Minus, Gesamt = Rueckbuchung, beide Kanaele gleich', () => {
+  const app = bauen(ausAntwort(beispiel('storno/app/cancel_payout_voucher')));
+  assert.ok(hatSpalten(app, [['Auszahlung Gutschein ····-8CN5', 8], ['30,00 D', 4]]), texte(app).join('\n'));
+  assert.equal(gesamt(app), '30,00 €');
+  assert.deepEqual(bauen(ausAntwort(beispiel('storno/api/cancel_payout_voucher'))), app);
 });
 
 test('Storno einer Mehrzweck-Einloesung: Gutschein ohne Minus, kein Rest, Gesamt = Rueckzahlung', () => {

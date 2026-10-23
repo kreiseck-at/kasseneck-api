@@ -38,6 +38,10 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * Werte `ATU12345675`/`91-123/4565`; die Digests von `receipts` und `ruleset1` sind darum neu gezogen (nur die Kopfzeile
  * mit der UID aendert sich). `server` und `shift` stammen aus dem Vertrag und blieben.
  *
+ * Vertragszug final (23.10.2026, Backend 85d18f12, vendortes Paket 0.35.0, Ersatzdaten im Backend): die Digests aller 38
+ * Server-Layouts sind neu gezogen (Kopfzeile mit `ATU12345675` statt der alten UID, dazu die Bon-Regeln 0.35.0 bei den
+ * Gutschein-Faellen); `receipts`, `ruleset1` und `shift` blieben. Das Server-Layout stammt unveraendert aus dem Vertrag.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

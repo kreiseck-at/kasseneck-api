@@ -7,6 +7,10 @@
 // Quelle ist git (Stand der veroeffentlichten 0.31.0), Paare ueber
 // fixtures/renames-1.0.json. Einmalig:
 //   node scripts/layouts-vor-1.0.mjs [ref]
+// Achtung: die Kennungen in test/fixtures/vor-1.0/layouts-0.31.json wurden am
+// 23.10.2026 per sed durch Ersatzdaten ersetzt (ATU12345675, 91-123/4565); das
+// Skript ersetzt nichts und darf nicht blind neu laufen, sonst stehen die alten
+// Kennungen wieder in der Datei.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 

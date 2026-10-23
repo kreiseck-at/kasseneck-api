@@ -107,7 +107,7 @@ const BELEG_ANTWORT = {
   receipt: BELEG_NUTZLAST,
   vatId: 'ATU12345675',
   is_small_business: false,
-  taxNumber: '12/345/6789',
+  taxNumber: '91-123/4565',
   company: 'Musterfirma',
   phone: '+43 1 234',
   street: 'Musterstrasse 1',
