@@ -169,8 +169,12 @@ export type RegisterLoginMode = 'select_user' | 'pin';
 export interface RegisterDeviceUsers {
   /** Im Modus `pin` bewusst leer — Namen haben am nur-PIN-Geraet nichts verloren. */
   users: RegisterUserSummary[];
-  /** Kassen-Einstellungen (betriebsweit + Geraet), gemischt mit den Standardwerten. */
-  settings: PosSettings;
+  /**
+   * Kassen-Einstellungen (betriebsweit + Geraet), gemischt mit den Standardwerten.
+   * Ohne `vouchers`: die Antwort des Servers fuehrt den Block nicht, er kommt
+   * mit `getPosSettings`; ein Vorgabe-Block waere erfunden.
+   */
+  settings: Omit<PosSettings, 'vouchers'>;
   /** Belegkopf-Daten des Betriebs (Name, Anschrift, UID, Fusszeilen), ohne Geheimnisse. */
   receiptHeader: ReceiptCompany | null;
   /**
@@ -600,7 +604,7 @@ export async function listRegisterUsersForDevice(
     };
   });
   const settingsRoh = daten?.settings;
-  const settings = posSettingsFromWire(
+  const { vouchers: _keinBlock, ...settings } = posSettingsFromWire(
     settingsRoh !== null && typeof settingsRoh === 'object' ? (settingsRoh as { business?: unknown; device?: unknown }) : null,
   );
   const kopf = daten?.receiptHeader;

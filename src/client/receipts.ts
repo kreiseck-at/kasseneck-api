@@ -42,6 +42,7 @@ import {
   RECEIPT_EMAIL_VIAS,
   readRegistrationInfo,
 } from '../models/index.js';
+import { VoucherCode } from '@kreiseck/validator';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckApiError, KasseneckValidationError, isKasseneckApiError, signiertGelesen } from './errors.js';
@@ -298,7 +299,7 @@ export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { f
  * die Hand des Aufrufers, sondern zu einem der benannten Aufrufe darunter.
  */
 export async function createReceipt(rufen: InternerTransport, options: CreateReceiptOptions): Promise<Receipt> {
-  const daten = await rufen('createReceipt', createReceiptParams(options));
+  const daten = await createReceiptRufen(rufen, options);
   return signiertGelesen('createReceipt', () => belegAusHuelle(daten, 'createReceipt'));
 }
 
@@ -307,8 +308,29 @@ async function createReceiptWithCompany(
   rufen: InternerTransport,
   options: CreateReceiptOptions,
 ): Promise<ReceiptWithCompany> {
-  const daten = await rufen('createReceipt', createReceiptParams(options));
+  const daten = await createReceiptRufen(rufen, options);
   return signiertGelesen('createReceipt', () => belegMitFirmaAusHuelle(daten, 'createReceipt'));
+}
+
+/**
+ * Sendet `createReceipt`; die Gutschein-Codes der Nutzlast gelten als Geheimnis
+ * (normiert und formatiert): der Transport siebt Ursachen und Details, ein
+ * Servertext, der den Code wiederholt, wird hier geschwaerzt.
+ */
+async function createReceiptRufen(rufen: InternerTransport, options: CreateReceiptOptions): Promise<unknown> {
+  const geheim = (options.vouchers ?? []).flatMap((v) => {
+    const geprueft = typeof v.code === 'string' ? VoucherCode.validate(v.code) : null;
+    return geprueft != null && geprueft.ok ? [geprueft.normalized, VoucherCode.format(geprueft.normalized)] : [];
+  });
+  try {
+    return await rufen('createReceipt', createReceiptParams(options), undefined, geheim);
+  } catch (fehler) {
+    if (fehler instanceof KasseneckApiError && geheim.some((g) => fehler.serverMessage.includes(g))) {
+      const text = geheim.reduce((t, g) => t.split(g).join('****'), fehler.serverMessage);
+      throw new KasseneckApiError('createReceipt', text, fehler.details, fehler.code);
+    }
+    throw fehler;
+  }
 }
 
 /**

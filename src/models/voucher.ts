@@ -43,6 +43,29 @@ export interface Voucher {
   zeroRateBucket?: boolean;
 }
 
+/**
+ * Ein ausgestellter Gutschein in der Antwort von `createReceipt` unter `/v3`
+ * (`data.issuedVouchers[]`): der Klartext-Code erscheint hier einmalig fuer das Etikett.
+ */
+export interface IssuedVoucher {
+  id: string;
+  /** Klartext-Code; nie in Logs oder Fehlertexte schreiben. */
+  code: string;
+  type: string;
+  index: number;
+  codeSuffix: string;
+  faceValueCents?: number;
+  quantity?: number;
+  /** Nur bei Leistungsgutscheinen: Name des verkauften Artikels; sonst fehlt das Feld. */
+  articleName?: string;
+  validity?: {
+    pattern: string;
+    redeemableUntil: string | null;
+    refundableUntil: string | null;
+    validUntil: string | null;
+  };
+}
+
 /** Artikel eines Leistungsgutscheins, wie der Server ihn am Beleg festhaelt. */
 export interface VoucherArticle {
   id: string;

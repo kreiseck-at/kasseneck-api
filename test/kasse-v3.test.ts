@@ -13,6 +13,7 @@ import {
   isPosError, posFieldErrors, mergePosSettings, stockViewOf,
   type PosBusinessSettings, type PosDeviceSettings,
 } from '../src/pos/index.js';
+import { voucherPermsOf } from '../src/register/pairing.js';
 import {
   pairRegisterDevice, listRegisterUsersForDevice, listRegisterSessionsForDevice, registerUserLogin,
   registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice,
@@ -426,7 +427,7 @@ test('listRegisterUsersForDevice: englische Antwort, Einstellungen, Belegkopf, K
     assert.equal(stand.loginMode, d.loginMode, f.case);
     assert.deepEqual(stand.policy, d.policy, f.case);
     assert.deepEqual(stand.users, d.users.map((u: Json) => ({ ...u, pinPolicyOutdated: u.pinPolicyOutdated === true })), f.case);
-    assert.deepEqual(stand.settings, { ...d.settings, device: geraetGelesen(d.settings.device), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
+    assert.deepEqual(stand.settings, { ...d.settings, device: geraetGelesen(d.settings.device) }, f.case);
     assert.equal(stand.locationLock, d.locationLock, f.case);
     assert.equal(stand.testEnvironment, d.testEnvironment, f.case);
     assert.deepEqual(stand.cashregister, { ready: d.cashregister.ready, reason: d.cashregister.reason ?? null }, f.case);
@@ -499,6 +500,33 @@ test('registerUserLogin/registerPinLogin: Sitzung wie im Fall', async () => {
       assert.equal(sitzung.sessionId, f.response.data.sessionId);
       assert.deepEqual(sitzung.user.perms, f.response.data.user.perms);
     }
+  }
+});
+
+test('registerUserLogin/registerPinLogin: Antwortschluessel und Gutschein-Rechte des Vertrags sind vollstaendig gelesen', async () => {
+  const voucherSchluessel = new Set<string>();
+  for (const endpunkt of ['registerUserLogin', 'registerPinLogin'] as const) {
+    for (const f of erfolge(endpunkt)) {
+      const { holen } = holenFuer(f);
+      const optionen = { ...(f.params as Json), fetch: holen } as Parameters<typeof registerUserLogin>[0];
+      const sitzung = endpunkt === 'registerUserLogin' ? await registerUserLogin(optionen) : await registerPinLogin(optionen);
+      const d = f.response.data;
+      // Jeder Schluessel der Vertragsantwort kommt im gelesenen Ergebnis an (und kein erfundener dazu).
+      assert.deepEqual(Object.keys(sitzung).sort(), Object.keys(d).sort(), `${endpunkt}/${f.case}`);
+      assert.deepEqual(Object.keys(sitzung.user).sort(), Object.keys(d.user).sort(), `${endpunkt}/${f.case} user`);
+      assert.deepEqual(Object.keys(sitzung.user.perms).sort(), Object.keys(d.user.perms).sort(), `${endpunkt}/${f.case} perms`);
+      for (const k of Object.keys(d.user.perms)) if (k.startsWith('voucher')) voucherSchluessel.add(k);
+    }
+  }
+  // Die Gutschein-Rechte, die der Vertrag fuehrt, sind genau die, die voucherPermsOf aufloest.
+  assert.deepEqual([...voucherSchluessel].sort(), Object.keys(voucherPermsOf({})).sort());
+});
+
+test('listRegisterUsersForDevice: settings fuehren keinen erfundenen vouchers-Block', async () => {
+  for (const f of erfolge('listRegisterUsersForDevice')) {
+    const stand = await listRegisterUsersForDevice({ ...(f.params as typeof GERAET), fetch: holenFuer(f).holen });
+    assert.equal('vouchers' in stand.settings, false, f.case);
+    assert.deepEqual(Object.keys(stand.settings).sort(), Object.keys(f.response.data.settings).sort(), f.case);
   }
 });
 
