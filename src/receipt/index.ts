@@ -23,6 +23,7 @@ export {
   SMALL_BUSINESS_NOTICE,
   formatCents,
 } from './layout.js';
+export { markAsDuplicate } from './duplikat.js';
 
 export {
   type EscPosLayoutOptions,

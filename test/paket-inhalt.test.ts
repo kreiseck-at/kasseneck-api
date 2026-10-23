@@ -66,6 +66,7 @@ const ABNEHMER: Record<string, string> = {
   'cancellation-tip-cases.json': 'Prueffaelle Storno mit oder ohne Trinkgeld (openStaffTipCents, cancellationItemsForTip, asksTipRefundSource, cancellationCashRefundCents): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktionen',
   'code-table-preview.json': 'Vorschau je Code-Tabelle (codeTablePreviewText): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'code-table-receipts.json': 'Bons je Code-Tabelle (Faelle; Bytes unter expected/code-table-receipt.*.hex): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
+  'duplicate-cases.json': 'Belegduplikat (markAsDuplicate: Faelle, erwartetes Layout; Bytes unter expected/duplicate.*.hex): Dart-Zwilling kasseneck_api',
   'code-tables.json': 'Katalog der Code-Tabellen (ESC t, Bytes je Zeichen): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'hobex-hps-codes.json': 'Terminal-Codes: Dart-Zwilling (hobex_hps_codes_vertrag_test)',
   'pos-message-cases.json': 'Fehlereinordnung der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh); kasseneck-web apps/kasse/src/test/meldung-faelle.test.ts',
