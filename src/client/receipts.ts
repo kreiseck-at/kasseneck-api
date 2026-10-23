@@ -318,10 +318,17 @@ async function createReceiptWithCompany(
  * Servertext, der den Code wiederholt, wird hier geschwaerzt.
  */
 async function createReceiptRufen(rufen: InternerTransport, options: CreateReceiptOptions): Promise<unknown> {
-  const geheim = (options.vouchers ?? []).flatMap((v) => {
-    const geprueft = typeof v.code === 'string' ? VoucherCode.validate(v.code) : null;
-    return geprueft != null && geprueft.ok ? [geprueft.normalized, VoucherCode.format(geprueft.normalized)] : [];
-  });
+  // Der Code geht so hinaus, wie er getippt wurde: die getippte Schreibweise (auch ungueltig,
+  // etwa mit falscher Pruefziffer) zaehlt ebenso als Geheimnis wie normiert und formatiert.
+  // Kurze Reste (Endung mit vier Zeichen) werden nie eingetragen.
+  const geheim = [...new Set((options.vouchers ?? []).flatMap((v) => {
+    if (typeof v.code !== 'string') return [];
+    const roh = v.code.trim();
+    const geprueft = VoucherCode.validate(v.code);
+    const liste = geprueft.ok ? [geprueft.normalized, VoucherCode.format(geprueft.normalized)] : [];
+    if (roh.length >= 8) liste.push(roh);
+    return liste;
+  }))].sort((a, b) => b.length - a.length);
   try {
     return await rufen('createReceipt', createReceiptParams(options), undefined, geheim);
   } catch (fehler) {
