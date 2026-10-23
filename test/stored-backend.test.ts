@@ -271,15 +271,13 @@ test('stored-backend: Gutschein-Katalog - Gesamt = Zahlbetrag, Steuertabelle = T
         geprueft += 1;
         const soll = gb.zahlbetrag(doc.items, doc.vouchers, doc.receiptType) as number;
         const r = stored.fromStoredReceipt({ sig: '', qr: '', fullReceiptId: '', cashregisterId: 'KECK-1', ...doc });
-        {
-          const beleg = r;
-          const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
-          const name = `${f.name}${zusatz}`;
-          if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
-          if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
-          const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
-          if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
-        }
+        const beleg = r;
+        const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
+        const name = `${f.name}${zusatz}`;
+        if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
+        if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
+        const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
+        if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
       }
     }
     assert.ok(geprueft > 30, `nur ${geprueft} Belege`);

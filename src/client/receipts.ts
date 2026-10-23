@@ -194,8 +194,8 @@ export type CancelReceiptOptions = {
    * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
    * Originalzahlung). Ohne Angabe spiegelt der Server die Restbetraege jeder
    * Originalzahlung (Ausnahme Storno einer Gutschein-Auszahlung: genau eine
-   * positive Barzahlung ohne `refundOf`); ein Teilstorno eines Belegs mit mehreren Zahlungen
-   * braucht sie (`cancellation_payments_required`).
+   * positive Barzahlung ohne `refundOf`); ein Teilstorno eines Belegs mit
+   * mehreren Zahlungen braucht sie (`cancellation_payments_required`).
    *
    * **Karten-Storno:** `provider`, `providerPaymentId` und `providerData`
    * beschreiben die ERSTATTUNG am Terminal, nie die Originalzahlung. Die
@@ -489,8 +489,10 @@ function pruefeRueckgabeWahl(wert: unknown, pfad: string): void {
  * (das Geld kommt in die Lade zurueck). Alles andere bleibt Rueckzahlung mit negativem Betrag;
  * ob der Beleg eine Auszahlung war, entscheidet der Server.
  */
-function istStornoAuszahlung(payments: unknown): boolean {
+function istStornoAuszahlung(payments: unknown, original?: Receipt): boolean {
   if (!Array.isArray(payments) || payments.length !== 1) return false;
+  // Kennt der Aufrufer das Original und es hat keine Auszahlung, bleibt es bei negativen Rueckzahlungen.
+  if (original != null && !(original.vouchers ?? []).some((v) => v.action === VoucherAction.payout)) return false;
   const z = payments[0] as Record<string, unknown> | null;
   if (z == null || typeof z !== 'object') return false;
   const m = z['method'];
@@ -545,7 +547,7 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
   }
   // `payments: null` gilt wie im Backend als nicht angegeben.
-  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt', false, istStornoAuszahlung(options.payments)) : undefined;
+  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt', false, istStornoAuszahlung(options.payments, options.receipt)) : undefined;
   if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) {

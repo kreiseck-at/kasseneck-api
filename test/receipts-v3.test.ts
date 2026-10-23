@@ -567,6 +567,26 @@ test('cancelReceipt: nur die eine positive Barzahlung (Storno einer Auszahlung) 
   }
 });
 
+test('cancelReceipt: eine negative Barrueckzahlung ohne refundOf geht unveraendert hinaus', async () => {
+  const fall = STORNO.find((f) => f.name === 'cancel_payout_voucher')!;
+  const { rufen, aufrufe } = wegFuer(fall);
+  await cancelReceipt(rufen, { ...fall.params, payments: [{ method: 'cash', amountCents: -100 }] } as never).catch(() => undefined);
+  assert.equal(aufrufe.length, 1);
+  assert.deepEqual(aufrufe[0]!.params.payments, [{ method: 'cash', amountCents: -100 }]);
+});
+
+test('cancelReceipt: mit Original ohne Auszahlung wird die positive Barzahlung vor dem Senden abgewiesen, mit Auszahlung geht sie hinaus', async () => {
+  const fall = STORNO.find((f) => f.name === 'cancel_payout_voucher')!;
+  const mitOriginal = (vouchers: unknown[]) => ({ ...fall.params, receipt: { cashregisterId: 'KECK-1', receiptId: 'KECK-1-ID-9', vouchers } });
+  const a = wegFuer(fall);
+  const fehler = await fehlerVon(cancelReceipt(a.rufen, mitOriginal([]) as never));
+  assert.ok(isKasseneckValidationError(fehler));
+  assert.equal(a.aufrufe.length, 0);
+  const b = wegFuer(fall);
+  await cancelReceipt(b.rufen, mitOriginal([{ action: 'payout' }]) as never).catch(() => undefined);
+  assert.equal(b.aufrufe.length, 1);
+});
+
 // --- sendReceiptEmail ---------------------------------------------------------
 
 for (const fall of nichtLeer(BELEGMAIL, 'sendReceiptEmail')) {
