@@ -401,6 +401,89 @@ test('Vorbelegung mit schon gewaehlten Gutscheinen: der Rest des Topfs und des B
   assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: vorher, options: o }), 1700);
 });
 
+// --- Trinkgeld: ein Gutschein deckt es nie (gutschein-beleg.plane) ------------------------
+
+const PERSONAL: ReceiptDueOptions = { tip: 200, tipRecipient: 'staff' };
+const INHABER: ReceiptDueOptions = { tip: 200, tipRecipient: 'owner' };
+
+test('Trinkgeld: Einloesung bis Ware, nie in das Trinkgeld (Personal wie Inhaber, auch Grenzwerte 2001 und 2100)', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  const mit = (cents: number, options: ReceiptDueOptions) => receiptDueCents(items, [{ action: 'redeem', type: 'multi_purpose', code: CODE_M, amountCents: cents }], 'standard',
+    { ...options, voucherInfo: [{ code: CODE_M, check: mehrzweck(5000) }] });
+  for (const options of [PERSONAL, INHABER, { tip: { cents: 200, recipients: [{ cents: 120, owner: true }, { cents: 80, owner: false }] } }]) {
+    assert.equal(mit(2000, options), 200);
+    for (const zuViel of [2001, 2100, 2199, 2200]) wirft(() => mit(zuViel, options), 'voucher_exceeds_total');
+  }
+  // Trinkgeld ueber die Zahlung (payments[].tipCents) zaehlt genauso.
+  const ueberZahlung: ReceiptDueOptions = { payments: [{ method: 'creditCard', tipCents: 200 }], tipRecipient: 'staff' };
+  assert.equal(mit(2000, ueberZahlung), 200);
+  wirft(() => mit(2001, ueberZahlung), 'voucher_exceeds_total');
+});
+
+test('Trinkgeld: ohne Gutschein der neuen Form bleibt alles wie bisher (Storno, Altform-Rabatt)', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  assert.equal(receiptDueCents(items, [], 'standard', PERSONAL), 2200);
+  // Altform-Rabatt verteilt sich auch auf das Inhaber-Trinkgeld; ohne Plan prueft der Server das nicht.
+  assert.equal(receiptDueCents(items, [{ action: 'redeem', type: 'promo', valueCents: 2200 }], 'standard', INHABER), 0);
+  assert.equal(receiptDueCents([pos('Maniküre', -2000, 20)], [], 'cancellation'), -2000);
+});
+
+test('Trinkgeld: Aktionsgutschein mindert nur die Ware, das Trinkgeld bleibt zu zahlen', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  const check: VoucherCheck = { type: 'promotion', status: 'active', codeSuffix: '5KNJ', discountCents: 10000 };
+  for (const options of [PERSONAL, INHABER]) {
+    assert.equal(receiptDueCents(items, [{ action: 'redeem', type: 'promotion', code: CODE_A }], 'standard', { ...options, voucherInfo: [{ code: CODE_A, check }] }), 200);
+  }
+});
+
+test('Vorbelegung mit Trinkgeld: Mehrzweck hoechstens der offene Betrag ohne Trinkgeld (Personal und Inhaber)', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { options: PERSONAL }), 2000);
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { options: INHABER }), 2000);
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { options: { payments: [{ method: 'cash', tipCents: 200 }], tipRecipient: 'staff' } }), 2000);
+  // Der Saldo begrenzt weiter.
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(1500), { options: PERSONAL }), 1500);
+  // Schon gewaehlte Einloesung: der Rest der Ware, nie das Trinkgeld.
+  const vorher: Voucher[] = [{ action: 'redeem', type: 'multi_purpose', code: CODE_P, amountCents: 1200 }];
+  const o: ReceiptDueOptions = { ...INHABER, voucherInfo: [{ code: CODE_P, check: mehrzweck(5000) }] };
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: vorher, options: o }), 800);
+});
+
+test('Vorbelegung mit Trinkgeld: Einzweck, der nur Ware deckt, bekommt die Ware (nicht 0)', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  assert.equal(voucherRedeemMaxCents(items, einzweck(5000, 2000), { options: PERSONAL }), 2000);
+  assert.equal(voucherRedeemMaxCents(items, einzweck(5000, 2000), { options: INHABER }), 2000);
+  // Zwei Saetze: Einzweck 10 % deckt nur seinen Topf, das Trinkgeld begrenzt hier nicht.
+  const zwei = [pos('Maniküre', 2000, 20), pos('Shampoo', 1200, 10)];
+  assert.equal(voucherRedeemMaxCents(zwei, einzweck(5000, 1000), { options: INHABER }), 1200);
+});
+
+test('Vorbelegung mit Trinkgeld und Rabatt bzw. Altform-Aktion: Deckel nach dem Abzug, nie negativ', () => {
+  const items = [pos('Maniküre', 2000, 20)];
+  const rabatt = pos('Rabatt', -500, 20, { kind: 'discount' });
+  assert.equal(voucherRedeemMaxCents([...items, rabatt], mehrzweck(5000), { options: PERSONAL }), 1500);
+  assert.equal(voucherRedeemMaxCents([...items, rabatt], mehrzweck(5000), { options: INHABER }), 1500);
+  assert.equal(voucherRedeemMaxCents([...items, rabatt], einzweck(5000, 2000), { options: PERSONAL }), 1500);
+  const promo = (cents: number): Voucher[] => [{ action: 'redeem', type: 'promo', valueCents: cents }];
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: promo(500), options: PERSONAL }), 1500);
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: promo(500), options: INHABER }), 1500);
+  // Rabatt in Hoehe der Ware: nur noch das Trinkgeld offen, also 0 (nie negativ).
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: promo(2000), options: PERSONAL }), 0);
+  assert.equal(voucherRedeemMaxCents(items, mehrzweck(5000), { vouchers: promo(2200), options: INHABER }), 0);
+  assert.equal(voucherRedeemMaxCents(items, einzweck(5000, 2000), { vouchers: promo(2200), options: INHABER }), 0);
+});
+
+test('Vorbelegung wirft nie: nicht rechenbarer Beleg (Trinkgeld ohne Ware) ergibt 0', () => {
+  assert.equal(voucherRedeemMaxCents([pos('Gratisprobe', 0, 20)], mehrzweck(5000), { options: PERSONAL }), 0);
+  assert.equal(voucherRedeemMaxCents([pos('Gratisprobe', 0, 20)], einzweck(5000, 2000), { options: INHABER }), 0);
+  assert.equal(voucherRedeemMaxCents([], mehrzweck(5000), { options: PERSONAL }), 0);
+  // Ohne Empfaenger (tip_recipient_missing) ebenso.
+  assert.equal(voucherRedeemMaxCents([pos('Maniküre', 2000, 20)], mehrzweck(5000), { options: { tip: 200 } }), 0);
+  // Schon gewaehlte Gutscheine decken das Trinkgeld bereits: 0 statt Wurf.
+  const vorher: Voucher[] = [{ action: 'redeem', type: 'multi_purpose', code: CODE_P, amountCents: 2100 }];
+  assert.equal(voucherRedeemMaxCents([pos('Maniküre', 2000, 20)], mehrzweck(5000), { vouchers: vorher, options: { ...PERSONAL, voucherInfo: [{ code: CODE_P, check: mehrzweck(5000) }] } }), 0);
+});
+
 // --- Auszahlung: Zahlungen ------------------------------------------------------------
 
 test('Beleg nur aus einer Auszahlung: genau eine negative Barzahlung ueber den Zahlbetrag', () => {
