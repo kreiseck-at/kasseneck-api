@@ -97,6 +97,19 @@ test('Duplikat: idempotent -- zweimal angewandt wie einmal (Erkennung an der eig
   assert.deepEqual(markAsDuplicate(artikel).lines, [AUFDRUCK, ...artikel.lines]);
 });
 
+test('Duplikat: die Erkennung sieht nur Art und Text der ersten Zeile, nicht den Ton', () => {
+  // Ein „DUPLIKAT“-Rahmen im Ton `warning` an erster Stelle gilt als schon gekennzeichnet:
+  // ein zweiter Aufdruck mit anderem Ton stuende sonst doppelt auf dem Bon.
+  const warnung: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
+    { kind: 'banner', text: 'DUPLIKAT', tone: 'warning' },
+    { kind: 'text', text: 'Bäckerei Kornblum', align: 'center', bold: true },
+  ] };
+  assert.deepEqual(markAsDuplicate(warnung), warnung);
+  // Ein anderer Rahmen an erster Stelle (TESTKASSE) ist keine Kennzeichnung.
+  const testkasse = golden('test-cashregister-sale');
+  assert.deepEqual(markAsDuplicate(testkasse).lines.slice(0, 2).map((z) => z.kind === 'banner' && z.text), ['DUPLIKAT', testkasse.lines[0]!.kind === 'banner' && testkasse.lines[0]!.text]);
+});
+
 test('Duplikat: leeres Layout wirft nicht', () => {
   assert.deepEqual(markAsDuplicate({ paperSize: 'mm80', ruleset: 2, lines: [] }), { paperSize: 'mm80', ruleset: 2, lines: [AUFDRUCK] });
 });
@@ -127,6 +140,7 @@ test('Zwilling: Prueffaelle decken die Belegarten ab und nennen den Aufdruck', (
   }
   assert.ok(zwilling.cases.some((f) => f.times > 1), 'ein Fall wendet mehrfach an (Idempotenz)');
   assert.ok(zwilling.cases.some((f) => f.input?.lines.length === 0), 'ein Fall ohne Zeilen');
+  assert.ok(zwilling.cases.some((f) => f.input?.lines[0]?.kind === 'banner' && f.input.lines[0].tone === 'warning'), 'ein Fall mit DUPLIKAT im Ton warning');
   const hexDateien = readdirSync(new URL('expected/', wurzel)).filter((d) => d.startsWith('duplicate.')).sort();
   assert.deepEqual(hexDateien, zwilling.cases.filter((f) => f.print).map((f) => `duplicate.${f.name}.hex`).sort());
   assert.ok(hexDateien.length >= 2);

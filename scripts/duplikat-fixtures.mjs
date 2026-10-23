@@ -31,6 +31,18 @@ const faelle = [
   // Idempotenz: dreimal angewandt wie einmal.
   { name: 'sale-cash-three-times', receipt: 'sale-cash', times: 3 },
   { name: 'empty', input: { lines: [], paperSize: 'mm80', ruleset: 2 } },
+  // Erkennung ohne Ton: ein DUPLIKAT-Rahmen im Ton warning gilt als schon gekennzeichnet.
+  {
+    name: 'already-marked-warning-tone',
+    input: {
+      lines: [
+        { kind: 'banner', text: 'DUPLIKAT', tone: 'warning' },
+        { kind: 'text', text: 'Bäckerei Kornblum', align: 'center', bold: true },
+      ],
+      paperSize: 'mm80',
+      ruleset: 2,
+    },
+  },
 ];
 
 const golden = (name) => JSON.parse(readFileSync(new URL(`${name}.lines.json`, expected), 'utf8'));
