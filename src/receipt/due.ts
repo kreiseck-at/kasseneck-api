@@ -7,10 +7,10 @@ import { toViennaWallClock } from '../vienna-time.js';
 import {
   centSumme,
   istDeckbar,
-  trinkgeldCents,
   kuSaetze,
   planeGutscheine,
   topfFuerSatz,
+  trinkgeldCents,
   type Gutschein,
   type Innen,
   type VoucherDueArticle,
