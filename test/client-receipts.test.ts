@@ -105,7 +105,7 @@ const BELEG_NUTZLAST: ReceiptPayload = {
 /** Antworthuelle von `createReceipt`/`getReceipt`: Beleg plus Firmen-Metadaten. */
 const BELEG_ANTWORT = {
   receipt: BELEG_NUTZLAST,
-  vatId: 'ATU12345678',
+  vatId: 'ATU12345675',
   is_small_business: false,
   taxNumber: '12/345/6789',
   company: 'Musterfirma',

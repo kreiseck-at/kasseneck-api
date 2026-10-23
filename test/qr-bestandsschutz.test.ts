@@ -55,6 +55,9 @@ import { createEscPosDocument, escPosBytes, escPosQrCode } from '../src/printing
  * dem QR-Druckbefehl an die Stelle vor dem naechsten Element; sonst ist der
  * Strom byteidentisch.
  *
+ * Ersatzdaten (23.10.2026, R12): der Golden-Beleg traegt statt `ATU12345678` die pruefziffernrichtige
+ * `ATU12345675`; die Digests sind darum neu gezogen (nur die UID-Zeile aendert sich).
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
@@ -75,13 +78,13 @@ test('Bestandsschutz: Beleg auf 58 mm ist byteidentisch zum zugesagten Stand', (
     // verschiebt sich zum naechsten Element, siehe Kopfkommentar. Belegt:
     // tokenisierter Vorher/Nachher-Vergleich, einzige Abweichung ist genau
     // diese Verschiebung.
-    '521e45bb716bc552eab2163868806be07e626a6dc47cb1fdd71c3018d2c9d48b',
+    'a805e7a09063c9b8cf781d3dc03d5028a23b785c15a8101f0d589328ac6424fd',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 8b9eb8cc…), gleiche Gegenprobe wie oben.
-    '47ecc32e914cb5abe31386be45b80f3e33e890cea3ed80ea7268f69a7b0514db',
+    'cb63d5fc8e3abbdc4d888ff6aa0803e7553c35163467264e8768c218a5755f42',
   );
 });
 
@@ -90,13 +93,13 @@ test('Bestandsschutz: Beleg auf 80 mm ist byteidentisch zum zugesagten Stand', (
   assert.equal(
     digest(escPosLayoutBytes(layout)),
     // Rueckweg-Entfernung (vorher 49c45fd8…), gleiche Gegenprobe wie oben.
-    '947423a069cb37ada914bb9db3feeda4a07a5f9b627795cc769f98d06f605158',
+    'b62ab3a13df22fd6e507c4f685cb634c58933abf912d37188fa345001bacb287',
   );
   // Der alte Strom (Stand 0.8.0) ist weiter erreichbar: `klein` + `L`.
   assert.equal(
     digest(escPosLayoutBytes(layout, { qrModuleSize: 'small', qrCorrection: 'L' })),
     // Rueckweg-Entfernung (vorher 76755a9c…), gleiche Gegenprobe wie oben.
-    '81af1dd79232d4d387201dc3c107321cbaba21e11920a77a14a817e1a2aff658',
+    '43ef7cd0065814ab3c2e8fd5fef39334aa95a26b188d435dc9335b210532f0e2',
   );
 });
 

@@ -116,7 +116,7 @@ const BETRIEB = {
   email: 'chef@kornblum.at',
   address: { street: 'Hauptstrasse', number: '12a', zip: '5020', city: 'Salzburg' },
   state: 'AT-5',
-  taxDetails: { taxNumber: '12-345/6789', smallBusiness: false },
+  taxDetails: { taxNumber: '91-123/4565', smallBusiness: false },
   contacts: [{ name: 'Anna Kornblum', email: 'anna@kornblum.at' }],
 } as const;
 

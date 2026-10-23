@@ -41,7 +41,7 @@ export interface CustomerInput {
   city?: string;
   /** ISO-3166-Alpha-2, z. B. `AT`. */
   country: string;
-  /** UID-Nummer, z. B. `ATU12345678`. */
+  /** UID-Nummer, z. B. `ATU12345675`. */
   vatId?: string;
   /** Kuerzel fuer die Rechnungsnummer; einmal gesetzt unveraenderlich. */
   shortCode?: string;

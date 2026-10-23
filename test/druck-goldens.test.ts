@@ -34,6 +34,10 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * und der Leistungsgutschein heisst dort `Leistungsgutschein Maniküre (2 Stück)` (Backend 8a78fc23). Gezeichnet wird
  * die Antwort unveraendert; nur die Eingabe hat sich geaendert. Alle anderen Digests blieben.
  *
+ * Ersatzdaten (23.10.2026, R12): die Golden-Belege tragen statt `ATU12345678`/`12-345/6789` die pruefziffernrichtigen
+ * Werte `ATU12345675`/`91-123/4565`; die Digests von `receipts` und `ruleset1` sind darum neu gezogen (nur die Kopfzeile
+ * mit der UID aendert sich). `server` und `shift` stammen aus dem Vertrag und blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

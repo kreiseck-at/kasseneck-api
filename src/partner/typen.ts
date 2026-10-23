@@ -127,7 +127,7 @@ export interface BusinessAddress {
 }
 
 export interface BusinessTaxDetails {
-  /** Steuernummer im Format `12-345/6789`; die Pruefziffer wird geprueft. */
+  /** Steuernummer im Format `91-123/4565`; die Pruefziffer wird geprueft. */
   taxNumber: string;
   smallBusiness: boolean;
   /**

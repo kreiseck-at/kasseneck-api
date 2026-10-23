@@ -50,7 +50,7 @@ const T = 1788052010642;
 const konto = nach('konto', ['functions-partner/partner-core.js', 'functions-partner/gemeinsam/kunden-status-core.js', 'functions/gemeinsam/api-vokabular-v3.js'], {
   company_name: 'Baeckerei Kornblum e.U.', rechtsform: 'einzel', email: 'office@kornblum.at', env: 'live', liveEnabled: true,
   bundesland: 'wien', address: { street: 'Hauptstrasse', number: '12a', zip: '1010', city: 'Wien' },
-  tax_details: { taxnr: '12-345/6789', uid: 'ATU12345675', is_small_business: false },
+  tax_details: { taxnr: '91-123/4565', uid: 'ATU12345675', is_small_business: false },
   contacts: [{ name: 'Anna Kornblum', email: 'anna@kornblum.at', roles: ['geschaeftsfuehrung', 'kasse'] }],
   onboarding: { status: 'signatur_bereit', statusAt: T },
   partner: { appId: 'a_1', angelegtAt: T - 1000, angelegtVia: 'api' },

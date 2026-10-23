@@ -38,6 +38,9 @@ import { escPosLayoutBytes, type ReceiptLayout } from '../src/receipt/index.js';
  * gezogene Vertragsdatei zur Dart-Quelle passt, prueft dort
  * `test/marke_test.dart`; beides zusammen schliesst die Kette.
  *
+ * Ersatzdaten (23.10.2026, R12): der Golden-Beleg traegt statt `ATU12345678` die pruefziffernrichtige
+ * `ATU12345675`; die Digests sind darum neu gezogen (nur die UID-Zeile aendert sich).
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
@@ -55,19 +58,19 @@ const digest = (paperSize: 'mm58' | 'mm80', marke: boolean): string =>
   createHash('sha256').update(escPosLayoutBytes(layout(paperSize), { brandMark: marke })).digest('hex');
 
 test('58 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', false), '521e45bb716bc552eab2163868806be07e626a6dc47cb1fdd71c3018d2c9d48b');
+  assert.equal(digest('mm58', false), 'a805e7a09063c9b8cf781d3dc03d5028a23b785c15a8101f0d589328ac6424fd');
 });
 
 test('80 mm ohne Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', false), '947423a069cb37ada914bb9db3feeda4a07a5f9b627795cc769f98d06f605158');
+  assert.equal(digest('mm80', false), 'b62ab3a13df22fd6e507c4f685cb634c58933abf912d37188fa345001bacb287');
 });
 
 test('58 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm58', true), '83d391bdf5ab85602686009c59281223d267b10b57cca9750a88007d9c984823');
+  assert.equal(digest('mm58', true), 'c70419bd79bed9a860f9f506bf72b4954b57050346ab344467f20c27d1edc9c3');
 });
 
 test('80 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(digest('mm80', true), 'b40133de3fc03e9a3884123ebc16a5dc8bf97b089e7609952590dfb119203ace');
+  assert.equal(digest('mm80', true), '0e476d59f8ff4995869b4e084d4632040f313d5dfdc6a6254c457e0396e1cd3d');
 });
 
 /*
