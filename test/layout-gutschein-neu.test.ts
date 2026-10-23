@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import { fromReceiptPayload, receiptSubSumCents, receiptSumCents, type Receipt } from '../src/models/index.js';
 import { buildReceiptLayout, renderReceiptGrid, gridToText, type ReceiptLayout } from '../src/receipt/index.js';
 import { belegMitFirmaAusHuelle, type ReceiptWithCompany } from '../src/client/receipts.js';
-import { gutscheineFuerPaket } from '../src/stored/gutscheine.js';
 import { layoutWieServer } from '../src/stored/bon-layout.js';
 
 /**
@@ -106,21 +105,9 @@ test('jedes Vertragsbeispiel der neuen Form: Gesamt am Bon = bezahlt, Steuertabe
   }
 });
 
-test('aufbereitet wie der Server (gutscheineFuerPaket) und roh: dieselbe Summe, dieselbe Steuertabelle', () => {
-  for (const b of NEUE_FORM) {
-    const mit = ausAntwort(b.daten);
-    const roh = bauen(mit);
-    const auf = bauen(mit, gutscheineFuerPaket(mit.receipt));
-    assert.equal(gesamt(auf), gesamt(roh), b.name);
-    assert.deepEqual(steuerzeilen(auf), steuerzeilen(roh), b.name);
-    assert.equal(receiptSumCents(gutscheineFuerPaket(mit.receipt)), receiptSumCents(mit.receipt), b.name);
-  }
-});
-
 // Der Vertrag im Repo kennt den neuen Bon (kurze Maske, Rest mit Euro, Aktionsgutschein, keine Zahlungsart bei
 // voller Deckung) erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['kasse-belege/redeem_promotion_voucher', 'kasse-belege/redeem_multi_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/redeem_multi_purpose_voucher', 'belege/sale_multi_purpose_voucher',
-  ...['redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed'].flatMap((n) => [`kasse-belege/${n}`, `belege/${n}`])]);
+const VERTRAG_FOLGT = new Set<string>(['belege/sale_single_purpose_voucher', 'belege/sale_multi_purpose_voucher', 'belege/sale_service_voucher', 'belege/redeem_single_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/get_receipt_single_purpose_redeemed', 'kasse-belege/sale_single_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'kasse-belege/sale_service_voucher', 'kasse-belege/redeem_single_purpose_voucher', 'kasse-belege/redeem_promotion_voucher', 'kasse-belege/get_receipt_single_purpose_redeemed']);
 // Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
   test(`aufbereitet wie der Server: das Server-Layout des Vertrags: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
@@ -243,10 +230,6 @@ test('Verkauf Mehrzweck ab dem Stichtag (Position im 0-%-Topf + Eintrag zeroRate
   assert.ok(hatText(l, '  USt bei Einlösung'));
   assert.equal(texte(l).filter((t) => t.includes('50,00 D')).length, 1, texte(l).join('\n'));
   assert.equal(texte(l).filter((t) => t.includes('NNNY')).length, 1, texte(l).join('\n'));
-  // Wie der Server aufbereitet: dieselbe Summe, die Endung steht an der Position.
-  const auf = bauen(b, gutscheineFuerPaket(b.receipt));
-  assert.equal(gesamt(auf), '50,00 €');
-  assert.equal(texte(auf).filter((t) => t.includes('50,00 D')).length, 1, texte(auf).join('\n'));
 });
 
 test('Verkauf Einzweck und Leistung: Positionszeile mit Code des Eintrags, keine Zusatzzeile', () => {

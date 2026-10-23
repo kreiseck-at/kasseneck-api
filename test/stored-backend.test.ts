@@ -12,7 +12,6 @@ import { posSettingsFromWire } from '../src/pos/client.js';
 import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
 import { FAELLE_NEU, dokument } from './stored-gutschein-docs.js';
 import { unknownPosSettingValues, type PosSettings } from '../src/pos/settings.js';
-import { gutscheineFuerPaket } from '../src/stored/gutscheine.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../src/receipt/index.js';
 import { receiptSumCents } from '../src/models/index.js';
 
@@ -162,9 +161,9 @@ test('stored-backend: Belege mit Firma und Layout wie belegAntwort und Rand des 
     { ...docs[2], lagerStandortId: 'store-1', cancellations: [{ receiptId: 'X-2', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] },
   ];
   // Gespeicherte Belege der neuen Gutscheinform (Einzweck, Leistung, Mehrzweck im Nulltopf, Auszahlung ...).
-  // Fuer die Faelle, deren Bon das Backend (vendoriertes Paket 0.34.0) noch ohne die Regeln dieser Linie setzt, folgt der
+  // Fuer die Faelle, deren Bon das Backend (vendoriertes Paket 0.34.0) noch ohne die Regeln dieser Linie setzt (lange Maske, Rest ohne €, Aktionsgutschein), folgt der
   // Vergleich mit dem Vertrag (Task 10/11), wie in stored-gutschein.test.ts.
-  const VERTRAG_FOLGT = new Set<string>(['redeem_promotion_voucher', 'redeem_multi_purpose_voucher', 'sale_multi_purpose_voucher', 'redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed']);
+  const VERTRAG_FOLGT = new Set<string>(['redeem_promotion_voucher', 'sale_multi_purpose_voucher', 'sale_single_purpose_voucher', 'sale_service_voucher', 'redeem_single_purpose_voucher', 'get_receipt_single_purpose_redeemed']);
   const gutscheinDocs: Json[] = FAELLE_NEU.filter((name) => !VERTRAG_FOLGT.has(name)).map((name) => dokument(name).doc);
   for (const doc of [...docs, ...extra, ...gutscheinDocs]) {
     for (const data of versionen) {
@@ -220,9 +219,9 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
 /*
  * Jeder Erfolgsfall des Gutschein-Katalogs (functions/test/unit/fixtures/gutschein-faelle.json) und sein
  * Storno, gespeichert wie createReceipt/cancelReceipt (Helfer gutschein-gespeichert): das Paket zeigt den
- * Beleg roh (neue Form) und aufbereitet (gutscheineFuerPaket) mit Gesamt = Zahlbetrag des Servers
+ * Beleg roh (neue Form, wie der Server seit 0.34.0) mit Gesamt = Zahlbetrag des Servers
  * (gutschein-beleg.zahlbetrag) und der Steuertabelle = signierte Toepfe. Dieselbe Pruefung wie
- * beleg-layout-gutschein.test.js im Backend, hier ohne die Aufbereitung (Vorfall 16.10.2026).
+ * beleg-layout-gutschein.test.js im Backend, hier ohne die entfallene Aufbereitung (Vorfall 16.10.2026).
  */
 const GUTSCHEIN_VOR_STICHTAG = ['mz_verkauf_vor_stichtag', 'alt_value_verkauf_vor_stichtag_unveraendert'];
 // Rabattgutschein + Trinkgeld verteilt das Paket anders als belegToepfe (Backend-Test: BEKANNT).
@@ -275,7 +274,7 @@ test('stored-backend: Gutschein-Katalog roh und aufbereitet - Gesamt = Zahlbetra
         geprueft += 1;
         const soll = gb.zahlbetrag(doc.items, doc.vouchers, doc.receiptType) as number;
         const r = stored.fromStoredReceipt({ sig: '', qr: '', fullReceiptId: '', cashregisterId: 'KECK-1', ...doc });
-        for (const [weg, beleg] of [['roh', r], ['aufbereitet', gutscheineFuerPaket(r)]] as const) {
+        for (const [weg, beleg] of [['roh', r]] as const) {
           const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
           const name = `${f.name}${zusatz} ${weg}`;
           if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);

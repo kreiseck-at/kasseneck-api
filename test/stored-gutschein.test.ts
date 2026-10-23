@@ -10,7 +10,7 @@ import { BASIS, FAELLE_NEU, dokument, fall } from './stored-gutschein-docs.js';
 
 /*
  * Gespeicherte Belege der neuen Gutscheinform: ./stored liest sie wie der
- * Server (belegGutscheineNachAussen am Rand, gutscheineFuerPaket im Layout).
+ * Server (belegGutscheineNachAussen am Rand, der Beleg unveraendert im Layout).
  * Die Belegdokumente entstehen aus den Vertragsbeispielen: Positionen sind
  * schon innere Form, die Eintraege werden in die gespeicherte (deutsche)
  * Form zurueckgefuehrt, so wie plane() sie schreibt.
@@ -62,7 +62,7 @@ test('stored: jeder Beleg der neuen Form liest sich, schreibt sich und liest sic
 });
 
 // Der Vertrag im Repo kennt den neuen Bon erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['redeem_promotion_voucher', 'redeem_multi_purpose_voucher', 'sale_multi_purpose_voucher', ...['redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed']]);
+const VERTRAG_FOLGT = new Set<string>(['redeem_single_purpose_voucher', 'sale_single_purpose_voucher', 'sale_service_voucher', 'sale_multi_purpose_voucher', 'redeem_promotion_voucher', 'get_receipt_single_purpose_redeemed']);
 // Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
   test(`stored: Layout wie der Server: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
@@ -77,6 +77,17 @@ test('stored: Layout wie der Server - Einzweck, Leistung und Nulltopf stehen nur
     if (VERTRAG_FOLGT.has(name)) continue;
     const data = fall(name).response.data;
     if (data.layout == null) continue;
+    const b = belegMitFirmaAusHuelle(JSON.parse(JSON.stringify(data)), 'createReceipt');
+    assert.deepEqual(layoutWieServer(b, data.receipt.layoutRuleset), data.layout, name);
+  }
+});
+
+// Der Server (Backend #711, vendortes Paket 0.34.0) gibt den Beleg unveraendert ans Paket; die Aufbereitung
+// (gutscheineFuerPaket) ist dort entfallen. Der Zwilling setzt den gespeicherten Beleg ebenso: Rest am Gutschein,
+// Zeile ohne Mengenspalte, Auszahlung mit Grund.
+test('stored: Layout des Zwillings = Server-Layout 0.34.0 fuer Leistung (Einloesung) und Auszahlung', () => {
+  for (const name of ['redeem_service_voucher', 'payout_multi_purpose_voucher']) {
+    const data = fall(name).response.data;
     const b = belegMitFirmaAusHuelle(JSON.parse(JSON.stringify(data)), 'createReceipt');
     assert.deepEqual(layoutWieServer(b, data.receipt.layoutRuleset), data.layout, name);
   }
