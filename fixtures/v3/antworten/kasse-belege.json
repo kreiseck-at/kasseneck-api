@@ -1,9 +1,9 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "d43bc765cb47497658bfc93ae64e06bffbb293585373d7231b50cb3438a8157d",
-    "inputsSha256": "29f295ee139942d79758255d7b6284e2810477e4e22249d9b703c0110129e78b",
-    "backendPackage": "@kreiseck/kasseneck-api@0.33.1",
+    "sha256": "62e5ef673b3d6ec89a0ebe2fcc444234f87d4791d2a9c9614ba7c5d4591afee6",
+    "inputsSha256": "3a62b05f8ffc2d691d4181e785f77ac9513f729e9a5b31271240591c81ed423e",
+    "backendPackage": "@kreiseck/kasseneck-api@0.34.0",
     "inputs": [
       "docs/api/fehlercodes.json",
       "functions-kasse/test/unit/fixtures/kassen-codes-v3.js",
@@ -4864,7 +4864,7 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Wertgutschein ····-····-NNNY - Mehrzweckgutschein",
+                    "text": "1  x Mehrzweckgutschein ····-····-NNNY",
                     "width": 7,
                     "align": "left"
                   },
@@ -4874,6 +4874,12 @@
                     "align": "right"
                   }
                 ]
+              },
+              {
+                "kind": "text",
+                "text": "  USt bei Einlösung",
+                "align": "left",
+                "bold": false
               },
               {
                 "kind": "space",
@@ -5086,7 +5092,7 @@
                   "priceCents": 3500
                 },
                 "quantity": 2,
-                "name": "Leistungsgutschein 2× Maniküre",
+                "name": "Leistungsgutschein Maniküre (2 Stück)",
                 "code": "····-····-RRRF",
                 "codeSuffix": "RRRF",
                 "voucherId": "auto6"
@@ -5122,7 +5128,7 @@
             "layoutRuleset": 2,
             "items": [
               {
-                "name": "Leistungsgutschein 2× Maniküre",
+                "name": "Leistungsgutschein Maniküre (2 Stück)",
                 "vat": 20,
                 "vatRate": 20,
                 "priceOne": 70,
@@ -5237,7 +5243,7 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Leistungsgutschein 2× Maniküre ····-····-RRRF",
+                    "text": "1  x Leistungsgutschein Maniküre (2 Stück) ····-····-RRRF",
                     "width": 7,
                     "align": "left"
                   },
@@ -5384,6 +5390,7 @@
               "codeSuffix": "RRRF",
               "faceValueCents": 7000,
               "quantity": 2,
+              "articleName": "Maniküre",
               "validity": {
                 "pattern": "unlimited",
                 "redeemableUntil": null,
@@ -5696,12 +5703,27 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "Wertgutschein ····-····-5KNZ - Gutschein",
+                    "text": "Gutschein ····-5KNZ",
                     "width": 8,
                     "align": "left"
                   },
                   {
                     "text": "-17,50 €",
+                    "width": 4,
+                    "align": "right"
+                  }
+                ]
+              },
+              {
+                "kind": "columns",
+                "columns": [
+                  {
+                    "text": "  Rest am Gutschein",
+                    "width": 8,
+                    "align": "left"
+                  },
+                  {
+                    "text": "32,50 €",
                     "width": 4,
                     "align": "right"
                   }
@@ -6024,13 +6046,34 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Gutschein ····-5KN2",
-                    "width": 7,
+                    "text": "Gutschein ····-5KN2",
+                    "width": 8,
                     "align": "left"
                   },
                   {
                     "text": "-3,00 A",
-                    "width": 5,
+                    "width": 4,
+                    "align": "right"
+                  }
+                ]
+              },
+              {
+                "kind": "text",
+                "text": "  Einzweck, versteuert mit Beleg KECK-0-ID-1",
+                "align": "left",
+                "bold": false
+              },
+              {
+                "kind": "columns",
+                "columns": [
+                  {
+                    "text": "  Rest am Gutschein",
+                    "width": 8,
+                    "align": "left"
+                  },
+                  {
+                    "text": "17,00  ",
+                    "width": 4,
                     "align": "right"
                   }
                 ]
@@ -6443,13 +6486,34 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Gutschein ····-5KNN",
-                    "width": 7,
+                    "text": "Gutschein ····-5KNN",
+                    "width": 8,
                     "align": "left"
                   },
                   {
                     "text": "-35,00 A",
-                    "width": 5,
+                    "width": 4,
+                    "align": "right"
+                  }
+                ]
+              },
+              {
+                "kind": "text",
+                "text": "  Leistung, versteuert mit Beleg KECK-0-ID-1",
+                "align": "left",
+                "bold": false
+              },
+              {
+                "kind": "columns",
+                "columns": [
+                  {
+                    "text": "  Rest am Gutschein",
+                    "width": 8,
+                    "align": "left"
+                  },
+                  {
+                    "text": "2 Stück",
+                    "width": 4,
                     "align": "right"
                   }
                 ]
@@ -7219,16 +7283,22 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Auszahlung Gutschein ····-8CN5",
-                    "width": 7,
+                    "text": "Auszahlung Gutschein ····-8CN5",
+                    "width": 8,
                     "align": "left"
                   },
                   {
                     "text": "-30,00 D",
-                    "width": 5,
+                    "width": 4,
                     "align": "right"
                   }
                 ]
+              },
+              {
+                "kind": "text",
+                "text": "  Grund: Kunde zieht weg",
+                "align": "left",
+                "bold": false
               },
               {
                 "kind": "space",
@@ -7579,13 +7649,34 @@
                 "kind": "columns",
                 "columns": [
                   {
-                    "text": "1  x Gutschein ····-5KN2",
-                    "width": 7,
+                    "text": "Gutschein ····-5KN2",
+                    "width": 8,
                     "align": "left"
                   },
                   {
                     "text": "-3,00 A",
-                    "width": 5,
+                    "width": 4,
+                    "align": "right"
+                  }
+                ]
+              },
+              {
+                "kind": "text",
+                "text": "  Einzweck, versteuert mit Beleg KECK-0-ID-1",
+                "align": "left",
+                "bold": false
+              },
+              {
+                "kind": "columns",
+                "columns": [
+                  {
+                    "text": "  Rest am Gutschein",
+                    "width": 8,
+                    "align": "left"
+                  },
+                  {
+                    "text": "17,00  ",
+                    "width": 4,
                     "align": "right"
                   }
                 ]
