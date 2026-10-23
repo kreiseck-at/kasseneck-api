@@ -80,13 +80,7 @@
     },
     {
       "art": "zeile",
-      "text": "Mehrzweckgutschein              ",
-      "fett": false,
-      "leer": false
-    },
-    {
-      "art": "zeile",
-      "text": "····-····-NNNY                  ",
+      "text": "Mehrzweckgutschein ····-NNNY    ",
       "fett": false,
       "leer": false
     },

@@ -98,7 +98,7 @@ test('Spec-Beispiel Einzweck: Gutscheinzeile, versteuert mit Beleg, Rest am Guts
   assert.ok(hatSpalten(l, [['1  x Maniküre', 7], ['35,00 A', 5]]), texte(l).join('\n'));
   assert.ok(hatSpalten(l, [['Gutschein ····-9DWT', 8], ['-30,50 A', 4]]), texte(l).join('\n'));
   assert.ok(hatText(l, '  Einzweck, versteuert mit Beleg K1-ID-4711'), texte(l).join('\n'));
-  assert.ok(hatSpalten(l, [['  Rest am Gutschein', 8], ['19,50  ', 4]]), texte(l).join('\n'));
+  assert.ok(hatSpalten(l, [['  Rest am Gutschein', 8], ['19,50 €', 4]]), texte(l).join('\n'));
   assert.equal(gesamt(l), '4,50 €');
   assert.equal(receiptSumCents(r), 450);
   assert.deepEqual(steuerzeilen(l), { A: 450 });
@@ -106,7 +106,7 @@ test('Spec-Beispiel Einzweck: Gutscheinzeile, versteuert mit Beleg, Rest am Guts
   assert.equal(texte(l).filter((t) => t.includes('9DWT')).length, 1, texte(l).join('\n'));
   assert.ok(!texte(l).some((t) => t.startsWith('Zwischensumme')));
   const i = texte(l).indexOf('Gutschein ····-9DWT | -30,50 A');
-  assert.deepEqual(texte(l).slice(i, i + 3), ['Gutschein ····-9DWT | -30,50 A', '  Einzweck, versteuert mit Beleg K1-ID-4711', '  Rest am Gutschein | 19,50  ']);
+  assert.deepEqual(texte(l).slice(i, i + 3), ['Gutschein ····-9DWT | -30,50 A', '  Einzweck, versteuert mit Beleg K1-ID-4711', '  Rest am Gutschein | 19,50 €']);
 });
 
 test('Spec-Beispiel im Zeichenraster (80 mm und 58 mm)', () => {
@@ -117,7 +117,7 @@ test('Spec-Beispiel im Zeichenraster (80 mm und 58 mm)', () => {
     '1  x Maniküre                            35,00 A',
     'Gutschein ····-9DWT                     -30,50 A',
     '  Einzweck, versteuert mit Beleg K1-ID-4711     ',
-    '  Rest am Gutschein                      19,50  ',
+    '  Rest am Gutschein                      19,50 €',
   ]);
   const z32 = raster(l, 32);
   const k = z32.findIndex((z) => z.startsWith('Gutschein ····-9DWT'));
@@ -125,7 +125,7 @@ test('Spec-Beispiel im Zeichenraster (80 mm und 58 mm)', () => {
     'Gutschein ····-9DWT     -30,50 A',
     '  Einzweck, versteuert mit Beleg',
     '  K1-ID-4711                    ',
-    '  Rest am Gutschein      19,50  ',
+    '  Rest am Gutschein      19,50 €',
   ]);
 });
 
@@ -163,7 +163,7 @@ test('Verkauf Mehrzweck ab dem Stichtag (Position im 0-%-Topf + Eintrag imNullTo
   assert.equal(receiptSumCents(r), 3000);
   assert.equal(gesamt(l), '30,00 €');
   assert.deepEqual(steuerzeilen(l), { D: 3000 });
-  assert.ok(hatSpalten(l, [['1  x Mehrzweckgutschein ····-····-NNNY', 7], ['30,00 D', 5]]), texte(l).join('\n'));
+  assert.ok(hatSpalten(l, [['1  x Mehrzweckgutschein ····-NNNY', 7], ['30,00 D', 5]]), texte(l).join('\n'));
   assert.ok(hatText(l, '  USt bei Einlösung'));
   assert.equal(texte(l).filter((t) => t.includes('30,00 D')).length, 1, texte(l).join('\n'));
   assert.equal(texte(l).filter((t) => t.includes('NNNY')).length, 1, texte(l).join('\n'));
@@ -174,7 +174,7 @@ test('Verkauf Mehrzweck vor dem Stichtag (nur Eintrag): Zeile mit Code und „US
   roh.items = [];
   delete roh.vouchers[0].imNullTopf;
   const l = bauen(lesen(roh));
-  assert.ok(hatSpalten(l, [['1  x Mehrzweckgutschein ····-····-NNNY', 7], ['30,00 D', 5]]), texte(l).join('\n'));
+  assert.ok(hatSpalten(l, [['1  x Mehrzweckgutschein ····-NNNY', 7], ['30,00 D', 5]]), texte(l).join('\n'));
   assert.ok(hatText(l, '  USt bei Einlösung'));
   assert.equal(texte(l).filter((t) => t.includes('30,00 D')).length, 1);
   assert.equal(gesamt(l), '30,00 €');
@@ -182,8 +182,8 @@ test('Verkauf Mehrzweck vor dem Stichtag (nur Eintrag): Zeile mit Code und „US
 
 test('Verkauf Einzweck und Leistung: Positionszeile mit Code des Eintrags, keine Zusatzzeile, keine 0-%-Zeile', () => {
   const l = bauen(lesen(lade('gutschein-einzweck-leistung-verkauf').receipt));
-  assert.ok(hatSpalten(l, [['1  x Einzweckgutschein 20 % ····-····-JJJ2', 7], ['50,00 A', 5]]), texte(l).join('\n'));
-  assert.ok(hatSpalten(l, [['1  x Leistungsgutschein 10× Maniküre ····-····-RRRF', 7], ['350,00 A', 5]]), texte(l).join('\n'));
+  assert.ok(hatSpalten(l, [['1  x Einzweckgutschein 20 % ····-JJJ2', 7], ['50,00 A', 5]]), texte(l).join('\n'));
+  assert.ok(hatSpalten(l, [['1  x Leistungsgutschein 10× Maniküre ····-RRRF', 7], ['350,00 A', 5]]), texte(l).join('\n'));
   assert.ok(!texte(l).some((t) => t.includes('USt bei Einlösung')));
   assert.deepEqual(l.lines.filter((z) => z.kind === 'columns' && /^D /.test(z.columns[0]!.text)), []);
   assert.equal(gesamt(l), '400,00 €');
@@ -268,8 +268,8 @@ test('Zwei Gutscheine mit derselben Endung: jede Position genau einem Eintrag, d
   const t = texte(bauen(r));
   const i = t.indexOf('Gutschein ····-9DWT | -10,00 A');
   assert.deepEqual(t.slice(i, i + 6), [
-    'Gutschein ····-9DWT | -10,00 A', '  Einzweck, versteuert mit Beleg K1-ID-1', '  Rest am Gutschein | 40,00  ',
-    'Gutschein ····-9DWT | -5,00 A', '  Einzweck, versteuert mit Beleg K1-ID-2', '  Rest am Gutschein | 0,00  ',
+    'Gutschein ····-9DWT | -10,00 A', '  Einzweck, versteuert mit Beleg K1-ID-1', '  Rest am Gutschein | 40,00 €',
+    'Gutschein ····-9DWT | -5,00 A', '  Einzweck, versteuert mit Beleg K1-ID-2', '  Rest am Gutschein | 0,00 €',
   ], t.join('\n'));
   assert.equal(receiptSumCents(r), 3500);
 });
@@ -283,7 +283,7 @@ test('Auszahlungsposition nur zum Auszahlungseintrag, Einloesungsposition nur zu
   ];
   const t = texte(bauen(lesen(roh)));
   const i = t.indexOf('Gutschein ····-9DWT | -30,50 A');
-  assert.deepEqual(t.slice(i, i + 3), ['Gutschein ····-9DWT | -30,50 A', '  Einzweck, versteuert mit Beleg K1-ID-4711', '  Rest am Gutschein | 19,50  '], t.join('\n'));
+  assert.deepEqual(t.slice(i, i + 3), ['Gutschein ····-9DWT | -30,50 A', '  Einzweck, versteuert mit Beleg K1-ID-4711', '  Rest am Gutschein | 19,50 €'], t.join('\n'));
   const k = t.indexOf('Auszahlung Gutschein ····-9DWT | -5,00 A');
   assert.deepEqual(t.slice(k, k + 2), ['Auszahlung Gutschein ····-9DWT | -5,00 A', '  Grund: Rest bar'], t.join('\n'));
 });
@@ -325,4 +325,101 @@ test('Wie der Server heute aufbereitet (Eintraege mit Position weg, Code an der 
     assert.equal(gesamt(bauen(auf)), gesamt(bauen(r)), name);
     assert.deepEqual(steuerzeilen(bauen(auf)), steuerzeilen(bauen(r)), name);
   }
+});
+
+// ---- Bon-Feinschliff: eine kurze Maske, Zahlungsart nur bei Zahlung, Rest mit Euro ------------
+
+/** Spec-Beispiel (Maniküre 30,50, Gutschein -30,50), vollstaendig vom Gutschein gedeckt. */
+function gedeckt(payments: Json): Json {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-einzweck-einloesung').receipt));
+  r.items[0].unitPriceCents = 3050;
+  r.payments = payments;
+  return r;
+}
+const zahlungsart = (l: ReceiptLayout): string[] => texte(l).filter((t) => t.startsWith('Zahlungsart') || /^\d\. /.test(t));
+
+test('R3: voll gedeckter Beleg (0 Cent bezahlt) traegt keine Zahlungsart-Zeile, Gesamt bleibt', () => {
+  for (const zahlungen of [undefined, [], [{ id: 'p1', method: 'cash', amountCents: 0 }]]) {
+    const l = bauen(lesen(gedeckt(zahlungen)));
+    assert.equal(gesamt(l), '0,00 €');
+    assert.deepEqual(zahlungsart(l), [], texte(l).join('\n'));
+  }
+});
+
+test('R3: Gutschein plus Barzahlung 4,50 -- die Zahlungsart-Zeile bleibt', () => {
+  const l = bauen(specBeispiel());
+  assert.deepEqual(zahlungsart(l), ['Zahlungsart: | Barzahlung'], texte(l).join('\n'));
+});
+
+test('R3: mehrere Zahlungen mit Gutschein, eine mit 0 Cent -- diese fehlt, die Nummer bleibt', () => {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-einzweck-einloesung').receipt));
+  r.payments = [{ id: 'p1', method: 'cash', amountCents: 0 }, { id: 'p2', method: 'cash', amountCents: 250 }, { id: 'p3', method: 'cash', amountCents: 200 }];
+  const t = texte(bauen(lesen(r)));
+  assert.ok(!t.some((z) => z.startsWith('1. ')), t.join('\n'));
+  assert.ok(t.some((z) => z.startsWith('2. ') && z.endsWith('2,50 €')), t.join('\n'));
+  assert.ok(t.some((z) => z.startsWith('3. ') && z.endsWith('2,00 €')), t.join('\n'));
+});
+
+test('R3: Nullbeleg ohne Gutschein behaelt die Zahlungsart-Zeile', () => {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-einzweck-einloesung').receipt));
+  r.items = [{ name: 'Probe', quantity: 1, unitPriceCents: 0, vatRate: 20 }];
+  r.vouchers = [];
+  r.payments = [{ id: 'p1', method: 'cash', amountCents: 0 }];
+  assert.equal(zahlungsart(bauen(lesen(r))).length, 1);
+});
+
+test('R3: Aktionsgutschein deckt alles (Summe 0) -- die Zahlungsart-Zeile bleibt, Aktion ist keine Zahlung', () => {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-einzweck-einloesung').receipt));
+  r.items = [{ name: 'Probe', quantity: 1, unitPriceCents: 1000, vatRate: 20 }];
+  r.vouchers = [{ action: 'redeem', type: 'promo', name: 'Aktion', code: '····-····-5KNJ', valueCents: 1000 }];
+  r.payments = [{ id: 'p1', method: 'cash', amountCents: 0 }];
+  assert.equal(zahlungsart(bauen(lesen(r))).length, 1, texte(bauen(lesen(r))).join('\n'));
+});
+
+test('R3: mehrere Zahlungen ohne Gutschein behalten die 0-Cent-Zahlung', () => {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-einzweck-einloesung').receipt));
+  r.vouchers = [];
+  r.items = [{ name: 'Probe', quantity: 1, unitPriceCents: 500, vatRate: 20 }];
+  r.payments = [{ id: 'p1', method: 'cash', amountCents: 0 }, { id: 'p2', method: 'cash', amountCents: 500 }];
+  assert.ok(texte(bauen(lesen(r))).some((z) => z.startsWith('1. ')));
+});
+
+test('R3 (Review 4): Storno eines voll gedeckten Belegs zeigt keine „Barzahlung 0,00“', () => {
+  const r = gedeckt([{ id: 'p1', method: 'cash', amountCents: 0 }]);
+  r.receiptType = 'cancellation';
+  r.cancellationOf = { receiptId: 'AT0-KASSE1-42', fullReceiptId: null };
+  r.cancellationReason = 'kunde_storniert';
+  r.items = r.items.map((it: Json) => ({ ...it, unitPriceCents: -it.unitPriceCents }));
+  const l = bauen(lesen(r));
+  assert.deepEqual(zahlungsart(l), [], texte(l).join('\n'));
+});
+
+test('R5: Einzweck-Rest steht mit Euro', () => {
+  const l = bauen(specBeispiel());
+  assert.ok(hatSpalten(l, [['  Rest am Gutschein', 8], ['19,50 €', 4]]), texte(l).join('\n'));
+  assert.ok(!texte(l).some((t) => /Rest am Gutschein \| \d+,\d\d {2}$/.test(t)));
+});
+
+test('R2: Aktion „Aktionsgutschein ····-5KNJ - Aktion“ (kurze Maske, neues Wort); alter Name „Promotionsgutschein“ steht wie gespeichert', () => {
+  const r = JSON.parse(JSON.stringify(lade('gutschein-mehrzweck-einloesung').receipt));
+  r.vouchers = [{ action: 'redeem', type: 'promo', name: 'Aktion', code: '····-····-5KNJ', valueCents: 100 }];
+  assert.ok(texte(bauen(lesen(r))).some((t) => t.startsWith('Aktionsgutschein ····-5KNJ - Aktion')), texte(bauen(lesen(r))).join('\n'));
+  r.vouchers[0].name = 'Promotionsgutschein Herbst';
+  const t = texte(bauen(lesen(r)));
+  assert.ok(t.some((z) => z.startsWith('Promotionsgutschein Herbst')), t.join('\n'));
+  assert.ok(!t.some((z) => z.startsWith('Aktionsgutschein')), t.join('\n'));
+});
+
+test('R2: alter Beleg mit langer Maske und „×“-Name druckt mit kurzer Maske (Review 5)', () => {
+  const t = texte(bauen(lesen(lade('gutschein-einzweck-leistung-verkauf').receipt)));
+  assert.ok(t.some((z) => z.includes('Leistungsgutschein 10× Maniküre ····-RRRF')), t.join('\n'));
+  assert.ok(!t.some((z) => z.includes('····-····')), t.join('\n'));
+});
+
+test('R2: Verkauf ohne codeEnde: die Endung kommt aus dem Code-Ende; Code ohne Maske bleibt', () => {
+  const roh = JSON.parse(JSON.stringify(lade('gutschein-mehrzweck-verkauf').receipt));
+  delete roh.vouchers[0].codeEnde;
+  assert.ok(texte(bauen(lesen(roh))).some((z) => z.startsWith('1  x Mehrzweckgutschein ····-NNNY')), texte(bauen(lesen(roh))).join('\n'));
+  roh.vouchers[0].code = 'GS-1';
+  assert.ok(texte(bauen(lesen(roh))).some((z) => z.startsWith('1  x Mehrzweckgutschein GS-1')), texte(bauen(lesen(roh))).join('\n'));
 });

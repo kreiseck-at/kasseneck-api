@@ -107,5 +107,5 @@ test('Storno mit Aktionsgutschein: Gesamt -24,30 = Rueckzahlung, der Gutschein n
   assert.equal(receiptSumCents(STORNO_AKTION), -2430);
   const l = buildReceiptLayout(STORNO_AKTION, FIRMA);
   assert.equal(zeile(l, 'Gesamt:'), 'Gesamt: | -24,30 €');
-  assert.equal(zeile(l, 'Promotionsgutschein'), 'Promotionsgutschein ····-····-P3AK - Aktion | ');
+  assert.equal(zeile(l, 'Aktionsgutschein'), 'Aktionsgutschein ····-P3AK - Aktion | ');
 });

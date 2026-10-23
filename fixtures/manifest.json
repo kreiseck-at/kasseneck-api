@@ -11,27 +11,27 @@
     },
     "gutschein-einzweck-einloesung": {
       "eingabe": "2d715e960a0ea9e0410c19a01eb82227e86490eebe846b05cd9a6854fe891ef5",
-      "erwartet": "825dd31006febab3196094150020a9ef7fb9a3c52b103ca97434fac14524c833",
-      "grid32": "3a21155004e45efb7d52013f7f29a88541e36f356af0a0198f62e14e95d3e1c4",
-      "grid48": "14b3326bafc6f7e3b823fab0a424e8ee1efc5f3e24ef097d6a01dd8cd6ad30a7",
-      "blatt32": "40287a9f8f150ba1bedaa3c151bf1a184c3a5c6b4fefb18323e3ab9505fb127f",
-      "blatt48": "5fd84d1925467baea1fd0e3cc4a9654fa2eb6e97df1d4260cbe496fda8d145ac"
+      "erwartet": "b037cd104883126d0ce43f77a4e95a467a3cbcc0c5d9bb8a1fac7cd473212773",
+      "grid32": "a954d186e3fcb67bd42f7e28fb1d94b4870adf9bd7faf7fe1bcd1c8e0c3d6848",
+      "grid48": "ee0a36e70d3adaeb43d09bf9a61a4857787613b8fa7daeb677fff88ef5754946",
+      "blatt32": "1c8d785466c457187f0f8a56b40b14f43f60ef179ae9ba0efa2198fb08cdf6b0",
+      "blatt48": "4ff5c69f70939a4e9c5c930c36deb96df30e42e1dbfc264ee46c70f30ae6e4c5"
     },
     "gutschein-einzweck-einloesung-befreit": {
       "eingabe": "6f3d2ba880302c04df13dd0ba439accb19ee3c4563433045bd6857fc88690072",
-      "erwartet": "fd27e5193089a89a49e0bd6a1417dc677a33436da65a92755d56caa411519632",
-      "grid32": "3f1a6fbf95fea0dd62185eb966e6326868d691408655eca0d0b689e3b3aa6e79",
-      "grid48": "372a639cfd586e87f42ac73c34d5c21cc47d53ecab4c4078877a4bc472dccbcc",
-      "blatt32": "91dfb06c22cb5f4b5f662e010346ad4eeea4baaa79122b90b6762819cdedfd81",
-      "blatt48": "ff255a9fbde486f12317d82a11f63bc11a69262eb2b1a5f4ebe67845479ed101"
+      "erwartet": "d89c2e525d64664dde18ce7bc3e7115b9890c8c88739919a737cf77bcc350035",
+      "grid32": "75126b0d96a9fd1fef7d2f67e77dc2ae1e6c90514e3161877d7feaae59cbd73a",
+      "grid48": "c62dd227206dba665bf56c16e3ec7b757f07b95bac7cc9a9fff7c4fd6828e8cc",
+      "blatt32": "0c4f49d6ba41cae35b47014c0392b7f77a52e537d4650dde46b8d9a45530d6a9",
+      "blatt48": "abfd1556664fa18ff30012710e11d47afb9d4cc40508b168d63940814225f78a"
     },
     "gutschein-einzweck-leistung-verkauf": {
       "eingabe": "01f75fd07ffe34aa95f86da70a995eb944083d3215c88bb03685f976cf475f2e",
-      "erwartet": "bd509debebb576f0667c0872d1b982cc507e5305804e6f81328231392a3ceed9",
-      "grid32": "d18d949f96406c2885ee9d69f42c1ac81dd39757b017c380afe2146894023f4f",
-      "grid48": "b3ff2f94508a6904e51230b2af7364ea880d9c6903e80648ac09f07cf91aef71",
-      "blatt32": "422f8d6c888a6866e82735d5dd9e3766312566a6cfe18b4a63560de77ed73ca0",
-      "blatt48": "223a3c04fe14b6b9468459ff057384f86e69b0be7c39bf10b196e2961d33d88a"
+      "erwartet": "d6fdcc416a2cee27726955dd74a6db247114d07eeae6c113daed5aec6e093ca9",
+      "grid32": "a1eaa9a827a80f764a184730d8a725a4cf8c6477ef29801603778e20e24972dc",
+      "grid48": "374b5103a9635df57bcaa9b9b65f0a92d713358cc63bda3c147a572f9a385617",
+      "blatt32": "cee163fea47c580ef036d1f0b085cfff06eda89a6e13be4bf7c055ba3cbe0884",
+      "blatt48": "1ab495174dbf6787480ea29a13d3a6ad25c2a20d92b2a167f082b3965caed837"
     },
     "gutschein-leistung-einloesung": {
       "eingabe": "03b0330e71f08c2dfbebb9704b2fc0b3c066d6f9e6875718f9e3bf9a17ee7beb",
@@ -51,11 +51,11 @@
     },
     "gutschein-mehrzweck-verkauf": {
       "eingabe": "439066ed2ef8803526e42ce154b5f76266e4df4eb1822fea621045bf6cea098e",
-      "erwartet": "079f2ed94bb28510fd1e101007ad9bfe8c1c399fe9be3d0510cb5c5ca34c4c5c",
-      "grid32": "6efb9d4477f59f620135738dbd45a36e113215446bdb8577898a0dde48370630",
-      "grid48": "2a1eac91bbfc583f2f848068645bb7528b020885f95da050ad5ae9f3b164f62b",
-      "blatt32": "9ba6ce61614181f15eefaece157d8bafe37ccebb4c5792c5a503dedd86c618b9",
-      "blatt48": "b86bc98857f52ed4b4e2844874a96f9ac36f18c9a0b015f1f4b6969ead977b6f"
+      "erwartet": "773b437e47f95dbc995c3f58729af5fcd0353cdb43940aa61d3e3ed08d0b1248",
+      "grid32": "3d1a4283ef27250d670b1b5f555d24edbad5bb6f521e50a1f87e7a4c0e52a800",
+      "grid48": "4b17a89bf1396f7322b1d4466c91c048c5d75b1a5a47eee72407b03d65face8d",
+      "blatt32": "8e1931f904e0f551483c3ee2dc1069b6464e7bfefc1bbd0c5eec0580f9f65350",
+      "blatt48": "e50bce5db6781fb497dc253812b7cb9860342f6b686a5429bb66dd2f1ee4b5ac"
     },
     "gutschein-storno-einzweck": {
       "eingabe": "b63262fd7017df0f5f101aaaab1c0d764ec90ba6fb76d08ed7294e53bc1d26fd",

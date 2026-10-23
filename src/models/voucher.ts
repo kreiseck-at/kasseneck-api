@@ -202,8 +202,8 @@ function neueFormNachIntern(voucher: Voucher): VoucherPayload {
 
 /**
  * Ist der Gutschein an das Backend sendbar? Zwilling von `KeckVoucher.isValid`
- * im Flutter-Vorbild: Wert- und Promotionsgutscheine brauchen einen Wert,
- * Promotionsgutscheine duerfen nur eingeloest (nicht verkauft) werden, und ein
+ * im Flutter-Vorbild: Wert- und Aktionsgutscheine brauchen einen Wert,
+ * Aktionsgutscheine duerfen nur eingeloest (nicht verkauft) werden, und ein
  * gesetzter Wert muss positiv sein.
  */
 export function voucherIsValid(voucher: Voucher): boolean {

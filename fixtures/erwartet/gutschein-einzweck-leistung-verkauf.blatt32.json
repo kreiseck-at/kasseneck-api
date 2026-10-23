@@ -80,13 +80,7 @@
     },
     {
       "art": "zeile",
-      "text": "Einzweckgutschein 20 %          ",
-      "fett": false,
-      "leer": false
-    },
-    {
-      "art": "zeile",
-      "text": "····-····-JJJ2                  ",
+      "text": "Einzweckgutschein 20 % ····-JJJ2",
       "fett": false,
       "leer": false
     },
@@ -104,7 +98,7 @@
     },
     {
       "art": "zeile",
-      "text": "····-····-RRRF                  ",
+      "text": "····-RRRF                       ",
       "fett": false,
       "leer": false
     },
