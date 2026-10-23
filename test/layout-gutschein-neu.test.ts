@@ -119,7 +119,8 @@ test('aufbereitet wie der Server (gutscheineFuerPaket) und roh: dieselbe Summe, 
 
 // Der Vertrag im Repo kennt den neuen Bon (kurze Maske, Rest mit Euro, Aktionsgutschein, keine Zahlungsart bei
 // voller Deckung) erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['kasse-belege/redeem_promotion_voucher', 'kasse-belege/redeem_multi_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/redeem_multi_purpose_voucher', 'belege/sale_multi_purpose_voucher']);
+const VERTRAG_FOLGT = new Set<string>(['kasse-belege/redeem_promotion_voucher', 'kasse-belege/redeem_multi_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/redeem_multi_purpose_voucher', 'belege/sale_multi_purpose_voucher',
+  ...['redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed'].flatMap((n) => [`kasse-belege/${n}`, `belege/${n}`])]);
 // Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
   test(`aufbereitet wie der Server: das Server-Layout des Vertrags: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
@@ -252,7 +253,7 @@ test('Verkauf Einzweck und Leistung: Positionszeile mit Code des Eintrags, keine
   const ez = bauen(ausAntwort(beispiel('kasse-belege/sale_single_purpose_voucher')));
   assert.ok(hatSpalten(ez, [['1  x Einzweckgutschein 20 % ····-JJJ2', 7], ['50,00 A', 5]]), texte(ez).join('\n'));
   const ls = bauen(ausAntwort(beispiel('kasse-belege/sale_service_voucher')));
-  assert.ok(hatSpalten(ls, [['1  x Leistungsgutschein 2× Maniküre ····-RRRF', 7], ['70,00 A', 5]]), texte(ls).join('\n'));
+  assert.ok(hatSpalten(ls, [['1  x Leistungsgutschein Maniküre (2 Stück) ····-RRRF', 7], ['70,00 A', 5]]), texte(ls).join('\n'));
   assert.ok(!texte(ez).some((t) => t.includes('USt bei Einlösung')));
   assert.ok(!texte(ls).some((t) => t.includes('USt bei Einlösung')));
 });

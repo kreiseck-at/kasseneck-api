@@ -720,7 +720,7 @@ const gutscheinNeueForm = (receipt: Json): boolean =>
   (receipt.items ?? []).some((it: Json) => it.kind === 'voucher' || it.kind === 'voucher_float') || (receipt.vouchers ?? []).some((v: Json) => v.voucherType != null);
 
 // Der Vertrag im Repo kennt den neuen Bon erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['sale_multi_purpose_voucher', 'redeem_multi_purpose_voucher', 'redeem_promotion_voucher']);
+const VERTRAG_FOLGT = new Set<string>(['sale_multi_purpose_voucher', 'redeem_multi_purpose_voucher', 'redeem_promotion_voucher', ...['redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed', 'sale_single_purpose_voucher', 'sale_service_voucher']]);
 // Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
   test(`Kanal app: selbst gebautes Layout ist das Server-Layout: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, async () => {

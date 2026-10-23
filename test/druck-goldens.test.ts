@@ -25,6 +25,15 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * voucher-single-purpose-sale, voucher-single-purpose-redeem und -redeem-exempt sind absichtlich neu
  * gezogen (kurze Maske `····-XXXX`, Einzweck-Rest mit „€“); alle anderen Digests blieben.
  *
+ * Vertragszug (23.10.2026, Backend Tasks 1-3): die Digests der Server-Layouts von je sieben Faellen in `belege` und
+ * `kasse-belege` (sale_multi_purpose_voucher, sale_service_voucher, redeem_multi_purpose_voucher,
+ * redeem_single_purpose_voucher, redeem_service_voucher, payout_multi_purpose_voucher,
+ * get_receipt_single_purpose_redeemed) sind absichtlich neu gezogen: der Vertrag stammt jetzt vom Backend-Stand mit
+ * dem vendorierten Paket 0.34.0 (vorher 0.33.1; `_quelle.backendPackage`), dessen Server-Layout die Gutschein-Zeilen
+ * neu setzt (Mehrzweckgutschein statt Wertgutschein, Zeile mit Rest am Gutschein, Auszahlung ohne Mengenspalte),
+ * und der Leistungsgutschein heisst dort `Leistungsgutschein Maniküre (2 Stück)` (Backend 8a78fc23). Gezeichnet wird
+ * die Antwort unveraendert; nur die Eingabe hat sich geaendert. Alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

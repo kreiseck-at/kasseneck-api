@@ -62,7 +62,7 @@ test('stored: jeder Beleg der neuen Form liest sich, schreibt sich und liest sic
 });
 
 // Der Vertrag im Repo kennt den neuen Bon erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
-const VERTRAG_FOLGT = new Set<string>(['redeem_promotion_voucher', 'redeem_multi_purpose_voucher', 'sale_multi_purpose_voucher']);
+const VERTRAG_FOLGT = new Set<string>(['redeem_promotion_voucher', 'redeem_multi_purpose_voucher', 'sale_multi_purpose_voucher', ...['redeem_single_purpose_voucher', 'redeem_service_voucher', 'payout_multi_purpose_voucher', 'get_receipt_single_purpose_redeemed']]);
 // Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
   test(`stored: Layout wie der Server: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {

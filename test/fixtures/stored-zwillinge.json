@@ -3,7 +3,7 @@
     {
       "datei": "functions-kasse/kasse-settings-core.js",
       "marke": null,
-      "sha256": "dacb77872a9dfd9e5024bb5e863d5a0e5963933176f7e91464bdbab460fbe3dc"
+      "sha256": "218ed936617245002253493b8ead494d8764f818b528b7a58ec4f7afcca5e1b1"
     },
     {
       "datei": "functions-kasse/kasse-settings-v3.js",
@@ -33,7 +33,7 @@
     {
       "datei": "functions/beleg-layout.js",
       "marke": null,
-      "sha256": "706946f04ae05b68c6fba19fe12310efcfd45d88ef2ff97f9194d669ffc2c0f1"
+      "sha256": "58f39a04dfa0b6874b2f70e659a6228f5bea629b60391497455b44bf0901983e"
     },
     {
       "datei": "functions/beleg-pruefangaben.js",
