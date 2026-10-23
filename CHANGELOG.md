@@ -4,6 +4,14 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## Unreleased (1.14.0)
+
+Vouchers at the register, catch-up: words for the register navigation, the drawer reason of a voucher payout and three shortcut actions. Additive.
+
+- **24 labels in `LABELS`:** `quantity.at_most`/`at_least`, `receipts.number_hint`/`clear_number`/`open`, `receipt.creating`, `receipt_done.*` (sale, paid by voucher, payout, paid out), `voucher.code_mask` (`····-{suffix}`, next to the unchanged `voucher.payment_line`), `cart.close`, `nav.*` (register, receipts, vouchers, open drawer, stocktake, settings, settings locked, logout, logging out, fullscreen, fullscreen exit) and `drawer.reason_voucher_payout`. Reason: both registers kept these words in their own constants; one catalogue keeps them equal.
+- **Drawer reason `voucher_payout`** in `OPENING_REASONS` (the register reports it itself when a voucher is paid out; not in `MANUAL_OPENING_REASONS`). Reason: the server records the opening of the drawer with this reason, and the list equals the `/v3` vocabulary.
+- **Shortcut actions `shiftStatus`, `openDrawer`, `voucherPayout`** in `POS_SHORTCUT_ACTIONS`, without a default key (like `splitPayment`). The server does not hold them in its default map, so an answer without these keys reads as "no key" (empty list), never as an error and never as a guessed key. Reason: an unproven key is caught by some browser; the owner assigns one when needed.
+
 ## 1.13.0
 
 Vouchers at the register, stage 3: the sentences and words of the voucher screens move into the shared text catalogue, so the web register and the app register say the same. Additive; no existing key changes.

@@ -50,6 +50,17 @@ const VOKABULAR = lies('v3/v3-vokabular.json');
 const STANDARD = lies('pos-settings-defaults.json');
 const STANDARD_INNEN = lies('stored/pos-settings-defaults.json');
 
+/**
+ * Tasten-Aktionen, die der Server in seiner Vorgabekarte nicht fuehrt: fehlen
+ * sie in einer Antwort, liest das Paket sie als leere Liste (keine Taste).
+ */
+const KUERZEL_OHNE_SERVERVORGABE = ['shiftStatus', 'openDrawer', 'voucherPayout'];
+/** Das Geraet so, wie das Paket die Antwort des Servers liest: fehlende Aktionen als leere Liste. */
+const geraetGelesen = (device: Json): Json => ({
+  ...device,
+  shortcuts: { ...Object.fromEntries(KUERZEL_OHNE_SERVERVORGABE.map((a) => [a, []])), ...device.shortcuts },
+});
+
 const faelle = (endpunkt: string): Fall[] => KASSE[endpunkt]!.cases;
 const fall = (endpunkt: string, name: string): Fall => {
   const f = faelle(endpunkt).find((c) => c.case === name);
@@ -123,8 +134,13 @@ test('Standardwerte: die Drahtform ist die Antwort ohne gespeicherte Einstellung
   assert.deepEqual(STANDARD.business, fall('listRegisterUsersForDevice', 'account_without_settings').response.data.settings.business);
   assert.deepEqual(STANDARD.device, fall('getKasseSettings', 'cashier_unknown_device').response.data.device);
   assert.deepEqual(JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), STANDARD.business);
-  assert.deepEqual(JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), STANDARD.device);
-  assert.deepEqual({ ...POS_SHORTCUT_DEFAULTS }, STANDARD.device.shortcuts);
+  assert.deepEqual(JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), geraetGelesen(STANDARD.device));
+  assert.deepEqual({ ...POS_SHORTCUT_DEFAULTS }, geraetGelesen(STANDARD.device).shortcuts);
+  // Die drei Aktionen ohne Servervorgabe stehen nicht in der Antwort und sind im Paket leer.
+  for (const a of KUERZEL_OHNE_SERVERVORGABE) {
+    assert.equal(a in STANDARD.device.shortcuts, false, a);
+    assert.deepEqual(POS_SHORTCUT_DEFAULTS[a as keyof typeof POS_SHORTCUT_DEFAULTS], [], a);
+  }
 });
 
 /** Zuordnung innen -> aussen eines Wertverweises: benannter Katalog oder im Vertrag eingebettet. */
@@ -205,7 +221,7 @@ test('getPosSettings: sendet deviceId wie der Fall, liest {business, device}', a
     const { rufen, aufrufe } = kassenweg(f);
     const stand = await getPosSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
     assert.deepEqual(gesendet(aufrufe, 'getKasseSettings', f), f.params, f.case);
-    assert.deepEqual(stand, { business: f.response.data.business, device: f.response.data.device, vouchers: f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
+    assert.deepEqual(stand, { business: f.response.data.business, device: geraetGelesen(f.response.data.device), vouchers: f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
   }
 });
 
@@ -223,7 +239,7 @@ test('setMyRegisterDeviceSettings: sendet deviceId und device wie der Fall', asy
     const { rufen, aufrufe } = kassenweg(f);
     const stand = await setMyRegisterDeviceSettings(rufen, f.params.deviceId, f.params.device);
     assert.deepEqual(gesendet(aufrufe, 'setMyRegisterDeviceSettings', f), f.params, f.case);
-    assert.deepEqual(stand, f.response.data.device, f.case);
+    assert.deepEqual(stand, geraetGelesen(f.response.data.device), f.case);
   }
 });
 
@@ -410,7 +426,7 @@ test('listRegisterUsersForDevice: englische Antwort, Einstellungen, Belegkopf, K
     assert.equal(stand.loginMode, d.loginMode, f.case);
     assert.deepEqual(stand.policy, d.policy, f.case);
     assert.deepEqual(stand.users, d.users.map((u: Json) => ({ ...u, pinPolicyOutdated: u.pinPolicyOutdated === true })), f.case);
-    assert.deepEqual(stand.settings, { ...d.settings, vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
+    assert.deepEqual(stand.settings, { ...d.settings, device: geraetGelesen(d.settings.device), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
     assert.equal(stand.locationLock, d.locationLock, f.case);
     assert.equal(stand.testEnvironment, d.testEnvironment, f.case);
     assert.deepEqual(stand.cashregister, { ready: d.cashregister.ready, reason: d.cashregister.reason ?? null }, f.case);
@@ -698,7 +714,9 @@ test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere 
   const tabelle = _ALTFORM_0X;
   assert.deepEqual(Object.fromEntries(Object.entries(tabelle.werte).map(([k, v]) => [k, [...v]])), erwartet);
   const tasten = VOKABULAR.schemas.getKasseSettings.data.device.shortcuts as Record<string, string>;
-  assert.deepEqual([...tabelle.aktionen].sort(), Object.entries(tasten).filter(([k]) => k !== '__').map(([, v]) => v).sort());
+  // Die Aktionen ab 1.14.0 (Kassenstand, Kassenlade, Gutschein auszahlen) haben keine 0.x-Form.
+  const neuSeit114 = new Set(KUERZEL_OHNE_SERVERVORGABE);
+  assert.deepEqual([...tabelle.aktionen].sort(), Object.entries(tasten).filter(([k]) => k !== '__' && !neuSeit114.has(k)).map(([, v]) => v).sort());
 });
 
 test('F2: doppelt geladenes Paket (CJS und ESM im selben Prozess) filtert ebenso', async (t) => {

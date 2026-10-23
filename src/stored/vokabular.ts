@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "733e4385baf4b2aa50605e2ebe5903948ce77b3346aa3bb65c5fd0d450a6898f";
+export const VOKABULAR_QUELLE = "8b2cb67233c5a5cf487a077711bc1287fa49778f0fc22e9cc7675329fbdfd512";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -62,6 +62,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "codeSuffix": "codeEnde",
           "faceValueCents": "nennwertCents",
           "quantity": "stueck",
+          "articleName": "artikelName",
           "validity": {
             "__": "gueltigkeit",
             "pattern": "muster",
@@ -166,7 +167,10 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "fullscreen": "vollbild",
           "clearTendered": "gegebenLeeren",
           "clearCart": "korbLeeren",
-          "splitPayment": "getrennt"
+          "splitPayment": "getrennt",
+          "shiftStatus": "kassenstand",
+          "openDrawer": "ladeOeffnen",
+          "voucherPayout": "gutscheinAuszahlen"
         },
         "printerEnabled": "druckerAn",
         "printerType": "druckerArt",

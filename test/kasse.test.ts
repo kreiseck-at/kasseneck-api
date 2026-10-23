@@ -19,6 +19,7 @@ import {
   quantityRuleForUnit,
   quantityDefaults,
   listMyTipRecipients,
+  posShortcutConflict,
 } from '../src/pos/index.js';
 import { fromReceiptSummaryPayload } from '../src/models/index.js';
 import { listMyReceipts, createTransport, apiKeyAuth, type KasseneckTransport, type FetchLike, type HttpResponseLike } from '../src/client/index.js';
@@ -344,7 +345,14 @@ test('Golden: die Standardwerte der Kassen-Einstellungen stehen in fixtures/pos-
   // sie ab, ist entweder ein Standardwert geaendert worden, ohne ihn zu
   // veroeffentlichen — oder umgekehrt.
   const datei = JSON.parse(readFileSync(new URL('../../fixtures/pos-settings-defaults.json', import.meta.url), 'utf8'));
-  assert.deepEqual(datei, JSON.parse(JSON.stringify({ business: POS_BUSINESS_DEFAULTS, device: POS_DEVICE_DEFAULTS })),
+  // Kassenstand, Kassenlade und Gutschein auszahlen fuehrt der Server nicht in
+  // seiner Vorgabekarte; im Paket sind sie leer und stehen nicht in der Datei.
+  const paket = JSON.parse(JSON.stringify({ business: POS_BUSINESS_DEFAULTS, device: POS_DEVICE_DEFAULTS }));
+  for (const a of ['shiftStatus', 'openDrawer', 'voucherPayout']) {
+    assert.deepEqual(paket.device.shortcuts[a], [], a);
+    delete paket.device.shortcuts[a];
+  }
+  assert.deepEqual(datei, paket,
     'fixtures/pos-settings-defaults.json ist veraltet — `npm run fixtures:kasse` ausfuehren');
 });
 
@@ -360,7 +368,7 @@ test('Enums gibt es zur Laufzeit — Verbraucher koennen pruefen statt zu raten'
   assert.deepEqual([...PRINTER_TYPE], ['sdp', 'network', 'bluetooth', 'usb', 'connect']);
   assert.deepEqual([...TERMINAL_VIA], ['direct', 'connect']);
   assert.deepEqual([...TERMINAL_TYPE], ['none', 'hps']);
-  assert.equal(POS_SHORTCUT_ACTIONS.length, 16);
+  assert.equal(POS_SHORTCUT_ACTIONS.length, 19);
 });
 
 test('GP Tom ist ein Kartenanbieter — sonst verwirft der Backend-Validator die Einstellung', () => {
@@ -419,4 +427,23 @@ test('zahlGetrennt ist aus, die Aktion getrennt hat keine Vorgabe-Taste', () => 
   // Ein Altgeraet ohne die Aktion bekommt sie beim Mischen dazu.
   const { splitPayment: _weg, ...alt } = POS_SHORTCUT_DEFAULTS;
   assert.deepEqual(mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: alt as typeof POS_SHORTCUT_DEFAULTS }).shortcuts.splitPayment, []);
+});
+
+// Kassenstand, Kassenlade, Gutschein auszahlen: Aktionen ohne Vorgabe-Taste.
+test('Kuerzel shiftStatus, openDrawer, voucherPayout: ohne Vorgabe, ohne Konflikt, fehlend = keine Taste', () => {
+  for (const a of ['shiftStatus', 'openDrawer', 'voucherPayout'] as const) {
+    assert.ok(POS_SHORTCUT_ACTIONS.includes(a), a);
+    assert.deepEqual(POS_SHORTCUT_DEFAULTS[a], [], a);
+  }
+  assert.equal(posShortcutConflict(POS_SHORTCUT_DEFAULTS), null);
+  // Mehrere Aktionen ohne Taste kollidieren nie miteinander.
+  assert.equal(posShortcutConflict({ ...POS_SHORTCUT_DEFAULTS, shiftStatus: [], openDrawer: [], voucherPayout: [] }), null);
+  // Eine Antwort ohne die drei Schluessel (der Server haelt sie nicht in der Vorgabekarte): leere Liste, kein Fehler, keine geratene Taste.
+  const { shiftStatus: _a, openDrawer: _b, voucherPayout: _c, ...alt } = POS_SHORTCUT_DEFAULTS;
+  const g = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: alt as typeof POS_SHORTCUT_DEFAULTS });
+  for (const a of ['shiftStatus', 'openDrawer', 'voucherPayout'] as const) assert.deepEqual(g.shortcuts[a], [], a);
+  assert.equal(g.shortcuts.cash[0], 'Mod+B');
+  // Vom Chef vergeben bleibt sie stehen.
+  const h = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: { ...POS_SHORTCUT_DEFAULTS, openDrawer: ['Mod+U'] } });
+  assert.deepEqual(h.shortcuts.openDrawer, ['Mod+U']);
 });

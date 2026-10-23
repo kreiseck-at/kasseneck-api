@@ -636,3 +636,41 @@ test('Gutschein-Fehler: jeder Gutschein-Code des /v3-Vokabulars hat einen Satz, 
   assert.equal(messageText('voucher_error.rate_mismatch', { rate: 10 }), 'Dieser Gutschein gilt nur für Leistungen mit 10 %.');
   assert.equal(labelText('voucher.balance', { amount: '4,00 €' }), 'Rest am Gutschein: 4,00 €');
 });
+
+// Gutscheine – Paket-Nachzug: Woerter der Kassen-Navigation und des Auszahlungs-Bons.
+test('Katalog: Navigation, Beleg-Fertig-Seite, Mengen und Gutschein-Maske mit genau diesem Text', () => {
+  const erwartet: Record<string, [string, string[]?]> = {
+    'quantity.at_most': ['höchstens {count}', ['count']],
+    'quantity.at_least': ['mindestens {count}', ['count']],
+    'receipts.number_hint': ['Nummer'],
+    'receipts.clear_number': ['Nummer löschen'],
+    'receipts.open': ['Öffnen'],
+    'receipt.creating': ['Beleg wird erstellt …'],
+    'receipt_done.sale_title': ['Verkauf abgeschlossen'],
+    'receipt_done.paid_by_voucher': ['mit Gutschein bezahlt'],
+    'receipt_done.payout_title': ['Auszahlung abgeschlossen'],
+    'receipt_done.paid_out': ['{method} ausgezahlt', ['method']],
+    'voucher.code_mask': ['····-{suffix}', ['suffix']],
+    'cart.close': ['Warenkorb schließen'],
+    'drawer.reason_voucher_payout': ['Gutschein-Auszahlung'],
+    'nav.register': ['Kasse'],
+    'nav.receipts': ['Belege'],
+    'nav.vouchers': ['Gutscheine'],
+    'nav.open_drawer': ['Kassenlade öffnen'],
+    'nav.stocktake': ['Inventur'],
+    'nav.settings': ['Einstellungen'],
+    'nav.settings_locked': ['nur mit Chef-Anmeldung'],
+    'nav.logout': ['Abmelden'],
+    'nav.logging_out': ['Wird abgemeldet …'],
+    'nav.fullscreen': ['Vollbild'],
+    'nav.fullscreen_exit': ['Vollbild verlassen'],
+  };
+  for (const [schluessel, [text, platzhalter]] of Object.entries(erwartet)) {
+    const eintrag = (LABELS as Record<string, { text: string; placeholders?: readonly string[] }>)[schluessel];
+    assert.ok(eintrag, schluessel);
+    assert.equal(eintrag.text, text, schluessel);
+    assert.deepEqual(eintrag.placeholders === undefined ? undefined : [...eintrag.placeholders], platzhalter, schluessel);
+  }
+  // Die kurze Maske steht neben der Zeile der Zahlung, beide unveraendert.
+  assert.equal(LABELS['voucher.payment_line'].text, 'Gutschein ····-{suffix}');
+});

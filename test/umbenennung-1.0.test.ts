@@ -109,7 +109,12 @@ const NACH_1_0 = {
     // Gutscheine an der Kasse (1.12.0)
     'voucher.button', 'voucher.redeem', 'voucher.sell', 'voucher.payout', 'voucher.code', 'voucher.scan', 'voucher.check', 'voucher.amount', 'voucher.balance', 'voucher.remaining_quantity', 'voucher.reason', 'voucher.multi_purpose', 'voucher.single_purpose', 'voucher.service', 'voucher.promotion', 'voucher.payment_line', 'voucher.covers_items', 'voucher.code_shown_once', 'voucher.not_in_split', 'voucher.payout_not_possible', 'voucher.add_article', 'voucher.payout_confirm', 'cancellation.voucher_back',
     // Gutscheine an der Kasse, Stufe 3 (1.13.0)
-    'voucher.apply', 'voucher.redeemable_until', 'voucher.remove_line', 'voucher.reenter_code', 'voucher.refundable_until', 'voucher.code_done', 'voucher.article', 'voucher.add'],
+    'voucher.apply', 'voucher.redeemable_until', 'voucher.remove_line', 'voucher.reenter_code', 'voucher.refundable_until', 'voucher.code_done', 'voucher.article', 'voucher.add',
+    // Kassen-Navigation, Beleg-Fertig-Seite, Mengen, Gutschein-Auszahlung (1.14.0)
+    'drawer.reason_voucher_payout', 'quantity.at_most', 'quantity.at_least', 'receipts.number_hint', 'receipts.clear_number', 'receipts.open', 'receipt.creating',
+    'receipt_done.sale_title', 'receipt_done.paid_by_voucher', 'receipt_done.payout_title', 'receipt_done.paid_out', 'voucher.code_mask', 'cart.close',
+    'nav.register', 'nav.receipts', 'nav.vouchers', 'nav.open_drawer', 'nav.stocktake', 'nav.settings', 'nav.settings_locked', 'nav.logout', 'nav.logging_out',
+    'nav.fullscreen', 'nav.fullscreen_exit'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
