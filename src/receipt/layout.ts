@@ -635,9 +635,9 @@ function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
     if (mitGutschein && zahlung.amountCents === 0) return [];
     return [paarZeile('Zahlungsart:', zahlungsartText(zahlung.method)), ...zahlungTrinkgeldZeilen(zahlung), ...barZeilen(zahlung)];
   }
-  // Mehrere Zahlungen: solche mit 0 Cent entfallen (Nummer bleibt die des Kartenblocks).
-  const sichtbar = zahlungen.map((zahlung, i) => ({ zahlung, i })).filter(({ zahlung }) => zahlung.amountCents !== 0);
-  const liste = sichtbar.length > 0 || mitGutschein ? sichtbar : zahlungen.map((zahlung, i) => ({ zahlung, i }));
+  // Mehrere Zahlungen: mit Gutschein entfallen die mit 0 Cent (Nummer bleibt die des Kartenblocks).
+  const alle = zahlungen.map((zahlung, i) => ({ zahlung, i }));
+  const liste = mitGutschein ? alle.filter(({ zahlung }) => zahlung.amountCents !== 0) : alle;
   if (liste.length === 0) return [];
   const zeilen: LayoutLine[] = [textZeile('Zahlungsarten:')];
   for (const { zahlung, i } of liste) {

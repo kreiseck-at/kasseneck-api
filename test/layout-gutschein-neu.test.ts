@@ -120,8 +120,12 @@ test('aufbereitet wie der Server (gutscheineFuerPaket) und roh: dieselbe Summe, 
 // Der Vertrag im Repo kennt den neuen Bon (kurze Maske, Rest mit Euro, Aktionsgutschein, keine Zahlungsart bei
 // voller Deckung) erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
 const VERTRAG_FOLGT = new Set<string>(['kasse-belege/redeem_promotion_voucher', 'kasse-belege/redeem_multi_purpose_voucher', 'kasse-belege/sale_multi_purpose_voucher', 'belege/redeem_promotion_voucher', 'belege/redeem_multi_purpose_voucher', 'belege/sale_multi_purpose_voucher']);
+// Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
-  test(`aufbereitet wie der Server: das Server-Layout des Vertrags: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {});
+  test(`aufbereitet wie der Server: das Server-Layout des Vertrags: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
+    const b = NEUE_FORM.find((x) => x.name === name)!;
+    assert.deepEqual(layoutWieServer(ausAntwort(b.daten), b.daten.receipt.layoutRuleset), b.daten.layout, name);
+  });
 }
 
 test('aufbereitet wie der Server: das Server-Layout des Vertrags, Zeile fuer Zeile (layoutWieServer)', () => {
@@ -264,6 +268,17 @@ test('Auszahlung Mehrzweck: Zeile mit Betrag und Grund, Gesamt negativ', () => {
 test('Aktion bleibt die Rabattzeile wie bisher', { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {
   const b = beispiel('kasse-belege/redeem_promotion_voucher');
   assert.deepEqual(bauen(ausAntwort(b)), b.layout);
+});
+
+test('R3: Aktionsgutschein deckt alles (Summe 0) -- die Zahlungsart-Zeile bleibt, Aktion ist keine Zahlung', () => {
+  const b = specBeispiel();
+  const r: Json = {
+    ...b.receipt,
+    items: [{ ...b.receipt.items[0]!, priceOneCents: 1000, priceCents: 1000 }],
+    vouchers: [{ action: 'redeem', type: 'promo', name: 'Aktion', code: '····-····-5KNJ', valueCents: 1000 }],
+    payments: [{ id: 'p1', method: 'cash', amountCents: 0 }],
+  };
+  assert.equal(zahlungsart(bauen(b, r as Receipt)).length, 1, texte(bauen(b, r as Receipt)).join('\n'));
 });
 
 test('Aktion: Zeile „Aktionsgutschein ····-5KNJ - Aktion“ (kurze Maske, neues Wort)', () => {
@@ -449,11 +464,12 @@ test('R5: Einzweck-Rest steht mit Euro, auch auf 58 mm', () => {
 
 test('R2: alter Beleg mit langer Maske und „×“-Name druckt mit kurzer Maske (Review 5)', () => {
   const daten = JSON.parse(JSON.stringify(beispiel('kasse-belege/sale_service_voucher')));
-  daten.receipt.items = daten.receipt.items.map((it: Json) => (it.kind === 'voucher' ? { ...it, name: 'Leistungsgutschein 2× Maniküre ····-····-RRRF' } : it));
+  daten.receipt.items = daten.receipt.items.map((it: Json) => (it.kind === 'voucher' ? { ...it, name: 'Leistungsgutschein 2× Maniküre' } : it));
   daten.receipt.vouchers = daten.receipt.vouchers.map((v: Json) => ({ ...v, code: '····-····-RRRF', codeSuffix: undefined }));
   const t = texte(bauen(ausAntwort(daten)));
   assert.ok(t.some((z) => z.includes('Leistungsgutschein 2× Maniküre')), t.join('\n'));
-  assert.ok(!t.some((z) => z.includes('····-····')) || t.some((z) => z.includes('····-····-RRRF')), t.join('\n'));
+  assert.ok(!t.some((z) => z.includes('····-····')), t.join('\n'));
+  assert.ok(t.some((z) => z.includes('····-RRRF')), t.join('\n'));
 });
 
 test('R2: Verkauf Leistung/Mehrzweck ohne codeSuffix: die Endung kommt aus dem Code-Ende', () => {

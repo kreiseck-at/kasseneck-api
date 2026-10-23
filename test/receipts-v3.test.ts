@@ -721,8 +721,12 @@ const gutscheinNeueForm = (receipt: Json): boolean =>
 
 // Der Vertrag im Repo kennt den neuen Bon erst mit 0.35.0 (Task 10); Task 11 schaltet diese Faelle wieder scharf.
 const VERTRAG_FOLGT = new Set<string>(['sale_multi_purpose_voucher', 'redeem_multi_purpose_voucher', 'redeem_promotion_voucher']);
+// Schalter ist allein VERTRAG_FOLGT: Task 11 leert die Menge (und entfernt `skip`), dann gelten diese Vergleiche.
 for (const name of VERTRAG_FOLGT) {
-  test(`Kanal app: selbst gebautes Layout ist das Server-Layout: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, () => {});
+  test(`Kanal app: selbst gebautes Layout ist das Server-Layout: ${name}`, { skip: 'Vertrag folgt mit 0.35.0 (Task 10)' }, async () => {
+    const { fall, ergebnis } = (await mitLayout(KASSE_BELEGE)).find((x) => x.fall.name === name)!;
+    assert.deepEqual(layoutWieServer(ergebnis, fall.response.data.receipt.layoutRuleset), fall.response.data.layout, name);
+  });
 }
 
 test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Server-Layout', async () => {
@@ -730,11 +734,13 @@ test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Serv
   assert.ok(faelle.length >= 7);
   let mitPruefangaben = 0;
   let aufbereitet = 0;
+  let vertragFolgt = 0;
   for (const { fall, ergebnis } of faelle) {
-    if (VERTRAG_FOLGT.has(fall.name)) continue;
     const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
     const selbst = buildReceiptLayout(receipt, company, { paperSize: 'mm80', testCashregister, testSignature, registrationInfo });
-    if (SERVER_BEREITET_GUTSCHEINE_AUF && gutscheinNeueForm(fall.response.data.receipt)) {
+    if (VERTRAG_FOLGT.has(fall.name)) {
+      vertragFolgt += 1; // nur der Vergleich mit dem Vertrag entfaellt (eigener skip-Test oben)
+    } else if (SERVER_BEREITET_GUTSCHEINE_AUF && gutscheinNeueForm(fall.response.data.receipt)) {
       assert.deepEqual(layoutWieServer(ergebnis, fall.response.data.receipt.layoutRuleset), fall.response.data.layout, fall.name);
       aufbereitet += 1;
     } else {
@@ -746,7 +752,7 @@ test('Kanal app: selbst gebautes Layout mit den englischen Optionen ist das Serv
   }
   assert.ok(mitPruefangaben >= 1, 'kein Nullbeleg mit Registrierdaten dabei');
   // Alle Faelle ohne neue Form bleiben Zeile fuer Zeile das Server-Layout.
-  assert.ok(faelle.length - aufbereitet >= 7);
+  assert.ok(faelle.length - aufbereitet - vertragFolgt >= 7);
 });
 
 test('receiptLayoutFromResult: Server-Layout gewinnt, fallbackPaperSize gilt nur ohne, Vorgabe mm58 wie 0.x', async () => {

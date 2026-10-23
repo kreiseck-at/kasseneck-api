@@ -21,6 +21,10 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * Aendert sich eine Ausgabe absichtlich, ist das eine eigene Entscheidung mit
  * eigenem Commit, nie ein Beifang.
  *
+ * Bon-Feinschliff (23.10.2026, R2/R5): die Digests der vier Gutschein-Belege voucher-multi-purpose-sale,
+ * voucher-single-purpose-sale, voucher-single-purpose-redeem und -redeem-exempt sind absichtlich neu
+ * gezogen (kurze Maske `····-XXXX`, Einzweck-Rest mit „€“); alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen
