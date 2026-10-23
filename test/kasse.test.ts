@@ -438,6 +438,9 @@ test('Kuerzel shiftStatus, openDrawer, voucherPayout: ohne Vorgabe, ohne Konflik
   assert.equal(posShortcutConflict(POS_SHORTCUT_DEFAULTS), null);
   // Mehrere Aktionen ohne Taste kollidieren nie miteinander.
   assert.equal(posShortcutConflict({ ...POS_SHORTCUT_DEFAULTS, shiftStatus: [], openDrawer: [], voucherPayout: [] }), null);
+  // Eine vergebene Taste neben leeren Listen: kein Konflikt; dieselbe Taste an zwei Aktionen: Konflikt.
+  assert.equal(posShortcutConflict({ ...POS_SHORTCUT_DEFAULTS, openDrawer: ['Mod+U'], voucherPayout: [] }), null);
+  assert.deepEqual(posShortcutConflict({ ...POS_SHORTCUT_DEFAULTS, openDrawer: ['Mod+U'], shiftStatus: ['Mod+U'] }), { action: 'openDrawer', key: 'Mod+U', heldBy: 'shiftStatus' });
   // Eine Antwort ohne die drei Schluessel (der Server haelt sie nicht in der Vorgabekarte): leere Liste, kein Fehler, keine geratene Taste.
   const { shiftStatus: _a, openDrawer: _b, voucherPayout: _c, ...alt } = POS_SHORTCUT_DEFAULTS;
   const g = mergePosSettings(POS_DEVICE_DEFAULTS, { shortcuts: alt as typeof POS_SHORTCUT_DEFAULTS });
