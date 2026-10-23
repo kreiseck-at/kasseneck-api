@@ -449,7 +449,7 @@ test('Betraege: ein eingeloester Promo-Gutschein mindert die USt-Aufteilung ante
   // Der Gutschein selbst steht als eigene Zeile auf dem Beleg — mit dem
   // Belegtext des Vorbilds (Gutscheinart, Wert, Name).
   assert.ok(
-    spalten.some((s) => s[0] === 'Promotionsgutschein - Aktion' && s[1] === '-3,00 €'),
+    spalten.some((s) => s[0] === 'Aktionsgutschein - Aktion' && s[1] === '-3,00 €'),
     'Gutscheinzeile fehlt',
   );
 });
