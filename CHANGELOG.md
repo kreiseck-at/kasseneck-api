@@ -4,17 +4,23 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unreleased (1.14.0)
+## 1.14.0 - 2026-10-23
 
-Vouchers at the register, catch-up: words for the register navigation, the drawer reason of a voucher payout and three shortcut actions. Additive.
+Vouchers at the register, catch-up: the receipt rules of the voucher form, words for the register navigation, the drawer reason of a voucher payout and three shortcut actions. Additive, with one type narrowing (see below).
 
+- **Tip rule: a voucher never covers the tip.** The pre-filled voucher amount and the due amount leave the tip out (also after a promotion discount; never negative); a single-purpose voucher that covers only goods keeps its pre-fill above 0. Reason: the tip is paid in cash or by card, never by voucher; the server rejects the other case.
+- **Receipt rules of the voucher form (rule set of the vendored server package 0.35.0):** a single mask `····-{suffix}` in the item name and in the entry, the rest at the voucher with the euro sign, the promotional voucher as its own line, no payment-type line when vouchers cover the whole receipt (it stays when cash is above 0), the cancellation of a covered receipt mirrors this, and old receipts (item name with `×`, long mask in `vouchers[].code`) still print without error. The server hands the receipt to the package unchanged; the preparation step of the older server is gone. Reason: both sides must set the same receipt line by line.
+- **`./stored` twin sets the stored receipt like the server** (rest at the voucher, line without quantity column, payout with reason, payout and zero-rate bucket not in the voucher list). Reason: a receipt must read the same in the list as in the detail.
+
+- **`cancelReceipt` accepts the cancellation of a voucher payout:** exactly one cash payment with a positive amount and no `refundOf` (the customer gives the money back); every other positive refund is still rejected before sending. Reason: the server takes this form (contract case `cancel_payout_voucher`), the check for negative refunds refused it.
 - **24 labels in `LABELS`:** `quantity.at_most`/`at_least`, `receipts.number_hint`/`clear_number`/`open`, `receipt.creating`, `receipt_done.*` (sale, paid by voucher, payout, paid out), `voucher.code_mask` (`····-{suffix}`, next to the unchanged `voucher.payment_line`), `cart.close`, `nav.*` (register, receipts, vouchers, open drawer, stocktake, settings, settings locked, logout, logging out, fullscreen, fullscreen exit) and `drawer.reason_voucher_payout`. Reason: both registers kept these words in their own constants; one catalogue keeps them equal.
 - **Drawer reason `voucher_payout`** in `OPENING_REASONS` (the register reports it itself when a voucher is paid out; not in `MANUAL_OPENING_REASONS`). Reason: the server records the opening of the drawer with this reason, and the list equals the `/v3` vocabulary.
 - **Shortcut actions `shiftStatus`, `openDrawer`, `voucherPayout`** in `POS_SHORTCUT_ACTIONS`, without a default key (like `splitPayment`). The server does not hold them in its default map, so an answer without these keys reads as "no key" (empty list), never as an error and never as a guessed key. Reason: an unproven key is caught by some browser; the owner assigns one when needed.
 - **`createReceipt` keeps voucher codes out of every error:** each `vouchers[].code` goes out as a secret parameter (as typed, normalised and formatted), so the thrown message, `serverMessage` and `details` show `****` where the server quotes one of those spellings. Other spellings the server may invent are not covered. Reason: the server text may quote the code, like `checkVoucher` already guarded.
 - **Type narrowing: `RegisterDeviceUsers.settings` is `Omit<PosSettings, 'vouchers'>`.** The `listRegisterUsersForDevice` answer carries only `{business, device}`; the package no longer invents a defaulted `vouchers` block there (read `getPosSettings` after the login for it). Code that read `settings.vouchers` from this answer fails to compile and must switch to `getPosSettings`.
 - **Type `IssuedVoucher`** for `data.issuedVouchers[]` of `createReceipt` with `articleName?` (only service vouchers, `/v3`). Declared type only: no reader parses `issuedVouchers` yet.
-- Contract guards: the keys of the `registerUserLogin`/`registerPinLogin` answer and the voucher permissions are checked against the contract.
+- Contract guards: the keys of the `registerUserLogin`/`registerPinLogin` answer and the voucher permissions are checked against the contract; the contract case `cancel_payout_voucher` (cancellation of a multi-purpose payout, both channels) is covered.
+- **Replacement data in fixtures, tests and docs** (`ATU12345675`, `91-123/4565`, invented names). Reason: no real identifiers in the repository; the goldens were redrawn.
 
 ## 1.13.0
 
