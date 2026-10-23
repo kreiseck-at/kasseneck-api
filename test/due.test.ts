@@ -2,12 +2,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { receiptDueCents, receiptDueBreakdown, ReceiptDueError, RECEIPT_DUE_ERROR_REASONS, isReceiptDueError, type ReceiptDueOptions } from '../src/receipt/due.js';
+import { receiptDueCents, receiptDueBreakdown, voucherRedeemMaxCents, ReceiptDueError, RECEIPT_DUE_ERROR_REASONS, isReceiptDueError, type ReceiptDueOptions } from '../src/receipt/due.js';
+import { VoucherCode } from '@kreiseck/validator';
 import { isOutcomeUnknown } from '../src/client/errors.js';
 import * as wurzel from '../src/index.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
 import { VatRate } from '../src/enums/index.js';
-import { optionenAusSetup } from './gutschein-setup.js';
+import { istAbgelehnt, optionenAusSetup, optionenDesFalls, type VertragsEingabe, type VertragsErgebnis } from './gutschein-setup.js';
 
 /*
  * Zahlbetrag als Zwilling des Backends (Nachtrag §8): jeder Fall aus
@@ -20,34 +21,44 @@ import { optionenAusSetup } from './gutschein-setup.js';
 interface Fall {
   name: string;
   verifiedBy: string;
-  input: {
-    receiptType: string;
-    items: Array<Record<string, unknown>>;
-    vouchers: Array<Record<string, unknown>>;
-    tip?: { cents: number; receivedImmediately?: boolean; owner?: boolean };
-  };
-  expected: {
-    dueCents: number;
-    counterDeltaCents: number;
-    valueVoucherFlowCents: number;
-    bucketsCents: Record<string, number> | null;
-  };
+  input: VertragsEingabe;
+  expected: VertragsErgebnis;
   serverItems?: Array<Record<string, unknown>>;
-  /** Gutscheine, Einstellung und Artikel der Welt (nur Faelle mit Gutscheinen der neuen Form). */
+  /** Gutscheine, Einstellung, Artikel und Kassen-Benutzer der Welt (nur Faelle mit Gutscheinen der neuen Form). */
   setup?: Record<string, unknown>;
+  /** Groesste Einloesung des Gutscheins an voucherIndex, die der Server annimmt. */
+  redeemMax?: { voucherIndex: number; maxCents: number };
 }
 
 const datei = fileURLToPath(new URL('../../fixtures/v3/zahlbetrag-faelle.json', import.meta.url));
 const FAELLE = (JSON.parse(readFileSync(datei, 'utf8')) as { cases: Fall[] }).cases;
+const ANGENOMMEN = FAELLE.filter((f) => !istAbgelehnt(f.expected));
+const ABGELEHNT = FAELLE.filter((f) => istAbgelehnt(f.expected));
+/** Nur fuer angenommene Faelle: das Ergebnis mit Zahlbetrag. */
+const erwartet = (f: Fall) => {
+  if (istAbgelehnt(f.expected)) throw new Error(`${f.name}: abgelehnt`);
+  return f.expected;
+};
 
 /** Positionen/Gutscheine der Datei in die Modelle, die ein Aufrufer an sellReceipt gibt. */
 const positionen = (roh: Array<Record<string, unknown>>): ReceiptItem[] => roh.map((p) => fromReceiptItemPayload(p));
 const gutscheine = (roh: Array<Record<string, unknown>>): Voucher[] => roh.map((v) => fromVoucherPayload(v as unknown as VoucherPayload));
-/** Der Vertrag rechnet Personal-Trinkgeld ohne Empfaenger, Inhaber-Trinkgeld mit einem Inhaber als Empfaenger. */
-const trinkgeld = (tip: Fall['input']['tip']): ReceiptDueOptions =>
-  tip == null ? {} : { tip: tip.cents, tipRecipient: tip.owner === true ? 'owner' : 'staff' };
-/** Optionen eines Falls: Trinkgeld und, bei Gutscheinen der neuen Form, die Welt der Kasse (setup). */
-const optionen = (fall: Fall): ReceiptDueOptions => ({ ...trinkgeld(fall.input.tip), ...optionenAusSetup(fall.setup) });
+/** Optionen eines Falls: Trinkgeld (tip bzw. payments[].tipCents) und, bei Gutscheinen der neuen Form, die Welt der Kasse (setup). */
+const optionen = (fall: Fall): ReceiptDueOptions => optionenDesFalls(fall.input, fall.setup);
+
+/**
+ * Jeder Fall des Vertrags, namentlich. Ein neuer Fall im Backend macht diesen Test rot, bis er hier
+ * eingetragen ist: kein Fall des Servers wird still mitgenommen oder uebersprungen.
+ */
+const BEKANNTE_FAELLE = [
+  'sale_single_rate', 'sale_mixed_rates', 'sale_rate_4_9', 'sale_rate_19_and_0', 'sale_float_rounding', 'sale_decimal_quantity',
+  'sale_v2_item_form', 'training_sale', 'promo_proportional', 'promo_remainder_cent', 'promo_exceeds_total', 'value_voucher_sell',
+  'value_voucher_redeem_partial', 'tip_staff', 'tip_staff_received_immediately', 'tip_staff_with_promo', 'tip_owner_with_promo',
+  'cancellation_negative', 'cancellation_value_voucher_sell', 'zero_receipt', 'single_purpose_voucher_sell', 'single_purpose_voucher_redeem',
+  'service_voucher_sell', 'service_voucher_redeem', 'promotion_voucher_redeem',
+  'tip_staff_value_voucher_capped', 'tip_owner_value_voucher_capped', 'tip_owner_value_voucher_over_tip', 'tip_payment_tipcents_value_voucher',
+  'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only',
+];
 
 test('Zahlbetrag-Faelle: die Datei deckt alle Arten ab (sonst prueft der Zwilling zu wenig)', () => {
   const namen = FAELLE.map((f) => f.name);
@@ -57,7 +68,14 @@ test('Zahlbetrag-Faelle: die Datei deckt alle Arten ab (sonst prueft der Zwillin
   }
 });
 
-for (const fall of FAELLE) {
+test('Zahlbetrag-Faelle: genau die bekannten Faelle, keiner unbekannt, keiner fehlt', () => {
+  assert.deepEqual([...FAELLE.map((f) => f.name)].sort(), [...BEKANNTE_FAELLE].sort());
+  // Jeder Fall ist entweder angenommen (Zahlbetrag) oder abgelehnt (Code) - keiner faellt durch.
+  assert.equal(ANGENOMMEN.length + ABGELEHNT.length, FAELLE.length);
+  for (const f of ABGELEHNT) assert.deepEqual(Object.keys(f.expected), ['errorCode'], f.name);
+});
+
+for (const fall of ANGENOMMEN) {
   test(`receiptDueBreakdown: ${fall.name} stimmt exakt (${fall.verifiedBy})`, () => {
     const ergebnis = receiptDueBreakdown(
       positionen(fall.input.items),
@@ -68,8 +86,36 @@ for (const fall of FAELLE) {
     assert.deepEqual(ergebnis, fall.expected);
     assert.equal(
       receiptDueCents(positionen(fall.input.items), gutscheine(fall.input.vouchers), fall.input.receiptType, optionen(fall)),
-      fall.expected.dueCents,
+      erwartet(fall).dueCents,
     );
+  });
+}
+
+for (const fall of ABGELEHNT) {
+  test(`receiptDueCents: ${fall.name} weist ab wie der Server (${fall.verifiedBy})`, () => {
+    const { errorCode } = fall.expected as { errorCode: string };
+    assert.throws(
+      () => receiptDueCents(positionen(fall.input.items), gutscheine(fall.input.vouchers), fall.input.receiptType, optionen(fall)),
+      (e: unknown) => {
+        assert.ok(e instanceof ReceiptDueError, String(e));
+        assert.equal(e.reason, 'invalid_voucher');
+        assert.equal(e.voucherErrorCode, errorCode);
+        return true;
+      },
+    );
+  });
+}
+
+for (const fall of FAELLE.filter((f) => f.redeemMax != null)) {
+  test(`voucherRedeemMaxCents: ${fall.name} belegt genau die groesste Einloesung vor, die der Server annimmt`, () => {
+    const { voucherIndex, maxCents } = fall.redeemMax!;
+    const vouchers = gutscheine(fall.input.vouchers);
+    const o = optionen(fall);
+    const code = String(fall.input.vouchers[voucherIndex]!['code']);
+    const info = (o.voucherInfo ?? []).find((i) => VoucherCode.normalize(i.code) === VoucherCode.normalize(code));
+    assert.ok(info, `${fall.name}: keine Pruefung zum Code`);
+    assert.equal(voucherIndex, vouchers.length - 1, 'nach dem Gutschein kommt keiner');
+    assert.equal(voucherRedeemMaxCents(positionen(fall.input.items), info.check, { vouchers: vouchers.slice(0, voucherIndex), options: o }), maxCents);
   });
 }
 
@@ -78,13 +124,13 @@ test('Trinkgeld als fertige Position (so steht es im Beleg und im Storno) ergibt
   assert.ok(mitPositionen.length >= 3);
   for (const fall of mitPositionen) {
     const alle = [...positionen(fall.input.items), ...positionen(fall.serverItems!)];
-    assert.equal(receiptDueCents(alle, gutscheine(fall.input.vouchers), fall.input.receiptType), fall.expected.dueCents, fall.name);
+    assert.equal(receiptDueCents(alle, gutscheine(fall.input.vouchers), fall.input.receiptType, optionenAusSetup(fall.setup)), erwartet(fall).dueCents, fall.name);
   }
 });
 
 test('Trinkgeld als Zahl bei Personal-Anmeldung', () => {
   const fall = FAELLE.find((f) => f.name === 'tip_staff')!;
-  assert.equal(receiptDueCents(positionen(fall.input.items), [], 'standard', { tip: 160, tipRecipient: 'staff' }), fall.expected.dueCents);
+  assert.equal(receiptDueCents(positionen(fall.input.items), [], 'standard', { tip: 160, tipRecipient: 'staff' }), erwartet(fall).dueCents);
 });
 
 test('Inhaber-Trinkgeld ist Umsatz und wird rabattiert, Personal-Trinkgeld nie', () => {
@@ -98,7 +144,7 @@ test('Inhaber-Trinkgeld ist Umsatz und wird rabattiert, Personal-Trinkgeld nie',
 });
 
 test('Ergebnis ist immer ein ganzer Cent-Betrag, die Eingaben bleiben unveraendert', () => {
-  for (const fall of FAELLE) {
+  for (const fall of ANGENOMMEN) {
     const items = positionen(fall.input.items);
     const vouchers = gutscheine(fall.input.vouchers);
     const vorher = JSON.stringify([items, vouchers]);

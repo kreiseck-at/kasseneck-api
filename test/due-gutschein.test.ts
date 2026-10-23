@@ -16,7 +16,7 @@ import { createReceiptParams } from '../src/client/receipts.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
 import type { VoucherCheck } from '../src/pos/gutschein.js';
-import { optionenAusSetup } from './gutschein-setup.js';
+import { istAbgelehnt, optionenDesFalls, type VertragsEingabe, type VertragsErgebnis } from './gutschein-setup.js';
 
 /*
  * Zahlbetrag mit Gutscheinen der neuen Form: Zwilling von
@@ -61,9 +61,9 @@ function wirft(f: () => unknown, voucherErrorCode?: string): void {
 
 interface Fall {
   name: string;
-  input: { receiptType: string; items: Array<Record<string, unknown>>; vouchers: Array<Record<string, unknown>> };
+  input: VertragsEingabe;
   setup?: Record<string, unknown>;
-  expected: { dueCents: number; counterDeltaCents: number; valueVoucherFlowCents: number; bucketsCents: Record<string, number> | null };
+  expected: VertragsErgebnis;
 }
 const FAELLE = (JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/zahlbetrag-faelle.json', import.meta.url)), 'utf8')) as { cases: Fall[] }).cases;
 const MIT_NEUER_FORM = FAELLE.filter((f) => f.input.vouchers.some((v) => ['multi_purpose', 'single_purpose', 'service', 'promotion'].includes(String(v.type)) || v.action === 'payout'));
@@ -75,13 +75,27 @@ test('Vertrag: die Faelle mit Gutscheinen der neuen Form sind da', () => {
   }
 });
 
+test('Vertrag: Trinkgeld-Regel (ein Gutschein deckt nie das Trinkgeld) mit Server-Ergebnis', () => {
+  const namen = MIT_NEUER_FORM.map((f) => f.name);
+  for (const n of ['tip_staff_value_voucher_capped', 'tip_owner_value_voucher_capped', 'tip_owner_value_voucher_over_tip', 'tip_payment_tipcents_value_voucher',
+    'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only']) {
+    assert.ok(namen.includes(n), n);
+  }
+  assert.ok(MIT_NEUER_FORM.filter((f) => istAbgelehnt(f.expected)).length >= 2);
+});
+
 for (const fall of MIT_NEUER_FORM) {
-  test(`Vertrag ${fall.name}: Zahlbetrag, Toepfe und Fluss wie der Server`, () => {
+  test(`Vertrag ${fall.name}: Zahlbetrag, Toepfe und Fluss bzw. Abweisung wie der Server`, () => {
     const items = fall.input.items.map((p) => fromReceiptItemPayload(p));
     const vouchers = fall.input.vouchers.map((v) => fromVoucherPayload(v as unknown as VoucherPayload));
-    const o = optionenAusSetup(fall.setup);
-    assert.deepEqual(receiptDueBreakdown(items, vouchers, fall.input.receiptType, o), fall.expected);
-    assert.equal(receiptDueCents(items, vouchers, fall.input.receiptType, o), fall.expected.dueCents);
+    const o = optionenDesFalls(fall.input, fall.setup);
+    const e = fall.expected;
+    if (istAbgelehnt(e)) {
+      wirft(() => receiptDueCents(items, vouchers, fall.input.receiptType, o), e.errorCode);
+      return;
+    }
+    assert.deepEqual(receiptDueBreakdown(items, vouchers, fall.input.receiptType, o), e);
+    assert.equal(receiptDueCents(items, vouchers, fall.input.receiptType, o), e.dueCents);
   });
 }
 

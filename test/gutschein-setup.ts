@@ -54,3 +54,39 @@ export function optionenAusSetup(setup: Json | undefined): ReceiptDueOptions {
   }
   return o;
 }
+
+/** Eingabe eines Vertragsfalls (zahlbetrag-faelle.json, Form wie ein /v3-Client sendet). */
+export interface VertragsEingabe {
+  receiptType: string;
+  items: Array<Record<string, unknown>>;
+  vouchers: Array<Record<string, unknown>>;
+  /** Trinkgeld als Parameter `tip`; `owner: true` heisst: an einen Kassen-Benutzer mit Inhaber-Kennzeichen. */
+  tip?: { cents: number; receivedImmediately?: boolean; owner?: boolean };
+  /** Trinkgeld an der Zahlung (`payments[].tipCents`); der Betrag ist der Zahlbetrag. */
+  payments?: Array<{ method: string; tipCents?: number }>;
+}
+
+/** Ergebnis des Servers: angenommen mit Zahlbetrag oder abgelehnt mit dem /v3-Code (`errorCode`). */
+export type VertragsErgebnis =
+  | { dueCents: number; counterDeltaCents: number; valueVoucherFlowCents: number; bucketsCents: Record<string, number> | null }
+  | { errorCode: string };
+
+export const istAbgelehnt = (e: VertragsErgebnis): e is { errorCode: string } => 'errorCode' in e;
+
+/**
+ * Optionen eines Vertragsfalls fuer receiptDueCents: Trinkgeld (`tip` bzw. `payments[].tipCents`)
+ * und, bei Gutscheinen der neuen Form, die Welt der Kasse (setup). Ohne Kassen-Benutzer bucht der
+ * Server Trinkgeld ohne Empfaenger als Personal-Trinkgeld; Inhaber nur ueber den Kassen-Benutzer.
+ */
+export function optionenDesFalls(input: VertragsEingabe, setup: Json | undefined): ReceiptDueOptions {
+  const o: ReceiptDueOptions = { ...optionenAusSetup(setup) };
+  if (input.tip != null) {
+    o.tip = input.tip.cents;
+    o.tipRecipient = input.tip.owner === true ? 'owner' : 'staff';
+  }
+  if (input.payments != null) {
+    o.payments = input.payments;
+    if (input.payments.some((z) => z.tipCents !== undefined)) o.tipRecipient ??= 'staff';
+  }
+  return o;
+}
