@@ -58,6 +58,7 @@ const BEKANNTE_FAELLE = [
   'service_voucher_sell', 'service_voucher_redeem', 'promotion_voucher_redeem',
   'tip_staff_value_voucher_capped', 'tip_owner_value_voucher_capped', 'tip_owner_value_voucher_over_tip', 'tip_payment_tipcents_value_voucher',
   'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only',
+  'tip_owner_promo_and_value_voucher', 'tip_owner_promo_and_value_voucher_over_tip', 'tip_owner_promotion_voucher', 'tip_promotion_and_value_voucher_rejected',
 ];
 
 test('Zahlbetrag-Faelle: die Datei deckt alle Arten ab (sonst prueft der Zwilling zu wenig)', () => {
@@ -106,7 +107,13 @@ for (const fall of ABGELEHNT) {
   });
 }
 
-for (const fall of FAELLE.filter((f) => f.redeemMax != null)) {
+const MIT_HOECHSTBETRAG = FAELLE.filter((f) => f.redeemMax != null);
+
+test('Zahlbetrag-Faelle: die Faelle mit redeemMax sind da (sonst verschwaenden ihre Tests still)', () => {
+  assert.ok(MIT_HOECHSTBETRAG.length >= 6, `nur ${MIT_HOECHSTBETRAG.length} Faelle mit redeemMax`);
+});
+
+for (const fall of MIT_HOECHSTBETRAG) {
   test(`voucherRedeemMaxCents: ${fall.name} belegt genau die groesste Einloesung vor, die der Server annimmt`, () => {
     const { voucherIndex, maxCents } = fall.redeemMax!;
     const vouchers = gutscheine(fall.input.vouchers);

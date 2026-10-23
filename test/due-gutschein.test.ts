@@ -78,7 +78,8 @@ test('Vertrag: die Faelle mit Gutscheinen der neuen Form sind da', () => {
 test('Vertrag: Trinkgeld-Regel (ein Gutschein deckt nie das Trinkgeld) mit Server-Ergebnis', () => {
   const namen = MIT_NEUER_FORM.map((f) => f.name);
   for (const n of ['tip_staff_value_voucher_capped', 'tip_owner_value_voucher_capped', 'tip_owner_value_voucher_over_tip', 'tip_payment_tipcents_value_voucher',
-    'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only']) {
+    'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only',
+    'tip_owner_promo_and_value_voucher', 'tip_owner_promo_and_value_voucher_over_tip', 'tip_owner_promotion_voucher', 'tip_promotion_and_value_voucher_rejected']) {
     assert.ok(namen.includes(n), n);
   }
   assert.ok(MIT_NEUER_FORM.filter((f) => istAbgelehnt(f.expected)).length >= 2);
