@@ -120,6 +120,7 @@ const anfragen = [
   { name: 'unknown_field_cashregister', entries: [mit({ cashregisterId: 'KASSE2' })] },
   { name: 'key_missing', entries: [ohne('key')] },
   { name: 'key_empty', entries: [mit({ key: '' })] },
+  { name: 'key_null', entries: [mit({ key: null })] },
   { name: 'key_blank', entries: [mit({ key: '        ' })] },
   { name: 'key_too_short', entries: [mit({ key: 'kurz' })] },
   { name: 'key_seven', entries: [mit({ key: 'print-1' })] },
@@ -132,15 +133,19 @@ const anfragen = [
   { name: 'receipt_blank', entries: [mit({ receiptId: ' ' })] },
   { name: 'kind_internal_word', entries: [mit({ kind: 'erstdruck' })] },
   { name: 'kind_missing', entries: [ohne('kind')] },
+  { name: 'kind_null', entries: [mit({ kind: null })] },
   // Mail und Abruf gehen hinaus; der Server lehnt genau diesen Eintrag ab (invalid_output_kind).
   { name: 'kind_server_written', entries: [mit({ key: 'email-0001', kind: 'email' }), mit({ key: 'opened-0001', kind: 'opened' })] },
   { name: 'result_outside_catalog', entries: [mit({ result: 'error' })] },
+  // Ein ausdrueckliches null ist kein fehlendes Ergebnis: es liegt ausserhalb des Katalogs.
+  { name: 'result_null', entries: [mit({ result: null })] },
   { name: 'result_missing_share', entries: [mit({ key: 'share-0001', kind: 'link_shared', result: undefined })] },
   // Ein Druck ohne Ergebnis geht hinaus; der Server lehnt ihn ab (validation).
   { name: 'result_missing_print', entries: [ohne('result')] },
   { name: 'result_values', entries: ['ok', 'failed', 'unclear'].map((r, i) => mit({ key: `print-000${i + 1}`, kind: 'reprint', result: r })) },
   { name: 'at_missing', entries: [ohne('at')] },
   { name: 'at_empty', entries: [mit({ at: '' })] },
+  { name: 'at_null', entries: [mit({ at: null })] },
   { name: 'at_fraction', entries: [mit({ at: 1.5 })] },
   { name: 'at_negative', entries: [mit({ at: -1 })] },
   { name: 'at_zero', entries: [mit({ at: 0 })] },

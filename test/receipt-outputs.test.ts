@@ -398,6 +398,9 @@ test('receiptOutputLabel: was nur in JavaScript vorkommt (kein Objekt, Art kein 
   assert.equal(receiptOutputLabel(o('opened', { count: Number.NaN })), 'Vom Kunden geöffnet (1×)');
   assert.equal(receiptOutputLabel(o('opened', { count: '3' as never })), 'Vom Kunden geöffnet (1×)');
   for (const kind of [null as never, 42 as never]) assert.equal(receiptOutputLabel(o(kind)), null, String(kind));
+  // Leere Art (die Leseregel liesse sie nie durch, ein Aufrufer kann sie bauen): null.
+  assert.equal(receiptOutputLabel(o('')), null);
+  assert.equal(receiptOutputLabel({ kind: '' } as never), null);
   assert.equal(receiptOutputLabel(null as never), null);
   assert.equal(receiptOutputLabel({} as never), null);
   // Jede Art des Katalogs hat eine Beschriftung, und die Zwillingsdatei zeigt jede.
