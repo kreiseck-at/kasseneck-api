@@ -198,3 +198,13 @@ test('Eine Zahlung ohne providerData neben den Altfeldern: der bisherige Kartenb
   const zwei = layoutMit('karte-sumup', { payments: [{ id: 'p1', method: 'creditCard', amountCents: 6000, provider: 'sumup' }, { id: 'p2', method: 'cash', amountCents: 6000 }] });
   assert.deepEqual(ueberschriften(zwei).filter((t) => /Beleg$/.test(t)), []);
 });
+
+test('0-Cent-Zahlung: ohne Gutschein bleibt sie in der Liste, mit Gutschein-Einloesung entfaellt sie', () => {
+  const payments: ReceiptPaymentPayload[] = [{ id: 'p1', method: 'cash', amountCents: 0 }, { id: 'p2', method: 'creditCard', amountCents: 500, provider: 'custom' }];
+  const ohne = raster(layoutMit('split-karte-karte-bar', { payments }), 32);
+  assert.ok(ohne.some((z) => z.startsWith('1. Barzahlung') && z.endsWith('0,00 €')), ohne.join('\n'));
+  const vouchers = [{ action: 'redeem', type: 'value', value: 5, valueCents: 500, name: 'Gutschein', code: '····-····-AB12', codeSuffix: 'AB12' }];
+  const mit = raster(layoutMit('split-karte-karte-bar', { payments, vouchers }), 32);
+  assert.ok(!mit.some((z) => z.startsWith('1. ')), mit.join('\n'));
+  assert.ok(mit.some((z) => z.startsWith('2. Kartenzahlung')), mit.join('\n'));
+});

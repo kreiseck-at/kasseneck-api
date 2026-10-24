@@ -583,19 +583,28 @@ function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
  */
 function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
   const zahlungen = receipt.payments;
+  // Trägt der Beleg eine Gutschein-Zahlungszeile, entfällt, was 0 Cent kostet
+  // (§ 132a Abs. 3 BAO: die Zahlungsart ist kein Pflichtinhalt, der Betrag bleibt).
+  const mitGutschein = receipt.vouchers.some((v) => v.action === VoucherAction.redeem && v.type !== VoucherType.promo);
   if (zahlungen == null || zahlungen.length === 0) {
+    if (mitGutschein && receiptSumCents(receipt) === 0) return [];
     return [paarZeile('Zahlungsart:', zahlungsartText(receipt.paymentMethod))];
   }
   if (zahlungen.length === 1) {
     const zahlung = zahlungen[0]!;
+    if (mitGutschein && zahlung.amountCents === 0) return [];
     return [paarZeile('Zahlungsart:', zahlungsartText(zahlung.method)), ...zahlungTrinkgeldZeilen(zahlung), ...barZeilen(zahlung)];
   }
+  // Mehrere Zahlungen: mit Gutschein entfallen die mit 0 Cent (Nummer bleibt die des Kartenblocks).
+  const alle = zahlungen.map((zahlung, i) => ({ zahlung, i }));
+  const liste = mitGutschein ? alle.filter(({ zahlung }) => zahlung.amountCents !== 0) : alle;
+  if (liste.length === 0) return [];
   const zeilen: LayoutLine[] = [textZeile('Zahlungsarten:')];
-  zahlungen.forEach((zahlung, i) => {
+  for (const { zahlung, i } of liste) {
     zeilen.push(paarZeile(zahlungNummerText(zahlung, i), `${formatCents(zahlung.amountCents)} €`, 8, 4));
     zeilen.push(...zahlungTrinkgeldZeilen(zahlung));
     zeilen.push(...barZeilen(zahlung));
-  });
+  }
   return zeilen;
 }
 
@@ -708,10 +717,12 @@ function gutscheinText(voucher: Voucher): string {
   if (voucher.type === VoucherType.value) {
     text += 'Wertgutschein';
   } else if (voucher.type === VoucherType.promo) {
-    text += 'Promotionsgutschein';
+    text += 'Aktionsgutschein';
   }
   const name = voucher.name;
-  if (name != null && name.toLowerCase().includes(text.toLowerCase())) {
+  // Alte Belege nennen den Aktionsgutschein noch „Promotionsgutschein": auch dieser Name steht allein.
+  if (name != null && (name.toLowerCase().includes(text.toLowerCase())
+    || (voucher.type === VoucherType.promo && name.toLowerCase().includes('promotionsgutschein')))) {
     return name;
   }
   // Der Betrag steht in derselben Zeile rechts in der Betragsspalte — ihn
@@ -720,7 +731,7 @@ function gutscheinText(voucher: Voucher): string {
   // identifiziert den Gutschein (Mehrzweck: der Kunde will wissen, WELCHER
   // eingeloest wurde).
   if (voucher.code != null && voucher.code !== '') {
-    text += ` ${voucher.code}`;
+    text += ` ${codeKurz(voucher)}`;
   }
   if (name != null && name.length > 0) {
     text += ` - ${name}`;
@@ -739,13 +750,13 @@ function gutscheinText(voucher: Voucher): string {
  *   Leistung                   Zeile dieses Gutscheins Text „  Einzweck, versteuert mit
  *                              Beleg K1-ID-4711“ (bzw. „Leistung, …“, „…, befreit
  *                              verkauft (Kleinunternehmer)“, 47 Zeichen: passt auf
- *                              80 mm) und 8:4 „  Rest am Gutschein“ | „19,50  “ bzw.
+ *                              80 mm) und 8:4 „  Rest am Gutschein“ | „19,50 €“ bzw.
  *                              „2 Stück“
  *   Einloesung Mehrzweck       nach „Zwischensumme“ 8:4 „Gutschein ····-9DWT“ |
  *                              „-17,50 €“ und „  Rest am Gutschein“ | „32,50 €“
  *   Auszahlung                 8:4 „Auszahlung Gutschein ····-9DWT“ | „-12,00 D“,
  *                              Text „  Grund: <Grund>“
- *   Aktion                     Rabattzeile wie bisher (Promotionsgutschein)
+ *   Aktion                     Rabattzeile wie bisher (Aktionsgutschein)
  *
  * Vermerke sind Textzeilen mit zwei fuehrenden Leerzeichen; das Raster bricht
  * sie mit demselben Einzug um (grid.ts, haengender Einzug), auf 58 mm etwa
@@ -769,12 +780,23 @@ function istMehrzweckMitCode(voucher: Voucher): boolean {
 }
 
 /**
- * Code fuer die Belegzeile: die Maske des Eintrags, ohne den Platzhalter
- * `no-code`, den der Server Alt-Eintraegen ohne Code setzt (index.js
- * checkVouchersIsValid). Leer, wenn es keinen gibt.
+ * Code fuer die Belegzeile: immer die kurze Maske `····-XXXX` aus dem Code-Ende
+ * (auch wenn ein alter Beleg die lange `····-····-XXXX` im Eintrag traegt),
+ * ohne den Platzhalter `no-code`, den der Server Alt-Eintraegen ohne Code
+ * setzt (index.js checkVouchersIsValid). Leer, wenn es keinen gibt.
  */
 function gutscheinCodeZusatz(voucher: Voucher): string {
-  return typeof voucher.code === 'string' && voucher.code !== '' && voucher.code !== 'no-code' ? ` ${voucher.code}` : '';
+  return typeof voucher.code === 'string' && voucher.code !== '' && voucher.code !== 'no-code' ? ` ${codeKurz(voucher)}` : '';
+}
+
+/**
+ * Maskierte Codes (`····-····-XXXX` alt, `····-XXXX` neu) drucken immer kurz;
+ * ein Alt-Code ohne Maske (z. B. `GS-1`) bleibt, wie er ist.
+ */
+function codeKurz(voucher: Voucher): string {
+  const code = voucher.code ?? '';
+  const endung = gutscheinEndung(voucher);
+  return code.includes('····') && endung != null ? `····-${endung}` : code;
 }
 
 /** Die vier letzten Zeichen des Codes (`codeSuffix`, sonst aus der Maske), oder null. */
@@ -866,12 +888,12 @@ function gutscheinPositionsZeilen(item: ReceiptItem, satz: Steuersatz, zu: Gutsc
   } else if (v.exempt === true) {
     zeilen.push(textZeile(`  ${art}, befreit verkauft (Kleinunternehmer)`));
   }
-  // Rest: Betrag fluchtet mit den Positionsbetraegen (zwei Zeichen statt
-  // „ A“), Stueck rechtsbuendig. Die Gesamtzahl kennt der Beleg nicht.
+  // Rest: Betrag mit „€“ wie beim Mehrzweckgutschein, Stueck rechtsbuendig.
+  // Die Gesamtzahl kennt der Beleg nicht.
   if (v.type === VoucherType.service) {
     if (Number.isInteger(v.remainingQuantityAfter)) zeilen.push(paarZeile('  Rest am Gutschein', `${v.remainingQuantityAfter} Stück`, 8, 4));
   } else if (Number.isInteger(v.balanceAfterCents)) {
-    zeilen.push(paarZeile('  Rest am Gutschein', `${formatCents(v.balanceAfterCents!)}  `, 8, 4));
+    zeilen.push(paarZeile('  Rest am Gutschein', `${formatCents(v.balanceAfterCents!)} €`, 8, 4));
   }
   return zeilen;
 }
@@ -1273,7 +1295,7 @@ export function buildReceiptLayout(
   }
 
   // --- Gutscheine: verkaufte Wertgutscheine sind Umsatz zu 0 %, eingeloeste
-  //     Promotionsgutscheine mindern die Steuergruppen anteilig.
+  //     Aktionsgutscheine mindern die Steuergruppen anteilig.
   //     Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
   //     (receiptValueVoucherSign): der verkaufte wird zurueckgezahlt.
   //     Eintraege mit `zeroRateBucket` stehen schon als Position (0-%-Topf).
@@ -1301,7 +1323,7 @@ export function buildReceiptLayout(
       if (mehrzweck) lines.push(textZeile(MEHRZWECK_UST_TEXT));
     }
     if (voucher.action === VoucherAction.redeem && voucher.type === VoucherType.promo) {
-      // Am Storno-Beleg steht der Promotionsgutschein nur als Bezug: den Rabatt
+      // Am Storno-Beleg steht der Aktionsgutschein nur als Bezug: den Rabatt
       // nimmt dort die Position „Gutschein-Ausgleich“ zurueck (receiptSubSumCents).
       if (wgVz === 1) promoCents += wert;
       lines.push({
@@ -1433,7 +1455,7 @@ export function buildReceiptLayout(
 }
 
 /**
- * Verteilt einen eingeloesten Promotionsgutschein anteilig auf die
+ * Verteilt einen eingeloesten Aktionsgutschein anteilig auf die
  * Steuergruppen — Zwilling von `print_paper.dart` (Zeilen 296-325).
  *
  * Der Gutschein mindert keinen einzelnen Artikel, sondern den Umsatz: jede

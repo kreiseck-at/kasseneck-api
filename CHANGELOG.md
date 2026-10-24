@@ -4,6 +4,22 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.35.0
+
+Bon-Feinschliff der Gutscheine, Zwilling von 1.14.0. Das Backend vendort die 0.x-Linie und setzt damit den Bon; die vier
+Regeln gelten darum auch hier. Kein neuer Aufruf, keine neue API.
+
+- **Eine Code-Maske am Bon.** Überall die kurze Form `····-XXXX`, abgeleitet aus dem Code-Ende (auch wenn ein alter
+  Beleg die lange `····-····-XXXX` im Eintrag trägt). Ein Code ohne Maske (z. B. `GS-1`) bleibt, wie er ist; Masken in
+  gespeicherten Positionsnamen werden nicht umgeschrieben. Das Feld `code` am Beleg bleibt unverändert.
+- **Keine Zahlungsart-Zeile bei voller Gutschein-Deckung.** Trägt der Beleg eine Gutschein-Einlösung (nicht Verkauf,
+  Auszahlung oder Aktionsgutschein) und ist der bezahlte Betrag 0, entfällt die Zeile `Zahlungsart:` (§ 132a Abs. 3 BAO:
+  kein Pflichtinhalt, der Betrag bleibt). Bei mehreren Zahlungen entfallen 0-Cent-Zahlungen nur mit solcher Einlösung.
+  Nullbelege ohne Gutschein bleiben unverändert.
+- **Einzweck-Rest mit `€`** wie beim Mehrzweckgutschein.
+- **„Aktionsgutschein“ statt „Promotionsgutschein“** in der Rabattzeile; ein gespeicherter Name mit dem alten Wort steht
+  wie gespeichert.
+
 ## 0.34.0
 
 Gutscheine der neuen Form (Mehrzweck, Einzweck, Leistung, Aktion) im Modell und im Beleg-Blatt. Das Backend vendort
