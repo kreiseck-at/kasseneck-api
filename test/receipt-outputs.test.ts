@@ -15,6 +15,7 @@ import {
 import * as kasse from '../src/pos/index.js';
 import { LABELS, labelText, receiptOutputLabel, type LabelKey } from '../src/pos/index.js';
 import { isPosOnlyCall, isUnknownOutcomeCall } from '../src/client/aufrufe.js';
+import { receiptOutputsFromWire } from '../src/models/receipt-output.js';
 import { randUndAnmeldung } from './kassenweg-codes.js';
 
 /*
@@ -33,6 +34,21 @@ const FAELLE = (lies('v3/antworten/kasse.json').endpoints as Record<string, { ca
 const VOKABULAR = lies('v3/v3-vokabular.json');
 const BELEGE = lies('v3/antworten/belege.json').cases as BelegFall[];
 const KASSE_BELEGE = lies('v3/antworten/kasse-belege.json').cases as BelegFall[];
+
+/**
+ * Gemeinsame Prueffaelle mit dem Dart-Zwilling (`npm run fixtures:ausgaben`):
+ * Leseregel fuer `outputs` samt Beschriftung und die Pruefung der Eintraege
+ * vor dem Senden. Was hier steht, rechnen beide Pakete gleich; die Tests
+ * unten rechnen jeden Fall mit dem Quelltext nach.
+ */
+interface AusgabenLesefall { name: string; input: unknown; expected: ReceiptOutput[] | null; labels: (string | null)[] | null }
+interface AusgabenAnfrage { name: string; entries: Json[]; expected: { sent: Json } | { error: { scope: 'request'; reason: string } } }
+const ZWILLING = lies('receipt-outputs-cases.json') as { version: number; outputs: AusgabenLesefall[]; requests: AusgabenAnfrage[] };
+const anfrage = (name: string): AusgabenAnfrage => {
+  const a = ZWILLING.requests.find((r) => r.name === name);
+  if (!a) throw new Error(`receipt-outputs-cases.json: keine Anfrage ${name}`);
+  return a;
+};
 
 function antwortAus(f: Pick<Fall, 'httpStatus' | 'headers' | 'response'>): HttpResponseLike {
   const rumpf = JSON.stringify(f.response);
@@ -80,41 +96,38 @@ const VOR_DEM_SENDEN: Record<string, string> = {
   entries_empty: 'leere Liste',
 };
 
-/**
- * Eintraege der Erfolgsfaelle, die das Paket vor dem Senden abweist, weil der
- * Schluessel nicht der Regel des Servers folgt (8–64 Zeichen [A-Za-z0-9_-]).
- * Der Server zeigt damit `idempotency_key_required`; die Kasse soll den Fehler
- * schon beim Entwickeln sehen und `rejected[].key` immer ihren Pufferschluessel tragen.
- */
-const VORAB_ABGEWIESEN: Record<string, string[]> = { mixed: ['kurz'] };
-
 // --- logReceiptOutputs am Kassenweg ------------------------------------------
 
 test('logReceiptOutputs: jeder Erfolgsfall sendet genau die Eintraege des Falls und liest accepted/rejected wie gesendet', async () => {
   const faelle = FAELLE.filter((c) => c.response.status === 'success');
   assert.ok(faelle.length >= 4, `nur ${faelle.length} Erfolgsfaelle`);
   for (const f of faelle) {
-    const weg = VORAB_ABGEWIESEN[f.case] ?? [];
-    if (weg.length > 0) {
-      // Wie gesendet weist das Paket den Fall vor dem Senden ab (Schluessel ausserhalb der Regel des Servers) ...
+    // Ein Fall, den das Paket vor dem Senden abweist, steht so in der
+    // Zwillingsdatei (contract_<fall>), dazu der Fall ohne den beanstandeten
+    // Eintrag (contract_<fall>_without_short_key), der hinausgeht.
+    const zwilling = ZWILLING.requests.find((r) => r.name === `contract_${f.case}`);
+    let gesendetWird = f;
+    if (zwilling !== undefined) {
+      assert.deepEqual(zwilling.entries, f.params.entries, `${f.case}: Zwillingsdatei aus einem anderen Vertragsstand`);
+      assert.ok('error' in zwilling.expected, f.case);
       const ganz = await rufe(f);
       assert.equal(ganz.gesendet.length, 0, f.case);
-      assert.ok(isKasseneckValidationError(ganz.fehler) && ganz.fehler.scope === 'request', `${f.case}: ${String(ganz.fehler)}`);
+      assert.ok(isKasseneckValidationError(ganz.fehler) && ganz.fehler.scope === 'request' && ganz.fehler.reason === zwilling.expected.error.reason, `${f.case}: ${String(ganz.fehler)}`);
+      const ohne = anfrage(`contract_${f.case}_without_short_key`);
+      gesendetWird = structuredClone(f);
+      gesendetWird.params.entries = ohne.entries;
+      assert.equal(ohne.entries.length, f.params.entries.length - 1, f.case);
     }
-    // ... ohne diese Eintraege geht der Rest Feld fuer Feld hinaus.
-    const ohne = structuredClone(f);
-    ohne.params.entries = f.params.entries.filter((e: Json) => !weg.includes(e.key));
-    assert.equal(ohne.params.entries.length, f.params.entries.length - weg.length, f.case);
-    const { ergebnis, fehler, gesendet } = await rufe(ohne);
+    const { ergebnis, fehler, gesendet } = await rufe(gesendetWird);
     assert.equal(fehler, undefined, `${f.case}: ${String(fehler)}`);
-    assert.deepEqual(gesendet, [ohne.params], f.case);
+    assert.deepEqual(gesendet, [gesendetWird.params], f.case);
     assert.deepEqual(ergebnis, f.response.data, f.case);
   }
 });
 
 test('logReceiptOutputs: abgelehnte Eintraege kommen je Schluessel mit Code zurueck, die anderen sind angenommen (Review Focus 5)', async () => {
   const f = structuredClone(fall('mixed'));
-  f.params.entries = f.params.entries.filter((e: Json) => e.key !== 'kurz');
+  f.params.entries = anfrage('contract_mixed_without_short_key').entries;
   const { ergebnis, gesendet } = await rufe(f);
   // Mail und Abruf meldet die Kasse nie selbst; das Paket sendet sie trotzdem,
   // damit der Server genau diesen Eintrag ablehnt und der Puffer ihn verwirft.
@@ -141,7 +154,42 @@ test('logReceiptOutputs: jeder Fehlerfall wird am Code erkannt; vor dem Senden a
   assert.deepEqual(abgewiesen.sort(), Object.keys(VOR_DEM_SENDEN).sort());
 });
 
-test('logReceiptOutputs vor dem Senden: unbekannte Felder, Form der Liste und der Eintraege', async () => {
+test('Zwilling: jede Anfrage der Zwillingsdatei sendet genau die erwartete Nutzlast oder wird mit genau diesem Grund abgewiesen', async () => {
+  assert.equal(ZWILLING.version, 1);
+  for (const a of ZWILLING.requests) {
+    const gesendet: Json[] = [];
+    const holen: FetchLike = async (_url, init) => {
+      const p = (JSON.parse(init.body) as { params: Json }).params;
+      delete p.cashregisterId;
+      gesendet.push(p);
+      return antwortAus({ httpStatus: 200, headers: { 'Kasseneck-Api-Version': 'v3' }, response: { status: 'success', message: '', data: { accepted: a.entries.length, rejected: [] } } });
+    };
+    const r = createTransport({ auth: KASSIER(), fetch: holen });
+    const fehler = await logReceiptOutputs(r, { entries: a.entries as never }).then(() => undefined, (e: unknown) => e);
+    if ('sent' in a.expected) {
+      assert.equal(fehler, undefined, `${a.name}: ${String(fehler)}`);
+      assert.deepEqual(gesendet, [a.expected.sent], a.name);
+    } else {
+      assert.equal(gesendet.length, 0, a.name);
+      assert.ok(isKasseneckValidationError(fehler) && fehler.scope === a.expected.error.scope, `${a.name}: ${String(fehler)}`);
+      assert.equal(fehler.reason, a.expected.error.reason, a.name);
+    }
+  }
+});
+
+test('Zwilling: die Zwillingsdatei deckt Schluesselregel, Zeit ohne Zone, unbekannte Felder, 0/50/51 Eintraege und den Vertragsfall mixed ab', () => {
+  const grund = (name: string): string | undefined => { const e = anfrage(name).expected; return 'error' in e ? e.error.reason : undefined; };
+  for (const name of ['key_too_short', 'key_space', 'key_umlaut', 'key_too_long', 'contract_mixed']) assert.match(grund(name) ?? '', /\.key muss 8–64 Zeichen/, name);
+  for (const name of ['at_without_zone', 'at_fraction_without_zone', 'at_offset_without_colon', 'at_date_only', 'at_space']) assert.match(grund(name) ?? '', /\.at muss/, name);
+  for (const name of ['unknown_field', 'unknown_field_second_entry', 'unknown_field_cashregister']) assert.match(grund(name) ?? '', /unbekanntes Feld/, name);
+  for (const name of ['no_entries', 'too_many_entries']) assert.match(grund(name) ?? '', /1–50/, name);
+  assert.equal(anfrage('too_many_entries').entries.length, RECEIPT_OUTPUT_ENTRIES_MAX + 1);
+  for (const name of ['max_entries', 'key_bounds', 'at_with_zone', 'at_zero', 'kind_server_written', 'result_missing_print', 'contract_mixed_without_short_key']) {
+    assert.equal(grund(name), undefined, name);
+  }
+});
+
+test('logReceiptOutputs vor dem Senden: was nur in JavaScript vorkommt (Form der Optionen, kein Objekt, undefined, Date)', async () => {
   const nie: FetchLike = async () => { throw new Error('darf nicht senden'); };
   const r = createTransport({ auth: KASSIER(), fetch: nie, timeoutMs: 50 });
   const gut: ReceiptOutputEntry = { key: 'druck-0001', receiptId: 'KASSE1-ID-7', kind: 'print', at: '2026-09-26T09:58:00+02:00', result: 'ok' };
@@ -152,46 +200,11 @@ test('logReceiptOutputs vor dem Senden: unbekannte Felder, Form der Liste und de
   await abgewiesen({ entries: [gut], drawerId: 'x' }, /unbekanntes Feld "drawerId"/);
   // Die Kasse steht in der Anmeldung (Kopfzeile bzw. registerUserAuth), nie ein zweites Mal in der Nutzlast.
   await abgewiesen({ entries: [gut], cashregisterId: 'KASSE2' }, /unbekanntes Feld "cashregisterId"/);
-  await abgewiesen({ entries: [{ ...gut, receiptID: 'KASSE1-ID-7' }] }, /entries\[0\]: unbekanntes Feld "receiptID"/);
-  await abgewiesen({ entries: [gut, { ...gut, key: 'druck-0002', note: 'Kopie' }] }, /entries\[1\]: unbekanntes Feld "note"/);
   await abgewiesen({ entries: 'druck' }, /entries/);
-  await abgewiesen({ entries: Array.from({ length: RECEIPT_OUTPUT_ENTRIES_MAX + 1 }, (_, i) => ({ ...gut, key: `druck-${1000 + i}` })) }, /1.50/);
   await abgewiesen({ entries: [null] }, /entries\[0\]/);
-  await abgewiesen({ entries: [{ ...gut, key: '' }] }, /entries\[0\]\.key/);
   await abgewiesen({ entries: [{ ...gut, key: undefined }] }, /entries\[0\]\.key/);
-  await abgewiesen({ entries: [{ ...gut, receiptId: ' ' }] }, /entries\[0\]\.receiptId/);
-  // Ein Wert ausserhalb des Katalogs liesse den Rand die GANZE Anfrage abweisen.
-  await abgewiesen({ entries: [{ ...gut, kind: 'erstdruck' }] }, /entries\[0\]\.kind/);
-  await abgewiesen({ entries: [{ ...gut, result: 'fehler' }] }, /entries\[0\]\.result/);
   await abgewiesen({ entries: [{ ...gut, at: new Date(0) }] }, /entries\[0\]\.at/);
-  await abgewiesen({ entries: [{ ...gut, at: 1.5 }] }, /entries\[0\]\.at/);
-  await abgewiesen({ entries: [{ ...gut, at: '' }] }, /entries\[0\]\.at/);
-  // Schluessel nach der Regel des Servers: 8–64 Zeichen [A-Za-z0-9_-].
-  await abgewiesen({ entries: [{ ...gut, key: 'kurz' }] }, /entries\[0\]\.key muss 8–64 Zeichen/);
-  await abgewiesen({ entries: [{ ...gut, key: 'druck 0001' }] }, /entries\[0\]\.key/);
-  await abgewiesen({ entries: [{ ...gut, key: 'drück-0001' }] }, /entries\[0\]\.key/);
-  await abgewiesen({ entries: [{ ...gut, key: 'd'.repeat(65) }] }, /entries\[0\]\.key/);
-  // Zeit als Text nur mit Zone (Ruling): ohne Zone, Offset ohne Doppelpunkt, nur Datum, Leerzeichen statt T.
-  for (const at of ['2026-09-26T09:58:00', '2026-09-26T09:58:00.123', '2026-09-26T09:58:00+0200', '2026-09-26', '2026-09-26 09:58:00Z']) {
-    await abgewiesen({ entries: [{ ...gut, at }] }, /entries\[0\]\.at muss/);
-  }
-});
-
-test('logReceiptOutputs: Schluessel an den Grenzen und Zeiten mit Zone gehen hinaus', async () => {
-  const gesendet: Json[] = [];
-  const holen: FetchLike = async (_url, init) => {
-    gesendet.push((JSON.parse(init.body) as { params: Json }).params);
-    return antwortAus({ httpStatus: 200, headers: { 'Kasseneck-Api-Version': 'v3' }, response: { status: 'success', message: '', data: { accepted: 4, rejected: [] } } });
-  };
-  const r = createTransport({ auth: KASSIER(), fetch: holen });
-  const entries: ReceiptOutputEntry[] = [
-    { key: 'Ab_-0123', receiptId: 'KASSE1-ID-7', kind: 'print', at: '2026-09-26T07:58:00Z', result: 'ok' },
-    { key: 'k'.repeat(64), receiptId: 'KASSE1-ID-7', kind: 'reprint', at: '2026-09-26T09:58:00.123456+02:00', result: 'unclear' },
-    { key: 'teilen-0001', receiptId: 'KASSE1-ID-7', kind: 'link_shared', at: new Date(Date.UTC(2026, 8, 26, 7, 59)).toISOString() },
-    { key: 'teilen-0002', receiptId: 'KASSE1-ID-7', kind: 'pdf_shared', at: 0 },
-  ];
-  await logReceiptOutputs(r, { entries });
-  assert.deepEqual(gesendet[0]!.entries, entries);
+  await abgewiesen({ entries: [{ ...gut, at: Number.NaN }] }, /entries\[0\]\.at/);
 });
 
 test('logReceiptOutputs: 50 Eintraege gehen in einem Aufruf hinaus, undefined-Felder nicht', async () => {
@@ -290,28 +303,26 @@ test('getReceipt: jeder Erfolgsfall unter /v3 liest outputs als Liste; ohne Feld
   assert.equal('outputs' in (await belegLesen(ohne)), false);
 });
 
-test('getReceipt: ein kaputtes Protokoll laesst den Beleg nie scheitern; unbekannte Werte bleiben stehen', async () => {
-  const f = structuredClone(BELEGE.find((c) => c.name === 'get_receipt_with_outputs')!);
-  f.response.data.outputs = [
-    { kind: 'print', at: '2026-09-26T10:00:05+02:00', result: 'ok', by: { id: 'ru_livia', name: 'Livia Lindmayr' } },
-    { kind: 'fax', at: '2026-09-26T10:01:00+02:00', result: 'pending', by: { id: 'ru_livia' }, count: 'x' },
-    null,
-    'print',
-    { at: '2026-09-26T10:02:00+02:00', result: 'ok', by: null },
-    { kind: 'reprint', at: 5, result: 'ok', by: null },
-    { kind: 'opened', at: '2026-09-26T10:03:00+02:00', result: 'ok', by: { name: 'ohne Kennung' }, count: 2, extra: true },
-  ];
-  const { receipt, outputs } = await belegLesen(f);
-  assert.equal(receipt.receiptId, f.response.data.receipt.receiptId);
-  assert.deepEqual(outputs, [
-    { kind: 'print', at: '2026-09-26T10:00:05+02:00', result: 'ok', by: { id: 'ru_livia', name: 'Livia Lindmayr' } },
-    { kind: 'fax', at: '2026-09-26T10:01:00+02:00', result: 'pending', by: { id: 'ru_livia', name: null } },
-    { kind: 'opened', at: '2026-09-26T10:03:00+02:00', result: 'ok', by: null, count: 2 },
-  ]);
-  const kaputt = structuredClone(f);
-  kaputt.response.data.outputs = { kind: 'print' };
-  const ohne = await belegLesen(kaputt);
-  assert.equal(ohne.outputs, undefined);
+test('Zwilling: jeder Lesefall der Zwillingsdatei ergibt genau die erwartete Liste und Beschriftungen', () => {
+  assert.ok(ZWILLING.outputs.length >= 8);
+  for (const f of ZWILLING.outputs) {
+    const gelesen = receiptOutputsFromWire(f.input) ?? null;
+    assert.deepEqual(gelesen, f.expected, f.name);
+    assert.deepEqual(gelesen === null ? null : gelesen.map(receiptOutputLabel), f.labels, f.name);
+  }
+  // Der Vertragsfall steht unveraendert darin.
+  const vertrag = BELEGE.find((c) => c.name === 'get_receipt_with_outputs')!;
+  assert.deepEqual(ZWILLING.outputs.find((f) => f.name === 'contract_get_receipt_with_outputs')?.input, vertrag.response.data.outputs);
+});
+
+test('getReceipt: ein kaputtes Protokoll laesst den Beleg nie scheitern (Lesefaelle der Zwillingsdatei am ganzen Beleg)', async () => {
+  for (const z of ZWILLING.outputs) {
+    const f = structuredClone(BELEGE.find((c) => c.name === 'get_receipt_with_outputs')!);
+    f.response.data.outputs = z.input;
+    const { receipt, outputs } = await belegLesen(f);
+    assert.equal(receipt.receiptId, f.response.data.receipt.receiptId, z.name);
+    assert.deepEqual(outputs ?? null, z.expected, z.name);
+  }
 });
 
 // --- Kataloge und Codes ------------------------------------------------------
@@ -382,41 +393,16 @@ test('Texte: Ausgaben am Belegdetail, Web und App gleich, mit genau diesem Wortl
   assert.equal(labelText('receipt.outputs_count' as LabelKey, { count: 4 }), '4 Ausgaben');
 });
 
-test('receiptOutputLabel: Art -> Beschriftung, nie eine Ausnahme (kaputtes oder neueres Protokoll)', () => {
+test('receiptOutputLabel: was nur in JavaScript vorkommt (kein Objekt, Art kein Text, Anzahl NaN), nie eine Ausnahme', () => {
   const o = (kind: string, extra: Partial<ReceiptOutput> = {}): ReceiptOutput => ({ kind, at: '2026-09-26T10:00:05+02:00', result: 'ok', by: null, ...extra });
-  assert.equal(receiptOutputLabel(o('print')), 'Erstdruck');
-  assert.equal(receiptOutputLabel(o('reprint', { result: 'unclear' })), 'Duplikat');
-  assert.equal(receiptOutputLabel(o('email')), 'E-Mail');
-  assert.equal(receiptOutputLabel(o('link_shared')), 'Link geteilt');
-  assert.equal(receiptOutputLabel(o('pdf_shared')), 'PDF geteilt');
-  assert.equal(receiptOutputLabel(o('opened', { count: 40 })), 'Vom Kunden geöffnet (40×)');
-  // Nur die Art: „fehlgeschlagen“ setzt die Kasse selbst dazu.
-  assert.equal(receiptOutputLabel(o('print', { result: 'failed' })), 'Erstdruck');
-  assert.equal(labelText('receipt.output_failed'), 'fehlgeschlagen');
-  // Abruf ohne gueltige Anzahl zaehlt als ein Abruf.
-  for (const count of [undefined, 0, -2, 1.5, Number.NaN, '3' as never]) {
-    assert.equal(receiptOutputLabel(o('opened', count === undefined ? {} : { count })), 'Vom Kunden geöffnet (1×)', String(count));
-  }
-  // Unbekannte Art (neuerer Server) oder kaputtes Protokoll: null, keine Ausnahme.
-  for (const kind of ['fax', '', 'constructor', 'toString', '__proto__', 'outputs_title', null as never, 42 as never]) {
-    assert.equal(receiptOutputLabel(o(kind)), null, String(kind));
-  }
+  assert.equal(receiptOutputLabel(o('opened', { count: Number.NaN })), 'Vom Kunden geöffnet (1×)');
+  assert.equal(receiptOutputLabel(o('opened', { count: '3' as never })), 'Vom Kunden geöffnet (1×)');
+  for (const kind of [null as never, 42 as never]) assert.equal(receiptOutputLabel(o(kind)), null, String(kind));
   assert.equal(receiptOutputLabel(null as never), null);
   assert.equal(receiptOutputLabel({} as never), null);
-  // Jede Art des Katalogs hat eine Beschriftung.
+  // Jede Art des Katalogs hat eine Beschriftung, und die Zwillingsdatei zeigt jede.
   for (const art of RECEIPT_OUTPUT_KINDS) assert.equal(typeof receiptOutputLabel(o(art)), 'string', art);
-});
-
-test('receiptOutputLabel: jeder Eintrag des Vertragsfalls und eines kaputten Protokolls ergibt eine Zeile ohne Ausnahme', async () => {
-  const f = structuredClone(BELEGE.find((c) => c.name === 'get_receipt_with_outputs')!);
-  const { outputs } = await belegLesen(f);
-  assert.deepEqual(outputs!.map(receiptOutputLabel), ['Duplikat', 'Vom Kunden geöffnet (3×)', 'E-Mail', 'Erstdruck']);
-  f.response.data.outputs = [
-    { kind: 'fax', at: '2026-09-26T10:01:00+02:00', result: 'ok', by: null },
-    { kind: 'opened', at: '2026-09-26T10:03:00+02:00', result: 'ok', by: null },
-    { kind: 'reprint', at: '2026-09-26T10:04:00+02:00', result: 'failed', by: { id: 'ru_livia', name: 'Livia Lindmayr' } },
-  ];
-  const kaputt = (await belegLesen(f)).outputs!;
-  assert.deepEqual(kaputt.map(receiptOutputLabel), [null, 'Vom Kunden geöffnet (1×)', 'Duplikat']);
-  assert.equal(kaputt[2]!.result, 'failed');
+  const gezeigt = new Set(ZWILLING.outputs.flatMap((f) => f.expected ?? []).map((x) => x.kind));
+  for (const art of RECEIPT_OUTPUT_KINDS) assert.ok(gezeigt.has(art), art);
+  assert.equal(labelText('receipt.output_failed'), 'fehlgeschlagen');
 });

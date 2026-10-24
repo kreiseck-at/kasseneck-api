@@ -340,7 +340,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Belegduplikat (1.14.0): Prueffaelle und Bytes der Nachdrucke.
-  'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`)];
+  'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`),
+  // Beleg-Ausgaben (1.14.0): gemeinsame Prueffaelle mit dem Dart-Zwilling.
+  'receipt-outputs-cases.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));
