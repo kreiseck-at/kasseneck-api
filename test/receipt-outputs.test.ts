@@ -133,11 +133,19 @@ test('logReceiptOutputs: abgelehnte Eintraege kommen je Schluessel mit Code zuru
   // damit der Server genau diesen Eintrag ablehnt und der Puffer ihn verwirft.
   assert.deepEqual(gesendet[0]!.entries.map((e: Json) => e.kind), ['email', 'opened', 'print', 'print', 'reprint', 'reprint']);
   const r = ergebnis as { accepted: number; rejected: { key: string; code: string }[] };
-  assert.equal(r.accepted, 1);
+  // Angenommen: der Duplikat-Fehlschlag und der Erstdruck mit 10 Minuten vorgehender
+  // Geraeteuhr (der Server klemmt die Zeit, statt abzulehnen).
+  assert.equal(r.accepted, 2);
+  assert.equal(r.rejected.find((x) => x.key === 'zeit-0001'), undefined);
   assert.deepEqual(r.rejected.find((x) => x.key === 'fremd-0001'), { key: 'fremd-0001', code: 'receipt_not_found' });
   for (const { code } of r.rejected) assert.ok((RECEIPT_OUTPUT_ENTRY_ERROR_CODES as readonly string[]).includes(code), code);
-  // Jeder Code je Eintrag aus dem Vertrag steht in der Liste, und umgekehrt.
-  assert.deepEqual([...new Set(r.rejected.map((x) => x.code))].sort(), [...RECEIPT_OUTPUT_ENTRY_ERROR_CODES].sort());
+  // Jeder Code je Eintrag aus dem Vertrag steht in der Liste, und umgekehrt -- bis auf
+  // output_time_out_of_range: den gibt der Server nur noch fuer eine unlesbare Zeit, und
+  // die weist das Paket schon vor dem Senden ab.
+  assert.deepEqual(
+    [...new Set(r.rejected.map((x) => x.code))].sort(),
+    [...RECEIPT_OUTPUT_ENTRY_ERROR_CODES].filter((c) => c !== 'output_time_out_of_range').sort(),
+  );
 });
 
 test('logReceiptOutputs: jeder Fehlerfall wird am Code erkannt; vor dem Senden abgewiesen nur die benannten', async () => {

@@ -94,7 +94,7 @@ function handelnder(w: unknown): ReceiptOutputActor | null {
 export const RECEIPT_OUTPUT_ENTRY_ERROR_CODES = Object.freeze([
   'receipt_not_found',        // Beleg gibt es nicht ODER er liegt in einer anderen Kasse
   'invalid_output_kind',      // Art, die die Kasse nicht meldet (email, opened)
-  'output_time_out_of_range', // vor der Belegzeit (1 min Spielraum), mehr als 5 min nach Eingang, oder ohne Zone
+  'output_time_out_of_range', // unlesbare Zeit oder ohne Zone (eine falsch gehende Uhr klemmt der Server)
   'idempotency_key_required', // Schluessel fehlt oder hat nicht 8-64 Zeichen [A-Za-z0-9_-]
   'validation',               // Druck ohne bzw. mit unbekanntem Ergebnis
 ] as const);

@@ -916,9 +916,9 @@ export interface ReceiptOutputEntry {
   kind: ReceiptOutputLogKind;
   /**
    * Zeitpunkt am Geraet: Millisekunden seit 1970 oder ISO 8601 **mit Zone**
-   * (`new Date().toISOString()`); Text ohne Zone wirft vor dem Senden. Frueher
-   * als eine Minute vor der Belegzeit oder spaeter als fuenf Minuten nach dem
-   * Eingang: `output_time_out_of_range`.
+   * (`new Date().toISOString()`); Text ohne Zone wirft vor dem Senden. Eine
+   * falsch gehende Geraeteuhr lehnt der Server nicht ab: er klemmt die Zeit auf
+   * Belegzeit bis Eingang.
    */
   at: number | string;
   /**
