@@ -375,7 +375,7 @@ test('Texte: Ausgaben am Belegdetail, Web und App gleich, mit genau diesem Wortl
     'receipt.output_email': ['E-Mail'],
     'receipt.output_link_shared': ['Link geteilt'],
     'receipt.output_pdf_shared': ['PDF geteilt'],
-    'receipt.output_opened': ['Vom Kunden geöffnet ({count}×)', ['count']],
+    'receipt.output_opened': ['Link geöffnet ({count}×)', ['count']],
     'receipt.output_failed': ['fehlgeschlagen'],
   };
   for (const [schluessel, [text, platzhalter]] of Object.entries(erwartet)) {
@@ -389,14 +389,14 @@ test('Texte: Ausgaben am Belegdetail, Web und App gleich, mit genau diesem Wortl
   for (const art of RECEIPT_OUTPUT_KINDS) assert.ok(`receipt.output_${art}` in LABELS, art);
   const ausgaben = Object.keys(LABELS).filter((k) => k.startsWith('receipt.output')).sort();
   assert.deepEqual(ausgaben, Object.keys(erwartet).sort());
-  assert.equal(labelText('receipt.output_opened' as LabelKey, { count: 3 }), 'Vom Kunden geöffnet (3×)');
+  assert.equal(labelText('receipt.output_opened' as LabelKey, { count: 3 }), 'Link geöffnet (3×)');
   assert.equal(labelText('receipt.outputs_count' as LabelKey, { count: 4 }), '4 Ausgaben');
 });
 
 test('receiptOutputLabel: was nur in JavaScript vorkommt (kein Objekt, Art kein Text, Anzahl NaN), nie eine Ausnahme', () => {
   const o = (kind: string, extra: Partial<ReceiptOutput> = {}): ReceiptOutput => ({ kind, at: '2026-09-26T10:00:05+02:00', result: 'ok', by: null, ...extra });
-  assert.equal(receiptOutputLabel(o('opened', { count: Number.NaN })), 'Vom Kunden geöffnet (1×)');
-  assert.equal(receiptOutputLabel(o('opened', { count: '3' as never })), 'Vom Kunden geöffnet (1×)');
+  assert.equal(receiptOutputLabel(o('opened', { count: Number.NaN })), 'Link geöffnet (1×)');
+  assert.equal(receiptOutputLabel(o('opened', { count: '3' as never })), 'Link geöffnet (1×)');
   for (const kind of [null as never, 42 as never]) assert.equal(receiptOutputLabel(o(kind)), null, String(kind));
   // Leere Art (die Leseregel liesse sie nie durch, ein Aufrufer kann sie bauen): null.
   assert.equal(receiptOutputLabel(o('')), null);

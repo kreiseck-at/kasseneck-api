@@ -1083,7 +1083,7 @@ const BESCHRIFTUNGEN_ROH = {
   'receipt.output_email': { text: 'E-Mail' },
   'receipt.output_link_shared': { text: 'Link geteilt' },
   'receipt.output_pdf_shared': { text: 'PDF geteilt' },
-  'receipt.output_opened': { text: 'Vom Kunden geöffnet ({count}×)', placeholders: ['count'] },
+  'receipt.output_opened': { text: 'Link geöffnet ({count}×)', placeholders: ['count'] },
   'receipt.output_failed': { text: 'fehlgeschlagen' },
 } as const satisfies Record<string, TextEntry>;
 

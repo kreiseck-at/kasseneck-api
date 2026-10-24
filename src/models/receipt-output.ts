@@ -47,7 +47,7 @@ export interface ReceiptOutputActor {
  */
 export interface ReceiptOutput {
   kind: ReceiptOutputKind | (string & {});
-  /** Zeitpunkt, ISO 8601 mit Wiener Zonenoffset; bei Kassenmeldungen der Zeitpunkt am Geraet, beim Abruf der letzte der Stunde. */
+  /** Zeitpunkt, ISO 8601 mit Wiener Zonenoffset; bei Kassenmeldungen der Zeitpunkt am Geraet, beim Abruf der erste der Stunde. */
   at: string;
   result: ReceiptOutputResult | (string & {});
   /** `null` beim Abruf durch den Kunden. */
