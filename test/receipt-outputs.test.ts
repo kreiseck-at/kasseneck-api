@@ -13,7 +13,7 @@ import {
   type ReceiptOutput, type ReceiptOutputEntry, type FetchLike, type HttpRequestInit, type HttpResponseLike,
 } from '../src/index.js';
 import * as kasse from '../src/pos/index.js';
-import { LABELS, labelText, type LabelKey } from '../src/pos/index.js';
+import { LABELS, labelText, receiptOutputLabel, type LabelKey } from '../src/pos/index.js';
 import { isPosOnlyCall, isUnknownOutcomeCall } from '../src/client/aufrufe.js';
 import { randUndAnmeldung } from './kassenweg-codes.js';
 
@@ -80,24 +80,45 @@ const VOR_DEM_SENDEN: Record<string, string> = {
   entries_empty: 'leere Liste',
 };
 
+/**
+ * Eintraege der Erfolgsfaelle, die das Paket vor dem Senden abweist, weil der
+ * Schluessel nicht der Regel des Servers folgt (8–64 Zeichen [A-Za-z0-9_-]).
+ * Der Server zeigt damit `idempotency_key_required`; die Kasse soll den Fehler
+ * schon beim Entwickeln sehen und `rejected[].key` immer ihren Pufferschluessel tragen.
+ */
+const VORAB_ABGEWIESEN: Record<string, string[]> = { mixed: ['kurz'] };
+
 // --- logReceiptOutputs am Kassenweg ------------------------------------------
 
 test('logReceiptOutputs: jeder Erfolgsfall sendet genau die Eintraege des Falls und liest accepted/rejected wie gesendet', async () => {
   const faelle = FAELLE.filter((c) => c.response.status === 'success');
   assert.ok(faelle.length >= 4, `nur ${faelle.length} Erfolgsfaelle`);
   for (const f of faelle) {
-    const { ergebnis, fehler, gesendet } = await rufe(f);
+    const weg = VORAB_ABGEWIESEN[f.case] ?? [];
+    if (weg.length > 0) {
+      // Wie gesendet weist das Paket den Fall vor dem Senden ab (Schluessel ausserhalb der Regel des Servers) ...
+      const ganz = await rufe(f);
+      assert.equal(ganz.gesendet.length, 0, f.case);
+      assert.ok(isKasseneckValidationError(ganz.fehler) && ganz.fehler.scope === 'request', `${f.case}: ${String(ganz.fehler)}`);
+    }
+    // ... ohne diese Eintraege geht der Rest Feld fuer Feld hinaus.
+    const ohne = structuredClone(f);
+    ohne.params.entries = f.params.entries.filter((e: Json) => !weg.includes(e.key));
+    assert.equal(ohne.params.entries.length, f.params.entries.length - weg.length, f.case);
+    const { ergebnis, fehler, gesendet } = await rufe(ohne);
     assert.equal(fehler, undefined, `${f.case}: ${String(fehler)}`);
-    assert.deepEqual(gesendet, [f.params], f.case);
+    assert.deepEqual(gesendet, [ohne.params], f.case);
     assert.deepEqual(ergebnis, f.response.data, f.case);
   }
 });
 
 test('logReceiptOutputs: abgelehnte Eintraege kommen je Schluessel mit Code zurueck, die anderen sind angenommen (Review Focus 5)', async () => {
-  const { ergebnis, gesendet } = await rufe(fall('mixed'));
+  const f = structuredClone(fall('mixed'));
+  f.params.entries = f.params.entries.filter((e: Json) => e.key !== 'kurz');
+  const { ergebnis, gesendet } = await rufe(f);
   // Mail und Abruf meldet die Kasse nie selbst; das Paket sendet sie trotzdem,
   // damit der Server genau diesen Eintrag ablehnt und der Puffer ihn verwirft.
-  assert.deepEqual(gesendet[0]!.entries.map((e: Json) => e.kind), ['email', 'opened', 'print', 'print', 'print', 'reprint', 'reprint']);
+  assert.deepEqual(gesendet[0]!.entries.map((e: Json) => e.kind), ['email', 'opened', 'print', 'print', 'reprint', 'reprint']);
   const r = ergebnis as { accepted: number; rejected: { key: string; code: string }[] };
   assert.equal(r.accepted, 1);
   assert.deepEqual(r.rejected.find((x) => x.key === 'fremd-0001'), { key: 'fremd-0001', code: 'receipt_not_found' });
@@ -145,6 +166,32 @@ test('logReceiptOutputs vor dem Senden: unbekannte Felder, Form der Liste und de
   await abgewiesen({ entries: [{ ...gut, at: new Date(0) }] }, /entries\[0\]\.at/);
   await abgewiesen({ entries: [{ ...gut, at: 1.5 }] }, /entries\[0\]\.at/);
   await abgewiesen({ entries: [{ ...gut, at: '' }] }, /entries\[0\]\.at/);
+  // Schluessel nach der Regel des Servers: 8–64 Zeichen [A-Za-z0-9_-].
+  await abgewiesen({ entries: [{ ...gut, key: 'kurz' }] }, /entries\[0\]\.key muss 8–64 Zeichen/);
+  await abgewiesen({ entries: [{ ...gut, key: 'druck 0001' }] }, /entries\[0\]\.key/);
+  await abgewiesen({ entries: [{ ...gut, key: 'drück-0001' }] }, /entries\[0\]\.key/);
+  await abgewiesen({ entries: [{ ...gut, key: 'd'.repeat(65) }] }, /entries\[0\]\.key/);
+  // Zeit als Text nur mit Zone (Ruling): ohne Zone, Offset ohne Doppelpunkt, nur Datum, Leerzeichen statt T.
+  for (const at of ['2026-09-26T09:58:00', '2026-09-26T09:58:00.123', '2026-09-26T09:58:00+0200', '2026-09-26', '2026-09-26 09:58:00Z']) {
+    await abgewiesen({ entries: [{ ...gut, at }] }, /entries\[0\]\.at muss/);
+  }
+});
+
+test('logReceiptOutputs: Schluessel an den Grenzen und Zeiten mit Zone gehen hinaus', async () => {
+  const gesendet: Json[] = [];
+  const holen: FetchLike = async (_url, init) => {
+    gesendet.push((JSON.parse(init.body) as { params: Json }).params);
+    return antwortAus({ httpStatus: 200, headers: { 'Kasseneck-Api-Version': 'v3' }, response: { status: 'success', message: '', data: { accepted: 4, rejected: [] } } });
+  };
+  const r = createTransport({ auth: KASSIER(), fetch: holen });
+  const entries: ReceiptOutputEntry[] = [
+    { key: 'Ab_-0123', receiptId: 'KASSE1-ID-7', kind: 'print', at: '2026-09-26T07:58:00Z', result: 'ok' },
+    { key: 'k'.repeat(64), receiptId: 'KASSE1-ID-7', kind: 'reprint', at: '2026-09-26T09:58:00.123456+02:00', result: 'unclear' },
+    { key: 'teilen-0001', receiptId: 'KASSE1-ID-7', kind: 'link_shared', at: new Date(Date.UTC(2026, 8, 26, 7, 59)).toISOString() },
+    { key: 'teilen-0002', receiptId: 'KASSE1-ID-7', kind: 'pdf_shared', at: 0 },
+  ];
+  await logReceiptOutputs(r, { entries });
+  assert.deepEqual(gesendet[0]!.entries, entries);
 });
 
 test('logReceiptOutputs: 50 Eintraege gehen in einem Aufruf hinaus, undefined-Felder nicht', async () => {
@@ -333,4 +380,43 @@ test('Texte: Ausgaben am Belegdetail, Web und App gleich, mit genau diesem Wortl
   assert.deepEqual(ausgaben, Object.keys(erwartet).sort());
   assert.equal(labelText('receipt.output_opened' as LabelKey, { count: 3 }), 'Vom Kunden geöffnet (3×)');
   assert.equal(labelText('receipt.outputs_count' as LabelKey, { count: 4 }), '4 Ausgaben');
+});
+
+test('receiptOutputLabel: Art -> Beschriftung, nie eine Ausnahme (kaputtes oder neueres Protokoll)', () => {
+  const o = (kind: string, extra: Partial<ReceiptOutput> = {}): ReceiptOutput => ({ kind, at: '2026-09-26T10:00:05+02:00', result: 'ok', by: null, ...extra });
+  assert.equal(receiptOutputLabel(o('print')), 'Erstdruck');
+  assert.equal(receiptOutputLabel(o('reprint', { result: 'unclear' })), 'Duplikat');
+  assert.equal(receiptOutputLabel(o('email')), 'E-Mail');
+  assert.equal(receiptOutputLabel(o('link_shared')), 'Link geteilt');
+  assert.equal(receiptOutputLabel(o('pdf_shared')), 'PDF geteilt');
+  assert.equal(receiptOutputLabel(o('opened', { count: 40 })), 'Vom Kunden geöffnet (40×)');
+  // Nur die Art: „fehlgeschlagen“ setzt die Kasse selbst dazu.
+  assert.equal(receiptOutputLabel(o('print', { result: 'failed' })), 'Erstdruck');
+  assert.equal(labelText('receipt.output_failed'), 'fehlgeschlagen');
+  // Abruf ohne gueltige Anzahl zaehlt als ein Abruf.
+  for (const count of [undefined, 0, -2, 1.5, Number.NaN, '3' as never]) {
+    assert.equal(receiptOutputLabel(o('opened', count === undefined ? {} : { count })), 'Vom Kunden geöffnet (1×)', String(count));
+  }
+  // Unbekannte Art (neuerer Server) oder kaputtes Protokoll: null, keine Ausnahme.
+  for (const kind of ['fax', '', 'constructor', 'toString', '__proto__', 'outputs_title', null as never, 42 as never]) {
+    assert.equal(receiptOutputLabel(o(kind)), null, String(kind));
+  }
+  assert.equal(receiptOutputLabel(null as never), null);
+  assert.equal(receiptOutputLabel({} as never), null);
+  // Jede Art des Katalogs hat eine Beschriftung.
+  for (const art of RECEIPT_OUTPUT_KINDS) assert.equal(typeof receiptOutputLabel(o(art)), 'string', art);
+});
+
+test('receiptOutputLabel: jeder Eintrag des Vertragsfalls und eines kaputten Protokolls ergibt eine Zeile ohne Ausnahme', async () => {
+  const f = structuredClone(BELEGE.find((c) => c.name === 'get_receipt_with_outputs')!);
+  const { outputs } = await belegLesen(f);
+  assert.deepEqual(outputs!.map(receiptOutputLabel), ['Duplikat', 'Vom Kunden geöffnet (3×)', 'E-Mail', 'Erstdruck']);
+  f.response.data.outputs = [
+    { kind: 'fax', at: '2026-09-26T10:01:00+02:00', result: 'ok', by: null },
+    { kind: 'opened', at: '2026-09-26T10:03:00+02:00', result: 'ok', by: null },
+    { kind: 'reprint', at: '2026-09-26T10:04:00+02:00', result: 'failed', by: { id: 'ru_livia', name: 'Livia Lindmayr' } },
+  ];
+  const kaputt = (await belegLesen(f)).outputs!;
+  assert.deepEqual(kaputt.map(receiptOutputLabel), [null, 'Vom Kunden geöffnet (1×)', 'Duplikat']);
+  assert.equal(kaputt[2]!.result, 'failed');
 });

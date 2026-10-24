@@ -906,8 +906,8 @@ export interface ReceiptOutputEntry {
   /**
    * Idempotenzschluessel des Eintrags, am Geraet beim Puffern vergeben und
    * beim Nachsenden unveraendert: ein zweites Melden legt keinen zweiten
-   * Eintrag an. Der Server verlangt 8–64 Zeichen `[A-Za-z0-9_-]`, sonst lehnt
-   * er den Eintrag mit `idempotency_key_required` ab.
+   * Eintrag an. 8–64 Zeichen `[A-Za-z0-9_-]` (Regel des Servers); ein anderer
+   * Schluessel wirft vor dem Senden.
    */
   key: string;
   /** Beleg in der Kasse der Anmeldung; ein Beleg einer anderen Kasse ist `receipt_not_found`. */
@@ -916,9 +916,9 @@ export interface ReceiptOutputEntry {
   kind: ReceiptOutputLogKind;
   /**
    * Zeitpunkt am Geraet: Millisekunden seit 1970 oder ISO 8601 **mit Zone**
-   * (`new Date().toISOString()`). Frueher als eine Minute vor der Belegzeit,
-   * spaeter als fuenf Minuten nach dem Eingang oder ohne Zone:
-   * `output_time_out_of_range`.
+   * (`new Date().toISOString()`); Text ohne Zone wirft vor dem Senden. Frueher
+   * als eine Minute vor der Belegzeit oder spaeter als fuenf Minuten nach dem
+   * Eingang: `output_time_out_of_range`.
    */
   at: number | string;
   /**
@@ -951,6 +951,10 @@ export interface LogReceiptOutputsResult {
 
 const AUSGABEN_FELDER: readonly string[] = ['entries'];
 const AUSGABE_FELDER: readonly string[] = ['key', 'receiptId', 'kind', 'at', 'result'];
+/** Idempotenzschluessel eines Eintrags, wie der Server ihn annimmt. */
+const AUSGABE_SCHLUESSEL = /^[A-Za-z0-9_-]{8,64}$/;
+/** Zeitpunkt als Text: RFC 3339 mit Zone, bis zu sechs Nachkommastellen (wie der Server). */
+const AUSGABE_ZEIT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
 
 /**
  * Meldet Drucke und das Teilen eines Belegs an das Protokoll „Ausgaben“
@@ -971,9 +975,10 @@ const AUSGABE_FELDER: readonly string[] = ['key', 'receiptId', 'kind', 'at', 're
  *
  * **Vor dem Senden abgewiesen** wird nur, was die ganze Anfrage scheitern
  * liesse oder ohne Netz sicher falsch ist: keine oder mehr als 50 Eintraege,
- * ein unbekanntes Feld (oben oder im Eintrag), ein fehlender Schluessel oder
- * Beleg, eine Art oder ein Ergebnis ausserhalb des Katalogs, eine Zeit, die
- * weder Zahl noch Text ist. `email` und `opened` gehen hinaus und kommen als
+ * ein unbekanntes Feld (oben oder im Eintrag), ein fehlender Beleg, ein
+ * Schluessel ausserhalb der Regel des Servers, eine Art oder ein Ergebnis
+ * ausserhalb des Katalogs, eine Zeit, die weder ganze Millisekunden noch
+ * ISO 8601 mit Zone ist. `email` und `opened` gehen hinaus und kommen als
  * `invalid_output_kind` zurueck: so verwirft der Puffer genau diesen Eintrag.
  * Fehler der ganzen Anfrage: [RECEIPT_OUTPUT_ERROR_CODES].
  */
@@ -1004,6 +1009,9 @@ export async function logReceiptOutputs(
       const w = eintrag[feld];
       if (typeof w !== 'string' || w.trim() === '') throw anfrage(`${wo}.${feld} fehlt`);
     }
+    // Dieselbe Regel wie der Server: so traegt jede Antwort (`rejected[].key`)
+    // genau den Schluessel, unter dem die Kasse den Eintrag puffert.
+    if (!AUSGABE_SCHLUESSEL.test(eintrag.key as string)) throw anfrage(`${wo}.key muss 8–64 Zeichen [A-Za-z0-9_-] haben`);
     // Ein Wert ausserhalb des Katalogs liesse den Rand die ganze Anfrage abweisen.
     if (!(RECEIPT_OUTPUT_KINDS as readonly unknown[]).includes(eintrag.kind)) {
       throw anfrage(`${wo}.kind muss ${RECEIPT_OUTPUT_KINDS.join(', ')} sein`);
@@ -1012,7 +1020,10 @@ export async function logReceiptOutputs(
       throw anfrage(`${wo}.result muss ${RECEIPT_OUTPUT_RESULTS.join(', ')} sein`);
     }
     const at = eintrag.at;
-    const zeitOk = (typeof at === 'number' && Number.isSafeInteger(at) && at >= 0) || (typeof at === 'string' && at.trim() !== '');
+    // Text nur als ISO 8601 mit Zone (Regel des Servers): ohne Zone waere die
+    // Zeit je nach Geraet eine andere; das ist ein Fehler der Kasse, kein Fall
+    // fuer den Puffer.
+    const zeitOk = (typeof at === 'number' && Number.isSafeInteger(at) && at >= 0) || (typeof at === 'string' && AUSGABE_ZEIT.test(at));
     if (!zeitOk) throw anfrage(`${wo}.at muss Millisekunden seit 1970 oder ISO 8601 mit Zone sein`);
     return eintrag;
   });

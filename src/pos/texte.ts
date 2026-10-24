@@ -23,6 +23,7 @@
 
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 import type { ReturnDisposition } from '../models/cancellation.js';
+import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
 export type Surface = 'web' | 'app';
@@ -1100,6 +1101,32 @@ export const RETURN_DISPOSITION_LABELS = {
   defective: 'stock.return_defective',
   disposed: 'stock.return_disposed',
 } as const satisfies Record<ReturnDisposition, LabelKey>;
+
+/** Art einer Ausgabe -> Beschriftung (`receipt.output_<kind>`). */
+const AUSGABE_BESCHRIFTUNG = {
+  print: 'receipt.output_print',
+  reprint: 'receipt.output_reprint',
+  email: 'receipt.output_email',
+  link_shared: 'receipt.output_link_shared',
+  pdf_shared: 'receipt.output_pdf_shared',
+  opened: 'receipt.output_opened',
+} as const satisfies Record<ReceiptOutputKind, LabelKey>;
+
+/**
+ * Die Beschriftung der Art einer Ausgabe (Belegdetail, Zeile „Ausgaben“), nie
+ * eine Ausnahme: `null` bei einer Art, die dieses Paket nicht kennt (neuerer
+ * Server); `opened` ohne gueltige Anzahl (ganze Zahl ab 1) zaehlt als ein
+ * Abruf. Nur die Art: „fehlgeschlagen“ (`receipt.output_failed`) setzt die
+ * Kasse selbst dazu, wenn `result` `failed` ist.
+ */
+export function receiptOutputLabel(output: ReceiptOutput): string | null {
+  const art: unknown = output?.kind;
+  if (typeof art !== 'string' || !Object.prototype.hasOwnProperty.call(AUSGABE_BESCHRIFTUNG, art)) return null;
+  const key = AUSGABE_BESCHRIFTUNG[art as ReceiptOutputKind];
+  if (art !== 'opened') return labelText(key);
+  const anzahl: unknown = output.count;
+  return labelText(key, { count: typeof anzahl === 'number' && Number.isSafeInteger(anzahl) && anzahl >= 1 ? anzahl : 1 });
+}
 
 /** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `messageText`. */
 export function labelText(key: LabelKey, values: Record<string, string | number> = {}): string {
