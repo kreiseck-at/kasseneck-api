@@ -114,7 +114,10 @@ const NACH_1_0 = {
     'drawer.reason_voucher_payout', 'quantity.at_most', 'quantity.at_least', 'receipts.number_hint', 'receipts.clear_number', 'receipts.open', 'receipt.creating',
     'receipt_done.sale_title', 'receipt_done.paid_by_voucher', 'receipt_done.payout_title', 'receipt_done.paid_out', 'voucher.code_mask', 'cart.close',
     'nav.register', 'nav.receipts', 'nav.vouchers', 'nav.open_drawer', 'nav.stocktake', 'nav.settings', 'nav.settings_locked', 'nav.logout', 'nav.logging_out',
-    'nav.fullscreen', 'nav.fullscreen_exit'],
+    'nav.fullscreen', 'nav.fullscreen_exit',
+    // Ausgaben eines Belegs am Belegdetail (1.14.0)
+    'receipt.outputs_title', 'receipt.outputs_count', 'receipt.output_print', 'receipt.output_reprint', 'receipt.output_email',
+    'receipt.output_link_shared', 'receipt.output_pdf_shared', 'receipt.output_opened', 'receipt.output_failed'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

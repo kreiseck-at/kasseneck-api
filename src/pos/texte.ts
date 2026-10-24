@@ -1072,6 +1072,18 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.pay_outs': { text: 'Auszahlungen' },
   'cash_movement.pay_in_amount': { text: '{amount} einzahlen', placeholders: ['amount'] },
   'cash_movement.pay_out_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
+  // Belegdetail: Zeile „Ausgaben“ (eingeklappt mit Anzahl), aufgeklappt je Eintrag die Art
+  // (`receipt.output_<kind>`, Arten wie RECEIPT_OUTPUT_KINDS), dazu „fehlgeschlagen“ bei Ergebnis `failed`.
+  // `{count}` beim Abruf ist die Zahl der Abrufe in dieser Stunde.
+  'receipt.outputs_title': { text: 'Ausgaben' },
+  'receipt.outputs_count': { text: '{count} Ausgaben', placeholders: ['count'] },
+  'receipt.output_print': { text: 'Erstdruck' },
+  'receipt.output_reprint': { text: 'Duplikat' },
+  'receipt.output_email': { text: 'E-Mail' },
+  'receipt.output_link_shared': { text: 'Link geteilt' },
+  'receipt.output_pdf_shared': { text: 'PDF geteilt' },
+  'receipt.output_opened': { text: 'Vom Kunden geöffnet ({count}×)', placeholders: ['count'] },
+  'receipt.output_failed': { text: 'fehlgeschlagen' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

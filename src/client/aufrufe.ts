@@ -154,6 +154,8 @@ export const ALL_CALLS = [
   'logMyDrawerOpenings',
   'getMyShiftReport',
   'closeMyShift',
+  // Ausgaben eines Belegs (Drucke, Teilen) melden: nur ueber den Kassenweg.
+  'logReceiptOutputs',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -333,6 +335,8 @@ export const POS_CALLS = [
   'logMyDrawerOpenings',
   'getMyShiftReport',
   'closeMyShift',
+  // Ausgaben eines Belegs melden: nur ueber den Kassenweg.
+  'logReceiptOutputs',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -387,6 +391,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'hobexRefundApi',
   'issueInvoice',
   'logMyDrawerOpenings',
+  'logReceiptOutputs',
   'openMyShift',
   'orderSignatureCard',
   'pairRegisterDevice',
@@ -548,13 +553,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 39 Aufrufe des Kassenwegs. */
+/** Einer der 42 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (33 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (36 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */

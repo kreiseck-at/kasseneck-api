@@ -22,6 +22,9 @@ import {
   sendReceiptEmail,
   type SendReceiptEmailOptions,
   type SendReceiptEmailResult,
+  logReceiptOutputs,
+  type LogReceiptOutputsOptions,
+  type LogReceiptOutputsResult,
   type ListMyReceiptsOptions,
   type ReceiptList,
   type ReceiptWithCompany,
@@ -75,6 +78,8 @@ export interface KasseneckApi {
   getFirstReceiptDate(): Promise<ReportMonth>;
   /** Beleg als Link auf die oeffentliche Belegseite per E-Mail schicken. */
   sendReceiptEmail(options: SendReceiptEmailOptions): Promise<SendReceiptEmailResult>;
+  /** Drucke und Teilen eines Belegs an das Protokoll „Ausgaben“ melden (nur Kassenweg). */
+  logReceiptOutputs(options: LogReceiptOutputsOptions): Promise<LogReceiptOutputsResult>;
   /** Belegliste einer Kasse samt Kennzahlen (nur mit ID-Token, siehe receipts.ts). */
   listMyReceipts(options: ListMyReceiptsOptions): Promise<ReceiptList>;
   /** Kassen des angemeldeten Benutzers (nur mit ID-Token, siehe cashregisters.ts). */
@@ -121,6 +126,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     getFirstReceiptDate: () => getFirstReceiptDate(rufen),
     listMyReceipts: (o) => listMyReceipts(rufen, o),
     sendReceiptEmail: (o) => sendReceiptEmail(rufen, o),
+    logReceiptOutputs: (o) => logReceiptOutputs(rufen, o),
     listMyCashregisters: () => listMyCashregisters(rufen),
     getReportV2: (o) => getReportV2(rufen, o),
     getCashregisterReport: (options) => getCashregisterReport(rufenBinaer, options),

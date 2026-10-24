@@ -42,6 +42,10 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * Server-Layouts sind neu gezogen (Kopfzeile mit `ATU12345675` statt der alten UID, Firma Bäckerei Kornblum statt Bäckerei Welt, dazu die Bon-Regeln 0.35.0 bei den
  * Gutschein-Faellen); `receipts`, `ruleset1` und `shift` blieben. Das Server-Layout stammt unveraendert aus dem Vertrag.
  *
+ * Beleg-Ausgaben (24.10.2026, Backend fceb8304): der neue Vertragsfall `get_receipt_with_outputs` (je in `belege` und
+ * `kasse-belege`) traegt dasselbe Server-Layout wie `sale_cash_tendered` (derselbe Beleg, gelesen statt verkauft; neu ist
+ * nur `outputs` neben dem Layout); seine Digests sind darum die von `sale_cash_tendered`. Alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

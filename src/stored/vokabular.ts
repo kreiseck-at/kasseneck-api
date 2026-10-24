@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "8b2cb67233c5a5cf487a077711bc1287fa49778f0fc22e9cc7675329fbdfd512";
+export const VOKABULAR_QUELLE = "79ac326ebd70d8e8546c00cc705fd029d6df14e8ac263f2c00317f9cc371eef2";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -71,6 +71,15 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "validUntil": "gueltigBis"
           }
         }
+      ],
+      "outputs": [
+        {
+          "__": "ausgaben",
+          "kind": "art",
+          "result": "ergebnis",
+          "by": "durch",
+          "count": "anzahl"
+        }
       ]
     },
     "werte": {
@@ -85,6 +94,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "issuedVouchers[].validity.pattern": {
         "$catalog": "GUTSCHEIN_MUSTER"
+      },
+      "outputs[].kind": {
+        "$catalog": "AUSGABE_ART"
+      },
+      "outputs[].result": {
+        "$catalog": "AUSGABE_ERGEBNIS"
       }
     }
   },
@@ -316,6 +331,19 @@ export const ARTIKEL_FELDER: readonly string[] = [
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
 export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "AUSGABE_ART": {
+    "erstdruck": "print",
+    "duplikat": "reprint",
+    "mail": "email",
+    "link_geteilt": "link_shared",
+    "pdf_geteilt": "pdf_shared",
+    "abruf": "opened"
+  },
+  "AUSGABE_ERGEBNIS": {
+    "ok": "ok",
+    "fehler": "failed",
+    "unklar": "unclear"
+  },
   "E1A_GRUPPE": {
     "erloese": "revenue",
     "erloese_waren": "revenue_goods",

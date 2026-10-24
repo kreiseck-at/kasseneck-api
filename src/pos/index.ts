@@ -95,6 +95,9 @@ export {
 } from './schicht-typen.js';
 export { type ShiftReceiptLayoutOptions, shiftReceiptLayout, cashMovementLayout } from '../receipt/shift-sheet.js';
 
+// Ausgaben eines Belegs (Belegdetail: Art und Ergebnis -> Beschriftung); dieselben Listen wie an der Wurzel.
+export { RECEIPT_OUTPUT_KINDS, RECEIPT_OUTPUT_RESULTS, type ReceiptOutputKind, type ReceiptOutputResult } from '../models/receipt-output.js';
+
 // Rueckgabe-Wahl beim Storno (Kassen-Dialog); dieselbe Liste wie an der Wurzel.
 export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from '../models/cancellation.js';
 
