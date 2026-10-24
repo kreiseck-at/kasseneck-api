@@ -10,7 +10,7 @@ import { BASIS, FAELLE_NEU, dokument, fall } from './stored-gutschein-docs.js';
 
 /*
  * Gespeicherte Belege der neuen Gutscheinform: ./stored liest sie wie der
- * Server (belegGutscheineNachAussen am Rand, gutscheineFuerPaket im Layout).
+ * Server (belegGutscheineNachAussen am Rand, der Beleg unveraendert im Layout).
  * Die Belegdokumente entstehen aus den Vertragsbeispielen: Positionen sind
  * schon innere Form, die Eintraege werden in die gespeicherte (deutsche)
  * Form zurueckgefuehrt, so wie plane() sie schreibt.
@@ -65,6 +65,16 @@ test('stored: Layout wie der Server - Einzweck, Leistung und Nulltopf stehen nur
   for (const name of FAELLE_NEU) {
     const data = fall(name).response.data;
     if (data.layout == null) continue;
+    const b = belegMitFirmaAusHuelle(JSON.parse(JSON.stringify(data)), 'createReceipt');
+    assert.deepEqual(layoutWieServer(b, data.receipt.layoutRuleset), data.layout, name);
+  }
+});
+
+// Der Server gibt den Beleg unveraendert ans vendorte Paket (0.35.0). Der Zwilling setzt den gespeicherten Beleg ebenso:
+// Rest am Gutschein, Zeile ohne Mengenspalte, Auszahlung mit Grund.
+test('stored: Layout des Zwillings = Server-Layout fuer Leistung (Einloesung) und Auszahlung', () => {
+  for (const name of ['redeem_service_voucher', 'payout_multi_purpose_voucher']) {
+    const data = fall(name).response.data;
     const b = belegMitFirmaAusHuelle(JSON.parse(JSON.stringify(data)), 'createReceipt');
     assert.deepEqual(layoutWieServer(b, data.receipt.layoutRuleset), data.layout, name);
   }

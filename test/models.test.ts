@@ -185,7 +185,7 @@ test('Gutschein: Gueltigkeitsregeln des Vorbilds', () => {
   assert.equal(voucherIsValid(wert(500)), true);
   // Wertgutschein ohne Wert ergibt keinen Umsatz.
   assert.equal(voucherIsValid(wert()), false);
-  // Ein Promotionsgutschein wird eingeloest, nie verkauft.
+  // Ein Aktionsgutschein wird eingeloest, nie verkauft.
   assert.equal(voucherIsValid({ action: VoucherAction.redeem, type: VoucherType.promo, valueCents: 500 }), true);
   assert.equal(voucherIsValid({ action: VoucherAction.sell, type: VoucherType.promo, valueCents: 500 }), false);
   assert.equal(voucherIsValid({ action: VoucherAction.redeem, type: VoucherType.promo }), false);

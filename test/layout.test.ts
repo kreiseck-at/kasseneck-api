@@ -35,8 +35,8 @@ const FIRMA: ReceiptCompany = {
   zip: '1010',
   city: 'Wien',
   phone: '+43 1 1234567',
-  vatId: 'ATU12345678',
-  taxNumber: '12-345/6789',
+  vatId: 'ATU12345675',
+  taxNumber: '91-123/4565',
   isSmallBusiness: false,
   footer1: 'Vielen Dank für Ihren Einkauf',
   footer2: 'www.kreiseck.com',
@@ -129,7 +129,7 @@ test('Layout: der Belegkopf traegt Unternehmen, Anschrift, Steuernummer und Tele
   assert.equal(texte[1], 'Hauptstraße 5');
   assert.equal(texte[2], '1010 Wien');
   // taxInfo im Vorbild: UID, wenn vorhanden — sonst die Steuernummer.
-  assert.equal(texte[3], 'ATU12345678');
+  assert.equal(texte[3], 'ATU12345675');
   assert.equal(texte[4], '+43 1 1234567');
 
   const kopf = layout.lines[0];
@@ -140,7 +140,7 @@ test('Layout: der Belegkopf traegt Unternehmen, Anschrift, Steuernummer und Tele
 
 test('Layout: ohne UID steht die Steuernummer im Kopf', () => {
   const ohneUid: ReceiptCompany = { ...FIRMA, vatId: '' };
-  assert.equal(textZeilen(buildReceiptLayout(BELEG, ohneUid))[3], '12-345/6789');
+  assert.equal(textZeilen(buildReceiptLayout(BELEG, ohneUid))[3], '91-123/4565');
 });
 
 test('Layout: Belegnummer, Kassennummer und Belegzeit stehen als beschriftete Zeilen', () => {
@@ -449,7 +449,7 @@ test('Betraege: ein eingeloester Promo-Gutschein mindert die USt-Aufteilung ante
   // Der Gutschein selbst steht als eigene Zeile auf dem Beleg — mit dem
   // Belegtext des Vorbilds (Gutscheinart, Wert, Name).
   assert.ok(
-    spalten.some((s) => s[0] === 'Promotionsgutschein - Aktion' && s[1] === '-3,00 €'),
+    spalten.some((s) => s[0] === 'Aktionsgutschein - Aktion' && s[1] === '-3,00 €'),
     'Gutscheinzeile fehlt',
   );
 });

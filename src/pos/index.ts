@@ -95,6 +95,9 @@ export {
 } from './schicht-typen.js';
 export { type ShiftReceiptLayoutOptions, shiftReceiptLayout, cashMovementLayout } from '../receipt/shift-sheet.js';
 
+// Ausgaben eines Belegs (Belegdetail: Art und Ergebnis -> Beschriftung); dieselben Listen wie an der Wurzel.
+export { RECEIPT_OUTPUT_KINDS, RECEIPT_OUTPUT_RESULTS, type ReceiptOutputKind, type ReceiptOutputResult } from '../models/receipt-output.js';
+
 // Rueckgabe-Wahl beim Storno (Kassen-Dialog); dieselbe Liste wie an der Wurzel.
 export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from '../models/cancellation.js';
 
@@ -102,7 +105,7 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';

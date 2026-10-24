@@ -333,6 +333,9 @@ test('Kataloge: Bewegungsarten, Orte, Oeffnungsgruende, Bon-Arten sind die des /
   // Von Hand senden darf die Kasse genau diese (der Rest vergibt der Server).
   assert.deepEqual([...MANUAL_MOVEMENT_TYPES], ['change_in', 'cash_drop', 'owner_deposit', 'owner_withdrawal', 'tip_payout', 'other_in', 'other_out', 'transfer_out']);
   assert.deepEqual([...MANUAL_OPENING_REASONS], ['change', 'check', 'misoperation', 'other']);
+  // Die Gutschein-Auszahlung meldet die Kasse selbst, von Hand waehlbar ist sie nie.
+  assert.ok((OPENING_REASONS as readonly string[]).includes('voucher_payout'));
+  assert.ok(!(MANUAL_OPENING_REASONS as readonly string[]).includes('voucher_payout'));
   // Scheine und Muenzen in Euro-Cent, vom groessten Schein abwaerts.
   assert.deepEqual([...EUR_DENOMINATIONS], [50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1]);
   assert.ok(Object.isFrozen(EUR_DENOMINATIONS) && Object.isFrozen(MOVEMENT_TYPES));
@@ -442,6 +445,7 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
   assert.ok(!('shift_receipt.tip_immediately' in LABELS));
   assert.ok(!Object.values(LABELS as Record<string, { text: string }>).some((l) => /Registrierkassenbeleg/.test(l.text)));
   for (const grund of MANUAL_OPENING_REASONS) assert.ok(`drawer.reason_${grund}` in LABELS, grund);
+  for (const grund of OPENING_REASONS) assert.ok(`drawer.reason_${grund}` in LABELS, grund);
   assert.equal(messageText('shift.closed', { number: 3 }), 'Schicht 3 geschlossen.');
   assert.equal(messageText('cash_movement.booked', { type: labelText('cash_movement.type_cash_drop'), amount: '200,00 €' }), 'Abschöpfung über 200,00 € gebucht.');
   assert.match(messageText('shift.outcome_unknown'), /denselben Vorgang/);

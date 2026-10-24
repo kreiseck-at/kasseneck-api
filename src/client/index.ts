@@ -84,6 +84,11 @@ export {
   type SendReceiptEmailOptions,
   type SendReceiptEmailResult,
   sendReceiptEmail,
+  type ReceiptOutputEntry,
+  type LogReceiptOutputsOptions,
+  type LogReceiptOutputsResult,
+  type RejectedReceiptOutput,
+  logReceiptOutputs,
 } from './receipts.js';
 
 export { listMyCashregisters } from './cashregisters.js';

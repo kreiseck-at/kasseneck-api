@@ -23,6 +23,7 @@
 
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 import type { ReturnDisposition } from '../models/cancellation.js';
+import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
 export type Surface = 'web' | 'app';
@@ -939,6 +940,7 @@ const BESCHRIFTUNGEN_ROH = {
   'drawer.reason_cash_movement': { text: 'Kassenbewegung' },
   'drawer.reason_shift_open': { text: 'Schichtbeginn' },
   'drawer.reason_shift_close': { text: 'Schichtabschluss' },
+  'drawer.reason_voucher_payout': { text: 'Gutschein-Auszahlung' },
   'shift.resend': { text: 'Erneut senden' },
   'shift.next': { text: 'Weiter' },
   'shift.print_close': { text: 'Schichtabschluss drucken' },
@@ -971,6 +973,30 @@ const BESCHRIFTUNGEN_ROH = {
   'voucher.service': { text: 'Leistungsgutschein' },
   'voucher.promotion': { text: 'Aktionsgutschein' },
   'voucher.payment_line': { text: 'Gutschein ····-{suffix}', placeholders: ['suffix'] },
+  // Kassen-Navigation, Beleg-Fertig-Seite, Mengen (Paket-Nachzug Gutscheine).
+  'quantity.at_most': { text: 'höchstens {count}', placeholders: ['count'] },
+  'quantity.at_least': { text: 'mindestens {count}', placeholders: ['count'] },
+  'receipts.number_hint': { text: 'Nummer' },
+  'receipts.clear_number': { text: 'Nummer löschen' },
+  'receipts.open': { text: 'Öffnen' },
+  'receipt.creating': { text: 'Beleg wird erstellt …' },
+  'receipt_done.sale_title': { text: 'Verkauf abgeschlossen' },
+  'receipt_done.paid_by_voucher': { text: 'mit Gutschein bezahlt' },
+  'receipt_done.payout_title': { text: 'Auszahlung abgeschlossen' },
+  'receipt_done.paid_out': { text: '{method} ausgezahlt', placeholders: ['method'] },
+  'voucher.code_mask': { text: '····-{suffix}', placeholders: ['suffix'] },
+  'cart.close': { text: 'Warenkorb schließen' },
+  'nav.register': { text: 'Kasse' },
+  'nav.receipts': { text: 'Belege' },
+  'nav.vouchers': { text: 'Gutscheine' },
+  'nav.open_drawer': { text: 'Kassenlade öffnen' },
+  'nav.stocktake': { text: 'Inventur' },
+  'nav.settings': { text: 'Einstellungen' },
+  'nav.settings_locked': { text: 'nur mit Chef-Anmeldung' },
+  'nav.logout': { text: 'Abmelden' },
+  'nav.logging_out': { text: 'Wird abgemeldet …' },
+  'nav.fullscreen': { text: 'Vollbild' },
+  'nav.fullscreen_exit': { text: 'Vollbild verlassen' },
   'voucher.covers_items': { text: 'Deckt: {items}', placeholders: ['items'] },
   'voucher.code_shown_once': { text: 'Code nur jetzt sichtbar: {code}', placeholders: ['code'] },
   'voucher.not_in_split': { text: 'Gutscheine gehen beim getrennten Kassieren nicht.' },
@@ -1047,6 +1073,18 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.pay_outs': { text: 'Auszahlungen' },
   'cash_movement.pay_in_amount': { text: '{amount} einzahlen', placeholders: ['amount'] },
   'cash_movement.pay_out_amount': { text: '{amount} auszahlen', placeholders: ['amount'] },
+  // Belegdetail: Zeile „Ausgaben“ (eingeklappt mit Anzahl), aufgeklappt je Eintrag die Art
+  // (`receipt.output_<kind>`, Arten wie RECEIPT_OUTPUT_KINDS), dazu „fehlgeschlagen“ bei Ergebnis `failed`.
+  // `{count}` beim Abruf ist die Zahl der Abrufe in dieser Stunde.
+  'receipt.outputs_title': { text: 'Ausgaben' },
+  'receipt.outputs_count': { text: '{count} Ausgaben', placeholders: ['count'] },
+  'receipt.output_print': { text: 'Erstdruck' },
+  'receipt.output_reprint': { text: 'Duplikat' },
+  'receipt.output_email': { text: 'E-Mail' },
+  'receipt.output_link_shared': { text: 'Link geteilt' },
+  'receipt.output_pdf_shared': { text: 'PDF geteilt' },
+  'receipt.output_opened': { text: 'Link geöffnet ({count}×)', placeholders: ['count'] },
+  'receipt.output_failed': { text: 'fehlgeschlagen' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
@@ -1063,6 +1101,32 @@ export const RETURN_DISPOSITION_LABELS = {
   defective: 'stock.return_defective',
   disposed: 'stock.return_disposed',
 } as const satisfies Record<ReturnDisposition, LabelKey>;
+
+/** Art einer Ausgabe -> Beschriftung (`receipt.output_<kind>`). */
+const AUSGABE_BESCHRIFTUNG = {
+  print: 'receipt.output_print',
+  reprint: 'receipt.output_reprint',
+  email: 'receipt.output_email',
+  link_shared: 'receipt.output_link_shared',
+  pdf_shared: 'receipt.output_pdf_shared',
+  opened: 'receipt.output_opened',
+} as const satisfies Record<ReceiptOutputKind, LabelKey>;
+
+/**
+ * Die Beschriftung der Art einer Ausgabe (Belegdetail, Zeile „Ausgaben“), nie
+ * eine Ausnahme: `null` bei einer Art, die dieses Paket nicht kennt (neuerer
+ * Server); `opened` ohne gueltige Anzahl (ganze Zahl ab 1) zaehlt als ein
+ * Abruf. Nur die Art: „fehlgeschlagen“ (`receipt.output_failed`) setzt die
+ * Kasse selbst dazu, wenn `result` `failed` ist.
+ */
+export function receiptOutputLabel(output: ReceiptOutput): string | null {
+  const art: unknown = output?.kind;
+  if (typeof art !== 'string' || !Object.prototype.hasOwnProperty.call(AUSGABE_BESCHRIFTUNG, art)) return null;
+  const key = AUSGABE_BESCHRIFTUNG[art as ReceiptOutputKind];
+  if (art !== 'opened') return labelText(key);
+  const anzahl: unknown = output.count;
+  return labelText(key, { count: typeof anzahl === 'number' && Number.isSafeInteger(anzahl) && anzahl >= 1 ? anzahl : 1 });
+}
 
 /** Die Beschriftung zum Schluessel, Platzhalter ersetzt; fehlt ein Wert, wirft es wie `messageText`. */
 export function labelText(key: LabelKey, values: Record<string, string | number> = {}): string {

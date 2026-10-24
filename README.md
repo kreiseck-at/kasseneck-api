@@ -407,6 +407,7 @@ the received body.
 | `CANCELLATION_ERROR_CODES` | `isCancellationError` | `cancelReceipt` |
 | `PAYMENT_ERROR_CODES` | `isPaymentError` | `payments[]` of a sale or cancellation |
 | `RECEIPT_EMAIL_ERROR_CODES` | `isReceiptEmailError` | `sendReceiptEmail` |
+| `RECEIPT_OUTPUT_ERROR_CODES` | `isReceiptOutputError` | `logReceiptOutputs` (each rejected entry: `RECEIPT_OUTPUT_ENTRY_ERROR_CODES`) |
 | `REGISTER_ERROR_CODES` | `isRegisterError` (`…/register`) | pairing and sign-in |
 | `POS_ERROR_CODES` | `isPosError` (`…/pos`) | settings, articles, printers, tip recipients |
 | `PARTNER_ERROR_CODES` + `PARTNER_REQUEST_ERROR_CODES` | `isPartnerError` (`…/partner`) | partner API |

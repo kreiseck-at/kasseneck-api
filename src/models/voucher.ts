@@ -43,6 +43,29 @@ export interface Voucher {
   zeroRateBucket?: boolean;
 }
 
+/**
+ * Ein ausgestellter Gutschein in der Antwort von `createReceipt` unter `/v3`
+ * (`data.issuedVouchers[]`): der Klartext-Code erscheint hier einmalig fuer das Etikett.
+ */
+export interface IssuedVoucher {
+  id: string;
+  /** Klartext-Code; nie in Logs oder Fehlertexte schreiben. */
+  code: string;
+  type: string;
+  index: number;
+  codeSuffix: string;
+  faceValueCents?: number;
+  quantity?: number;
+  /** Nur bei Leistungsgutscheinen: Name des verkauften Artikels; sonst fehlt das Feld. */
+  articleName?: string;
+  validity?: {
+    pattern: string;
+    redeemableUntil: string | null;
+    refundableUntil: string | null;
+    validUntil: string | null;
+  };
+}
+
 /** Artikel eines Leistungsgutscheins, wie der Server ihn am Beleg festhaelt. */
 export interface VoucherArticle {
   id: string;
@@ -131,8 +154,8 @@ export function toVoucherPayload(voucher: Voucher): VoucherPayload {
 
 /**
  * Ist der Gutschein an das Backend sendbar? Zwilling von `KeckVoucher.isValid`
- * im Flutter-Vorbild: Wert- und Promotionsgutscheine brauchen einen Wert,
- * Promotionsgutscheine duerfen nur eingeloest (nicht verkauft) werden, und ein
+ * im Flutter-Vorbild: Wert- und Aktionsgutscheine brauchen einen Wert,
+ * Aktionsgutscheine duerfen nur eingeloest (nicht verkauft) werden, und ein
  * gesetzter Wert muss positiv sein.
  */
 export function voucherIsValid(voucher: Voucher): boolean {

@@ -195,6 +195,7 @@ export interface PosBusinessSettings {
 export const POS_SHORTCUT_ACTIONS = [
   'checkout', 'complete', 'cancel', 'customAmount', 'cash', 'card', 'exactAmount', 'receipts', 'undoLast',
   'settings', 'logout', 'tip', 'fullscreen', 'clearTendered', 'clearCart', 'splitPayment',
+  'shiftStatus', 'openDrawer', 'voucherPayout',
 ] as const;
 export type PosShortcutAction = typeof POS_SHORTCUT_ACTIONS[number];
 /** Tastenkarte: Aktion -> Tasten (`Mod+F`, `Enter`, `Escape`, `F5` ...; `Mod` = ⌘ auf dem Mac, Strg sonst). */
@@ -221,6 +222,10 @@ export const POS_SHORTCUT_DEFAULTS: Readonly<PosShortcutMap> = Object.freeze({
   // Bewusst ohne Vorgabe: jede freie Mod-Taste ist in irgendeinem Browser
   // belegt oder am Geraet unerprobt. Der Chef vergibt sie, wenn er sie braucht.
   splitPayment: [],
+  // Ebenso ohne Vorgabe: Kassenstand, Kassenlade und Gutschein auszahlen. Der
+  // Server fuehrt sie nicht in seiner Vorgabekarte; fehlen sie in einer
+  // Antwort, heisst das „keine Taste“ (leere Liste), nie eine geratene Taste.
+  shiftStatus: [], openDrawer: [], voucherPayout: [],
 });
 
 /**

@@ -10,6 +10,7 @@ import {
   kuSaetze,
   planeGutscheine,
   topfFuerSatz,
+  trinkgeldCents,
   type Gutschein,
   type Innen,
   type VoucherDueArticle,
@@ -268,6 +269,12 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
   if (plan.mitPlan && dueCents + plan.auszahlungCents < 0) {
     throw new ReceiptDueError('invalid_voucher', 'die Gutscheine uebersteigen die Summe des Belegs.', 'voucher_exceeds_total');
   }
+  // Ein Gutschein deckt nie das Trinkgeld (Personal wie Inhaber): der Zahlbetrag nach den Gutscheinen
+  // muss die Trinkgeldzeilen tragen. Storno ausgenommen (dort gibt es keinen Plan).
+  const trinkgeld = trinkgeldCents(kunde);
+  if (plan.mitPlan && art !== 'cancellation' && trinkgeld > 0 && dueCents + plan.auszahlungCents < trinkgeld) {
+    throw new ReceiptDueError('invalid_voucher', 'die Gutscheine decken das Trinkgeld.', 'voucher_exceeds_total');
+  }
   return {
     ergebnis: {
       dueCents,
@@ -298,7 +305,8 @@ export interface VoucherRedeemContext {
  * Hoechstbetrag zum Vorbelegen einer Einloesung an der Kasse, in Cent, nie
  * negativ: der groesste Betrag, den der Server fuer diesen Gutschein annimmt.
  *
- * Obergrenze: Saldo, offener Betrag; bei Einzweck die deckbaren Positionen im
+ * Obergrenze: Saldo, offener Betrag ohne Trinkgeld (ein Gutschein deckt nie
+ * das Trinkgeld, Personal wie Inhaber); bei Einzweck die deckbaren Positionen im
  * Topf seines Satzes abzueglich der schon gewaehlten Einloesungen dort. Befreit
  * verkauft bzw. als Kleinunternehmer verteilt der Server anteilig auf alle
  * Saetze (`kuTeile`); dann begrenzt jeder Topf: sein Anteil plus die schon
@@ -310,7 +318,8 @@ export interface VoucherRedeemContext {
  * Bisektion ueber [1, Grenze] und prueft danach 16 Cent aufwaerts: am Rand
  * des groessten Rests ist die Annahme nicht monoton. Leistung (wird ueber
  * Positionen eingeloest), Aktion (Rabatt rechnet der Server) und jeder nicht
- * aktive Gutschein: 0.
+ * aktive Gutschein: 0. Wirft nie [ReceiptDueError]: ist der Beleg ohne den
+ * Gutschein nicht rechenbar (etwa `tip_without_goods`), ist das Ergebnis 0.
  */
 export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: VoucherCheck, before: VoucherRedeemContext = {}): number {
   if (voucher.status !== 'active') return 0;
@@ -318,9 +327,16 @@ export function voucherRedeemMaxCents(items: readonly ReceiptItem[], voucher: Vo
   const saldo = Number.isInteger(voucher.balanceCents) ? (voucher.balanceCents as number) : 0;
   const options = before.options ?? {};
   const vorher = before.vouchers ?? [];
-  const r = rechne(items, vorher, 'standard', options);
-  // Rundung je Topf: hoechstens ein halber Cent je Topf ueber dem offenen Betrag.
-  let oben = Math.min(saldo, r.ergebnis.dueCents + r.auszahlungCents + 6, HOECHSTBETRAG_CENTS);
+  let r: Rechnung;
+  try {
+    r = rechne(items, vorher, 'standard', options);
+  } catch (fehler) {
+    // Nicht rechenbar (etwa Trinkgeld ohne Ware): nichts vorbelegen, die Kasse meldet es beim Zahlbetrag.
+    if (fehler instanceof ReceiptDueError) return 0;
+    throw fehler;
+  }
+  // Rundung je Topf: hoechstens ein halber Cent je Topf ueber dem offenen Betrag. Das Trinkgeld deckt nie ein Gutschein.
+  let oben = Math.min(saldo, r.ergebnis.dueCents + r.auszahlungCents - trinkgeldCents(r.kunde) + 6, HOECHSTBETRAG_CENTS);
   if (voucher.type === 'single_purpose') {
     const deckbar = r.kunde.filter(istDeckbar);
     const topfBasis = (topf: string) => centSumme(deckbar.filter((it) => topfFuerSatz(it.vat) === topf));

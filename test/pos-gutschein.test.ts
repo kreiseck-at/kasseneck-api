@@ -139,3 +139,58 @@ test('reprintVoucherLabel: ein Lesefehler der Antwort nennt den Code nicht', asy
     assert.ok(!String((e as Error).message).includes('B1KK'));
   }
 });
+
+test('createReceipt: ein Servertext, der den Gutschein-Code wiederholt, erreicht den Fehler nie im Klartext', async () => {
+  const { createReceipt } = await import('../src/client/receipts.js');
+  const rumpf = JSON.stringify({ status: 'error', message: 'Gutschein B1KK5EQ57DKJ / B1KK-5EQ5-7DKJ ist leer.', data: { code: 'voucher_empty' }, code: 'voucher_empty' });
+  const holen: FetchLike = async () => ({
+    status: 200,
+    headers: { get: (n: string) => ({ 'content-type': 'application/json', 'kasseneck-api-version': 'v3' } as Record<string, string>)[n.toLowerCase()] ?? null },
+    text: async () => rumpf,
+    arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer as ArrayBuffer,
+  });
+  const rufen = createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ-ID', getSessionId: () => 'sess-1', cashregisterId: 'KASSE1' }), fetch: holen, timeoutMs: 50 });
+  let fehler: unknown;
+  try {
+    await createReceipt(rufen, {
+      receiptType: 'standard',
+      items: [{ name: 'Brot', quantity: 1, priceCents: 300, vat: 10 } as any],
+      vouchers: [{ action: 'redeem', type: 'multi_purpose', code: 'b1kk-5eq5-7dkj', amountCents: 300 }] as any,
+      payments: [],
+    } as any);
+  } catch (e) { fehler = e; }
+  assert.ok(fehler instanceof KasseneckApiError, String(fehler));
+  const text = `${(fehler as Error).message} ${JSON.stringify(fehler)}`;
+  assert.ok(!text.includes('B1KK5EQ57DKJ') && !text.includes('B1KK-5EQ5-7DKJ'), text);
+  assert.equal((fehler as KasseneckApiError).code, 'voucher_empty');
+});
+
+for (const [titel, tippt, echo] of [
+  ['getippte Schreibweise (Kleinbuchstaben, Leerzeichen)', 'b1kk 5eq5 7dkj', 'Gutschein b1kk 5eq5 7dkj ist leer.'],
+  ['ungueltiger Code (falsche Pruefziffer)', 'B1KK-5EQ5-7DK1', 'Gutschein B1KK-5EQ5-7DK1 gibt es nicht.'],
+] as const) {
+  test(`createReceipt: ${titel} im Servertext wird geschwaerzt`, async () => {
+    const { createReceipt } = await import('../src/client/receipts.js');
+    const rumpf = JSON.stringify({ status: 'error', message: echo, data: { code: 'voucher_empty' }, code: 'voucher_empty' });
+    const holen: FetchLike = async () => ({
+      status: 200,
+      headers: { get: (n: string) => ({ 'content-type': 'application/json', 'kasseneck-api-version': 'v3' } as Record<string, string>)[n.toLowerCase()] ?? null },
+      text: async () => rumpf,
+      arrayBuffer: async () => new TextEncoder().encode(rumpf).buffer as ArrayBuffer,
+    });
+    const rufen = createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ-ID', getSessionId: () => 'sess-1', cashregisterId: 'KASSE1' }), fetch: holen, timeoutMs: 50 });
+    let fehler: unknown;
+    try {
+      await createReceipt(rufen, {
+        receiptType: 'standard',
+        items: [{ name: 'Brot', quantity: 1, priceCents: 300, vat: 10 } as any],
+        vouchers: [{ action: 'redeem', type: 'multi_purpose', code: tippt, amountCents: 300 }] as any,
+        payments: [],
+      } as any);
+    } catch (e) { fehler = e; }
+    assert.ok(fehler instanceof KasseneckApiError, String(fehler));
+    const text = `${(fehler as Error).message} ${JSON.stringify(fehler)}`;
+    assert.ok(!text.toLowerCase().includes(tippt.toLowerCase()), text);
+    assert.ok(text.includes('****'), text);
+  });
+}

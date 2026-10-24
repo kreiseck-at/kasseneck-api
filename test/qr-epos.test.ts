@@ -53,17 +53,19 @@ const RKSV =
 
 // -------------------------------------------------------- Bestandsschutz
 
+// Ersatzdaten (23.10.2026, R12): der Golden-Beleg traegt `ATU12345675` statt `ATU12345678`; beide Digests sind darum neu gezogen.
+
 test('ePOS-Bestandsschutz: das XML eines Belegs auf 58 mm ist byteidentisch', () => {
   assert.equal(
     digest(eposPrintXml(basis)),
-    '0d0f6091bd788fa8c4d50244d44bf08717619c7c6d6f396ff354e3eb5daf6c1e',
+    'ea332f6dd4d01c475b6687d638e04d7e92c9ee7d1e4a63145522f5c228424344',
   );
 });
 
 test('ePOS-Bestandsschutz: das XML eines Belegs auf 80 mm ist byteidentisch', () => {
   assert.equal(
     digest(eposPrintXml({ ...roh, paperSize: 'mm80' })),
-    'b3468c21b513af242b692b40aa2b353942f957d5a1cabca2d64f71e68eafc6fb',
+    '363bbc9b8a8cc0a1765c8fa32c02869398514ff04f3f6bcc105663277149dc0a',
   );
 });
 

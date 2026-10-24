@@ -18,7 +18,7 @@ import { ReceiptLayoutView } from '../src/react/index.js';
  */
 const FIRMA: ReceiptCompany = {
   companyName: 'Café Kreiseck', street: 'Hauptstraße 5', zip: '1010', city: 'Wien', phone: '+43 1 1234567',
-  vatId: 'ATU12345678', taxNumber: '', isSmallBusiness: false,
+  vatId: 'ATU12345675', taxNumber: '', isSmallBusiness: false,
   footer1: '', footer2: '', thanksMessage: [], showKreiseckLogo: false,
 };
 const QR = '_R1-AT1_KASSE1_AT0-KASSE1-42_2026-08-13T00:30:00_5,00_2,70_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR';

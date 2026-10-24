@@ -123,6 +123,10 @@ function istGutscheinZeile(p: { kind?: string }): boolean {
 export function istDeckbar(p: Innen): boolean {
   return p.tip == null && p.kind !== 'tip' && !istGutscheinZeile(p);
 }
+/** Summe der Trinkgeldzeilen (Personal und Inhaber) in Cent, wie `centSumme(kunde.filter(istTip))` im Backend. */
+export function trinkgeldCents(kunde: readonly Innen[]): number {
+  return centSumme(kunde.filter((p) => p.tip != null || p.kind === 'tip'));
+}
 /** Wie beleg-toepfe: Euro in Positionsreihenfolge aufsummieren, erst die Summe auf Cent runden. */
 export function centSumme(liste: readonly Innen[]): number {
   return Math.round(liste.reduce((s, it) => s + it.priceOne * it.amount, 0) * 100);

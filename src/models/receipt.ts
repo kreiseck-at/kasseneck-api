@@ -279,10 +279,10 @@ export function receiptValueVoucherSign(receipt: Receipt): 1 | -1 {
 
 /**
  * Zwischensumme in **Cent** — Positionen plus verkaufte Wertgutscheine minus
- * eingeloeste Promotionsgutscheine. Wertgutschein-Einloesungen wirken erst auf
+ * eingeloeste Aktionsgutscheine. Wertgutschein-Einloesungen wirken erst auf
  * [receiptSumCents], nicht hier (siehe Dart-Vorbild `subSumCents`/`sumCents`).
  * Am Storno-Beleg zaehlen Wertgutscheine mit umgekehrtem Vorzeichen
- * ([receiptValueVoucherSign]), und ein gespiegelter Promotionsgutschein
+ * ([receiptValueVoucherSign]), und ein gespiegelter Aktionsgutschein
  * mindert nichts: den Rabatt nimmt der Server dort ueber Ausgleichspositionen
  * (`kind: 'discount'`) zurueck, und belegToepfe verteilt einen Promo-Eintrag
  * nur auf eine positive Topfsumme, die ein Storno nie hat.

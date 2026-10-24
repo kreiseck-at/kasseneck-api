@@ -133,7 +133,7 @@ test('v3: ein Betrieb mit den Werten der /v1 ist ein Compilerfehler', () => {
     // @ts-expect-error `wien` gibt es unter /v3 nicht mehr (AT-9)
     state: 'wien',
     // @ts-expect-error die UID heisst auf der Leitung vatId
-    taxDetails: { taxNumber: '12-345/6789', smallBusiness: false, uid: 'ATU12345675' },
+    taxDetails: { taxNumber: '91-123/4565', smallBusiness: false, uid: 'ATU12345675' },
     // @ts-expect-error `kasse` heisst unter /v3 `pos`
     contacts: [{ name: 'A', email: 'a@b.at', roles: ['kasse'] }],
   };

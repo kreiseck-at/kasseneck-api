@@ -407,7 +407,9 @@ test('cancelReceipt mit payments: Konflikte und Vorzeichen werden vor dem Senden
     [{ payments: [{ method: 'cash', amountCents: -100 }], creditCardProvider: 'sumup' }, /payments/],
     [{ payments: [{ method: 'cash', amountCents: -100 }], cardPaymentId: 'x' }, /payments/],
     [{ payments: [{ method: 'cash', amountCents: -100 }], cardPaymentData: {} }, /payments/],
-    [{ payments: [{ method: 'cash', amountCents: 100 }] }, /amountCents/],
+    // Positiv ist nur die eine Barzahlung des Auszahlungs-Storno erlaubt (receipts-v3.test.ts), sonst nie.
+    [{ payments: [{ method: 'creditCard', amountCents: 100 }] }, /amountCents/],
+    [{ payments: [{ method: 'cash', amountCents: 100 }, { method: 'cash', amountCents: -100 }] }, /amountCents/],
     [{ payments: [{ method: 'cash', amountCents: -100, tenderedCents: 0 }] }, /tenderedCents/],
     [{ payments: [{ method: 'cash', amountCents: -100, refundOf: 7 }] }, /refundOf/],
     [{ payments: {} }, /payments/],

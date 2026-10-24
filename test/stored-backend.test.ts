@@ -12,7 +12,6 @@ import { posSettingsFromWire } from '../src/pos/client.js';
 import { fromPosArticlePayload, type PosArticlePayload } from '../src/pos/artikel.js';
 import { FAELLE_NEU, dokument } from './stored-gutschein-docs.js';
 import { unknownPosSettingValues, type PosSettings } from '../src/pos/settings.js';
-import { gutscheineFuerPaket } from '../src/stored/gutscheine.js';
 import { buildReceiptLayout, type ReceiptLayout } from '../src/receipt/index.js';
 import { receiptSumCents } from '../src/models/index.js';
 
@@ -217,15 +216,15 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
 /*
  * Jeder Erfolgsfall des Gutschein-Katalogs (functions/test/unit/fixtures/gutschein-faelle.json) und sein
  * Storno, gespeichert wie createReceipt/cancelReceipt (Helfer gutschein-gespeichert): das Paket zeigt den
- * Beleg roh (neue Form) und aufbereitet (gutscheineFuerPaket) mit Gesamt = Zahlbetrag des Servers
+ * Beleg roh (neue Form, wie der Server seit 0.34) mit Gesamt = Zahlbetrag des Servers
  * (gutschein-beleg.zahlbetrag) und der Steuertabelle = signierte Toepfe. Dieselbe Pruefung wie
- * beleg-layout-gutschein.test.js im Backend, hier ohne die Aufbereitung (Vorfall 16.10.2026).
+ * beleg-layout-gutschein.test.js im Backend, Vorfall 16.10.2026.
  */
 const GUTSCHEIN_VOR_STICHTAG = ['mz_verkauf_vor_stichtag', 'alt_value_verkauf_vor_stichtag_unveraendert'];
 // Rabattgutschein + Trinkgeld verteilt das Paket anders als belegToepfe (Backend-Test: BEKANNT).
 const GUTSCHEIN_BEKANNT = ['ak_prozent_mit_trinkgeld'];
 
-test('stored-backend: Gutschein-Katalog roh und aufbereitet - Gesamt = Zahlbetrag, Steuertabelle = Toepfe', (t: TestContext) => {
+test('stored-backend: Gutschein-Katalog - Gesamt = Zahlbetrag, Steuertabelle = Toepfe', (t: TestContext) => {
   if (!lade) { t.skip(HINWEIS); return; }
   const g = globalThis as Json;
   const vorher = { beforeAll: g.beforeAll, afterAll: g.afterAll, emu: process.env['FUNCTIONS_EMULATOR'], ab: process.env['GUTSCHEIN_NULLTOPF_AB_TEST'] };
@@ -272,14 +271,13 @@ test('stored-backend: Gutschein-Katalog roh und aufbereitet - Gesamt = Zahlbetra
         geprueft += 1;
         const soll = gb.zahlbetrag(doc.items, doc.vouchers, doc.receiptType) as number;
         const r = stored.fromStoredReceipt({ sig: '', qr: '', fullReceiptId: '', cashregisterId: 'KECK-1', ...doc });
-        for (const [weg, beleg] of [['roh', r], ['aufbereitet', gutscheineFuerPaket(r)]] as const) {
-          const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
-          const name = `${f.name}${zusatz} ${weg}`;
-          if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
-          if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
-          const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
-          if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
-        }
+        const beleg = r;
+        const l = buildReceiptLayout(beleg, firma, { paperSize: 'mm80' });
+        const name = `${f.name}${zusatz}`;
+        if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
+        if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
+        const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
+        if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
       }
     }
     assert.ok(geprueft > 30, `nur ${geprueft} Belege`);

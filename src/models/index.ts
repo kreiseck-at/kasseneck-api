@@ -10,7 +10,7 @@ export {
   type TipRecipient,
   isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem,
 } from './receipt-item.js';
-export { type Voucher, type VoucherArticle, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields } from './voucher.js';
+export { type Voucher, type VoucherArticle, type IssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields } from './voucher.js';
 export {
   type Receipt,
   type RegistrationInfo,
@@ -83,6 +83,26 @@ export {
   isReceiptError,
   receiptFieldErrors,
 } from './receipt-errors.js';
+export {
+  RECEIPT_OUTPUT_KINDS,
+  type ReceiptOutputKind,
+  RECEIPT_OUTPUT_LOG_KINDS,
+  type ReceiptOutputLogKind,
+  RECEIPT_OUTPUT_RESULTS,
+  type ReceiptOutputResult,
+  RECEIPT_OUTPUT_ENTRIES_MAX,
+  type ReceiptOutput,
+  type ReceiptOutputActor,
+  RECEIPT_OUTPUT_ENTRY_ERROR_CODES,
+  type ReceiptOutputEntryErrorCode,
+  RECEIPT_OUTPUT_ERROR_CODES,
+  type ReceiptOutputErrorCode,
+  isReceiptOutputErrorCode,
+  receiptOutputErrorCode,
+  isReceiptOutputError,
+  receiptOutputFieldErrors,
+  type ReceiptOutputFieldError,
+} from './receipt-output.js';
 export {
   type ReceiptCompany,
   type ReceiptCompanyPayload,

@@ -676,7 +676,9 @@ const EINSTELLUNGEN = {
   file: { [SCHEMA.business.__]: 'business', [SCHEMA.device.__]: 'device' },
   business: Object.fromEntries(Object.entries(schemaEbene(SCHEMA.business)).filter(([, aussen]) => Object.hasOwn(DRAHT_STANDARD.business, aussen))),
   device: Object.fromEntries(Object.entries(schemaEbene(SCHEMA.device)).filter(([, aussen]) => Object.hasOwn(DRAHT_STANDARD.device, aussen))),
-  shortcuts: schemaEbene(SCHEMA.device.shortcuts),
+  // Tasten-Aktionen ohne Eintrag in den Standardwerten (Kassenstand, Kassenlade,
+  // Gutschein auszahlen, seit 1.14.0) gab es in 0.x nicht.
+  shortcuts: Object.fromEntries(Object.entries(schemaEbene(SCHEMA.device.shortcuts)).filter(([, aussen]) => Object.hasOwn(DRAHT_STANDARD.device.shortcuts, aussen))),
 };
 /** Werte der Einstellungen je (neuem) Feldnamen: innen -> aussen. */
 const EINSTELLUNGS_WERTE = Object.fromEntries(Object.entries(VOKABULAR.catalogs)

@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "733e4385baf4b2aa50605e2ebe5903948ce77b3346aa3bb65c5fd0d450a6898f";
+export const VOKABULAR_QUELLE = "328c8d0ff0f496f8f6b7d9ed78673e7666980e38586ec7efacb442e6906d898a";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -62,6 +62,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "codeSuffix": "codeEnde",
           "faceValueCents": "nennwertCents",
           "quantity": "stueck",
+          "articleName": "artikelName",
           "validity": {
             "__": "gueltigkeit",
             "pattern": "muster",
@@ -69,6 +70,15 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "refundableUntil": "rueckzahlbarBis",
             "validUntil": "gueltigBis"
           }
+        }
+      ],
+      "outputs": [
+        {
+          "__": "ausgaben",
+          "kind": "art",
+          "result": "ergebnis",
+          "by": "durch",
+          "count": "anzahl"
         }
       ]
     },
@@ -84,6 +94,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "issuedVouchers[].validity.pattern": {
         "$catalog": "GUTSCHEIN_MUSTER"
+      },
+      "outputs[].kind": {
+        "$catalog": "AUSGABE_ART"
+      },
+      "outputs[].result": {
+        "$catalog": "AUSGABE_ERGEBNIS"
       }
     }
   },
@@ -166,7 +182,10 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "fullscreen": "vollbild",
           "clearTendered": "gegebenLeeren",
           "clearCart": "korbLeeren",
-          "splitPayment": "getrennt"
+          "splitPayment": "getrennt",
+          "shiftStatus": "kassenstand",
+          "openDrawer": "ladeOeffnen",
+          "voucherPayout": "gutscheinAuszahlen"
         },
         "printerEnabled": "druckerAn",
         "printerType": "druckerArt",
@@ -312,6 +331,19 @@ export const ARTIKEL_FELDER: readonly string[] = [
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
 export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "AUSGABE_ART": {
+    "erstdruck": "print",
+    "duplikat": "reprint",
+    "mail": "email",
+    "link_geteilt": "link_shared",
+    "pdf_geteilt": "pdf_shared",
+    "abruf": "opened"
+  },
+  "AUSGABE_ERGEBNIS": {
+    "ok": "ok",
+    "fehler": "failed",
+    "unklar": "unclear"
+  },
   "E1A_GRUPPE": {
     "erloese": "revenue",
     "erloese_waren": "revenue_goods",

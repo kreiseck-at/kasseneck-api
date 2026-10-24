@@ -42,6 +42,17 @@ import {
   RECEIPT_EMAIL_VIAS,
   readRegistrationInfo,
 } from '../models/index.js';
+import {
+  RECEIPT_OUTPUT_ENTRIES_MAX,
+  RECEIPT_OUTPUT_KINDS,
+  RECEIPT_OUTPUT_RESULTS,
+  receiptOutputsFromWire,
+  type ReceiptOutput,
+  type ReceiptOutputEntryErrorCode,
+  type ReceiptOutputLogKind,
+  type ReceiptOutputResult,
+} from '../models/receipt-output.js';
+import { VoucherCode } from '@kreiseck/validator';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { euroToCents } from '../money.js';
 import { KasseneckApiError, KasseneckValidationError, isKasseneckApiError, signiertGelesen } from './errors.js';
@@ -192,8 +203,9 @@ export type CancelReceiptOptions = {
   /**
    * Rueckzahlung je Zahlung (Betraege negativ, `refundOf` = `id` der
    * Originalzahlung). Ohne Angabe spiegelt der Server die Restbetraege jeder
-   * Originalzahlung; ein Teilstorno eines Belegs mit mehreren Zahlungen
-   * braucht sie (`cancellation_payments_required`).
+   * Originalzahlung (Ausnahme Storno einer Gutschein-Auszahlung: genau eine
+   * positive Barzahlung ohne `refundOf`); ein Teilstorno eines Belegs mit
+   * mehreren Zahlungen braucht sie (`cancellation_payments_required`).
    *
    * **Karten-Storno:** `provider`, `providerPaymentId` und `providerData`
    * beschreiben die ERSTATTUNG am Terminal, nie die Originalzahlung. Die
@@ -262,6 +274,13 @@ export interface ReceiptWithCompany {
    * setzen das Logo in genau dieser Stufe; fehlt der Wert, gilt `M`.
    */
   logoScale: SheetLogoSize;
+  /**
+   * Ausgaben des Belegs (`data.outputs`, nur `getReceipt` unter `/v3`): die
+   * neuesten 20, neueste zuerst. Fehlt, wenn die Antwort keine Liste traegt
+   * (Verkauf, `/api`). Gelesen nach [ReceiptOutput]; ein kaputter Eintrag
+   * faellt weg, der Beleg bleibt lesbar.
+   */
+  outputs?: ReceiptOutput[];
 }
 
 /**
@@ -298,7 +317,7 @@ export function receiptLayoutFromResult(result: ReceiptWithCompany, options: { f
  * die Hand des Aufrufers, sondern zu einem der benannten Aufrufe darunter.
  */
 export async function createReceipt(rufen: InternerTransport, options: CreateReceiptOptions): Promise<Receipt> {
-  const daten = await rufen('createReceipt', createReceiptParams(options));
+  const daten = await createReceiptRufen(rufen, options);
   return signiertGelesen('createReceipt', () => belegAusHuelle(daten, 'createReceipt'));
 }
 
@@ -307,8 +326,36 @@ async function createReceiptWithCompany(
   rufen: InternerTransport,
   options: CreateReceiptOptions,
 ): Promise<ReceiptWithCompany> {
-  const daten = await rufen('createReceipt', createReceiptParams(options));
+  const daten = await createReceiptRufen(rufen, options);
   return signiertGelesen('createReceipt', () => belegMitFirmaAusHuelle(daten, 'createReceipt'));
+}
+
+/**
+ * Sendet `createReceipt`; die Gutschein-Codes der Nutzlast gelten als Geheimnis
+ * (normiert und formatiert): der Transport siebt Ursachen und Details, ein
+ * Servertext, der den Code wiederholt, wird hier geschwaerzt.
+ */
+async function createReceiptRufen(rufen: InternerTransport, options: CreateReceiptOptions): Promise<unknown> {
+  // Der Code geht so hinaus, wie er getippt wurde: die getippte Schreibweise (auch ungueltig,
+  // etwa mit falscher Pruefziffer) zaehlt ebenso als Geheimnis wie normiert und formatiert.
+  // Kurze Reste (Endung mit vier Zeichen) werden nie eingetragen.
+  const geheim = [...new Set((options.vouchers ?? []).flatMap((v) => {
+    if (typeof v.code !== 'string') return [];
+    const roh = v.code.trim();
+    const geprueft = VoucherCode.validate(v.code);
+    const liste = geprueft.ok ? [geprueft.normalized, VoucherCode.format(geprueft.normalized)] : [];
+    if (roh.length >= 8) liste.push(roh);
+    return liste;
+  }))].sort((a, b) => b.length - a.length);
+  try {
+    return await rufen('createReceipt', createReceiptParams(options), undefined, geheim);
+  } catch (fehler) {
+    if (fehler instanceof KasseneckApiError && geheim.some((g) => fehler.serverMessage.includes(g))) {
+      const text = geheim.reduce((t, g) => t.split(g).join('****'), fehler.serverMessage);
+      throw new KasseneckApiError('createReceipt', text, fehler.details, fehler.code);
+    }
+    throw fehler;
+  }
 }
 
 /**
@@ -455,6 +502,22 @@ function pruefeRueckgabeWahl(wert: unknown, pfad: string): void {
 }
 
 /**
+ * Storno einer Gutschein-Auszahlung: genau eine positive Barzahlung ohne `refundOf`
+ * (das Geld kommt in die Lade zurueck). Alles andere bleibt Rueckzahlung mit negativem Betrag;
+ * ob der Beleg eine Auszahlung war, entscheidet der Server.
+ */
+function istStornoAuszahlung(payments: unknown, original?: Receipt): boolean {
+  if (!Array.isArray(payments) || payments.length !== 1) return false;
+  // Kennt der Aufrufer das Original und es hat keine Auszahlung, bleibt es bei negativen Rueckzahlungen.
+  if (original != null && !(original.vouchers ?? []).some((v) => v.action === VoucherAction.payout)) return false;
+  const z = payments[0] as Record<string, unknown> | null;
+  if (z == null || typeof z !== 'object') return false;
+  const m = z['method'];
+  const art = typeof m === 'object' && m !== null ? (m as { value?: unknown }).value : m;
+  return art === 'cash' && typeof z['amountCents'] === 'number' && z['amountCents'] > 0 && z['refundOf'] === undefined;
+}
+
+/**
  * Storno-Beleg zu einem bestehenden Beleg — voll oder in Teilen. Prueft die
  * Eingabe, bevor etwas hinausgeht; der Server haelt die Restmengen und die
  * Reichweite des Rechts (eigene/alle) und antwortet mit dem fertigen,
@@ -501,7 +564,7 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
   }
   // `payments: null` gilt wie im Backend als nicht angegeben.
-  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt') : undefined;
+  const zahlungen = options.payments != null ? gepruefteZahlungen(options.payments, true, 'cancelReceipt', false, istStornoAuszahlung(options.payments, options.receipt)) : undefined;
   if (zahlungen !== undefined) pruefeKartenRueckbuchung(zahlungen, options.receipt);
   const params: Record<string, unknown> = { cashregisterId, originalReceiptId, reason: options.reason };
   if (options.items !== undefined) {
@@ -836,6 +899,159 @@ export async function sendReceiptEmail(
 }
 
 /**
+ * Eine Ausgabe, wie die Kasse sie puffert und meldet: ein Druck oder ein
+ * Teilen des Belegs. Siehe [logReceiptOutputs].
+ */
+export interface ReceiptOutputEntry {
+  /**
+   * Idempotenzschluessel des Eintrags, am Geraet beim Puffern vergeben und
+   * beim Nachsenden unveraendert: ein zweites Melden legt keinen zweiten
+   * Eintrag an. 8–64 Zeichen `[A-Za-z0-9_-]` (Regel des Servers); ein anderer
+   * Schluessel wirft vor dem Senden.
+   */
+  key: string;
+  /** Beleg in der Kasse der Anmeldung; ein Beleg einer anderen Kasse ist `receipt_not_found`. */
+  receiptId: string;
+  /** `print` (Erstdruck), `reprint` (Duplikat, gedruckt mit `markAsDuplicate`), `link_shared`, `pdf_shared`. */
+  kind: ReceiptOutputLogKind;
+  /**
+   * Zeitpunkt am Geraet: Millisekunden seit 1970 oder ISO 8601 **mit Zone**
+   * (`new Date().toISOString()`); Text ohne Zone wirft vor dem Senden. Eine
+   * falsch gehende Geraeteuhr lehnt der Server nicht ab: er klemmt die Zeit auf
+   * Belegzeit bis Eingang.
+   */
+  at: number | string;
+  /**
+   * Ergebnis eines Drucks: `ok`, `failed` (sicher nicht gedruckt) oder
+   * `unclear` (Ausgang offen). Pflicht bei `print` und `reprint` (sonst lehnt
+   * der Server den Eintrag mit `validation` ab); beim Teilen ohne Angabe `ok`.
+   */
+  result?: ReceiptOutputResult;
+}
+
+/** Eingabe von [logReceiptOutputs]. Die Kasse bindet die Anmeldung (wie bei [sendReceiptEmail]). */
+export interface LogReceiptOutputsOptions {
+  /** 1–50 Eintraege ([RECEIPT_OUTPUT_ENTRIES_MAX]); ein groesserer Puffer geht in mehreren Aufrufen hinaus. */
+  entries: ReceiptOutputEntry[];
+}
+
+/** Ein abgelehnter Eintrag: dauerhaft, aus dem Puffer nehmen und nicht noch einmal senden. */
+export interface RejectedReceiptOutput {
+  key: string;
+  /** Aus [RECEIPT_OUTPUT_ENTRY_ERROR_CODES]; ein Code, den das Paket nicht kennt, bleibt lesbar. */
+  code: ReceiptOutputEntryErrorCode | (string & {});
+}
+
+/** Antwort von [logReceiptOutputs]. */
+export interface LogReceiptOutputsResult {
+  /** Angenommene Eintraege, auch die schon frueher gemeldeten (gleicher Schluessel). */
+  accepted: number;
+  rejected: RejectedReceiptOutput[];
+}
+
+const AUSGABEN_FELDER: readonly string[] = ['entries'];
+const AUSGABE_FELDER: readonly string[] = ['key', 'receiptId', 'kind', 'at', 'result'];
+/** Idempotenzschluessel eines Eintrags, wie der Server ihn annimmt. */
+const AUSGABE_SCHLUESSEL = /^[A-Za-z0-9_-]{8,64}$/;
+/** Zeitpunkt als Text: RFC 3339 mit Zone, bis zu sechs Nachkommastellen (wie der Server). */
+const AUSGABE_ZEIT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Meldet Drucke und das Teilen eines Belegs an das Protokoll „Ausgaben“
+ * (Endpunkt `logReceiptOutputs`, nur ueber den Kassenweg `/api/v3`; mit
+ * `registerUserAuth` und mit `apiKeyAuth`). Registrierkassen-Erlass
+ * BMF-AV Nr. 2/2026, Abschnitt 4.2: die Belegerteilung ist zu dokumentieren.
+ * Der Beleg selbst bleibt unberuehrt; das Protokoll steht nie im DEP.
+ *
+ * **Ein Eintrag scheitert nie die anderen.** Der Server nimmt jeden Eintrag
+ * einzeln an oder lehnt ihn mit Code ab (`rejected`, Codes
+ * [RECEIPT_OUTPUT_ENTRY_ERROR_CODES]); nach einer Erfolgsantwort ist jeder
+ * gesendete Eintrag erledigt. Die Kasse puffert die Eintraege (offline,
+ * Neustart) und sendet sie spaeter; der Puffer blockiert nie Druck oder Teilen.
+ *
+ * **Wiederholen ist gefahrlos:** jeder Eintrag traegt seinen Schluessel. Bei
+ * unklarem Ausgang (`outcome: 'unknown'`) dieselben Eintraege mit denselben
+ * Schluesseln noch einmal senden.
+ *
+ * **Vor dem Senden abgewiesen** wird nur, was die ganze Anfrage scheitern
+ * liesse oder ohne Netz sicher falsch ist: keine oder mehr als 50 Eintraege,
+ * ein unbekanntes Feld (oben oder im Eintrag), ein fehlender Beleg, ein
+ * Schluessel ausserhalb der Regel des Servers, eine Art oder ein Ergebnis
+ * ausserhalb des Katalogs, eine Zeit, die weder ganze Millisekunden noch
+ * ISO 8601 mit Zone ist. `email` und `opened` gehen hinaus und kommen als
+ * `invalid_output_kind` zurueck: so verwirft der Puffer genau diesen Eintrag.
+ * Fehler der ganzen Anfrage: [RECEIPT_OUTPUT_ERROR_CODES].
+ */
+export async function logReceiptOutputs(
+  transport: InternerTransport,
+  options: LogReceiptOutputsOptions,
+): Promise<LogReceiptOutputsResult> {
+  const name = 'logReceiptOutputs';
+  const anfrage = (grund: string) => new KasseneckValidationError(name, grund, 'request');
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) throw anfrage('Anfrage muss ein Objekt sein');
+  // Ein unbekanntes Feld (etwa eine zweite cashregisterId) ginge sonst still verloren.
+  const fremd = Object.keys(options).find((k) => !AUSGABEN_FELDER.includes(k));
+  if (fremd != null) throw anfrage(`unbekanntes Feld "${fremd}"`);
+  const roh: unknown = options.entries;
+  if (!Array.isArray(roh) || roh.length === 0 || roh.length > RECEIPT_OUTPUT_ENTRIES_MAX) {
+    throw anfrage(`entries muss 1–${RECEIPT_OUTPUT_ENTRIES_MAX} Eintraege haben`);
+  }
+  const entries = roh.map((e: unknown, i) => {
+    const wo = `entries[${i}]`;
+    if (e === null || typeof e !== 'object' || Array.isArray(e)) throw anfrage(`${wo} muss ein Objekt sein`);
+    const eintrag: Record<string, unknown> = {};
+    for (const [feld, w] of Object.entries(e as Record<string, unknown>)) {
+      if (!AUSGABE_FELDER.includes(feld)) throw anfrage(`${wo}: unbekanntes Feld "${feld}"`);
+      if (w !== undefined) eintrag[feld] = w;
+    }
+    // Schluessel und Beleg nie getrimmt: ein veraenderter Schluessel waere ein anderer.
+    for (const feld of ['key', 'receiptId']) {
+      const w = eintrag[feld];
+      if (typeof w !== 'string' || w.trim() === '') throw anfrage(`${wo}.${feld} fehlt`);
+    }
+    // Dieselbe Regel wie der Server: so traegt jede Antwort (`rejected[].key`)
+    // genau den Schluessel, unter dem die Kasse den Eintrag puffert.
+    if (!AUSGABE_SCHLUESSEL.test(eintrag.key as string)) throw anfrage(`${wo}.key muss 8–64 Zeichen [A-Za-z0-9_-] haben`);
+    // Ein Wert ausserhalb des Katalogs liesse den Rand die ganze Anfrage abweisen.
+    if (!(RECEIPT_OUTPUT_KINDS as readonly unknown[]).includes(eintrag.kind)) {
+      throw anfrage(`${wo}.kind muss ${RECEIPT_OUTPUT_KINDS.join(', ')} sein`);
+    }
+    if (eintrag.result !== undefined && !(RECEIPT_OUTPUT_RESULTS as readonly unknown[]).includes(eintrag.result)) {
+      throw anfrage(`${wo}.result muss ${RECEIPT_OUTPUT_RESULTS.join(', ')} sein`);
+    }
+    const at = eintrag.at;
+    // Text nur als ISO 8601 mit Zone (Regel des Servers): ohne Zone waere die
+    // Zeit je nach Geraet eine andere; das ist ein Fehler der Kasse, kein Fall
+    // fuer den Puffer.
+    const zeitOk = (typeof at === 'number' && Number.isSafeInteger(at) && at >= 0) || (typeof at === 'string' && AUSGABE_ZEIT.test(at));
+    if (!zeitOk) throw anfrage(`${wo}.at muss Millisekunden seit 1970 oder ISO 8601 mit Zone sein`);
+    return eintrag;
+  });
+
+  return ausgabenGemeldet(name, await transport<unknown>(name, { entries }));
+}
+
+/** Antwort von `logReceiptOutputs`, streng: `accepted` ganze Zahl ab 0, `rejected` Liste aus Schluessel und Code. */
+function ausgabenGemeldet(name: string, daten: unknown): LogReceiptOutputsResult {
+  if (daten === null || typeof daten !== 'object' || Array.isArray(daten)) throw antwortfehler(name, 'Antwort ist kein Objekt');
+  const { accepted, rejected } = daten as { accepted?: unknown; rejected?: unknown };
+  if (typeof accepted !== 'number' || !Number.isSafeInteger(accepted) || accepted < 0) {
+    throw antwortfehler(name, 'Antwort enthaelt keine Zahl accepted');
+  }
+  if (!Array.isArray(rejected)) throw antwortfehler(name, 'Antwort enthaelt keine Liste rejected');
+  return {
+    accepted,
+    rejected: rejected.map((r: unknown, i) => {
+      const { key, code } = (r ?? {}) as { key?: unknown; code?: unknown };
+      if (typeof key !== 'string' || typeof code !== 'string' || code === '') {
+        throw antwortfehler(name, `rejected[${i}] ohne Schluessel oder Code`);
+      }
+      return { key, code };
+    }),
+  };
+}
+
+/**
  * Prueft die Gutschein-Kombination eines Belegs und liefert den ersten
  * Regelverstoss als Text (oder `null`) — Zwilling von
  * `checkVoucherCombinationError`. Bewusst als Rueckgabewert statt als Fehler:
@@ -1029,12 +1245,13 @@ const MAX_ZAHLUNGEN = 20;
  * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
  * etwas hinausgeht.
  */
-function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false): Record<string, unknown>[] {
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false, stornoAuszahlung = false): Record<string, unknown>[] {
   const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
   if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
   if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
   // Auszahlung eines Gutscheins: der Betrag geht bar hinaus, ohne gegeben und ohne Trinkgeld (Server pruefeZahlungen).
-  const negativ = storno || auszahlung;
+  // Storno einer Auszahlung: der Kunde gibt das Geld zurueck, die eine Barzahlung ist positiv (zahlungen-core stornoAuszahlung).
+  const negativ = (storno && !stornoAuszahlung) || auszahlung;
   if (auszahlung) {
     const e = roh[0] as Record<string, unknown> | undefined;
     if (roh.length !== 1) throw fehler('Auszahlung: genau eine Barzahlung angeben.');
@@ -1226,7 +1443,9 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     layout?: unknown;
     registrationInfo?: unknown;
     logo_scale?: unknown;
+    outputs?: unknown;
   };
+  const outputs = receiptOutputsFromWire(d.outputs);
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
   const angaben = d.registrationInfo && typeof d.registrationInfo === 'object' ? readRegistrationInfo(d.registrationInfo as Record<string, unknown>) : null;
   return {
@@ -1238,6 +1457,7 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     layout,
     registrationInfo: angaben,
     logoScale: d.logo_scale === 'S' || d.logo_scale === 'M' || d.logo_scale === 'L' || d.logo_scale === 'XL' ? d.logo_scale : 'M',
+    ...(outputs !== undefined ? { outputs } : {}),
   };
 }
 

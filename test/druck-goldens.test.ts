@@ -21,6 +21,31 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * Aendert sich eine Ausgabe absichtlich, ist das eine eigene Entscheidung mit
  * eigenem Commit, nie ein Beifang.
  *
+ * Bon-Feinschliff (23.10.2026, R2/R5): die Digests der vier Gutschein-Belege voucher-multi-purpose-sale,
+ * voucher-single-purpose-sale, voucher-single-purpose-redeem und -redeem-exempt sind absichtlich neu
+ * gezogen (kurze Maske `····-XXXX`, Einzweck-Rest mit „€“); alle anderen Digests blieben.
+ *
+ * Vertragszug (23.10.2026, Backend Tasks 1-3): die Digests der Server-Layouts von je sieben Faellen in `belege` und
+ * `kasse-belege` (sale_multi_purpose_voucher, sale_service_voucher, redeem_multi_purpose_voucher,
+ * redeem_single_purpose_voucher, redeem_service_voucher, payout_multi_purpose_voucher,
+ * get_receipt_single_purpose_redeemed) sind absichtlich neu gezogen: der Vertrag stammt jetzt vom Backend-Stand mit
+ * dem vendorierten Paket 0.34.0 (vorher 0.33.1; `_quelle.backendPackage`), dessen Server-Layout die Gutschein-Zeilen
+ * neu setzt (Mehrzweckgutschein statt Wertgutschein, Zeile mit Rest am Gutschein, Auszahlung ohne Mengenspalte),
+ * und der Leistungsgutschein heisst dort `Leistungsgutschein Maniküre (2 Stück)` (Backend 8a78fc23). Gezeichnet wird
+ * die Antwort unveraendert; nur die Eingabe hat sich geaendert. Alle anderen Digests blieben.
+ *
+ * Ersatzdaten (23.10.2026, R12): die Golden-Belege tragen statt `ATU12345678`/`12-345/6789` die pruefziffernrichtigen
+ * Werte `ATU12345675`/`91-123/4565`; die Digests von `receipts` und `ruleset1` sind darum neu gezogen (nur die Kopfzeile
+ * mit der UID aendert sich). `server` und `shift` stammen aus dem Vertrag und blieben.
+ *
+ * Vertragszug final (23.10.2026, Backend 85d18f12, vendortes Paket 0.35.0, Ersatzdaten im Backend): die Digests aller 38
+ * Server-Layouts sind neu gezogen (Kopfzeile mit `ATU12345675` statt der alten UID, Firma Bäckerei Kornblum statt Bäckerei Welt, dazu die Bon-Regeln 0.35.0 bei den
+ * Gutschein-Faellen); `receipts`, `ruleset1` und `shift` blieben. Das Server-Layout stammt unveraendert aus dem Vertrag.
+ *
+ * Beleg-Ausgaben (24.10.2026, Backend fceb8304): der neue Vertragsfall `get_receipt_with_outputs` (je in `belege` und
+ * `kasse-belege`) traegt dasselbe Server-Layout wie `sale_cash_tendered` (derselbe Beleg, gelesen statt verkauft; neu ist
+ * nur `outputs` neben dem Layout); seine Digests sind darum die von `sale_cash_tendered`. Alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

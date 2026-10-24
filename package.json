@@ -1,6 +1,6 @@
 {
   "name": "@kreiseck/kasseneck-api",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Austrian fiscal cash register (RKSV) client for JavaScript and TypeScript: signed receipts, cancellations, card payments, receipt printing (ESC/POS), invoices, inventory. RKSV-Registrierkasse für JavaScript und TypeScript.",
   "license": "Apache-2.0",
   "author": "Kreiseck",
@@ -198,6 +198,8 @@
     "check:erreichbar": "node scripts/check-erreichbarkeit.mjs",
     "prepublishOnly": "npm run build",
     "fixtures:erneuern": "npm run build && node scripts/belege-fixtures.mjs",
+    "fixtures:duplikat": "npm run build && node scripts/duplikat-fixtures.mjs",
+    "fixtures:ausgaben": "npm run build && node scripts/ausgaben-fixtures.mjs",
     "fixtures:kasse": "node scripts/kasse-settings-fixture.mjs",
     "fixtures:marke": "node scripts/marke-raster.mjs",
     "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",

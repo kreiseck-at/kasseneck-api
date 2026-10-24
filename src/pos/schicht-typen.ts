@@ -47,11 +47,11 @@ export type CashLocation = (typeof CASH_LOCATIONS)[number];
 
 /**
  * Warum die Lade aufging (Katalog `LADE_OEFFNUNG_GRUND`). `sale`,
- * `cash_movement`, `shift_open` und `shift_close` meldet die Kasse selbst beim
+ * `cash_movement`, `shift_open`, `shift_close` und `voucher_payout` meldet die Kasse selbst beim
  * jeweiligen Vorgang; von Hand waehlt der Kassier aus [MANUAL_OPENING_REASONS].
  */
 export const OPENING_REASONS = Object.freeze([
-  'sale', 'cash_movement', 'shift_open', 'shift_close', 'change', 'check', 'misoperation', 'other',
+  'sale', 'cash_movement', 'shift_open', 'shift_close', 'change', 'check', 'misoperation', 'other', 'voucher_payout',
 ] as const);
 export type OpeningReason = (typeof OPENING_REASONS)[number];
 
