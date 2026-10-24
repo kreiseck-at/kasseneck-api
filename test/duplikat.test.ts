@@ -9,24 +9,48 @@ import {
   logoRasterSize,
   markAsDuplicate,
   renderReceiptGrid,
+  type LayoutColumnsLine,
   type LayoutLine,
   type PrintLogo,
   type ReceiptLayout,
 } from '../src/receipt/index.js';
+import { KasseneckValidationError } from '../src/client/errors.js';
 
 /**
  * Belegduplikat (Erlass BMF-AV Nr. 2/2026, Abschnitt 4.5.6): ein Nachdruck
- * traegt oben den Aufdruck „DUPLIKAT“, alles andere bleibt Zeichen fuer
- * Zeichen und Byte fuer Byte wie beim Erstdruck. Die Prueffaelle unter
- * `fixtures/duplicate-cases.json` (erzeugt von `npm run fixtures:duplikat`)
- * teilt das Paket mit dem Dart-Zwilling.
+ * traegt im Kennungsblock direkt unter `Beleg-ID:` die Zeile
+ * `Duplikat am: TT.MM.JJJJ HH:MM:SS` (Wiener Zeit des Nachdrucks), alles
+ * andere bleibt Zeichen fuer Zeichen und Byte fuer Byte wie beim Erstdruck.
+ * Die Prueffaelle unter `fixtures/duplicate-cases.json` (erzeugt von
+ * `npm run fixtures:duplikat`) teilt das Paket mit dem Dart-Zwilling.
  */
 
 const wurzel = new URL('../../fixtures/', import.meta.url);
 const lies = <T>(pfad: string): T => JSON.parse(readFileSync(new URL(pfad, wurzel), 'utf8')) as T;
 const golden = (name: string): ReceiptLayout => lies<ReceiptLayout>(`expected/${name}.lines.json`);
 
-const AUFDRUCK: LayoutLine = { kind: 'banner', text: 'DUPLIKAT', tone: 'receipt_type' };
+/** 24.10.2026 14:10:05 in Wien (Sommerzeit, UTC+2). */
+const NACHDRUCK = new Date('2026-10-24T12:10:05Z');
+const SOLL32 = 'Duplikat am: 24.10.2026 14:10:05';
+const SOLL48 = `Duplikat am:${' '.repeat(17)}24.10.2026 14:10:05`;
+
+/** Die Zeile, wie das Layout sie traegt (nicht fett, Wert rechtsbuendig). */
+const zeile = (zeit: string): LayoutColumnsLine => ({
+  kind: 'columns',
+  columns: [
+    { text: 'Duplikat am:', width: 5, align: 'left' },
+    { text: zeit, width: 7, align: 'right' },
+  ],
+});
+
+const istBelegId = (z: LayoutLine): boolean => z.kind === 'columns' && z.columns[0]?.text === 'Beleg-ID:';
+
+/** Der Erstdruck mit der Zeile an ihrer Stelle: direkt nach `Beleg-ID:`, ohne diese Zeile ganz oben. */
+function erwartet(erst: ReceiptLayout, zeit: string): ReceiptLayout {
+  const lines = [...erst.lines];
+  lines.splice(lines.findIndex(istBelegId) + 1, 0, zeile(zeit));
+  return { ...erst, lines };
+}
 
 /** Alle Golden-Layouts des Vertrags: jede Belegart, die das Layout kennt, dazu die Schicht-Bons. */
 const GOLDENS = readdirSync(new URL('expected/', wurzel))
@@ -34,84 +58,120 @@ const GOLDENS = readdirSync(new URL('expected/', wurzel))
   .map((d) => d.slice(0, -'.lines.json'.length))
   .sort();
 
-test('Duplikat: neue erste Zeile „DUPLIKAT“ als Aufdruck (zentriert, fett, gerahmt), der Rest unveraendert', () => {
+test('Duplikat: Zeile direkt unter „Beleg-ID:“ – 32 und 48 Zeichen genau wie vereinbart, nicht fett', () => {
   const erst = golden('sale-cash');
-  const dup = markAsDuplicate(erst);
-  assert.deepEqual(dup.lines[0], AUFDRUCK);
-  assert.deepEqual(dup.lines.slice(1), erst.lines);
-  assert.equal(dup.paperSize, erst.paperSize);
-  assert.equal(dup.ruleset, erst.ruleset);
-  // Im Raster: Rahmen, zentrierter Text, Rahmen -- und alle drei fett.
-  const raster = renderReceiptGrid(dup, { charsPerLine: 32 }).lines.slice(0, 3);
-  assert.deepEqual(raster.map((z) => z.text), ['='.repeat(32), `${' '.repeat(12)}DUPLIKAT${' '.repeat(12)}`, '='.repeat(32)]);
-  assert.ok(raster.every((z) => z.bold && z.kind === 'banner'));
+  const dup = markAsDuplicate(erst, NACHDRUCK);
+  assert.deepEqual(dup, erwartet(erst, '24.10.2026 14:10:05'));
+  for (const [zeichen, soll] of [[32, SOLL32], [48, SOLL48]] as const) {
+    const raster = renderReceiptGrid(dup, { charsPerLine: zeichen }).lines;
+    const i = raster.findIndex((z) => z.text.startsWith('Beleg-ID:'));
+    assert.ok(i >= 0, `${zeichen}: Beleg-ID-Zeile`);
+    assert.equal(raster[i + 1]!.text, soll, `${zeichen}: Zeile darunter`);
+    assert.equal(raster[i + 1]!.text.length, zeichen);
+    assert.equal(raster[i + 1]!.bold, false, `${zeichen}: nicht fett`);
+    assert.equal(raster[i + 2]!.kind, 'space', `${zeichen}: kein Umbruch`);
+  }
 });
 
-test('Duplikat: jede Belegart des Vertrags (Standard, Storno, Null-/Startbeleg, Gutschein, Schicht) -- QR, Betraege, Signatur unveraendert', () => {
+test('Duplikat: jede Belegart des Vertrags (Standard, Storno, Null-/Startbeleg, Gutschein, Schicht) – genau eine Zeile mehr, kein Aufdruck', () => {
   for (const pflicht of ['sale-cash', 'cancellation-full', 'training', 'zero-start', 'zero-monthly', 'voucher-multi-purpose-redeem', 'voucher-single-purpose-sale', 'shift-close', 'cash-movement']) {
     assert.ok(GOLDENS.includes(pflicht), pflicht);
   }
   for (const name of GOLDENS) {
     const erst = golden(name);
-    const dup = markAsDuplicate(erst);
-    assert.deepEqual(dup, { ...erst, lines: [AUFDRUCK, ...erst.lines] }, name);
-    // Das Raster ist das des Erstdrucks mit drei Zeilen davor (Rahmen, Text, Rahmen).
-    for (const zeichen of [32, 48]) {
-      const a = gridToText(renderReceiptGrid(erst, { charsPerLine: zeichen }));
-      const b = gridToText(renderReceiptGrid(dup, { charsPerLine: zeichen }));
-      const kopf = `${'='.repeat(zeichen)}\n${'DUPLIKAT'.padStart((zeichen + 8) / 2).padEnd(zeichen)}\n${'='.repeat(zeichen)}\n`;
-      assert.equal(b, kopf + a, `${name}/${zeichen}`);
+    const dup = markAsDuplicate(erst, NACHDRUCK);
+    assert.deepEqual(dup, erwartet(erst, '24.10.2026 14:10:05'), name);
+    assert.ok(!dup.lines.some((z) => (z.kind === 'banner' || z.kind === 'text') && z.text.includes('DUPLIKAT')), `${name}: kein Aufdruck`);
+    // Das Raster ist das des Erstdrucks mit genau einer Zeile dazu.
+    for (const [zeichen, soll] of [[32, SOLL32], [48, SOLL48]] as const) {
+      const a = gridToText(renderReceiptGrid(erst, { charsPerLine: zeichen })).split('\n');
+      const b = gridToText(renderReceiptGrid(dup, { charsPerLine: zeichen })).split('\n');
+      const i = a.findIndex((t) => t.startsWith('Beleg-ID:')) + 1;
+      assert.deepEqual(b, [...a.slice(0, i), soll, ...a.slice(i)], `${name}/${zeichen}`);
     }
+  }
+});
+
+test('Duplikat: Layout ohne „Beleg-ID:“ – die Zeile steht ganz oben', () => {
+  const schicht = golden('shift-close');
+  assert.ok(!schicht.lines.some(istBelegId));
+  const dup = markAsDuplicate(schicht, NACHDRUCK);
+  assert.deepEqual(dup.lines, [zeile('24.10.2026 14:10:05'), ...schicht.lines]);
+  assert.deepEqual(markAsDuplicate({ paperSize: 'mm80', ruleset: 2, lines: [] }, NACHDRUCK), { paperSize: 'mm80', ruleset: 2, lines: [zeile('24.10.2026 14:10:05')] });
+  // Ein „Beleg-ID:“ als Text (nicht als Spaltenzeile) zaehlt nicht.
+  const text: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [{ kind: 'text', text: 'Beleg-ID:', align: 'left', bold: false }] };
+  assert.deepEqual(markAsDuplicate(text, NACHDRUCK).lines, [zeile('24.10.2026 14:10:05'), ...text.lines]);
+});
+
+test('Duplikat: noch einmal nachgedruckt – eine Zeile, die spaetere Zeit, an derselben Stelle', () => {
+  for (const name of ['sale-cash', 'zero-start', 'shift-close']) {
+    const erst = golden(name);
+    const einmal = markAsDuplicate(erst, NACHDRUCK);
+    const zweimal = markAsDuplicate(einmal, new Date('2026-10-24T13:45:00Z'));
+    assert.deepEqual(zweimal, erwartet(erst, '24.10.2026 15:45:00'), name);
+    // Dieselbe Zeit noch einmal: unveraendert.
+    assert.deepEqual(markAsDuplicate(einmal, NACHDRUCK), einmal, name);
+  }
+  // Eine Duplikat-Zeile an anderer Stelle bleibt dort; eine zweite faellt weg.
+  const doppelt: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
+    { kind: 'text', text: 'Bäckerei Kornblum', align: 'center', bold: true },
+    zeile('01.01.2026 08:00:00'),
+    { kind: 'columns', columns: [{ text: 'Beleg-ID:', width: 6, align: 'left' }, { text: 'AT0-KASSE1-42', width: 6, align: 'right' }] },
+    zeile('02.01.2026 08:00:00'),
+  ] };
+  assert.deepEqual(markAsDuplicate(doppelt, NACHDRUCK).lines, [doppelt.lines[0], zeile('24.10.2026 14:10:05'), doppelt.lines[2]]);
+});
+
+test('Duplikat: Wiener Zeit des Nachdrucks, auch an den Umstellungen (nie die Zeitzone des Rechners)', () => {
+  const zeit = (iso: string): string => {
+    const dup = markAsDuplicate({ paperSize: 'mm80', ruleset: 2, lines: [] }, new Date(iso));
+    const z = dup.lines[0]!;
+    assert.ok(z.kind === 'columns');
+    return z.columns[1]!.text;
+  };
+  // Ende der Sommerzeit: 03:00 MESZ wird 02:00 MEZ.
+  assert.equal(zeit('2026-10-25T00:59:59Z'), '25.10.2026 02:59:59');
+  assert.equal(zeit('2026-10-25T01:00:00Z'), '25.10.2026 02:00:00');
+  // Beginn der Sommerzeit: 02:00 MEZ wird 03:00 MESZ.
+  assert.equal(zeit('2026-03-29T00:59:59Z'), '29.03.2026 01:59:59');
+  assert.equal(zeit('2026-03-29T01:00:00Z'), '29.03.2026 03:00:00');
+  // Winter, Jahreswechsel, Bruchteile werden abgeschnitten (nicht gerundet).
+  assert.equal(zeit('2026-12-31T23:30:00Z'), '01.01.2027 00:30:00');
+  assert.equal(zeit('2026-10-24T12:10:05.999Z'), '24.10.2026 14:10:05');
+  // Eine Wiener Uhrzeit, die es in New York nicht gibt (dort Sommerzeitbeginn 08.03. 02:00).
+  assert.equal(zeit('2026-03-08T01:30:00Z'), '08.03.2026 02:30:00');
+});
+
+test('Duplikat: unbrauchbarer Zeitpunkt wirft KasseneckValidationError (request)', () => {
+  const erst = golden('sale-cash');
+  for (const falsch of [new Date('kaputt'), '2026-10-24T12:10:05Z' as unknown as Date, undefined as unknown as Date]) {
+    assert.throws(() => markAsDuplicate(erst, falsch), (e: unknown) => e instanceof KasseneckValidationError && e.scope === 'request' && e.functionName === 'markAsDuplicate');
   }
 });
 
 test('Duplikat: die Eingabe bleibt unangetastet, das Ergebnis ist eine eigene Kopie', () => {
   const erst = golden('voucher-multi-purpose-redeem');
   const vorher = JSON.stringify(erst);
-  const dup = markAsDuplicate(erst);
+  const dup = markAsDuplicate(erst, NACHDRUCK);
   assert.equal(JSON.stringify(erst), vorher);
   assert.notEqual(dup, erst);
   assert.notEqual(dup.lines, erst.lines);
   // Wer am Ergebnis dreht, dreht nicht am Erstdruck.
-  const spalten = dup.lines.find((z) => z.kind === 'columns');
-  assert.ok(spalten && spalten.kind === 'columns');
-  spalten.columns[0]!.text = 'verändert';
-  const text = dup.lines.find((z, i) => i > 0 && z.kind === 'text');
-  assert.ok(text && text.kind === 'text');
-  text.text = 'verändert';
-  assert.equal(JSON.stringify(erst), vorher);
-  // Auch der Weg ueber ein schon gekennzeichnetes Layout gibt eine Kopie.
-  const zweit = markAsDuplicate(dup);
-  assert.notEqual(zweit, dup);
-  assert.notEqual(zweit.lines, dup.lines);
-});
-
-test('Duplikat: idempotent -- zweimal angewandt wie einmal (Erkennung an der eigenen ersten Zeile)', () => {
-  for (const name of GOLDENS) {
-    const einmal = markAsDuplicate(golden(name));
-    assert.deepEqual(markAsDuplicate(einmal), einmal, name);
-    assert.deepEqual(markAsDuplicate(markAsDuplicate(einmal)), einmal, name);
+  for (const z of dup.lines) {
+    if (z.kind === 'columns') {
+      z.columns[0]!.text = 'verändert';
+      z.columns.push({ text: 'dazu', width: 1, align: 'left' });
+    } else if (z.kind === 'text') {
+      z.text = 'verändert';
+    }
   }
-  // Ein „DUPLIKAT“ weiter unten (etwa im Artikelnamen) ist keine Kennzeichnung.
-  const artikel: ReceiptLayout = { paperSize: 'mm58', ruleset: 2, lines: [{ kind: 'text', text: 'DUPLIKAT', align: 'center', bold: true }] };
-  assert.deepEqual(markAsDuplicate(artikel).lines, [AUFDRUCK, ...artikel.lines]);
-});
-
-test('Duplikat: die Erkennung sieht nur Art und Text der ersten Zeile, nicht den Ton', () => {
-  // Ein „DUPLIKAT“-Rahmen im Ton `warning` an erster Stelle gilt als schon gekennzeichnet:
-  // ein zweiter Aufdruck mit anderem Ton stuende sonst doppelt auf dem Bon.
-  const warnung: ReceiptLayout = { paperSize: 'mm80', ruleset: 2, lines: [
-    { kind: 'banner', text: 'DUPLIKAT', tone: 'warning' },
-    { kind: 'text', text: 'Bäckerei Kornblum', align: 'center', bold: true },
-  ] };
-  assert.deepEqual(markAsDuplicate(warnung), warnung);
-  // Ein anderer Rahmen an erster Stelle (TESTKASSE) ist keine Kennzeichnung.
-  const testkasse = golden('test-cashregister-sale');
-  assert.deepEqual(markAsDuplicate(testkasse).lines.slice(0, 2).map((z) => z.kind === 'banner' && z.text), ['DUPLIKAT', testkasse.lines[0]!.kind === 'banner' && testkasse.lines[0]!.text]);
-});
-
-test('Duplikat: leeres Layout wirft nicht', () => {
-  assert.deepEqual(markAsDuplicate({ paperSize: 'mm80', ruleset: 2, lines: [] }), { paperSize: 'mm80', ruleset: 2, lines: [AUFDRUCK] });
+  assert.equal(JSON.stringify(erst), vorher);
+  // Auch der Weg ueber ein schon gekennzeichnetes Layout gibt eine Kopie und laesst es stehen.
+  const einmal = markAsDuplicate(erst, NACHDRUCK);
+  const einmalVorher = JSON.stringify(einmal);
+  const zweit = markAsDuplicate(einmal, new Date('2026-10-24T13:45:00Z'));
+  assert.equal(JSON.stringify(einmal), einmalVorher);
+  assert.notEqual(zweit.lines, einmal.lines);
 });
 
 // ------------------------------------------------------------------ Zwilling
@@ -120,38 +180,61 @@ interface DuplikatFall {
   name: string;
   receipt?: string;
   input?: ReceiptLayout;
-  times: number;
+  paperSize?: 'mm58' | 'mm80';
+  printedAt: string[];
+  display: string;
   print: boolean;
+  logo: boolean;
   expected: ReceiptLayout;
 }
-const zwilling = lies<{ version: number; text: string; cases: DuplikatFall[] }>('duplicate-cases.json');
-const eingabe = (fall: DuplikatFall): ReceiptLayout => (fall.receipt !== undefined ? golden(fall.receipt) : fall.input!);
+const zwilling = lies<{ version: number; label: string; cases: DuplikatFall[] }>('duplicate-cases.json');
+const eingabe = (fall: DuplikatFall): ReceiptLayout => {
+  const basis = fall.receipt !== undefined ? golden(fall.receipt) : fall.input!;
+  return fall.paperSize !== undefined ? { ...basis, paperSize: fall.paperSize } : basis;
+};
 const hex = (bytes: Uint8Array): string => {
   const teile: string[] = [];
   for (let i = 0; i < bytes.length; i += 32) teile.push(Array.from(bytes.subarray(i, i + 32), (b) => b.toString(16).padStart(2, '0')).join(''));
   return teile.join('\n') + '\n';
 };
 
-test('Zwilling: Prueffaelle decken die Belegarten ab und nennen den Aufdruck', () => {
-  assert.equal(zwilling.text, 'DUPLIKAT');
+/** Probe-Logo der Vertragsfaelle mit `logo`: Stufe M, 300x120 px, jeder Punkt schwarz. */
+function probeLogo(zeichen: number): PrintLogo {
+  const mass = logoDimensions({ size: 'M', pixelWidth: 300, pixelHeight: 120 }, zeichen);
+  const { width, height } = logoRasterSize(mass, zeichen);
+  return { size: 'M', pixelWidth: 300, pixelHeight: 120, raster: { width, height, dots: new Uint8Array(width * height).fill(1) } };
+}
+const zeichenVon = (paperSize: string): number => (paperSize === 'mm58' ? 32 : 48);
+
+test('Zwilling: Prueffaelle decken Belegarten, Breiten und Umstellungen ab', () => {
+  assert.equal(zwilling.version, 2);
+  assert.equal(zwilling.label, 'Duplikat am:');
   const namen = zwilling.cases.map((f) => f.receipt ?? f.name);
-  for (const pflicht of ['sale-cash', 'cancellation-full', 'zero-start', 'voucher-multi-purpose-redeem', 'test-cashregister-sale', 'shift-close']) {
+  for (const pflicht of ['sale-cash', 'cancellation-full', 'zero-start', 'voucher-multi-purpose-redeem', 'shift-close']) {
     assert.ok(namen.includes(pflicht), pflicht);
   }
-  assert.ok(zwilling.cases.some((f) => f.times > 1), 'ein Fall wendet mehrfach an (Idempotenz)');
-  assert.ok(zwilling.cases.some((f) => f.input?.lines.length === 0), 'ein Fall ohne Zeilen');
-  assert.ok(zwilling.cases.some((f) => f.input?.lines[0]?.kind === 'banner' && f.input.lines[0].tone === 'warning'), 'ein Fall mit DUPLIKAT im Ton warning');
+  const gedruckt = zwilling.cases.filter((f) => f.print);
+  assert.ok(gedruckt.some((f) => eingabe(f).paperSize === 'mm58') && gedruckt.some((f) => eingabe(f).paperSize === 'mm80'), 'Bytes fuer 58 und 80 mm');
+  assert.ok(gedruckt.some((f) => f.logo), 'ein Fall mit Logo');
+  assert.ok(zwilling.cases.some((f) => f.printedAt.length > 1), 'ein Fall zweimal angewandt');
+  assert.ok(zwilling.cases.some((f) => !eingabe(f).lines.some(istBelegId)), 'ein Fall ohne Beleg-ID');
+  for (const [iso, anzeige] of [['2026-10-25T00:59:59Z', '25.10.2026 02:59:59'], ['2026-10-25T01:00:00Z', '25.10.2026 02:00:00'], ['2026-03-29T01:00:00Z', '29.03.2026 03:00:00']]) {
+    assert.ok(zwilling.cases.some((f) => f.printedAt.at(-1) === iso && f.display === anzeige), iso);
+  }
   const hexDateien = readdirSync(new URL('expected/', wurzel)).filter((d) => d.startsWith('duplicate.')).sort();
-  assert.deepEqual(hexDateien, zwilling.cases.filter((f) => f.print).map((f) => `duplicate.${f.name}.hex`).sort());
-  assert.ok(hexDateien.length >= 2);
+  assert.deepEqual(hexDateien, gedruckt.map((f) => `duplicate.${f.name}.hex`).sort());
 });
 
 for (const fall of zwilling.cases) {
   test(`Zwilling ${fall.name}: Layout${fall.print ? ' und Bytes' : ''} wie in der Vertragsdatei`, () => {
     let layout = eingabe(fall);
-    for (let i = 0; i < fall.times; i += 1) layout = markAsDuplicate(layout);
+    for (const iso of fall.printedAt) layout = markAsDuplicate(layout, new Date(iso));
     assert.equal(JSON.stringify(layout, null, 2), JSON.stringify(fall.expected, null, 2));
-    if (fall.print) assert.equal(hex(escPosLayoutBytes(layout)), readFileSync(new URL(`expected/duplicate.${fall.name}.hex`, wurzel), 'utf8'));
+    assert.ok(layout.lines.some((z) => z.kind === 'columns' && z.columns[0]?.text === 'Duplikat am:' && z.columns[1]?.text === fall.display), 'Anzeige der Zeit');
+    if (fall.print) {
+      const logo = fall.logo ? probeLogo(zeichenVon(layout.paperSize)) : null;
+      assert.equal(hex(escPosLayoutBytes(layout, { logo })), readFileSync(new URL(`expected/duplicate.${fall.name}.hex`, wurzel), 'utf8'));
+    }
   });
 }
 
@@ -159,71 +242,53 @@ for (const fall of zwilling.cases) {
 
 const latin1 = (b: Uint8Array): string => Array.from(b, (v) => String.fromCharCode(v)).join('');
 
-function probeLogo(zeichen: number): PrintLogo {
-  const mass = logoDimensions({ size: 'M', pixelWidth: 300, pixelHeight: 120 }, zeichen);
-  const { width, height } = logoRasterSize(mass, zeichen);
-  return { size: 'M', pixelWidth: 300, pixelHeight: 120, raster: { width, height, dots: new Uint8Array(width * height).fill(1) } };
-}
-
 /**
- * Der Bytestrom so, wie der Drucker ihn ausfuehrt: jedes Byte ausser den
- * Stilbefehlen `ESC E n` (fett) und `ESC a n` (Ausrichtung), jeweils mit dem
- * Stil, der in diesem Moment wirkt. Der Druckweg sendet einen Stil nur, wenn
- * er sich aendert; nach dem fetten Aufdruck faellt darum das `ESC E 1` des
- * fetten Firmennamens weg (bzw. vor dem Logo kommt ein `ESC E 0` dazu). Auf
- * dem Papier ist das dasselbe -- und genau das vergleicht diese Form: gleiche
- * Bytes im gleichen wirksamen Stil. (Gilt fuer diese Prueffaelle: weder das
- * Probe-Logo noch die QR-Nutzlast enthalten die Folge 1B 45 / 1B 61.)
+ * Der Nachdruck am Drucker ist der Erstdruck mit genau einer Zeile mehr:
+ * dieselben Bytes bis einschliesslich der Zeile `Beleg-ID:`, dann derselbe
+ * Zeichensatz-Vorspann wie vor jeder Zeile, `Duplikat am: …` und der
+ * Zeilenvorschub, dann wieder dieselben Bytes bis zum
+ * Schnitt (Logo, QR, Signaturtext). Die Zeile steht im selben Stil wie
+ * `Beleg-ID:` (nicht fett, linksbuendig), darum kommt kein Stilbefehl dazu.
  */
-function wirksam(b: Uint8Array): string[] {
-  let fett = false;
-  let ausrichtung = 0x30;
-  const aus: string[] = [];
-  for (let i = 0; i < b.length; i += 1) {
-    if (b[i] === 0x1b && b[i + 1] === 0x45) { fett = b[i + 2] === 1; i += 2; continue; }
-    if (b[i] === 0x1b && b[i + 1] === 0x61) { ausrichtung = b[i + 2]!; i += 2; continue; }
-    aus.push(`${b[i]!}|${fett ? 'fett' : 'normal'}|${String.fromCharCode(ausrichtung)}`);
-  }
-  return aus;
-}
-
-/**
- * Der Nachdruck am Drucker: derselbe Vorspann (Initialisierung, Druckbereich,
- * Codepage), dann der Aufdruck (drei fette Zeilen: Rahmen, „DUPLIKAT“,
- * Rahmen; mit Logo dazu die Leerzeile vor dem Logo, die das Blatt nach jedem
- * fuehrenden Rahmen setzt), dann der Erstdruck ab dem Ende des Vorspanns,
- * samt Logo, QR und Schnitt: Byte fuer Byte im selben wirksamen Stil.
- */
-test('ESC/POS: Nachdruck beginnt nach dem Vorspann mit „DUPLIKAT“, der Rest ist der Erstdruck (gleiche Bytes, gleicher Stil)', () => {
-  for (const name of ['sale-cash', 'voucher-multi-purpose-redeem', 'zero-start', 'cancellation-full', 'test-cashregister-sale', 'shift-close']) {
+test('ESC/POS: Nachdruck = Erstdruck plus genau die Zeile „Duplikat am:“ (Byte fuer Byte)', () => {
+  for (const name of ['sale-cash', 'voucher-multi-purpose-redeem', 'zero-start', 'cancellation-full', 'test-cashregister-sale', 'cancellation-partial', 'voucher-service-redeem']) {
     for (const paperSize of ['mm58', 'mm80'] as const) {
-      const zeichen = paperSize === 'mm58' ? 32 : 48;
+      const zeichen = zeichenVon(paperSize);
       for (const logo of [null, probeLogo(zeichen)]) {
         const fall = `${name}/${paperSize}/${logo ? 'Logo' : 'ohne Logo'}`;
         const erst = golden(name);
         const optionen = { paperSize, logo };
-        const a = escPosLayoutBytes(erst, optionen);
-        const b = escPosLayoutBytes(markAsDuplicate(erst), optionen);
-        const vorspann = escPosLayoutBytes({ ...erst, lines: [] }, { paperSize, cut: false });
-        assert.deepEqual(a.subarray(0, vorspann.length), vorspann, fall);
-        assert.deepEqual(b.subarray(0, vorspann.length), vorspann, fall);
-
-        const wa = wirksam(a);
-        const wb = wirksam(b);
-        const nv = wirksam(vorspann).length;
-        const rest = wa.length - nv;
-        assert.ok(wb.length > wa.length, fall);
-        assert.deepEqual(wb.slice(wb.length - rest), wa.slice(nv), `${fall}: Rest wie der Erstdruck`);
-
-        // Der Kopf dazwischen: drei fette Zeilen, mit Logo dazu ein Vorschub, kein Bild.
-        const kopf = wb.slice(nv, wb.length - rest);
-        const text = kopf.map((t) => String.fromCharCode(Number(t.split('|')[0]))).join('');
-        const zeilen = text.replace(/\x1c\x2e|\x1bt[\x00-\xff]/g, '').split('\n');
-        assert.deepEqual(zeilen.slice(0, 3), ['='.repeat(zeichen), `${' '.repeat((zeichen - 8) / 2)}DUPLIKAT`, '='.repeat(zeichen)], fall);
-        assert.deepEqual(zeilen.slice(3), logo && !erst.lines.some((z, i) => i === 0 && z.kind === 'banner') ? ['\x1bd\x01'] : [''], `${fall}: nach dem Aufdruck`);
-        assert.ok(kopf.filter((t) => '=DUPLIKAT'.includes(String.fromCharCode(Number(t.split('|')[0])))).every((t) => t.endsWith('|fett|0')), `${fall}: Aufdruck fett`);
-        assert.equal(text.indexOf('\x1dv0'), -1, `${fall}: kein Bild im Kopf`);
+        const a = latin1(escPosLayoutBytes(erst, optionen));
+        const b = latin1(escPosLayoutBytes(markAsDuplicate(erst, NACHDRUCK), optionen));
+        const beleg = a.indexOf('Beleg-ID:');
+        assert.ok(beleg > 0, `${fall}: Beleg-ID im Erstdruck`);
+        const ende = a.indexOf('\n', beleg) + 1;
+        // Jede Zeile beginnt mit demselben Zeichensatz-Vorspann (FS ., ESC t n); den traegt auch die neue Zeile.
+        const zeilenVorspann = a.slice(a.lastIndexOf('\n', beleg) + 1, beleg);
+        assert.equal(zeilenVorspann, '\x1c.\x1bt\x10', fall);
+        assert.equal(b, `${a.slice(0, ende)}${zeilenVorspann}${zeichen === 32 ? SOLL32 : SOLL48}\n${a.slice(ende)}`, fall);
       }
+    }
+  }
+});
+
+/** Ohne Stilbefehle `ESC E n` (fett) und `ESC a n` (Ausrichtung): was als Zeichen aufs Papier kommt. */
+const ohneStil = (s: string): string => s.replace(/\x1bE[\x00\x01]|\x1ba[\x00-\x02\x30-\x32]/g, '');
+
+test('ESC/POS: ohne „Beleg-ID:“ steht die Zeile vor der ersten Zeile des Erstdrucks', () => {
+  for (const name of ['shift-close', 'cash-movement']) {
+    for (const paperSize of ['mm58', 'mm80'] as const) {
+      const soll = zeichenVon(paperSize) === 32 ? SOLL32 : SOLL48;
+      const erst = golden(name);
+      const a = latin1(escPosLayoutBytes(erst, { paperSize }));
+      const b = latin1(escPosLayoutBytes(markAsDuplicate(erst, NACHDRUCK), { paperSize }));
+      const vorspann = latin1(escPosLayoutBytes({ ...erst, lines: [] }, { paperSize, cut: false }));
+      assert.ok(a.startsWith(vorspann) && b.startsWith(vorspann), `${name}/${paperSize}: Vorspann`);
+      const kopf = b.slice(vorspann.length, b.indexOf('\n', vorspann.length) + 1);
+      assert.equal(ohneStil(kopf), `\x1c.\x1bt\x10${soll}\n`, `${name}/${paperSize}: Zeile zuerst`);
+      assert.ok(!kopf.includes('\x1bE\x01'), `${name}/${paperSize}: nicht fett`);
+      // Danach der Erstdruck; nur Stilbefehle duerfen sich verschieben.
+      assert.equal(ohneStil(b.slice(vorspann.length + kopf.length)), ohneStil(a.slice(vorspann.length)), `${name}/${paperSize}: Rest`);
     }
   }
 });
