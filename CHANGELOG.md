@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unreleased (1.15.0)
+## 1.15.0 - 2026-10-27
 
 Vouchers at the register, stage 4b: voucher types (Gutschein-Sorten). A business names any number of voucher types (multi- or single-purpose, free or fixed amount, validity, payout, label template); the register shows one tile per type in a tab "Gutscheine" and sells a value voucher only through a type. Additive for reading, with three behaviour changes for selling (see the items on `typeId` and the due amount).
 
