@@ -78,8 +78,8 @@ test('Gutschein-Positionen werden erkannt', () => {
 });
 
 test('Verkaufswunsch der neuen Form wird gesendet, wie er ist', () => {
-  const p = createReceiptParams({ receiptType: 'standard', items: [], vouchers: [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }], payments: ZAHLUNG });
-  assert.deepEqual(p['vouchers'], [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }]);
+  const p = createReceiptParams({ receiptType: 'standard', items: [], vouchers: [{ action: 'sell', type: 'multi_purpose', typeId: 'vt_geschenk', amountCents: 5000 }], payments: ZAHLUNG });
+  assert.deepEqual(p['vouchers'], [{ action: 'sell', type: 'multi_purpose', typeId: 'vt_geschenk', amountCents: 5000 }]);
 });
 
 test('alle Wunschformen aus dem Vertrag gehen unveraendert hinaus', () => {
@@ -112,7 +112,8 @@ const v = (o: Json): Voucher => o as Voucher;
 
 test('Pruefung bildet die Server-Regeln ab', () => {
   const ok = [
-    v({ action: 'sell', type: 'single_purpose', amountCents: 100 }),
+    v({ action: 'sell', type: 'single_purpose', typeId: 'vt_1', amountCents: 100 }),
+    v({ action: 'sell', typeId: 'vt_1', amountCents: 100 }),
     v({ action: 'sell', type: 'service', articleId: 'a', quantity: 2 }),
     v({ action: 'redeem', type: 'service', code: 'C', positions: [0] }),
     v({ action: 'redeem', type: 'promotion', code: 'C' }),
@@ -121,6 +122,8 @@ test('Pruefung bildet die Server-Regeln ab', () => {
   for (const g of ok) assert.ok(voucherIsValid(g), JSON.stringify(g));
   const schlecht = [
     v({ action: 'sell', type: 'multi_purpose' }),
+    // Ein Wertgutschein nur ueber eine Sorte (Server: voucher_type_required).
+    v({ action: 'sell', type: 'single_purpose', amountCents: 100 }),
     v({ action: 'sell', type: 'multi_purpose', amountCents: 0 }),
     v({ action: 'sell', type: 'multi_purpose', amountCents: 1.5 }),
     v({ action: 'sell', type: 'service', articleId: 'a' }),
@@ -182,8 +185,8 @@ test('Altform bleibt unveraendert', () => {
 
 test('Grenzen wie der Server: Betrag, Menge, Positionen, Grund und Code getrimmt', () => {
   const ok = (g: Json) => voucherIsValid(v(g));
-  assert.ok(ok({ action: 'sell', type: 'multi_purpose', amountCents: 1_000_000 }));
-  assert.ok(!ok({ action: 'sell', type: 'multi_purpose', amountCents: 1_000_001 }));
+  assert.ok(ok({ action: 'sell', type: 'multi_purpose', typeId: 'vt_1', amountCents: 1_000_000 }));
+  assert.ok(!ok({ action: 'sell', type: 'multi_purpose', typeId: 'vt_1', amountCents: 1_000_001 }));
   assert.ok(!ok({ action: 'redeem', type: 'single_purpose', code: 'C', amountCents: 1_000_001 }));
   assert.ok(ok({ action: 'sell', type: 'service', articleId: 'a', quantity: 100 }));
   assert.ok(!ok({ action: 'sell', type: 'service', articleId: 'a', quantity: 101 }));

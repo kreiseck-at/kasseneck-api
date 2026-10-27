@@ -1,11 +1,13 @@
-import type { ReceiptDueOptions, VoucherDueInfo } from '../src/receipt/due.js';
+import type { ReceiptDueOptions, VoucherDueInfo, VoucherDueType } from '../src/receipt/due.js';
 import type { VoucherCheck, VoucherKind, VoucherStatus } from '../src/pos/gutschein.js';
 
 /*
  * Die Welt eines Zahlbetrag-Falls (`setup` in fixtures/v3/zahlbetrag-faelle.json,
  * deutsche Form der Server-Dokumente) in die Optionen, die eine Kasse an
  * receiptDueCents gibt: gepruefte Gutscheine (wie checkVoucher sie liefert),
- * die Gutschein-Einstellung der Kasse und die Artikel fuer Leistungsgutscheine.
+ * die Gutschein-Einstellung der Kasse (bis Stufe 4), die Gutschein-Sorten
+ * (Stufe 4b, wie getKasseSettings `vouchers.types[]`) und die Artikel fuer
+ * Leistungsgutscheine.
  */
 
 type Json = Record<string, any>;
@@ -29,6 +31,7 @@ export function pruefungAus(daten: Json): VoucherCheck {
   feld('discountCents', daten.rabattCents);
   feld('discountPercentBp', daten.rabattProzentBp);
   if (daten.kleinunternehmer === true && daten.satzBp === 0) raus.exempt = true;
+  if (daten.auszahlung === 'erlaubt' || daten.auszahlung === 'nie') raus.payout = daten.auszahlung === 'nie' ? 'never' : 'allowed';
   if (daten.artikel) {
     raus.article = { id: daten.artikel.id, name: daten.artikel.name, vatRateBp: daten.artikel.satzBp, priceCents: daten.artikel.preisCents };
   }
@@ -49,10 +52,27 @@ export function optionenAusSetup(setup: Json | undefined): ReceiptDueOptions {
       vatRateBp: e.wertArt === 'einzweck' ? e.satzBp : null,
     };
   }
+  if (Array.isArray(setup.sorten)) {
+    // Die Kasse kennt nur, was getKasseSettings listet: aktive Sorten (gutscheinSicht).
+    o.voucherTypes = setup.sorten.filter((s: Json) => s.daten.aktiv !== false).map((s: Json) => sorteAus(s.id, s.daten));
+  }
   if (Array.isArray(setup.artikel)) {
-    o.voucherArticles = setup.artikel.map((a: Json) => ({ id: a.id, priceCents: a.unitPriceCents, vatRateBp: Math.round(a.vatRate * 100) }));
+    o.voucherArticles = setup.artikel.map((a: Json) => ({
+      id: a.id, priceCents: a.unitPriceCents, vatRateBp: Math.round(a.vatRate * 100),
+      ...(typeof a.gutscheinLeistung === 'boolean' ? { serviceVoucher: a.gutscheinLeistung } : {}),
+    }));
   }
   return o;
+}
+
+/** Ein Sortendokument des Servers (users/{owner}/gutschein_sorten) so, wie getKasseSettings es der Kasse zeigt. */
+export function sorteAus(id: string, d: Json): VoucherDueType {
+  return {
+    id,
+    kind: ART[d.art] as VoucherDueType['kind'],
+    vatRateBp: d.art === 'einzweck' ? d.satzBp : null,
+    amount: d.betrag?.modus === 'fix' ? { mode: 'fixed', cents: d.betrag.cents } : { mode: 'free' },
+  };
 }
 
 /** Eingabe eines Vertragsfalls (zahlbetrag-faelle.json, Form wie ein /v3-Client sendet). */

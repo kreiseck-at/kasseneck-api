@@ -15,9 +15,10 @@ import {
   type Innen,
   type VoucherDueArticle,
   type VoucherDueInfo,
+  type VoucherDueType,
 } from './gutschein-plan.js';
 
-export { VOUCHER_ZERO_RATE_BUCKET_FROM, type VoucherDueArticle, type VoucherDueInfo } from './gutschein-plan.js';
+export { VOUCHER_ZERO_RATE_BUCKET_FROM, type VoucherDueArticle, type VoucherDueInfo, type VoucherDueType } from './gutschein-plan.js';
 
 /**
  * Zahlbetrag eines Belegs in ganzen Cent: Zwilling von `createReceipt` im
@@ -57,8 +58,8 @@ export { VOUCHER_ZERO_RATE_BUCKET_FROM, type VoucherDueArticle, type VoucherDueI
  * (`gutschein-beleg.plane`, Zwilling in `gutschein-plan.ts`). Was er dafuer
  * aus seinen Daten liest, gibt die Kasse mit: je Einloesung/Auszahlung die
  * Pruefung aus `checkVoucher` (`voucherInfo`, ueber den Code zugeordnet), fuer
- * einen Einzweck-Verkauf die Gutschein-Einstellung der Kasse
- * (`voucherSettings`, Satz), fuer einen Leistungsgutschein-Verkauf den Artikel
+ * einen Wertgutschein-Verkauf die Gutschein-Sorten (`voucherTypes`, Art, Satz,
+ * Betrag; seit 1.15.0), fuer einen Leistungsgutschein-Verkauf den Artikel
  * (`voucherArticles`, Preis und Satz) und `smallBusiness` fuer ein
  * Kleinunternehmer-Konto. Was fehlt oder was der Server abwiese, wirft
  * `invalid_voucher` mit dem erwarteten Server-Code in `voucherErrorCode`.
@@ -95,11 +96,21 @@ export interface ReceiptDueOptions {
    */
   voucherInfo?: readonly VoucherDueInfo[];
   /**
-   * Gutschein-Einstellung der Kasse (`getKasseSettings`, Block `vouchers`):
-   * Pflicht fuer jeden Verkauf eines Mehrzweck- oder Einzweckgutscheins (der
-   * Server verkauft nur mit Einstellung). Fehlt sie oder ist keine Art
-   * gewaehlt: `voucher_settings_missing`; eine andere Art als die
-   * eingestellte: `voucher_invalid`.
+   * Gutschein-Sorten der Kasse (`getKasseSettings`, `vouchers.types`, oder
+   * je Verkauf die gewaehlte): ein Wertgutschein wird nur ueber eine Sorte
+   * verkauft (`typeId` am Wunsch), Art und Satz kommen aus ihr. Fehlt die
+   * Sorte des Wunschs hier: `voucher_type_not_found` (wie beim Server fuer
+   * eine unbekannte oder inaktive); ein anderer Fixbetrag:
+   * `voucher_amount_mismatch`; eine andere Art am Wunsch: `voucher_invalid`.
+   */
+  voucherTypes?: readonly VoucherDueType[];
+  /**
+   * Alte Gutschein-Einstellung der Kasse (bis 1.14, Block `vouchers` ohne
+   * Sorten). Nur noch fuer einen Wert-Verkauf ohne `typeId`: mit ihr rechnet
+   * der Zahlbetrag wie bisher (fehlt eine Art: `voucher_settings_missing`,
+   * eine andere Art: `voucher_invalid`), ohne sie `voucher_type_required`.
+   * Der Server verkauft seit Gutscheine Stufe 4b nur ueber eine Sorte und
+   * `createReceipt` sendet einen Wert-Verkauf ohne `typeId` nicht mehr.
    */
   voucherSettings?: PosVoucherSettings;
   /**
@@ -251,6 +262,7 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
   const plan = planeGutscheine(positionen, vouchers, art, {
     voucherInfo: options.voucherInfo,
     voucherSettings: options.voucherSettings,
+    voucherTypes: options.voucherTypes,
     voucherArticles: options.voucherArticles,
     smallBusiness: options.smallBusiness,
     zeroRateBucketFrom: options.zeroRateBucketFrom,

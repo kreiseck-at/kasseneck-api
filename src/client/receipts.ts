@@ -7,6 +7,7 @@ import {
   VoucherAction,
   VoucherType,
 } from '../enums/index.js';
+import { istWertVerkauf } from '../models/voucher.js';
 import {
   type Receipt,
   type ReceiptCompany,
@@ -406,6 +407,13 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     }
     if (typ.value === ReceiptType.training.value && vouchers.some(isNewFormVoucher)) {
       throw eingabefehler('Gutscheine der neuen Form gibt es nicht auf Schulungsbelegen (receiptType training).');
+    }
+    // Gutscheine Stufe 4b: ein Wertgutschein nur ueber eine Sorte, die Sorte nur an einem solchen Verkauf.
+    if (vouchers.some((voucher) => istWertVerkauf(voucher) && voucher.typeId == null)) {
+      throw eingabefehler('voucher_type_required: Ein Mehrzweck- oder Einzweckgutschein wird nur ueber eine Gutschein-Sorte verkauft (typeId aus getKasseSettings vouchers.types).');
+    }
+    if (vouchers.some((voucher) => voucher.typeId != null && !istWertVerkauf(voucher))) {
+      throw eingabefehler('voucher_invalid: typeId gehoert nur an den Verkauf eines Mehrzweck- oder Einzweckgutscheins.');
     }
     if (vouchers.some((voucher) => !voucherIsValid(voucher))) {
       throw eingabefehler('Ungueltiger Gutschein uebergeben.');

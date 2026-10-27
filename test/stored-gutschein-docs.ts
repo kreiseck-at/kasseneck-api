@@ -26,8 +26,9 @@ const AUSSEN: Record<string, string> = {
   voucherType: 'art', voucherId: 'gutscheinId', codeSuffix: 'codeEnde', amountCents: 'betragCents', vatRateBp: 'satzBp',
   article: 'artikel', articleId: 'artikelId', quantity: 'stueck', positions: 'positionen',
   balanceAfterCents: 'saldoNachCents', remainingQuantityAfter: 'stueckOffenNach', taxedWith: 'versteuertMit', exempt: 'befreit',
-  reason: 'grund', zeroRateBucket: 'imNullTopf',
+  reason: 'grund', zeroRateBucket: 'imNullTopf', typeId: 'sorteId', typeName: 'sorteName',
 };
+const AUSZAHLUNG_INNEN: Record<string, string> = { allowed: 'erlaubt', never: 'nie' };
 const ART_INNEN: Record<string, string> = { multi_purpose: 'mehrzweck', single_purpose: 'einzweck', service: 'leistung', promotion: 'aktion' };
 
 function alsGespeichert(v: Json): Json {
@@ -35,6 +36,7 @@ function alsGespeichert(v: Json): Json {
   for (const [k, w] of Object.entries(v)) {
     if (k === 'type') raus.type = ART_INNEN[w as string] != null && w !== 'multi_purpose' ? ART_INNEN[w as string] : w;
     else if (k === 'voucherType') raus.art = ART_INNEN[w as string];
+    else if (k === 'payout') raus.auszahlung = AUSZAHLUNG_INNEN[w as string];
     else if (k === 'article') raus.artikel = { id: (w as Json).id, name: (w as Json).name, satzBp: (w as Json).vatRateBp, preisCents: (w as Json).priceCents };
     else raus[AUSSEN[k] ?? k] = w;
   }

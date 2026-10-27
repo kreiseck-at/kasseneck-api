@@ -45,6 +45,25 @@ test('stored: der Fund des Pruefers - Einzweck-Einloesung behaelt Id, Endung und
   assert.doesNotThrow(() => toReceiptPayload(r));
 });
 
+test('stored: Verkauf ueber eine Sorte - sorteId, sorteName und auszahlung heissen aussen typeId, typeName und payout', () => {
+  for (const [innen, aussen] of [['erlaubt', 'allowed'], ['nie', 'never']]) {
+    const doc = {
+      ...BASIS,
+      vouchers: [{
+        action: 'sell', type: 'value', art: 'mehrzweck', value: 50, valueCents: 5000, name: 'Geschenkgutschein (Mehrzweckgutschein)',
+        sorteId: 'vt_mz', sorteName: 'Geschenkgutschein', auszahlung: innen, code: '····-····-NNNY', codeEnde: 'NNNY', gutscheinId: 'g1',
+      }],
+    };
+    const draht = (_storedReceiptToWire(doc).vouchers as Array<Record<string, unknown>>)[0]!;
+    assert.equal(draht.typeId, 'vt_mz');
+    assert.equal(draht.typeName, 'Geschenkgutschein');
+    assert.equal(draht.payout, aussen);
+    for (const k of ['sorteId', 'sorteName', 'auszahlung']) assert.equal(k in draht, false, k);
+    const r = stored.fromStoredReceipt(doc).vouchers[0]!;
+    assert.deepEqual([r.typeId, r.typeName, r.payout], ['vt_mz', 'Geschenkgutschein', aussen]);
+  }
+});
+
 test('stored: Altbelege ohne Gutscheine der neuen Form bleiben dasselbe Objekt (keine Umbenennung)', () => {
   const alt = { ...BASIS, vouchers: [{ action: 'redeem', type: 'value', value: 5, valueCents: 500, code: 'WG-1', name: 'Gutschein' }] };
   assert.deepEqual(_storedReceiptToWire(alt).vouchers, alt.vouchers);

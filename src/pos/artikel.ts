@@ -124,6 +124,14 @@ export interface PosArticle {
    * traegt (aeltere Backends) -- dann nicht aus anderen Feldern ableiten.
    */
   stockTracked?: boolean | null;
+  /**
+   * Als Leistungsgutschein verkaufbar (Gutscheine Stufe 4b, Haken im
+   * Artikelstamm). Die Kachel „Leistungsgutschein“ bietet nur diese Artikel
+   * an; der Server verkauft einen anderen nicht (`voucher_service_not_allowed`).
+   * Optional wie `stockLocationIds`, der Leser setzt es immer: nur ein
+   * ausdrueckliches `true` gilt.
+   */
+  serviceVoucher?: boolean;
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -139,6 +147,7 @@ export interface PosArticlePayload {
   quantityRule?: string | null; askQuantity?: boolean | null; maxQuantity?: number | null;
   stockLocationIds?: string[] | null;
   number?: string | null; ean?: string | null; internalCode?: string | null; stockTracked?: boolean | null;
+  serviceVoucher?: boolean | null;
 }
 
 /** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
@@ -168,6 +177,7 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     ean: textOderNull(p.ean),
     internalCode: textOderNull(p.internalCode),
     stockTracked: typeof p.stockTracked === 'boolean' ? p.stockTracked : null,
+    serviceVoucher: p.serviceVoucher === true,
   };
 }
 

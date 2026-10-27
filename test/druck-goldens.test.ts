@@ -46,6 +46,11 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * `kasse-belege`) traegt dasselbe Server-Layout wie `sale_cash_tendered` (derselbe Beleg, gelesen statt verkauft; neu ist
  * nur `outputs` neben dem Layout); seine Digests sind darum die von `sale_cash_tendered`. Alle anderen Digests blieben.
  *
+ * Gutschein-Sorten (27.10.2026, Backend Stufe 4b, vendortes Paket weiter 0.35.0): die Digests der Server-Layouts
+ * `belege/sale_single_purpose_voucher` und `kasse-belege/sale_single_purpose_voucher` sind neu gezogen. Der Server
+ * nennt die Position jetzt mit dem Sortennamen (`Geschenkgutschein (Einzweckgutschein 20 %)` statt
+ * `Einzweckgutschein 20 %`); gezeichnet wird die Antwort unveraendert. Alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

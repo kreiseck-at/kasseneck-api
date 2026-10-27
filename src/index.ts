@@ -265,6 +265,7 @@ export {
   isReceiptDueError,
   type VoucherDueInfo,
   type VoucherDueArticle,
+  type VoucherDueType,
   type VoucherRedeemContext,
   voucherRedeemMaxCents,
   VOUCHER_ZERO_RATE_BUCKET_FROM,

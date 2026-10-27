@@ -196,9 +196,18 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
     ...Object.fromEntries(Object.entries(POS_DEVICE_VALUES).map(([k, v]) => [`device.${k}`, v])),
   };
   for (const [pfad, verweis] of Object.entries(werte)) {
-    // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts); seine Werte stehen fest.
+    // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts, gutschein-sorten.test.ts).
     if (pfad.startsWith('vouchers.')) {
-      assert.deepEqual(Object.values(zuordnung(verweis)).sort(), ['multi_purpose', 'single_purpose'], pfad);
+      const gutschein: Record<string, readonly string[]> = {
+        'vouchers.valueVoucherType': ['multi_purpose', 'single_purpose'],
+        // Eine Sorte ist nur Mehrzweck oder Einzweck; der Katalog (GUTSCHEIN_ART) kennt auch Leistung und Aktion.
+        'vouchers.types[].kind': kasse.VOUCHER_KINDS,
+        'vouchers.types[].amount.mode': kasse.VOUCHER_AMOUNT_MODES,
+        'vouchers.types[].validity.pattern': kasse.VOUCHER_TYPE_VALIDITY_PATTERNS,
+        'vouchers.types[].payout': kasse.VOUCHER_PAYOUTS,
+      };
+      assert.ok(gutschein[pfad], `${pfad}: Wertemenge des Gutschein-Blocks ohne Gegenstueck im Paket`);
+      assert.deepEqual(Object.values(zuordnung(verweis)).sort(), [...gutschein[pfad]!].sort(), pfad);
       continue;
     }
     assert.deepEqual([...(paket[pfad] ?? [])], Object.values(zuordnung(verweis)), pfad);
@@ -222,7 +231,9 @@ test('getPosSettings: sendet deviceId wie der Fall, liest {business, device}', a
     const { rufen, aufrufe } = kassenweg(f);
     const stand = await getPosSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
     assert.deepEqual(gesendet(aufrufe, 'getKasseSettings', f), f.params, f.case);
-    assert.deepEqual(stand, { business: f.response.data.business, device: geraetGelesen(f.response.data.device), vouchers: f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
+    // Das alte Feld `vouchers.label` (Kassen vor 1.15) liest das Paket nicht.
+    const { label: _alt, ...gutscheine } = f.response.data.vouchers ?? { ...kasse.VOUCHER_SETTINGS_DEFAULTS };
+    assert.deepEqual(stand, { business: f.response.data.business, device: geraetGelesen(f.response.data.device), vouchers: gutscheine }, f.case);
   }
 });
 
@@ -723,7 +734,7 @@ test('F2: der 0.x-Filter gilt immer, auch fuer eine Kopie der Standards', () => 
   assert.equal(s.business.theme, 'clear');
   assert.equal(s.business.fontSize, 'L');
   assert.equal(s.device.layout, 'right');
-  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null } });
+  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null, typeSale: false, types: [], serviceArticles: false, labelDefault: null } });
   // Ein neuer englischer Wert ist kein Altwert und bleibt.
   assert.equal(kasse.sanitizePosSettings({ business: { theme: 'sepia' } }).business.theme, 'sepia');
 });
