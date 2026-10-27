@@ -225,6 +225,10 @@ const MELDUNGEN_ROH = {
   'voucher_error.amount_mismatch': { text: 'Die Gutschein-Sorte hat sich geändert. Die Kasse lädt die Sorten neu.' },
   'voucher_error.service_not_allowed': { text: 'Dieser Artikel ist nicht als Leistungsgutschein freigegeben.' },
   'voucher_error.payout_not_allowed': { text: 'Dieser Gutschein kann nicht ausgezahlt werden.' },
+  // Satz der Kasse selbst (1.15.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
+  // geaendert, deaktiviert oder geloescht). Die Zeile sperrt das Kassieren, bis sie entfernt und neu gewaehlt ist;
+  // der Satz nach einer Absage des Servers bleibt voucher_error.type_not_found bzw. voucher_error.amount_mismatch.
+  'voucher.type_changed': { text: 'Diese Gutschein-Sorte hat sich geändert. Bitte die Zeile entfernen und die Kachel neu antippen.' },
   // Gutscheine an der Kasse, Stufe 3 (1.13.0): Sätze der Kasse selbst (nicht des Servers).
   'voucher.reentry_needed': { text: 'Die Karte ist belastet, der Beleg fehlt noch: zu jedem Gutschein den Code erneut eingeben, dann den Beleg abschließen.' },
   'voucher.reentry_mismatch': { text: 'Mit diesen Gutscheinen ergibt der Beleg nicht mehr den belasteten Betrag – die Karte zurückbuchen.' },

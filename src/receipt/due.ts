@@ -100,8 +100,8 @@ export interface ReceiptDueOptions {
    * je Verkauf die gewaehlte): ein Wertgutschein wird nur ueber eine Sorte
    * verkauft (`typeId` am Wunsch), Art und Satz kommen aus ihr. Fehlt die
    * Sorte des Wunschs hier: `voucher_type_not_found` (wie beim Server fuer
-   * eine unbekannte oder inaktive); ein anderer Fixbetrag:
-   * `voucher_amount_mismatch`; eine andere Art am Wunsch: `voucher_invalid`.
+   * eine unbekannte oder inaktive); ein anderer Fixbetrag oder eine andere
+   * Art am Wunsch (die Sorte wurde umgestellt): `voucher_amount_mismatch`.
    */
   voucherTypes?: readonly VoucherDueType[];
   /**

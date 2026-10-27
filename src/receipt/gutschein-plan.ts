@@ -341,10 +341,12 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
       continue;
     }
     if (istWertVerkauf(v) && v.typeId != null) {
-      // Verkauf ueber eine Sorte (gutschein-beleg.plane): unbekannt, andere Art, falscher Fixbetrag.
+      // Verkauf ueber eine Sorte (gutschein-beleg.plane): unbekannt, andere Art, falscher Fixbetrag. Eine andere Art
+      // heisst: die Kasse hat eine alte Sicht (Sorte umgestellt) – wie ein anderer Fixbetrag voucher_amount_mismatch,
+      // die Kasse laedt die Sorten neu.
       const sorte = sorteZumWunsch(o.voucherTypes, v.typeId);
       if (sorte == null) return nein('voucher_type_not_found', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (voucherTypes).`);
-      if (v.type != null && v.type !== sorte.kind) return nein('voucher_invalid', `Gutschein ${i + 1}: die Art passt nicht zur Gutschein-Sorte.`);
+      if (v.type != null && v.type !== sorte.kind) return nein('voucher_amount_mismatch', `Gutschein ${i + 1}: die Art passt nicht (mehr) zur Gutschein-Sorte.`);
       if (sorte.amount.mode === 'fixed' && v.amountCents !== sorte.amount.cents) {
         return nein('voucher_amount_mismatch', `Gutschein ${i + 1}: der Betrag passt nicht zum Fixbetrag der Gutschein-Sorte.`);
       }

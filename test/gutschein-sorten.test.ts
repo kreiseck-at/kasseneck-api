@@ -203,11 +203,12 @@ const PRUEFUNG = fall('checkVoucher', 'success_cashier').response.data;
 test('checkVoucher: Sortenname, Auszahlung und Jahre einer Sorte werden gelesen', async () => {
   const v = await checkVoucher(kasse({
     ...PRUEFUNG, typeName: 'Geschenkgutschein', payout: 'never',
-    validity: { pattern: 'custom', redeemableYears: 3, redeemableUntil: '2029-09-20', refundableUntil: '2032-09-20', validUntil: null },
+    validity: { pattern: '1+3', redeemableYears: 3, redeemableUntil: '2029-09-20', refundableUntil: '2032-09-20', validUntil: null },
   }), 'B1KK5EQ57DHP');
   assert.equal(v.typeName, 'Geschenkgutschein');
   assert.equal(v.payout, 'never');
-  assert.deepEqual(v.validity, { pattern: 'custom', redeemableYears: 3, redeemableUntil: '2029-09-20', refundableUntil: '2032-09-20' });
+  // Jedes N geht als `1+3` mit den Daten der Sorte hinaus (Nachtrag E1), N steht in redeemableYears.
+  assert.deepEqual(v.validity, { pattern: '1+3', redeemableYears: 3, redeemableUntil: '2029-09-20', refundableUntil: '2032-09-20' });
   // Ein Gutschein ohne Sorte (Stufe 4 und aelter): die Felder fehlen.
   const alt = await checkVoucher(kasse(PRUEFUNG), 'B1KK5EQ57DHP');
   assert.equal('typeName' in alt, false);
@@ -376,10 +377,12 @@ test('Zahlbetrag: Einzweck-Sorte als Position im Satz der Sorte, Kleinunternehme
   assert.deepEqual(receiptDueBreakdown([], [wunsch], 'standard', alt).bucketsCents, toepfe({ amountRateReduced1: 5000 }));
 });
 
-test('Zahlbetrag: Fixbetrag muss stimmen (voucher_amount_mismatch), die Art passt zur Sorte (voucher_invalid)', () => {
+// Eine andere Art am Wunsch als an der Sorte heisst: die Kasse hat eine alte Sicht (Sorte umgestellt) – wie beim
+// Server (gutschein-beleg.plane) voucher_amount_mismatch, die Kasse laedt die Sorten neu.
+test('Zahlbetrag: Fixbetrag und Art muessen zur Sorte passen, sonst voucher_amount_mismatch', () => {
   assert.equal(receiptDueCents([], [v({ action: 'sell', typeId: 'vt_fix50', amountCents: 5000 })], 'standard', SORTEN), 5000);
   wirft(() => receiptDueCents([], [v({ action: 'sell', typeId: 'vt_fix50', amountCents: 4999 })], 'standard', SORTEN), 'voucher_amount_mismatch');
-  wirft(() => receiptDueCents([], [v({ action: 'sell', type: 'multi_purpose', typeId: 'vt_ez10', amountCents: 5000 })], 'standard', SORTEN), 'voucher_invalid');
+  wirft(() => receiptDueCents([], [v({ action: 'sell', type: 'multi_purpose', typeId: 'vt_ez10', amountCents: 5000 })], 'standard', SORTEN), 'voucher_amount_mismatch');
 });
 
 test('Zahlbetrag: eine unstimmige Sorte verkauft der Server nicht (voucher_type_not_found)', () => {
@@ -455,4 +458,11 @@ test('Woerter: Reiter, Kacheln und Fehlersaetze der Gutschein-Sorten mit genau d
   }
   // Codes nur des Kundenbereichs (Sorten pflegen) sind keine Kassen-Codes.
   for (const code of ['invalid_voucher_type', 'voucher_type_in_use', 'too_many_voucher_types']) assert.equal(voucherErrorMessage(code), undefined, code);
+});
+
+// Gesamtpruefung B-I1: eine Verkaufszeile, die nach dem Neuladen der Sorten nicht mehr passt, sperrt das Kassieren mit
+// einem eigenen Satz der Kasse – der Satz zur Absage des Servers sagt „Die Kasse laedt die Sorten neu“, das ist dann vorbei.
+test('Woerter: Satz fuer eine Verkaufszeile mit geaenderter Sorte', () => {
+  assert.equal(messageText('voucher.type_changed'), 'Diese Gutschein-Sorte hat sich geändert. Bitte die Zeile entfernen und die Kachel neu antippen.');
+  assert.notEqual(messageText('voucher.type_changed'), messageText('voucher_error.amount_mismatch'));
 });

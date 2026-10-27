@@ -18,8 +18,9 @@ export type VoucherStatus = 'active' | 'used_up' | 'expired' | 'paid_out' | 'can
 export const VOUCHER_KINDS: readonly VoucherKind[] = Object.freeze(['multi_purpose', 'single_purpose', 'service', 'promotion'] as const);
 export const VOUCHER_STATUSES: readonly VoucherStatus[] = Object.freeze(['active', 'used_up', 'expired', 'paid_out', 'cancelled', 'blocked'] as const);
 // Nur die Muster, die der Server an Gutscheinen nach aussen gibt: eine Sorte mit
-// „N Jahre“ geht als `1+3` bzw. `custom` mit `redeemableYears` hinaus (Nachtrag E1),
-// damit Kassen mit 1.14 beim Einloesen nicht an einem neuen Muster scheitern.
+// „N Jahre“ geht fuer jedes N als `1+3` mit den Daten und `redeemableYears` = N hinaus
+// (Nachtrag E1), damit Kassen mit 1.14 beim Einloesen nicht an einem neuen Muster
+// scheitern und „einloesbar bis <Datum>“ drucken.
 const VOUCHER_VALIDITY_PATTERNS = ['unlimited', '1+3', 'custom'] as const;
 
 /** Gueltigkeit eines Gutscheins; Daten als `YYYY-MM-DD` (Wiener Tag). Was der Server nicht nennt, fehlt. */
@@ -27,8 +28,9 @@ export interface VoucherValidity {
   pattern: 'unlimited' | '1+3' | 'custom';
   /**
    * Gutschein einer Sorte „N Jahre einloesbar, danach 3 Jahre Rueckzahlung“:
-   * die Zahl N (1 bis 30). Fehlt bei Gutscheinen ohne Sorte und bei
-   * unbefristeten. Die Daten stehen trotzdem in `redeemableUntil`/`refundableUntil`.
+   * die Zahl N (1 bis 30); `pattern` ist dann `1+3` fuer jedes N. Fehlt bei
+   * Gutscheinen ohne Sorte und bei unbefristeten. Die Daten stehen trotzdem in
+   * `redeemableUntil` (+N) und `refundableUntil` (+N+3) und gelten.
    */
   redeemableYears?: number;
   redeemableUntil?: string;

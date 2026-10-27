@@ -15,8 +15,11 @@
  * Sorte (`sorteId`, aussen `typeId`): die Faelle tragen die Sorte als
  * Dokument (`sorten` fuer `plane`) und so, wie `getKasseSettings` sie der
  * Kasse zeigt (`voucherTypes`). Frei und fix, mit und ohne Art am Wunsch, dazu
- * die Abweisungen unbekannte Sorte, falscher Fixbetrag, andere Art und
- * Verkauf ohne Sorte; Auszahlungen mit gesperrter Auszahlung (`nie`).
+ * die Abweisungen unbekannte Sorte, falscher Fixbetrag und andere Art (beide
+ * `voucher_amount_mismatch`: die Sorte gilt als geaendert) und Verkauf ohne
+ * Sorte; Auszahlungen mit gesperrter Auszahlung (`nie`). Nach den zufaelligen
+ * Faellen stehen feste: eine Einloesung, deren Art nicht zur Pruefung passt
+ * (`voucher_invalid`).
  *
  * Der Stichtag des 0-%-Topfs wird nicht verstellt: Faelle „nach dem Stichtag“
  * rechnen mit `heute` = 2100-01-04 gegen das echte `NULLTOPF_AB`.
@@ -138,7 +141,7 @@ function fall(i) {
       sorten[id] = daten;
       voucherTypes = [...(voucherTypes ?? []), { id, kind: ART[art], vatRateBp: satzBp, amount: fix ? { mode: 'fixed', cents: betrag.cents } : { mode: 'free' } }];
     }
-    // Art am Wunsch: oft gleich der Sorte, manchmal weggelassen, selten falsch (voucher_invalid).
+    // Art am Wunsch: oft gleich der Sorte, manchmal weggelassen, selten falsch (voucher_amount_mismatch).
     const wahl = r();
     const typ = wahl < 0.45 ? art : wahl < 0.95 ? null : (art === 'mehrzweck' ? 'einzweck' : 'mehrzweck');
     // Selten ganz ohne Sorte (nur mit Art, sonst waere es kein Wunsch der neuen Form): voucher_type_required.
@@ -235,7 +238,30 @@ function rechne({ input, server }) {
   };
 }
 
-const cases = Array.from({ length: ANZAHL }, (_, i) => fall(i)).map((f) => ({ name: f.name, input: f.input, expected: rechne(f) }));
+/**
+ * Feste Faelle nach den zufaelligen (die Folge des Seeds bleibt gleich): eine Einloesung, deren Art nicht zur Pruefung
+ * passt, bleibt `voucher_invalid` – nur ein Sorten-Verkauf mit anderer Art ist `voucher_amount_mismatch`.
+ */
+function feste() {
+  const code = CODES[0];
+  const codeEnde = code.replace(/-/g, '').slice(-4);
+  const items = [{ name: 'P', quantity: 1, priceCents: 2000, vatRate: 20 }];
+  const faelle = [
+    { wunschArt: 'einzweck', g: { art: 'mehrzweck', saldoCents: 5000 } },
+    { wunschArt: 'mehrzweck', g: { art: 'einzweck', satzBp: 2000, saldoCents: 5000 } },
+  ];
+  return faelle.map(({ wunschArt, g: teil }, k) => {
+    const g = { status: 'aktiv', codeEnde, kleinunternehmer: false, gueltigkeit: { muster: 'unbefristet' }, ...teil };
+    return {
+      name: `gen_voucher_${ANZAHL + k}_redeem_wrong_kind`,
+      input: { receiptType: 'standard', items, vouchers: [{ type: ART[wunschArt], action: 'redeem', code, amountCents: 1000 }], today: VOR,
+        voucherInfo: [{ code, check: pruefung(g) }] },
+      server: { vouchers: [{ type: wunschArt, action: 'redeem', code, gutscheinId: 'g0', betragCents: 1000 }], gutscheine: { g0: g }, sorten: {} },
+    };
+  });
+}
+
+const cases = [...Array.from({ length: ANZAHL }, (_, i) => fall(i)), ...feste()].map((f) => ({ name: f.name, input: f.input, expected: rechne(f) }));
 const inhalt = JSON.parse(JSON.stringify({ seed: SEED, cases }, (_k, v) => (Object.is(v, -0) ? 0 : v)));
 const quellen = Object.fromEntries(QUELLEN.map((d) => [d, createHash('sha256').update(readFileSync(kern(d))).digest('hex')]));
 const note = 'Erzeugt von scripts/v3-zahlbetrag-gutscheine-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.';

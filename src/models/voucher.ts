@@ -81,7 +81,7 @@ export interface IssuedVoucher {
   typeName?: string;
   validity?: {
     pattern: string;
-    /** Sorte „N Jahre“: die Zahl N (Muster `1+3` bzw. `custom`); fehlt sonst. */
+    /** Sorte „N Jahre“: die Zahl N (Muster `1+3` fuer jedes N, die Daten gelten); fehlt sonst. */
     redeemableYears?: number;
     redeemableUntil: string | null;
     refundableUntil: string | null;

@@ -67,7 +67,8 @@ const NACH_1_0 = {
     // Gutscheine an der Kasse, Stufe 3 (1.13.0)
     'voucher.reentry_needed', 'voucher.reentry_mismatch', 'voucher.not_this_voucher', 'voucher.reentry_no_permission', 'voucher.already_covered', 'voucher.payout_reason_too_long', 'voucher.payout_reason_missing', 'voucher.payout_check_first', 'voucher.sale_max_amount', 'voucher.sale_not_at_terminal', 'voucher.no_redeem_with_sale', 'voucher.code_not_on_receipt', 'cancellation.voucher_sale_cancelled', 'cancellation.promo_valid_again',
     // Gutschein-Sorten (1.15.0)
-    'voucher_error.type_required', 'voucher_error.type_not_found', 'voucher_error.amount_mismatch', 'voucher_error.service_not_allowed', 'voucher_error.payout_not_allowed'],
+    'voucher_error.type_required', 'voucher_error.type_not_found', 'voucher_error.amount_mismatch', 'voucher_error.service_not_allowed', 'voucher_error.payout_not_allowed',
+    'voucher.type_changed'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
