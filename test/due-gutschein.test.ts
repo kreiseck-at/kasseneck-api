@@ -15,7 +15,7 @@ import * as wurzel from '../src/index.js';
 import { createReceiptParams } from '../src/client/receipts.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
-import type { VoucherCheck } from '../src/pos/gutschein.js';
+import { posVoucherSettingsFromWire, type VoucherCheck } from '../src/pos/gutschein.js';
 import { istAbgelehnt, optionenDesFalls, type VertragsEingabe, type VertragsErgebnis } from './gutschein-setup.js';
 
 /*
@@ -151,12 +151,21 @@ test('Mehrzweck verkaufen: vor dem Stichtag Fluss, ab dem Stichtag Position im 0
   });
 });
 
-test('Verkauf ohne Sorte: ohne alte Einstellung voucher_type_required, mit leerer alter Einstellung voucher_settings_missing', () => {
+test('Verkauf ohne Sorte: voucher_type_required ohne alte Einstellung oder mit einer ohne Art (jeder Server ab Stufe 4b)', () => {
+  // So liest eine Kasse den Block eines Servers ab Stufe 4b: `valueVoucherType` ist immer null.
+  const kasse = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/antworten/kasse.json', import.meta.url)), 'utf8')) as { endpoints: Record<string, { cases: Array<{ case: string; response: { data: { vouchers: unknown } } }> }> };
+  const ausVertrag = posVoucherSettingsFromWire(kasse.endpoints['getKasseSettings']!.cases.find((c) => c.case === 'owner_with_voucher_type')!.response.data.vouchers);
+  assert.equal(ausVertrag.valueVoucherType, null);
   for (const type of ['multi_purpose', 'single_purpose'] as const) {
     const v: Voucher[] = [{ action: 'sell', type, amountCents: 5000 }];
     wirft(() => receiptDueCents([], v, 'standard'), 'voucher_type_required');
-    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_settings_missing');
+    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_type_required');
+    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: ausVertrag }), 'voucher_type_required');
   }
+  // Eine echte alte Einstellung mit Art rechnet wie 1.14 (Mehrzweck als Fluss, Einzweck im Satz der Einstellung).
+  assert.equal(receiptDueCents([], [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }], 'standard', MEHRZWECK_EIN), 5000);
+  assert.deepEqual(receiptDueBreakdown([], [{ action: 'sell', type: 'single_purpose', amountCents: 5000 }], 'standard', { voucherSettings: { sale: false, valueVoucherType: 'single_purpose', vatRateBp: 1000 } }).bucketsCents,
+    toepfe({ amountRateReduced1: 5000 }));
 });
 
 test('Altform nach dem Stichtag: plane laeuft, ein negativer Zahlbetrag ist voucher_exceeds_total', () => {

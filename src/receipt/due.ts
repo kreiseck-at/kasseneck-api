@@ -106,11 +106,12 @@ export interface ReceiptDueOptions {
   voucherTypes?: readonly VoucherDueType[];
   /**
    * Alte Gutschein-Einstellung der Kasse (bis 1.14, Block `vouchers` ohne
-   * Sorten). Nur noch fuer einen Wert-Verkauf ohne `typeId`: mit ihr rechnet
-   * der Zahlbetrag wie bisher (fehlt eine Art: `voucher_settings_missing`,
-   * eine andere Art: `voucher_invalid`), ohne sie `voucher_type_required`.
-   * Der Server verkauft seit Gutscheine Stufe 4b nur ueber eine Sorte und
-   * `createReceipt` sendet einen Wert-Verkauf ohne `typeId` nicht mehr.
+   * Sorten). Nur noch fuer einen Wert-Verkauf ohne `typeId`: nennt sie eine
+   * Art (`valueVoucherType`), rechnet der Zahlbetrag wie bisher (eine andere
+   * Art: `voucher_invalid`); ohne sie oder ohne Art – so liest sich der Block
+   * jedes Servers ab Gutscheine Stufe 4b – `voucher_type_required`. Der
+   * Server verkauft seitdem nur ueber eine Sorte, und `createReceipt` sendet
+   * einen Wert-Verkauf ohne `typeId` nicht mehr.
    */
   voucherSettings?: PosVoucherSettings;
   /**

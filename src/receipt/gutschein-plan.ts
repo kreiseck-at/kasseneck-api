@@ -24,9 +24,9 @@ import type { PosVoucherSettings, PosVoucherType, VoucherArticle, VoucherCheck }
  *   eingeloest anteilig auf alle Saetze des Korbs.
  * - Wertgutschein verkaufen (Stufe 4b): nur ueber eine Sorte (`typeId`); Art
  *   und Satz kommen aus der Sorte, ein Fixbetrag muss stimmen. Ohne Sorte
- *   rechnet nur noch ein Aufrufer mit der alten Gutschein-Einstellung
- *   (`voucherSettings`) wie bisher; der Server antwortet darauf
- *   `voucher_type_required`.
+ *   rechnet nur noch ein Aufrufer mit einer alten Gutschein-Einstellung mit
+ *   Art (`voucherSettings.valueVoucherType`) wie bisher; sonst und beim
+ *   Server immer `voucher_type_required`.
  * - Leistung verkaufen: Stueck mal Artikelpreis im Artikelsatz; einloesen: je
  *   Satz eine Minuszeile ueber die gewaehlten Positionen.
  * - Aktion: Rabatt wie `promo`, Betrag aus der Pruefung, hoechstens die Summe.
@@ -277,8 +277,9 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
     if (!isNewFormVoucher(v)) continue;
     if (istWertVerkauf(v) && v.typeId == null) {
       // Wie gutschein-beleg.pruefeWuensche: ein Wert-Verkauf ohne Sorte ist voucher_type_required.
-      // Ein Aufrufer von 1.14 mit der alten Gutschein-Einstellung rechnet wie bisher.
-      if (o.voucherSettings == null) return nein('voucher_type_required', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (typeId).`);
+      // Nur eine alte Gutschein-Einstellung MIT Art (Aufrufer von 1.14) rechnet wie bisher; ein Server ab
+      // Stufe 4b schickt `valueVoucherType` immer null, dort hilft kein Neuladen – die Sorte fehlt.
+      if (o.voucherSettings?.valueVoucherType == null) return nein('voucher_type_required', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (typeId).`);
       if (!wunschFormGueltig(v, false)) return nein('voucher_invalid', `Gutschein ${i + 1} ist unvollstaendig.`);
       continue;
     }
