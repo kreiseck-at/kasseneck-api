@@ -4,6 +4,14 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.16.0 - 2026-10-28
+
+Header data for the full view of `listReceipts`, and the new upper limit of `getReportV2`. Additive.
+
+- **`ListReceiptsPage.metadata`** (only with `view: 'full'`): the business data for the receipt header, the same `ReportV2Metadata` as `getReportV2().metadata` (`companyName`, address, `taxNumber`, `vatId`, footers, logo, `label` of the cash register); missing on the summary view. A `metadata` that is not an object is a response error. Reason: an app that prints a receipt again needs the header, and moving from `getReportV2` to `listReceipts` must not lose it.
+- **`getReportV2`: the server now refuses more than 62 calendar days between `start` and `end`** with `range_too_long` (`KasseneckApiError`), without reading any receipt. The package does not check this before sending. Reason: one call could load an unbounded number of receipts; lists belong to `listReceipts`.
+- Contract `v3` from the backend after keck#790.
+
 ## 1.15.0 - 2026-10-28
 
 Receipt lists page by page: `listReceipts` and `listAllReceipts` for the new public endpoint `listReceipts` (`/v3` only). Additive.

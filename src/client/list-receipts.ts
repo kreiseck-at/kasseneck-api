@@ -4,13 +4,16 @@ import {
   type CancellationStatus,
   CANCELLATION_STATUSES,
   type Receipt,
+  type ReceiptCompanyPayload,
   type ReceiptPayloadRead,
   type ReceiptPayment,
   type ReceiptPaymentPayload,
   type ZeroKind,
+  fromReceiptCompanyPayload,
   fromReceiptPayload,
   fromReceiptPaymentPayload,
 } from '../models/index.js';
+import type { ReportV2Metadata } from './reports.js';
 import { readEnumKey } from '../models/enum-payload.js';
 import { KasseneckValidationError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
@@ -196,6 +199,11 @@ export interface ListReceiptsPage<V extends ListReceiptsView = 'summary'> {
    * den Tag keine Statistik gibt. Auf allen anderen Seiten fehlt das Feld.
    */
   daySummary?: ListReceiptsDaySummary | null;
+  /**
+   * Nur bei `view: 'full'`: Firmendaten fuer den Belegkopf (Nachdruck), dieselben Felder wie
+   * `getReportV2().metadata`. Bei der Kurzansicht fehlt das Feld.
+   */
+  metadata?: V extends 'full' ? ReportV2Metadata : never;
 }
 
 const TAG = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -350,6 +358,13 @@ function tagessumme(roh: unknown): ListReceiptsDaySummary | null {
   };
 }
 
+/** `metadata` der vollen Ansicht wie bei getReportV2: Firmendaten plus Bezeichnung der Kasse. */
+function kopfdaten(roh: unknown): ReportV2Metadata {
+  if (!istObjekt(roh)) throw antwortfehler('metadata ist kein Objekt');
+  const label = (roh as { label?: unknown }).label;
+  return { ...fromReceiptCompanyPayload(roh as unknown as ReceiptCompanyPayload), label: typeof label === 'string' ? label : '' };
+}
+
 /**
  * Eine Seite Belege der angemeldeten Kasse (`listReceipts`). Die Eingabe wird
  * vor dem Senden nach den Regeln des Servers geprueft (genau eine Form des
@@ -387,6 +402,7 @@ export async function listReceipts<V extends ListReceiptsView = 'summary'>(
     hasMore: daten['hasMore'],
     nextCursor: daten['hasMore'] ? (weiter as string) : null,
     ...('daySummary' in daten ? { daySummary: tagessumme(daten['daySummary']) } : {}),
+    ...(voll && 'metadata' in daten ? { metadata: kopfdaten(daten['metadata']) as ListReceiptsPage<V>['metadata'] } : {}),
   };
 }
 

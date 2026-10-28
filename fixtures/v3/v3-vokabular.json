@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "c64430e6ec3c3dad8674ad684b353bf52c57df54da8afbaa6ba7d8f717511eb7",
-    "inputsSha256": "3c13c580fbe23ca1b976692d0a3214604fc1a63a110664da10fc8bb003057103",
+    "sha256": "d11de425770bc431be9766199e4c9b3e712eb8e0eea84658f771a0f79d98e90e",
+    "inputsSha256": "6c693f1ef121a4f4e5d1670929ea336233c0c20476993264f989bdf4f548a797",
     "backendPackage": "@kreiseck/kasseneck-api@0.35.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -1507,6 +1507,7 @@
       "zeitraum_offen": "period_not_closed",
       "zeitraum_zukunft": "period_in_future",
       "zeitraum_ungueltig": "invalid_period",
+      "zeitraum_zu_lang": "range_too_long",
       "bericht_entsteht": "report_generating",
       "kasse_unbekannt": "cashregister_not_found",
       "zugang_nicht_erlaubt": "access_not_allowed",
@@ -2151,6 +2152,7 @@
       "period_not_closed",
       "period_in_future",
       "invalid_period",
+      "range_too_long",
       "report_generating",
       "cashregister_not_found",
       "access_not_allowed",
@@ -3106,6 +3108,7 @@
             "zeitraum_offen": "period_not_closed",
             "zeitraum_zukunft": "period_in_future",
             "zeitraum_ungueltig": "invalid_period",
+            "zeitraum_zu_lang": "range_too_long",
             "bericht_entsteht": "report_generating",
             "kasse_unbekannt": "cashregister_not_found",
             "zugang_nicht_erlaubt": "access_not_allowed",
@@ -3764,6 +3767,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -3873,6 +3877,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -4824,6 +4829,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -5345,7 +5351,12 @@
             ],
             "cancellationStatus": "stornoStand"
           }
-        ]
+        ],
+        "metadata": {
+          "__": "metadata",
+          "taxNumber": "taxnr",
+          "vatId": "uid"
+        }
       },
       "werte": {
         "receipts[].cancellationStatus": {
@@ -6349,6 +6360,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -7175,6 +7187,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",
@@ -7371,6 +7384,7 @@
           "zeitraum_offen": "period_not_closed",
           "zeitraum_zukunft": "period_in_future",
           "zeitraum_ungueltig": "invalid_period",
+          "zeitraum_zu_lang": "range_too_long",
           "bericht_entsteht": "report_generating",
           "kasse_unbekannt": "cashregister_not_found",
           "zugang_nicht_erlaubt": "access_not_allowed",

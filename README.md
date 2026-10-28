@@ -792,6 +792,8 @@ receipt in 24 hours, 30 per register per hour) and `send_failed`.
 
 ## Receipt printing: QR code, logo, printers
 
+`view: 'full'` returns the stored receipts plus `page.metadata` (business data for the receipt header, the same as `getReportV2().metadata`). `getReportV2` itself accepts at most 62 days between `start` and `end` (`range_too_long`).
+
 ### The QR code fits the paper
 
 The native QR command is given a module size in dots and does not check

@@ -192,6 +192,29 @@ test('listReceipts: view full liefert das Belegdokument wie getReportV2', async 
   });
 });
 
+test('listReceipts: view full traegt metadata wie getReportV2 (Firmendaten + Bezeichnung)', async () => {
+  const kopf = {
+    label: 'Schank', company: 'Bäckerei Kornblum', street: 'Hauptstraße 1', zip: '1010', city: 'Wien', phone: null,
+    taxNumber: '91-123/4565', vatId: 'ATU12345675', is_small_business: false,
+    footer1: 'Danke', footer2: null, footer3: null, footer4: null, logo_url: null, thanks_message: null, kreiseck_logo: true,
+  };
+  const { rufen } = server([erfolg({ receipts: VOLLE_BELEGE, hasMore: false, nextCursor: null, metadata: kopf })]);
+  const seite = await listReceipts(rufen, { date: '2026-09-26', view: 'full' });
+  assert.ok(seite.metadata);
+  assert.equal(seite.metadata.label, 'Schank');
+  assert.equal(seite.metadata.companyName, 'Bäckerei Kornblum');
+  assert.equal(seite.metadata.showKreiseckLogo, true);
+  assert.equal(seite.metadata.taxNumber, '91-123/4565');
+  assert.equal(seite.metadata.vatId, 'ATU12345675');
+});
+
+test('listReceipts: summary ohne metadata; metadata kein Objekt ist ein Antwortfehler', async () => {
+  const kurz = await listReceipts(server([erfolg({ receipts: [zeile(1)], hasMore: false, nextCursor: null })]).rufen, { date: '2026-09-26' });
+  assert.equal('metadata' in kurz, false);
+  const e = await fehlerVon(listReceipts(server([erfolg({ receipts: VOLLE_BELEGE, hasMore: false, nextCursor: null, metadata: 'x' })]).rufen, { date: '2026-09-26', view: 'full' }));
+  assert.ok(isKasseneckValidationError(e));
+});
+
 test('listReceipts: daySummary null bleibt null (Tag ohne Statistik)', async () => {
   const { rufen } = server([erfolg({ receipts: [], hasMore: false, nextCursor: null, daySummary: null })]);
   const seite = await listReceipts(rufen, { date: '2026-10-25' });
