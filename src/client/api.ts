@@ -9,6 +9,7 @@ import { hobexPay, hobexRefund, type HobexPayOptions, type HobexRefundOptions } 
 import { createTransport, createBinaryTransport, type TransportOptions } from './transport.js';
 import { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Options } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
+import { listAllReceipts, listReceipts, type ListedReceipt, type ListReceiptsOptions, type ListReceiptsPage, type ListReceiptsView } from './list-receipts.js';
 import {
   sellReceipt,
   sellReceiptWithCompany,
@@ -86,6 +87,10 @@ export interface KasseneckApi {
   listMyCashregisters(): Promise<Cashregister[]>;
   /** Rohdaten eines Zeitraums: Belege und Firmendaten (`getReportV2`). */
   getReportV2(options: ReportV2Options): Promise<ReportV2>;
+  /** Eine Seite Belege eines Tages oder Zeitraums (`listReceipts`, hoechstens 31 Tage, blaetterbar). */
+  listReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): Promise<ListReceiptsPage<V>>;
+  /** Alle Belege eines Tages oder Zeitraums, Seite fuer Seite geholt (hoechstens 100 Seiten). */
+  listAllReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): AsyncGenerator<ListedReceipt<V>, void, undefined>;
   /** Kassenbericht als PDF (v2): abgeschlossener Monat, Tag oder Zeitraum (Endpunkt `getCashregisterReport`). */
   getCashregisterReport(options: CashregisterReportPeriod): Promise<Uint8Array>;
   /** @deprecated Since 1.10.0: use getCashregisterReport. Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
@@ -129,6 +134,8 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     logReceiptOutputs: (o) => logReceiptOutputs(rufen, o),
     listMyCashregisters: () => listMyCashregisters(rufen),
     getReportV2: (o) => getReportV2(rufen, o),
+    listReceipts: (o) => listReceipts(rufen, o),
+    listAllReceipts: (o) => listAllReceipts(rufen, o),
     getCashregisterReport: (options) => getCashregisterReport(rufenBinaer, options),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),

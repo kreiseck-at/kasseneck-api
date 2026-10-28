@@ -93,6 +93,28 @@ export {
 
 export { listMyCashregisters } from './cashregisters.js';
 
+export {
+  listReceipts,
+  listAllReceipts,
+  fromListReceiptsSummaryPayload,
+  LIST_RECEIPTS_VIEWS,
+  LIST_RECEIPTS_ORDERS,
+  LIST_RECEIPTS_LIMIT_MAX,
+  LIST_RECEIPTS_DAYS_MAX,
+  LIST_ALL_RECEIPTS_MAX_PAGES,
+  LIST_RECEIPTS_ERROR_CODES,
+  type ListReceiptsErrorCode,
+  type ListReceiptsView,
+  type ListReceiptsOrder,
+  type ListReceiptsOptions,
+  type ListReceiptsWindow,
+  type ListReceiptsGrossByRate,
+  type ListReceiptsSummary,
+  type ListReceiptsDaySummary,
+  type ListReceiptsPage,
+  type ListedReceipt,
+} from './list-receipts.js';
+
 export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 
 export {

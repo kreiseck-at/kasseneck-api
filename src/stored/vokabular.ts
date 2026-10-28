@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "328c8d0ff0f496f8f6b7d9ed78673e7666980e38586ec7efacb442e6906d898a";
+export const VOKABULAR_QUELLE = "c64430e6ec3c3dad8674ad684b353bf52c57df54da8afbaa6ba7d8f717511eb7";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -214,7 +214,19 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "__": "gutscheine",
         "sale": "verkauf",
         "valueVoucherType": "wertArt",
-        "vatRateBp": "satzBp"
+        "vatRateBp": "satzBp",
+        "label": {
+          "__": "etikett",
+          "size": "groesse",
+          "fields": {
+            "__": "felder",
+            "business": "betrieb",
+            "value": "wert",
+            "validity": "gueltigkeit",
+            "checkPage": "pruefseite"
+          },
+          "freeText": "freitext"
+        }
       }
     },
     "werte": {

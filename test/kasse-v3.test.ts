@@ -222,7 +222,9 @@ test('getPosSettings: sendet deviceId wie der Fall, liest {business, device}', a
     const { rufen, aufrufe } = kassenweg(f);
     const stand = await getPosSettings(rufen, f.params.deviceId ? { deviceId: f.params.deviceId } : {});
     assert.deepEqual(gesendet(aufrufe, 'getKasseSettings', f), f.params, f.case);
-    assert.deepEqual(stand, { business: f.response.data.business, device: geraetGelesen(f.response.data.device), vouchers: f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null } }, f.case);
+    // Das alte Feld `vouchers.label` (Kassen vor 1.15) liest das Paket nicht.
+    const { label: _alt, ...gutscheine } = f.response.data.vouchers ?? { sale: false, valueVoucherType: null, vatRateBp: null };
+    assert.deepEqual(stand, { business: f.response.data.business, device: geraetGelesen(f.response.data.device), vouchers: gutscheine }, f.case);
   }
 });
 

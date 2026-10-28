@@ -24,6 +24,9 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'cashregister_decommissioned',
   'final_receipt_expired',
   'final_receipt_not_allowed',
+  // Seit 1.15.0 (Vertrag): derselbe idempotencyKey mit anderem Inhalt, nichts geschrieben. Der Server nimmt den
+  // Schluessel optional an; dieses Paket sendet (noch) keinen, der Code bleibt damit nur lesbar.
+  'idempotency_conflict',
   'module_inactive',
   'not_permitted',
   'receipt_limit_exceeded',

@@ -84,6 +84,8 @@ export const INVOICE_ERROR_CODES = [
   'reservation_not_found', // unbekannt oder einem anderen Konto
   'reservation_mismatch', // keine offene Position mit gleichem Artikel am Lagerstandort der Rechnung
   'reservation_not_active', // schon eingeloest oder freigegeben
+  // Seit 1.15.0 (Vertrag): die Rechnungsnummer ist schon vergeben (§ 11 Abs. 1 Z 3 lit. h UStG), nichts ausgestellt.
+  'invoice_number_taken',
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 

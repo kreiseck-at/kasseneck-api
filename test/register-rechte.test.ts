@@ -49,7 +49,9 @@ test('Einstellungen: der Block vouchers aus dem Vertrag wird gelesen', () => {
   assert.ok(faelle.length > 0);
   for (const f of faelle) {
     const s = posSettingsFromWire(f.response.data);
-    assert.deepEqual(s.vouchers, f.response.data.vouchers);
+    // Das alte Feld `label` gilt Kassen vor 1.15 (Ruling R3); das Paket liest `labelDefault` und `types[].label`.
+    const { label: _alt, ...erwartet } = f.response.data.vouchers;
+    assert.deepEqual(s.vouchers, erwartet);
   }
 });
 
