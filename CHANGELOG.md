@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unreleased (1.16.0)
+## 1.16.0 - 2026-10-28
 
 Header data for the full view of `listReceipts`, and the new upper limit of `getReportV2`. Additive.
 
