@@ -552,8 +552,9 @@ The facade from `createKasseneckApi` offers `sellReceipt` and
 `getReceipt` and `getReceiptWithCompany`, `listMyReceipts`, `cancelReceipt`,
 `sendReceiptEmail`, the report downloads, the FinanzOnline status queries
 (`getCashboxStatus`, `getSignatureStatus`), `getReportV2({ start, end })` for
-the raw receipts and company data of a period, and the Stripe and Hobex cloud
-payments.
+the raw receipts and company data of a period, `listReceipts` and
+`listAllReceipts` for receipt lists page by page (see below), and the Stripe
+and Hobex cloud payments.
 
 The models are English throughout: the company has `taxNumber` and `vatId`, a
 receipt `headerVersionId`, `layoutRuleset` and `registrationInfo`, a receipt
@@ -595,6 +596,73 @@ text stays German, and the CSS classes of the React banner stay
 
 Times on receipts are read as **Vienna wall-clock time**
 (`parseServerTimeStamp`), never through `new Date(text)`.
+
+### Listing receipts: `listReceipts` and `listAllReceipts`
+
+`listReceipts` lists the receipts of the signed-in cash register for one day
+(`date`) or a period (`from` inclusive, `to` exclusive, at most 31 calendar
+days), page by page. Same sign-in as `getReportV2`: `apiKeyAuth` with the API
+key and the `cashregister-token`; the cash register comes from the token.
+Only on `/v3`. Times are Vienna wall-clock text (`YYYY-MM-DD` or
+`YYYY-MM-DDTHH:mm:ss`, no zone), like `timeStamp` on the receipt; a day is a
+calendar day, also when the clocks change. For lists use this instead of
+`getReportV2`, which returns a whole period in one answer and stays for
+reports.
+
+```ts
+import { createKasseneckApi, apiKeyAuth } from '@kreiseck/kasseneck-api';
+
+const api = createKasseneckApi({ auth: apiKeyAuth({ apiKey, cashregisterToken }) });
+
+// One page (default 100, at most 500), newest first, short lines in cents.
+const page = await api.listReceipts({ date: '2026-10-27', limit: 50 });
+for (const r of page.receipts) console.log(r.counter, r.timeStamp, r.totalCents, r.cancellationStatus);
+console.log(page.daySummary?.revenueCents);
+if (page.hasMore) {
+  // Same window, order and view; limit may change.
+  const next = await api.listReceipts({ date: '2026-10-27', limit: 50, cursor: page.nextCursor! });
+}
+
+// Every receipt of a month, oldest first, as the stored receipt document.
+for await (const receipt of api.listAllReceipts({ from: '2026-10-01', to: '2026-11-01', order: 'asc', view: 'full' })) {
+  console.log(receipt.receiptId, receipt.items.length);
+}
+```
+
+- **Options:** exactly one window, `date` or `from` + `to`; `limit` 1-500
+  (an integer; the server never caps silently), `order` `desc` (default) or
+  `asc`, `view` `summary` (default) or `full`, `cursor` from `nextCursor`.
+  The package checks all of this before sending, by the server's rules
+  (impossible dates like `2026-02-30`, more than 31 calendar days, `to` not
+  after `from`, ...), and throws `KasseneckValidationError` with
+  `scope: 'request'`; nothing goes out.
+- **Views:** `summary` returns `ListReceiptsSummary` rows (`receiptId`,
+  `counter`, `receiptType`, `zeroKind`, `timeStamp`, `totalCents`,
+  `grossByRateCents`, `paymentMethod`, `payments`, `tipCents`, `operator`,
+  `cancellationOf`, `cancellationReason`, `cancellationStatus`, `signatureOk`,
+  `customProjectId`, `fullReceiptId`); amounts in cents, no items, no layout.
+  `full` returns `Receipt`, the same shape as `getReportV2`. For one receipt
+  with its print layout use `getReceiptWithCompany`, for the PDF
+  `downloadReceipt` with `fullReceiptId`. `ListReceiptsSummary` is not the
+  `ReceiptSummary` of `listMyReceipts` (register path, other fields).
+- **`daySummary`** is only there with `date` and only on the first page
+  (`null` when the day has no statistics): `receiptCount` counts every
+  receipt of the day, `revenueCents` only standard and cancellation receipts,
+  without employee tips and after promotion discounts, and `revenueByRate`
+  per rate in basis points. It is not the sum of the list; to sum the list,
+  sum the list.
+- **`listAllReceipts`** fetches page after page with the same window, `order`
+  and `view` and yields each receipt once, in the server's order. Without
+  `limit` it asks for pages of 500. An error on any page ends the loop
+  (`for await` throws it; receipts already yielded stay valid). After
+  `LIST_ALL_RECEIPTS_MAX_PAGES` (100) pages, or when the server repeats a
+  cursor, it throws `KasseneckValidationError` (`scope: 'response'`) instead
+  of running forever. It does not return `daySummary`.
+- **Errors** (`KasseneckApiError.code`, `LIST_RECEIPTS_ERROR_CODES`):
+  `invalid_date`, `invalid_range`, `range_too_long`, `invalid_limit`,
+  `invalid_order`, `invalid_view`, `invalid_cursor` (a cursor of another
+  cash register or query, or changed window, `order` or `view`),
+  `server_error`, plus the codes of sign-in and edge.
 
 ## Cancellation (Storno)
 
