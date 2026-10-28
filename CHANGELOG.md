@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unreleased (1.15.0)
+## 1.15.0 - 2026-10-28
 
 Receipt lists page by page: `listReceipts` and `listAllReceipts` for the new public endpoint `listReceipts` (`/v3` only). Additive.
 
