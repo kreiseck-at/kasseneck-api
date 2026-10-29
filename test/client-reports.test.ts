@@ -267,6 +267,27 @@ test('eine Erfolgshuelle ohne PDF ist ein Antwortfehler, kein Bericht', async ()
   });
 });
 
+test('getCashregisterReport: die Ablehnung mit HTTP 200 kommt mit Code an, nicht als PDF', async () => {
+  // Befund 29.10.2026, live gegen die Demo-Kasse: genau dieser Rumpf ging im
+  // Dart-Zwilling bis 11.8.0 als "PDF" durch.
+  const meldung = 'Ungültige Daten: Der Monat ist noch nicht abgeschlossen – Monatsbericht erst ab dem Folgemonat.';
+  const { holen } = fetchFake(
+    huelleAlsBinaerAntwort(
+      { status: 'error', message: meldung, data: { code: 'period_not_closed' }, code: 'period_not_closed' },
+      'application/json; charset=utf-8',
+    ),
+  );
+
+  await assert.rejects(getCashregisterReport(binaerWeg(holen), { year: 2026, month: 10 }), (fehler: unknown) => {
+    assert.ok(fehler instanceof KasseneckApiError);
+    assert.equal(fehler.code, 'period_not_closed');
+    assert.equal(fehler.outcome, 'rejected');
+    assert.equal(fehler.functionName, 'getCashregisterReport');
+    assert.equal(fehler.serverMessage, meldung);
+    return true;
+  });
+});
+
 test('der Binaerweg trennt seine Fehlerfaelle mit denselben Gruenden wie der JSON-Weg', async () => {
   // Kein eigener Sammelgrund fuer "kein PDF": der fehlende Rewrite (HTML-Seite
   // der Single-Page-App) und ein geaenderter Backend-Vertrag (JSON ohne
