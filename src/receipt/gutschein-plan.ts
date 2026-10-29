@@ -1,7 +1,7 @@
 import { VoucherCode } from '@kreiseck/validator';
 import type { Voucher } from '../models/voucher.js';
-import { isNewFormVoucher, voucherIsValid, voucherServerFields } from '../models/voucher.js';
-import type { PosVoucherSettings, VoucherArticle, VoucherCheck } from '../pos/gutschein.js';
+import { isNewFormVoucher, istWertVerkauf, voucherIsValid, voucherServerFields, wunschFormGueltig } from '../models/voucher.js';
+import type { PosVoucherSettings, PosVoucherType, VoucherArticle, VoucherCheck } from '../pos/gutschein.js';
 
 /**
  * Gutscheine der neuen Form im Zahlbetrag: Zwilling von
@@ -17,10 +17,16 @@ import type { PosVoucherSettings, VoucherArticle, VoucherCheck } from '../pos/gu
  * - Mehrzweck einloesen: Eintrag `value`, mindert den Zahlbetrag als Fluss.
  * - Mehrzweck verkaufen: Eintrag `value` (+Fluss); ab dem Stichtag des
  *   0-%-Topfs stattdessen Position im 0-%-Satz ohne Fluss.
- * - Mehrzweck auszahlen: immer Position im 0-%-Satz (minus), kein Fluss.
- * - Einzweck: Position im Satz (Verkauf aus der Einstellung der Kasse,
- *   Einloesung und Auszahlung aus der Pruefung des Gutscheins); als
- *   Kleinunternehmer eingeloest anteilig auf alle Saetze des Korbs.
+ * - Mehrzweck auszahlen: immer Position im 0-%-Satz (minus), kein Fluss;
+ *   nie bei einem Gutschein mit Auszahlung `never`.
+ * - Einzweck: Position im Satz (Verkauf aus der Sorte, Einloesung und
+ *   Auszahlung aus der Pruefung des Gutscheins); als Kleinunternehmer
+ *   eingeloest anteilig auf alle Saetze des Korbs.
+ * - Wertgutschein verkaufen (Stufe 4b): nur ueber eine Sorte (`typeId`); Art
+ *   und Satz kommen aus der Sorte, ein Fixbetrag muss stimmen. Ohne Sorte
+ *   rechnet nur noch ein Aufrufer mit einer alten Gutschein-Einstellung mit
+ *   Art (`voucherSettings.valueVoucherType`) wie bisher; sonst und beim
+ *   Server immer `voucher_type_required`.
  * - Leistung verkaufen: Stueck mal Artikelpreis im Artikelsatz; einloesen: je
  *   Satz eine Minuszeile ueber die gewaehlten Positionen.
  * - Aktion: Rabatt wie `promo`, Betrag aus der Pruefung, hoechstens die Summe.
@@ -57,8 +63,16 @@ export interface VoucherDueInfo {
   check: VoucherCheck;
 }
 
-/** Artikel fuer den Verkauf eines Dienstleistungsgutscheins: Preis und Satz wie im Artikelstamm. */
-export type VoucherDueArticle = Pick<VoucherArticle, 'id' | 'priceCents' | 'vatRateBp'>;
+/**
+ * Artikel fuer den Verkauf eines Dienstleistungsgutscheins: Preis und Satz wie
+ * im Artikelstamm. `serviceVoucher` (`PosArticle.serviceVoucher`): bei `false`
+ * verkauft der Server ihn nicht (`voucher_service_not_allowed`); ohne Angabe
+ * rechnet der Zahlbetrag wie bisher.
+ */
+export type VoucherDueArticle = Pick<VoucherArticle, 'id' | 'priceCents' | 'vatRateBp'> & { serviceVoucher?: boolean };
+
+/** Gutschein-Sorte fuer den Verkauf: Kennung, Art, Satz und Betrag wie in `getKasseSettings` (`vouchers.types[]`). */
+export type VoucherDueType = Pick<PosVoucherType, 'id' | 'kind' | 'vatRateBp' | 'amount'>;
 
 /**
  * Stichtag des 0-%-Topfs fuer Mehrzweck-Verkaeufe (Backend
@@ -71,6 +85,7 @@ export const VOUCHER_ZERO_RATE_BUCKET_FROM = '2099-12-31';
 export interface PlanOptionen {
   voucherInfo?: readonly VoucherDueInfo[];
   voucherSettings?: PosVoucherSettings;
+  voucherTypes?: readonly VoucherDueType[];
   voucherArticles?: readonly VoucherDueArticle[];
   smallBusiness?: boolean;
   zeroRateBucketFrom?: string;
@@ -137,6 +152,24 @@ function satzBp(vat: number): number {
 }
 function position(satzBpWert: number, cents: number, kind: 'voucher' | 'voucher_float'): Innen {
   return { amount: 1, priceOne: cents / 100, vat: satzBpWert / 100, tip: null, kind };
+}
+
+/** Reservierte Kennung (`__…__`): gibt es am Server nie als Sorte (gutschein-core.RESERVIERTE_ID). */
+const RESERVIERTE_ID = /^__.*__$/;
+
+/**
+ * Die Sorte zum Wunsch, wie der Server sie verkaufen wuerde, oder null
+ * (unbekannt): Mehrzweck ohne Satz, Einzweck mit Satz > 0, Betrag frei oder
+ * fest von 1,00 bis 10.000,00 €. Eine unstimmige Sorte verkauft der Server
+ * nicht (`gutschein-beleg.sorteFuerVerkauf` ueber `gutschein-core.pruefeSorte`).
+ */
+function sorteZumWunsch(typen: readonly VoucherDueType[] | undefined, typeId: string): VoucherDueType | null {
+  const t = (typen ?? []).find((x) => x.id === typeId);
+  if (t == null) return null;
+  const satzOk = t.kind === 'multi_purpose' ? t.vatRateBp == null : t.kind === 'single_purpose' && Number.isInteger(t.vatRateBp) && (t.vatRateBp as number) > 0;
+  const betragOk = t.amount?.mode === 'free'
+    || (t.amount?.mode === 'fixed' && Number.isInteger(t.amount.cents) && t.amount.cents >= 100 && t.amount.cents <= 1_000_000);
+  return satzOk && betragOk ? t : null;
 }
 
 /** Code in Normalform (tolerant eingelesen, Pruefzeichen stimmt) oder null. */
@@ -241,7 +274,20 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
   if (kunde.some(istGutscheinZeile)) return nein('voucher_invalid', 'Gutschein-Positionen setzt nur der Server.');
   for (const [i, v] of vouchers.entries()) {
     if (istGelesen(v)) return nein('voucher_invalid', `Gutschein ${i + 1}: Serverfelder an einem Wunsch.`);
-    if (isNewFormVoucher(v) && !voucherIsValid(v)) return nein('voucher_invalid', `Gutschein ${i + 1} ist unvollstaendig.`);
+    if (!isNewFormVoucher(v)) continue;
+    if (istWertVerkauf(v) && v.typeId == null) {
+      // Wie gutschein-beleg.pruefeWuensche: ein Wert-Verkauf ohne Sorte ist voucher_type_required.
+      // Nur eine alte Gutschein-Einstellung MIT Art (Aufrufer bis 1.16) rechnet wie bisher; ein Server ab
+      // Stufe 4b schickt `valueVoucherType` immer null, dort hilft kein Neuladen – die Sorte fehlt.
+      if (o.voucherSettings?.valueVoucherType == null) return nein('voucher_type_required', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (typeId).`);
+      if (!wunschFormGueltig(v, false)) return nein('voucher_invalid', `Gutschein ${i + 1} ist unvollstaendig.`);
+      continue;
+    }
+    // Eine reservierte Kennung weist der Server vor jeder anderen Pruefung als unbekannt ab.
+    if (istWertVerkauf(v) && typeof v.typeId === 'string' && RESERVIERTE_ID.test(v.typeId)) {
+      return nein('voucher_type_not_found', `Gutschein ${i + 1}: diese Gutschein-Sorte gibt es nicht.`);
+    }
+    if (!voucherIsValid(v)) return nein('voucher_invalid', `Gutschein ${i + 1} ist unvollstaendig.`);
   }
   // Kein Gutschein mit Gutschein bezahlen, sobald einer der beiden die neue Form hat.
   const handel = vouchers.filter((v) => v.action === 'sell' || v.action === 'redeem');
@@ -294,6 +340,30 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
       gutscheine.push(g);
       continue;
     }
+    if (istWertVerkauf(v) && v.typeId != null) {
+      // Verkauf ueber eine Sorte (gutschein-beleg.plane): unbekannt, andere Art, falscher Fixbetrag. Eine andere Art
+      // heisst: die Kasse hat eine alte Sicht (Sorte umgestellt) – wie ein anderer Fixbetrag voucher_amount_mismatch,
+      // die Kasse laedt die Sorten neu.
+      const sorte = sorteZumWunsch(o.voucherTypes, v.typeId);
+      if (sorte == null) return nein('voucher_type_not_found', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (voucherTypes).`);
+      if (v.type != null && v.type !== sorte.kind) return nein('voucher_amount_mismatch', `Gutschein ${i + 1}: die Art passt nicht (mehr) zur Gutschein-Sorte.`);
+      if (sorte.amount.mode === 'fixed' && v.amountCents !== sorte.amount.cents) {
+        return nein('voucher_amount_mismatch', `Gutschein ${i + 1}: der Betrag passt nicht zum Fixbetrag der Gutschein-Sorte.`);
+      }
+      const c = v.amountCents as number;
+      if (sorte.kind === 'multi_purpose') {
+        if (nulltopf) {
+          zusatz.push(position(0, c, 'voucher_float'));
+          gutscheine.push({ action: 'sell', type: 'value', value: c / 100, imNullTopf: true });
+        } else {
+          gutscheine.push({ action: 'sell', type: 'value', value: c / 100 });
+        }
+      } else {
+        // Kleinunternehmer: befreit verkauft, der Satz der Sorte legt nur fest, wofuer der Gutschein gilt.
+        zusatz.push(position(ku ? 0 : (sorte.vatRateBp as number), c, 'voucher'));
+      }
+      continue;
+    }
     if (!ARTEN.includes(String(v.type))) return nein('voucher_invalid', `Gutschein ${i + 1}: unbekannte Art.`);
 
     if (v.action === 'sell') {
@@ -316,6 +386,7 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
       } else {
         const a = (o.voucherArticles ?? []).find((x) => x.id === v.articleId);
         if (a == null) return nein('voucher_item_mismatch', `Gutschein ${i + 1}: der Artikel fehlt (voucherArticles).`);
+        if (a.serviceVoucher === false) return nein('voucher_service_not_allowed', `Gutschein ${i + 1}: der Artikel ist nicht als Leistungsgutschein freigegeben.`);
         if (!Number.isInteger(a.priceCents) || a.priceCents <= 0 || !Number.isInteger(a.vatRateBp) || a.vatRateBp < 0) {
           return nein('voucher_invalid', `Gutschein ${i + 1}: Artikel ohne Preis oder Satz.`);
         }
@@ -330,7 +401,8 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
     if ('fehler' in check) return check;
 
     if (v.action === 'payout') {
-      // `gutschein-core.darfAuszahlen`: aktiv, oder abgelaufen bis zum Ende der Rueckzahlbarkeit.
+      // `gutschein-core.darfAuszahlen`: Auszahlung nicht gesperrt, aktiv oder abgelaufen bis zum Ende der Rueckzahlbarkeit.
+      if (check.payout === 'never') return nein('voucher_payout_not_allowed', `Gutschein ${i + 1}: dieser Gutschein wird nie ausgezahlt.`);
       if (!((check.balanceCents ?? 0) > 0)) return nein('voucher_used_up', `Gutschein ${i + 1}: kein Saldo.`);
       if (check.status === 'expired') {
         const bis = check.validity?.refundableUntil;

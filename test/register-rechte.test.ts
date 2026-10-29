@@ -49,14 +49,17 @@ test('Einstellungen: der Block vouchers aus dem Vertrag wird gelesen', () => {
   assert.ok(faelle.length > 0);
   for (const f of faelle) {
     const s = posSettingsFromWire(f.response.data);
-    // Das alte Feld `label` gilt Kassen vor 1.15 (Ruling R3); das Paket liest `labelDefault` und `types[].label`.
+    // Das alte Feld `label` gilt Kassen vor 1.17 (Ruling R3); das Paket liest `labelDefault` und `types[].label`.
     const { label: _alt, ...erwartet } = f.response.data.vouchers;
     assert.deepEqual(s.vouchers, erwartet);
   }
 });
 
+/** Neue Felder (Gutscheine Stufe 4b) ohne Angabe: kein Sortenverkauf, keine Sorten, keine Vorlage. */
+const OHNE_SORTEN = { typeSale: false, types: [], serviceArticles: false, labelDefault: null };
+
 test('Einstellungen: fehlt der Block, ist Verkaufen aus', () => {
-  const aus = { sale: false, valueVoucherType: null, vatRateBp: null };
+  const aus = { sale: false, valueVoucherType: null, vatRateBp: null, ...OHNE_SORTEN };
   assert.deepEqual(VOUCHER_SETTINGS_DEFAULTS, aus);
   assert.deepEqual(posSettingsFromWire({ business: {}, device: {} }).vouchers, aus);
   assert.deepEqual(posSettingsFromWire(null).vouchers, aus);
@@ -64,7 +67,7 @@ test('Einstellungen: fehlt der Block, ist Verkaufen aus', () => {
 });
 
 test('Einstellungen: stimmige Bloecke gehen unveraendert durch', () => {
-  const ok = (b: Json) => assert.deepEqual(posVoucherSettingsFromWire(b), b);
+  const ok = (b: Json) => assert.deepEqual(posVoucherSettingsFromWire(b), { ...b, ...OHNE_SORTEN });
   ok({ sale: true, valueVoucherType: 'single_purpose', vatRateBp: 2000 });
   ok({ sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null });
   // ausgeschaltet, aber Art bleibt bestaetigt
@@ -74,7 +77,7 @@ test('Einstellungen: stimmige Bloecke gehen unveraendert durch', () => {
 });
 
 test('Einstellungen: ein unstimmiges Feld schliesst den ganzen Block', () => {
-  const zu = { sale: false, valueVoucherType: null, vatRateBp: null };
+  const zu = { sale: false, valueVoucherType: null, vatRateBp: null, ...OHNE_SORTEN };
   const faelle: Json[] = [
     { sale: 'ja', valueVoucherType: null, vatRateBp: null },
     { sale: undefined, valueVoucherType: 'multi_purpose', vatRateBp: null },

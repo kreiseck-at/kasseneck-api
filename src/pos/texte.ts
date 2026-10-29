@@ -219,6 +219,16 @@ const MELDUNGEN_ROH = {
   'voucher_error.settings_missing': { text: 'Die Gutschein-Einstellungen fehlen. Bitte die Kasse neu laden.' },
   'voucher_error.too_many_checks': { text: 'Zu viele Versuche. Bitte in einer Stunde wieder.' },
   'voucher_error.sale_off': { text: 'Gutscheine verkaufen geht hier noch nicht.' },
+  // Gutschein-Sorten (Stufe 4b, 1.17.0): Verkauf nur ueber eine Sorte; bei den beiden Satzpaaren laedt die Kasse die Sorten neu.
+  'voucher_error.type_required': { text: 'Bitte eine Gutschein-Sorte wählen.' },
+  'voucher_error.type_not_found': { text: 'Diese Gutschein-Sorte gibt es nicht mehr. Die Kasse lädt die Sorten neu.' },
+  'voucher_error.amount_mismatch': { text: 'Die Gutschein-Sorte hat sich geändert. Die Kasse lädt die Sorten neu.' },
+  'voucher_error.service_not_allowed': { text: 'Dieser Artikel ist nicht als Leistungsgutschein freigegeben.' },
+  'voucher_error.payout_not_allowed': { text: 'Dieser Gutschein kann nicht ausgezahlt werden.' },
+  // Satz der Kasse selbst (1.17.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
+  // geaendert, deaktiviert oder geloescht). Die Zeile sperrt das Kassieren, bis sie entfernt und neu gewaehlt ist;
+  // der Satz nach einer Absage des Servers bleibt voucher_error.type_not_found bzw. voucher_error.amount_mismatch.
+  'voucher.type_changed': { text: 'Diese Gutschein-Sorte hat sich geändert. Bitte die Zeile entfernen und die Kachel neu antippen.' },
   // Gutscheine an der Kasse, Stufe 3 (1.13.0): Sätze der Kasse selbst (nicht des Servers).
   'voucher.reentry_needed': { text: 'Die Karte ist belastet, der Beleg fehlt noch: zu jedem Gutschein den Code erneut eingeben, dann den Beleg abschließen.' },
   'voucher.reentry_mismatch': { text: 'Mit diesen Gutscheinen ergibt der Beleg nicht mehr den belasteten Betrag – die Karte zurückbuchen.' },
@@ -656,6 +666,11 @@ export const VOUCHER_ERROR_MESSAGES = {
   voucher_partial_cancel: 'voucher_error.partial_cancel',
   voucher_settings_missing: 'voucher_error.settings_missing',
   too_many_voucher_checks: 'voucher_error.too_many_checks',
+  voucher_type_required: 'voucher_error.type_required',
+  voucher_type_not_found: 'voucher_error.type_not_found',
+  voucher_amount_mismatch: 'voucher_error.amount_mismatch',
+  voucher_service_not_allowed: 'voucher_error.service_not_allowed',
+  voucher_payout_not_allowed: 'voucher_error.payout_not_allowed',
 } as const satisfies Record<string, MessageKey>;
 
 export type VoucherMessageCode = keyof typeof VOUCHER_ERROR_MESSAGES;
@@ -1013,6 +1028,13 @@ const BESCHRIFTUNGEN_ROH = {
   'voucher.code_done': { text: 'Fertig' },
   'voucher.article': { text: 'Artikel' },
   'voucher.add': { text: 'Hinzufügen' },
+  // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.17.0): Kachel je Sorte mit Betrag
+  // oder „Betrag eingeben“, darunter klein die Art; dazu die feste Kachel „Leistungsgutschein“.
+  'voucher.tab': { text: 'Gutscheine' },
+  'voucher.enter_amount': { text: 'Betrag eingeben' },
+  'voucher.service_tile': { text: 'Leistungsgutschein' },
+  'voucher.kind_multi_short': { text: 'Mehrzweck' },
+  'voucher.kind_single_short': { text: 'Einzweck {rate} %', placeholders: ['rate'] },
   'shift.all_payments': { text: 'Alle Zahlungen dieser Schicht (bar + unbar)' },
   'shift.receipt_count_one': { text: '1 Beleg' },
   'shift.receipt_count_other': { text: '{count} Belege', placeholders: ['count'] },

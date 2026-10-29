@@ -223,7 +223,8 @@ test('Verkauf Mehrzweck ab dem Stichtag (Position im 0-%-Topf + Eintrag zeroRate
 
 test('Verkauf Einzweck und Leistung: Positionszeile mit Code des Eintrags, keine Zusatzzeile', () => {
   const ez = bauen(ausAntwort(beispiel('kasse-belege/sale_single_purpose_voucher')));
-  assert.ok(hatSpalten(ez, [['1  x Einzweckgutschein 20 % ····-JJJ2', 7], ['50,00 A', 5]]), texte(ez).join('\n'));
+  // Den Positionsnamen setzt der Server: Sortenname und Art (Gutscheine Stufe 4b).
+  assert.ok(hatSpalten(ez, [['1  x Geschenkgutschein (Einzweckgutschein 20 %) ····-JJJ2', 7], ['50,00 A', 5]]), texte(ez).join('\n'));
   const ls = bauen(ausAntwort(beispiel('kasse-belege/sale_service_voucher')));
   assert.ok(hatSpalten(ls, [['1  x Leistungsgutschein Maniküre (2 Stück) ····-RRRF', 7], ['70,00 A', 5]]), texte(ls).join('\n'));
   assert.ok(!texte(ez).some((t) => t.includes('USt bei Einlösung')));

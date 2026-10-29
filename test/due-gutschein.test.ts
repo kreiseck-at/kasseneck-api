@@ -15,7 +15,7 @@ import * as wurzel from '../src/index.js';
 import { createReceiptParams } from '../src/client/receipts.js';
 import { isKasseneckValidationError } from '../src/client/errors.js';
 import { fromReceiptItemPayload, fromVoucherPayload, type ReceiptItem, type Voucher, type VoucherPayload } from '../src/models/index.js';
-import type { VoucherCheck } from '../src/pos/gutschein.js';
+import { posVoucherSettingsFromWire, type VoucherCheck } from '../src/pos/gutschein.js';
 import { istAbgelehnt, optionenDesFalls, type VertragsEingabe, type VertragsErgebnis } from './gutschein-setup.js';
 
 /*
@@ -66,7 +66,8 @@ interface Fall {
   expected: VertragsErgebnis;
 }
 const FAELLE = (JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/zahlbetrag-faelle.json', import.meta.url)), 'utf8')) as { cases: Fall[] }).cases;
-const MIT_NEUER_FORM = FAELLE.filter((f) => f.input.vouchers.some((v) => ['multi_purpose', 'single_purpose', 'service', 'promotion'].includes(String(v.type)) || v.action === 'payout'));
+// Neue Form: eine ihrer Arten, eine Auszahlung oder ein Verkauf ueber eine Sorte (`typeId`, die Art darf fehlen).
+const MIT_NEUER_FORM = FAELLE.filter((f) => f.input.vouchers.some((v) => ['multi_purpose', 'single_purpose', 'service', 'promotion'].includes(String(v.type)) || v.action === 'payout' || v.typeId != null));
 
 test('Vertrag: die Faelle mit Gutscheinen der neuen Form sind da', () => {
   const namen = MIT_NEUER_FORM.map((f) => f.name);
@@ -150,12 +151,21 @@ test('Mehrzweck verkaufen: vor dem Stichtag Fluss, ab dem Stichtag Position im 0
   });
 });
 
-test('Verkauf ohne Gutschein-Einstellung: voucher_settings_missing (Mehrzweck wie Einzweck), sonst nichts kassieren', () => {
+test('Verkauf ohne Sorte: voucher_type_required ohne alte Einstellung oder mit einer ohne Art (jeder Server ab Stufe 4b)', () => {
+  // So liest eine Kasse den Block eines Servers ab Stufe 4b: `valueVoucherType` ist immer null.
+  const kasse = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/antworten/kasse.json', import.meta.url)), 'utf8')) as { endpoints: Record<string, { cases: Array<{ case: string; response: { data: { vouchers: unknown } } }> }> };
+  const ausVertrag = posVoucherSettingsFromWire(kasse.endpoints['getKasseSettings']!.cases.find((c) => c.case === 'owner_with_voucher_type')!.response.data.vouchers);
+  assert.equal(ausVertrag.valueVoucherType, null);
   for (const type of ['multi_purpose', 'single_purpose'] as const) {
     const v: Voucher[] = [{ action: 'sell', type, amountCents: 5000 }];
-    wirft(() => receiptDueCents([], v, 'standard'), 'voucher_settings_missing');
-    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_settings_missing');
+    wirft(() => receiptDueCents([], v, 'standard'), 'voucher_type_required');
+    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_type_required');
+    wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: ausVertrag }), 'voucher_type_required');
   }
+  // Eine echte alte Einstellung mit Art rechnet wie bis 1.16 (Mehrzweck als Fluss, Einzweck im Satz der Einstellung).
+  assert.equal(receiptDueCents([], [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }], 'standard', MEHRZWECK_EIN), 5000);
+  assert.deepEqual(receiptDueBreakdown([], [{ action: 'sell', type: 'single_purpose', amountCents: 5000 }], 'standard', { voucherSettings: { sale: false, valueVoucherType: 'single_purpose', vatRateBp: 1000 } }).bucketsCents,
+    toepfe({ amountRateReduced1: 5000 }));
 });
 
 test('Altform nach dem Stichtag: plane laeuft, ein negativer Zahlbetrag ist voucher_exceeds_total', () => {
@@ -241,7 +251,7 @@ test('Einzweck verkaufen: Position im Satz der Einstellung; ohne Einstellung nic
     dueCents: 5000, counterDeltaCents: 5000, valueVoucherFlowCents: 0, bucketsCents: toepfe({ amountRateReduced1: 5000 }),
   });
   assert.deepEqual(receiptDueBreakdown([], v, 'standard', { ...o, smallBusiness: true }).bucketsCents, toepfe({ amountRateZero: 5000 }));
-  wirft(() => receiptDueCents([], v, 'standard'), 'voucher_settings_missing');
+  wirft(() => receiptDueCents([], v, 'standard'), 'voucher_type_required');
 });
 
 test('Auszahlung Einzweck: Minusposition im Satz des Gutscheins', () => {
@@ -314,9 +324,14 @@ test('Verkauf und Einloesung zusammen, derselbe Gutschein zweimal, Gutscheinzeil
   const items = [pos('Kaffee', 320, 20)];
   const info: VoucherDueInfo[] = [{ code: CODE_M, check: mehrzweck(5000) }];
   wirft(() => receiptDueCents(items, [
+    { action: 'sell', type: 'multi_purpose', typeId: 'vt_mz', amountCents: 1000 },
+    { action: 'redeem', type: 'multi_purpose', code: CODE_M, amountCents: 100 },
+  ], 'standard', { voucherInfo: info, voucherTypes: [{ id: 'vt_mz', kind: 'multi_purpose', vatRateBp: null, amount: { mode: 'free' } }] }), 'voucher_invalid');
+  // Ohne Sorte prueft der Server zuerst die Form des Wunschs (gutschein-beleg.pruefeWuensche).
+  wirft(() => receiptDueCents(items, [
     { action: 'sell', type: 'multi_purpose', amountCents: 1000 },
     { action: 'redeem', type: 'multi_purpose', code: CODE_M, amountCents: 100 },
-  ], 'standard', { voucherInfo: info }), 'voucher_invalid');
+  ], 'standard', { voucherInfo: info }), 'voucher_type_required');
   wirft(() => receiptDueCents(items, [
     { action: 'redeem', type: 'multi_purpose', code: CODE_M, amountCents: 100 },
     { action: 'redeem', type: 'multi_purpose', code: 'dtd5 9ecf 5knz', amountCents: 100 },
@@ -553,7 +568,12 @@ test('Generierte Gutscheinfaelle: genug und von jeder Art (Bruchmengen, Trinkgel
     assert.ok(c.some((f) => f.input.vouchers.some((v) => v.type === art && v.action === 'redeem') && 'dueCents' in f.expected), art);
   }
   for (const a of ['sell', 'payout']) assert.ok(c.some((f) => f.input.vouchers.some((v) => v.action === a) && 'dueCents' in f.expected), a);
-  for (const code of ['voucher_rate_mismatch', 'voucher_exceeds_total', 'voucher_insufficient_balance', 'voucher_item_mismatch', 'voucher_settings_missing']) {
+  // Verkauf ueber eine Sorte (Stufe 4b): mit und ohne Art am Wunsch, frei und fix.
+  assert.ok(c.filter((f) => f.input.vouchers.some((v) => v.action === 'sell' && v.typeId != null) && 'dueCents' in f.expected).length >= 30);
+  assert.ok(c.some((f) => f.input.vouchers.some((v) => v.action === 'sell' && v.typeId != null && v.type == null) && 'dueCents' in f.expected));
+  assert.ok(c.some((f) => f.input.voucherTypes?.some((t) => t.amount.mode === 'fixed') && 'dueCents' in f.expected));
+  for (const code of ['voucher_rate_mismatch', 'voucher_exceeds_total', 'voucher_insufficient_balance', 'voucher_item_mismatch', 'voucher_type_required',
+    'voucher_type_not_found', 'voucher_amount_mismatch', 'voucher_payout_not_allowed', 'voucher_invalid']) {
     assert.ok(c.some((f) => 'voucherError' in f.expected && f.expected.voucherError === code), code);
   }
 });

@@ -17,6 +17,12 @@ export interface Voucher {
   name?: string;
   code?: string;
   action: VoucherAction | string;
+  /**
+   * Art des Gutscheins. Beim Verkauf ueber eine Sorte die Art der Sorte
+   * (`PosVoucherType.kind`): der Server prueft sie gegen die Sorte und lehnt
+   * eine andere ab (`voucher_invalid`). Am Draht darf sie dort fehlen (die Art
+   * kommt dann aus der Sorte); ein so gelesener Wunsch geht ohne `type` hinaus.
+   */
   type: VoucherType | string;
   valueCents?: number;
   /** Neue Form: Betrag in Cent (Verkauf, Einloesung, Auszahlung). */
@@ -29,7 +35,19 @@ export interface Voucher {
   positions?: number[];
   /** Neue Form, Auszahlung: Grund, 1 bis 200 Zeichen. */
   reason?: string;
+  /**
+   * Neue Form, Wertgutschein verkaufen: die Gutschein-Sorte
+   * (`PosVoucherType.id` aus `getKasseSettings`). Pflicht fuer jeden Verkauf
+   * eines Mehrzweck- oder Einzweckgutscheins (Server: `voucher_type_required`),
+   * an jeder anderen Aktion oder Art verboten. Am gelesenen Eintrag die Sorte
+   * des Verkaufs (fehlt ohne Sorte).
+   */
+  typeId?: string;
   // Nur gelesen (setzt der Server, ein Wunsch traegt sie nie):
+  /** Name der Sorte beim Verkauf (eingefroren). */
+  typeName?: string;
+  /** Auszahlung des verkauften Gutscheins (`allowed`/`never`, eingefroren). */
+  payout?: string;
   voucherType?: string;
   voucherId?: string;
   /** Letzte vier Zeichen des Codes; der Klartext steht nie am Beleg. */
@@ -58,8 +76,13 @@ export interface IssuedVoucher {
   quantity?: number;
   /** Nur bei Leistungsgutscheinen: Name des verkauften Artikels; sonst fehlt das Feld. */
   articleName?: string;
+  /** Verkauf ueber eine Sorte: ihre Kennung und ihr Name; sonst fehlen die Felder. */
+  typeId?: string;
+  typeName?: string;
   validity?: {
     pattern: string;
+    /** Sorte „N Jahre“: die Zahl N (Muster `1+3` fuer jedes N, die Daten gelten); fehlt sonst. */
+    redeemableYears?: number;
     redeemableUntil: string | null;
     refundableUntil: string | null;
     validUntil: string | null;
@@ -94,6 +117,9 @@ export interface VoucherPayload {
   quantity?: number;
   positions?: number[];
   reason?: string;
+  typeId?: string;
+  typeName?: string;
+  payout?: string;
   voucherType?: string;
   voucherId?: string;
   codeSuffix?: string;
@@ -114,13 +140,34 @@ export const NEUE_GUTSCHEINARTEN: readonly string[] = [
   VoucherType.promotion,
 ];
 
-/** Gehoert der Gutschein zur neuen Form (Art oder Aktion `payout`)? */
-export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action'>): boolean {
-  return NEUE_GUTSCHEINARTEN.includes(voucher.type) || voucher.action === VoucherAction.payout;
+/**
+ * Verkauf ueber eine Sorte ohne Art (`typeId` ohne `type`): die Art kommt aus
+ * der Sorte. Zwilling von `gutschein-beleg.istSortenVerkauf`.
+ */
+function istSortenVerkaufOhneArt(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'>): boolean {
+  return voucher.action === VoucherAction.sell && voucher.type == null && voucher.typeId != null;
 }
 
-/** Felder, die nur der Server setzt; an einem Wunsch sind sie `voucher_invalid`. */
-export const GUTSCHEIN_SERVERFELDER = ['voucherId', 'codeSuffix', 'zeroRateBucket', 'voucherType'] as const;
+/** Gehoert der Gutschein zur neuen Form (Art, Aktion `payout` oder Verkauf ueber eine Sorte ohne Art)? */
+export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'>): boolean {
+  return NEUE_GUTSCHEINARTEN.includes(voucher.type) || voucher.action === VoucherAction.payout || istSortenVerkaufOhneArt(voucher);
+}
+
+/**
+ * Wert-Verkauf: ein Mehrzweck- oder Einzweckgutschein wird verkauft (mit Art
+ * oder nur ueber die Sorte). Paketintern: Zahlbetrag und Pruefung vor dem
+ * Senden entscheiden daran, ob eine Sorte noetig ist.
+ */
+export function istWertVerkauf(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'>): boolean {
+  return voucher.action === VoucherAction.sell
+    && (voucher.type === VoucherType.multi_purpose || voucher.type === VoucherType.single_purpose || istSortenVerkaufOhneArt(voucher));
+}
+
+/**
+ * Felder, die nur der Server setzt; an einem Wunsch sind sie `voucher_invalid`.
+ * Sortenname und Auszahlung friert der Server beim Verkauf ein (Stufe 4b).
+ */
+export const GUTSCHEIN_SERVERFELDER = ['voucherId', 'codeSuffix', 'zeroRateBucket', 'voucherType', 'typeName', 'payout'] as const;
 
 /** Welche Serverfelder tragt der Gutschein (leere Liste = keines)? */
 export function voucherServerFields(voucher: Voucher): string[] {
@@ -128,13 +175,15 @@ export function voucherServerFields(voucher: Voucher): string[] {
 }
 
 const NEUE_FELDER = [
-  'amountCents', 'articleId', 'quantity', 'positions', 'reason', 'voucherType', 'voucherId', 'codeSuffix',
+  'amountCents', 'articleId', 'quantity', 'positions', 'reason', 'typeId', 'typeName', 'payout', 'voucherType', 'voucherId', 'codeSuffix',
   'vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt', 'zeroRateBucket',
 ] as const;
 
 export function toVoucherPayload(voucher: Voucher): VoucherPayload {
   const action = requireEnumKey(VoucherAction, voucher.action, 'Gutschein-Aktion');
-  const type = requireEnumKey(VoucherType, voucher.type, 'Gutscheinart');
+  // Verkauf ueber eine Sorte ohne Art: `type` bleibt weg wie im Wunsch (die Art kommt aus der Sorte).
+  const ohneArt = istSortenVerkaufOhneArt(voucher);
+  const type = ohneArt ? undefined : requireEnumKey(VoucherType, voucher.type, 'Gutscheinart');
   // Felder der neuen Form gehen roh hinaus, soweit gesetzt (auch an einem
   // gelesenen Altbeleg: dort fehlen sie, die Nutzlast bleibt byte-gleich).
   const roh = voucher as unknown as Record<string, unknown>;
@@ -142,7 +191,7 @@ export function toVoucherPayload(voucher: Voucher): VoucherPayload {
   for (const feld of NEUE_FELDER) if (roh[feld] != null) neu[feld] = roh[feld];
   return {
     action,
-    type,
+    ...(ohneArt ? {} : { type }),
     // Die neue Form kennt kein `valueCents`; nur ein gelesener Eintrag (die
     // Auszahlung steht beim Server als Wert mit Cent) traegt es weiter.
     ...(isNewFormVoucher(voucher) && voucher.valueCents == null ? {} : { valueCents: voucher.valueCents ?? null }),
@@ -197,14 +246,16 @@ export function fromVoucherPayload(payload: VoucherPayload): Voucher {
       : payload.value != null
         ? euroToCents(payload.value)
         : undefined;
+  // Ein Verkaufswunsch ueber eine Sorte darf ohne Art sein: dann bleibt `type` weg (nicht `undefined`).
+  const ohneArt = payload.type == null && payload.action === VoucherAction.sell && payload.typeId != null;
   return {
     name: payload.name ?? undefined,
     code: payload.code ?? undefined,
     action: readEnumKey(VoucherAction, payload.action),
-    type: readEnumKey(VoucherType, payload.type),
+    ...(ohneArt ? {} : { type: readEnumKey(VoucherType, payload.type as string) }),
     valueCents,
     ...lesenNeu(payload),
-  };
+  } as Voucher;
 }
 
 /** Felder der neuen Form beim Lesen: nur was dasteht (Altbelege bleiben schlank). */
@@ -222,22 +273,45 @@ const MAX_GRUND = 200;
 const istCent = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_BETRAG_CENTS;
 const istMenge = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_STUECK;
 const hatText = (t: unknown): boolean => typeof t === 'string' && t.trim().length > 0;
+/**
+ * Form einer Sorten-Kennung am Wunsch (gutschein-core.ID_MUSTER ohne den
+ * Ausschluss): eine reservierte `__…__` ist der Form nach gueltig, der Server
+ * kennt sie nur nicht (`voucher_type_not_found`), ebenso der Zahlbetrag.
+ */
+const SORTE_ID_FORM = /^[A-Za-z0-9_-]{1,128}$/;
 
 /**
  * Wunsch der neuen Form sendbar? Bildet die Regeln des Servers ab: Serverfelder
  * nie, Betrag/Menge ganz und positiv, Code bei Einloesung und Auszahlung,
  * Auszahlung nur Mehrzweck/Einzweck mit Grund (1 bis 200 Zeichen), Aktion nur
  * einloesbar, Leistung braucht Artikel und Menge (Verkauf) bzw. Positionen
- * (Einloesung). Felder, die zu einer anderen Aktion/Art gehoeren, sind
+ * (Einloesung), ein Wertgutschein wird nur ueber eine Sorte verkauft
+ * (`typeId`). Felder, die zu einer anderen Aktion/Art gehoeren, sind
  * ebenfalls nicht erlaubt (der Server wiese sie ab).
  */
 function newFormVoucherIsValid(v: Voucher): boolean {
+  return wunschFormGueltig(v, true);
+}
+
+/**
+ * Die Form eines Wunschs der neuen Form. `sorteNoetig: false` laesst einen
+ * Wert-Verkauf ohne `typeId` zu: so rechnet der Zahlbetrag den Verkauf eines
+ * Aufrufers bis 1.16 mit der alten Gutschein-Einstellung weiter (der Server ab
+ * Stufe 4b antwortet darauf `voucher_type_required`). Paketintern.
+ */
+export function wunschFormGueltig(v: Voucher, sorteNoetig: boolean): boolean {
   if (voucherServerFields(v).length > 0) return false;
   const r = v as unknown as Record<string, unknown>;
   for (const feld of ['vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt']) {
     if (r[feld] != null) return false;
   }
   if (v.valueCents != null) return false;
+  // Die Sorte gehoert nur an einen Wert-Verkauf (Server: sorteId sonst voucher_invalid).
+  if (istWertVerkauf(v)) {
+    if (v.typeId == null ? sorteNoetig : (typeof v.typeId !== 'string' || !SORTE_ID_FORM.test(v.typeId))) return false;
+    return v.articleId == null && v.quantity == null && v.positions == null && v.reason == null && istCent(v.amountCents);
+  }
+  if (v.typeId != null) return false;
   const allein = v.type === VoucherType.multi_purpose || v.type === VoucherType.single_purpose;
   if (v.action === VoucherAction.payout) {
     return allein && hatText(v.code) && istCent(v.amountCents) && hatText(v.reason) && v.reason!.trim().length <= MAX_GRUND
@@ -246,7 +320,6 @@ function newFormVoucherIsValid(v: Voucher): boolean {
   if (v.reason != null) return false;
   if (allein) {
     if (v.articleId != null || v.quantity != null || v.positions != null) return false;
-    if (v.action === VoucherAction.sell) return istCent(v.amountCents);
     if (v.action === VoucherAction.redeem) return hatText(v.code) && istCent(v.amountCents);
     return false;
   }

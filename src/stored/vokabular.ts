@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "d11de425770bc431be9766199e4c9b3e712eb8e0eea84658f771a0f79d98e90e";
+export const VOKABULAR_QUELLE = "3088cb472f3fef3ed4ff969bf0d37d051363714096616a9263270c58266bde14";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -63,9 +63,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "faceValueCents": "nennwertCents",
           "quantity": "stueck",
           "articleName": "artikelName",
+          "typeId": "sorteId",
+          "typeName": "sorteName",
           "validity": {
             "__": "gueltigkeit",
             "pattern": "muster",
+            "redeemableYears": "jahre",
             "redeemableUntil": "einloesbarBis",
             "refundableUntil": "rueckzahlbarBis",
             "validUntil": "gueltigBis"
@@ -213,20 +216,72 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       "vouchers": {
         "__": "gutscheine",
         "sale": "verkauf",
+        "typeSale": "sortenVerkauf",
         "valueVoucherType": "wertArt",
         "vatRateBp": "satzBp",
         "label": {
           "__": "etikett",
           "size": "groesse",
+          "rotation": "drehung",
           "fields": {
             "__": "felder",
             "business": "betrieb",
             "value": "wert",
             "validity": "gueltigkeit",
-            "checkPage": "pruefseite"
+            "checkPage": "pruefseite",
+            "designation": "bezeichnung"
           },
           "freeText": "freitext"
-        }
+        },
+        "labelDefault": {
+          "__": "etikettStandard",
+          "size": "groesse",
+          "rotation": "drehung",
+          "fields": {
+            "__": "felder",
+            "business": "betrieb",
+            "value": "wert",
+            "validity": "gueltigkeit",
+            "checkPage": "pruefseite",
+            "designation": "bezeichnung"
+          },
+          "freeText": "freitext"
+        },
+        "types": [
+          {
+            "__": "sorten",
+            "kind": "art",
+            "vatRateBp": "satzBp",
+            "amount": {
+              "__": "betrag",
+              "mode": "modus"
+            },
+            "validity": {
+              "__": "gueltigkeit",
+              "pattern": "muster",
+              "years": "jahre"
+            },
+            "payout": "auszahlung",
+            "label": {
+              "__": "etikett",
+              "size": "groesse",
+              "rotation": "drehung",
+              "fields": {
+                "__": "felder",
+                "business": "betrieb",
+                "value": "wert",
+                "validity": "gueltigkeit",
+                "checkPage": "pruefseite",
+                "designation": "bezeichnung"
+              },
+              "freeText": "freitext"
+            },
+            "order": "reihenfolge",
+            "active": "aktiv",
+            "soldCount": "verkauft"
+          }
+        ],
+        "serviceArticles": "leistungsArtikel"
       }
     },
     "werte": {
@@ -281,6 +336,18 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       "vouchers.valueVoucherType": {
         "mehrzweck": "multi_purpose",
         "einzweck": "single_purpose"
+      },
+      "vouchers.types[].kind": {
+        "$catalog": "GUTSCHEIN_ART"
+      },
+      "vouchers.types[].amount.mode": {
+        "$catalog": "GUTSCHEIN_BETRAG_MODUS"
+      },
+      "vouchers.types[].validity.pattern": {
+        "$catalog": "GUTSCHEIN_SORTE_MUSTER"
+      },
+      "vouchers.types[].payout": {
+        "$catalog": "GUTSCHEIN_AUSZAHLUNG"
       }
     }
   },
@@ -291,6 +358,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "__": "articles",
           "quantityRule": "mengenregel",
           "askQuantity": "mengeFragen",
+          "serviceVoucher": "gutscheinLeistung",
           "maxQuantity": "maxMenge",
           "tile": {
             "__": "kasse",
@@ -334,6 +402,7 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "askQuantity",
   "maxQuantity",
   "revenueGroupId",
+  "serviceVoucher",
   "active",
   "groupId",
   "tile",
@@ -495,10 +564,22 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "leistung": "service",
     "aktion": "promotion"
   },
+  "GUTSCHEIN_AUSZAHLUNG": {
+    "erlaubt": "allowed",
+    "nie": "never"
+  },
+  "GUTSCHEIN_BETRAG_MODUS": {
+    "frei": "free",
+    "fix": "fixed"
+  },
   "GUTSCHEIN_MUSTER": {
     "unbefristet": "unlimited",
     "1+3": "1+3",
     "frei": "custom"
+  },
+  "GUTSCHEIN_SORTE_MUSTER": {
+    "unbefristet": "unlimited",
+    "jahre": "years"
   },
   "KASSE_BETRIEB_WERTE.cardProvider": {
     "keiner": "none",

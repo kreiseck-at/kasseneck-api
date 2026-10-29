@@ -65,7 +65,10 @@ const NACH_1_0 = {
     // Gutscheine an der Kasse (1.12.0)
     'voucher_error.not_found', 'voucher_error.invalid', 'voucher_error.invalid_code', 'voucher_error.expired', 'voucher_error.used_up', 'voucher_error.blocked', 'voucher_error.cancelled', 'voucher_error.insufficient_balance', 'voucher_error.exceeds_total', 'voucher_error.balance_changed', 'voucher_error.rate_mismatch', 'voucher_error.item_mismatch', 'voucher_error.already_used', 'voucher_error.partial_cancel', 'voucher_error.settings_missing', 'voucher_error.too_many_checks', 'voucher_error.sale_off',
     // Gutscheine an der Kasse, Stufe 3 (1.13.0)
-    'voucher.reentry_needed', 'voucher.reentry_mismatch', 'voucher.not_this_voucher', 'voucher.reentry_no_permission', 'voucher.already_covered', 'voucher.payout_reason_too_long', 'voucher.payout_reason_missing', 'voucher.payout_check_first', 'voucher.sale_max_amount', 'voucher.sale_not_at_terminal', 'voucher.no_redeem_with_sale', 'voucher.code_not_on_receipt', 'cancellation.voucher_sale_cancelled', 'cancellation.promo_valid_again'],
+    'voucher.reentry_needed', 'voucher.reentry_mismatch', 'voucher.not_this_voucher', 'voucher.reentry_no_permission', 'voucher.already_covered', 'voucher.payout_reason_too_long', 'voucher.payout_reason_missing', 'voucher.payout_check_first', 'voucher.sale_max_amount', 'voucher.sale_not_at_terminal', 'voucher.no_redeem_with_sale', 'voucher.code_not_on_receipt', 'cancellation.voucher_sale_cancelled', 'cancellation.promo_valid_again',
+    // Gutschein-Sorten (1.17.0)
+    'voucher_error.type_required', 'voucher_error.type_not_found', 'voucher_error.amount_mismatch', 'voucher_error.service_not_allowed', 'voucher_error.payout_not_allowed',
+    'voucher.type_changed'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -117,7 +120,9 @@ const NACH_1_0 = {
     'nav.fullscreen', 'nav.fullscreen_exit',
     // Ausgaben eines Belegs am Belegdetail (1.14.0)
     'receipt.outputs_title', 'receipt.outputs_count', 'receipt.output_print', 'receipt.output_reprint', 'receipt.output_email',
-    'receipt.output_link_shared', 'receipt.output_pdf_shared', 'receipt.output_opened', 'receipt.output_failed'],
+    'receipt.output_link_shared', 'receipt.output_pdf_shared', 'receipt.output_opened', 'receipt.output_failed',
+    // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (1.17.0)
+    'voucher.tab', 'voucher.enter_amount', 'voucher.service_tile', 'voucher.kind_multi_short', 'voucher.kind_single_short'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

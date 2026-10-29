@@ -87,7 +87,7 @@ const ABNEHMER: Record<string, string> = {
   'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
   'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
   'receipt-due-generated.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',
-  'receipt-due-voucher-generated.json': '480 vom Backend-Code (gutschein-beleg.plane) gerechnete Zahlbetrag-Faelle mit Gutscheinen der neuen Form: Dart receiptDueCents mit voucherInfo (Betrag, Toepfe, Abweisungscode)',
+  'receipt-due-voucher-generated.json': '480 vom Backend-Code (gutschein-beleg.plane) gerechnete Zahlbetrag-Faelle mit Gutscheinen der neuen Form: Dart receiptDueCents mit voucherInfo und voucherTypes (Betrag, Toepfe, Abweisungscode)',
   'stocktake-quantity-cases.json': 'Prueffaelle parseQuantityMilli (Inventur zaehlen): Dart-Zwilling (gleiche Faelle); kasseneck-web apps/kasse (Mengen-Eingabe)',
   'receipt-due-errors.json': 'nicht rechenbare Zahlbetrag-Eingaben (ReceiptDueError, code receipt_due_unavailable, reason je Fall): Dart-Zwilling receiptDueCents; kasseneck-web apps/kasse (Absage vor dem Terminal)',
 };

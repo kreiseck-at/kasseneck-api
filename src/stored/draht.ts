@@ -153,12 +153,17 @@ function belegRueckgabeNachAussen(beleg: Objekt): Objekt {
 
 // ---- Gutschein-Eintraege am Beleg ---------------------------------------------
 
-/** Zwilling von `BELEG_GUTSCHEIN` (api-vokabular-v3): aussen -> innen. */
+/**
+ * Zwilling von `BELEG_GUTSCHEIN` (api-vokabular-v3): aussen -> innen. Sorte,
+ * Sortenname und Auszahlung friert der Server beim Verkauf ueber eine Sorte
+ * ein (Gutscheine Stufe 4b); die Auszahlung traegt dazu einen Wert aus dem
+ * Katalog `GUTSCHEIN_AUSZAHLUNG` (erlaubt/nie).
+ */
 const BELEG_GUTSCHEIN: Readonly<Record<string, string>> = {
   voucherType: 'art', voucherId: 'gutscheinId', codeSuffix: 'codeEnde', amountCents: 'betragCents', vatRateBp: 'satzBp',
   article: 'artikel', articleId: 'artikelId', quantity: 'stueck', positions: 'positionen',
   balanceAfterCents: 'saldoNachCents', remainingQuantityAfter: 'stueckOffenNach', taxedWith: 'versteuertMit', exempt: 'befreit',
-  reason: 'grund', zeroRateBucket: 'imNullTopf',
+  reason: 'grund', zeroRateBucket: 'imNullTopf', typeId: 'sorteId', typeName: 'sorteName', payout: 'auszahlung',
 };
 const BELEG_GUTSCHEIN_AUSSEN: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(BELEG_GUTSCHEIN).map(([aussen, innen]) => [innen, aussen]));
 const GUTSCHEIN_ARTIKEL_AUSSEN: Readonly<Record<string, string>> = { satzBp: 'vatRateBp', preisCents: 'priceCents' };
@@ -171,6 +176,7 @@ function umbenannt(o: Objekt, namen: Readonly<Record<string, string>>): Objekt {
 function gutscheinEintragNachAussen(v: unknown): unknown {
   if (!istObjekt(v)) return v;
   const art = KATALOGE.GUTSCHEIN_ART ?? {};
+  const auszahlung = KATALOGE.GUTSCHEIN_AUSZAHLUNG ?? {};
   const typNeu = typeof v.type === 'string' && hat(art, v.type);
   if (!typNeu && !Object.keys(v).some((k) => hat(BELEG_GUTSCHEIN_AUSSEN, k))) return v;
   const raus: Objekt = {};
@@ -178,6 +184,7 @@ function gutscheinEintragNachAussen(v: unknown): unknown {
     if (k === 'type') raus.type = typNeu ? art[w as string] : w;
     else if (k === 'art') raus.voucherType = typeof w === 'string' && hat(art, w) ? art[w] : w;
     else if (k === 'artikel') raus.article = istObjekt(w) ? umbenannt(w, GUTSCHEIN_ARTIKEL_AUSSEN) : w;
+    else if (k === 'auszahlung') raus.payout = typeof w === 'string' && hat(auszahlung, w) ? auszahlung[w] : w;
     else raus[hat(BELEG_GUTSCHEIN_AUSSEN, k) ? BELEG_GUTSCHEIN_AUSSEN[k]! : k] = w;
   }
   return raus;

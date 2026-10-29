@@ -128,7 +128,7 @@
   ],
   "zwilling": {
     "src/stored/bon-layout.ts": "a032c4c58d794fab0cf97cfe0be74ead3842ec6201d4318bbd554e8360561bbe",
-    "src/stored/draht.ts": "bad11b4e69bcb977c4f9f4144163525e61a0f48ab476e99926bc84ce546739bb",
+    "src/stored/draht.ts": "0ee4a3f9e48f6704aee7b328cdc7d2639bf5841440cb2796b8e059a7a1b307e0",
     "src/stored/einstellungen.ts": "4fff519b2f02b72b0315a5ea7896e928b6a163898dd91b1841c231db7a425695",
     "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }

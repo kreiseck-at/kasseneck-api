@@ -55,7 +55,7 @@ import {
   type VoucherPayload,
 } from '../src/models/index.js';
 import { KeckPaymentMethod } from '../src/enums/index.js';
-import { receiptDueCents, type ReceiptDueOptions, type VoucherDueArticle, type VoucherDueInfo } from '../src/receipt/due.js';
+import { receiptDueCents, type ReceiptDueOptions, type VoucherDueArticle, type VoucherDueInfo, type VoucherDueType } from '../src/receipt/due.js';
 import { getReportV2 } from '../src/client/reports.js';
 import * as wurzel from '../src/index.js';
 import { randUndAnmeldung } from './kassenweg-codes.js';
@@ -225,20 +225,22 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
  * Was die Kasse vor dem Senden ueber die Gutscheine eines Falls weiss: je
  * Einloesung/Auszahlung die Pruefung (checkVoucher), zurueckgerechnet aus dem
  * gelesenen Eintrag (Saldo davor = Saldo danach + Betrag), dazu fuer Verkaeufe
- * die Gutschein-Einstellung (Einzweck-Satz) und den Artikel (Leistung).
+ * die Sorte (Art und Satz, wie getKasseSettings `vouchers.types[]`) und den
+ * Artikel (Leistung).
  */
 function gutscheinWelt(fall: Fall): ReceiptDueOptions {
   const wuensche = (fall.params.vouchers ?? []) as Json[];
   const gelesen = (fall.response.data?.receipt?.vouchers ?? []) as Json[];
   const voucherInfo: VoucherDueInfo[] = [];
   const voucherArticles: VoucherDueArticle[] = [];
-  let voucherSettings: ReceiptDueOptions['voucherSettings'];
+  const voucherTypes: VoucherDueType[] = [];
   wuensche.forEach((w, i) => {
     const g = gelesen[i];
     if (g == null || g.voucherType == null) return;
     if (w.action === 'sell') {
-      if (g.voucherType === 'single_purpose') voucherSettings = { sale: true, valueVoucherType: 'single_purpose', vatRateBp: g.vatRateBp };
-      if (g.voucherType === 'multi_purpose') voucherSettings = { sale: true, valueVoucherType: 'multi_purpose', vatRateBp: null };
+      if (g.voucherType === 'single_purpose' || g.voucherType === 'multi_purpose') {
+        voucherTypes.push({ id: w.typeId, kind: g.voucherType, vatRateBp: g.voucherType === 'single_purpose' ? g.vatRateBp : null, amount: { mode: 'free' } });
+      }
       if (g.voucherType === 'service') voucherArticles.push({ id: g.article.id, priceCents: g.article.priceCents, vatRateBp: g.article.vatRateBp });
       return;
     }
@@ -253,7 +255,7 @@ function gutscheinWelt(fall: Fall): ReceiptDueOptions {
     if (g.voucherType === 'promotion') check.discountCents = g.valueCents;
     voucherInfo.push({ code: w.code, check: check as VoucherDueInfo['check'] });
   });
-  return { voucherInfo, voucherArticles, ...(voucherSettings ? { voucherSettings } : {}) };
+  return { voucherInfo, voucherArticles, voucherTypes };
 }
 
 test('Zahlbetrag-Zwilling: jede angenommene Zahlungsliste ist genau receiptDueCents', () => {

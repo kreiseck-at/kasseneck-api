@@ -2,7 +2,7 @@
 /**
  * Erzeugt `fixtures/receipt-due-voucher-generated.json`: Rechenfaelle fuer den
  * Zahlbetrag mit Gutscheinen der neuen Form (`receiptDueBreakdown` mit
- * `voucherInfo`, `voucherSettings`, `voucherArticles`, `smallBusiness`,
+ * `voucherInfo`, `voucherTypes`, `voucherArticles`, `smallBusiness`,
  * `today`), gerechnet mit dem **echten Backend-Code** in der Reihenfolge von
  * `createReceipt`: `interneForm`, Trinkgeld (`tip-core.buildTipItems`, hinten
  * angehaengt), `gutschein-beleg.plane`, dann `gutschein-beleg.zahlbetrag`
@@ -10,6 +10,16 @@
  *
  * Abgewiesene Faelle tragen den Code von `plane` (`voucher_*`); der Zwilling
  * muss genau diesen Code in `voucherErrorCode` liefern.
+ *
+ * Wertgutscheine verkauft der Server seit Gutscheine Stufe 4b nur ueber eine
+ * Sorte (`sorteId`, aussen `typeId`): die Faelle tragen die Sorte als
+ * Dokument (`sorten` fuer `plane`) und so, wie `getKasseSettings` sie der
+ * Kasse zeigt (`voucherTypes`). Frei und fix, mit und ohne Art am Wunsch, dazu
+ * die Abweisungen unbekannte Sorte, falscher Fixbetrag und andere Art (beide
+ * `voucher_amount_mismatch`: die Sorte gilt als geaendert) und Verkauf ohne
+ * Sorte; Auszahlungen mit gesperrter Auszahlung (`nie`). Nach den zufaelligen
+ * Faellen stehen feste: eine Einloesung, deren Art nicht zur Pruefung passt
+ * (`voucher_invalid`).
  *
  * Der Stichtag des 0-%-Topfs wird nicht verstellt: Faelle „nach dem Stichtag“
  * rechnen mit `heute` = 2100-01-04 gegen das echte `NULLTOPF_AB`.
@@ -22,7 +32,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
-const SEED = 20261019;
+const SEED = 20261027;
 const ANZAHL = 480;
 const backend = resolve(process.env.KASSENECK_BACKEND ?? '../kasseneck');
 const kern = (datei) => resolve(backend, 'functions/gemeinsam', datei);
@@ -55,9 +65,12 @@ const ART = { mehrzweck: 'multi_purpose', einzweck: 'single_purpose', leistung: 
 const VOR = '2026-10-19';
 const NACH = '2100-01-04';
 
+const AUSZAHLUNG = { erlaubt: 'allowed', nie: 'never' };
+
 /** Was checkVoucher der Kasse von einem Gutschein-Dokument zeigt. */
 function pruefung(g) {
   const p = { type: ART[g.art], status: 'active', codeSuffix: g.codeEnde };
+  if (g.auszahlung != null) p.payout = AUSZAHLUNG[g.auszahlung];
   if (g.saldoCents != null) p.balanceCents = g.saldoCents;
   if (g.satzBp != null) p.vatRateBp = g.satzBp;
   if (g.stueckOffen != null) p.remainingQuantity = g.stueckOffen;
@@ -83,8 +96,8 @@ function fall(i) {
   const server = [];
   const wunsch = [];
   const voucherInfo = [];
-  let einstellung = null;
-  let voucherSettings;
+  const sorten = {};
+  let voucherTypes;
   let voucherArticles;
   let n = 0;
   const neu = (art, extra) => {
@@ -108,9 +121,33 @@ function fall(i) {
     server.push({ type: art, action: 'redeem', code, gutscheinId: id, betragCents: betrag });
     wunsch.push({ type: ART[art], action: 'redeem', code, amountCents: betrag });
   };
-  const einstellen = (art, satzBp) => {
-    einstellung = { bestaetigtAt: 1, wertArt: art, satzBp, gueltigkeit: 'unbefristet' };
-    voucherSettings = { sale: true, valueVoucherType: ART[art], vatRateBp: satzBp };
+  /**
+   * Wert-Verkauf ueber eine Sorte: Dokument fuer den Server, Sicht der Kasse
+   * (meist bekannt, sonst voucher_type_not_found), Wunsch mit oder ohne Art.
+   */
+  const verkaufen = (art) => {
+    const satzBp = art === 'einzweck' ? Math.round(eins(SAETZE) * 100) : null;
+    const fix = ja(0.4);
+    const betrag = fix ? { modus: 'fix', cents: ganz(100, 9000) } : { modus: 'frei' };
+    // Meist der Fixbetrag, selten ein anderer (voucher_amount_mismatch).
+    const c = fix ? (ja(0.75) ? betrag.cents : betrag.cents + ganz(1, 50)) : ganz(1, 9000);
+    const id = `vt_${art}_${i}`;
+    const daten = {
+      name: 'Geschenkgutschein', art, ...(satzBp != null ? { satzBp } : {}), betrag,
+      gueltigkeit: ja(0.5) ? { muster: 'unbefristet' } : { muster: 'jahre', jahre: ganz(1, 5) },
+      auszahlung: 'erlaubt', reihenfolge: 0, aktiv: true, verkauft: 0,
+    };
+    if (ja(0.92)) {
+      sorten[id] = daten;
+      voucherTypes = [...(voucherTypes ?? []), { id, kind: ART[art], vatRateBp: satzBp, amount: fix ? { mode: 'fixed', cents: betrag.cents } : { mode: 'free' } }];
+    }
+    // Art am Wunsch: oft gleich der Sorte, manchmal weggelassen, selten falsch (voucher_amount_mismatch).
+    const wahl = r();
+    const typ = wahl < 0.45 ? art : wahl < 0.95 ? null : (art === 'mehrzweck' ? 'einzweck' : 'mehrzweck');
+    // Selten ganz ohne Sorte (nur mit Art, sonst waere es kein Wunsch der neuen Form): voucher_type_required.
+    const ohneSorte = typ != null && ja(0.05);
+    server.push({ action: 'sell', ...(typ != null ? { type: typ } : {}), ...(ohneSorte ? {} : { sorteId: id }), betragCents: c });
+    wunsch.push({ action: 'sell', ...(typ != null ? { type: ART[typ] } : {}), ...(ohneSorte ? {} : { typeId: id }), amountCents: c });
   };
   if (szenario === 'single_purpose') einloesen('einzweck');
   if (szenario === 'multi_purpose') einloesen('mehrzweck');
@@ -129,18 +166,8 @@ function fall(i) {
     wunsch.push({ type: 'promotion', action: 'redeem', code });
   }
   if (szenario.startsWith('sell_') || szenario.startsWith('payout_')) items.length = ja(0.5) ? 0 : Math.min(items.length, 1);
-  if (szenario === 'sell_multi_purpose') {
-    if (ja(0.9)) einstellen('mehrzweck', null);
-    const c = ganz(1, 9000);
-    server.push({ type: 'mehrzweck', action: 'sell', betragCents: c });
-    wunsch.push({ type: 'multi_purpose', action: 'sell', amountCents: c });
-  }
-  if (szenario === 'sell_single_purpose') {
-    if (ja(0.9)) einstellen('einzweck', Math.round(eins(SAETZE) * 100));
-    const c = ganz(1, 9000);
-    server.push({ type: 'einzweck', action: 'sell', betragCents: c });
-    wunsch.push({ type: 'single_purpose', action: 'sell', amountCents: c });
-  }
+  if (szenario === 'sell_multi_purpose') verkaufen('mehrzweck');
+  if (szenario === 'sell_single_purpose') verkaufen('einzweck');
   if (szenario === 'sell_service') {
     const preis = ganz(1, 9000);
     const satz = eins(SAETZE);
@@ -158,7 +185,9 @@ function fall(i) {
     items.length = 0;
     const art = szenario === 'payout_multi_purpose' ? 'mehrzweck' : 'einzweck';
     const c = ganz(1, 5000);
-    const { id, code } = neu(art, { saldoCents: c + ganz(0, 100), ...(art === 'einzweck' ? { satzBp: Math.round(eins(SAETZE) * 100) } : {}) });
+    // Gutscheine einer Sorte tragen ihre Auszahlung; selten gesperrt (voucher_payout_not_allowed).
+    const auszahlung = ja(0.5) ? {} : { auszahlung: ja(0.2) ? 'nie' : 'erlaubt' };
+    const { id, code } = neu(art, { saldoCents: c + ganz(0, 100), ...auszahlung, ...(art === 'einzweck' ? { satzBp: Math.round(eins(SAETZE) * 100) } : {}) });
     server.push({ type: art, action: 'payout', code, gutscheinId: id, betragCents: c, grund: 'Goodwill' });
     wunsch.push({ type: ART[art], action: 'payout', code, amountCents: c, reason: 'Goodwill' });
   }
@@ -166,14 +195,14 @@ function fall(i) {
 
   const input = { receiptType: 'standard', items, vouchers: wunsch, today };
   if (voucherInfo.length > 0) input.voucherInfo = voucherInfo;
-  if (voucherSettings) input.voucherSettings = voucherSettings;
+  if (voucherTypes) input.voucherTypes = voucherTypes;
   if (voucherArticles) input.voucherArticles = voucherArticles;
   if (smallBusiness) input.smallBusiness = true;
   if (items.some((p) => p.kind == null) && ja(0.3)) {
     input.tipRecipient = ja(0.5) ? 'owner' : 'staff';
     input.tip = ganz(1, 500);
   }
-  return { name: `gen_voucher_${i}_${szenario}`, input, server: { vouchers: server, gutscheine, einstellung } };
+  return { name: `gen_voucher_${i}_${szenario}`, input, server: { vouchers: server, gutscheine, sorten } };
 }
 
 const tief = (x) => JSON.parse(JSON.stringify(x));
@@ -193,7 +222,7 @@ function rechne({ input, server }) {
     alle = [...alle, ...gebaut.items];
   }
   const plan = gutscheinBeleg.plane({
-    items: alle, vouchers: tief(server.vouchers), gutscheine: server.gutscheine, einstellung: server.einstellung,
+    items: alle, vouchers: tief(server.vouchers), gutscheine: server.gutscheine, sorten: server.sorten,
     heute: input.today, receiptType: input.receiptType, kleinunternehmer: input.smallBusiness === true,
   });
   if (plan.fehler) return { voucherError: plan.fehler };
@@ -209,7 +238,30 @@ function rechne({ input, server }) {
   };
 }
 
-const cases = Array.from({ length: ANZAHL }, (_, i) => fall(i)).map((f) => ({ name: f.name, input: f.input, expected: rechne(f) }));
+/**
+ * Feste Faelle nach den zufaelligen (die Folge des Seeds bleibt gleich): eine Einloesung, deren Art nicht zur Pruefung
+ * passt, bleibt `voucher_invalid` – nur ein Sorten-Verkauf mit anderer Art ist `voucher_amount_mismatch`.
+ */
+function feste() {
+  const code = CODES[0];
+  const codeEnde = code.replace(/-/g, '').slice(-4);
+  const items = [{ name: 'P', quantity: 1, priceCents: 2000, vatRate: 20 }];
+  const faelle = [
+    { wunschArt: 'einzweck', g: { art: 'mehrzweck', saldoCents: 5000 } },
+    { wunschArt: 'mehrzweck', g: { art: 'einzweck', satzBp: 2000, saldoCents: 5000 } },
+  ];
+  return faelle.map(({ wunschArt, g: teil }, k) => {
+    const g = { status: 'aktiv', codeEnde, kleinunternehmer: false, gueltigkeit: { muster: 'unbefristet' }, ...teil };
+    return {
+      name: `gen_voucher_${ANZAHL + k}_redeem_wrong_kind`,
+      input: { receiptType: 'standard', items, vouchers: [{ type: ART[wunschArt], action: 'redeem', code, amountCents: 1000 }], today: VOR,
+        voucherInfo: [{ code, check: pruefung(g) }] },
+      server: { vouchers: [{ type: wunschArt, action: 'redeem', code, gutscheinId: 'g0', betragCents: 1000 }], gutscheine: { g0: g }, sorten: {} },
+    };
+  });
+}
+
+const cases = [...Array.from({ length: ANZAHL }, (_, i) => fall(i)), ...feste()].map((f) => ({ name: f.name, input: f.input, expected: rechne(f) }));
 const inhalt = JSON.parse(JSON.stringify({ seed: SEED, cases }, (_k, v) => (Object.is(v, -0) ? 0 : v)));
 const quellen = Object.fromEntries(QUELLEN.map((d) => [d, createHash('sha256').update(readFileSync(kern(d))).digest('hex')]));
 const note = 'Erzeugt von scripts/v3-zahlbetrag-gutscheine-generieren.mjs mit dem echten Backend-Code. Nicht von Hand pflegen.';
