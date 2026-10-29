@@ -83,3 +83,4 @@ export {
   hobexReceiptToCardPaymentData,
   hobexReceiptNeedsSignature,
 } from './hobex-receipt.js';
+export { type Handbeleg, type HandbelegGrund, HANDBELEG_GRUENDE, leseHandbeleg } from './handbeleg.js';
