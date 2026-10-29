@@ -296,7 +296,7 @@ function newFormVoucherIsValid(v: Voucher): boolean {
 /**
  * Die Form eines Wunschs der neuen Form. `sorteNoetig: false` laesst einen
  * Wert-Verkauf ohne `typeId` zu: so rechnet der Zahlbetrag den Verkauf eines
- * Aufrufers von 1.14 mit der alten Gutschein-Einstellung weiter (der Server ab
+ * Aufrufers bis 1.16 mit der alten Gutschein-Einstellung weiter (der Server ab
  * Stufe 4b antwortet darauf `voucher_type_required`). Paketintern.
  */
 export function wunschFormGueltig(v: Voucher, sorteNoetig: boolean): boolean {

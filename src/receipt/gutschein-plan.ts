@@ -277,7 +277,7 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
     if (!isNewFormVoucher(v)) continue;
     if (istWertVerkauf(v) && v.typeId == null) {
       // Wie gutschein-beleg.pruefeWuensche: ein Wert-Verkauf ohne Sorte ist voucher_type_required.
-      // Nur eine alte Gutschein-Einstellung MIT Art (Aufrufer von 1.14) rechnet wie bisher; ein Server ab
+      // Nur eine alte Gutschein-Einstellung MIT Art (Aufrufer bis 1.16) rechnet wie bisher; ein Server ab
       // Stufe 4b schickt `valueVoucherType` immer null, dort hilft kein Neuladen – die Sorte fehlt.
       if (o.voucherSettings?.valueVoucherType == null) return nein('voucher_type_required', `Gutschein ${i + 1}: die Gutschein-Sorte fehlt (typeId).`);
       if (!wunschFormGueltig(v, false)) return nein('voucher_invalid', `Gutschein ${i + 1} ist unvollstaendig.`);

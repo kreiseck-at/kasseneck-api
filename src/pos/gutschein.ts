@@ -19,7 +19,7 @@ export const VOUCHER_KINDS: readonly VoucherKind[] = Object.freeze(['multi_purpo
 export const VOUCHER_STATUSES: readonly VoucherStatus[] = Object.freeze(['active', 'used_up', 'expired', 'paid_out', 'cancelled', 'blocked'] as const);
 // Nur die Muster, die der Server an Gutscheinen nach aussen gibt: eine Sorte mit
 // „N Jahre“ geht fuer jedes N als `1+3` mit den Daten und `redeemableYears` = N hinaus
-// (Nachtrag E1), damit Kassen mit 1.14 beim Einloesen nicht an einem neuen Muster
+// (Nachtrag E1), damit Kassen bis 1.16 beim Einloesen nicht an einem neuen Muster
 // scheitern und „einloesbar bis <Datum>“ drucken.
 const VOUCHER_VALIDITY_PATTERNS = ['unlimited', '1+3', 'custom'] as const;
 
@@ -142,7 +142,7 @@ export interface PosVoucherType {
  * Seit Gutscheine Stufe 4b verkauft eine Kasse ueber Sorten: Reiter und
  * Kacheln zeigt sie mit `typeSale` (und dem Recht `voucherSell`), je Sorte aus
  * `types` und die feste Kachel „Leistungsgutschein“ mit `serviceArticles`.
- * `sale`, `valueVoucherType` und `vatRateBp` gelten nur Kassen vor 1.15; der
+ * `sale`, `valueVoucherType` und `vatRateBp` gelten nur Kassen vor 1.17; der
  * Server schickt `sale` immer als `false`.
  *
  * Die vier neuen Felder sind optional, damit bestehende Literale von
@@ -185,7 +185,7 @@ export const VOUCHER_SETTINGS_DEFAULTS: Readonly<PosVoucherSettings> = Object.fr
  * Sorte noch ein Leistungsartikel da, ist `typeSale` aus (kein leerer Reiter).
  * Eine unbrauchbare Etikett-Vorlage schliesst nichts: sie wird `null`, die
  * Kasse druckt dann ihren Standard (ein Verkauf scheitert nie an der Vorlage).
- * Das alte Feld `label` (Kassen vor 1.15, Ruling R3) liest das Paket nicht.
+ * Das alte Feld `label` (Kassen vor 1.17, Ruling R3) liest das Paket nicht.
  */
 export function posVoucherSettingsFromWire(block: unknown): PosVoucherSettings {
   const zu = (): PosVoucherSettings => ({ ...VOUCHER_SETTINGS_DEFAULTS, types: [] });

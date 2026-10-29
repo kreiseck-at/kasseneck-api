@@ -70,7 +70,7 @@ export type {
 } from '../inventory/typen.js';
 export type { StocktakeStatus } from '../inventory/vertrag.js';
 
-// Gutschein pruefen und Etikett nachdrucken an der Kasse; Gutschein-Sorten (Stufe 4b, 1.15.0).
+// Gutschein pruefen und Etikett nachdrucken an der Kasse; Gutschein-Sorten (Stufe 4b, 1.17.0).
 export {
   VOUCHER_KINDS, VOUCHER_STATUSES, checkVoucher, reprintVoucherLabel, VOUCHER_SETTINGS_DEFAULTS, posVoucherSettingsFromWire,
   VOUCHER_PAYOUTS, VOUCHER_TYPE_KINDS, VOUCHER_AMOUNT_MODES, VOUCHER_TYPE_VALIDITY_PATTERNS,

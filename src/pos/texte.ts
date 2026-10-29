@@ -219,13 +219,13 @@ const MELDUNGEN_ROH = {
   'voucher_error.settings_missing': { text: 'Die Gutschein-Einstellungen fehlen. Bitte die Kasse neu laden.' },
   'voucher_error.too_many_checks': { text: 'Zu viele Versuche. Bitte in einer Stunde wieder.' },
   'voucher_error.sale_off': { text: 'Gutscheine verkaufen geht hier noch nicht.' },
-  // Gutschein-Sorten (Stufe 4b, 1.15.0): Verkauf nur ueber eine Sorte; bei den beiden Satzpaaren laedt die Kasse die Sorten neu.
+  // Gutschein-Sorten (Stufe 4b, 1.17.0): Verkauf nur ueber eine Sorte; bei den beiden Satzpaaren laedt die Kasse die Sorten neu.
   'voucher_error.type_required': { text: 'Bitte eine Gutschein-Sorte wählen.' },
   'voucher_error.type_not_found': { text: 'Diese Gutschein-Sorte gibt es nicht mehr. Die Kasse lädt die Sorten neu.' },
   'voucher_error.amount_mismatch': { text: 'Die Gutschein-Sorte hat sich geändert. Die Kasse lädt die Sorten neu.' },
   'voucher_error.service_not_allowed': { text: 'Dieser Artikel ist nicht als Leistungsgutschein freigegeben.' },
   'voucher_error.payout_not_allowed': { text: 'Dieser Gutschein kann nicht ausgezahlt werden.' },
-  // Satz der Kasse selbst (1.15.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
+  // Satz der Kasse selbst (1.17.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
   // geaendert, deaktiviert oder geloescht). Die Zeile sperrt das Kassieren, bis sie entfernt und neu gewaehlt ist;
   // der Satz nach einer Absage des Servers bleibt voucher_error.type_not_found bzw. voucher_error.amount_mismatch.
   'voucher.type_changed': { text: 'Diese Gutschein-Sorte hat sich geändert. Bitte die Zeile entfernen und die Kachel neu antippen.' },
@@ -1028,7 +1028,7 @@ const BESCHRIFTUNGEN_ROH = {
   'voucher.code_done': { text: 'Fertig' },
   'voucher.article': { text: 'Artikel' },
   'voucher.add': { text: 'Hinzufügen' },
-  // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.15.0): Kachel je Sorte mit Betrag
+  // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.17.0): Kachel je Sorte mit Betrag
   // oder „Betrag eingeben“, darunter klein die Art; dazu die feste Kachel „Leistungsgutschein“.
   'voucher.tab': { text: 'Gutscheine' },
   'voucher.enter_amount': { text: 'Betrag eingeben' },

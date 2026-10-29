@@ -162,7 +162,7 @@ test('Verkauf ohne Sorte: voucher_type_required ohne alte Einstellung oder mit e
     wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: { sale: false, valueVoucherType: null, vatRateBp: null } }), 'voucher_type_required');
     wirft(() => receiptDueCents([], v, 'standard', { voucherSettings: ausVertrag }), 'voucher_type_required');
   }
-  // Eine echte alte Einstellung mit Art rechnet wie 1.14 (Mehrzweck als Fluss, Einzweck im Satz der Einstellung).
+  // Eine echte alte Einstellung mit Art rechnet wie bis 1.16 (Mehrzweck als Fluss, Einzweck im Satz der Einstellung).
   assert.equal(receiptDueCents([], [{ action: 'sell', type: 'multi_purpose', amountCents: 5000 }], 'standard', MEHRZWECK_EIN), 5000);
   assert.deepEqual(receiptDueBreakdown([], [{ action: 'sell', type: 'single_purpose', amountCents: 5000 }], 'standard', { voucherSettings: { sale: false, valueVoucherType: 'single_purpose', vatRateBp: 1000 } }).bucketsCents,
     toepfe({ amountRateReduced1: 5000 }));

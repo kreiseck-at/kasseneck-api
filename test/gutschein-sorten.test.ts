@@ -170,7 +170,7 @@ test('Sorten: ein gelesener Block liest sich wieder gleich (Kassen legen den Sta
   }
 });
 
-test('Sorten: das alte Feld label (Kassen vor 1.15) liest das Paket nicht', () => {
+test('Sorten: das alte Feld label (Kassen vor 1.17) liest das Paket nicht', () => {
   const draht = fall('getKasseSettings', 'owner').response.data.vouchers;
   assert.ok(draht.label, 'der Vertrag traegt das alte Feld');
   assert.equal('label' in posVoucherSettingsFromWire(draht), false);
@@ -410,7 +410,7 @@ test('Zahlbetrag: ein Wert-Verkauf ohne Sorte und ohne alte Einstellung ist vouc
   }
 });
 
-test('Zahlbetrag: Aufrufer von 1.14 mit voucherSettings rechnen den Verkauf ohne Sorte wie bisher', () => {
+test('Zahlbetrag: Aufrufer bis 1.16 mit voucherSettings rechnen den Verkauf ohne Sorte wie bisher', () => {
   const wunsch = v({ action: 'sell', type: 'single_purpose', amountCents: 5000 });
   const o: ReceiptDueOptions = { voucherSettings: { sale: true, valueVoucherType: 'single_purpose', vatRateBp: 1000 } };
   assert.deepEqual(receiptDueBreakdown([], [wunsch], 'standard', o).bucketsCents, toepfe({ amountRateReduced1: 5000 }));
@@ -430,7 +430,7 @@ test('Zahlbetrag: ein Leistungsartikel ohne Freigabe ist voucher_service_not_all
   const wunsch = v({ action: 'sell', type: 'service', articleId: 'art_mani', quantity: 2 });
   const artikel = { id: 'art_mani', priceCents: 3500, vatRateBp: 2000 };
   assert.equal(receiptDueCents([], [wunsch], 'standard', { voucherArticles: [{ ...artikel, serviceVoucher: true }] }), 7000);
-  // Ohne Angabe (Aufrufer von 1.14) rechnet das Paket wie bisher; der Server prueft den Haken selbst.
+  // Ohne Angabe (Aufrufer bis 1.16) rechnet das Paket wie bisher; der Server prueft den Haken selbst.
   assert.equal(receiptDueCents([], [wunsch], 'standard', { voucherArticles: [artikel] }), 7000);
   wirft(() => receiptDueCents([], [wunsch], 'standard', { voucherArticles: [{ ...artikel, serviceVoucher: false }] }), 'voucher_service_not_allowed');
 });

@@ -59,7 +59,7 @@ export { VOUCHER_ZERO_RATE_BUCKET_FROM, type VoucherDueArticle, type VoucherDueI
  * aus seinen Daten liest, gibt die Kasse mit: je Einloesung/Auszahlung die
  * Pruefung aus `checkVoucher` (`voucherInfo`, ueber den Code zugeordnet), fuer
  * einen Wertgutschein-Verkauf die Gutschein-Sorten (`voucherTypes`, Art, Satz,
- * Betrag; seit 1.15.0), fuer einen Leistungsgutschein-Verkauf den Artikel
+ * Betrag; seit 1.17.0), fuer einen Leistungsgutschein-Verkauf den Artikel
  * (`voucherArticles`, Preis und Satz) und `smallBusiness` fuer ein
  * Kleinunternehmer-Konto. Was fehlt oder was der Server abwiese, wirft
  * `invalid_voucher` mit dem erwarteten Server-Code in `voucherErrorCode`.
@@ -105,7 +105,7 @@ export interface ReceiptDueOptions {
    */
   voucherTypes?: readonly VoucherDueType[];
   /**
-   * Alte Gutschein-Einstellung der Kasse (bis 1.14, Block `vouchers` ohne
+   * Alte Gutschein-Einstellung der Kasse (bis 1.16, Block `vouchers` ohne
    * Sorten). Nur noch fuer einen Wert-Verkauf ohne `typeId`: nennt sie eine
    * Art (`valueVoucherType`), rechnet der Zahlbetrag wie bisher (eine andere
    * Art: `voucher_invalid`); ohne sie oder ohne Art – so liest sich der Block
