@@ -4,6 +4,11 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.17.1 - 2026-10-29
+
+- **Contract `v3` gains `fixtures/v3/antworten/berichte.json`** (backend keck#798): `getCashregisterReport` as a binary path, generated from the real handler. A case with `file` is the PDF (HTTP 200, `Content-Type: application/pdf`, the bytes start with `file.startsWith`); every rejection also comes with HTTP 200, as an envelope with a code (`period_not_closed` for the current month and today, `period_in_future`, `invalid_period`). New test `test/v3-berichte-vertrag.test.ts` replays the file through `createBinaryTransport`: the PDF arrives byte for byte, each rejection is a `KasseneckApiError` with the code of the contract and outcome `rejected`. No behaviour change: the binary path always decided on the first bytes. Reason: the Dart twin returned such an envelope as PDF bytes up to 11.8.0 (fixed in 11.8.1); with the case in the contract both packages and the backend are pinned to the same answer, and the Dart twin replays this file too.
+- The other contract files change only `_quelle` (new inputs on the backend side).
+
 ## 1.17.0 - 2026-10-29
 
 Vouchers at the register, stage 4b: voucher types (Gutschein-Sorten). A business names any number of voucher types (multi- or single-purpose, free or fixed amount, validity, payout, label template); the register shows one tile per type in a tab "Gutscheine" and sells a value voucher only through a type. Additive for reading, with three behaviour changes for selling (see the items on `typeId` and the due amount).
