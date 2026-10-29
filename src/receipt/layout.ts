@@ -1290,6 +1290,13 @@ export function buildReceiptLayout(
       lines.push(...pruefangabenBlock(receipt, options.registrationInfo ?? null));
     }
     lines.push({ kind: 'space', lines: 1 });
+    // Sammelbeleg nach Signaturausfall: Beginn und Ende des Ausfalls muessen aus
+    // dem Beleg hervorgehen (Erlass 2019, 3.6.1); der Server legt sie als
+    // legalMessage ab. Andere Nullbelege nennen ihren Anlass schon im Titel.
+    if (receipt.zeroKind === 'outage_end' && receipt.legalMessage.length > 0) {
+      for (const zeile of receipt.legalMessage) lines.push(textZeile(zeile, 'center'));
+      lines.push({ kind: 'space', lines: 1 });
+    }
     if (receiptSignatureFailed(receipt)) {
       lines.push(textZeile(SIGNATUR_AUSGEFALLEN, 'center'));
       lines.push({ kind: 'space', lines: 1 });

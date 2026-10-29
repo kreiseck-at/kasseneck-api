@@ -561,6 +561,14 @@
       "sheet32": "5954814971cd7895e3fb3dcb64531520fde7d35da9341472a9f0dc6e322c4fec",
       "sheet48": "b52661f6e677f522483ba3292095c8765577a96f47536ffd200adb28d3253872"
     },
+    "zero-outage-end-period": {
+      "input": "0ff0bde3cedb53ecd56d560d37a2b4ca32ca2ad95fd280096789159c5fb055c3",
+      "expected": "6be3791d9761fdf3dcd9d4871720e0cb8003f5caccff9c77c300117264fc4d27",
+      "grid32": "27e52cd3cd2d86d77b6b4bb2f6865c0027c3c16ca99140cc7e75c8d3b9bad73b",
+      "grid48": "2b4bf4c54b5d05d64d2e04d7eb1f84287b3178bb36b617ba43e9142e031b9885",
+      "sheet32": "65245c0d4c2c8a7e30487bc4e1efca0a371cb306ee27f80d0f134e90a5f35746",
+      "sheet48": "47832a50ddd7d90fc611eae29d31416f129885937c0ac7d463c6314a246be3aa"
+    },
     "zero-start": {
       "input": "ff025b6484b81293581dd2374d54697ab00c22e7bf55b0524e889ab31f65dbb6",
       "expected": "2b623e9c59ec81ea7f54fd3e8edaf3a1ce95c92d127bc934615b015ec947fd5b",
