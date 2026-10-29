@@ -51,6 +51,9 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * nennt die Position jetzt mit dem Sortennamen (`Geschenkgutschein (Einzweckgutschein 20 %)` statt
  * `Einzweckgutschein 20 %`); gezeichnet wird die Antwort unveraendert. Alle anderen Digests blieben.
  *
+ * Nacherfassung (30.10.2026): 23 neue Golden-Belege `manual-receipt-*` (Block „NACHERFASSUNG“) sind
+ * neu aufgenommen; alle vorhandenen Digests blieben (reine Ergaenzung der Liste `receipts`).
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

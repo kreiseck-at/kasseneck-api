@@ -1139,6 +1139,47 @@ export function receiptIsSmallBusinessConsistent(receipt: Receipt): boolean {
   return receipt.items.every((it) => Number(steuersatz(it.vat).rate) === 0);
 }
 
+/** Grund-Zeile nach einem Ausfall der Kasse; `other` druckt den eigenen Text. */
+const NACHERFASSUNG_GRUND: Readonly<Record<string, string>> = {
+  network_outage: 'Internet', power_outage: 'Strom', device_failure: 'Gerät defekt', system_outage: 'Störung',
+};
+
+/** `YYYY-MM-DD` als `TT.MM.JJJJ`; anderes bleibt, wie es kam. */
+function handbelegDatum(tag: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tag);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : tag;
+}
+
+/**
+ * Block „NACHERFASSUNG“ (manualReceipt) unter dem Kopf: Art, Grund, Nummer
+ * und Tag des Handbelegs bzw. der Handbelege eines Tagessammelbelegs, dazu
+ * der Hinweis, dass der Beleg fuer die USt ein Duplikat ist (Erlass 2019,
+ * 3.3 Faelle 5 und 6, 2.4.11). Der Zeitstempel des Belegs bleibt der der
+ * Nacherfassung und steht wie immer unter „Datum:“. Kleinunternehmer
+ * (keine USt am Beleg) bekommen den USt-Hinweis nicht.
+ */
+function nacherfassungBlock(receipt: Receipt, company: ReceiptCompany): LayoutLine[] {
+  const m = receipt.manualReceipt;
+  if (!m) return [];
+  const aus: LayoutLine[] = [bannerZeile('NACHERFASSUNG')];
+  aus.push(textZeile(m.reason === 'outside_premises' ? 'Leistung außer Haus' : 'nach Ausfall der Kasse', 'center'));
+  const grund = m.reason === 'other' ? m.note : NACHERFASSUNG_GRUND[m.reason];
+  if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
+  aus.push({ kind: 'space', lines: 1 });
+  const tag = handbelegDatum(m.date);
+  if (m.numberTo) {
+    aus.push(textZeile('Tagessammelbeleg', 'center'));
+    aus.push(textZeile(`Handbelege Nr. ${m.number} bis ${m.numberTo}`, 'center'));
+    aus.push(textZeile(`${m.count ? `${m.count} Belege ` : ''}vom ${tag}`, 'center'));
+    if (!company.isSmallBusiness) aus.push(textZeile('USt: Duplikat der Handbelege', 'center'));
+  } else {
+    aus.push(textZeile(`Handbeleg Nr. ${m.number}`, 'center'));
+    aus.push(textZeile(`vom ${tag}${m.time ? `, ${m.time} Uhr` : ''}`, 'center'));
+    if (!company.isSmallBusiness) aus.push(textZeile('USt: Duplikat des Handbelegs', 'center'));
+  }
+  return aus;
+}
+
 /**
  * Belegart-Block unter dem Betriebskopf: Titel als Banner, Untertitel als
  * zentrierte Textzeilen. Verkaufsbelege bekommen keinen Block.
@@ -1226,6 +1267,13 @@ export function buildReceiptLayout(
   if (belegart.length > 0) {
     lines.push({ kind: 'space', lines: 1 });
     lines.push(...belegart);
+  }
+
+  // --- Nacherfassung eines Handbelegs unter dem Kopf, vor den Pflichtangaben
+  const nacherfassung = nullbeleg ? [] : nacherfassungBlock(receipt, company);
+  if (nacherfassung.length > 0) {
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(...nacherfassung);
   }
 
   // --- Nullbeleg: reduziert (§ 132a Abs. 3 BAO / RKSV § 11 Abs. 1 -- Pflichtangaben
