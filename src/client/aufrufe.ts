@@ -65,6 +65,7 @@ export const ALL_CALLS = [
   'listPartnerCustomers',
   'listPartnerWebhookDeliveries',
   'listPartnerWebhooks',
+  'listReceipts',
   'listRegisterUsersForDevice',
   'listRegisterSessionsForDevice',
   'pairRegisterDevice',
@@ -281,6 +282,8 @@ export const PUBLIC_CALLS = [
   'getStocktakePdf',
   'orderSignatureCard',
   'getSignatureCardOrder',
+  // Belege einer Kasse auflisten, nur unter /v3 (Nachfolger von getReportV2 fuer Listen).
+  'listReceipts',
 ] as const;
 
 /**
@@ -517,6 +520,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   listPartnerCustomers: 'read',
   listPartnerWebhookDeliveries: 'read',
   listPartnerWebhooks: 'read',
+  listReceipts: 'read',
   listRegisterSessionsForDevice: 'read',
   listRegisterUsersForDevice: 'read',
   listReservations: 'read',

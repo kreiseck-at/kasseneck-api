@@ -122,7 +122,7 @@ test('Lager-API: INVENTORY_ENDPOINTS sind die 44 Endpunkte von Stufe 5a, 5b, 5c 
   assert.ok(start > 0, 'getArticle fehlt im Vertrag');
   assert.deepEqual([...INVENTORY_ENDPOINTS], oeffentlich.slice(start, start + 44));
   assert.equal(INVENTORY_ENDPOINTS.length, 44);
-  assert.deepEqual(oeffentlich.slice(start + 44), ['orderSignatureCard', 'getSignatureCardOrder'], 'hinter der Lager-API folgt nur die Signaturkarten-Bestellung');
+  assert.deepEqual(oeffentlich.slice(start + 44), ['orderSignatureCard', 'getSignatureCardOrder', 'listReceipts'], 'hinter der Lager-API folgen nur die Signaturkarten-Bestellung und die Belegliste');
   assert.equal(INVENTORY_ENDPOINTS[13], 'listWebhookDeliveries');
   assert.equal(INVENTORY_ENDPOINTS[26], 'listReservations');
   assert.equal(INVENTORY_ENDPOINTS[31], 'addVariant');
