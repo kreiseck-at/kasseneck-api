@@ -12,16 +12,17 @@ import { KasseneckValidationError } from './errors.js';
 import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
 
 /**
- * Bericht-Downloads — Zwilling von `downloadDailyReport`/`downloadMonthlyReport`
- * in kasseneck_api/lib/kasseneck_api.dart (Zeilen 113-128).
+ * Bericht-Downloads — Zwilling von `getCashregisterReport`,
+ * `downloadDailyReport` und `downloadMonthlyReport` in
+ * kasseneck_api/lib/kasseneck_api.dart.
  *
- * **Beide liefern ein PDF, also Binaerdaten.** Das Flutter-Vorbild liest die
- * Antwort als Zeichenkette und nimmt davon `codeUnits`; in JavaScript waere das
- * schlicht falsch — `response.text()` deutet die Bytes als UTF-8 und ersetzt
- * jedes Byte ueber 0x7F durch U+FFFD. Ein so "heruntergeladener" Tagesbericht
- * liesse sich in keinem Betrachter oeffnen. Dieses Paket weicht daher bewusst
- * ab: es liest `arrayBuffer()` und liefert `Uint8Array` (siehe
- * [createBinaryTransport] in transport.ts).
+ * **Alle drei liefern ein PDF, also Binaerdaten.** `response.text()` waere hier
+ * falsch: es deutet die Bytes als UTF-8 und ersetzt jedes Byte ueber 0x7F
+ * durch U+FFFD, ein so "heruntergeladener" Bericht liesse sich in keinem
+ * Betrachter oeffnen. Gelesen wird `arrayBuffer()`, geliefert `Uint8Array`;
+ * eine Ablehnung mit HTTP 200 und Huelle (`period_not_closed`) wird zum Fehler
+ * (siehe [createBinaryTransport] in transport.ts). Der Dart-Zwilling reichte
+ * sie bis 11.8.0 als PDF durch und prueft seit 11.8.1 ebenso die ersten Bytes.
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Keiner der
  * beiden Download-Endpunkte setzt `allowRegisterUser`; sie funktionieren nur
