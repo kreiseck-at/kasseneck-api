@@ -243,9 +243,10 @@ const PARAMETER_WOERTER: ReadonlySet<string> = new Set([
 const PARAMETER_ENGLISCH: ReadonlySet<string> = new Set(`
 actual after alternate article at before binary block body budget business bytes cash cashregister cause cents certificate chars client code
 columns company connect content count customer data date denominations detail details device dimensions discount email endpoint error event
-due expected export extra fallback fetch field fields file font format function grid group header height image index inner instant interface interval
-invoice item items key kind label language last layout logo lookup matrix max message minutes month months mode module name now number options
-out outcome output paper patch payload payment payments price printed query rate raw reason receipt refund report request reservation result rule scheme scope search
+due expected export extra fallback fetch field fields file font format function grid group header height image index inner instant interface
+interval invoice item items key kind label language last layout logo lookup matrix max message minutes mode module month months name now
+number options out outcome output page paper patch payload payment payments price printed query rate raw reason receipt refund report
+request reservation result rule scheme scope search
 secret serial server session setting settings shortcuts size standard status step stocktake stored stripe styles surface table
 target tax terminal text timed timeout tip transport twelfths type unit value values variant version voucher vouchers wanted webhook
 width

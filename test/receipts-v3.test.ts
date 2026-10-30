@@ -68,9 +68,12 @@ import { randUndAnmeldung } from './kassenweg-codes.js';
  * Belege, Storno, Belegmail und Zahlungen am englischen Draht `/v3`, gegen
  * den Vertrags-Export des Backends (fixtures/v3/antworten). Je Fall: was das
  * Paket aus denselben Eingaben sendet, ist der Fall (Parameter), und was es
- * aus der Antwort liest, traegt die englischen Namen. Kanal `api`
- * (api.kasseneck.at/v3, API-Schluessel) ohne Anbieterdaten, Kanal `app`
- * (kasse.kasseneck.at/api/v3, Kassen-Anmeldung) mit.
+ * aus der Antwort liest, traegt die englischen Namen. Anbieterdaten der
+ * Zahlungen bekommt seit Backend 30.10.2026 der Betrieb selbst in beiden
+ * Kanaelen (API-Schluessel unter api.kasseneck.at/v3, Kassen-Anmeldung unter
+ * kasse.kasseneck.at/api/v3), ein Partner-Zugang nie. Der Vertrag entsteht
+ * mit dem Schluessel des Betriebs; die Partner-Sicht bildet [partnerSicht]
+ * nach (dieselbe Regel wie das Backend: Felder heraus, sonst nichts).
  */
 
 type Json = Record<string, any>;
@@ -114,6 +117,20 @@ function antwortAus(fall: Fall): HttpResponseLike {
 }
 
 /** Transport, der auf jeden Aufruf mit der Antwort des Falls antwortet; Kanal nach `fall.path`. */
+/** Ein Vertragsfall, wie ihn ein Partner-Zugang saehe: Belege ohne Anbieterdaten der Zahlungen. */
+function partnerSicht(fall: Fall): Fall {
+  const ohne = (b: Json): Json => {
+    const { cardPaymentId: _i, cardPaymentData: _d, ...rest } = b;
+    if (Array.isArray(rest.payments)) rest.payments = rest.payments.map(({ providerData: _p, providerPaymentId: _q, ...z }: Json) => z);
+    return rest;
+  };
+  const kopie = JSON.parse(JSON.stringify(fall)) as Fall;
+  const daten = kopie.response.data;
+  if (daten?.receipt) daten.receipt = ohne(daten.receipt);
+  if (Array.isArray(daten?.receipts)) daten.receipts = daten.receipts.map(ohne);
+  return kopie;
+}
+
 function wegFuer(fall: Fall, cashregisterId = 'KECK-1') {
   const aufrufe: Mitschrift[] = [];
   const holen: FetchLike = async (url: string, init: HttpRequestInit) => {
@@ -206,12 +223,9 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
       assert.equal(beleg.receiptId, daten.receipt.receiptId);
       assert.equal(beleg.headerVersionId, daten.receipt.headerVersionId);
       assert.equal(beleg.layoutRuleset, daten.receipt.layoutRuleset);
-      // Zahlungen: dieselben Felder wie am Draht; Anbieterdaten nur im Kanal app.
+      // Zahlungen: dieselben Felder wie am Draht, Anbieterdaten eingeschlossen (beide Kanaele, Schluessel des Betriebs).
       const zahlungen = (beleg.payments ?? []).map((z) => ({ ...z, method: typeof z.method === 'object' ? z.method.value : z.method }));
       assert.deepEqual(zahlungen, daten.receipt.payments);
-      for (const z of zahlungen) {
-        if (kanal === 'api') assert.equal(z.providerPaymentId, undefined);
-      }
       if ('company' in ergebnis) {
         const { company, headerVersionId, registrationInfo, testCashregister, testSignature, logoScale } = ergebnis;
         assert.equal(company.taxNumber, daten.taxNumber);
@@ -461,7 +475,7 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
 
 for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) {
   for (const fall of nichtLeer(liste.filter((f) => f.endpoint === 'getReceipt' && f.response.status === 'success'), `${kanal}: getReceipt (Erfolg)`)) {
-    test(`getReceipt ${kanal}/${fall.name}: englische Felder, Anbieterdaten je Kanal`, async () => {
+    test(`getReceipt ${kanal}/${fall.name}: englische Felder, Anbieterdaten fuer den Betrieb`, async () => {
       const { rufen, aufrufe, kasse } = wegFuer(fall);
       const { receipt, company, headerVersionId, registrationInfo } = await getReceiptWithCompany(rufen, fall.params.receiptId);
       assert.deepEqual(gesendet(aufrufe, fall, kasse), fall.params);
@@ -476,18 +490,19 @@ for (const [kanal, liste] of [['api', BELEGE], ['app', KASSE_BELEGE]] as const) 
       if (roh.cancellationOf) assert.deepEqual(receipt.cancellationOf, roh.cancellationOf);
       if (roh.cancellations) assert.deepEqual(receipt.cancellations, roh.cancellations);
       for (const z of receipt.payments ?? []) {
-        assert.equal(z.providerPaymentId !== undefined, kanal === 'app' && z.method === KeckPaymentMethod.creditCard, `${fall.name}: ${JSON.stringify(z)}`);
+        assert.equal(z.providerPaymentId !== undefined, z.method === KeckPaymentMethod.creditCard, `${kanal}/${fall.name}: ${JSON.stringify(z)}`);
       }
     });
   }
 }
 
-test('Karten-Storno: die Kennung der Originalzahlung liest nur der Kassenweg, der Storno geht mit refundOf hinaus', async () => {
+test('Karten-Storno: die Kennung der Originalzahlung liest der Betrieb in beiden Kanaelen, der Storno geht mit refundOf hinaus', async () => {
   const lesen = (liste: Fall[]) => liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!;
-  const oeffentlich = wegFuer(lesen(BELEGE));
-  const ohne = await getReceipt(oeffentlich.rufen, 'KECK-1-ID-2');
-  assert.equal(ohne.payments![0]!.providerPaymentId, undefined);
-  assert.equal(ohne.payments![0]!.providerData, undefined);
+  const partner = await getReceipt(wegFuer(partnerSicht(lesen(BELEGE))).rufen, 'KECK-1-ID-2');
+  assert.equal(partner.payments![0]!.providerPaymentId, undefined);
+  assert.equal(partner.payments![0]!.providerData, undefined);
+  const oeffentlich = await getReceipt(wegFuer(lesen(BELEGE)).rufen, 'KECK-1-ID-2');
+  assert.equal(oeffentlich.payments!.find((z) => z.method === KeckPaymentMethod.creditCard)!.providerPaymentId, 'tx-4711');
 
   const kasse = wegFuer(lesen(KASSE_BELEGE));
   const original = await getReceipt(kasse.rufen, 'KECK-1-ID-2');
@@ -777,8 +792,9 @@ test('receiptLayoutFromResult: Server-Layout gewinnt, fallbackPaperSize gilt nur
   assert.throws(() => receiptLayoutFromResult(ergebnis, { paperSize: 'mm58' } as never), (e: unknown) => isKasseneckValidationError(e) && /paperSize/.test(e.message));
 });
 
-test('Kanal api: das Server-Layout traegt den Kartenblock, den der Beleg ohne Anbieterdaten nicht hat', async () => {
-  const { ergebnis } = (await mitLayout(BELEGE)).find(({ fall }) => fall.name === 'sale_card_with_tip')!;
+test('Partner-Sicht: das Server-Layout traegt den Kartenblock, den der Beleg ohne Anbieterdaten nicht hat', async () => {
+  const fall = partnerSicht(BELEGE.find((f) => f.name === 'sale_card_with_tip')!);
+  const ergebnis = await sellReceiptWithCompany(wegFuer(fall).rufen, verkaufAus(fall.params));
   const text = (l: ReceiptLayout) => JSON.stringify(l.lines);
   assert.ok(text(receiptLayoutFromResult(ergebnis)).includes('Sumup Beleg'));
   const { receipt, company, testCashregister, testSignature, registrationInfo } = ergebnis;
@@ -787,19 +803,22 @@ test('Kanal api: das Server-Layout traegt den Kartenblock, den der Beleg ohne An
 
 // --- Karten-Storno: Kennung der Originalzahlung ---------------------------------------
 
-test('cardRefundReference: Kassenweg liefert die Kennung, der oeffentliche Weg wirft', async () => {
+test('cardRefundReference: der Betrieb bekommt die Kennung in beiden Kanaelen, ohne Anbieterdaten wirft es', async () => {
   const lesen = (liste: Fall[]) => liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!;
-  const kasse = wegFuer(lesen(KASSE_BELEGE));
-  assert.equal(cardRefundReference(await getReceipt(kasse.rufen, 'KECK-1-ID-2'), 'p1'), 'tx-4711');
-  const oeffentlich = wegFuer(lesen(BELEGE));
-  const ohne = await getReceipt(oeffentlich.rufen, 'KECK-1-ID-2');
-  assert.throws(() => cardRefundReference(ohne, 'p1'), (e: unknown) => isKasseneckValidationError(e) && /Kassenweg/.test(e.reason));
+  for (const liste of [KASSE_BELEGE, BELEGE]) {
+    assert.equal(cardRefundReference(await getReceipt(wegFuer(lesen(liste)).rufen, 'KECK-1-ID-2'), 'p1'), 'tx-4711');
+  }
+  const ohne = await getReceipt(wegFuer(partnerSicht(lesen(BELEGE))).rufen, 'KECK-1-ID-2');
+  assert.throws(() => cardRefundReference(ohne, 'p1'), (e: unknown) => isKasseneckValidationError(e) && /ohne Anbieterdaten/.test(e.reason));
   assert.throws(() => cardRefundReference(ohne, 'p9'), (e: unknown) => isKasseneckValidationError(e) && /p9/.test(e.reason));
 });
 
 test('Karten-Storno: Bezug aus der Erstattung oder dem Original, erst ohne beides ein Fehler vor dem Senden', async () => {
   const storno = (kanal: string) => STORNO.find((f) => f.channel === kanal && f.name === 'cancel_full_card_refund')!;
-  const original = async (liste: Fall[]) => getReceipt(wegFuer(liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!).rufen, 'KECK-1-ID-2');
+  const original = async (liste: Fall[], partner = false) => {
+    const fall = liste.find((f) => f.name === 'get_card_receipt_with_cancellation')!;
+    return getReceipt(wegFuer(partner ? partnerSicht(fall) : fall).rufen, 'KECK-1-ID-2');
+  };
   const zahlung = { method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'sumup' as const, providerPaymentId: 'rf-1', providerData: { refund: 'ok' } };
   const ohneKennung = { method: KeckPaymentMethod.creditCard, amountCents: -700, refundOf: 'p1', provider: 'sumup' as const };
 
@@ -810,15 +829,17 @@ test('Karten-Storno: Bezug aus der Erstattung oder dem Original, erst ohne beide
     assert.deepEqual(gesendet(weg.aufrufe, storno(kanal), weg.kasse), storno(kanal).params, kanal);
   }
 
-  // Ohne eigene Kennung: das Original vom Kassenweg traegt tx-4711 und liefert den Bezug.
-  const app = wegFuer(storno('app'));
-  await cancelReceipt(app.rufen, { receipt: await original(KASSE_BELEGE), reason: 'input_error', payments: [ohneKennung] });
-  assert.equal(app.aufrufe.length, 1);
+  // Ohne eigene Kennung: das Original mit Anbieterdaten (beide Kanaele) traegt tx-4711 und liefert den Bezug.
+  for (const [kanal, liste] of [['app', KASSE_BELEGE], ['api', BELEGE]] as const) {
+    const weg = wegFuer(storno(kanal));
+    await cancelReceipt(weg.rufen, { receipt: await original(liste), reason: 'input_error', payments: [ohneKennung] });
+    assert.equal(weg.aufrufe.length, 1, kanal);
+  }
 
-  // Ohne eigene Kennung und mit dem Original vom oeffentlichen Weg (oder ganz ohne Original): kein Bezug.
+  // Ohne eigene Kennung und mit dem Original ohne Anbieterdaten (Partner) oder ganz ohne Original: kein Bezug.
   for (const mitOriginal of [true, false]) {
     const weg = wegFuer(storno('api'));
-    const bezug = mitOriginal ? { receipt: await original(BELEGE) } : { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2' };
+    const bezug = mitOriginal ? { receipt: await original(BELEGE, true) } : { cashregisterId: 'KECK-1', originalReceiptId: 'KECK-1-ID-2' };
     const fehler = await fehlerVon(cancelReceipt(weg.rufen, { ...bezug, reason: 'input_error', payments: [ohneKennung] }));
     assert.ok(isKasseneckValidationError(fehler));
     assert.match(fehler.reason, /ohne Bezug: providerPaymentId der Erstattung/);

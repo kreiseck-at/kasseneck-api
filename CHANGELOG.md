@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.19.0 - 2026-10-30
+## 1.20.0 - 2026-10-30
 
 DEP export for the cash register inspection (*Kassennachschau*): `createDepExport`, `getDepExport`, `waitForDepExport`, `getDepExportFile`, `createDepHandoverLink` and `revokeDepHandoverLink` for the five new public endpoints (`/v3` only). Additive.
 
@@ -16,6 +16,15 @@ DEP export for the cash register inspection (*Kassennachschau*): `createDepExpor
 - **`createDepHandoverLink({ exportId })`** returns `{ linkId, url, code, expiresAt }` (valid 14 days; `url` and the 6-digit `code`, a string with leading zeros, only in this answer), **`revokeDepHandoverLink({ linkId })`** returns `{ linkId, revokedAt }`. Both are `repeatable` like `createDepExport`: a repeated `createDepHandoverLink` makes a second link (the first stays in `getDepExport().handoverLinks` and can be revoked; the price is at most `too_many_links`), `revokeDepHandoverLink` is idempotent. `getDepExport` and `getDepExportFile` are reads.
 - **`DEP_EXPORT_ERROR_CODES`** equal to `errorCodes.depExport` of the contract (order included, every code in `errorCodes.all`; pinned by a test): `validation`, `invalid_period`, `idempotency_conflict`, `export_running`, `too_many_exports`, `export_not_found`, `export_not_ready`, `export_failed`, `invalid_file`, `file_not_available`, `too_many_links`, `link_not_found` (unknown or of another cash register; revoking twice is no error), `server_error` (plus the codes of sign-in and edge). **`DEP_EXPORT_FAILURES`** (`export_failed`, `export_stalled`) equal to the values of the contract catalogue `DEP_EXPORT_FEHLER`. Type `DepExportErrorCode` covers both lists.
 - `PUBLIC_CALLS` is now 113 and `ALL_CALLS`, `CALLS_WITHOUT_EFFECT` know the five calls (two reads, three `repeatable`; `UNKNOWN_OUTCOME_CALLS` unchanged). Contract `v3` re-fetched from the backend (the five endpoints in `endpoints.public`, `v3Routed` and the effect lists; their schemas are empty; `errorCodes.depExport` and `catalogs.DEP_EXPORT_FEHLER`).
+
+## 1.19.0 - 2026-10-30
+
+The full view of `listReceipts` delivers what `getReceipt` delivers (backend 30.10.2026, spec `list-receipts-voll`). Additive for reading.
+
+- **Page of the full view: `headers`, `testCashregister`, `logoScale`.** `headers` (`ListReceiptsHeader`: `headerVersionId`, `company`) has one entry per header version of the page; each receipt's `headerVersionId` names its entry, also for old receipts without a stored id. `metadata` stays (today's company data). Reason: reprinting an old receipt from `metadata` printed today's address and footer.
+- **Receipts of the full view: `ListedFullReceipt`** (`Receipt` plus `testSignature`); `registrationInfo` on zero receipts. No server `layout` in the list: it is the main cost driver of a page (about 2.7 times the size) and only needed for the receipt someone opens or prints, so it stays with `getReceiptWithCompany`. New helper `listedReceiptWithCompany(page, receipt)` returns the `ReceiptWithCompany` of `getReceiptWithCompany` without `outputs` and with `layout: null`; `receiptLayoutFromResult` builds the layout from it. Reason: one way to print and show a receipt, single or from the list.
+- **Provider data follow the caller, not the channel.** The backend now returns `payments[].providerPaymentId`/`providerData` (and `cardPaymentId`/`cardPaymentData` on old card receipts) to the business itself on both channels, in `getReceipt`, `createReceipt`, `cancelReceipt`, `getReportV2` and `listReceipts`; a partner access never. No API change here (the fields were already optional); `cardRefundReference` and the card-refund check now name that rule in their messages. Reason: the restriction to the register channel stopped nobody holding the API key and pushed integrations into the register channel.
+- Contract re-fetched from the backend: provider data now in the `/v3` cases of `belege.json` and `storno.json`, schema of `listReceipts` with the new fields; other files change only `_quelle`.
 
 ## 1.18.0 - 2026-10-30
 
