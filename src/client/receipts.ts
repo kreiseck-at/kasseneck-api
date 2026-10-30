@@ -1344,7 +1344,7 @@ export function cardRefundReference(receipt: Receipt, paymentId: string): string
   if (typeof zahlung.providerPaymentId !== 'string' || zahlung.providerPaymentId === '') {
     throw new KasseneckValidationError(
       'cancelReceipt',
-      `Kennung der Kartenzahlung "${paymentId}" fehlt: sie kommt nur ueber den Kassenweg (registerUserAuth, kasse.kasseneck.at/api/v3), nicht ueber den oeffentlichen Weg`,
+      `Kennung der Kartenzahlung "${paymentId}" fehlt: der Beleg kam ohne Anbieterdaten (sie bekommt nur der Betrieb selbst, mit API-Schluessel oder Kassen-Anmeldung, nie ein Partner-Zugang)`,
       'request',
     );
   }
@@ -1376,7 +1376,7 @@ function pruefeKartenRueckbuchung(zahlungen: Record<string, unknown>[], original
     if (typeof orig?.providerPaymentId === 'string' && orig.providerPaymentId !== '') return;
     throw new KasseneckValidationError(
       'cancelReceipt',
-      `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Bezug: providerPaymentId der Erstattung am Terminal angeben (oder das Original ueber den Kassenweg lesen, dort traegt es die Kennung der Kartenzahlung)`,
+      `Zahlung ${i + 1}: Karten-Rueckbuchung ohne Bezug: providerPaymentId der Erstattung am Terminal angeben (oder das Original mit Anbieterdaten lesen: API-Schluessel des Betriebs oder Kassen-Anmeldung, dort traegt es die Kennung der Kartenzahlung)`,
       'request',
     );
   });

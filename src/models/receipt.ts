@@ -33,9 +33,11 @@ import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayl
  * **Zahlungen stehen in `payments`.** `paymentMethod` vergibt der Server
  * (`mixed` bei mehreren Zahlarten); gesendet wird es unter `/v3` nie. Die
  * Anbieterdaten (`payments[].providerPaymentId`/`providerData`, bei
- * Altbelegen `cardPaymentId`/`cardPaymentData`) liefert nur der Kassenweg
- * (Kanal `app`, `kasse.kasseneck.at/api/v3`); am oeffentlichen Weg fehlen
- * sie. Darum sind sie hier optional.
+ * Altbelegen `cardPaymentId`/`cardPaymentData`) bekommt nur der Betrieb
+ * selbst (API-Schluessel oder Kassen-Anmeldung, in beiden Kanaelen); ein
+ * Partner-Zugang nie. Darum sind sie hier optional. `providerData` ist die
+ * Rohform des Zahlungsanbieters ohne zugesagte Form; fuer Logik `provider`,
+ * `providerPaymentId` und `id` nehmen.
  */
 export interface Receipt {
   receiptId: string;

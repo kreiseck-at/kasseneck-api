@@ -4,6 +4,7 @@ import {
   type CancellationStatus,
   CANCELLATION_STATUSES,
   type Receipt,
+  type ReceiptCompany,
   type ReceiptCompanyPayload,
   type ReceiptPayloadRead,
   type ReceiptPayment,
@@ -14,6 +15,9 @@ import {
   fromReceiptPaymentPayload,
 } from '../models/index.js';
 import type { ReportV2Metadata } from './reports.js';
+import type { ReceiptWithCompany } from './receipts.js';
+import type { ReceiptLayout } from '../receipt/layout.js';
+import type { SheetLogoSize } from '../receipt/blatt.js';
 import { readEnumKey } from '../models/enum-payload.js';
 import { KasseneckValidationError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
@@ -75,6 +79,7 @@ export const LIST_RECEIPTS_ERROR_CODES = Object.freeze([
   'invalid_order', // weder desc noch asc
   'invalid_view', // weder summary noch full
   'invalid_cursor', // veraendert, fremde Kasse, oder Zeitfenster/order/view anders als auf Seite 1
+  'invalid_with_layout', // withLayout kein Boolean, oder true ohne view full
   'server_error',
 ] as const);
 export type ListReceiptsErrorCode = (typeof LIST_RECEIPTS_ERROR_CODES)[number];
@@ -102,6 +107,12 @@ export type ListReceiptsOptions<V extends ListReceiptsView = ListReceiptsView> =
   view?: V;
   /** `nextCursor` der vorigen Seite. */
   cursor?: string;
+  /**
+   * Nur mit `view: 'full'`: je Beleg das Zeilenmodell des Servers (`layout`, wie `getReceipt`).
+   * Ohne Angabe ohne Layout; `false` geht mit jeder Ansicht. Nicht an den Cursor gebunden, darf
+   * also von Seite zu Seite wechseln.
+   */
+  withLayout?: boolean;
 };
 
 /** Zeitfenster von [ListReceiptsOptions]: ein Tag oder ein Zeitraum. */
@@ -169,8 +180,29 @@ export interface ListReceiptsSummary {
   fullReceiptId: string | null;
 }
 
-/** Ein Beleg der Liste je Ansicht: `full` das Belegdokument wie bei `getReportV2`, sonst die Zeile. */
-export type ListedReceipt<V extends ListReceiptsView = 'summary'> = V extends 'full' ? Receipt : ListReceiptsSummary;
+/**
+ * Ein Beleg der vollen Ansicht: das Belegdokument wie bei `getReceipt`, dazu was `getReceipt` in der Huelle
+ * traegt. `headerVersionId` ist die Kopf-Version, die fuer diesen Beleg gilt (auch bei Altbelegen ohne
+ * gespeicherte Kennung); ihr Kopf steht in [ListReceiptsPage.headers]. Anbieterdaten der Zahlungen bekommt
+ * nur der Betrieb selbst (API-Schluessel oder Kassen-Anmeldung), nie ein Partner-Zugang.
+ * Druck- und Anzeigedaten wie bei `getReceiptWithCompany`: [listedReceiptWithCompany].
+ */
+export interface ListedFullReceipt extends Receipt {
+  /** Produktionskonto mit Test-Signatureinheit (Aufdruck TESTSIGNATUR); fehlt bei einem Backend vor dem 30.10.2026. */
+  testSignature?: boolean;
+  /** Nur mit `withLayout: true`: das Zeilenmodell des Servers; `null`, wenn er es fuer diesen Beleg nicht bauen konnte. */
+  layout?: ReceiptLayout | null;
+}
+
+/** Ein Eintrag in [ListReceiptsPage.headers]: Kopf und Fuss einer Kopf-Version (Felder wie die Huelle von `getReceipt`). */
+export interface ListReceiptsHeader {
+  /** `null` nur, wenn das Konto noch keine Kopf-Version hat (dann der heutige Stand). */
+  headerVersionId: string | null;
+  company: ReceiptCompany;
+}
+
+/** Ein Beleg der Liste je Ansicht: `full` das Belegdokument wie bei `getReceipt`, sonst die Zeile. */
+export type ListedReceipt<V extends ListReceiptsView = 'summary'> = V extends 'full' ? ListedFullReceipt : ListReceiptsSummary;
 
 /**
  * Tagessumme aus der Tagesstatistik der Kasse, nur bei `date` und nur auf
@@ -204,6 +236,16 @@ export interface ListReceiptsPage<V extends ListReceiptsView = 'summary'> {
    * `getReportV2().metadata`. Bei der Kurzansicht fehlt das Feld.
    */
   metadata?: V extends 'full' ? ReportV2Metadata : never;
+  /**
+   * Nur bei `view: 'full'`: die Kopf-Versionen der Belege dieser Seite, je Version einmal, aelteste zuerst.
+   * Fuer den Druck gilt der Eintrag mit der `headerVersionId` des Belegs, nicht `metadata` (heutiger Stand).
+   * Fehlt bei einem Backend vor dem 30.10.2026.
+   */
+  headers?: V extends 'full' ? ListReceiptsHeader[] : never;
+  /** Nur bei `view: 'full'`: Belege einer Testumgebung (Aufdruck TESTKASSE), wie `getReceipt`. */
+  testCashregister?: V extends 'full' ? boolean : never;
+  /** Nur bei `view: 'full'`: Groesse des Firmenlogos (`logo_scale`), wie `getReceipt`. */
+  logoScale?: V extends 'full' ? SheetLogoSize : never;
 }
 
 const TAG = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -261,7 +303,7 @@ function antwortfehler(grund: string): KasseneckValidationError {
  */
 function parameter(options: ListReceiptsOptions): Record<string, unknown> {
   if (options == null || typeof options !== 'object') throw eingabefehler('Optionen fehlen (date oder from und to)');
-  const o = options as { date?: unknown; from?: unknown; to?: unknown; limit?: unknown; order?: unknown; view?: unknown; cursor?: unknown };
+  const o = options as { date?: unknown; from?: unknown; to?: unknown; limit?: unknown; order?: unknown; view?: unknown; cursor?: unknown; withLayout?: unknown };
   const raus: Record<string, unknown> = {};
   if (gesetzt(o.date)) {
     if (gesetzt(o.from) || gesetzt(o.to)) throw eingabefehler('entweder date oder from und to angeben, nicht beides');
@@ -299,6 +341,11 @@ function parameter(options: ListReceiptsOptions): Record<string, unknown> {
   if (gesetzt(o.cursor)) {
     if (typeof o.cursor !== 'string' || o.cursor === '') throw eingabefehler('cursor muss der nextCursor der vorigen Seite sein (nicht leerer Text)');
     raus['cursor'] = o.cursor;
+  }
+  if (gesetzt(o.withLayout)) {
+    if (typeof o.withLayout !== 'boolean') throw eingabefehler(`withLayout muss true oder false sein, war "${String(o.withLayout)}"`);
+    if (o.withLayout && o.view !== 'full') throw eingabefehler("withLayout: true geht nur mit view: 'full'");
+    raus['withLayout'] = o.withLayout;
   }
   return raus;
 }
@@ -365,6 +412,56 @@ function kopfdaten(roh: unknown): ReportV2Metadata {
   return { ...fromReceiptCompanyPayload(roh as unknown as ReceiptCompanyPayload), label: typeof label === 'string' ? label : '' };
 }
 
+const LOGO_STUFEN: readonly string[] = ['S', 'M', 'L', 'XL'];
+const istLayout = (w: unknown): w is ReceiptLayout => istObjekt(w) && Array.isArray(w['lines']);
+
+/** Ein Beleg der vollen Ansicht vom Draht: das Belegdokument und die Zusaetze, die `getReceipt` in der Huelle traegt. */
+function vollerBeleg(roh: Record<string, unknown>): ListedFullReceipt {
+  const beleg: ListedFullReceipt = fromReceiptPayload(roh as unknown as ReceiptPayloadRead);
+  if (typeof roh['testSignature'] === 'boolean') beleg.testSignature = roh['testSignature'];
+  if ('layout' in roh) beleg.layout = istLayout(roh['layout']) ? roh['layout'] : null;
+  return beleg;
+}
+
+/** `headers` der vollen Ansicht: je Kopf-Version Kennung und Kopf. */
+function koepfe(roh: unknown): ListReceiptsHeader[] {
+  if (!Array.isArray(roh) || roh.some((h) => !istObjekt(h))) throw antwortfehler('headers ist keine Liste von Kopf-Versionen');
+  return (roh as Record<string, unknown>[]).map((h) => ({
+    headerVersionId: typeof h['headerVersionId'] === 'string' && h['headerVersionId'] !== '' ? h['headerVersionId'] : null,
+    company: fromReceiptCompanyPayload(h as unknown as ReceiptCompanyPayload),
+  }));
+}
+
+/**
+ * Ein Beleg der vollen Ansicht mit den Druck- und Anzeigedaten seiner Seite, in derselben Form wie
+ * `getReceiptWithCompany` (ohne `outputs`, das gibt es nur einzeln): der Kopf der Version des Belegs aus
+ * `headers` (Nullbelege ohne Logo, wie beim Server), Testkennzeichen, Logo-Stufe, das Zeilenmodell, wenn
+ * die Seite mit `withLayout: true` kam. Von einem Backend vor dem 30.10.2026 (ohne `headers`) kommt der
+ * Kopf aus `metadata`, dem heutigen Stand.
+ */
+export function listedReceiptWithCompany(page: ListReceiptsPage<'full'>, receipt: ListedFullReceipt): ReceiptWithCompany {
+  const kennung = receipt.headerVersionId ?? null;
+  const eintrag = page.headers?.find((h) => h.headerVersionId === kennung);
+  let company: ReceiptCompany;
+  if (eintrag) company = { ...eintrag.company };
+  else if (page.metadata) {
+    const { label: _label, ...kopf } = page.metadata;
+    company = kopf;
+  } else company = fromReceiptCompanyPayload({} as ReceiptCompanyPayload);
+  const art = typeof receipt.receiptType === 'object' ? (receipt.receiptType as { value: string }).value : receipt.receiptType;
+  if (art === ReceiptType.zero.value) delete company.logoUrl;
+  return {
+    receipt,
+    company,
+    testCashregister: page.testCashregister === true,
+    testSignature: receipt.testSignature === true,
+    headerVersionId: kennung,
+    layout: receipt.layout ?? null,
+    registrationInfo: receipt.registrationInfo ?? null,
+    logoScale: page.logoScale ?? 'M',
+  };
+}
+
 /**
  * Eine Seite Belege der angemeldeten Kasse (`listReceipts`). Die Eingabe wird
  * vor dem Senden nach den Regeln des Servers geprueft (genau eine Form des
@@ -372,8 +469,9 @@ function kopfdaten(roh: unknown): ReportV2Metadata {
  * `order`, `view`); ein Verstoss wirft [KasseneckValidationError] mit
  * `scope: 'request'`, ohne dass etwas hinausgeht.
  *
- * Mit `view: 'full'` sind die Belege das gespeicherte Belegdokument
- * ([Receipt], dieselbe Form wie `getReportV2`), sonst [ListReceiptsSummary].
+ * Mit `view: 'full'` sind die Belege das gespeicherte Belegdokument mit den
+ * Angaben, die `getReceipt` liefert ([ListedFullReceipt]; Kopf je Version in
+ * `headers`, Zeilenmodell mit `withLayout: true`), sonst [ListReceiptsSummary].
  * Alle Seiten auf einmal: [listAllReceipts].
  */
 export async function listReceipts<V extends ListReceiptsView = 'summary'>(
@@ -395,14 +493,20 @@ export async function listReceipts<V extends ListReceiptsView = 'summary'>(
     throw antwortfehler('nextCursor passt nicht zu hasMore (Text bei hasMore, sonst null)');
   }
   const receipts = (voll
-    ? liste.map((b) => fromReceiptPayload(b as unknown as ReceiptPayloadRead))
+    ? liste.map((b) => vollerBeleg(b as Record<string, unknown>))
     : liste.map((b) => fromListReceiptsSummaryPayload(b as Record<string, unknown>))) as Array<ListedReceipt<V>>;
+  const stufe = daten['logo_scale'];
   return {
     receipts,
     hasMore: daten['hasMore'],
     nextCursor: daten['hasMore'] ? (weiter as string) : null,
     ...('daySummary' in daten ? { daySummary: tagessumme(daten['daySummary']) } : {}),
     ...(voll && 'metadata' in daten ? { metadata: kopfdaten(daten['metadata']) as ListReceiptsPage<V>['metadata'] } : {}),
+    ...(voll && 'headers' in daten ? { headers: koepfe(daten['headers']) as ListReceiptsPage<V>['headers'] } : {}),
+    ...(voll && 'testCashregister' in daten ? { testCashregister: (daten['testCashregister'] === true) as ListReceiptsPage<V>['testCashregister'] } : {}),
+    ...(voll && 'logo_scale' in daten
+      ? { logoScale: (typeof stufe === 'string' && LOGO_STUFEN.includes(stufe) ? stufe : 'M') as ListReceiptsPage<V>['logoScale'] }
+      : {}),
   };
 }
 
