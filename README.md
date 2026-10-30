@@ -643,16 +643,16 @@ for await (const receipt of api.listAllReceipts({ from: '2026-10-01', to: '2026-
   `customProjectId`, `fullReceiptId`); amounts in cents, no items, no layout.
   `full` returns `ListedFullReceipt`: the receipt document as in `getReceipt`
   with `headerVersionId` (the header version that applies, also for old
-  receipts), `testSignature`, `registrationInfo` on zero receipts and, with
-  `withLayout: true`, the server `layout` (`null` if the server could not build
-  it). The page carries `headers` (one entry per header version of the page,
-  oldest first), `testCashregister`, `logoScale` and, as before, `metadata`
-  (today's company data). For printing use the header of the receipt's
-  version, not `metadata`: `listedReceiptWithCompany(page, receipt)` returns
-  the same `ReceiptWithCompany` as `getReceiptWithCompany` (without `outputs`;
-  zero receipts carry no logo). `withLayout: true` only goes with `view: 'full'`;
-  `false` goes with either view. For the PDF use `downloadReceipt` with
-  `fullReceiptId`. `ListReceiptsSummary` is not the `ReceiptSummary` of
+  receipts), `testSignature` and `registrationInfo` on zero receipts, never the
+  server `layout` (that comes only with `getReceiptWithCompany`, for the receipt
+  someone opens or prints). The page carries `headers` (one entry per header
+  version of the page, oldest first), `testCashregister`, `logoScale` and, as
+  before, `metadata` (today's company data). For printing use the header of
+  the receipt's version, not `metadata`: `listedReceiptWithCompany(page,
+  receipt)` returns the `ReceiptWithCompany` of `getReceiptWithCompany` without
+  `outputs` and with `layout: null` (zero receipts carry no logo);
+  `receiptLayoutFromResult` then builds the layout from it. For the PDF use
+  `downloadReceipt` with `fullReceiptId`. `ListReceiptsSummary` is not the `ReceiptSummary` of
   `listMyReceipts` (register path, other fields).
 - **`daySummary`** is only there with `date` and only on the first page
   (`null` when the day has no statistics): `receiptCount` counts every

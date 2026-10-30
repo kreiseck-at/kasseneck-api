@@ -16,7 +16,6 @@ import {
 } from '../models/index.js';
 import type { ReportV2Metadata } from './reports.js';
 import type { ReceiptWithCompany } from './receipts.js';
-import type { ReceiptLayout } from '../receipt/layout.js';
 import type { SheetLogoSize } from '../receipt/blatt.js';
 import { readEnumKey } from '../models/enum-payload.js';
 import { KasseneckValidationError } from './errors.js';
@@ -79,7 +78,6 @@ export const LIST_RECEIPTS_ERROR_CODES = Object.freeze([
   'invalid_order', // weder desc noch asc
   'invalid_view', // weder summary noch full
   'invalid_cursor', // veraendert, fremde Kasse, oder Zeitfenster/order/view anders als auf Seite 1
-  'invalid_with_layout', // withLayout kein Boolean, oder true ohne view full
   'server_error',
 ] as const);
 export type ListReceiptsErrorCode = (typeof LIST_RECEIPTS_ERROR_CODES)[number];
@@ -107,12 +105,6 @@ export type ListReceiptsOptions<V extends ListReceiptsView = ListReceiptsView> =
   view?: V;
   /** `nextCursor` der vorigen Seite. */
   cursor?: string;
-  /**
-   * Nur mit `view: 'full'`: je Beleg das Zeilenmodell des Servers (`layout`, wie `getReceipt`).
-   * Ohne Angabe ohne Layout; `false` geht mit jeder Ansicht. Nicht an den Cursor gebunden, darf
-   * also von Seite zu Seite wechseln.
-   */
-  withLayout?: boolean;
 };
 
 /** Zeitfenster von [ListReceiptsOptions]: ein Tag oder ein Zeitraum. */
@@ -182,16 +174,15 @@ export interface ListReceiptsSummary {
 
 /**
  * Ein Beleg der vollen Ansicht: das Belegdokument wie bei `getReceipt`, dazu was `getReceipt` in der Huelle
- * traegt. `headerVersionId` ist die Kopf-Version, die fuer diesen Beleg gilt (auch bei Altbelegen ohne
- * gespeicherte Kennung); ihr Kopf steht in [ListReceiptsPage.headers]. Anbieterdaten der Zahlungen bekommt
- * nur der Betrieb selbst (API-Schluessel oder Kassen-Anmeldung), nie ein Partner-Zugang.
+ * traegt, ausser `outputs` und dem Zeilenmodell `layout` (die gibt es nur einzeln ueber `getReceipt`).
+ * `headerVersionId` ist die Kopf-Version, die fuer diesen Beleg gilt (auch bei Altbelegen ohne gespeicherte
+ * Kennung); ihr Kopf steht in [ListReceiptsPage.headers]. Anbieterdaten der Zahlungen bekommt nur der Betrieb
+ * selbst (API-Schluessel oder Kassen-Anmeldung), nie ein Partner-Zugang.
  * Druck- und Anzeigedaten wie bei `getReceiptWithCompany`: [listedReceiptWithCompany].
  */
 export interface ListedFullReceipt extends Receipt {
   /** Produktionskonto mit Test-Signatureinheit (Aufdruck TESTSIGNATUR); fehlt bei einem Backend vor dem 30.10.2026. */
   testSignature?: boolean;
-  /** Nur mit `withLayout: true`: das Zeilenmodell des Servers; `null`, wenn er es fuer diesen Beleg nicht bauen konnte. */
-  layout?: ReceiptLayout | null;
 }
 
 /** Ein Eintrag in [ListReceiptsPage.headers]: Kopf und Fuss einer Kopf-Version (Felder wie die Huelle von `getReceipt`). */
@@ -303,7 +294,7 @@ function antwortfehler(grund: string): KasseneckValidationError {
  */
 function parameter(options: ListReceiptsOptions): Record<string, unknown> {
   if (options == null || typeof options !== 'object') throw eingabefehler('Optionen fehlen (date oder from und to)');
-  const o = options as { date?: unknown; from?: unknown; to?: unknown; limit?: unknown; order?: unknown; view?: unknown; cursor?: unknown; withLayout?: unknown };
+  const o = options as { date?: unknown; from?: unknown; to?: unknown; limit?: unknown; order?: unknown; view?: unknown; cursor?: unknown };
   const raus: Record<string, unknown> = {};
   if (gesetzt(o.date)) {
     if (gesetzt(o.from) || gesetzt(o.to)) throw eingabefehler('entweder date oder from und to angeben, nicht beides');
@@ -341,11 +332,6 @@ function parameter(options: ListReceiptsOptions): Record<string, unknown> {
   if (gesetzt(o.cursor)) {
     if (typeof o.cursor !== 'string' || o.cursor === '') throw eingabefehler('cursor muss der nextCursor der vorigen Seite sein (nicht leerer Text)');
     raus['cursor'] = o.cursor;
-  }
-  if (gesetzt(o.withLayout)) {
-    if (typeof o.withLayout !== 'boolean') throw eingabefehler(`withLayout muss true oder false sein, war "${String(o.withLayout)}"`);
-    if (o.withLayout && o.view !== 'full') throw eingabefehler("withLayout: true geht nur mit view: 'full'");
-    raus['withLayout'] = o.withLayout;
   }
   return raus;
 }
@@ -413,13 +399,11 @@ function kopfdaten(roh: unknown): ReportV2Metadata {
 }
 
 const LOGO_STUFEN: readonly string[] = ['S', 'M', 'L', 'XL'];
-const istLayout = (w: unknown): w is ReceiptLayout => istObjekt(w) && Array.isArray(w['lines']);
 
 /** Ein Beleg der vollen Ansicht vom Draht: das Belegdokument und die Zusaetze, die `getReceipt` in der Huelle traegt. */
 function vollerBeleg(roh: Record<string, unknown>): ListedFullReceipt {
   const beleg: ListedFullReceipt = fromReceiptPayload(roh as unknown as ReceiptPayloadRead);
   if (typeof roh['testSignature'] === 'boolean') beleg.testSignature = roh['testSignature'];
-  if ('layout' in roh) beleg.layout = istLayout(roh['layout']) ? roh['layout'] : null;
   return beleg;
 }
 
@@ -434,10 +418,11 @@ function koepfe(roh: unknown): ListReceiptsHeader[] {
 
 /**
  * Ein Beleg der vollen Ansicht mit den Druck- und Anzeigedaten seiner Seite, in derselben Form wie
- * `getReceiptWithCompany` (ohne `outputs`, das gibt es nur einzeln): der Kopf der Version des Belegs aus
- * `headers` (Nullbelege ohne Logo, wie beim Server), Testkennzeichen, Logo-Stufe, das Zeilenmodell, wenn
- * die Seite mit `withLayout: true` kam. Von einem Backend vor dem 30.10.2026 (ohne `headers`) kommt der
- * Kopf aus `metadata`, dem heutigen Stand.
+ * `getReceiptWithCompany` (ohne `outputs`): der Kopf der Version des Belegs aus `headers` (Nullbelege ohne
+ * Logo, wie beim Server), Testkennzeichen, Logo-Stufe. `layout` ist immer `null` -- die Liste traegt kein
+ * Zeilenmodell; [receiptLayoutFromResult] baut es dann mit denselben Angaben, oder `getReceiptWithCompany`
+ * holt das des Servers. Von einem Backend vor dem 30.10.2026 (ohne `headers`) kommt der Kopf aus
+ * `metadata`, dem heutigen Stand.
  */
 export function listedReceiptWithCompany(page: ListReceiptsPage<'full'>, receipt: ListedFullReceipt): ReceiptWithCompany {
   const kennung = receipt.headerVersionId ?? null;
@@ -456,7 +441,7 @@ export function listedReceiptWithCompany(page: ListReceiptsPage<'full'>, receipt
     testCashregister: page.testCashregister === true,
     testSignature: receipt.testSignature === true,
     headerVersionId: kennung,
-    layout: receipt.layout ?? null,
+    layout: null,
     registrationInfo: receipt.registrationInfo ?? null,
     logoScale: page.logoScale ?? 'M',
   };
@@ -471,7 +456,7 @@ export function listedReceiptWithCompany(page: ListReceiptsPage<'full'>, receipt
  *
  * Mit `view: 'full'` sind die Belege das gespeicherte Belegdokument mit den
  * Angaben, die `getReceipt` liefert ([ListedFullReceipt]; Kopf je Version in
- * `headers`, Zeilenmodell mit `withLayout: true`), sonst [ListReceiptsSummary].
+ * `headers`, ohne Zeilenmodell), sonst [ListReceiptsSummary].
  * Alle Seiten auf einmal: [listAllReceipts].
  */
 export async function listReceipts<V extends ListReceiptsView = 'summary'>(

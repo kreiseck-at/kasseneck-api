@@ -13,6 +13,7 @@ import {
   type ListReceiptsSummary,
 } from '../src/client/list-receipts.js';
 import { createKasseneckApi } from '../src/client/api.js';
+import { receiptLayoutFromResult } from '../src/client/receipts.js';
 import { CALLS_WITHOUT_EFFECT, PUBLIC_CALLS, isPosOnlyCall, isUnknownOutcomeCall } from '../src/client/aufrufe.js';
 import { apiKeyAuth } from '../src/client/auth.js';
 import { isKasseneckApiError, isKasseneckValidationError } from '../src/client/errors.js';
@@ -332,8 +333,6 @@ const UNGUELTIG: Array<[string, unknown]> = [
   ['order unbekannt', { date: '2026-10-27', order: 'newest' }],
   ['view unbekannt', { date: '2026-10-27', view: 'compact' }],
   ['cursor leer', { date: '2026-10-27', cursor: '' }],
-  ['withLayout true mit summary', { date: '2026-10-27', withLayout: true }],
-  ['withLayout als Text', { date: '2026-10-27', view: 'full', withLayout: 'true' }],
   ['cursor als Zahl', { date: '2026-10-27', cursor: 7 }],
 ];
 
@@ -423,11 +422,11 @@ test('Vertrag: listReceipts ist oeffentlich unter /v3, liest nur, Kataloge der K
   // Die Wertelisten der Eingabe und die Codes der Spec.
   assert.deepEqual([...LIST_RECEIPTS_VIEWS], ['summary', 'full']);
   assert.deepEqual([...LIST_RECEIPTS_ORDERS], ['desc', 'asc']);
-  assert.deepEqual([...LIST_RECEIPTS_ERROR_CODES], ['invalid_date', 'invalid_range', 'range_too_long', 'invalid_limit', 'invalid_order', 'invalid_view', 'invalid_cursor', 'invalid_with_layout', 'server_error']);
-  // Seit Backend 30.10.2026: die volle Ansicht traegt Kopf-Versionen, Kennzeichen und auf Wunsch das Zeilenmodell.
+  assert.deepEqual([...LIST_RECEIPTS_ERROR_CODES], ['invalid_date', 'invalid_range', 'range_too_long', 'invalid_limit', 'invalid_order', 'invalid_view', 'invalid_cursor', 'server_error']);
+  // Seit Backend 30.10.2026: die volle Ansicht traegt Kopf-Versionen und Kennzeichen, nie das Zeilenmodell.
   const daten = VOKABULAR.schemas.listReceipts.data as Record<string, unknown>;
   for (const feld of ['headers', 'testCashregister', 'logo_scale']) assert.ok(feld in daten, feld);
-  assert.equal(werte['receipts[].layout.lines[].tone']!.$catalog, VOKABULAR.schemas.getReceipt.werte['layout.lines[].tone'].$catalog);
+  assert.equal('receipts[].layout.lines[].tone' in werte, false);
 });
 
 // --- volle Ansicht wie getReceipt (Backend 30.10.2026, Spec list-receipts-voll) -----------------------
@@ -438,14 +437,13 @@ const KOPF_V1 = {
   footer1: 'Danke', footer2: null, footer3: null, footer4: null, thanks_message: 'Bis bald', kreiseck_logo: false, logo_url: 'https://example.at/logo.png',
 };
 const KOPF_V2 = { ...KOPF_V1, headerVersionId: 'v2', street: 'Neuer Platz 2' };
-const LAYOUT = { paperSize: 'mm80', ruleset: 2, lines: [{ kind: 'text', text: 'Bäckerei Kornblum' }] };
 
 function volleSeite(extra: Json = {}): Json {
   const [a, b, ...rest] = VOLLE_BELEGE;
   return {
     receipts: [
-      { ...a, headerVersionId: 'v1', testSignature: false, layout: LAYOUT },
-      { ...b, headerVersionId: 'v2', testSignature: true, layout: null },
+      { ...a, headerVersionId: 'v1', testSignature: false },
+      { ...b, headerVersionId: 'v2', testSignature: true },
       ...rest.map((r) => ({ ...r, headerVersionId: 'v2', testSignature: false })),
     ],
     hasMore: false, nextCursor: null, metadata: { ...KOPF_V2, label: 'Schank' },
@@ -454,30 +452,23 @@ function volleSeite(extra: Json = {}): Json {
   };
 }
 
-test('listReceipts: withLayout geht nur gesetzt hinaus; false auch mit summary', async () => {
-  const { rufen, aufrufe } = server([erfolg(volleSeite()), erfolg({ receipts: [], hasMore: false, nextCursor: null }), erfolg(volleSeite())]);
-  await listReceipts(rufen, { date: '2026-10-27', view: 'full', withLayout: true });
-  await listReceipts(rufen, { date: '2026-10-27', withLayout: false });
-  await listReceipts(rufen, { date: '2026-10-27', view: 'full' });
-  assert.deepEqual(aufrufe.map((a) => a.params), [
-    { date: '2026-10-27', view: 'full', withLayout: true },
-    { date: '2026-10-27', withLayout: false },
-    { date: '2026-10-27', view: 'full' },
-  ]);
+test('listReceipts: withLayout gibt es nicht, ein mitgegebenes geht nie hinaus (Layout nur ueber getReceipt)', async () => {
+  const { rufen, aufrufe } = server([erfolg(volleSeite())]);
+  await listReceipts(rufen, { date: '2026-10-27', view: 'full', withLayout: true } as never);
+  assert.deepEqual(aufrufe[0]!.params, { date: '2026-10-27', view: 'full' });
 });
 
-test('listReceipts full: headers je Kopf-Version, testCashregister, logoScale; je Beleg testSignature und layout', async () => {
-  const seite = await listReceipts(server([erfolg(volleSeite())]).rufen, { date: '2026-10-27', view: 'full', withLayout: true });
+test('listReceipts full: headers je Kopf-Version, testCashregister, logoScale; je Beleg testSignature, kein layout', async () => {
+  const seite = await listReceipts(server([erfolg(volleSeite())]).rufen, { date: '2026-10-27', view: 'full' });
   assert.deepEqual(seite.headers!.map((h) => [h.headerVersionId, h.company.street]), [['v1', 'Alter Weg 1'], ['v2', 'Neuer Platz 2']]);
   assert.equal(seite.headers![0]!.company.taxNumber, '91-123/4565');
   assert.equal(seite.testCashregister, true);
   assert.equal(seite.logoScale, 'L');
   const [a, b] = seite.receipts;
   assert.equal(a!.testSignature, false);
-  assert.deepEqual(a!.layout, LAYOUT);
   assert.equal(b!.testSignature, true);
-  assert.equal(b!.layout, null);
   assert.equal(b!.headerVersionId, 'v2');
+  assert.equal(seite.receipts.some((r) => 'layout' in r), false);
 });
 
 test('listReceipts full: aelteres Backend ohne headers -> Felder fehlen, keine Ausnahme', async () => {
@@ -486,7 +477,6 @@ test('listReceipts full: aelteres Backend ohne headers -> Felder fehlen, keine A
   assert.equal('headers' in seite, false);
   assert.equal('testCashregister' in seite, false);
   assert.equal('testSignature' in seite.receipts[0]!, false);
-  assert.equal('layout' in seite.receipts[0]!, false);
 });
 
 test('listReceipts full: headers kein Array ist ein Antwortfehler', async () => {
@@ -495,8 +485,8 @@ test('listReceipts full: headers kein Array ist ein Antwortfehler', async () => 
   assert.equal(e.scope, 'response');
 });
 
-test('listedReceiptWithCompany: derselbe Inhalt wie getReceiptWithCompany, Kopf der Version des Belegs', async () => {
-  const seite = await listReceipts(server([erfolg(volleSeite())]).rufen, { date: '2026-10-27', view: 'full', withLayout: true });
+test('listedReceiptWithCompany: derselbe Inhalt wie getReceiptWithCompany ohne layout, Kopf der Version des Belegs', async () => {
+  const seite = await listReceipts(server([erfolg(volleSeite())]).rufen, { date: '2026-10-27', view: 'full' });
   const erster = listedReceiptWithCompany(seite, seite.receipts[0]!);
   assert.equal(erster.receipt, seite.receipts[0]);
   assert.equal(erster.company.street, 'Alter Weg 1');
@@ -505,12 +495,13 @@ test('listedReceiptWithCompany: derselbe Inhalt wie getReceiptWithCompany, Kopf 
   assert.equal(erster.testCashregister, true);
   assert.equal(erster.testSignature, false);
   assert.equal(erster.logoScale, 'L');
-  assert.deepEqual(erster.layout, LAYOUT);
+  assert.equal(erster.layout, null);
   assert.equal('outputs' in erster, false);
+  // Ohne Server-Layout baut receiptLayoutFromResult es mit denselben Angaben (Kopf der Version, Kennzeichen).
+  assert.ok(receiptLayoutFromResult(erster).lines.length > 5);
   const zweiter = listedReceiptWithCompany(seite, seite.receipts[1]!);
   assert.equal(zweiter.company.street, 'Neuer Platz 2');
   assert.equal(zweiter.testSignature, true);
-  assert.equal(zweiter.layout, null);
 });
 
 test('listedReceiptWithCompany: Nullbeleg ohne Logo, registrationInfo vom Beleg; ohne headers der Kopf aus metadata', async () => {
