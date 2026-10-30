@@ -119,7 +119,10 @@ export {
   fromCashregisterPayload,
 } from './cashregister.js';
 export { type ReceiptSummary, type ReceiptSummaryPayload, fromReceiptSummaryPayload, type ZeroKind, ZERO_KINDS, isZeroKind } from './receipt-summary.js';
-export { type ManualReceipt, type ManualReceiptReason, MANUAL_RECEIPT_REASONS, readManualReceipt } from './manual-receipt.js';
+export {
+  type ManualReceipt, type ManualReceiptReason, MANUAL_RECEIPT_REASONS, readManualReceipt,
+  type ManualReceiptErrorCode, MANUAL_RECEIPT_ERROR_CODES, isManualReceiptErrorCode,
+} from './manual-receipt.js';
 export {
   type ReportMonth,
   reportMonthFromDate,

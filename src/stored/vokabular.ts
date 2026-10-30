@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "3088cb472f3fef3ed4ff969bf0d37d051363714096616a9263270c58266bde14";
+export const VOKABULAR_QUELLE = "a505515b224ab56932bbe21d028c2b09d06cce0580b9d7bb5404bf834b08b163";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -33,7 +33,17 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "receivedImmediately": "sofortErhalten",
             "keptByEmployee": "direkt"
           }
-        ]
+        ],
+        "manualReceipt": {
+          "__": "handbeleg",
+          "number": "nummer",
+          "numberTo": "nummerBis",
+          "count": "anzahl",
+          "date": "datum",
+          "time": "uhrzeit",
+          "reason": "grund",
+          "note": "text"
+        }
       },
       "taxNumber": "taxnr",
       "vatId": "uid",
@@ -88,6 +98,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
     "werte": {
       "receipt.cancellationReason": {
         "$catalog": "STORNO_GRUND"
+      },
+      "receipt.manualReceipt.reason": {
+        "$catalog": "HANDBELEG_GRUND"
       },
       "layout.lines[].tone": {
         "$catalog": "LAYOUT_TON"
@@ -580,6 +593,14 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "GUTSCHEIN_SORTE_MUSTER": {
     "unbefristet": "unlimited",
     "jahre": "years"
+  },
+  "HANDBELEG_GRUND": {
+    "internet": "network_outage",
+    "strom": "power_outage",
+    "geraet": "device_failure",
+    "stoerung": "system_outage",
+    "sonstiges": "other",
+    "ausser_haus": "outside_premises"
   },
   "KASSE_BETRIEB_WERTE.cardProvider": {
     "keiner": "none",

@@ -53,7 +53,8 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  *
  * Nacherfassung (30.10.2026): 23 neue Golden-Belege `manual-receipt-*` (Block „NACHERFASSUNG“) und
  * `zero-outage-end-period` (Nullbeleg nach Signaturausfall mit Beginn und Ende aus `legalMessage`) sind neu
- * aufgenommen; alle vorhandenen Digests blieben (reine Ergaenzung der Liste `receipts`).
+ * aufgenommen; dazu die Server-Layouts `belege/sale_manual_receipt` und `kasse-belege/sale_manual_receipt` aus dem
+ * Vertrag (Backend mit vendortem Paket 0.36.0). Alle vorhandenen Digests blieben (reine Ergaenzung).
  *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.

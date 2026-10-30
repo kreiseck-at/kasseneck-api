@@ -54,3 +54,21 @@ export function readManualReceipt(roh: unknown): ManualReceipt | undefined {
     ...(istText(o['note']) ? { note: o['note'] } : {}),
   };
 }
+
+/**
+ * Fehlercodes von `createReceipt` zur Nacherfassung (Vertrag `errorCodes.manualReceipt`).
+ * `manual_receipt_duplicate` traegt in `details.receiptId` den Beleg, der den Handbeleg
+ * schon nacherfasst hat: nicht erneut senden, sondern diesen Beleg nehmen.
+ */
+export const MANUAL_RECEIPT_ERROR_CODES = Object.freeze([
+  'invalid_manual_receipt',
+  'manual_receipt_not_allowed',
+  'manual_receipt_date_in_future',
+  'manual_receipt_range_not_allowed',
+  'manual_receipt_duplicate',
+] as const);
+export type ManualReceiptErrorCode = (typeof MANUAL_RECEIPT_ERROR_CODES)[number];
+
+export function isManualReceiptErrorCode(value: unknown): value is ManualReceiptErrorCode {
+  return typeof value === 'string' && (MANUAL_RECEIPT_ERROR_CODES as readonly string[]).includes(value);
+}
