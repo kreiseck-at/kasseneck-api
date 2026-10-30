@@ -15,6 +15,7 @@ import {
 } from '../models/index.js';
 import type { ReportV2Metadata } from './reports.js';
 import { readEnumKey } from '../models/enum-payload.js';
+import { type ManualReceipt, readManualReceipt } from '../models/manual-receipt.js';
 import { KasseneckValidationError } from './errors.js';
 import type { InternerTransport } from './aufrufe.js';
 
@@ -167,6 +168,8 @@ export interface ListReceiptsSummary {
   customProjectId: string | null;
   /** Schluessel fuer `downloadReceipt` und den Beleg-Link, oder `null`. */
   fullReceiptId: string | null;
+  /** Nur an nacherfassten Belegen: der Handbeleg. */
+  manualReceipt?: ManualReceipt;
 }
 
 /** Ein Beleg der Liste je Ansicht: `full` das Belegdokument wie bei `getReportV2`, sonst die Zeile. */
@@ -308,6 +311,11 @@ const text = (w: unknown): string | null => (typeof w === 'string' ? w : null);
 // Ganze Cent; ein einzelner unbrauchbarer Betrag laesst die Liste nicht scheitern.
 const cent = (w: unknown): number => (typeof w === 'number' && Number.isInteger(w) ? w : 0);
 
+function handbelegFeld(roh: unknown): { manualReceipt?: ManualReceipt } {
+  const manualReceipt = readManualReceipt(roh);
+  return manualReceipt ? { manualReceipt } : {};
+}
+
 function istStornoStand(w: unknown): w is CancellationStatus {
   return typeof w === 'string' && (CANCELLATION_STATUSES as readonly string[]).includes(w);
 }
@@ -343,6 +351,7 @@ export function fromListReceiptsSummaryPayload(payload: Record<string, unknown>)
     signatureOk: payload['signatureOk'] !== false,
     customProjectId: text(payload['customProjectId']),
     fullReceiptId: text(payload['fullReceiptId']),
+    ...handbelegFeld(payload['manualReceipt']),
   };
 }
 

@@ -233,3 +233,20 @@ test('Kleinunternehmer: alle Positionen 0 % -> USt-Tabelle nur mit der 0 %-Zeile
   // Widerspruch: KU-Konto, aber 20 %-Position -> als solcher erkennbar (der Aufrufer/Backend weist ab)
   assert.equal(receiptIsSmallBusinessConsistent(BELEG), false);
 });
+
+test('Nullbeleg nach Signaturausfall: Beginn und Ende aus legalMessage stehen zentriert vor dem QR', () => {
+  const hinweis = 'Sicherheitseinrichtung ausgefallen von 12.08.2026 08:10 bis 13.08.2026 10:14 (ab Beleg AT0-KASSE1-41)';
+  const l = buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '', zeroKind: 'outage_end', legalMessage: [hinweis] }, FIRMA);
+  const z = alsText(l);
+  const i = z.indexOf(hinweis);
+  assert.ok(i > z.findIndex((s) => s.startsWith('Beleg-ID')), 'nach den Pflichtangaben');
+  assert.ok(i < z.indexOf('<qr>'), 'vor dem QR');
+  assert.deepEqual(l.lines[i], { kind: 'text', text: hinweis, align: 'center', bold: false });
+});
+
+test('Andere Nullbelege drucken legalMessage weiter nicht: ihre Überschrift sagt es schon', () => {
+  for (const zeroKind of ['monthly', 'annual', 'annual_replacement', 'final', 'manual'] as const) {
+    const l = buildReceiptLayout({ ...BELEG, receiptType: ReceiptType.zero, items: [], paymentMethod: '', zeroKind, legalMessage: ['Hinweis vom Server'] }, FIRMA);
+    assert.equal(alsText(l).includes('Hinweis vom Server'), false, zeroKind);
+  }
+});

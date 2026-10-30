@@ -25,6 +25,10 @@ import { createTransport, DEFAULT_BASE_URL, POS_BASE_URL, type FetchLike, type H
 import { apiKeyAuth, registerUserAuth } from '../src/client/auth.js';
 import {
   fromReceiptItemPayload,
+  type ManualReceipt,
+  MANUAL_RECEIPT_ERROR_CODES,
+  MANUAL_RECEIPT_REASONS,
+  isManualReceiptErrorCode,
   fromVoucherPayload,
   isNewFormVoucher,
   CANCELLATION_ERROR_CODES,
@@ -156,6 +160,7 @@ function verkaufAus(params: Json): SellReceiptOptions {
     ...(params.vouchers ? { vouchers: params.vouchers.map((v: Json) => fromVoucherPayload(v as VoucherPayload)) } : {}),
     payments: params.payments as ReceiptPaymentInput[],
     ...(params.tip ? { tip: params.tip as TipOptions } : {}),
+    ...(params.manualReceipt ? { manualReceipt: params.manualReceipt as ManualReceipt } : {}),
   };
 }
 
@@ -659,7 +664,7 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   }
   // Jeder Fehlercode, den ein Fall der Belegwelt im Vertrag zeigt, steht in einer Liste seines Endpunkts.
   const listen: Record<string, readonly string[]> = {
-    createReceipt: [...RECEIPT_ERROR_CODES, ...PAYMENT_ERROR_CODES],
+    createReceipt: [...RECEIPT_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...MANUAL_RECEIPT_ERROR_CODES],
     getReceipt: RECEIPT_ERROR_CODES,
     cancelReceipt: [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES],
     sendReceiptEmail: RECEIPT_EMAIL_ERROR_CODES,
@@ -674,9 +679,14 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   assert.deepEqual([...CANCELLATION_STATUSES], Object.values(VOKABULAR.catalogs.STORNO_STAND));
   assert.deepEqual([...RETURN_DISPOSITIONS], Object.values(VOKABULAR.catalogs.RUECKGABE));
   assert.deepEqual([...RECEIPT_EMAIL_VIAS], Object.values(VOKABULAR.catalogs.MAILWEG));
+  // Nacherfassung eines Handbelegs: Gruende und Codes wie im Vertrag (errorCodes.manualReceipt).
+  assert.deepEqual([...MANUAL_RECEIPT_REASONS], Object.values(VOKABULAR.catalogs.HANDBELEG_GRUND));
+  assert.deepEqual([...MANUAL_RECEIPT_ERROR_CODES], codes.manualReceipt);
+  assert.equal(isManualReceiptErrorCode('manual_receipt_duplicate'), true);
+  assert.equal(isManualReceiptErrorCode('handbeleg_doppelt'), false);
   // Jeder Code ist ein /v3-Code (klein, kein alter deutscher oder grosser)
   // oder einer, den das Paket selbst vergibt.
-  for (const code of [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES]) {
+  for (const code of [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES, ...MANUAL_RECEIPT_ERROR_CODES]) {
     assert.ok(codes.all.includes(code) || (CLIENT_ERROR_CODES as readonly string[]).includes(code), code);
   }
   assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), false);
@@ -684,7 +694,7 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
 });
 
 test('jeder Code in den Antworten ist in einem Katalog des Pakets', () => {
-  const alle = new Set<string>([...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES]);
+  const alle = new Set<string>([...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES, ...MANUAL_RECEIPT_ERROR_CODES]);
   for (const fall of [...BELEGE, ...KASSE_BELEGE, ...STORNO, ...BELEGMAIL]) {
     const code = fall.response.code;
     if (code != null && code !== 'validation') assert.ok(alle.has(code), `${fall.name}: ${code}`);
