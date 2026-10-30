@@ -17,6 +17,30 @@ DEP export for the cash register inspection (*Kassennachschau*): `createDepExpor
 - **`DEP_EXPORT_ERROR_CODES`** equal to `errorCodes.depExport` of the contract (order included, every code in `errorCodes.all`; pinned by a test): `validation`, `invalid_period`, `idempotency_conflict`, `export_running`, `too_many_exports`, `export_not_found`, `export_not_ready`, `export_failed`, `invalid_file`, `file_not_available`, `too_many_links`, `link_not_found` (unknown or of another cash register; revoking twice is no error), `server_error` (plus the codes of sign-in and edge). **`DEP_EXPORT_FAILURES`** (`export_failed`, `export_stalled`) equal to the values of the contract catalogue `DEP_EXPORT_FEHLER`. Type `DepExportErrorCode` covers both lists.
 - `PUBLIC_CALLS` is now 113 and `ALL_CALLS`, `CALLS_WITHOUT_EFFECT` know the five calls (two reads, three `repeatable`; `UNKNOWN_OUTCOME_CALLS` unchanged). Contract `v3` re-fetched from the backend (the five endpoints in `endpoints.public`, `v3Routed` and the effect lists; their schemas are empty; `errorCodes.depExport` and `catalogs.DEP_EXPORT_FEHLER`).
 
+## 1.18.0 - 2026-10-30
+
+Recording handwritten receipts (Nacherfassung). After a register outage or a sale outside the premises the business
+writes paper receipts and records them in the register later; the receipt now carries the reference. Additive.
+
+- **`manualReceipt` on `createReceipt`/`sellReceipt` and on `Receipt`, `ReceiptSummary` and the `listReceipts` summary:**
+  `number` (the paper pad's own number range, never the next register number), optional `numberTo` and `count` (daily
+  summary receipt, only after an outage), `date` (`YYYY-MM-DD`, Vienna day), optional `time` (`HH:MM`), `reason`
+  (`MANUAL_RECEIPT_REASONS`: `network_outage`, `power_outage`, `device_failure`, `system_outage`, `other` with `note`,
+  `outside_premises`). Only on `standard`; the package throws before sending otherwise. The server checks everything
+  else. The receipt's own `timeStamp` stays the time of recording (no backdating). `readManualReceipt` reads the field.
+- **Error codes `MANUAL_RECEIPT_ERROR_CODES`** (contract `errorCodes.manualReceipt`): `invalid_manual_receipt`,
+  `manual_receipt_not_allowed`, `manual_receipt_date_in_future`, `manual_receipt_range_not_allowed`,
+  `manual_receipt_duplicate` (same number or overlapping range on the same day and register; `details.receiptId`
+  names the receipt that already recorded it), with `isManualReceiptErrorCode`.
+- **Receipt block „NACHERFASSUNG“** below the business header: kind (after a register outage / sale outside the
+  premises), reason, number and day of the paper receipt or range and count of the daily summary, and
+  „USt: Duplikat …“ (BMF cash register decree, 3.3 and 2.4.11; not for small businesses). 23 new golden receipts `manual-receipt-*`.
+- **Zero receipt after a signature outage** (`zeroKind: outage_end`) prints start and end of the outage from
+  `legalMessage` before the QR code; the decree (3.6.1) requires them on the receipt. New golden `zero-outage-end-period`,
+  all existing goldens unchanged.
+- Contract re-fetched from the backend (vendored package 0.36.0): new cases `sale_manual_receipt` and
+  `error_manual_receipt_duplicate`, catalog `HANDBELEG_GRUND`; print digests of the two new server layouts recorded.
+
 ## 1.17.1 - 2026-10-29
 
 - **Contract `v3` gains `fixtures/v3/antworten/berichte.json`** (backend keck#798): `getCashregisterReport` as a binary path, generated from the real handler. A case with `file` is the PDF (HTTP 200, `Content-Type: application/pdf`, the bytes start with `file.startsWith`); every rejection also comes with HTTP 200, as an envelope with a code (`period_not_closed` for the current month and today, `period_in_future`, `invalid_period`). New test `test/v3-berichte-vertrag.test.ts` replays the file through `createBinaryTransport`: the PDF arrives byte for byte, each rejection is a `KasseneckApiError` with the code of the contract and outcome `rejected`. No behaviour change: the binary path always decided on the first bytes. Reason: the Dart twin returned such an envelope as PDF bytes up to 11.8.0 (fixed in 11.8.1); with the case in the contract both packages and the backend are pinned to the same answer, and the Dart twin replays this file too.

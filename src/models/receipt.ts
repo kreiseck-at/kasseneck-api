@@ -1,5 +1,6 @@
 import { ReceiptType, KeckPaymentMethod, CreditCardProvider, VoucherAction, VoucherType } from '../enums/index.js';
 import { readEnumKey, requireEnumKey } from './enum-payload.js';
+import { type ManualReceipt, readManualReceipt } from './manual-receipt.js';
 import {
   type ReceiptItem,
   type ReceiptItemPayload,
@@ -83,6 +84,8 @@ export interface Receipt {
   layoutRuleset?: number;
   /** Nur an Nullbelegen: Registrierdaten fuer den Block „Prüfangaben“. */
   registrationInfo?: RegistrationInfo;
+  /** Nur an nacherfassten Belegen: der Handbeleg (siehe [ManualReceipt]). */
+  manualReceipt?: ManualReceipt;
 }
 
 /** Registrierdaten von Signaturkarte und Kasse (Zeitstempel oder `null`, wenn unbekannt). */
@@ -134,6 +137,7 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   headerVersionId?: string | null;
   layoutRuleset?: number | null;
   registrationInfo?: { cardRegisteredAt?: string | null; cashregisterRegisteredAt?: string | null } | null;
+  manualReceipt?: unknown;
 }
 
 /**
@@ -220,7 +224,13 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...(payload.registrationInfo != null && typeof payload.registrationInfo === 'object'
       ? { registrationInfo: readRegistrationInfo(payload.registrationInfo) }
       : {}),
+    ...handbelegFeld(payload.manualReceipt),
   };
+}
+
+function handbelegFeld(roh: unknown): { manualReceipt?: ManualReceipt } {
+  const manualReceipt = readManualReceipt(roh);
+  return manualReceipt ? { manualReceipt } : {};
 }
 
 /** Registrierdaten lesen; ein fehlender oder leerer Zeitstempel wird `null`. */

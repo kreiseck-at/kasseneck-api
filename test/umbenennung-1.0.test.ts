@@ -344,6 +344,12 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   // Gutscheine der neuen Form (1.12.0): Golden-Belege mit Zeilen, Raster und Blatt.
   ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Nacherfassung (30.10.2026): Golden-Belege mit Block „NACHERFASSUNG“ (manual-receipt-*).
+  ...['manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Nullbeleg nach Signaturausfall mit Beginn und Ende (30.10.2026).
+  ...['zero-outage-end-period']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Belegduplikat (1.14.0): Prueffaelle und Bytes der Nachdrucke.
   'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`),
   // Beleg-Ausgaben (1.14.0): gemeinsame Prueffaelle mit dem Dart-Zwilling.

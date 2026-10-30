@@ -8,6 +8,7 @@ import {
   VoucherType,
 } from '../enums/index.js';
 import { istWertVerkauf } from '../models/voucher.js';
+import type { ManualReceipt } from '../models/manual-receipt.js';
 import {
   type Receipt,
   type ReceiptCompany,
@@ -101,6 +102,11 @@ export interface ReceiptCommonOptions {
   legalMessage?: string[];
   /** Freier Bezeichner des Aufrufers (Projekt, Auftrag, Schicht). */
   customProjectId?: string;
+  /**
+   * Nacherfassung eines Handbelegs (siehe [ManualReceipt]); nur bei
+   * `standard`. Geprueft wird am Server, die Eingabe geht unveraendert hinaus.
+   */
+  manualReceipt?: ManualReceipt;
   /**
    * Trinkgeld in Cent — als Zahl (an den angemeldeten Kassen-Benutzer, Zahlart
    * des Belegs) oder als [TipOptions]. Das Backend bucht daraus signierte
@@ -459,6 +465,12 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
 
   if (options.customProjectId != null) {
     params['customProjectId'] = options.customProjectId;
+  }
+  if (options.manualReceipt != null) {
+    if (typ !== ReceiptType.standard) {
+      throw eingabefehler(`manualReceipt ist nur bei receiptType standard moeglich, nicht bei "${typ.value}".`);
+    }
+    params['manualReceipt'] = options.manualReceipt;
   }
   if (options.customerDetails != null) {
     params['customerDetails'] = options.customerDetails.join('\n');

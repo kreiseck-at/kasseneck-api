@@ -216,6 +216,28 @@ test('sellReceipt: customerDetails und legalMessage gehen als \\n-verbundene Zei
   assert.equal(params['customProjectId'], 'projekt-7');
 });
 
+test('sellReceipt: manualReceipt geht unverändert in den Rumpf', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg();
+  const handbeleg = { number: 'H-17', date: '2026-12-31', time: '14:30', reason: 'network_outage' as const };
+
+  await sellReceipt(rufen, { payments: BAR, items: [KAFFEE], manualReceipt: handbeleg });
+
+  assert.deepEqual(gesendet(aufrufe).params['manualReceipt'], handbeleg);
+});
+
+test('createReceipt: manualReceipt nur am Standardbeleg, sonst Fehler vor dem Senden', async () => {
+  const handbeleg = { number: '5', date: '2026-10-29', reason: 'outside_premises' as const };
+  for (const receiptType of [ReceiptType.training, ReceiptType.zero, ReceiptType.start]) {
+    const { rufen, aufrufe } = apiSchluesselWeg();
+    await assert.rejects(
+      createReceipt(rufen, { receiptType, payments: receiptType === ReceiptType.training ? BAR : undefined, items: receiptType === ReceiptType.training ? [KAFFEE] : undefined, manualReceipt: handbeleg }),
+      (e: unknown) => isKasseneckValidationError(e) && /manualReceipt/.test((e as Error).message),
+      String(receiptType.value),
+    );
+    assert.equal(aufrufe.length, 0, `${receiptType.value}: nichts gesendet`);
+  }
+});
+
 test('sellReceipt mit Kartenzahlung: Anbieter, Kennung und Terminaldaten stehen in der Zahlung', async () => {
   const { rufen, aufrufe } = apiSchluesselWeg();
 
