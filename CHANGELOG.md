@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.18.0 - 2026-10-30
+## 1.19.0 - 2026-10-30
 
 DEP export for the cash register inspection (*Kassennachschau*): `createDepExport`, `getDepExport`, `waitForDepExport`, `getDepExportFile`, `createDepHandoverLink` and `revokeDepHandoverLink` for the five new public endpoints (`/v3` only). Additive.
 
