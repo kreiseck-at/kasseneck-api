@@ -21,7 +21,7 @@ writes paper receipts and records them in the register later; the receipt now ca
   names the receipt that already recorded it), with `isManualReceiptErrorCode`.
 - **Receipt block „NACHERFASSUNG“** below the business header: kind (after a register outage / sale outside the
   premises), reason, number and day of the paper receipt or range and count of the daily summary, and
-  „USt: Duplikat …“ (BMF decree 2019, 3.3 and 2.4.11; not for small businesses). 23 new golden receipts `manual-receipt-*`.
+  „USt: Duplikat …“ (BMF cash register decree, 3.3 and 2.4.11; not for small businesses). 23 new golden receipts `manual-receipt-*`.
 - **Zero receipt after a signature outage** (`zeroKind: outage_end`) prints start and end of the outage from
   `legalMessage` before the QR code; the decree (3.6.1) requires them on the receipt. New golden `zero-outage-end-period`,
   all existing goldens unchanged.

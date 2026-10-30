@@ -1153,8 +1153,8 @@ function handbelegDatum(tag: string): string {
 /**
  * Block „NACHERFASSUNG“ (manualReceipt) unter dem Kopf: Art, Grund, Nummer
  * und Tag des Handbelegs bzw. der Handbelege eines Tagessammelbelegs, dazu
- * der Hinweis, dass der Beleg fuer die USt ein Duplikat ist (Erlass 2019,
- * 3.3 Faelle 5 und 6, 2.4.11). Der Zeitstempel des Belegs bleibt der der
+ * der Hinweis, dass der Beleg fuer die USt ein Duplikat ist
+ * (Registrierkassenerlass 3.3 Faelle 5 und 6, 2.4.11). Der Zeitstempel des Belegs bleibt der der
  * Nacherfassung und steht wie immer unter „Datum:“. Kleinunternehmer
  * (keine USt am Beleg) bekommen den USt-Hinweis nicht.
  */
@@ -1291,7 +1291,7 @@ export function buildReceiptLayout(
     }
     lines.push({ kind: 'space', lines: 1 });
     // Sammelbeleg nach Signaturausfall: Beginn und Ende des Ausfalls muessen aus
-    // dem Beleg hervorgehen (Erlass 2019, 3.6.1); der Server legt sie als
+    // dem Beleg hervorgehen (Registrierkassenerlass 3.6.1); der Server legt sie als
     // legalMessage ab. Andere Nullbelege nennen ihren Anlass schon im Titel.
     if (receipt.zeroKind === 'outage_end' && receipt.legalMessage.length > 0) {
       for (const zeile of receipt.legalMessage) lines.push(textZeile(zeile, 'center'));
