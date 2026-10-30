@@ -1124,7 +1124,7 @@ function nacherfassungBlock(receipt: Receipt, company: ReceiptCompany): LayoutLi
   if (!h) return [];
   const aus: LayoutLine[] = [bannerZeile('NACHERFASSUNG')];
   aus.push(textZeile(h.grund === 'ausser_haus' ? 'Leistung außer Haus' : 'nach Ausfall der Kasse', 'center'));
-  const grund = h.grund === 'sonstiges' ? h.text : NACHERFASSUNG_GRUND[h.grund];
+  const grund = h.grund === 'sonstiges' ? h.grundText : NACHERFASSUNG_GRUND[h.grund];
   if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
   aus.push({ kind: 'space', lines: 1 });
   const tag = handbelegDatum(h.datum);

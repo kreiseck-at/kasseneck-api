@@ -48,7 +48,7 @@
       "anzahl": 48,
       "datum": "2026-12-01",
       "grund": "sonstiges",
-      "text": "Kasse beim Umzug abgebaut"
+      "grundText": "Kasse beim Umzug abgebaut"
     }
   },
   "options": {

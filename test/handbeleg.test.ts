@@ -18,7 +18,7 @@ test('HANDBELEG_GRUENDE: die sechs inneren Gründe', () => {
 
 test('leseHandbeleg: Einzelbeleg und Sammelbeleg mit Text', () => {
   assert.deepEqual(leseHandbeleg(EINZEL), EINZEL);
-  const sammel = { nummer: '201', nummerBis: '248', anzahl: 48, datum: '2026-11-03', grund: 'sonstiges', text: 'Umzug' };
+  const sammel = { nummer: '201', nummerBis: '248', anzahl: 48, datum: '2026-11-03', grund: 'sonstiges', grundText: 'Umzug' };
   assert.deepEqual(leseHandbeleg(sammel), sammel);
 });
 

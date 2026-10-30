@@ -52,7 +52,7 @@ test('Einzelbeleg nach Internet-Ausfall mit Uhrzeit', () => {
 });
 
 test('Gründe des Ausfalls und eigener Text', () => {
-  const grund = (g: string, text?: string) => block({ nummer: '1', datum: '2026-11-03', grund: g, ...(text ? { text } : {}) })[2];
+  const grund = (g: string, text?: string) => block({ nummer: '1', datum: '2026-11-03', grund: g, ...(text ? { grundText: text } : {}) })[2];
   assert.equal(grund('strom'), 'Grund: Strom');
   assert.equal(grund('geraet'), 'Grund: Gerät defekt');
   assert.equal(grund('stoerung'), 'Grund: Störung');
@@ -91,7 +91,7 @@ test('Ohne handbeleg kein Block (Rot-Probe)', () => {
 test('58 mm: langer eigener Text bricht um, keine Zeile über 32 Zeichen', () => {
   const layout = buildReceiptLayout({ ...BELEG, handbeleg: {
     nummer: 'B-500', nummerBis: 'B-547', anzahl: 48, datum: '2026-12-01', grund: 'sonstiges',
-    text: 'Kassen-Tablet nach Wasserschaden außer Betrieb genommen',
+    grundText: 'Kassen-Tablet nach Wasserschaden außer Betrieb genommen',
   } }, FIRMA);
   const raster = gridAlsText(renderReceiptGrid(layout, { zeichen: 32 })).split('\n');
   assert.ok(raster.every((z) => z.length <= 32), 'keine Zeile breiter als 32');

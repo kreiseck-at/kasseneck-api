@@ -194,7 +194,7 @@
       "blatt48": "4b229c0edd2f050cd23debd610405a56efaeeb84247d74b9d0cc2652509ae2a9"
     },
     "nacherfassung-einzel-sonstiges-ohne-zeit": {
-      "eingabe": "f9a1e3efc3f217ceee2b11d6841f5563d448e1b7f7e043c9cbd2506a35545bd8",
+      "eingabe": "d1c36a4e960702b468aa0d655c38aa36c4bd4400d02883cb343972d1b53d76b2",
       "erwartet": "74aa87be408912355addb8cab8cf451f65e6aaaf73d9d9b7cddf66c814be126e",
       "grid32": "5014c6ea397739135a0a2acbe82646b2e8855f0d42ca3929f9fd0866020efce3",
       "grid48": "1e54503379b413f7b8b449b73e8277135dfa5db7cfee05328475d4f524723a54",
@@ -202,7 +202,7 @@
       "blatt48": "f5162fc8a62fb95741b938db1bcbf2d544ebb1e91a3c2f7bb716aa5b374a9f27"
     },
     "nacherfassung-einzel-sonstiges-zeit": {
-      "eingabe": "222a1519a46b4564b5dad74fa3783b35ea18bf542cc2267e16e5ab68049bb546",
+      "eingabe": "04eb0e5c2af78743ae6b9c7ab7e0693861387bb3a726f4c839524a35fd00f481",
       "erwartet": "7a5579a68a5823ebb715c332e692a0448f0fe8aed586899871b52ac8903058c3",
       "grid32": "e51acd53529e1b1ed867854d56b63c656e7f94d0c59953bb9d5024c65a92f76d",
       "grid48": "b5c42d0fbf82fb57c668603ddd3e5f18451c4248158348c23aa66063df7ab3d1",
@@ -282,7 +282,7 @@
       "blatt48": "929519e10ba643f0162fa5388259fe37565ed2708fe7b3605228ea997968aff4"
     },
     "nacherfassung-sammel-sonstiges-anzahl": {
-      "eingabe": "79a5f6d80ac659a649bd4de5af808f83c7943df6b78929a2413f347abcc8bfa7",
+      "eingabe": "96ca7bacbcaa41422735d4347bc43565924d1bc912adca50b58485663dc4d6fc",
       "erwartet": "f65b256e913e980ce2348c7b23435f2ed1a7bed1f0fee5cfe6b9c62677b53cc8",
       "grid32": "237d31dbf9abe627eeb90db59b7cf0e6ac5f35cd579a6b704e69f727357e69f8",
       "grid48": "8c3aaeb019cf771e728d3fbfd0cbe528702d155aae5ecf56460e303a387c43a8",
@@ -290,7 +290,7 @@
       "blatt48": "f889dcb56340abd249cfbd21d4d10e391f28dbb172b42f02f6469282c5078dc6"
     },
     "nacherfassung-sammel-sonstiges-ohne-anzahl": {
-      "eingabe": "e3e20cd605b36973d7e3d5bf60d2c53a0e9334babdee6896eafecc521a2ab168",
+      "eingabe": "ad98eb274f28a8f9861f0857b403e1523a3adb95ae626886f30acf0a960da3d5",
       "erwartet": "ef542099e8b34a83c4864a417e42599701abc4b1c058adc73e1b52ec369b0fff",
       "grid32": "86de144c3fe9182e817df4c5549dcace337c3ee16d2bea8b5eea43c5d0871cd3",
       "grid48": "6eac28206d66de34f71898c2b9faebf1fa4cfcb3d0c1a42ba3a33994a7022b68",

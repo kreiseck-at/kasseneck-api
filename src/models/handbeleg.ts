@@ -22,8 +22,8 @@ export interface Handbeleg {
   /** `HH:MM`. */
   uhrzeit?: string;
   grund: HandbelegGrund | string;
-  /** Eigener Text, nur beim Grund `sonstiges`. */
-  text?: string;
+  /** Eigener Text zum Grund, nur bei `sonstiges`. */
+  grundText?: string;
 }
 
 const istText = (w: unknown): w is string => typeof w === 'string' && w !== '';
@@ -40,6 +40,6 @@ export function leseHandbeleg(roh: unknown): Handbeleg | undefined {
     datum: o['datum'],
     ...(istText(o['uhrzeit']) ? { uhrzeit: o['uhrzeit'] } : {}),
     grund: o['grund'],
-    ...(istText(o['text']) ? { text: o['text'] } : {}),
+    ...(istText(o['grundText']) ? { grundText: o['grundText'] } : {}),
   };
 }

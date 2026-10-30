@@ -47,7 +47,7 @@
       "datum": "2026-11-29",
       "uhrzeit": "09:10",
       "grund": "sonstiges",
-      "text": "Kasse beim Umzug abgebaut"
+      "grundText": "Kasse beim Umzug abgebaut"
     }
   },
   "options": {
