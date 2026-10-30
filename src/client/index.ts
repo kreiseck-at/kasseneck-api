@@ -24,6 +24,9 @@ export {
   createTransport,
   createBinaryTransport,
   createPdfOrDataTransport,
+  createFileOrDataTransport,
+  type FileOrData,
+  type KasseneckFileOrDataTransport,
 } from './transport.js';
 
 export {
@@ -114,6 +117,43 @@ export {
   type ListReceiptsPage,
   type ListedReceipt,
 } from './list-receipts.js';
+
+export {
+  createDepExport,
+  getDepExport,
+  waitForDepExport,
+  getDepExportFile,
+  createDepHandoverLink,
+  revokeDepHandoverLink,
+  DepExportTimeoutError,
+  DepExportChecksumError,
+  DEP_EXPORT_STATUSES,
+  DEP_EXPORT_FILES,
+  DEP_EXPORT_ERROR_CODES,
+  DEP_EXPORT_FAILURES,
+  DEP_EXPORT_POLL_START_MS,
+  DEP_EXPORT_POLL_FACTOR,
+  DEP_EXPORT_POLL_MAX_MS,
+  DEP_EXPORT_WAIT_TIMEOUT_MS,
+  DEP_EXPORT_DOWNLOAD_TIMEOUT_MS,
+  type DepExportStatus,
+  type DepExportFileKind,
+  type DepExportErrorCode,
+  type DepExportFailure,
+  type CreateDepExportOptions,
+  type CreateDepExportResult,
+  type DepExportGap,
+  type DepExportChainBreak,
+  type DepExportFindings,
+  type DepExportItems,
+  type DepHandoverLinkInfo,
+  type DepExport,
+  type WaitForDepExportOptions,
+  type GetDepExportFileOptions,
+  type DepExportFile,
+  type DepHandoverLink,
+  type RevokedDepHandoverLink,
+} from './dep-export.js';
 
 export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 

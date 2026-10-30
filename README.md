@@ -553,7 +553,8 @@ The facade from `createKasseneckApi` offers `sellReceipt` and
 `sendReceiptEmail`, the report downloads, the FinanzOnline status queries
 (`getCashboxStatus`, `getSignatureStatus`), `getReportV2({ start, end })` for
 the raw receipts and company data of a period, `listReceipts` and
-`listAllReceipts` for receipt lists page by page (see below), and the Stripe
+`listAllReceipts` for receipt lists page by page (see below), the DEP export
+for the cash register inspection (see below), and the Stripe
 and Hobex cloud payments.
 
 The models are English throughout: the company has `taxNumber` and `vatId`, a
@@ -663,6 +664,62 @@ for await (const receipt of api.listAllReceipts({ from: '2026-10-01', to: '2026-
   `invalid_order`, `invalid_view`, `invalid_cursor` (a cursor of another
   cash register or query, or changed window, `order` or `view`),
   `server_error`, plus the codes of sign-in and edge.
+
+### DEP export for the cash register inspection (*Kassennachschau*)
+
+For a period named by the inspector (§ 19 para. 2 RKSV) the register hands out
+its data capture log (*DEP*), a protocol, the item lines and everything as a ZIP,
+and a handover link with a code the inspector opens without signing in. Same
+sign-in as `listReceipts` (API key plus `cashregister-token`, the cash register
+comes from the token), only on `/v3`.
+
+```ts
+const started = await api.createDepExport({ from: '2026-10-01', to: '2026-10-29', requestId: 'inspection-2026-10-30' });
+const dep = await api.waitForDepExport({ exportId: started.exportId });   // polls 2 s, x1.5, at most 15 s
+console.log(dep.receiptCount, dep.findings?.gaps, dep.findings?.chainBreaks);
+
+// DEP JSON, checked against the checksum the export names.
+const file = await api.getDepExportFile({ exportId: dep.exportId, file: 'dep', sha256: dep.sha256! });
+// file.bytes, file.fileName, file.contentType, file.sha256
+
+const link = await api.createDepHandoverLink({ exportId: dep.exportId });  // { linkId, url, code, expiresAt }
+await api.revokeDepHandoverLink({ linkId: link.linkId });
+```
+
+- **`createDepExport({ from?, to?, requestId? })`** queues the export and
+  answers at once with `{ exportId, status: 'running', from, to }`; it runs in
+  the background, at most one per cash register at a time. `from`/`to` are
+  `YYYY-MM-DD`, both inclusive; without them the whole stock is exported.
+  With a `requestId` (at most 64 characters of `A-Z a-z 0-9 _ -`) the call is
+  repeatable: the same value returns the same export. After a lost answer resend
+  with the **same** `requestId` (without it you only get a second export).
+- **`getDepExport({ exportId })`** returns `DepExport`: `status`
+  (`running|done|failed`), counts, `sha256`/`size` of the DEP file, `findings`
+  (`gaps` as ranges of missing receipt numbers, `chainBreaks`, receipts
+  `withoutCounter` and `withoutSignature`), `items` (the CSV of item lines),
+  `handoverLinks` and, when failed, `error` (`export_failed|export_stalled`).
+- **`waitForDepExport({ exportId, timeoutMs = 600000 })`** polls `getDepExport`
+  (first at once, then after 2 s, each wait 1.5 times longer, at most 15 s) and
+  returns the finished export. A failed export throws `KasseneckApiError` whose
+  `code` is the export's `error`; after `timeoutMs` it throws
+  `DepExportTimeoutError` (the export keeps running on the server: look it up
+  with `getDepExport`, do not queue a new one).
+- **`getDepExportFile({ exportId, file, sha256? })`** with `file` `dep`,
+  `protocol` (PDF), `items` (CSV) or `zip`. Up to 9 MiB the server sends the
+  file itself, above it a signed download link (15 minutes); the package
+  follows the link, so the result is the same: `{ bytes, fileName, contentType, sha256 }`.
+  The SHA-256 is always checked against the sum the server names with a link;
+  pass `sha256` (for example `dep.sha256`, `dep.items.sha256`) to check a direct
+  file as well. A mismatch throws `DepExportChecksumError`
+  (`KasseneckValidationError`, `scope: 'response'`); do not use the bytes.
+- **`createDepHandoverLink` / `revokeDepHandoverLink`:** the link is valid for
+  14 days, `url` and the 6-digit `code` (a string, keep leading zeros) come only
+  in this answer and are handed over separately.
+- **Errors** (`KasseneckApiError.code`, `DEP_EXPORT_ERROR_CODES`): `validation`,
+  `invalid_period`, `export_running`, `too_many_exports`, `export_not_found`,
+  `export_not_ready`, `export_failed`, `invalid_file`, `file_not_available`,
+  `too_many_links`, `link_not_found`, `server_error`, plus the codes of sign-in
+  and edge.
 
 ## Cancellation (Storno)
 

@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "3088cb472f3fef3ed4ff969bf0d37d051363714096616a9263270c58266bde14",
-    "inputsSha256": "931df962ad989229c326fa42dbfda9a5535c23bdd9a52425f19d53dfaa2d6abc",
+    "sha256": "b3ba3504446125bb3fd4915c030e26ab45feded97a8b6d896dee7f359eca0607",
+    "inputsSha256": "4f2bb2dfce0862418ef740822d28226891e50989f2ebca09d43b62efc73c073f",
     "backendPackage": "@kreiseck/kasseneck-api@0.35.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -141,7 +141,12 @@
       "getStocktakePdf",
       "orderSignatureCard",
       "getSignatureCardOrder",
-      "listReceipts"
+      "listReceipts",
+      "createDepExport",
+      "getDepExport",
+      "getDepExportFile",
+      "createDepHandoverLink",
+      "revokeDepHandoverLink"
     ],
     "v3Routed": [
       "createReceipt",
@@ -251,7 +256,12 @@
       "getStocktakePdf",
       "orderSignatureCard",
       "getSignatureCardOrder",
-      "listReceipts"
+      "listReceipts",
+      "createDepExport",
+      "getDepExport",
+      "getDepExportFile",
+      "createDepHandoverLink",
+      "revokeDepHandoverLink"
     ],
     "register": [
       "pairRegisterDevice",
@@ -352,6 +362,8 @@
       "createCreditNote",
       "createCustomer",
       "createCustomerCashregister",
+      "createDepExport",
+      "createDepHandoverLink",
       "createInvoiceItem",
       "createMyPromoVouchers",
       "createPartnerCustomer",
@@ -379,6 +391,8 @@
       "getCustomer",
       "getCustomerCredentials",
       "getCustomerSignatureStatus",
+      "getDepExport",
+      "getDepExportFile",
       "getFirstReceiptDate",
       "getInvoice",
       "getInvoiceItem",
@@ -468,6 +482,7 @@
       "reverseStockMovement",
       "reviewStocktake",
       "revokeCustomerMandate",
+      "revokeDepHandoverLink",
       "rotatePartnerWebhookSecret",
       "rotateWebhookSecret",
       "saveMyVoucherType",
@@ -3274,6 +3289,8 @@
         }
       }
     },
+    "createDepExport": {},
+    "createDepHandoverLink": {},
     "createInvoiceItem": {},
     "createMyPromoVouchers": {
       "params": {
@@ -4048,6 +4065,8 @@
         }
       }
     },
+    "getDepExport": {},
+    "getDepExportFile": {},
     "getFirstReceiptDate": {},
     "getInvoice": {
       "werte": {
@@ -6799,6 +6818,7 @@
       }
     },
     "revokeCustomerMandate": {},
+    "revokeDepHandoverLink": {},
     "rotatePartnerWebhookSecret": {
       "werte": {
         "webhook.lastDelivery.status": {
