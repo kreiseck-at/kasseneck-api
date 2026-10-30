@@ -580,7 +580,7 @@ it whenever it is there. Only without it does the helper build the layout,
 in `fallbackPaperSize` (default `mm58`, as in 0.x). The server layout is
 always 80 mm: on 58 mm paper choose the width at the print path
 (`escPosLayoutBytes(layout, { paperSize: 'mm58' })`, `charsPerLine: 32`); the VAT
-table then keeps the columns of the 80 mm grid. On the public channel only this layout carries the card block, because
+table then keeps the columns of the 80 mm grid. For a partner access only this layout carries the card block, because
 the receipt itself comes without provider data. If you build the layout
 yourself, pass the options from the same response:
 
@@ -641,10 +641,19 @@ for await (const receipt of api.listAllReceipts({ from: '2026-10-01', to: '2026-
   `grossByRateCents`, `paymentMethod`, `payments`, `tipCents`, `operator`,
   `cancellationOf`, `cancellationReason`, `cancellationStatus`, `signatureOk`,
   `customProjectId`, `fullReceiptId`); amounts in cents, no items, no layout.
-  `full` returns `Receipt`, the same shape as `getReportV2`. For one receipt
-  with its print layout use `getReceiptWithCompany`, for the PDF
-  `downloadReceipt` with `fullReceiptId`. `ListReceiptsSummary` is not the
-  `ReceiptSummary` of `listMyReceipts` (register path, other fields).
+  `full` returns `ListedFullReceipt`: the receipt document as in `getReceipt`
+  with `headerVersionId` (the header version that applies, also for old
+  receipts), `testSignature` and `registrationInfo` on zero receipts, never the
+  server `layout` (that comes only with `getReceiptWithCompany`, for the receipt
+  someone opens or prints). The page carries `headers` (one entry per header
+  version of the page, oldest first), `testCashregister`, `logoScale` and, as
+  before, `metadata` (today's company data). For printing use the header of
+  the receipt's version, not `metadata`: `listedReceiptWithCompany(page,
+  receipt)` returns the `ReceiptWithCompany` of `getReceiptWithCompany` without
+  `outputs` and with `layout: null` (zero receipts carry no logo);
+  `receiptLayoutFromResult` then builds the layout from it. For the PDF use
+  `downloadReceipt` with `fullReceiptId`. `ListReceiptsSummary` is not the `ReceiptSummary` of
+  `listMyReceipts` (register path, other fields).
 - **`daySummary`** is only there with `date` and only on the first page
   (`null` when the day has no statistics): `receiptCount` counts every
   receipt of the day, `revenueCents` only standard and cancellation receipts,
@@ -714,9 +723,12 @@ try {
 ```
 
 **Card refunds.** The terminal refund needs the transaction id of the original
-card payment: `payments[].providerPaymentId` of the original receipt. Only the
-register channel (`registerUserAuth`, `kasse.kasseneck.at/api/v3`) returns it;
-the public channel leaves provider data out. The refund payment then carries
+card payment: `payments[].providerPaymentId` of the original receipt. The
+business itself gets it on both channels (API key on `api.kasseneck.at/v3`,
+`registerUserAuth` on `kasse.kasseneck.at/api/v3`), in `getReceipt`,
+`listReceipts` (`view: 'full'`) and `getReportV2`; a partner access never does.
+`providerData` is the provider's raw data without a promised shape; base logic
+on `provider`, `providerPaymentId` and `id`. The refund payment then carries
 the id of the refund itself. `cancellation_outcome_unknown` means the
 cancellation may have been booked: read the original again, never retry.
 

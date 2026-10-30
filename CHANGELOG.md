@@ -4,6 +4,14 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## Unreleased (next free minor, set on release)
+
+The full view of `listReceipts` delivers what `getReceipt` delivers (backend 30.10.2026, spec `list-receipts-voll`). Additive for reading.
+
+- **Page of the full view: `headers`, `testCashregister`, `logoScale`.** `headers` (`ListReceiptsHeader`: `headerVersionId`, `company`) has one entry per header version of the page; each receipt's `headerVersionId` names its entry, also for old receipts without a stored id. `metadata` stays (today's company data). Reason: reprinting an old receipt from `metadata` printed today's address and footer.
+- **Receipts of the full view: `ListedFullReceipt`** (`Receipt` plus `testSignature`); `registrationInfo` on zero receipts. No server `layout` in the list: it is the main cost driver of a page (about 2.7 times the size) and only needed for the receipt someone opens or prints, so it stays with `getReceiptWithCompany`. New helper `listedReceiptWithCompany(page, receipt)` returns the `ReceiptWithCompany` of `getReceiptWithCompany` without `outputs` and with `layout: null`; `receiptLayoutFromResult` builds the layout from it. Reason: one way to print and show a receipt, single or from the list.
+- **Provider data follow the caller, not the channel.** The backend now returns `payments[].providerPaymentId`/`providerData` (and `cardPaymentId`/`cardPaymentData` on old card receipts) to the business itself on both channels, in `getReceipt`, `createReceipt`, `cancelReceipt`, `getReportV2` and `listReceipts`; a partner access never. No API change here (the fields were already optional); `cardRefundReference` and the card-refund check now name that rule in their messages. Reason: the restriction to the register channel stopped nobody holding the API key and pushed integrations into the register channel.
+- Contract re-fetched from the backend: provider data now in the `/v3` cases of `belege.json` and `storno.json`, schema of `listReceipts` with the new fields; other files change only `_quelle`.
 ## 1.18.0 - 2026-10-30
 
 Recording handwritten receipts (Nacherfassung). After a register outage or a sale outside the premises the business

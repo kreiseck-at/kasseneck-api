@@ -97,6 +97,7 @@ export {
   listReceipts,
   listAllReceipts,
   fromListReceiptsSummaryPayload,
+  listedReceiptWithCompany,
   LIST_RECEIPTS_VIEWS,
   LIST_RECEIPTS_ORDERS,
   LIST_RECEIPTS_LIMIT_MAX,
@@ -113,6 +114,8 @@ export {
   type ListReceiptsDaySummary,
   type ListReceiptsPage,
   type ListedReceipt,
+  type ListedFullReceipt,
+  type ListReceiptsHeader,
 } from './list-receipts.js';
 
 export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';

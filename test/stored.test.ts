@@ -73,17 +73,6 @@ function welt(endpunkt: string | null, fall: string | null): Record<string, Json
   return raus;
 }
 
-const ohneAnbieterdaten = (d: Json): Json => {
-  const { cardPaymentId: _i, cardPaymentData: _d, ...rest } = d;
-  if (Array.isArray(rest.payments)) {
-    rest.payments = rest.payments.map((z: Json) => {
-      const { providerData: _p, providerPaymentId: _q, ...z2 } = z;
-      return z2;
-    });
-  }
-  return rest;
-};
-
 // ---- Vokabular: abgeleitet, nie doppelt gepflegt -----------------------------
 
 test('stored: das Vokabular stammt woertlich aus dem Vertrags-Export', () => {
@@ -128,14 +117,14 @@ test('stored: jeder gespeicherte Beleg (Kanal app) ergibt die Antwort des Server
   assert.ok(karte.payments?.some((z) => z.providerPaymentId), 'providerPaymentId am Kartenbeleg');
 });
 
-test('stored: alle gespeicherten Belege gleichen dem Bericht (Kanal api, ohne Anbieterdaten)', () => {
+test('stored: alle gespeicherten Belege gleichen dem Bericht (Kanal api, Schluessel des Betriebs: mit Anbieterdaten)', () => {
   const bericht = BELEGE.cases.find((c: Json) => c.name === 'report').response.data.receipts as Json[];
   const docs = Object.values(BELEGE_GESPEICHERT);
   assert.equal(bericht.length, docs.length);
   for (const doc of docs) {
     const antwort = bericht.find((r) => r.receiptId === doc.receiptId);
     assert.ok(antwort, doc.receiptId);
-    assert.deepEqual(ohneAnbieterdaten(_storedReceiptToWire(doc)), antwort, doc.receiptId);
+    assert.deepEqual(_storedReceiptToWire(doc), antwort, doc.receiptId);
   }
 });
 
