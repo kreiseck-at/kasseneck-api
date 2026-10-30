@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "a505515b224ab56932bbe21d028c2b09d06cce0580b9d7bb5404bf834b08b163";
+export const VOKABULAR_QUELLE = "c14617ec83a2eac2bdffc6794cc2c7f72ae04504259a55313f01fe83747fa565";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -42,7 +42,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "date": "datum",
           "time": "uhrzeit",
           "reason": "grund",
-          "note": "text"
+          "note": "grundText"
         }
       },
       "taxNumber": "taxnr",

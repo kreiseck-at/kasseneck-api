@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "a505515b224ab56932bbe21d028c2b09d06cce0580b9d7bb5404bf834b08b163",
-    "inputsSha256": "1fdac62f3b4496d6a0edf09118f9d7c74045d59df8a51c114442bf28d3d8e277",
+    "sha256": "c14617ec83a2eac2bdffc6794cc2c7f72ae04504259a55313f01fe83747fa565",
+    "inputsSha256": "599a02f43f96e919c8844f4430b57c1528c228c92f5be973974b945cda11e7a0",
     "backendPackage": "@kreiseck/kasseneck-api@0.36.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -2926,7 +2926,7 @@
             "date": "datum",
             "time": "uhrzeit",
             "reason": "grund",
-            "note": "text"
+            "note": "grundText"
           }
         }
       },
@@ -3495,7 +3495,7 @@
           "date": "datum",
           "time": "uhrzeit",
           "reason": "grund",
-          "note": "text"
+          "note": "grundText"
         }
       },
       "paramWerte": {
@@ -3534,7 +3534,7 @@
             "date": "datum",
             "time": "uhrzeit",
             "reason": "grund",
-            "note": "text"
+            "note": "grundText"
           }
         },
         "taxNumber": "taxnr",
@@ -4786,7 +4786,7 @@
             "date": "datum",
             "time": "uhrzeit",
             "reason": "grund",
-            "note": "text"
+            "note": "grundText"
           }
         },
         "taxNumber": "taxnr",
@@ -4901,7 +4901,7 @@
               "date": "datum",
               "time": "uhrzeit",
               "reason": "grund",
-              "note": "text"
+              "note": "grundText"
             }
           }
         ],
@@ -5362,7 +5362,7 @@
               "date": "datum",
               "time": "uhrzeit",
               "reason": "grund",
-              "note": "text"
+              "note": "grundText"
             }
           }
         ],
@@ -5694,7 +5694,7 @@
               "date": "datum",
               "time": "uhrzeit",
               "reason": "grund",
-              "note": "text"
+              "note": "grundText"
             },
             "cancellationStatus": "stornoStand"
           }
