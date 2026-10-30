@@ -12,7 +12,7 @@
  * weiterhin jeden `string`: wer einen Aufruf braucht, den dieses Paket nicht
  * umhuellt, muss ihn weiterhin absetzen koennen.
  */
-import type { PdfOrData, TransportBodyFields, TransportCallOptions } from './transport.js';
+import type { FileOrData, FileOrDataCallOptions, PdfOrData, TransportBodyFields, TransportCallOptions } from './transport.js';
 
 export const ALL_CALLS = [
   'activateCashregister',
@@ -21,6 +21,8 @@ export const ALL_CALLS = [
   'createCreditNote',
   'createCustomer',
   'createCustomerCashregister',
+  'createDepExport',
+  'createDepHandoverLink',
   'createPartnerCustomer',
   'checkPartnerCustomerEmail',
   'createPartnerWebhook',
@@ -37,6 +39,8 @@ export const ALL_CALLS = [
   'getCustomer',
   'getCustomerCredentials',
   'getCustomerSignatureStatus',
+  'getDepExport',
+  'getDepExportFile',
   'getFirstReceiptDate',
   'getInvoice',
   'getInvoicePdf',
@@ -75,6 +79,7 @@ export const ALL_CALLS = [
   'renewRegisterSession',
   'reportCustomerContract',
   'requestCustomerSignature',
+  'revokeDepHandoverLink',
   'searchCustomers',
   'sendPartnerCustomerFonLink',
   'sendPartnerWebhookTest',
@@ -284,6 +289,12 @@ export const PUBLIC_CALLS = [
   'getSignatureCardOrder',
   // Belege einer Kasse auflisten, nur unter /v3 (Nachfolger von getReportV2 fuer Listen).
   'listReceipts',
+  // DEP-Export fuer die Kassennachschau (Kassen-Token), nur unter /v3.
+  'createDepExport',
+  'getDepExport',
+  'getDepExportFile',
+  'createDepHandoverLink',
+  'revokeDepHandoverLink',
 ] as const;
 
 /**
@@ -477,6 +488,15 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getCustomer: 'read',
   getCustomerCredentials: 'read',
   getCustomerSignatureStatus: 'read',
+  // DEP-Export: ein verlorener Ausgang ist harmlos wiederholbar. createDepExport ist mit requestId idempotent, ohne nur
+  // doppelt (Grenze 20 je Tag, keine Buchung). createDepHandoverLink erzeugt bei Wiederholung einen zweiten Link (der
+  // alte steht in getDepExport().handoverLinks und ist widerrufbar; Preis hoechstens too_many_links). revokeDepHandoverLink
+  // ist idempotent.
+  createDepExport: 'repeatable',
+  createDepHandoverLink: 'repeatable',
+  revokeDepHandoverLink: 'repeatable',
+  getDepExport: 'read',
+  getDepExportFile: 'read',
   getFirstReceiptDate: 'read',
   getInvoice: 'read',
   getInvoiceItem: 'read',
@@ -591,3 +611,10 @@ export type InternerPdfOderDatenTransport = (
   functionName: ApiCall,
   params?: Record<string, unknown>,
 ) => Promise<PdfOrData>;
+
+/** Wie `createFileOrDataTransport` (transport.ts), nur mit bekanntem Aufrufnamen. */
+export type InternerDateiOderDatenTransport = (
+  functionName: ApiCall,
+  params?: Record<string, unknown>,
+  options?: FileOrDataCallOptions,
+) => Promise<FileOrData>;

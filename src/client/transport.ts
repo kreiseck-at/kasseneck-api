@@ -327,6 +327,82 @@ export function createPdfOrDataTransport(options: TransportOptions): KasseneckPd
 }
 
 /**
+ * Ergebnis eines Aufrufs, der eine beliebige Datei **oder** eine Nutzlast
+ * liefert: die Datei mit Namen und Inhaltstyp aus den Kopfzeilen der Antwort
+ * (`Content-Disposition: attachment`), oder die `data` einer Erfolgshuelle
+ * (etwa ein Lese-Link, wenn die Datei zu gross fuer die Antwort ist).
+ */
+export type FileOrData =
+  | { file: { bytes: Uint8Array; fileName: string | null; contentType: string | undefined } }
+  | { data: unknown };
+
+/** Optionen je Aufruf des Datei-oder-Daten-Wegs ([createFileOrDataTransport]). */
+export interface FileOrDataCallOptions {
+  /**
+   * Zeitlimit dieses Aufrufs in Millisekunden (Anmeldung, Anfrage und Lesen
+   * des Rumpfs); ohne Angabe `TransportOptions.timeoutMs` (Vorgabe 30 s). Eine
+   * Datei kommt im Rumpf und braucht dafuer laenger als eine Huelle.
+   */
+  timeoutMs?: number;
+}
+
+/** Ruft eine Backend-Funktion auf, die irgendeine Datei **oder** eine JSON-Nutzlast liefert. */
+export type KasseneckFileOrDataTransport = (
+  functionName: string,
+  params?: Record<string, unknown>,
+  options?: FileOrDataCallOptions,
+) => Promise<FileOrData>;
+
+/**
+ * Vierter Einstiegspunkt, fuer Aufrufe, deren Datei kein PDF ist (DEP-JSON,
+ * CSV, ZIP: `getDepExportFile`). Die Antwort wird nur als Bytes gelesen.
+ * Entschieden wird an der Kopfzeile `Content-Disposition: attachment` — eine
+ * Datei ist hier selbst JSON und liesse sich am Inhalt nicht von der
+ * Erfolgshuelle trennen. Ohne diese Kopfzeile gilt der Rumpf als Huelle
+ * (Erfolg: `{ data }`, Fehler: derselbe fachliche Fehler wie auf dem JSON-Weg).
+ */
+export function createFileOrDataTransport(options: TransportOptions): KasseneckFileOrDataTransport {
+  const kern = createCore(options);
+  return (functionName: string, params?: Record<string, unknown>, aufruf?: FileOrDataCallOptions) =>
+    kern<RohAntwort, FileOrData>(functionName, params, undefined, undefined, undefined, alsRohAntwort, dateiOderDatenAuswerten, aufruf?.timeoutMs);
+}
+
+/** Bytes und die Kopfzeilen, die [dateiOderDatenAuswerten] braucht. */
+interface RohAntwort {
+  bytes: Uint8Array;
+  disposition: string | null;
+}
+
+const alsRohAntwort: Koerperleser<RohAntwort> = async (antwort, functionName) => ({
+  bytes: await alsBytes(antwort, functionName),
+  disposition: antwort.headers.get('content-disposition'),
+});
+
+/** Dateiname aus `Content-Disposition`; nur der letzte Pfadteil, ohne Steuerzeichen. `null`, wenn keiner da ist. */
+function dateinameAusKopf(disposition: string): string | null {
+  const treffer = /filename\s*=\s*"([^"]*)"|filename\s*=\s*([^;\s]+)/i.exec(disposition);
+  const roh = treffer ? (treffer[1] ?? treffer[2] ?? '') : '';
+  // eslint-disable-next-line no-control-regex
+  const name = (roh.split(/[\\/]/).pop() ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  return name === '' || name === '.' || name === '..' ? null : name;
+}
+
+function dateiOderDatenAuswerten(
+  roh: RohAntwort,
+  functionName: string,
+  statusCode: number,
+  inhaltstyp: string | undefined,
+  geheimnisse: readonly string[],
+  unlesbar: ErrorOutcome,
+): FileOrData {
+  if (roh.disposition !== null && /^\s*attachment\b/i.test(roh.disposition)) {
+    return { file: { bytes: roh.bytes, fileName: dateinameAusKopf(roh.disposition), contentType: inhaltstyp } };
+  }
+  const text = new TextDecoder('utf-8').decode(roh.bytes);
+  return { data: jsonAuswerten<unknown>(text, functionName, statusCode, inhaltstyp, geheimnisse, unlesbar) };
+}
+
+/**
  * Gemeinsamer Kern aller Einstiegspunkte: Anmeldung, Zeitlimit, Anfrage und
  * HTTP-Status. Was danach mit dem Rumpf geschieht, entscheiden `lesen` und
  * `auswerten`.
@@ -335,7 +411,7 @@ function createCore(options: TransportOptions) {
   const oeffentlicheBasis = v3Basis('baseUrl', options.baseUrl) ?? DEFAULT_BASE_URL;
   const kassenBasis = v3Basis('posBaseUrl', options.posBaseUrl) ?? POS_BASE_URL;
   const kassenweg = isRegisterUserAuth(options.auth);
-  const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const standardZeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
   const kennung = options.clientHeader ?? `kasseneck-api/${PACKAGE_VERSION}`;
   pruefeKennung(kennung);
@@ -359,7 +435,10 @@ function createCore(options: TransportOptions) {
     callOptions: TransportCallOptions | undefined,
     lesen: Koerperleser<R>,
     auswerten: Auswertung<R, T>,
+    // Zeitlimit nur dieses Aufrufs (Datei-oder-Daten-Weg); sonst das des Transports.
+    eigenesZeitlimitMs?: number,
   ): Promise<T> {
+    const zeitlimitMs = eigenesZeitlimitMs ?? standardZeitlimitMs;
     // Die URL nennt die Backend-Funktion, die Fehler nennen den **Vorgang**:
     // `financeWebService` fuehrt ein Dutzend verschiedener Vorgaenge unter einem
     // Endpunkt, und ein Fehler, der nur "financeWebService" sagt, verschweigt

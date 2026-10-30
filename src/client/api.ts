@@ -6,9 +6,25 @@ import {
   type StripeCaptureResult,
 } from '../payments/stripe.js';
 import { hobexPay, hobexRefund, type HobexPayOptions, type HobexRefundOptions } from '../payments/hobex.js';
-import { createTransport, createBinaryTransport, type TransportOptions } from './transport.js';
+import { createTransport, createBinaryTransport, createFileOrDataTransport, type FetchLike, type TransportOptions } from './transport.js';
 import { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Options } from './reports.js';
 import { getCashboxStatus, getSignatureStatus, type CashboxStatus, type SignatureStatus } from './status.js';
+import {
+  createDepExport,
+  createDepHandoverLink,
+  getDepExport,
+  getDepExportFile,
+  revokeDepHandoverLink,
+  waitForDepExport,
+  type CreateDepExportOptions,
+  type CreateDepExportResult,
+  type DepExport,
+  type DepExportFile,
+  type DepHandoverLink,
+  type GetDepExportFileOptions,
+  type RevokedDepHandoverLink,
+  type WaitForDepExportOptions,
+} from './dep-export.js';
 import { listAllReceipts, listReceipts, type ListedReceipt, type ListReceiptsOptions, type ListReceiptsPage, type ListReceiptsView } from './list-receipts.js';
 import {
   sellReceipt,
@@ -91,6 +107,18 @@ export interface KasseneckApi {
   listReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): Promise<ListReceiptsPage<V>>;
   /** Alle Belege eines Tages oder Zeitraums, Seite fuer Seite geholt (hoechstens 100 Seiten). */
   listAllReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): AsyncGenerator<ListedReceipt<V>, void, undefined>;
+  /** DEP-Export fuer die Kassennachschau einstellen (`createDepExport`, nur /v3); antwortet sofort, der Export laeuft im Hintergrund. */
+  createDepExport(options?: CreateDepExportOptions): Promise<CreateDepExportResult>;
+  /** Zustand, Kennzahlen, Befund und Pruefer-Links eines Exports (`getDepExport`). */
+  getDepExport(options: { exportId: string }): Promise<DepExport>;
+  /** Wartet, bis der Export fertig ist (Abfrage 2 s, x1,5, hoechstens 15 s; Vorgabe 10 Minuten). */
+  waitForDepExport(options: WaitForDepExportOptions): Promise<DepExport>;
+  /** Eine Datei des Exports (dep, protocol, items, zip) laden und gegen die SHA-256-Summe pruefen. */
+  getDepExportFile(options: GetDepExportFileOptions): Promise<DepExportFile>;
+  /** Pruefer-Link (Adresse und 6-stelliger Code, 14 Tage) zu einem fertigen Export. */
+  createDepHandoverLink(options: { exportId: string }): Promise<DepHandoverLink>;
+  /** Pruefer-Link der eigenen Kasse widerrufen. */
+  revokeDepHandoverLink(options: { linkId: string }): Promise<RevokedDepHandoverLink>;
   /** Kassenbericht als PDF (v2): abgeschlossener Monat, Tag oder Zeitraum (Endpunkt `getCashregisterReport`). */
   getCashregisterReport(options: CashregisterReportPeriod): Promise<Uint8Array>;
   /** @deprecated Since 1.10.0: use getCashregisterReport. Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
@@ -120,6 +148,15 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
   // Zweiter Einstiegspunkt fuer die PDF-Downloads; dieselben Optionen,
   // dieselbe Anmeldung — nur die Antwort wird als Bytes gelesen.
   const rufenBinaer = createBinaryTransport(options);
+  // Fuer Dateien beliebiger Art (DEP-Export): Datei oder Lese-Link.
+  const rufenDatei = createFileOrDataTransport(options);
+  // Das globale fetch erst beim Folgen eines Lese-Links holen: ohne Link braucht es niemand.
+  const holen: FetchLike = (url, init) => {
+    if (options.fetch) return options.fetch(url, init);
+    const umgebung = globalThis as { fetch?: FetchLike };
+    if (typeof umgebung.fetch !== 'function') throw new Error('getDepExportFile: kein globales fetch vorhanden');
+    return umgebung.fetch(url, init);
+  };
   return {
     sellReceipt: (o) => sellReceipt(rufen, o),
     sellReceiptWithCompany: (o) => sellReceiptWithCompany(rufen, o),
@@ -136,6 +173,12 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     getReportV2: (o) => getReportV2(rufen, o),
     listReceipts: (o) => listReceipts(rufen, o),
     listAllReceipts: (o) => listAllReceipts(rufen, o),
+    createDepExport: (o) => createDepExport(rufen, o),
+    getDepExport: (o) => getDepExport(rufen, o),
+    waitForDepExport: (o) => waitForDepExport(rufen, o),
+    getDepExportFile: (o) => getDepExportFile(rufenDatei, holen, o),
+    createDepHandoverLink: (o) => createDepHandoverLink(rufen, o),
+    revokeDepHandoverLink: (o) => revokeDepHandoverLink(rufen, o),
     getCashregisterReport: (options) => getCashregisterReport(rufenBinaer, options),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),
