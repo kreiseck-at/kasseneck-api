@@ -3,6 +3,7 @@ import { euroToCents } from '../money.js';
 import { readEnumKey } from './enum-payload.js';
 import { type CancellationStatus, CANCELLATION_STATUSES } from './cancellation.js';
 import { type ReceiptPayment, type ReceiptPaymentPayload, fromReceiptPaymentPayload } from './receipt-payment.js';
+import { type ManualReceipt, readManualReceipt } from './manual-receipt.js';
 
 /**
  * Belegzeile einer Liste — die Form, die `listMyReceipts` liefert
@@ -74,6 +75,8 @@ export interface ReceiptSummary {
    * (`providerPaymentId`, `providerData`) bleiben im Backend.
    */
   payments?: ReceiptPayment[];
+  /** Nur an nacherfassten Belegen: der Handbeleg. */
+  manualReceipt?: ManualReceipt;
 }
 
 export interface ReceiptSummaryPayload {
@@ -94,6 +97,7 @@ export interface ReceiptSummaryPayload {
   cancellationStatus?: string | null;
   zeroKind?: string | null;
   payments?: ReceiptPaymentPayload[] | null;
+  manualReceipt?: unknown;
 }
 
 export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): ReceiptSummary {
@@ -121,7 +125,13 @@ export function fromReceiptSummaryPayload(payload: ReceiptSummaryPayload): Recei
       : { cancellationStatus: isCancellationStatus(payload.cancellationStatus) ? payload.cancellationStatus : ('unknown' as const) }),
     ...(isZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
+    ...handbelegFeld(payload.manualReceipt),
   };
+}
+
+function handbelegFeld(roh: unknown): { manualReceipt?: ManualReceipt } {
+  const manualReceipt = readManualReceipt(roh);
+  return manualReceipt ? { manualReceipt } : {};
 }
 
 function isCancellationStatus(wert: unknown): wert is CancellationStatus {

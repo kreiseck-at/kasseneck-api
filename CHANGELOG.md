@@ -12,6 +12,29 @@ The full view of `listReceipts` delivers what `getReceipt` delivers (backend 30.
 - **Receipts of the full view: `ListedFullReceipt`** (`Receipt` plus `testSignature`); `registrationInfo` on zero receipts. No server `layout` in the list: it is the main cost driver of a page (about 2.7 times the size) and only needed for the receipt someone opens or prints, so it stays with `getReceiptWithCompany`. New helper `listedReceiptWithCompany(page, receipt)` returns the `ReceiptWithCompany` of `getReceiptWithCompany` without `outputs` and with `layout: null`; `receiptLayoutFromResult` builds the layout from it. Reason: one way to print and show a receipt, single or from the list.
 - **Provider data follow the caller, not the channel.** The backend now returns `payments[].providerPaymentId`/`providerData` (and `cardPaymentId`/`cardPaymentData` on old card receipts) to the business itself on both channels, in `getReceipt`, `createReceipt`, `cancelReceipt`, `getReportV2` and `listReceipts`; a partner access never. No API change here (the fields were already optional); `cardRefundReference` and the card-refund check now name that rule in their messages. Reason: the restriction to the register channel stopped nobody holding the API key and pushed integrations into the register channel.
 - Contract re-fetched from the backend: provider data now in the `/v3` cases of `belege.json` and `storno.json`, schema of `listReceipts` with the new fields; other files change only `_quelle`.
+## 1.18.0 - 2026-10-30
+
+Recording handwritten receipts (Nacherfassung). After a register outage or a sale outside the premises the business
+writes paper receipts and records them in the register later; the receipt now carries the reference. Additive.
+
+- **`manualReceipt` on `createReceipt`/`sellReceipt` and on `Receipt`, `ReceiptSummary` and the `listReceipts` summary:**
+  `number` (the paper pad's own number range, never the next register number), optional `numberTo` and `count` (daily
+  summary receipt, only after an outage), `date` (`YYYY-MM-DD`, Vienna day), optional `time` (`HH:MM`), `reason`
+  (`MANUAL_RECEIPT_REASONS`: `network_outage`, `power_outage`, `device_failure`, `system_outage`, `other` with `note`,
+  `outside_premises`). Only on `standard`; the package throws before sending otherwise. The server checks everything
+  else. The receipt's own `timeStamp` stays the time of recording (no backdating). `readManualReceipt` reads the field.
+- **Error codes `MANUAL_RECEIPT_ERROR_CODES`** (contract `errorCodes.manualReceipt`): `invalid_manual_receipt`,
+  `manual_receipt_not_allowed`, `manual_receipt_date_in_future`, `manual_receipt_range_not_allowed`,
+  `manual_receipt_duplicate` (same number or overlapping range on the same day and register; `details.receiptId`
+  names the receipt that already recorded it), with `isManualReceiptErrorCode`.
+- **Receipt block „NACHERFASSUNG“** below the business header: kind (after a register outage / sale outside the
+  premises), reason, number and day of the paper receipt or range and count of the daily summary, and
+  „USt: Duplikat …“ (BMF cash register decree, 3.3 and 2.4.11; not for small businesses). 23 new golden receipts `manual-receipt-*`.
+- **Zero receipt after a signature outage** (`zeroKind: outage_end`) prints start and end of the outage from
+  `legalMessage` before the QR code; the decree (3.6.1) requires them on the receipt. New golden `zero-outage-end-period`,
+  all existing goldens unchanged.
+- Contract re-fetched from the backend (vendored package 0.36.0): new cases `sale_manual_receipt` and
+  `error_manual_receipt_duplicate`, catalog `HANDBELEG_GRUND`; print digests of the two new server layouts recorded.
 
 ## 1.17.1 - 2026-10-29
 
