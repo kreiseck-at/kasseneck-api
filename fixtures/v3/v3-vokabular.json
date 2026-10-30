@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "1eefec5cf267bfd9360f028d0e4d6440c2e202813bea9cb5bbb01e22fe3aaca7",
-    "inputsSha256": "905ca9814d79d2d24f8cb25ef27678cb32ff6b52ea8f5b460c4248baefd5f88a",
+    "sha256": "b06a8be2fe8c96e7e266a4e237c77588e9bef4e3272a9343ed2969ba722a87f4",
+    "inputsSha256": "3ee0bad6bd2e4b8c87412d7301d9862d0d79adf3494bde08ad8fc533c9a60b66",
     "backendPackage": "@kreiseck/kasseneck-api@0.36.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -376,6 +376,7 @@
       "createVariantGroup",
       "createWebhook",
       "deactivateArticle",
+      "deleteMyVoucherLabelTemplate",
       "deleteMyVoucherType",
       "deletePartnerWebhook",
       "deleteWebhook",
@@ -439,6 +440,7 @@
       "listMyStocktakeItems",
       "listMyStocktakes",
       "listMyTipRecipients",
+      "listMyVoucherLabelTemplates",
       "listMyVoucherTypes",
       "listMyVouchers",
       "listPartnerCustomers",
@@ -485,6 +487,7 @@
       "revokeDepHandoverLink",
       "rotatePartnerWebhookSecret",
       "rotateWebhookSecret",
+      "saveMyVoucherLabelTemplate",
       "saveMyVoucherType",
       "searchCustomers",
       "sendPartnerCustomerFonLink",
@@ -2528,6 +2531,7 @@
         "invalid_line",
         "invalid_return_disposition",
         "invalid_tip_refund_source",
+        "manual_receipt_not_allowed",
         "not_permitted",
         "note_too_long",
         "own_receipts_only",
@@ -3892,6 +3896,7 @@
         }
       }
     },
+    "deleteMyVoucherLabelTemplate": {},
     "deleteMyVoucherType": {},
     "deletePartnerWebhook": {
       "data": {
@@ -5557,6 +5562,36 @@
       }
     },
     "listMyTipRecipients": {},
+    "listMyVoucherLabelTemplates": {
+      "data": {
+        "labelTemplates": [
+          {
+            "__": "vorlagen",
+            "label": {
+              "__": "etikett",
+              "size": "groesse",
+              "rotation": "drehung",
+              "fields": {
+                "__": "felder",
+                "business": "betrieb",
+                "value": "wert",
+                "validity": "gueltigkeit",
+                "checkPage": "pruefseite",
+                "designation": "bezeichnung"
+              },
+              "freeText": "freitext"
+            },
+            "isDefault": "standard",
+            "saved": "gespeichert",
+            "usedBy": [
+              {
+                "__": "verwendetVon"
+              }
+            ]
+          }
+        ]
+      }
+    },
     "listMyVoucherTypes": {
       "data": {
         "voucherTypes": [
@@ -5590,7 +5625,8 @@
             },
             "order": "reihenfolge",
             "active": "aktiv",
-            "soldCount": "verkauft"
+            "soldCount": "verkauft",
+            "templateId": "vorlageId"
           }
         ]
       },
@@ -6186,7 +6222,8 @@
             },
             "order": "reihenfolge",
             "active": "aktiv",
-            "soldCount": "verkauft"
+            "soldCount": "verkauft",
+            "templateId": "vorlageId"
           }
         ]
       },
@@ -7041,6 +7078,51 @@
         }
       }
     },
+    "saveMyVoucherLabelTemplate": {
+      "params": {
+        "label": {
+          "__": "etikett",
+          "size": "groesse",
+          "rotation": "drehung",
+          "fields": {
+            "__": "felder",
+            "business": "betrieb",
+            "value": "wert",
+            "validity": "gueltigkeit",
+            "checkPage": "pruefseite",
+            "designation": "bezeichnung"
+          },
+          "freeText": "freitext"
+        },
+        "isDefault": "standard"
+      },
+      "data": {
+        "labelTemplate": {
+          "__": "vorlage",
+          "label": {
+            "__": "etikett",
+            "size": "groesse",
+            "rotation": "drehung",
+            "fields": {
+              "__": "felder",
+              "business": "betrieb",
+              "value": "wert",
+              "validity": "gueltigkeit",
+              "checkPage": "pruefseite",
+              "designation": "bezeichnung"
+            },
+            "freeText": "freitext"
+          },
+          "isDefault": "standard",
+          "saved": "gespeichert",
+          "usedBy": [
+            {
+              "__": "verwendetVon"
+            }
+          ]
+        }
+      }
+    },
     "saveMyVoucherType": {
       "params": {
         "kind": "art",
@@ -7070,7 +7152,8 @@
           "freeText": "freitext"
         },
         "order": "reihenfolge",
-        "active": "aktiv"
+        "active": "aktiv",
+        "templateId": "vorlageId"
       },
       "paramWerte": {
         "kind": {
@@ -7117,7 +7200,8 @@
           },
           "order": "reihenfolge",
           "active": "aktiv",
-          "soldCount": "verkauft"
+          "soldCount": "verkauft",
+          "templateId": "vorlageId"
         }
       },
       "werte": {
