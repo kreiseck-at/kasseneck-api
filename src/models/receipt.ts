@@ -1,5 +1,6 @@
 import { ReceiptType, KeckPaymentMethod, CreditCardProvider, VoucherAction, VoucherType } from '../enums/index.js';
 import { readEnumKey, requireEnumKey } from './enum-payload.js';
+import { type Handbeleg, leseHandbeleg } from './handbeleg.js';
 import {
   type ReceiptItem,
   type ReceiptItemPayload,
@@ -70,6 +71,8 @@ export interface Receipt {
    * Kartenfelder. Siehe [ReceiptPayment].
    */
   payments?: ReceiptPayment[];
+  /** Nur an nacherfassten Belegen: der Handbeleg (siehe [Handbeleg]). */
+  handbeleg?: Handbeleg;
 }
 
 export interface ReceiptPayload {
@@ -112,6 +115,7 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   cancellationReason?: string | null;
   zeroKind?: string | null;
   cancellations?: Cancellation[] | null;
+  handbeleg?: unknown;
 }
 
 /**
@@ -193,7 +197,13 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...(istZeroKind(payload.zeroKind) ? { zeroKind: payload.zeroKind } : {}),
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
+    ...handbelegFeld(payload.handbeleg),
   };
+}
+
+function handbelegFeld(roh: unknown): { handbeleg?: Handbeleg } {
+  const handbeleg = leseHandbeleg(roh);
+  return handbeleg ? { handbeleg } : {};
 }
 
 function leseStorno(eintrag: Cancellation): Cancellation {

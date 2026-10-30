@@ -1,0 +1,212 @@
+{
+  "zeichen": 32,
+  "bloecke": [
+    {
+      "art": "logo",
+      "breiteAnteil": 0.62,
+      "hoeheZeilen": 3.968
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "       Melisse Nails e.U.       ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "          Hauptplatz 1          ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "         4830 Hallstatt         ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "          ATU12345675           ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "         +43 6134 12345         ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "================================",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "         NACHERFASSUNG          ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "================================",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "     nach Ausfall der Kasse     ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "      Grund: Gerät defekt       ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "        Handbeleg Nr. 8         ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "   vom 10.11.2026, 15:20 Uhr    ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  USt: Duplikat des Handbelegs  ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "Datum:       12.11.2026 10:02:31",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kassen-ID:                KASSE1",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Beleg-ID:         AT0-KASSE1-105",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "1  x Maniküre            35,00 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "MwSt%   MwSt      Netto   Brutto",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "A 20%   5,83      29,17    35,00",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "--------------------------------",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Gesamt:                  35,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlungsart:          Barzahlung",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "qr",
+      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-105_2026-11-12T10:02:31_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR",
+      "breiteAnteil": 0.828125
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "      Bis zum nächsten Mal      ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "marke",
+      "breite": 234,
+      "hoehe": 34
+    }
+  ]
+}

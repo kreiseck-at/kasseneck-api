@@ -4,6 +4,17 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.36.0
+
+Nacherfassung händischer Belege, Zwilling von 1.18.0. Das Backend vendort die 0.x-Linie und setzt damit den Bon.
+
+- **Block „NACHERFASSUNG“** unter dem Betriebskopf, wenn der Beleg `handbeleg` trägt (innere Form; unter `/v3` heißt das
+  Feld `manualReceipt`): Art (nach Ausfall der Kasse bzw. Leistung außer Haus), Grund, Nummer und Tag des Handbelegs bzw.
+  Bereich und Anzahl des Tagessammelbelegs, Hinweis „USt: Duplikat“ (Erlass 2019, 3.3 und 2.4.11; nicht bei
+  Kleinunternehmern). Der Zeitstempel des Belegs bleibt der Zeitpunkt der Nacherfassung. Raster gleich wie in 1.x.
+- **Nullbeleg nach Signaturausfall** (`zeroKind: outage_end`) druckt Beginn und Ende des Ausfalls aus `legalMessage`
+  vor dem QR. Der Erlass (3.6.1) verlangt, dass sie aus dem Beleg hervorgehen; bisher standen sie nur im Belegdokument.
+
 ## 0.35.0
 
 Bon-Feinschliff der Gutscheine, Zwilling von 1.14.0. Das Backend vendort die 0.x-Linie und setzt damit den Bon; die vier

@@ -1,0 +1,230 @@
+{
+  "zeichen": 48,
+  "bloecke": [
+    {
+      "art": "logo",
+      "breiteAnteil": 0.5208333333333334,
+      "hoeheZeilen": 5
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "                Bäckerei Muster                 ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  Hauptplatz 1                  ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 4830 Hallstatt                 ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  ATU12345675                   ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 +43 6134 12345                 ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "================================================",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 NACHERFASSUNG                  ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "================================================",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "             nach Ausfall der Kasse             ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  Grund: Strom                  ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "               Handbeleg Nr. 233                ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 vom 03.11.2026                 ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "          USt: Duplikat des Handbelegs          ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "Datum:                       04.11.2026 07:05:12",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kassen-ID:                                KASSE1",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Beleg-ID:                         AT0-KASSE1-104",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "4  x Semmel je 0,79                       3,16 B",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "1  x Kaffee klein                         2,80 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "MwSt%       MwSt            Netto         Brutto",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "B 10%       0,29            2,87            3,16",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "A 20%       0,47            2,33            2,80",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "------------------------------------------------",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Gesamt:                                   5,96 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlungsart:                          Barzahlung",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "qr",
+      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-104_2026-11-04T07:05:12_0,00_0,00_0,00_0,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR",
+      "breiteAnteil": 0.5520833333333334
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "         Vielen Dank für Ihren Einkauf          ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "            www.baeckerei-muster.at             ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "marke",
+      "breite": 352,
+      "hoehe": 51
+    }
+  ]
+}

@@ -145,6 +145,190 @@
       "blatt32": "d0d15e5e2abbd3ddaf19a9aa529eb4a1630d9a5861f496029cbc75115ad256fb",
       "blatt48": "b6829db9a53437edc290a216fe913223f9fb2ce4b3d087ff9c617925fb8d2e5e"
     },
+    "nacherfassung-einzel-ausser-haus-ohne-zeit": {
+      "eingabe": "82de845a0a652539c170142cfa20c7b6a21fce8db1d8f2c884e65a8443d643d0",
+      "erwartet": "bb76e0c32ef0d2465f2ff812d5289040918d9e27a2c48b01be29a912b939564d",
+      "grid32": "c7b2cc06213f73e20759aed325334ac1f8a1c5dd6fc57940e62dd338abfda368",
+      "grid48": "78a502bbf78e7983b97db21f1c14d2f14adf19ba97163ea04a659937d785b137",
+      "blatt32": "0b14a6be1ec84469e6b8901cd500e1264367d22ec85e58d7ecf858b8b15f0b47",
+      "blatt48": "12ddd95da981f175235bcff6886a57a38abc8ddfdadd6ce920cb7a3df5e3d8fe"
+    },
+    "nacherfassung-einzel-ausser-haus-zeit": {
+      "eingabe": "f0ef22bfeff75e9e90331d6c3b6c7c08f8af8c241a14f65873d1d160771a4fd7",
+      "erwartet": "572d55a29c47fa1e6cbbf2c4c50b092c469684663150a2a979b2528fa86e63be",
+      "grid32": "f12c40357fbee64dd4d8ce98fc144053951b2be5f35813ab13d030a8d9bbab60",
+      "grid48": "79eb1e9a71af6dd16368a3e4466030212d8bde33497e8cf82817465336aa2850",
+      "blatt32": "63a26032237579ba2178ebd259661d2078eeaf1511f99a1f1a8ca58fc0776767",
+      "blatt48": "ce2aa6ec8f95ff0a2cd1a55e8c31d5fb6de9476224ccf570117b672e304505ce"
+    },
+    "nacherfassung-einzel-geraet-ohne-zeit": {
+      "eingabe": "a0de4df49cb64ee782437fc9d7aaeed7e1eac49a48621b20c18caf18c6ec17f6",
+      "erwartet": "869e36247a8b17da5283dfd9567344efadde0e464a1ecd62d0291c21e0bd22cd",
+      "grid32": "5dc345e5852b8c2ffa39b523d6d4807501e6e610eda231d4445bb274cbe2a0d4",
+      "grid48": "557a27067ad7b1b9dc0bab1d1be93d95d434bb5f0330d68b93354d51318f3d1b",
+      "blatt32": "495f6739f2ef7db97777175efb3e28245f6f248841926e87c0314c292dc67f4a",
+      "blatt48": "de426ba0fae7072503347823aa429d33bf3d616ec8a2dd71322cd389e6f91068"
+    },
+    "nacherfassung-einzel-geraet-zeit": {
+      "eingabe": "dbf2f6d8133fc1c04726a50ba28d90932edf31de2d0eb88304e9094a42319085",
+      "erwartet": "96f1c13e820c8b7d8cc15014d9453648baf78f0c7f4060631a4fec5cdfcb10d5",
+      "grid32": "5b43f5117569db77030c0417ef1617aec64a4cb18811c98f6877a711ff0e07ca",
+      "grid48": "7d3df1c41df4d5a9ad3bb9258c4226b7d1849ced69330d7ea5e1e2dae2af6d1a",
+      "blatt32": "a75d2330121f55e6a9d2c5203e84fed0e19ff0bffb97288b3ea5693b6900b6ba",
+      "blatt48": "191b643442698c4bb44cf48935fe2130c77f687f89792ff77119fbd5e83b794a"
+    },
+    "nacherfassung-einzel-internet-ohne-zeit": {
+      "eingabe": "552fc266cafa41be7f33460249885a5a64ef150646dfa493acf9f5eb08d23e67",
+      "erwartet": "c5ab92bdecf12fea20644f49fe0e19efcf67cf410d1893bd4e3f8706ef3edbf6",
+      "grid32": "91e3be88ae3810bed9b16aef432700fed24df557de3ce75f42152200897a5a3c",
+      "grid48": "74efdb25ee8f5cf3b9e239ea436fea26c4ca63a6e27e988c484b2993cd41817b",
+      "blatt32": "698d187dfe64add47f8355351de73c175ba92a409bd0089e08fec93c4a6ee957",
+      "blatt48": "a431df2ec28ec37a3badcfbf701be78694be5a15c1895ab69e2fc59ebcc5db8c"
+    },
+    "nacherfassung-einzel-internet-zeit": {
+      "eingabe": "99b12bd53e757ec6e44c9f4354365323fa6fcf11f43f9346be92889068513b2c",
+      "erwartet": "d2d008dd0aa91cdc8ded9ead57aa99b8deb9e5be2ff26aa91757e0b49ebb1de5",
+      "grid32": "1fe6c58fb2e44bef9237e1e9ab09360642b33e742ab0e4aa0e4f8554b3f00da3",
+      "grid48": "6ef59db68527db2eec2be74c98fe71879dd85b73873f70af39132bd89e928f1b",
+      "blatt32": "edd373385c36d995313587f9de85ae2972c6126927c5eb8bafc0a65c7ea90099",
+      "blatt48": "4b229c0edd2f050cd23debd610405a56efaeeb84247d74b9d0cc2652509ae2a9"
+    },
+    "nacherfassung-einzel-sonstiges-ohne-zeit": {
+      "eingabe": "d1c36a4e960702b468aa0d655c38aa36c4bd4400d02883cb343972d1b53d76b2",
+      "erwartet": "74aa87be408912355addb8cab8cf451f65e6aaaf73d9d9b7cddf66c814be126e",
+      "grid32": "5014c6ea397739135a0a2acbe82646b2e8855f0d42ca3929f9fd0866020efce3",
+      "grid48": "1e54503379b413f7b8b449b73e8277135dfa5db7cfee05328475d4f524723a54",
+      "blatt32": "cde4194d59d291b5943b24470dd6542205b92395252b6f208d145493eeef60b6",
+      "blatt48": "f5162fc8a62fb95741b938db1bcbf2d544ebb1e91a3c2f7bb716aa5b374a9f27"
+    },
+    "nacherfassung-einzel-sonstiges-zeit": {
+      "eingabe": "04eb0e5c2af78743ae6b9c7ab7e0693861387bb3a726f4c839524a35fd00f481",
+      "erwartet": "7a5579a68a5823ebb715c332e692a0448f0fe8aed586899871b52ac8903058c3",
+      "grid32": "e51acd53529e1b1ed867854d56b63c656e7f94d0c59953bb9d5024c65a92f76d",
+      "grid48": "b5c42d0fbf82fb57c668603ddd3e5f18451c4248158348c23aa66063df7ab3d1",
+      "blatt32": "270376893f434be095bf4208d65efbe4520f083a083787033849e319a13d3f92",
+      "blatt48": "0d41a924f0aa8c807a443345e37cb6ca47d7157b20478c672513629c173e0815"
+    },
+    "nacherfassung-einzel-stoerung-ohne-zeit": {
+      "eingabe": "da7cb5bd3a8b7c3682fb304ca5efb2d883b9c31e90019525fa38bec7e1c62f52",
+      "erwartet": "3e5ae3c8b1214f6dbcc5475938b9a2f98ce8e92a23d29e6f1c1167ef2bedc0f5",
+      "grid32": "b401ead6dbd8c1859cf09b6677cc5e914d6226b7d2c66d05e5e39cf37e8f65e0",
+      "grid48": "da5712d42bd006ea2b7dc496b8b2a724d4681f8c50493a193995e6e68c7b7b07",
+      "blatt32": "b890850b96b3326053561c00b1cb2ea554a6b5c345e76e4968caa1961aa39745",
+      "blatt48": "bb85f3b60bf0fe947a302bdc0245e4d9eff0fed51b232e889e881813fca7a0bd"
+    },
+    "nacherfassung-einzel-stoerung-zeit": {
+      "eingabe": "da55214f24f79754fd3edc17b1f7ec3a69552acba9b5b5fecb236e3316d171a1",
+      "erwartet": "a6fa92b616a7ef0a03fc92191c65b4e09b6e234d115439c8533b0d5cc533b094",
+      "grid32": "019f0e4c619751925166e34d7e1b6526fd6231f7ebb5dde053b4a247105b7065",
+      "grid48": "1af936246aca80ac0197f6dd1ac6b9085b61e98c50bbaa49cd5c1de5132bfa23",
+      "blatt32": "0c4bf63742524c55ca688a2eb9b03dcac079428db6ef12c6d9c1f9518566b918",
+      "blatt48": "3b227d98209ae627b523a2964d9fe6d598e9fae47ef628c86897ebd56b8a4759"
+    },
+    "nacherfassung-einzel-strom-ohne-zeit": {
+      "eingabe": "b82ab518601a2a05b79da6c9ff3c5abcc24d642711db6f1e46d041ea39abddc6",
+      "erwartet": "1ea95633b228a929de0936645ae33a4bf922c2ff34ea8d96ef17baded9f32fd2",
+      "grid32": "484ff9002a65f1579cf0258682610a907bfc0071b6f28ec6dd0ccd433d2bdd5a",
+      "grid48": "fb6bf412e583d7decc581b92855d7fbdaf1956bf4a77f47b577baa0401f8fe98",
+      "blatt32": "7c3386677e35871672fa25913ae183b65c783ed89676057116ba1556ee9cb975",
+      "blatt48": "82d2e0d2849c3782286988308b35218cdae31691f151f3ef45524106d1d0063d"
+    },
+    "nacherfassung-einzel-strom-zeit": {
+      "eingabe": "3a864a751af731f5be52a3754e102cec49e8c25cd108c57d54e13b2f3602ec80",
+      "erwartet": "a3acf0cdecd36afb6d474f454b468fa89ffd9b9888877b4d13285422e2e41a07",
+      "grid32": "e921612a6ba0e9f5778b44e657f4d4dfafe0e0fb6fd93c61c08ed745718c4100",
+      "grid48": "84d79bcf04c1aadac4621cf48ebe2f81e41d547962a395a76670ced46e07e53e",
+      "blatt32": "19a7effec336ebcc0aa43376f2ee8345b38c142c56658ab10ee34035f24e8f53",
+      "blatt48": "ddfe4dc16dd31e4e28fb92b127be206855059f0ef7cb85bf449dfacaaafae5d0"
+    },
+    "nacherfassung-kleinunternehmer": {
+      "eingabe": "5889263eda7d9c5264b217a74c4a4046dd4850097fe74d558cd824833072ae0d",
+      "erwartet": "562d2011b777f9f8109a9f77114ca41bda82411fc73ede0c36a361bfd5b10b9e",
+      "grid32": "a5a914464bd83b153d35c4b747f097461cb896f8c2fdcc7c94e64e8cd5163f32",
+      "grid48": "9b2e893b54da5a90f776675208d70e52c15d452688ffa25622f248e8aa9471e8",
+      "blatt32": "168d1a60f62428703f5d0eb09afff38e59f24770b3d687357fd7c893843f6136",
+      "blatt48": "bf1d30467ee7601b38a31e1af4bc03861b4b7a946869b70b7be0b73d4aa27bf8"
+    },
+    "nacherfassung-sammel-geraet-anzahl": {
+      "eingabe": "b07bffaaf274b893e64a8d3fe12f7b321a342caa55fc8b058bbe1c9093068a0d",
+      "erwartet": "8ec54a7b1163b41d83753c3ecc07f1067c4f93550725cfb12f4abdebd63ece80",
+      "grid32": "8b9e43e02204ae46790036eb654529be27e0bd87e20b9fed434fa08fad1a7de4",
+      "grid48": "ce4ebc5c07e4ff3de7994de578d7d1b6013ad4f4d3061e4f8cfd7ffb6afab7aa",
+      "blatt32": "831d85be71ef0af41e7fbad25e41b7c584ab95025032772d039cd221526ad0f5",
+      "blatt48": "bbd39104ba0a96a8a037504941186441fbfaddb56d81f5cc165e3110c0945ed3"
+    },
+    "nacherfassung-sammel-geraet-ohne-anzahl": {
+      "eingabe": "971d86b168da8ca4b0bf6856c312e64871046f0af427226e427f5b22c9621db5",
+      "erwartet": "7cc25d4156aa52cefae825ced8132016a525f91b9516b5196cb2e6ad5bf590a4",
+      "grid32": "68406906af8d9104f20a11ab3d8d68036d2c47f2c348e413c70a3bd8850e24d5",
+      "grid48": "b271d82c9984641ff16ec4cf67733317e771780739ec829614d94e0ed070c5fe",
+      "blatt32": "870ce010947a37a7ef63760c5dbef5dabb709226aa3d9c386ac6a5b19e3e2430",
+      "blatt48": "1ca29e8a8e6911871172c411b64f5e18defe758c86a9050e7c0079b4a2fcefca"
+    },
+    "nacherfassung-sammel-internet-anzahl": {
+      "eingabe": "33d3b73a5487f9e1d68df5b06087bf43cdb668c38dc787df7b1518f32956edc9",
+      "erwartet": "db53cf7d32366d6a60f8f21e2a73314aa9dd205be013428f299b683eae5f5ac4",
+      "grid32": "6257225c0e52a2f2c0c44f9e7bdfb1c12f6b40e45ded8d7146db8ed9b22b39ab",
+      "grid48": "c4421b26326053eb5069efdbb96ad64cced21ed1cc4077d65c039d669e43a0dd",
+      "blatt32": "79340cf1f9c953a68d6e7614a7e804bec58d27873cef4cde755bb151d440236d",
+      "blatt48": "666e0c0429e117e58bc279b3a07ee5041af4e64235a47f2cf9481719b04b9056"
+    },
+    "nacherfassung-sammel-internet-ohne-anzahl": {
+      "eingabe": "4821749f168543ed4e648e5b1782f7e9ed65f3b303472f36ef75aea83a38f3a1",
+      "erwartet": "fd7f80e3a6ff6732a2001616676463ad616a3e39c8784dc176142f72dbc8dc82",
+      "grid32": "fde9f6fb9e1fa26a269f839a82c6e02f9bdca9b2c7369ff1e3455a6f2038c676",
+      "grid48": "26ee933b5a739e475decf41a0f68b4c48100a9916857d66b52d9da963f13ef6d",
+      "blatt32": "7afc68478f3997afc7d7e8b9b09ccf30a89589ad201c251a3aef8675c108f5d0",
+      "blatt48": "929519e10ba643f0162fa5388259fe37565ed2708fe7b3605228ea997968aff4"
+    },
+    "nacherfassung-sammel-sonstiges-anzahl": {
+      "eingabe": "96ca7bacbcaa41422735d4347bc43565924d1bc912adca50b58485663dc4d6fc",
+      "erwartet": "f65b256e913e980ce2348c7b23435f2ed1a7bed1f0fee5cfe6b9c62677b53cc8",
+      "grid32": "237d31dbf9abe627eeb90db59b7cf0e6ac5f35cd579a6b704e69f727357e69f8",
+      "grid48": "8c3aaeb019cf771e728d3fbfd0cbe528702d155aae5ecf56460e303a387c43a8",
+      "blatt32": "c400efacf10342fe96327bdf2efa167da3ad4f3ba3acee8ae9174aae36efce37",
+      "blatt48": "f889dcb56340abd249cfbd21d4d10e391f28dbb172b42f02f6469282c5078dc6"
+    },
+    "nacherfassung-sammel-sonstiges-ohne-anzahl": {
+      "eingabe": "ad98eb274f28a8f9861f0857b403e1523a3adb95ae626886f30acf0a960da3d5",
+      "erwartet": "ef542099e8b34a83c4864a417e42599701abc4b1c058adc73e1b52ec369b0fff",
+      "grid32": "86de144c3fe9182e817df4c5549dcace337c3ee16d2bea8b5eea43c5d0871cd3",
+      "grid48": "6eac28206d66de34f71898c2b9faebf1fa4cfcb3d0c1a42ba3a33994a7022b68",
+      "blatt32": "287dd30c7c5902a5fabe54e94ef5c05b2e832737c2cb9353053661570e40bbbf",
+      "blatt48": "2fcff21ce3677c95dcd9b88e5d383d23cd0a5bce7282d4ab21723c1f31d3c881"
+    },
+    "nacherfassung-sammel-stoerung-anzahl": {
+      "eingabe": "7788886fadecfdc6152124ea236702f41d0e086f4ce3b78c2945f1c54dc99705",
+      "erwartet": "a7cfef4092fb6574524bad8924ef57121e517068edcfb97ef8dbfbeb1dea7fb5",
+      "grid32": "a0f012adf8f97115df95dc9b5e5fbce848310ff93807261a7d42b38e6c1da778",
+      "grid48": "1f00a1bad11ab1e104673875349c3aa696a362d06e295c152d6c83443069493c",
+      "blatt32": "ebda4d3cd9329b919b105f04435157d2e3f6756f43ac978cefb4afadc8698f88",
+      "blatt48": "edb7861711cf70059efd67b8cb2d6749be16d77b74312c26105b6f17baabe14c"
+    },
+    "nacherfassung-sammel-stoerung-ohne-anzahl": {
+      "eingabe": "a0b609e24a4d7b5f17a33d64940418a65d2847300d039ad86b721c817e876a7b",
+      "erwartet": "e7396fccdccdc9b0f14116db6394c8bbcf4a8594104f143a83e155a1cc21afa5",
+      "grid32": "ffb6f7c45a092aca318f94c226639f24d7d8fac28399cf66cc896dafa9665150",
+      "grid48": "1085150efeb6afd5d3196bd59e351c3f5b1738acf100cb9c167023e8c0a563a4",
+      "blatt32": "22cc6bfaeb7fde28fb9821c0d85a1a94e3ef58e1a12b3b6c92678f1bd44e3a0b",
+      "blatt48": "c5666825eb292c89cb647464cad8650bc595622c383d9ca55219771708bb9f1d"
+    },
+    "nacherfassung-sammel-strom-anzahl": {
+      "eingabe": "3f3f3b561bc09394b812a793313c646749bb09721168b39773e5d3058c5b320e",
+      "erwartet": "d8ee1edbb48010f25fa57f20797219d0897478ab37d1a1111e243a8fa742655b",
+      "grid32": "82e4312a0aa0c7909c5eeffba584ef91955ff31dfc472beb87c85c3f545dab18",
+      "grid48": "f59a349539da6441c6f828f5458b61753793b27b2457d844fc0ab0b85b24ca1b",
+      "blatt32": "97fff1515cb6688d9113e82b9ec82c4eab7ee9a5e1833eaa5a24ec46aaeb5675",
+      "blatt48": "567de8c670355fd7f868140887f34808d585a86cd9614632f9758cff8c173fb5"
+    },
+    "nacherfassung-sammel-strom-ohne-anzahl": {
+      "eingabe": "c977ac6c077441474bb4f460b3e468e0adacff92639de7859da7546c12a31d30",
+      "erwartet": "45b0170678512364b26fae0c9ed0beead3c8808f137d39064c969a05cf107bdc",
+      "grid32": "dff04e4ec5c58e91507a83855f79ef93809024f8661e7f37bf46cf28245a4c0d",
+      "grid48": "767a36c16d31c0ac3f619b4a80795671fc2d5939b94355d48ae47b85af7557fc",
+      "blatt32": "2b74ae02638ce9115a4dc3ce639d92cd51ff28ae3662d90013a85536d6a752e6",
+      "blatt48": "034ae6ef5346012bfaa57ac7989664d05b32ba924a60a563945e0709e70ccabd"
+    },
     "null-ausfall": {
       "eingabe": "9fe62052cdccfbacfa64d20f2079f12bd6405c073c3bbba9c66da39b9b56f616",
       "erwartet": "701cc7f4773e8504c40d386729d20f234bcbc45b65ac734d51d280ae80f0d720",
@@ -152,6 +336,14 @@
       "grid48": "ff118f69f5249d456fa75ef3e2c099b842fe2804c843f03020fcc9d2f15923e7",
       "blatt32": "c02af905299577fc8818974e435b03fe23cda3a65991dd369f665fb57d978e28",
       "blatt48": "12f9bb4baca88f7cea002d3413862551eac67fef9cc6771497ea4eb8839d022a"
+    },
+    "null-ausfall-zeitraum": {
+      "eingabe": "06019cc96709492e7b126e85186f01b5a90053d51ee9e9feed3c79f64c0ed2ae",
+      "erwartet": "8c6544a78a664d1f16c9d26b5a0d610ec755c34d9619cf0661cc9f0549e47b66",
+      "grid32": "caed610a5a36354c9eb41f21629d16595605e66dff06f4a1785f60c26143b22d",
+      "grid48": "d46c1c295c17411b39e355209b867662f48e53b895371b404098c2a0a2576073",
+      "blatt32": "9841803d4b3ebf30b64328190127b58a4d5f05739bc288eea90e7aba8e74c200",
+      "blatt48": "95be6e2a78e423c2fabc83da46be39e65e1c986a7c46734ccd4accc53ac31d0b"
     },
     "null-jahr": {
       "eingabe": "88cc06f847440e7124e2aafbc90996a4a7dc7a49b31b4b3118e8a7ed51444555",
