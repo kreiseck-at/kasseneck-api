@@ -66,6 +66,7 @@ const ABNEHMER: Record<string, string> = {
   'cancellation-tip-cases.json': 'Prueffaelle Storno mit oder ohne Trinkgeld (openStaffTipCents, cancellationItemsForTip, asksTipRefundSource, cancellationCashRefundCents): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktionen',
   'code-table-preview.json': 'Vorschau je Code-Tabelle (codeTablePreviewText): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'code-table-receipts.json': 'Bons je Code-Tabelle (Faelle; Bytes unter expected/code-table-receipt.*.hex): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
+  'dep-folder-cases.json': 'Ordner auf dem USB-Stick bei der Prüfung (depFolderName): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktion',
   'duplicate-cases.json': 'Belegduplikat (markAsDuplicate: Faelle, erwartetes Layout; Bytes unter expected/duplicate.*.hex): Dart-Zwilling kasseneck_api',
   'receipt-outputs-cases.json': 'Beleg-Ausgaben (Leseregel fuer outputs samt receiptOutputLabel, Pruefung von logReceiptOutputs vor dem Senden): Dart-Zwilling kasseneck_api',
   'code-tables.json': 'Katalog der Code-Tabellen (ESC t, Bytes je Zeichen): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',

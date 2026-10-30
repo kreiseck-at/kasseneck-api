@@ -68,7 +68,10 @@ const NACH_1_0 = {
     'voucher.reentry_needed', 'voucher.reentry_mismatch', 'voucher.not_this_voucher', 'voucher.reentry_no_permission', 'voucher.already_covered', 'voucher.payout_reason_too_long', 'voucher.payout_reason_missing', 'voucher.payout_check_first', 'voucher.sale_max_amount', 'voucher.sale_not_at_terminal', 'voucher.no_redeem_with_sale', 'voucher.code_not_on_receipt', 'cancellation.voucher_sale_cancelled', 'cancellation.promo_valid_again',
     // Gutschein-Sorten (1.17.0)
     'voucher_error.type_required', 'voucher_error.type_not_found', 'voucher_error.amount_mismatch', 'voucher_error.service_not_allowed', 'voucher_error.payout_not_allowed',
-    'voucher.type_changed'],
+    'voucher.type_changed',
+    // Prüfung (DEP) an der Kasse (1.21.0)
+    'dep.manager_only', 'dep.offline', 'dep.creating', 'dep.running', 'dep.failed', 'dep.too_many_exports', 'dep.period_invalid',
+    'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -122,7 +125,10 @@ const NACH_1_0 = {
     'receipt.outputs_title', 'receipt.outputs_count', 'receipt.output_print', 'receipt.output_reprint', 'receipt.output_email',
     'receipt.output_link_shared', 'receipt.output_pdf_shared', 'receipt.output_opened', 'receipt.output_failed',
     // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (1.17.0)
-    'voucher.tab', 'voucher.enter_amount', 'voucher.service_tile', 'voucher.kind_multi_short', 'voucher.kind_single_short'],
+    'voucher.tab', 'voucher.enter_amount', 'voucher.service_tile', 'voucher.kind_multi_short', 'voucher.kind_single_short',
+    // Prüfung (DEP) an der Kasse (1.21.0)
+    'nav.dep', 'dep.title', 'dep.period', 'dep.period_all', 'dep.period_year', 'dep.period_quarter', 'dep.period_custom', 'dep.from', 'dep.to',
+    'dep.create', 'dep.receipts', 'dep.save_usb', 'dep.handover_link', 'dep.code', 'dep.valid_until', 'dep.revoke', 'dep.checksum', 'dep.new_export'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
@@ -353,7 +359,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   // Belegduplikat (1.14.0): Prueffaelle und Bytes der Nachdrucke.
   'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`),
   // Beleg-Ausgaben (1.14.0): gemeinsame Prueffaelle mit dem Dart-Zwilling.
-  'receipt-outputs-cases.json'];
+  'receipt-outputs-cases.json',
+  // Prüfung (DEP) an der Kasse (1.21.0): Ordner auf dem USB-Stick, gleich im Dart-Zwilling.
+  'dep-folder-cases.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

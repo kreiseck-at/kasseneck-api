@@ -417,6 +417,23 @@ const MELDUNGEN_ROH = {
   // `{amount}` was fehlt, `{total}` das eingestellte Wechselgeld, beide samt Euro-Zeichen.
   'shift.change_float_missing': { text: 'Es fehlen {amount} bis zum Wechselgeld von {total}.', placeholders: ['amount', 'total'] },
 
+  // --- Prüfung (DEP) bei der Kassennachschau ---------------------------------
+  // Nur der Chef exportiert (Inhaber oder Recht „Einstellungen“); ein Kassier
+  // sieht nur den Hinweis. Ohne Internet gilt die Frist von zwei Werktagen.
+  'dep.manager_only': { text: 'Den Export für die Prüfung macht der Chef. Ist er nicht da, darf die Behörde bis zu zwei Werktage warten.' },
+  'dep.offline': { text: 'Ohne Internet ist kein Export möglich. Die Behörde muss dann bis zu zwei Werktage warten; der Export geht später hier oder unter mein.kasseneck.at.' },
+  'dep.creating': { text: 'Wird erstellt …' },
+  'dep.running': { text: 'Für diese Kasse läuft schon ein Export. Bitte kurz warten, er wird gleich fertig.' },
+  'dep.failed': { text: 'Der Export ist fehlgeschlagen. Bitte erneut erstellen.' },
+  'dep.too_many_exports': { text: 'Heute sind an diesem Konto keine weiteren Exporte möglich – morgen geht es wieder. Ein schon erstellter Export bleibt nutzbar.' },
+  'dep.period_invalid': { text: 'Bitte einen gültigen Zeitraum wählen: „Von“ nicht in der Zukunft, „Bis“ nicht vor „Von“.' },
+  'dep.usb_hint': { text: 'USB-Stick anstecken (FAT32 oder exFAT). Der Prüfer behält den Stick.' },
+  'dep.saved': { text: 'Gespeichert im Ordner {folder}.', placeholders: ['folder'] },
+  'dep.save_failed': { text: 'Speichern hat nicht geklappt. Bitte den Stick prüfen und erneut speichern.' },
+  'dep.zip_fallback': { text: 'Dieser Browser kann keinen Ordner wählen – der Export kommt als ZIP-Datei in den Download-Ordner.', only: ['web'] },
+  'dep.code_once': { text: 'Code und QR-Code gibt es nur auf diesem Bildschirm. Wer zurückgeht, erstellt beim nächsten Mal einen neuen Link.' },
+  'dep.revoked': { text: 'Der Link ist widerrufen.' },
+
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
@@ -494,6 +511,13 @@ export const ERROR_CODE_RULES = [
   { kind: 'api', codes: ['invalid_amount'], key: 'amount.invalid' },
   { kind: 'api', codes: ['drawer_not_found'], key: 'drawer.not_found' },
   { kind: 'api', codes: ['drawer_inactive'], key: 'drawer.inactive' },
+  // Prüfung (DEP, 1.21.0): nur der Chef; die Tagesgrenze und ein laufender
+  // Export sagen, was zu tun ist. Der Server hat nichts angelegt. Bewusst
+  // ohne export_failed (kommt auch von Zahlungswegen mit unklarem Ausgang)
+  // und ohne too_many_links (der Satz des Backends nennt die Grenze).
+  { kind: 'api', codes: ['manager_only'], key: 'dep.manager_only' },
+  { kind: 'api', codes: ['export_running'], key: 'dep.running' },
+  { kind: 'api', codes: ['too_many_exports'], key: 'dep.too_many_exports' },
 ] as const;
 
 /**
@@ -1006,6 +1030,7 @@ const BESCHRIFTUNGEN_ROH = {
   'nav.vouchers': { text: 'Gutscheine' },
   'nav.open_drawer': { text: 'Kassenlade öffnen' },
   'nav.stocktake': { text: 'Inventur' },
+  'nav.dep': { text: 'Prüfung (DEP)' },
   'nav.settings': { text: 'Einstellungen' },
   'nav.settings_locked': { text: 'nur mit Chef-Anmeldung' },
   'nav.logout': { text: 'Abmelden' },
@@ -1107,6 +1132,25 @@ const BESCHRIFTUNGEN_ROH = {
   'receipt.output_pdf_shared': { text: 'PDF geteilt' },
   'receipt.output_opened': { text: 'Link geöffnet ({count}×)', placeholders: ['count'] },
   'receipt.output_failed': { text: 'fehlgeschlagen' },
+
+  // --- Prüfung (DEP) bei der Kassennachschau -----------------------------------
+  'dep.title': { text: 'Prüfung (DEP)' },
+  'dep.period': { text: 'Zeitraum' },
+  'dep.period_all': { text: 'Alles seit Inbetriebnahme' },
+  'dep.period_year': { text: 'Ein Jahr' },
+  'dep.period_quarter': { text: 'Ein Quartal' },
+  'dep.period_custom': { text: 'Eigener Zeitraum' },
+  'dep.from': { text: 'Von' },
+  'dep.to': { text: 'Bis' },
+  'dep.create': { text: 'Export erstellen' },
+  'dep.receipts': { text: '{count} Belege', placeholders: ['count'] },
+  'dep.save_usb': { text: 'Auf USB-Stick speichern' },
+  'dep.handover_link': { text: 'Link für den Prüfer' },
+  'dep.code': { text: 'Code' },
+  'dep.valid_until': { text: 'gültig bis {date}', placeholders: ['date'] },
+  'dep.revoke': { text: 'Widerrufen' },
+  'dep.checksum': { text: 'Prüfsumme (SHA-256)' },
+  'dep.new_export': { text: 'Neuer Export' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

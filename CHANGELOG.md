@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.21.0 - 2026-10-31
+
+DEP export at the cash register (*Kassennachschau*, stage 2): the five DEP calls now also run on the register path, for the manager only, plus the words and the folder name both registers use. Additive.
+
+- **`POS_CALLS` gains `createDepExport`, `getDepExport`, `getDepExportFile`, `createDepHandoverLink` and `revokeDepHandoverLink`** (now 47, eleven of them also public). Signed in with `registerUserAuth` they go to `https://kasse.kasseneck.at/api/v3/<name>` (the web register: `/api/v3`), with `apiKeyAuth` they stay on the public base as before. Reason: the web register and the register app export the DEP during an inspection themselves instead of sending the owner to the customer area.
+- **New error code `manager_only`** in `DEP_EXPORT_ERROR_CODES` (contract `errorCodes.depExport`): on the register path only the manager exports, that is the owner or a register user with the permission `layout` (the one both registers call *Kassen-Chef*). A device with an API key is not affected.
+- **Words of the screen *Prüfung (DEP)*** in `LABELS` (`nav.dep`, `dep.*`: title, period choice, create, save to USB stick, link for the inspector, code, valid until, revoke, checksum) and `MESSAGES` (`dep.*`: manager only, offline with the two working days, creating, running, failed, daily limit, period invalid, USB hint, saved, save failed, ZIP fallback in the browser, code shown once, revoked). `ERROR_CODE_RULES` map `manager_only`, `export_running` and `too_many_exports` to the register's own sentence; deliberately not `export_failed` (also a code of the payment paths, where the outcome can be unknown) and not `too_many_links` (the backend's sentence names the limit). Reason: web register and app say the same.
+- **`depFolderName(cashregisterId, from?, to?)`** (`./pos`): the folder on the USB stick, `DEP_<cash register id>_<from>_<to>`, `DEP_<id>_alles` without a period, `bis_`/`ab_` with one end only; characters FAT32 or exFAT refuse become `_`. Cases in `fixtures/dep-folder-cases.json` (also used by the Dart twin).
+- Contract `v3` re-fetched from the backend (the five calls in `endpoints.register`, `manager_only`, register-path cases).
+
 ## 1.20.0 - 2026-10-30
 
 DEP export for the cash register inspection (*Kassennachschau*): `createDepExport`, `getDepExport`, `waitForDepExport`, `getDepExportFile`, `createDepHandoverLink` and `revokeDepHandoverLink` for the five new public endpoints (`/v3` only). Additive.
