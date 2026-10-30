@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "b3ba3504446125bb3fd4915c030e26ab45feded97a8b6d896dee7f359eca0607",
-    "inputsSha256": "4f2bb2dfce0862418ef740822d28226891e50989f2ebca09d43b62efc73c073f",
+    "sha256": "d856adc09889970aac2f09b29c13dac811fed6a686e6b3e7a358f2c28a2dd812",
+    "inputsSha256": "dfe4c24036c677bf4520e4b5201a82ff97eff0665d60e163fef5e4594d714e46",
     "backendPackage": "@kreiseck/kasseneck-api@0.35.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -628,6 +628,10 @@
       "tirol": "AT-7",
       "vorarlberg": "AT-8",
       "wien": "AT-9"
+    },
+    "DEP_EXPORT_FEHLER": {
+      "export_haengt": "export_stalled",
+      "export_fehlgeschlagen": "export_failed"
     },
     "DOKART": {
       "RE": "invoice",
@@ -1262,7 +1266,12 @@
       "email_taken",
       "event_not_subscribed",
       "exceeds_stock",
+      "export_failed",
+      "export_not_found",
+      "export_not_ready",
+      "export_running",
       "external_id_taken",
+      "file_not_available",
       "final_receipt_expired",
       "final_receipt_not_allowed",
       "finanzonline_error",
@@ -1294,6 +1303,7 @@
       "invalid_distribution",
       "invalid_document",
       "invalid_e1a_group",
+      "invalid_file",
       "invalid_items",
       "invalid_landed_cost",
       "invalid_limit",
@@ -1339,6 +1349,7 @@
       "landed_costs_mismatch",
       "language_not_allowed",
       "licenses_exhausted",
+      "link_not_found",
       "live_not_allowed",
       "live_not_enabled",
       "location_inactive",
@@ -1496,6 +1507,8 @@
       "too_many_counts",
       "too_many_documents",
       "too_many_entries",
+      "too_many_exports",
+      "too_many_links",
       "too_many_orders",
       "too_many_positions",
       "too_many_requests",
@@ -2111,6 +2124,21 @@
       "invalid_order",
       "invalid_view",
       "invalid_cursor",
+      "server_error"
+    ],
+    "depExport": [
+      "validation",
+      "invalid_period",
+      "idempotency_conflict",
+      "export_running",
+      "too_many_exports",
+      "export_not_found",
+      "export_not_ready",
+      "export_failed",
+      "invalid_file",
+      "file_not_available",
+      "too_many_links",
+      "link_not_found",
       "server_error"
     ],
     "registerCases": [

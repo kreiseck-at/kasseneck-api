@@ -26,6 +26,7 @@ export {
   createPdfOrDataTransport,
   createFileOrDataTransport,
   type FileOrData,
+  type FileOrDataCallOptions,
   type KasseneckFileOrDataTransport,
 } from './transport.js';
 

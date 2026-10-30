@@ -1,17 +1,22 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { mock, test } from 'node:test';
 import { createKasseneckApi } from '../src/client/api.js';
 import { CALLS_WITHOUT_EFFECT, PUBLIC_CALLS, isPosOnlyCall, isUnknownOutcomeCall } from '../src/client/aufrufe.js';
 import { apiKeyAuth } from '../src/client/auth.js';
 import {
+  DEP_EXPORT_DOWNLOAD_TIMEOUT_MS,
   DEP_EXPORT_ERROR_CODES,
+  DEP_EXPORT_FAILURES,
   DepExportChecksumError,
   DepExportTimeoutError,
+  type DepExportErrorCode,
 } from '../src/client/dep-export.js';
 import {
   KasseneckApiError,
   KasseneckHttpError,
+  KasseneckNetworkError,
   KasseneckValidationError,
   isKasseneckApiError,
   isKasseneckValidationError,
@@ -29,6 +34,9 @@ import * as wurzel from '../src/index.js';
  */
 
 type Json = Record<string, any>;
+
+/** Vertrags-Export des Backends (`fixtures/v3/v3-vokabular.json`, scripts/v3-vertrag-holen.mjs). */
+const VOKABULAR = JSON.parse(readFileSync(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url), 'utf8')) as Json;
 
 const KOPF: Record<string, string> = { 'content-type': 'application/json', 'kasseneck-api-version': 'v3' };
 const sha = (bytes: Uint8Array | string): string => createHash('sha256').update(bytes).digest('hex');
@@ -126,14 +134,24 @@ test('DEP-Export: fuenf oeffentliche Aufrufe nur unter /v3, Lesen und Anlegen/Wi
   for (const n of ['createDepExport', 'createDepHandoverLink', 'revokeDepHandoverLink']) assert.equal(CALLS_WITHOUT_EFFECT[n], 'repeatable', n);
 });
 
-test('DEP-Export: Fehlercodes des Backends (dep_nachschau) sind vollstaendig und von der Paketwurzel erreichbar', () => {
-  assert.deepEqual([...DEP_EXPORT_ERROR_CODES], [
-    'validation', 'invalid_period', 'export_running', 'too_many_exports', 'export_not_found', 'export_not_ready',
-    'export_failed', 'invalid_file', 'file_not_available', 'too_many_links', 'link_not_found', 'server_error',
-  ]);
+test('DEP-Export: DEP_EXPORT_ERROR_CODES = errorCodes.depExport des Vertrags (mit Reihenfolge), jeder Code in errorCodes.all', () => {
+  assert.deepEqual([...DEP_EXPORT_ERROR_CODES], VOKABULAR.errorCodes.depExport);
+  const alle = new Set(VOKABULAR.errorCodes.all as string[]);
+  assert.deepEqual(DEP_EXPORT_ERROR_CODES.filter((c) => !alle.has(c)), []);
+  assert.ok((DEP_EXPORT_ERROR_CODES as readonly string[]).includes('idempotency_conflict'));
   assert.equal(wurzel.DEP_EXPORT_ERROR_CODES, DEP_EXPORT_ERROR_CODES);
   assert.equal(typeof wurzel.createDepExport, 'function');
   assert.equal(typeof wurzel.DepExportTimeoutError, 'function');
+});
+
+test('DEP-Export: DEP_EXPORT_FAILURES = Werte des Katalogs DEP_EXPORT_FEHLER im Vertrag', () => {
+  const katalog = VOKABULAR.catalogs.DEP_EXPORT_FEHLER as Record<string, string>;
+  assert.ok(katalog, 'Katalog DEP_EXPORT_FEHLER fehlt im Vertrag');
+  assert.deepEqual([...DEP_EXPORT_FAILURES].sort(), [...new Set(Object.values(katalog))].sort());
+  assert.equal(wurzel.DEP_EXPORT_FAILURES, DEP_EXPORT_FAILURES);
+  // waitForDepExport wirft diese Gruende als code: der Typ der Fehlercodes kennt sie.
+  const gestockt: DepExportErrorCode = 'export_stalled';
+  assert.equal(gestockt, 'export_stalled');
 });
 
 // ---- createDepExport -------------------------------------------------------------------------
@@ -171,11 +189,19 @@ test('createDepExport: prueft die Eingabe vor dem Senden (Datum, Reihenfolge, re
   assert.equal(aufrufe.length, 0);
 });
 
-test('createDepExport: Antwort ohne Kennung ist ein Antwortfehler; Backend-Codes kommen als code an', async () => {
-  const { api } = server([erfolg({ status: 'running' }), fehler('export_running', 'Es laeuft schon ein Export.'), fehler('invalid_period', 'from: darf nicht in der Zukunft liegen.')]);
+test('createDepExport: Antwort ohne Kennung oder mit unbekanntem Zustand ist ein Antwortfehler; Backend-Codes kommen als code an', async () => {
+  const { api } = server([
+    erfolg({ status: 'running' }),
+    erfolg({ exportId: ID, status: 'queued', from: null, to: null }),
+    { status: 'error', message: 'Es laeuft schon ein Export.', code: 'export_running', data: { code: 'export_running', exportId: ID } },
+    fehler('invalid_period', 'from: darf nicht in der Zukunft liegen.'),
+    fehler('idempotency_conflict', 'Diese requestId gehoert zu einem Export mit anderem Zeitraum.'),
+  ]);
   await assert.rejects(() => api.createDepExport(), (e: unknown) => isKasseneckValidationError(e) && e.scope === 'response');
-  await assert.rejects(() => api.createDepExport(), (e: unknown) => isKasseneckApiError(e) && e.code === 'export_running');
+  await assert.rejects(() => api.createDepExport(), (e: unknown) => isKasseneckValidationError(e) && e.scope === 'response');
+  await assert.rejects(() => api.createDepExport(), (e: unknown) => isKasseneckApiError(e) && e.code === 'export_running' && (e.details as Json)['exportId'] === ID);
   await assert.rejects(() => api.createDepExport({ from: '2099-01-01' }), (e: unknown) => isKasseneckApiError(e) && e.code === 'invalid_period');
+  await assert.rejects(() => api.createDepExport({ from: '2026-10-02', requestId: 'r1' }), (e: unknown) => isKasseneckApiError(e) && e.code === 'idempotency_conflict');
 });
 
 // ---- getDepExport ----------------------------------------------------------------------------
@@ -465,7 +491,58 @@ test('createDepHandoverLink und revokeDepHandoverLink: Formen und Codes', async 
   await assert.rejects(() => api.revokeDepHandoverLink({ linkId: '' }), (e: unknown) => isKasseneckValidationError(e));
 });
 
-test('createDepHandoverLink: Antwort ohne Adresse oder Code ist ein Antwortfehler', async () => {
-  const { api } = server([erfolg({ linkId: 'AbCdEfGhIjKlMnOpQrSt', expiresAt: '2026-11-13T09:00:00.000Z' })]);
-  await assert.rejects(() => api.createDepHandoverLink({ exportId: ID }), (e: unknown) => isKasseneckValidationError(e) && e.scope === 'response');
+test('createDepHandoverLink: Antwort ohne Adresse, Code oder Ablauf ist ein Antwortfehler', async () => {
+  const voll = { linkId: 'AbCdEfGhIjKlMnOpQrSt', url: 'https://check.kasseneck.at/dep#link=AbCdEfGhIjKlMnOpQrSt.tok', code: '042917', expiresAt: '2026-11-13T09:00:00.000Z' };
+  const ohne = (feld: string): Json => Object.fromEntries(Object.entries(voll).filter(([k]) => k !== feld));
+  const { api } = server([erfolg(ohne('url')), erfolg(ohne('code')), erfolg(ohne('expiresAt')), erfolg({ ...voll, expiresAt: null })]);
+  for (let i = 0; i < 4; i++) {
+    await assert.rejects(() => api.createDepHandoverLink({ exportId: ID }), (e: unknown) => isKasseneckValidationError(e) && e.scope === 'response');
+  }
+});
+
+// ---- Zeitlimit von getDepExportFile ----------------------------------------------------------
+
+/** Eine direkte Datei, die erst nach `ms` ankommt (der Server liest und prueft sie vorher ganz). */
+function langsameDatei(ms: number) {
+  const dep = new TextEncoder().encode('{"Belege-Gruppe":[]}');
+  const holen: FetchLike = (_url, init) => new Promise((fertig, abgelehnt) => {
+    const wecker = setTimeout(() => fertig(datei(dep, { ...KOPF, ...ATTACH(`${ID}.json`, 'application/json') })), ms);
+    init.signal?.addEventListener('abort', () => {
+      clearTimeout(wecker);
+      abgelehnt(new Error('abgebrochen'));
+    });
+  });
+  const api = createKasseneckApi({
+    auth: apiKeyAuth({ apiKey: 'kr_test_Beispielschluessel0123456789', cashregisterToken: 'cb_test_EXAMPLE00000000' }),
+    fetch: holen,
+    // Das allgemeine Zeitlimit des Transports, hier verkuerzt (Vorgabe 30 s).
+    timeoutMs: 20,
+  });
+  return { api, dep };
+}
+
+test('getDepExportFile: der Aufruf selbst laeuft mit downloadTimeoutMs, nicht mit dem allgemeinen Zeitlimit des Transports', async () => {
+  const { api, dep } = langsameDatei(60);
+  const a = await api.getDepExportFile({ exportId: ID, file: 'dep', downloadTimeoutMs: 2_000 });
+  assert.deepEqual(a.bytes, dep);
+  await assert.rejects(() => api.getDepExportFile({ exportId: ID, file: 'dep', downloadTimeoutMs: 10 }), (e: unknown) => {
+    assert.ok(e instanceof KasseneckNetworkError);
+    assert.equal(e.timedOut, true);
+    assert.equal(e.timeoutMs, 10);
+    return true;
+  });
+});
+
+test('getDepExportFile: ohne downloadTimeoutMs gilt fuer den Aufruf die Vorgabe des Downloads (600 s), nicht 30 s', async () => {
+  const { api, dep } = langsameDatei(60);
+  assert.equal(DEP_EXPORT_DOWNLOAD_TIMEOUT_MS, 600_000);
+  assert.deepEqual((await api.getDepExportFile({ exportId: ID, file: 'dep' })).bytes, dep);
+});
+
+test('getDepExportFile: downloadTimeoutMs wird vor dem Senden geprueft', async () => {
+  const { api, aufrufe } = server([]);
+  for (const downloadTimeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    await assert.rejects(() => api.getDepExportFile({ exportId: ID, file: 'dep', downloadTimeoutMs }), (e: unknown) => isKasseneckValidationError(e) && e.scope === 'request');
+  }
+  assert.equal(aufrufe.length, 0);
 });

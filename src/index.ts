@@ -187,6 +187,7 @@ export {
   createPdfOrDataTransport,
   createFileOrDataTransport,
   type FileOrData,
+  type FileOrDataCallOptions,
   type KasseneckFileOrDataTransport,
   KasseneckApiError,
   KasseneckAuthError,

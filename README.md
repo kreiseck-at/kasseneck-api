@@ -688,11 +688,14 @@ await api.revokeDepHandoverLink({ linkId: link.linkId });
 
 - **`createDepExport({ from?, to?, requestId? })`** queues the export and
   answers at once with `{ exportId, status: 'running', from, to }`; it runs in
-  the background, at most one per cash register at a time. `from`/`to` are
-  `YYYY-MM-DD`, both inclusive; without them the whole stock is exported.
-  With a `requestId` (at most 64 characters of `A-Z a-z 0-9 _ -`) the call is
-  repeatable: the same value returns the same export. After a lost answer resend
-  with the **same** `requestId` (without it you only get a second export).
+  the background, at most one per cash register at a time (`export_running`,
+  `details.exportId` names the running one). `from`/`to` are `YYYY-MM-DD`, both
+  inclusive; without them the whole stock is exported. With a `requestId` (at
+  most 64 characters of `A-Z a-z 0-9 _ -`) the call is repeatable: the same
+  value with the same period returns that export with its current `status`
+  (also `done` or `failed`); the same value with another period is rejected
+  with `idempotency_conflict`. After a lost answer resend with the **same**
+  `requestId` and period (without it you only get a second export).
 - **`getDepExport({ exportId })`** returns `DepExport`: `status`
   (`running|done|failed`), counts, `sha256`/`size` of the DEP file, `findings`
   (`gaps` as ranges of missing receipt numbers, `chainBreaks`, receipts
@@ -701,13 +704,20 @@ await api.revokeDepHandoverLink({ linkId: link.linkId });
 - **`waitForDepExport({ exportId, timeoutMs = 600000 })`** polls `getDepExport`
   (first at once, then after 2 s, each wait 1.5 times longer, at most 15 s) and
   returns the finished export. A failed export throws `KasseneckApiError` whose
-  `code` is the export's `error`; after `timeoutMs` it throws
-  `DepExportTimeoutError` (the export keeps running on the server: look it up
-  with `getDepExport`, do not queue a new one).
-- **`getDepExportFile({ exportId, file, sha256? })`** with `file` `dep`,
-  `protocol` (PDF), `items` (CSV) or `zip`. Up to 9 MiB the server sends the
-  file itself, above it a signed download link (15 minutes); the package
-  follows the link, so the result is the same: `{ bytes, fileName, contentType, sha256 }`.
+  `code` is the export's `error` (`export_failed` or `export_stalled`); after
+  `timeoutMs` it throws `DepExportTimeoutError` (the export keeps running on
+  the server: look it up with `getDepExport`, do not queue a new one). A
+  network error while waiting also ends `waitForDepExport` with that error; the
+  export keeps running on the server as well, follow it with `getDepExport`.
+- **`getDepExportFile({ exportId, file, sha256?, downloadTimeoutMs? })`** with
+  `file` `dep`, `protocol` (PDF), `items` (CSV) or `zip`. Up to 9 MiB the server
+  sends the file itself, above it a signed download link (15 minutes); the
+  package follows the link, so the result is the same: `{ bytes, fileName, contentType, sha256 }`.
+  A file is recognised by `Content-Disposition: attachment`, never by its
+  content type (the DEP itself is JSON). `downloadTimeoutMs` (default 600000)
+  limits the call itself and the download over a link, each; the general
+  `timeoutMs` of the client (30 s) does not apply here, because a direct file
+  of up to 9 MiB comes in the answer of the call.
   The SHA-256 is always checked against the sum the server names with a link;
   pass `sha256` (for example `dep.sha256`, `dep.items.sha256`) to check a direct
   file as well. A mismatch throws `DepExportChecksumError`
@@ -715,11 +725,13 @@ await api.revokeDepHandoverLink({ linkId: link.linkId });
 - **`createDepHandoverLink` / `revokeDepHandoverLink`:** the link is valid for
   14 days, `url` and the 6-digit `code` (a string, keep leading zeros) come only
   in this answer and are handed over separately.
-- **Errors** (`KasseneckApiError.code`, `DEP_EXPORT_ERROR_CODES`): `validation`,
-  `invalid_period`, `export_running`, `too_many_exports`, `export_not_found`,
-  `export_not_ready`, `export_failed`, `invalid_file`, `file_not_available`,
-  `too_many_links`, `link_not_found`, `server_error`, plus the codes of sign-in
-  and edge.
+- **Errors** (`KasseneckApiError.code`, `DEP_EXPORT_ERROR_CODES`, the list
+  `errorCodes.depExport` of the contract): `validation`, `invalid_period`,
+  `idempotency_conflict`, `export_running`, `too_many_exports`,
+  `export_not_found`, `export_not_ready`, `export_failed`, `invalid_file`,
+  `file_not_available`, `too_many_links`, `link_not_found`, `server_error`, plus
+  the codes of sign-in and edge; `waitForDepExport` also throws `export_stalled`
+  (type `DepExportErrorCode`). Revoking a link twice is no error.
 
 ## Cancellation (Storno)
 

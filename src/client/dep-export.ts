@@ -13,9 +13,10 @@ import type { FetchLike } from './transport.js';
  * anderen Kasse ist `export_not_found`.
  *
  * **Ablauf:** `createDepExport` stellt den Export ein und antwortet sofort
- * (`status: 'running'`); er laeuft im Hintergrund. `waitForDepExport` fragt
- * bis zum Ende, `getDepExportFile` holt eine Datei, `createDepHandoverLink`
- * erzeugt den Link fuer das Pruefungsorgan.
+ * (`status: 'running'`; eine Wiederholung mit derselben `requestId` nennt den
+ * aktuellen Stand); er laeuft im Hintergrund. `waitForDepExport` fragt bis zum
+ * Ende, `getDepExportFile` holt eine Datei, `createDepHandoverLink` erzeugt den
+ * Link fuer das Pruefungsorgan.
  */
 
 /** Zustand eines Exports: in Arbeit, fertig oder fehlgeschlagen. */
@@ -27,14 +28,17 @@ export const DEP_EXPORT_FILES = Object.freeze(['dep', 'protocol', 'items', 'zip'
 export type DepExportFileKind = (typeof DEP_EXPORT_FILES)[number];
 
 /**
- * Fehlercodes der fuenf Aufrufe (`code` des [KasseneckApiError]), dazu die
- * gemeinsamen Codes von Anmeldung und Rand. Ein Code ausserhalb bleibt ueber
+ * Fehlercodes der fuenf Aufrufe (`code` des [KasseneckApiError]) wie im
+ * Vertrag des Backends (`errorCodes.depExport` in `fixtures/v3/v3-vokabular.json`,
+ * Katalog `dep_nachschau`), in dessen Reihenfolge; dazu kommen die gemeinsamen
+ * Codes von Anmeldung und Rand. Ein Code ausserhalb bleibt ueber
  * `KasseneckApiError.code` lesbar.
  */
 export const DEP_EXPORT_ERROR_CODES = Object.freeze([
   'validation', // ungueltige requestId (Details in den Feldfehlern)
   'invalid_period', // from/to kein Datum JJJJ-MM-TT, from in der Zukunft oder to vor from
-  'export_running', // fuer diese Kasse laeuft schon ein Export
+  'idempotency_conflict', // dieselbe requestId gehoert zu einem Export mit anderem Zeitraum
+  'export_running', // fuer diese Kasse laeuft schon ein Export (`details.exportId` nennt ihn)
   'too_many_exports', // Tagesgrenze der Exporte erreicht
   'export_not_found', // unbekannt oder einer anderen Kasse
   'export_not_ready', // Datei oder Link nur zu einem fertigen Export
@@ -42,14 +46,24 @@ export const DEP_EXPORT_ERROR_CODES = Object.freeze([
   'invalid_file', // keine der Dateien dep, protocol, items, zip
   'file_not_available', // diese Datei gibt es zu diesem Export nicht (etwa Positionen bei einem alten Export)
   'too_many_links', // Grenze der aktiven Links je Export oder der neuen Links je Tag erreicht
-  'link_not_found', // unbekannt, einer anderen Kasse oder schon widerrufen
+  'link_not_found', // unbekannt oder einer anderen Kasse (ein schon widerrufener Link ist kein Fehler: der Widerruf ist wiederholbar)
   'server_error',
 ] as const);
-export type DepExportErrorCode = (typeof DEP_EXPORT_ERROR_CODES)[number];
 
-/** Warum ein Export fehlgeschlagen ist (`DepExport.error`). */
+/**
+ * Warum ein Export fehlgeschlagen ist (`DepExport.error`): die Werte des
+ * Katalogs `DEP_EXPORT_FEHLER` im Vertrag. `export_stalled` = nach 35 Minuten
+ * nicht fertig.
+ */
 export const DEP_EXPORT_FAILURES = Object.freeze(['export_failed', 'export_stalled'] as const);
 export type DepExportFailure = (typeof DEP_EXPORT_FAILURES)[number];
+
+/**
+ * Codes, die die DEP-Aufrufe als `KasseneckApiError.code` werfen:
+ * [DEP_EXPORT_ERROR_CODES] und, aus [waitForDepExport], die Gruende eines
+ * fehlgeschlagenen Exports ([DEP_EXPORT_FAILURES], also auch `export_stalled`).
+ */
+export type DepExportErrorCode = (typeof DEP_EXPORT_ERROR_CODES)[number] | DepExportFailure;
 
 /** Eingabe von [createDepExport]. Ohne `from`/`to` der ganze Bestand. */
 export interface CreateDepExportOptions {
@@ -58,9 +72,11 @@ export interface CreateDepExportOptions {
   /** Letzter Tag (inklusive), `YYYY-MM-DD`, nicht vor `from`. */
   to?: string;
   /**
-   * Wiederholungsschutz je Kasse: derselbe Wert liefert denselben Export
-   * statt eines zweiten. Hoechstens 64 Zeichen aus `A-Z a-z 0-9 _ -`. Bei
-   * unklarem Ausgang (Zeitlimit) mit **demselben** Wert wiederholen.
+   * Wiederholungsschutz je Kasse: derselbe Wert mit demselben Zeitraum
+   * liefert denselben Export (mit seinem aktuellen Stand) statt eines zweiten;
+   * mit anderem Zeitraum `idempotency_conflict`. Hoechstens 64 Zeichen aus
+   * `A-Z a-z 0-9 _ -`. Bei unklarem Ausgang (Zeitlimit) mit **demselben** Wert
+   * und demselben Zeitraum wiederholen.
    */
   requestId?: string;
 }
@@ -158,7 +174,12 @@ export interface GetDepExportFileOptions {
    * gegen die Pruefsumme, die der Server mit dem Link nennt.
    */
   sha256?: string;
-  /** Zeitlimit fuer das Laden ueber einen Lese-Link in Millisekunden (Vorgabe 600.000). */
+  /**
+   * Zeitlimit in Millisekunden (Vorgabe 600.000), je fuer den Aufruf selbst und
+   * fuer das Laden ueber einen Lese-Link. Der Aufruf liefert eine Datei bis
+   * 9 MiB direkt und braucht dafuer mehr als das allgemeine Zeitlimit des
+   * Transports (`timeoutMs`, Vorgabe 30 s); es gilt hier nicht.
+   */
   downloadTimeoutMs?: number;
 }
 
@@ -193,7 +214,7 @@ export const DEP_EXPORT_POLL_FACTOR = 1.5;
 export const DEP_EXPORT_POLL_MAX_MS = 15_000;
 /** Vorgabe fuer `waitForDepExport.timeoutMs`. */
 export const DEP_EXPORT_WAIT_TIMEOUT_MS = 600_000;
-/** Vorgabe fuer das Laden ueber einen Lese-Link. */
+/** Vorgabe fuer `getDepExportFile.downloadTimeoutMs`: der Aufruf selbst und das Laden ueber einen Lese-Link. */
 export const DEP_EXPORT_DOWNLOAD_TIMEOUT_MS = 600_000;
 
 /**
@@ -286,9 +307,11 @@ function exportAus(daten: unknown, name: string): DepExport {
 
 /**
  * Stellt einen DEP-Export ein (`createDepExport`) und antwortet sofort mit
- * `status: 'running'`. Hoechstens ein laufender Export je Kasse. Mit
- * `requestId` ist der Aufruf wiederholbar: dieselbe Kennung liefert den
- * bestehenden Export.
+ * `status: 'running'`. Hoechstens ein laufender Export je Kasse
+ * (`export_running`, `details.exportId` nennt ihn). Mit `requestId` ist der
+ * Aufruf wiederholbar: dieselbe Kennung mit demselben Zeitraum liefert den
+ * bestehenden Export mit seinem aktuellen Stand (auch `done` oder `failed`),
+ * mit anderem Zeitraum `idempotency_conflict`.
  */
 export async function createDepExport(transport: InternerTransport, options: CreateDepExportOptions = {}): Promise<CreateDepExportResult> {
   const name = 'createDepExport';
@@ -424,10 +447,16 @@ export async function getDepExportFile(
   if (options.sha256 !== undefined && !(typeof options.sha256 === 'string' && SHA256.test(options.sha256))) {
     throw eingabefehler(name, 'sha256 muss 64 Hexzeichen haben');
   }
+  const frist = options.downloadTimeoutMs ?? DEP_EXPORT_DOWNLOAD_TIMEOUT_MS;
+  if (!(typeof frist === 'number' && Number.isFinite(frist) && frist > 0)) {
+    throw eingabefehler(name, 'downloadTimeoutMs muss eine positive Zahl sein');
+  }
   const bekannt = options.sha256?.toLowerCase();
   const vorgabe = VORGABEN[options.file];
 
-  const ergebnis = await transport(name, { exportId, file: options.file });
+  // Eine direkte Datei (bis 9 MiB) kommt im Aufruf selbst: dieselbe Frist wie das Laden ueber den Link, nicht die 30 s
+  // des Transports.
+  const ergebnis = await transport(name, { exportId, file: options.file }, { timeoutMs: frist });
   let bytes: Uint8Array;
   let fileName: string;
   let contentType: string;
@@ -438,7 +467,7 @@ export async function getDepExportFile(
     contentType = ergebnis.file.contentType ?? vorgabe.contentType;
   } else {
     const link = linkAus(name, istObjekt(ergebnis.data) ? ergebnis.data['download'] : undefined);
-    bytes = await ladeLink(fetchFn, link.url, options.downloadTimeoutMs ?? DEP_EXPORT_DOWNLOAD_TIMEOUT_MS);
+    bytes = await ladeLink(fetchFn, link.url, frist);
     if (bytes.length !== link.size) {
       throw antwortfehler(name, `Die geladene Datei hat ${bytes.length} Byte, der Server nannte ${link.size}`);
     }

@@ -336,10 +336,21 @@ export type FileOrData =
   | { file: { bytes: Uint8Array; fileName: string | null; contentType: string | undefined } }
   | { data: unknown };
 
+/** Optionen je Aufruf des Datei-oder-Daten-Wegs ([createFileOrDataTransport]). */
+export interface FileOrDataCallOptions {
+  /**
+   * Zeitlimit dieses Aufrufs in Millisekunden (Anmeldung, Anfrage und Lesen
+   * des Rumpfs); ohne Angabe `TransportOptions.timeoutMs` (Vorgabe 30 s). Eine
+   * Datei kommt im Rumpf und braucht dafuer laenger als eine Huelle.
+   */
+  timeoutMs?: number;
+}
+
 /** Ruft eine Backend-Funktion auf, die irgendeine Datei **oder** eine JSON-Nutzlast liefert. */
 export type KasseneckFileOrDataTransport = (
   functionName: string,
   params?: Record<string, unknown>,
+  options?: FileOrDataCallOptions,
 ) => Promise<FileOrData>;
 
 /**
@@ -352,8 +363,8 @@ export type KasseneckFileOrDataTransport = (
  */
 export function createFileOrDataTransport(options: TransportOptions): KasseneckFileOrDataTransport {
   const kern = createCore(options);
-  return (functionName: string, params?: Record<string, unknown>) =>
-    kern<RohAntwort, FileOrData>(functionName, params, undefined, undefined, undefined, alsRohAntwort, dateiOderDatenAuswerten);
+  return (functionName: string, params?: Record<string, unknown>, aufruf?: FileOrDataCallOptions) =>
+    kern<RohAntwort, FileOrData>(functionName, params, undefined, undefined, undefined, alsRohAntwort, dateiOderDatenAuswerten, aufruf?.timeoutMs);
 }
 
 /** Bytes und die Kopfzeilen, die [dateiOderDatenAuswerten] braucht. */
@@ -400,7 +411,7 @@ function createCore(options: TransportOptions) {
   const oeffentlicheBasis = v3Basis('baseUrl', options.baseUrl) ?? DEFAULT_BASE_URL;
   const kassenBasis = v3Basis('posBaseUrl', options.posBaseUrl) ?? POS_BASE_URL;
   const kassenweg = isRegisterUserAuth(options.auth);
-  const zeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const standardZeitlimitMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const holen = options.fetch ?? globalesFetch();
   const kennung = options.clientHeader ?? `kasseneck-api/${PACKAGE_VERSION}`;
   pruefeKennung(kennung);
@@ -424,7 +435,10 @@ function createCore(options: TransportOptions) {
     callOptions: TransportCallOptions | undefined,
     lesen: Koerperleser<R>,
     auswerten: Auswertung<R, T>,
+    // Zeitlimit nur dieses Aufrufs (Datei-oder-Daten-Weg); sonst das des Transports.
+    eigenesZeitlimitMs?: number,
   ): Promise<T> {
+    const zeitlimitMs = eigenesZeitlimitMs ?? standardZeitlimitMs;
     // Die URL nennt die Backend-Funktion, die Fehler nennen den **Vorgang**:
     // `financeWebService` fuehrt ein Dutzend verschiedener Vorgaenge unter einem
     // Endpunkt, und ein Fehler, der nur "financeWebService" sagt, verschweigt

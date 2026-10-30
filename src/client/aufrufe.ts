@@ -12,7 +12,7 @@
  * weiterhin jeden `string`: wer einen Aufruf braucht, den dieses Paket nicht
  * umhuellt, muss ihn weiterhin absetzen koennen.
  */
-import type { FileOrData, PdfOrData, TransportBodyFields, TransportCallOptions } from './transport.js';
+import type { FileOrData, FileOrDataCallOptions, PdfOrData, TransportBodyFields, TransportCallOptions } from './transport.js';
 
 export const ALL_CALLS = [
   'activateCashregister',
@@ -616,4 +616,5 @@ export type InternerPdfOderDatenTransport = (
 export type InternerDateiOderDatenTransport = (
   functionName: ApiCall,
   params?: Record<string, unknown>,
+  options?: FileOrDataCallOptions,
 ) => Promise<FileOrData>;
