@@ -419,9 +419,10 @@ const MELDUNGEN_ROH = {
 
   // --- Prüfung (DEP) bei der Kassennachschau ---------------------------------
   // Nur der Chef exportiert (Inhaber oder Recht „Einstellungen“); ein Kassier
-  // sieht nur den Hinweis. Ohne Internet gilt die Frist von zwei Werktagen.
-  'dep.manager_only': { text: 'Den Export für die Prüfung macht der Chef. Ist er nicht da, darf die Behörde bis zu zwei Werktage warten.' },
-  'dep.offline': { text: 'Ohne Internet ist kein Export möglich. Die Behörde muss dann bis zu zwei Werktage warten; der Export geht später hier oder unter mein.kasseneck.at.' },
+  // sieht nur den Hinweis. Seit 1.23.0 ohne Rechtssprache (keine Frist, keine
+  // Behörde): an der Kasse steht nur, wer exportiert und dass es Internet braucht.
+  'dep.manager_only': { text: 'Den Export macht der Chef.' },
+  'dep.offline': { text: 'Ohne Internet geht der Export nicht.' },
   'dep.creating': { text: 'Wird erstellt …' },
   'dep.running': { text: 'Für diese Kasse läuft schon ein Export. Bitte kurz warten, er wird gleich fertig.' },
   'dep.failed': { text: 'Der Export ist fehlgeschlagen. Bitte erneut erstellen.' },
@@ -433,6 +434,14 @@ const MELDUNGEN_ROH = {
   'dep.zip_fallback': { text: 'Dieser Browser kann keinen Ordner wählen – der Export kommt als ZIP-Datei in den Download-Ordner.', only: ['web'] },
   'dep.code_once': { text: 'Code und QR-Code gibt es nur auf diesem Bildschirm. Wer zurückgeht, erstellt beim nächsten Mal einen neuen Link.' },
   'dep.revoked': { text: 'Der Link ist widerrufen.' },
+
+  // --- Prüfung: Kasseninfo für den Prüfer (1.23.0) -----------------------------
+  // Der Absatz unter „So arbeitet die Kasse:“ (Bildschirm und Ausdruck), die
+  // Frage nach einem Nullbeleg (nur mit eingerichtetem Drucker) und der Satz,
+  // wenn die Angaben nicht kommen.
+  'inspection.how_it_works_text': { text: 'Erfasst wird in der Kassen-App oder in der Web-Kasse, gespeichert wird online. Jeder Beleg wird beim Erstellen signiert. Den Beleg gibt es gedruckt, per Mail oder als QR-Code.' },
+  'inspection.print_question': { text: 'Kasseninfo für den Prüfer auch drucken?' },
+  'inspection.load_failed': { text: 'Die Kasseninfo konnte nicht geladen werden.' },
 
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
@@ -1031,6 +1040,8 @@ const BESCHRIFTUNGEN_ROH = {
   'nav.open_drawer': { text: 'Kassenlade öffnen' },
   'nav.stocktake': { text: 'Inventur' },
   'nav.dep': { text: 'Prüfung (DEP)' },
+  // Seit 1.23.0 der Menüeintrag (Kasseninfo, Nullbeleg, DEP); `nav.dep` bleibt für ältere Kassen.
+  'nav.inspection': { text: 'Prüfung' },
   'nav.settings': { text: 'Einstellungen' },
   'nav.settings_locked': { text: 'nur mit Chef-Anmeldung' },
   'nav.logout': { text: 'Abmelden' },
@@ -1151,6 +1162,58 @@ const BESCHRIFTUNGEN_ROH = {
   'dep.revoke': { text: 'Widerrufen' },
   'dep.checksum': { text: 'Prüfsumme (SHA-256)' },
   'dep.new_export': { text: 'Neuer Export' },
+
+  // --- Prüfung: Reiter mit Kasseninfo, Nullbeleg und DEP (1.23.0) ----------------
+  // Die drei Teile der Seite „Prüfung“ in dieser Reihenfolge.
+  'inspection.part_inspector': { text: 'Für den Prüfer' },
+  'inspection.part_zero_receipt': { text: 'Nullbeleg' },
+  'inspection.part_dep': { text: 'DEP' },
+  // Die Kasseninfo (inspectionInfoRows, inspectionInfoLines): Überschriften,
+  // Bezeichnungen und Werte; im Ausdruck stehen die Überschriften in Großschrift.
+  'inspection.title': { text: 'Kasseninfo für die Prüfung' },
+  'inspection.product_cloud': { text: '{name} – cloudbasierte Registrierkasse', placeholders: ['name'] },
+  'inspection.manufacturer': { text: 'Hersteller' },
+  'inspection.vat_id': { text: 'UID {number}', placeholders: ['number'] },
+  'inspection.cashregister_id': { text: 'Kassen-ID' },
+  'inspection.signature': { text: 'Signatur' },
+  'inspection.unit': { text: 'Einheit' },
+  'inspection.unit_a_trust': { text: 'Signaturkarte von A-Trust' },
+  'inspection.unit_test_card': { text: 'Testkarte' },
+  'inspection.hosting': { text: 'Betrieb' },
+  'inspection.hosting_server': { text: 'im Signier-Server von Kasseneck' },
+  'inspection.certificate': { text: 'Zertifikat' },
+  'inspection.serial_hex': { text: 'Seriennr. {number} (hex)', placeholders: ['number'] },
+  'inspection.serial_decimal': { text: '{number} (dezimal)', placeholders: ['number'] },
+  'inspection.serial_decimal_only': { text: 'Seriennr. {number} (dezimal)', placeholders: ['number'] },
+  'inspection.holder': { text: 'Inhaber' },
+  'inspection.issuer': { text: 'Aussteller' },
+  'inspection.valid': { text: 'Gültig' },
+  'inspection.valid_range': { text: '{from} – {to}', placeholders: ['from', 'to'] },
+  'inspection.valid_from': { text: 'ab {date}', placeholders: ['date'] },
+  'inspection.valid_to': { text: 'bis {date}', placeholders: ['date'] },
+  'inspection.check': { text: 'Abgleich' },
+  'inspection.check_holder': { text: 'Inhaber mit A-Trust geprüft' },
+  'inspection.status': { text: 'Status' },
+  'inspection.status_active': { text: 'in Betrieb' },
+  'inspection.status_outage': { text: 'ausgefallen' },
+  'inspection.status_outage_since': { text: 'ausgefallen seit {date}, {time}', placeholders: ['date', 'time'] },
+  'inspection.dep': { text: 'DEP' },
+  'inspection.dep_online': { text: 'online gespeichert, jederzeit exportierbar (USB-Stick, Link)' },
+  'inspection.closings': { text: 'Abschlüsse' },
+  'inspection.closings_monthly_first': { text: 'Monatsbeleg automatisch am Monatsersten um {time}', placeholders: ['time'] },
+  'inspection.closings_monthly_day': { text: 'Monatsbeleg automatisch am {n}. jedes Monats um {time}', placeholders: ['n', 'time'] },
+  'inspection.closings_annual_december': { text: 'der Dezember-Beleg ist der Jahresbeleg' },
+  'inspection.contact': { text: 'Kontakt' },
+  'inspection.how_it_works': { text: 'So arbeitet die Kasse:' },
+  'inspection.printed_at': { text: 'Gedruckt {date}, {time}', placeholders: ['date', 'time'] },
+  // Drucken: Knopf im Teil „Für den Prüfer“ und die Antworten auf die Frage nach dem Nullbeleg.
+  'inspection.print': { text: 'Kasseninfo drucken' },
+  'inspection.print_yes': { text: 'Drucken' },
+  'inspection.print_no': { text: 'Nein' },
+  // Nullbeleg: Knopf (Reiter „Prüfung“ und Einstellungen der App) und Ergebnis
+  // mit Belegnummer und Uhrzeit. Scheitert er, gilt `completion.zero_receipt_failed`.
+  'zero_receipt.create': { text: 'Nullbeleg erstellen' },
+  'zero_receipt.created': { text: 'Nullbeleg {number} erstellt, {time}', placeholders: ['number', 'time'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
