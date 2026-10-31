@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.21.1 - 2026-10-31
+
+Paying out a voucher that is no longer active names its status (twin of the backend rule `gutschein-core.darfAuszahlen`, keck, same day). Nothing else changes.
+
+- **A payout checks `cancelled` and `blocked` first.** `receiptDueCents` and `receiptDueBreakdown` with a `payout` wish reject a cancelled voucher with `voucher_cancelled` and a blocked one with `voucher_blocked`, before the balance and before `payout: 'never'`. Reason: cancelling a voucher sale sets its balance to 0, so the register told the cashier "already used up" (`voucher_used_up`) for a cancelled voucher. Used up and paid out stay `voucher_used_up`.
+- `fixtures/receipt-due-voucher-generated.json` regenerated from the backend with that rule (486 cases): four fixed payout cases at the end (`gen_voucher_482` to `485`: cancelled, cancelled with `never`, blocked with `never`, used up). The generator now maps the stored status into the check (`STATUS`); the random cases stay `active` and keep their bytes.
+
 ## 1.21.0 - 2026-10-31
 
 DEP export at the cash register (*Kassennachschau*, stage 2): the five DEP calls now also run on the register path, for the manager only, plus the words and the folder name both registers use. Additive.

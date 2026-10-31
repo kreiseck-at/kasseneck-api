@@ -401,7 +401,12 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
     if ('fehler' in check) return check;
 
     if (v.action === 'payout') {
-      // `gutschein-core.darfAuszahlen`: Auszahlung nicht gesperrt, aktiv oder abgelaufen bis zum Ende der Rueckzahlbarkeit.
+      // `gutschein-core.darfAuszahlen`: storniert und gesperrt zuerst (der Storno setzt den Saldo auf 0, die Kasse soll
+      // „storniert“ sagen, nicht „aufgebraucht“), dann Auszahlung nicht gesperrt, aktiv oder abgelaufen bis zum Ende der
+      // Rueckzahlbarkeit.
+      if (check.status === 'cancelled' || check.status === 'blocked') {
+        return nein(STATUS_FEHLER[check.status] ?? 'voucher_invalid', `Gutschein ${i + 1}: Status ${check.status}.`);
+      }
       if (check.payout === 'never') return nein('voucher_payout_not_allowed', `Gutschein ${i + 1}: dieser Gutschein wird nie ausgezahlt.`);
       if (!((check.balanceCents ?? 0) > 0)) return nein('voucher_used_up', `Gutschein ${i + 1}: kein Saldo.`);
       if (check.status === 'expired') {

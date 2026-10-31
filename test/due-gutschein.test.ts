@@ -196,6 +196,19 @@ test('Auszahlung abgelaufen: bis rueckzahlbar-bis erlaubt, danach voucher_expire
   wirft(() => receiptDueCents([], v, 'standard', { voucherInfo: [{ code: CODE_P, check }], today: '2027-01-01' }), 'voucher_expired');
 });
 
+test('Auszahlung storniert/gesperrt: ihr Status vor „aufgebraucht“ und vor „nie“ (gutschein-core.darfAuszahlen)', () => {
+  const v: Voucher[] = [{ action: 'payout', type: 'multi_purpose', code: CODE_P, amountCents: 1000, reason: 'Probe' }];
+  const mit = (check: VoucherCheck): ReceiptDueOptions => ({ voucherInfo: [{ code: CODE_P, check }] });
+  // Der Storno des Verkaufs setzt den Saldo auf 0; die Kasse soll trotzdem „storniert“ sagen.
+  wirft(() => receiptDueCents([], v, 'standard', mit(mehrzweck(0, 'cancelled'))), 'voucher_cancelled');
+  wirft(() => receiptDueCents([], v, 'standard', mit({ ...mehrzweck(0, 'cancelled'), payout: 'never' })), 'voucher_cancelled');
+  wirft(() => receiptDueCents([], v, 'standard', mit({ ...mehrzweck(3000, 'blocked'), payout: 'never' })), 'voucher_blocked');
+  // Aufgebraucht und ausgezahlt bleiben „aufgebraucht“, ein leerer aktiver auch.
+  wirft(() => receiptDueCents([], v, 'standard', mit(mehrzweck(0, 'used_up'))), 'voucher_used_up');
+  wirft(() => receiptDueCents([], v, 'standard', mit(mehrzweck(0, 'paid_out'))), 'voucher_used_up');
+  wirft(() => receiptDueCents([], v, 'standard', mit(mehrzweck(0))), 'voucher_used_up');
+});
+
 // --- Einzweck --------------------------------------------------------------------
 
 test('Einzweck einloesen: Minuszeile im Satz des Gutscheins', () => {
@@ -573,7 +586,7 @@ test('Generierte Gutscheinfaelle: genug und von jeder Art (Bruchmengen, Trinkgel
   assert.ok(c.some((f) => f.input.vouchers.some((v) => v.action === 'sell' && v.typeId != null && v.type == null) && 'dueCents' in f.expected));
   assert.ok(c.some((f) => f.input.voucherTypes?.some((t) => t.amount.mode === 'fixed') && 'dueCents' in f.expected));
   for (const code of ['voucher_rate_mismatch', 'voucher_exceeds_total', 'voucher_insufficient_balance', 'voucher_item_mismatch', 'voucher_type_required',
-    'voucher_type_not_found', 'voucher_amount_mismatch', 'voucher_payout_not_allowed', 'voucher_invalid']) {
+    'voucher_type_not_found', 'voucher_amount_mismatch', 'voucher_payout_not_allowed', 'voucher_invalid', 'voucher_cancelled', 'voucher_blocked', 'voucher_used_up']) {
     assert.ok(c.some((f) => 'voucherError' in f.expected && f.expected.voucherError === code), code);
   }
 });
