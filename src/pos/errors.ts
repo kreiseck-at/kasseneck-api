@@ -3,13 +3,13 @@ import { KasseneckApiError } from '../client/errors.js';
 /**
  * Fehler der Kassen-Aufrufe um den Verkauf herum (Einstellungen, Logo,
  * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen, Schicht,
- * Kassenstand und Lade-Protokoll) auswerten:
+ * Kassenstand, Lade-Protokoll und Kasseninfo fuer die Pruefung) auswerten:
  * am `code`, nie am Text.
  * Belege, Storno und Belegmail haben eigene Listen (`RECEIPT_ERROR_CODES`,
  * `CANCELLATION_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`), die Anmeldung
  * `REGISTER_ERROR_CODES` im Unterpfad `./register`.
  *
- * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser 24 Endpunkte in
+ * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser 25 Endpunkte in
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).

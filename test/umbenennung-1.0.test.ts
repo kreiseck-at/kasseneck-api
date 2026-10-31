@@ -71,7 +71,9 @@ const NACH_1_0 = {
     'voucher.type_changed',
     // Prüfung (DEP) an der Kasse (1.21.0)
     'dep.manager_only', 'dep.offline', 'dep.creating', 'dep.running', 'dep.failed', 'dep.too_many_exports', 'dep.period_invalid',
-    'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked'],
+    'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked',
+    // Reiter „Prüfung“: Kasseninfo für den Prüfer (1.23.0)
+    'inspection.how_it_works_text', 'inspection.print_question', 'inspection.load_failed', 'zero_receipt.check_first'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -128,7 +130,17 @@ const NACH_1_0 = {
     'voucher.tab', 'voucher.enter_amount', 'voucher.service_tile', 'voucher.kind_multi_short', 'voucher.kind_single_short',
     // Prüfung (DEP) an der Kasse (1.21.0)
     'nav.dep', 'dep.title', 'dep.period', 'dep.period_all', 'dep.period_year', 'dep.period_quarter', 'dep.period_custom', 'dep.from', 'dep.to',
-    'dep.create', 'dep.receipts', 'dep.save_usb', 'dep.handover_link', 'dep.code', 'dep.valid_until', 'dep.revoke', 'dep.checksum', 'dep.new_export'],
+    'dep.create', 'dep.receipts', 'dep.save_usb', 'dep.handover_link', 'dep.code', 'dep.valid_until', 'dep.revoke', 'dep.checksum', 'dep.new_export',
+    // Reiter „Prüfung“ mit Kasseninfo, Nullbeleg und DEP (1.23.0)
+    'nav.inspection', 'inspection.part_inspector', 'inspection.part_zero_receipt', 'inspection.part_dep', 'inspection.title',
+    'inspection.product_cloud', 'inspection.manufacturer', 'inspection.vat_id', 'inspection.cashregister_id', 'inspection.signature',
+    'inspection.unit', 'inspection.unit_a_trust', 'inspection.unit_test_card', 'inspection.hosting', 'inspection.hosting_server',
+    'inspection.certificate', 'inspection.serial_hex', 'inspection.serial_decimal', 'inspection.serial_decimal_only', 'inspection.holder',
+    'inspection.issuer', 'inspection.valid', 'inspection.valid_range', 'inspection.valid_from', 'inspection.valid_to', 'inspection.check',
+    'inspection.check_holder', 'inspection.status', 'inspection.status_active', 'inspection.status_outage', 'inspection.status_outage_since',
+    'inspection.dep', 'inspection.dep_online', 'inspection.closings', 'inspection.closings_monthly_first', 'inspection.closings_monthly_day',
+    'inspection.closings_annual_december', 'inspection.contact', 'inspection.how_it_works', 'inspection.printed_at', 'inspection.print',
+    'inspection.print_yes', 'inspection.print_no', 'zero_receipt.create', 'zero_receipt.created'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
@@ -361,7 +373,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   // Beleg-Ausgaben (1.14.0): gemeinsame Prueffaelle mit dem Dart-Zwilling.
   'receipt-outputs-cases.json',
   // Prüfung (DEP) an der Kasse (1.21.0): Ordner auf dem USB-Stick, gleich im Dart-Zwilling.
-  'dep-folder-cases.json'];
+  'dep-folder-cases.json',
+  // Kasseninfo für die Prüfung (1.23.0): Zeilen für Bildschirm und Druck, gleich im Dart-Zwilling.
+  'inspection-info-cases.json'];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

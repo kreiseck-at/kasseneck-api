@@ -53,6 +53,12 @@ export {
 export { listMyTipRecipients } from './trinkgeld.js';
 // Prüfung (DEP) an der Kasse: Ordner auf dem USB-Stick (gleich in Web-Kasse und Kassen-App).
 export { depFolderName } from './dep.js';
+// Prüfung an der Kasse: Kasseninfo für den Prüfer, am Bildschirm und als Ausdruck (gleich im Dart-Zwilling).
+export {
+  type RegisterInspectionInfo, type RegisterInspectionSignature, type InspectionSignatureStatus,
+  type InspectionInfoRow, type InspectionInfoRowKey, type InspectionInfoSection, type InspectionInfoLinesOptions,
+  getRegisterInspectionInfo, inspectionInfoRows, inspectionInfoLines,
+} from './kasseninfo.js';
 export {
   STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
   type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
