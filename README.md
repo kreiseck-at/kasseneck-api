@@ -514,14 +514,15 @@ transaction by its `transactionId`, the Stripe session).
 
 **With an `idempotencyKey`** (inventory writes and reservations, `issueInvoice`,
 `cancelInvoice`, `createCreditNote`, `recordInvoicePayment`, `createCustomer`
-and `createPartnerCustomer` with a key) the safe retry after `'unknown'` is the
+and `createPartnerCustomer` with a key, and since 1.22.0 `sellReceipt` and
+`sellReceiptWithCompany` with a key) the safe retry after `'unknown'` is the
 same request with the **same** key: it takes effect exactly once and returns
-the stored answer (invoices and partner customers mark it with
-`replayed: true`; inventory writes return the stored answer unchanged). Never a
-new key: that books a second time. `createInvoiceItem` has no key; the server recognises a repeat by
+the stored answer (invoices, partner customers and `sellReceiptWithCompany`
+mark it with `replayed: true`; inventory writes return the stored answer
+unchanged). Never a new key: that books a second time. `createInvoiceItem` has no key; the server recognises a repeat by
 `source` + `reference`, so the same request with the same values is safe
 (`replayed: true`; other data gives `item_reference_conflict`). Without a key
-(receipts, cancellations, money calls, settings, webhooks, `updateCustomer`,
+(receipts without one, cancellations, money calls, settings, webhooks, `updateCustomer`,
 `createCustomer` and `createPartnerCustomer` without one, `updateInvoiceItem`,
 `withdrawInvoiceItem`, `setCustomerMandate`, `revokeCustomerMandate`) read the
 state first (for invoice items `getInvoiceItem`) and only then decide.
@@ -543,6 +544,21 @@ try {
   if (expected !== undefined) return askAgain(expected);
   throw error;
 }
+```
+
+**A sale with a key of your own** (since 1.22.0): pass a stable id of the
+transaction, for example the order number or the number of the paper
+replacement receipt, never one made up per attempt. The key holds per
+register, has at most 120 characters and goes out unchanged. After
+`isOutcomeUnknown(error)` the same request with the same key returns the
+receipt of the first attempt instead of signing a second one; the same key
+with other content gives `idempotency_conflict`, and nothing is written. When
+recording a paper receipt (`manualReceipt`) the server also refuses the same
+paper number on the same day (`manual_receipt_duplicate`).
+
+```ts
+const result = await api.sellReceiptWithCompany({ items, payments, idempotencyKey: `order-${orderNumber}` });
+if (result.replayed) showAlreadyIssued(result.receipt); // the receipt of the first attempt
 ```
 
 ## Receipts

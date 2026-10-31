@@ -1146,3 +1146,57 @@ test('drawerId: Verkauf und Storno nennen die Lade, in deren Kassenstand sie zae
   }
   assert.equal(nie.aufrufe.length, 0);
 });
+
+// --- Idempotenz am Beleg (1.22.0) -----------------------------------------------
+
+test('idempotencyKey: Verkauf sendet den Schluessel unveraendert; ohne Angabe geht kein Feld hinaus', async () => {
+  // Der Server hasht den Schluessel so, wie er ankommt (beleg-idempotenz-core): nie kuerzen, nie trimmen.
+  for (const schluessel of ['ersatzbeleg-17', ' ersatzbeleg-17 ', 'x'.repeat(120), '€'.repeat(120), '😀'.repeat(60)]) {
+    const verkauf = apiSchluesselWeg();
+    await sellReceipt(verkauf.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: schluessel });
+    assert.equal(gesendet(verkauf.aufrufe).params.idempotencyKey, schluessel);
+    const mitFirma = apiSchluesselWeg();
+    await sellReceiptWithCompany(mitFirma.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: schluessel });
+    assert.equal(gesendet(mitFirma.aufrufe).params.idempotencyKey, schluessel);
+    const roh = apiSchluesselWeg();
+    await createReceipt(roh.rufen, { receiptType: ReceiptType.standard, payments: BAR, items: [KAFFEE], idempotencyKey: schluessel });
+    assert.equal(gesendet(roh.aufrufe).params.idempotencyKey, schluessel);
+  }
+  // null heisst am Server „ohne Schluessel“, wie fehlend: dann bleibt die Nutzlast wie bisher.
+  for (const ohne of [undefined, null]) {
+    const weg = apiSchluesselWeg();
+    await sellReceipt(weg.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: ohne as never });
+    assert.equal('idempotencyKey' in gesendet(weg.aufrufe).params, false, String(ohne));
+  }
+  const fassade = fetchFake(erfolg(BELEG_ANTWORT));
+  const api = createKasseneckApi({ auth: apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN }), fetch: fassade.holen });
+  await api.sellReceipt({ payments: BAR, items: [KAFFEE], idempotencyKey: 'vorgang-4711' });
+  assert.equal(gesendet(fassade.aufrufe).params.idempotencyKey, 'vorgang-4711');
+});
+
+test('idempotencyKey: leer, nur Leerraum, laenger als 120 Zeichen oder kein Text wirft vor dem Senden', async () => {
+  // Laenge in UTF-16-Einheiten wie am Server (String.length): 61 Emoji sind 122 Einheiten.
+  const ungueltig: unknown[] = ['', '   ', 'x'.repeat(121), '😀'.repeat(61), 12, true, {}, ['k']];
+  const nie = apiSchluesselWeg();
+  for (const wert of ungueltig) {
+    const passt = (e: unknown) => isKasseneckValidationError(e) && e.scope === 'request' && e.functionName === 'createReceipt' && /idempotencyKey/.test(e.message);
+    await assert.rejects(() => sellReceipt(nie.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: wert as never }), passt, inspect(wert));
+    await assert.rejects(() => sellReceiptWithCompany(nie.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: wert as never }), passt, inspect(wert));
+  }
+  assert.equal(nie.aufrufe.length, 0);
+});
+
+test('replayed: sellReceiptWithCompany zeigt die Wiederholung des Servers; sonst fehlt das Feld', async () => {
+  const wiederholt = apiSchluesselWeg({ ...BELEG_ANTWORT, replayed: true });
+  const zweites = await sellReceiptWithCompany(wiederholt.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: 'vorgang-4711' });
+  assert.equal(zweites.replayed, true);
+  assert.equal(zweites.receipt.receiptId, BELEG_NUTZLAST.receiptId);
+  // Erster Verkauf, Altantwort ohne Feld oder ein Wert, der nicht genau true ist: kein Feld, die Form bleibt wie bisher.
+  for (const daten of [BELEG_ANTWORT, { ...BELEG_ANTWORT, replayed: false }, { ...BELEG_ANTWORT, replayed: 'true' }]) {
+    const weg = apiSchluesselWeg(daten);
+    const ergebnis = await sellReceiptWithCompany(weg.rufen, { payments: BAR, items: [KAFFEE], idempotencyKey: 'vorgang-4711' });
+    assert.equal('replayed' in ergebnis, false, inspect((daten as { replayed?: unknown }).replayed));
+  }
+  const gelesen = await getReceiptWithCompany(apiSchluesselWeg({ ...BELEG_ANTWORT }).rufen, BELEG_NUTZLAST.receiptId);
+  assert.equal('replayed' in gelesen, false);
+});

@@ -7,7 +7,9 @@ import { bekannterCode, feldfehlerVon } from '../client/fehlercodes.js';
  * [PAYMENT_ERROR_CODES] und die des Rands (`validation`, `dialect_mismatch`, …).
  *
  * `receipt_outcome_unknown` heisst: der Beleg ist moeglicherweise signiert
- * (`outcome: 'unknown'`). Nie wiederholen, sondern die Belegliste nachlesen.
+ * (`outcome: 'unknown'`). Ohne `idempotencyKey` nie wiederholen, sondern die
+ * Belegliste nachlesen; mit Schluessel dieselbe Anfrage mit demselben
+ * Schluessel erneut senden.
  *
  * Dahinter (ab 1.0) die Codes, die Anmeldung und Rand auf diesem Endpunkt
  * erzeugen koennen: `errorCodes.auth` ohne die sieben des Partner-Zugangs und
@@ -24,8 +26,8 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   'cashregister_decommissioned',
   'final_receipt_expired',
   'final_receipt_not_allowed',
-  // Seit 1.15.0 (Vertrag): derselbe idempotencyKey mit anderem Inhalt, nichts geschrieben. Der Server nimmt den
-  // Schluessel optional an; dieses Paket sendet (noch) keinen, der Code bleibt damit nur lesbar.
+  // Seit 1.15.0 (Vertrag): derselbe idempotencyKey mit anderem Inhalt, nichts geschrieben. Seit 1.22.0 sendet
+  // dieses Paket den Schluessel, wenn der Aufrufer ihn angibt (`idempotencyKey` an sellReceipt/createReceipt).
   'idempotency_conflict',
   'module_inactive',
   'not_permitted',
