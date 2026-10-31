@@ -66,10 +66,11 @@ const VOR = '2026-10-19';
 const NACH = '2100-01-04';
 
 const AUSZAHLUNG = { erlaubt: 'allowed', nie: 'never' };
+const STATUS = { aktiv: 'active', abgelaufen: 'expired', aufgebraucht: 'used_up', ausgezahlt: 'paid_out', storniert: 'cancelled', gesperrt: 'blocked' };
 
 /** Was checkVoucher der Kasse von einem Gutschein-Dokument zeigt. */
 function pruefung(g) {
-  const p = { type: ART[g.art], status: 'active', codeSuffix: g.codeEnde };
+  const p = { type: ART[g.art], status: STATUS[g.status] ?? 'active', codeSuffix: g.codeEnde };
   if (g.auszahlung != null) p.payout = AUSZAHLUNG[g.auszahlung];
   if (g.saldoCents != null) p.balanceCents = g.saldoCents;
   if (g.satzBp != null) p.vatRateBp = g.satzBp;
@@ -240,7 +241,9 @@ function rechne({ input, server }) {
 
 /**
  * Feste Faelle nach den zufaelligen (die Folge des Seeds bleibt gleich): eine Einloesung, deren Art nicht zur Pruefung
- * passt, bleibt `voucher_invalid` – nur ein Sorten-Verkauf mit anderer Art ist `voucher_amount_mismatch`.
+ * passt, bleibt `voucher_invalid` – nur ein Sorten-Verkauf mit anderer Art ist `voucher_amount_mismatch`. Dazu
+ * Auszahlungen an Gutscheinen, die nicht mehr aktiv sind: storniert (Saldo 0 vom Storno) und gesperrt nennen ihren
+ * Status, auch vor „nie“; aufgebraucht bleibt `voucher_used_up`.
  */
 function feste() {
   const code = CODES[0];
@@ -250,7 +253,7 @@ function feste() {
     { wunschArt: 'einzweck', g: { art: 'mehrzweck', saldoCents: 5000 } },
     { wunschArt: 'mehrzweck', g: { art: 'einzweck', satzBp: 2000, saldoCents: 5000 } },
   ];
-  return faelle.map(({ wunschArt, g: teil }, k) => {
+  const einloesen = faelle.map(({ wunschArt, g: teil }, k) => {
     const g = { status: 'aktiv', codeEnde, kleinunternehmer: false, gueltigkeit: { muster: 'unbefristet' }, ...teil };
     return {
       name: `gen_voucher_${ANZAHL + k}_redeem_wrong_kind`,
@@ -259,6 +262,22 @@ function feste() {
       server: { vouchers: [{ type: wunschArt, action: 'redeem', code, gutscheinId: 'g0', betragCents: 1000 }], gutscheine: { g0: g }, sorten: {} },
     };
   });
+  const nichtAktiv = [
+    { art: 'mehrzweck', status: 'storniert', saldoCents: 0 },
+    { art: 'einzweck', satzBp: 2000, status: 'storniert', saldoCents: 0, auszahlung: 'nie' },
+    { art: 'mehrzweck', status: 'gesperrt', saldoCents: 5000, auszahlung: 'nie' },
+    { art: 'mehrzweck', status: 'aufgebraucht', saldoCents: 0 },
+  ];
+  const auszahlen = nichtAktiv.map((teil, k) => {
+    const g = { codeEnde, kleinunternehmer: false, gueltigkeit: { muster: 'unbefristet' }, ...teil };
+    return {
+      name: `gen_voucher_${ANZAHL + faelle.length + k}_payout_${ART[g.art]}_${STATUS[g.status]}`,
+      input: { receiptType: 'standard', items: [], vouchers: [{ type: ART[g.art], action: 'payout', code, amountCents: 1000, reason: 'Goodwill' }], today: VOR,
+        voucherInfo: [{ code, check: pruefung(g) }] },
+      server: { vouchers: [{ type: g.art, action: 'payout', code, gutscheinId: 'g0', betragCents: 1000, grund: 'Goodwill' }], gutscheine: { g0: g }, sorten: {} },
+    };
+  });
+  return [...einloesen, ...auszahlen];
 }
 
 const cases = [...Array.from({ length: ANZAHL }, (_, i) => fall(i)), ...feste()].map((f) => ({ name: f.name, input: f.input, expected: rechne(f) }));
