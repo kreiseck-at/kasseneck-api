@@ -355,6 +355,7 @@ const FILES = TABELLE.files as Record<string, string>;
 const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-table-receipts.json'), 'utf8')) as { tables: string[]; cases: Array<{ name: string }> };
 /** Belegduplikat (1.14.0): die Faelle und je Druckfall eine Hex-Datei. */
 const DUPLIKAT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'duplicate-cases.json'), 'utf8')) as { cases: Array<{ name: string; print: boolean }> };
+const SCHNITT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'print-cut-cases.json'), 'utf8')) as { cases: Array<{ name: string }> };
 const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
@@ -375,7 +376,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   // Prüfung (DEP) an der Kasse (1.21.0): Ordner auf dem USB-Stick, gleich im Dart-Zwilling.
   'dep-folder-cases.json',
   // Kasseninfo für die Prüfung (1.23.0): Zeilen für Bildschirm und Druck, gleich im Dart-Zwilling.
-  'inspection-info-cases.json'];
+  'inspection-info-cases.json',
+  // Papierschnitt am Bon (1.23.0): Prueffaelle und Bytes, gleich im Dart-Zwilling.
+  'print-cut-cases.json', ...SCHNITT_FAELLE.cases.map((c) => `expected/print-cut.${c.name}.hex`)];
 
 const glob = (muster: string): RegExp => new RegExp(`^${muster.replace(/[.$]/g, '\\$&').replace(/\*/g, '[^/]*')}$`);
 const gruppen = (neu: string, abschnitt: Record<string, unknown>): string[] => Object.keys(abschnitt).filter((m) => glob(m).test(neu));

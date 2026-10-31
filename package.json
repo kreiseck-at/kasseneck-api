@@ -201,6 +201,7 @@
     "fixtures:duplikat": "npm run build && node scripts/duplikat-fixtures.mjs",
     "fixtures:ausgaben": "npm run build && node scripts/ausgaben-fixtures.mjs",
     "fixtures:kasseninfo": "npm run build && node scripts/kasseninfo-faelle.mjs",
+    "fixtures:schnitt": "npm run build && node scripts/schnitt-fixtures.mjs",
     "fixtures:kasse": "node scripts/kasse-settings-fixture.mjs",
     "fixtures:marke": "node scripts/marke-raster.mjs",
     "fixtures:oberflaeche": "npm run build && node scripts/oberflaeche.mjs",
