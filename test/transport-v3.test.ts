@@ -190,10 +190,11 @@ test('v3: jede Basis muss auf /v3 enden, sonst wirft das Anlegen mit Hinweis auf
   }
 });
 
-test('v3: alle sechs oeffentlichen Aufrufe des Kassenwegs gehen mit registerUserAuth an den Kassenweg, mit api_key an die oeffentliche Basis', async () => {
+test('v3: alle elf oeffentlichen Aufrufe des Kassenwegs gehen mit registerUserAuth an den Kassenweg, mit api_key an die oeffentliche Basis', async () => {
   const beide = PUBLIC_CALLS.filter((name) => (POS_CALLS as readonly string[]).includes(name));
   assert.deepEqual([...beide].sort(), [
-    'cancelReceipt', 'createReceipt', 'generateFullReceiptId', 'getReceipt', 'listMyTipRecipients', 'sendReceiptEmail',
+    'cancelReceipt', 'createDepExport', 'createDepHandoverLink', 'createReceipt', 'generateFullReceiptId', 'getDepExport', 'getDepExportFile',
+    'getReceipt', 'listMyTipRecipients', 'revokeDepHandoverLink', 'sendReceiptEmail',
   ]);
   const kasse = aufzeichnen(() => erfolg({}));
   const oeffentlich = aufzeichnen(() => erfolg({}));

@@ -300,8 +300,9 @@ export const PUBLIC_CALLS = [
 /**
  * Die Endpunkte des Kassenwegs (`https://kasse.kasseneck.at/api/v3/<name>`,
  * Web-Kasse: gleicher Ursprung `/api/v3`), in der Reihenfolge von
- * `endpoints.register`. Sechs davon sind zugleich oeffentlich; die Kasse ruft
- * sie trotzdem ueber diesen Weg (ein Dialekt je Client, Nachtrag §5.2).
+ * `endpoints.register`. Elf davon sind zugleich oeffentlich (sechs Beleg-Aufrufe und
+ * die fuenf DEP-Aufrufe); die Kasse ruft sie trotzdem ueber diesen Weg (ein Dialekt
+ * je Client, Nachtrag §5.2).
  */
 export const POS_CALLS = [
   'pairRegisterDevice',
@@ -351,6 +352,12 @@ export const POS_CALLS = [
   'closeMyShift',
   // Ausgaben eines Belegs melden: nur ueber den Kassenweg.
   'logReceiptOutputs',
+  // DEP fuer die Kassennachschau (Stufe 2): zugleich oeffentlich; an der Kasse nur fuer den Chef (manager_only).
+  'createDepExport',
+  'getDepExport',
+  'getDepExportFile',
+  'createDepHandoverLink',
+  'revokeDepHandoverLink',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];

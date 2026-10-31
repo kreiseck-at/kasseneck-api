@@ -47,6 +47,7 @@ export const DEP_EXPORT_ERROR_CODES = Object.freeze([
   'file_not_available', // diese Datei gibt es zu diesem Export nicht (etwa Positionen bei einem alten Export)
   'too_many_links', // Grenze der aktiven Links je Export oder der neuen Links je Tag erreicht
   'link_not_found', // unbekannt oder einer anderen Kasse (ein schon widerrufener Link ist kein Fehler: der Widerruf ist wiederholbar)
+  'manager_only', // Kassenweg: nur der Chef (Inhaber oder Recht layout) exportiert; ein Kassier sieht den Hinweis
   'server_error',
 ] as const);
 

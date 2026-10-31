@@ -169,9 +169,9 @@ test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (42)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (47, seit 1.21.0 mit den fuenf DEP-Aufrufen)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 42);
+  assert.equal(POS_CALLS.length, 47);
 });
 
 test('v3: nur ueber den Kassenweg gehen genau die 36 Namen aus endpoints.registerInternal', () => {

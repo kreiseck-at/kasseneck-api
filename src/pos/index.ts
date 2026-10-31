@@ -51,6 +51,8 @@ export {
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
+// Prüfung (DEP) an der Kasse: Ordner auf dem USB-Stick (gleich in Web-Kasse und Kassen-App).
+export { depFolderName } from './dep.js';
 export {
   STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
   type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
