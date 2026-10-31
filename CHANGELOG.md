@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unreleased (next free version, set on release)
+## 1.21.1 - 2026-10-31
 
 Paying out a voucher that is no longer active names its status (twin of the backend rule `gutschein-core.darfAuszahlen`, keck, same day). Nothing else changes.
 
