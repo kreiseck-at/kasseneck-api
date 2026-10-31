@@ -121,14 +121,20 @@ async function belegServer(doc: Json, version: Json, konto: Json, testKasse: boo
   const leer = { get: async () => ({ empty: true, exists: false }), where: () => leer, limit: () => leer };
   const db = { collection: () => leer, doc: () => leer };
   const { pruefangabenFuerBeleg } = lade!('./beleg-pruefangaben')({ db });
+  // Teile aus beleg-voll.js (Firma, Testsignatur, Layout), die index.js belegAntwort und listReceipts teilen.
+  const { belegTeile } = lade!('./beleg-voll')({ belegKopfCore: kopf, layoutFuerBeleg: layout.layoutFuerBeleg });
   // Verkettung wie index.js belegAntwort.
-  const betrieb = kopf.alsBetriebPayload(version);
-  const testSignatur = kopf.istTestsignatur(doc.qr) && !testKasse;
   const pruefangaben = await pruefangabenFuerBeleg('uid', doc.cashregisterId, doc);
-  let lay = null;
+  // Ein nicht baubares Layout (Fall layoutRegeln: 3) meldet belegTeile auf console.error; hier gewollt.
+  const fehler = console.error;
+  console.error = () => {};
+  let teile: Json;
   try {
-    lay = layout.layoutFuerBeleg({ beleg: doc, betrieb, testKasse, testSignatur, regelwerk: doc.layoutRegeln, pruefangaben });
-  } catch { /* wie belegAntwort: kein Layout */ }
+    teile = still(() => belegTeile(doc, { version, testKasse, pruefangaben, mitLayout: true, ort: 'stored-backend' }));
+  } finally {
+    console.error = fehler;
+  }
+  const { betrieb, testSignatur, layout: lay } = teile;
   const huelle = {
     receipt: storno.ohneInterneBelegFelder(doc), ...betrieb, logo_url: kopf.logoFuerBeleg(version, konto, doc),
     logo_skala: kopf.logoStufeFuerKonto(konto), kopfId: version ? version.id : null, layout: lay, pruefangaben, testSignatur, testKasse,
@@ -159,6 +165,8 @@ test('stored-backend: Belege mit Firma und Layout wie belegAntwort und Rand des 
     { ...storno, lagerStandortId: 'van-1', items: storno.items.map((it: Json, i: number) => (i === 0 ? { ...it, articleId: 'rye-bread', originalIndex: 0, rueckgabe: 'defekt' } : it)) },
     { ...storno, items: storno.items.map((it: Json) => ({ ...it, articleId: 'rye-bread', rueckgabe: 'verloren' })) },
     { ...docs[2], lagerStandortId: 'store-1', cancellations: [{ receiptId: 'X-2', at: 1, by: null, note: null, items: [{ index: 0, quantity: 1, rueckgabe: 'entsorgt' }] }] },
+    // Alter Kartenbeleg ohne payments[]: die Kartenfelder gehen an die Kasse hinaus wie die Anbieterdaten in payments[].
+    (() => { const { payments: _p, ...alt } = docs[1]; return { ...alt, cardPaymentId: 'cp-1', cardPaymentData: { terminal: 'T1' }, creditCardProvider: 'sumup' }; })(),
   ];
   // Gespeicherte Belege der neuen Gutscheinform (Einzweck, Leistung, Mehrzweck im Nulltopf, Auszahlung ...).
   const gutscheinDocs: Json[] = FAELLE_NEU.map((name) => dokument(name).doc);

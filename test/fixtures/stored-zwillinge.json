@@ -38,7 +38,7 @@
     {
       "datei": "functions/beleg-pruefangaben.js",
       "marke": null,
-      "sha256": "7378c148f2cb861355e85db1893676ccbbc015b6c503e86fc8748014c04ad673"
+      "sha256": "541ef34f3042c33a613b07f60a4f5da4b47ec28d454e26a8e6ff5d1293916014"
     },
     {
       "datei": "functions/gemeinsam/storno-core.js",
@@ -77,11 +77,6 @@
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
-      "marke": "function huelleOhneStornoMarke(",
-      "sha256": "b010c1c06b8a1b92bf34f3aff2568e5890354f6b19707559386345f6dea75453"
-    },
-    {
-      "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "function rueckgabeUmbenennen(",
       "sha256": "3900077d689f6a208074679631bc763681501b37a91d494e8c1501f9b9c94d64"
     },
@@ -97,8 +92,13 @@
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
-      "marke": "const belegJeKanal = ",
-      "sha256": "0f0e7c6bf8c1a6efc1dae78cd24c1bd2c68155ab1c6ad8dda439b30b14d23de6"
+      "marke": "function belegNachAussen(",
+      "sha256": "082036c14b34d4970940976acfc178ff206150f8940c02d5f27322481bb8860a"
+    },
+    {
+      "datei": "functions/gemeinsam/api-vokabular-v3.js",
+      "marke": "function belegJeKanal(",
+      "sha256": "a565193c71137e038f18282ea196f5f6518cc61bac30071e4e5681adcbb6a3fd"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -116,6 +116,11 @@
       "sha256": "570adb5c274052fc00b53de5771b0505ad0a343c54e9c6236322a4e418748892"
     },
     {
+      "datei": "functions/beleg-voll.js",
+      "marke": "function belegTeile(",
+      "sha256": "ce01ab1ab3bfc6c72ffbd46387e78ff4e61134b6d6a0b45b19ca90943a775c6a"
+    },
+    {
       "datei": "functions/index.js",
       "marke": "async function belegKopfVersionOderKonto(",
       "sha256": "d0a498a905057fa021544d3e34a5f9b351638300b3ecc264f2ed1fcaff527d7b"
@@ -123,7 +128,7 @@
     {
       "datei": "functions/index.js",
       "marke": "async function belegAntwort(",
-      "sha256": "f5f4732dbda2f7138a42b60233bbf33b96bc177c70879643412d53bc50f227a1"
+      "sha256": "c4d4a582f297284312eaca7414f3051dba9113a760f91c83a03e1ad509d73c5b"
     }
   ],
   "zwilling": {
