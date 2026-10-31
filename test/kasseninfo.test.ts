@@ -237,6 +237,9 @@ test('Woerter des Reiters „Prüfung“ mit genau diesem Text', () => {
   for (const [k, text] of Object.entries(beschriftungen)) assert.equal((LABELS as Record<string, { text: string }>)[k]?.text, text, k);
   assert.equal(labelText('zero_receipt.created', { number: 'KECK-1-17', time: '14:05' }), 'Nullbeleg KECK-1-17 erstellt, 14:05');
   assert.equal(messageText('inspection.print_question'), 'Kasseninfo für den Prüfer auch drucken?');
+  // Sperre nach unklarem Ausgang: nie zum blinden Wiederholen raten, erst die Belegliste.
+  assert.equal(messageText('zero_receipt.check_first'),
+    'Der letzte Nullbeleg ging unklar aus und kann schon erstellt sein. Erst unter „Belege“ die Liste neu laden und nachsehen, dann ist ein neuer möglich.');
   assert.equal(MESSAGES['inspection.how_it_works_text'].text,
     'Erfasst wird in der Kassen-App oder in der Web-Kasse, gespeichert wird online. Jeder Beleg wird beim Erstellen signiert. Den Beleg gibt es gedruckt, per Mail oder als QR-Code.');
   // Ohne Rechtssprache an der Kasse (E2b-5): keine Frist, keine Behörde.

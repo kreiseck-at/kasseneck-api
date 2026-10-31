@@ -442,6 +442,9 @@ const MELDUNGEN_ROH = {
   'inspection.how_it_works_text': { text: 'Erfasst wird in der Kassen-App oder in der Web-Kasse, gespeichert wird online. Jeder Beleg wird beim Erstellen signiert. Den Beleg gibt es gedruckt, per Mail oder als QR-Code.' },
   'inspection.print_question': { text: 'Kasseninfo für den Prüfer auch drucken?' },
   'inspection.load_failed': { text: 'Die Kasseninfo konnte nicht geladen werden.' },
+  // Sperre nach einem Nullbeleg mit unklarem Ausgang (wie `voucher.payout_check_first`):
+  // erst die Belegliste neu laden, dann ist ein neuer Nullbeleg möglich.
+  'zero_receipt.check_first': { text: 'Der letzte Nullbeleg ging unklar aus und kann schon erstellt sein. Erst unter „Belege“ die Liste neu laden und nachsehen, dann ist ein neuer möglich.' },
 
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },

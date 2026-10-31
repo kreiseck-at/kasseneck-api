@@ -73,7 +73,7 @@ const NACH_1_0 = {
     'dep.manager_only', 'dep.offline', 'dep.creating', 'dep.running', 'dep.failed', 'dep.too_many_exports', 'dep.period_invalid',
     'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked',
     // Reiter „Prüfung“: Kasseninfo für den Prüfer (1.23.0)
-    'inspection.how_it_works_text', 'inspection.print_question', 'inspection.load_failed'],
+    'inspection.how_it_works_text', 'inspection.print_question', 'inspection.load_failed', 'zero_receipt.check_first'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
