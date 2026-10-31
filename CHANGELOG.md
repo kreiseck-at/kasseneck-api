@@ -4,6 +4,15 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.22.0 - 2026-10-31
+
+Idempotent sales: `createReceipt` can carry an `idempotencyKey` (the backend evaluates it under `/v3` since 26.10.2026). Additive; without a key the request stays byte for byte as before.
+
+- **`idempotencyKey?: string` on `sellReceipt`, `sellReceiptWithCompany` and `createReceipt`** (in `ReceiptCommonOptions`, so also on `createKasseneckApi().sellReceipt…`), sent as `params.idempotencyKey`. Per register: the same request with the same key returns the receipt already signed (no second receipt, no counter step; the plain codes of newly sold vouchers only the first time); the same key with other content is rejected with `idempotency_conflict` and nothing is written. Use a stable id of your own transaction (order number, number of the paper replacement receipt), never one made up per attempt. When recording a paper receipt (`manualReceipt`) the server also refuses the same paper number on the same day with `manual_receipt_duplicate`, a second, independent lock. Reason: after a lost answer (`outcome: 'unknown'`) a sale could only be looked up, never resent; with a key the same request can go out again unchanged.
+- **Checked before sending like the server** (`beleg-idempotenz-core`): a string of 1 to 120 characters (`String.length`), not only whitespace. Empty, whitespace, longer or not a string throws `KasseneckValidationError` (`scope: 'request'`) before anything is sent; the key is never shortened or trimmed, because the server recognises the repeat by the key as it arrives. Missing or `null` sends no field.
+- **`ReceiptWithCompany.replayed?: true`**: set by `sellReceiptWithCompany` when the server answered with `replayed: true` (the receipt of the first attempt). Missing otherwise, also on the first sale with a key, so the result keeps its shape. `sellReceipt` returns the `Receipt` alone and does not show it.
+- `cancelReceipt` takes no key: the backend's cancellation endpoint does not evaluate one; after `cancellation_outcome_unknown` look the original up as before. `zeroReceipt` is unchanged.
+
 ## 1.21.1 - 2026-10-31
 
 Paying out a voucher that is no longer active names its status (twin of the backend rule `gutschein-core.darfAuszahlen`, keck, same day). Nothing else changes.

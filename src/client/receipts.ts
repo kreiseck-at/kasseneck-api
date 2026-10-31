@@ -83,7 +83,10 @@ import type { SheetLogoSize } from '../receipt/blatt.js';
  * (`receipt_outcome_unknown`, `cancellation_outcome_unknown`, Netz- oder
  * Serverfehler nach dem Senden) erst nachlesen, und bei
  * `payments_sum_mismatch` nennt [paymentsExpectedCents] den Betrag des
- * Servers; auch dann wiederholt das Paket nie selbst.
+ * Servers; auch dann wiederholt das Paket nie selbst. Ausnahme fuer den
+ * Aufrufer: ein Verkauf mit `idempotencyKey` darf nach einem unklaren Ausgang
+ * unveraendert mit **demselben** Schluessel erneut hinaus (siehe
+ * [ReceiptCommonOptions.idempotencyKey]).
  *
  * **Kassen-Benutzer-Weg (`registerUserAuth`, Browser-Kasse):** Von den
  * Endpunkten dieser Datei setzen [listMyReceipts], [getReceipt],
@@ -120,6 +123,27 @@ export interface ReceiptCommonOptions {
    * Hauptlade der Kasse. Leer oder kein Text: wirft vor dem Senden.
    */
   drawerId?: string;
+  /**
+   * Schutz vor einem zweiten Beleg, wenn die Antwort verloren geht (Netzabbruch,
+   * Zeitablauf, `outcome: 'unknown'`). Gilt je Kasse: dieselbe Anfrage mit
+   * demselben Schluessel liefert den schon signierten Beleg zurueck, ohne neuen
+   * Beleg, ohne Zaehlerschritt (beim `…WithCompany`-Aufruf mit `replayed: true`;
+   * Klartext-Codes neu verkaufter Gutscheine nur beim ersten Mal). Derselbe
+   * Schluessel mit anderem Inhalt wird mit `idempotency_conflict` abgewiesen,
+   * geschrieben wird dann nichts.
+   *
+   * Empfohlen ist eine eigene, stabile Kennung des Vorgangs (Bestellnummer,
+   * Nummer des Ersatzbelegs), nie eine je Versuch neu erzeugte: nach einem
+   * unklaren Ausgang geht dieselbe Anfrage mit **demselben** Schluessel erneut
+   * hinaus; ein neuer Schluessel waere ein zweiter Beleg. Bei der Nacherfassung
+   * ([manualReceipt]) sperrt der Server dieselbe Handbeleg-Nummer am selben Tag
+   * zusaetzlich mit `manual_receipt_duplicate`.
+   *
+   * Text mit 1 bis 120 Zeichen (Laenge wie `String.length`), geht unveraendert
+   * hinaus. Leer, nur Leerraum, laenger oder kein Text: wirft vor dem Senden,
+   * nie gekuerzt. Ohne Angabe (oder `null`) bleibt der Aufruf wie bisher.
+   */
+  idempotencyKey?: string;
 }
 
 /** Trinkgeld mit eigener Zahlart und/oder Empfaengern (Kassen-Benutzer-IDs, Summe = cents). */
@@ -288,6 +312,12 @@ export interface ReceiptWithCompany {
    * faellt weg, der Beleg bleibt lesbar.
    */
   outputs?: ReceiptOutput[];
+  /**
+   * Nur nach einem Verkauf mit `idempotencyKey`: `true`, wenn der Server den
+   * schon signierten Beleg zu diesem Schluessel zurueckgab (Wiederholung, kein
+   * neuer Beleg). Fehlt sonst, auch beim ersten Verkauf mit Schluessel.
+   */
+  replayed?: true;
 }
 
 /**
@@ -481,8 +511,27 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
   if (options.drawerId !== undefined) {
     params['drawerId'] = ladeKennung('createReceipt', options.drawerId);
   }
+  if (options.idempotencyKey != null) {
+    params['idempotencyKey'] = belegSchluessel(options.idempotencyKey);
+  }
 
   return params;
+}
+
+/** Hoechstlaenge des `idempotencyKey` am Beleg, wie am Server (beleg-idempotenz-core `SCHLUESSEL_MAX`). */
+const BELEG_SCHLUESSEL_MAX = 120;
+
+/**
+ * Der Idempotenz-Schluessel eines Belegs: dieselbe Regel wie am Server (Text,
+ * nicht nur Leerraum, hoechstens 120 Zeichen). Er geht unveraendert hinaus:
+ * der Server erkennt die Wiederholung am Schluessel, wie er ankommt, ein
+ * gekuerzter oder getrimmter waere ein anderer.
+ */
+function belegSchluessel(wert: unknown): string {
+  if (typeof wert !== 'string' || wert.trim() === '' || wert.length > BELEG_SCHLUESSEL_MAX) {
+    throw eingabefehler(`idempotencyKey muss ein Text mit 1 bis ${BELEG_SCHLUESSEL_MAX} Zeichen sein (oder weglassen); er wird nie gekuerzt.`);
+  }
+  return wert;
 }
 
 /** Die Lade eines Belegs: ein nicht leerer Text, sonst wirft der Aufruf vor dem Senden. */
@@ -1464,6 +1513,7 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     registrationInfo?: unknown;
     logo_scale?: unknown;
     outputs?: unknown;
+    replayed?: unknown;
   };
   const outputs = receiptOutputsFromWire(d.outputs);
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
@@ -1478,6 +1528,8 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     registrationInfo: angaben,
     logoScale: d.logo_scale === 'S' || d.logo_scale === 'M' || d.logo_scale === 'L' || d.logo_scale === 'XL' ? d.logo_scale : 'M',
     ...(outputs !== undefined ? { outputs } : {}),
+    // Nur genau true: ohne Wiederholung bleibt die Form des Ergebnisses wie bisher.
+    ...(d.replayed === true ? { replayed: true as const } : {}),
   };
 }
 
