@@ -162,6 +162,8 @@ export const ALL_CALLS = [
   'closeMyShift',
   // Ausgaben eines Belegs (Drucke, Teilen) melden: nur ueber den Kassenweg.
   'logReceiptOutputs',
+  // Kasseninfo fuer die Pruefung (Kassennachschau, Stufe 2b, ./pos): nur ueber den Kassenweg.
+  'getRegisterInspectionInfo',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -358,6 +360,8 @@ export const POS_CALLS = [
   'getDepExportFile',
   'createDepHandoverLink',
   'revokeDepHandoverLink',
+  // Kasseninfo fuer die Pruefung (Stufe 2b): nur ueber den Kassenweg, jeder Kassen-Benutzer.
+  'getRegisterInspectionInfo',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -519,6 +523,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getPartnerInfo: 'read',
   getPrintJob: 'read',
   getReceipt: 'read',
+  getRegisterInspectionInfo: 'read',
   getReportV2: 'read',
   getReservation: 'read',
   getStock: 'read',
@@ -584,13 +589,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 42 Aufrufe des Kassenwegs. */
+/** Einer der 48 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (36 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (37 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */

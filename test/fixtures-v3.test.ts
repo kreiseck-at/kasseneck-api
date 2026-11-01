@@ -49,6 +49,7 @@ const AUSNAHMEN_WERT: Array<{ datei: string; pfad: RegExp; grund: string }> = [
   { datei: 'invoice-api-examples/credit-error-reason.json', pfad: /^request\.reason$/, grund: 'absichtlich ungueltiger Grund ("storno"): das Beispiel zeigt, dass der Server ihn mit validation abweist' },
   { datei: 'pos-texts.json', pfad: /^(messages|labels)\..+\.text$/, grund: 'Text fuer den Kassier ("Kein", "Bar"); die Texte bleiben deutsch' },
   { datei: 'invoice-calc-random.json', pfad: /^cases\[\]\.name$/, grund: 'Name eines Pruffalls fuer Menschen (etwa "steuerfrei" als Pflichtklasse)' },
+  { datei: 'inspection-info-cases.json', pfad: /^cases\[\]\.rows\[\]\.value\[\]$/, grund: 'Kasseninfo fuer den Pruefer: Wert einer Zeile am Bildschirm ("ausgefallen"); die Texte bleiben deutsch' },
   { datei: 'receipt-outputs-cases.json', pfad: /^requests\[\]\.name$/, grund: 'Name eines Prueffalls fuer Menschen; "null" meint dort JSON null (key_null, result_null ...), nicht die Zahl' },
   { datei: 'receipt-outputs-cases.json', pfad: /^requests\[\]\.(entries|expected\.sent\.entries)\[\]\.key$/, grund: 'Idempotenzschluessel aus dem Vertragsfall logReceiptOutputs/mixed des Backends, byte-gleich uebernommen (zeit-0001, druck-0009 ...); die eigenen Faelle der Datei tragen englische Schluessel' },
 ];

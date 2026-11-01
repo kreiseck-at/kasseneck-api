@@ -8,7 +8,7 @@ import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_SHORTCUT_ACTIONS, POS_SHORTCUT_DEFAULTS,
   POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_ERROR_CODES,
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo,
-  listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients,
+  listMyArticleGroups, listMyArticles, listMyPrinters, createPrintJob, getPrintJob, listMyTipRecipients, getRegisterInspectionInfo,
   listMyStockLocations, listMyStock, setMyCashregisterStockLocation, STOCK_LOCATION_TYPES,
   isPosError, posFieldErrors, mergePosSettings, stockViewOf,
   type PosBusinessSettings, type PosDeviceSettings,
@@ -382,6 +382,22 @@ test('listMyTipRecipients: Empfaenger wie im Fall', async () => {
   }
 });
 
+// --- Kasseninfo fuer die Pruefung (Stufe 2b) -----------------------------------
+
+test('getRegisterInspectionInfo: Kasseninfo wie im Fall, an den Kassenweg, nur mit der Kasse der Anmeldung', async () => {
+  const gesehen = new Set<string>();
+  for (const f of erfolge('getRegisterInspectionInfo')) {
+    const { rufen, aufrufe } = kassenweg(f);
+    assert.deepEqual(await getRegisterInspectionInfo(rufen), f.response.data, f.case);
+    assert.deepEqual(gesendet(aufrufe, 'getRegisterInspectionInfo', f), f.params, f.case);
+    gesehen.add(f.response.data.signature === null ? 'ohne' : f.response.data.signature.testCard ? 'test' : f.response.data.signature.status);
+  }
+  // Testkarte, echte Karte in Betrieb, offener Ausfall und Kasse ohne Karte stehen im Vertrag.
+  assert.deepEqual([...gesehen].sort(), ['active', 'ohne', 'outage', 'test']);
+  // Der Kassier darf (kein manager_only wie beim DEP).
+  assert.equal(fall('getRegisterInspectionInfo', 'success_cashier').caller, 'register_user_cashier');
+});
+
 // --- Lager an der Kasse --------------------------------------------------------
 
 test('listMyStockLocations: Standorte wie im Fall, virtual nur am Hauptstandort', async () => {
@@ -614,6 +630,7 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
     listMyStockLocations: (r) => listMyStockLocations(r),
     listMyStock: (r) => listMyStock(r),
     setMyCashregisterStockLocation: (r) => setMyCashregisterStockLocation(r, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' }),
+    getRegisterInspectionInfo: (r) => getRegisterInspectionInfo(r),
   };
   for (const [endpunkt, aufruf] of Object.entries(aufrufe)) {
     for (const f of fehler(endpunkt)) {
@@ -644,6 +661,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     'listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation',
     'listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount',
     'getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift',
+    'getRegisterInspectionInfo',
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);
