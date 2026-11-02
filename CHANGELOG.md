@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.24.0 - 2026-11-02
+
+Kasseneck Connect inventory: the register reports which Connect version runs at which register device, so Kasseneck can see who still runs an old Connect before setting a minimum version. Additive.
+
+- **`POS_CALLS` gains `reportConnectState`** (now 49; only on the register path), classified as unknown outcome on a timeout like `logReceiptOutputs`. `reportConnectState(transport, report)` (`./pos`) sends exactly `deviceId`, `version`, `os`, `osVersion`, `arch`, `features`, `httpsTrusted` and `bluetooth` (`ConnectStateReport`); `osVersion`, `arch`, `httpsTrusted` and `bluetooth` may be `null`, `features` may be empty (older Connect versions know none of them). The form is checked before sending (`KasseneckValidationError`, `scope: 'request'`; an unknown field is rejected, so nothing that names the computer or a person slips in); what the server does not accept it rejects with `invalid_connect_report`. Answer: nothing. Reason: Connect itself never talks to Kasseneck; the register knows account and device and reads Connect's status anyway.
+- **`getKasseSettings`** (`/v3`) now carries `connect { minimumVersion, deadline }` (both `null` without a requirement); read by the register to show the update hint. Contract v3 fetched again from the backend.
+
 ## 1.23.0 - 2026-10-31
 
 The tab *Prüfung* at the register (*Kassennachschau*, stage 2b): the register info for the inspector on screen and as a printout, the words of the tab (register info, zero receipt, DEP) and two DEP sentences without legal wording. Additive.

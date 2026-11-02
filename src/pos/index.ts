@@ -59,6 +59,8 @@ export {
   type InspectionInfoRow, type InspectionInfoRowKey, type InspectionInfoSection, type InspectionInfoLinesOptions,
   getRegisterInspectionInfo, inspectionInfoRows, inspectionInfoLines,
 } from './kasseninfo.js';
+// Connect-Bestand: die Kasse meldet Version und System von Kasseneck Connect.
+export { type ConnectStateReport, reportConnectState } from './connect-bestand.js';
 export {
   STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
   type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
