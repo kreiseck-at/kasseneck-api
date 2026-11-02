@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "efbf6b21460bb07cf926b0ff35837e47d67c4f4b440a7a7cf536f949869b5816",
-    "inputsSha256": "883620c3b9941916edeb283cd0c5eac966324d1a200e6b4a1e93786335984d5d",
+    "sha256": "d0d80190bd87c82b9a1037f6898059a51d56bb89a3fef6747c503b0b028cedce",
+    "inputsSha256": "9e5bcc545a585f516a1eeffa76a47b63134e99a637ffa1d3760fdeff9c18ccda",
     "backendPackage": "@kreiseck/kasseneck-api@0.36.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -311,7 +311,8 @@
       "getDepExportFile",
       "createDepHandoverLink",
       "revokeDepHandoverLink",
-      "getRegisterInspectionInfo"
+      "getRegisterInspectionInfo",
+      "reportConnectState"
     ],
     "registerInternal": [
       "pairRegisterDevice",
@@ -350,7 +351,8 @@
       "getMyShiftReport",
       "closeMyShift",
       "logReceiptOutputs",
-      "getRegisterInspectionInfo"
+      "getRegisterInspectionInfo",
+      "reportConnectState"
     ],
     "withSchema": [
       "activateCashregister",
@@ -485,6 +487,7 @@
       "registerUserLogin",
       "releaseReservation",
       "renewRegisterSession",
+      "reportConnectState",
       "reportCustomerVertrag",
       "reprintMyVoucherLabel",
       "reprintVoucherLabel",
@@ -1312,6 +1315,7 @@
       "invalid_category_allocation",
       "invalid_clarification",
       "invalid_condition",
+      "invalid_connect_report",
       "invalid_connection",
       "invalid_country",
       "invalid_currency",
@@ -1609,6 +1613,7 @@
       "anmerkung_zu_lang": "note_too_long",
       "items_ungueltig": "invalid_items",
       "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+      "connect_meldung_ungueltig": "invalid_connect_report",
       "keine_berechtigung": "not_permitted",
       "nur_eigene_belege": "own_receipts_only",
       "kasse_unvollstaendig": "cashregister_incomplete",
@@ -1795,6 +1800,7 @@
       "idempotency_key_required",
       "invalid_address",
       "invalid_amount",
+      "invalid_connect_report",
       "invalid_cursor",
       "invalid_denominations",
       "invalid_file",
@@ -2220,6 +2226,7 @@
       "idempotency_conflict",
       "idempotency_key_required",
       "invalid_amount",
+      "invalid_connect_report",
       "invalid_cursor",
       "invalid_denominations",
       "invalid_items",
@@ -2303,6 +2310,7 @@
       "note_too_long",
       "invalid_items",
       "cashregister_not_assigned",
+      "invalid_connect_report",
       "not_permitted",
       "own_receipts_only",
       "cashregister_incomplete",
@@ -2868,6 +2876,11 @@
       ],
       "getRegisterInspectionInfo": [
         "server_error"
+      ],
+      "reportConnectState": [
+        "cashregister_not_assigned",
+        "invalid_connect_report",
+        "server_error"
       ]
     }
   },
@@ -3371,6 +3384,7 @@
             "anmerkung_zu_lang": "note_too_long",
             "items_ungueltig": "invalid_items",
             "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+            "connect_meldung_ungueltig": "invalid_connect_report",
             "keine_berechtigung": "not_permitted",
             "nur_eigene_belege": "own_receipts_only",
             "kasse_unvollstaendig": "cashregister_incomplete",
@@ -4070,6 +4084,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",
@@ -4185,6 +4200,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",
@@ -4486,6 +4502,11 @@
             }
           ],
           "serviceArticles": "leistungsArtikel"
+        },
+        "connect": {
+          "__": "connect",
+          "minimumVersion": "mindestversion",
+          "deadline": "frist"
         }
       },
       "werte": {
@@ -5247,6 +5268,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",
@@ -6782,6 +6804,7 @@
       }
     },
     "renewRegisterSession": {},
+    "reportConnectState": {},
     "reportCustomerVertrag": {
       "params": {
         "customerId": "kundeId",
@@ -7013,6 +7036,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",
@@ -7998,6 +8022,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",
@@ -8200,6 +8225,7 @@
           "anmerkung_zu_lang": "note_too_long",
           "items_ungueltig": "invalid_items",
           "kasse_nicht_zugewiesen": "cashregister_not_assigned",
+          "connect_meldung_ungueltig": "invalid_connect_report",
           "keine_berechtigung": "not_permitted",
           "nur_eigene_belege": "own_receipts_only",
           "kasse_unvollstaendig": "cashregister_incomplete",

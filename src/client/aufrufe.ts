@@ -164,6 +164,8 @@ export const ALL_CALLS = [
   'logReceiptOutputs',
   // Kasseninfo fuer die Pruefung (Kassennachschau, Stufe 2b, ./pos): nur ueber den Kassenweg.
   'getRegisterInspectionInfo',
+  // Connect-Bestand (./pos): welche Connect-Version an welchem Kassengeraet laeuft; nur ueber den Kassenweg.
+  'reportConnectState',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -362,6 +364,8 @@ export const POS_CALLS = [
   'revokeDepHandoverLink',
   // Kasseninfo fuer die Pruefung (Stufe 2b): nur ueber den Kassenweg, jeder Kassen-Benutzer.
   'getRegisterInspectionInfo',
+  // Connect-Bestand: nur ueber den Kassenweg, jeder Kassen-Benutzer.
+  'reportConnectState',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -428,6 +432,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'recordStocktakeCount',
   'recountStocktake',
   'releaseReservation',
+  'reportConnectState',
   'reportCustomerContract',
   'requestCustomerSignature',
   'reverseStockMovement',
