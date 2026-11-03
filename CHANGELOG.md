@@ -4,6 +4,19 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.25.0 - 2026-11-03
+
+Return as voucher on cancellation (backend November 2026): instead of money, the customer gets a new multi-purpose voucher of the account's return type; the cancellation receipt stays the same as a cash cancellation. Additive; without `refundAs` requests and answers stay byte for byte as before.
+
+- **`cancelReceipt` gains `refundAs?: 'voucher'` and `idempotencyKey?: string`.** `refundAs` needs a key (1 to 120 characters, checked before sending) and never goes together with `payments` (the server builds the refund itself; an employee tip goes back in cash). Only on the register path with a register user; the register shows the choice only when `getKasseSettings` carries `vouchers.returnType`. Reason: without a key a retried partial cancellation could create a second receipt and a second voucher.
+- **`CancelReceiptResult.issuedVouchers?: ReturnIssuedVoucher[]`** and **`replayed?: true`**: the new voucher with its plain code exactly once (`fromReturn: true`); a retry with the same key returns the same receipt, the voucher without `code` and with `reprintRequired: true`. New type `ReturnIssuedVoucher`; `IssuedVoucher` gains `fromReturn?: true`.
+- **`PosVoucherSettings.returnType?: PosVoucherReturnType`** (`{ typeId, typeName }`, read from `getKasseSettings` `vouchers.returnType`): present only when the return as voucher is possible (switch on, a fitting type); a malformed block leaves it out. The register shows „Als Gutschein“ only with it.
+- **`Voucher.fromReturn`** (read only, a server field): the entry of the new voucher on the cancellation receipt (`action: redeem`, multi-purpose).
+- **Receipt layout:** a cancellation with such an entry shows „Gesamt: -24,90 €“ like a cash cancellation and below it „Gutschein ····-2D9A -24,90 €“ instead of the payment method; a cash tip refund follows as „Barzahlung -2,00 €“. No „Zwischensumme“, no „Rest am Gutschein“. Golden receipts `voucher-return` and `voucher-return-tip` (lines, grid 32/48, sheet, print digests); all other goldens unchanged. Reason: the old rendering read like a redemption („Gutschein 24,90 €“, „Gesamt: 0,00 €“).
+- **`CANCELLATION_ERROR_CODES`** gains `refund_as_invalid`, `refund_as_conflict`, `refund_as_voucher_not_available`, `refund_as_voucher_reason`, `refund_as_voucher_with_voucher`, `refund_as_voucher_no_type`, `refund_as_voucher_amount`, `idempotency_key_required` (after the tip codes, as in the contract).
+- **Texts:** `cancellation.as_voucher` „Als Gutschein“, `cancellation.voucher_confirm` „{amount} als Gutschein zurückgeben“, six messages for a refusal (`cancellation.voucher_*`), mapped by code in `CANCELLATION_PAYMENT_ERROR_MESSAGES` (the invalid-input codes and `idempotency_conflict` map to `cancellation.input_rejected`).
+- Contract `v3` re-fetched from the backend (refund codes in `errorCodes.cancellation`, `getKasseSettings` `vouchers.returnType`, vocabulary `refundAs`, `issuedVouchers`, `fromReturn`, `returnTypeId`, `return_issue`); `./stored` vocabulary regenerated.
+
 ## 1.24.0 - 2026-11-02
 
 Kasseneck Connect inventory: the register reports which Connect version runs at which register device, so Kasseneck can see who still runs an old Connect before setting a minimum version. Additive.

@@ -2,9 +2,9 @@
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
     "default": {
-      "sha256": "2c885b51d4a002f67121cffb4e1ab7db862139d13600b3286231d4da5bb4b8ba",
+      "sha256": "b3ed9b5e54fb6a0c27c2e9b494c8676926b80b4527236f0f4f71403c455fa477",
       "head": [],
-      "inputsSha256": "3e1da5e0b24eca70a72c803305027e379add91fb3582bbf6074988d0b0bc474a",
+      "inputsSha256": "8b3dbb0fbb4d2e385bd2a58f33a61f20be02009e395e95d66bbaf3605e629724",
       "backendPackage": "@kreiseck/kasseneck-api@0.36.0",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -19,12 +19,12 @@
       ]
     },
     "kasse": {
-      "sha256": "46922388c8be45743ca585c6fbf58629a87c791bc0b158f9efdf598f1ac1d9a0",
+      "sha256": "6b7c3a09b39b38a5bc26c6fa1b3d3d41051a3e0e13def0e26508e28f5f8a3841",
       "head": [
         "channel",
         "note"
       ],
-      "inputsSha256": "d725853a609d25158465e0ed07d5c600730d651b4fa41cd0cfb6d7aa9000f176",
+      "inputsSha256": "3ad66d934b06587a4c7b59e9b8071e49ba1c26b090995f58cd28080dfc299471",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -921,8 +921,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -1160,8 +1160,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -1399,8 +1399,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -1597,8 +1597,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -1795,8 +1795,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -1993,8 +1993,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -2190,8 +2190,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -2388,8 +2388,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": true,
               "cashregister": {
@@ -2585,8 +2585,8 @@
                 "footer4": null,
                 "thanks_message": "Bis bald",
                 "logo_url": "https://example.invalid/logo.png",
-                "vatId": "ATU12345678",
-                "taxNumber": "12-345/6789"
+                "vatId": "ATU12345675",
+                "taxNumber": "91-123/4565"
               },
               "locationLock": false,
               "cashregister": {
@@ -5906,8 +5906,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -5942,7 +5942,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -6223,8 +6223,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -6259,7 +6259,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -6793,8 +6793,8 @@
                 "layoutRuleset": 2,
                 "items": []
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -6829,7 +6829,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -7097,8 +7097,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -7133,7 +7133,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -7448,8 +7448,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -7484,7 +7484,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -7802,8 +7802,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -7838,7 +7838,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -8163,8 +8163,8 @@
                   }
                 ]
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": null,
               "testCashregister": false,
@@ -8199,7 +8199,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },
@@ -8517,8 +8517,8 @@
                 },
                 "items": []
               },
-              "taxNumber": "12-345/6789",
-              "vatId": "ATU12345678",
+              "taxNumber": "91-123/4565",
+              "vatId": "ATU12345675",
               "headerVersionId": "auto1",
               "registrationInfo": {
                 "cardRegisteredAt": "2024-03-11T08:00:00.000Z",
@@ -8556,7 +8556,7 @@
                   },
                   {
                     "kind": "text",
-                    "text": "ATU12345678",
+                    "text": "ATU12345675",
                     "align": "center",
                     "bold": false
                   },

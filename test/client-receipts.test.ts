@@ -1200,3 +1200,49 @@ test('replayed: sellReceiptWithCompany zeigt die Wiederholung des Servers; sonst
   const gelesen = await getReceiptWithCompany(apiSchluesselWeg({ ...BELEG_ANTWORT }).rufen, BELEG_NUTZLAST.receiptId);
   assert.equal('replayed' in gelesen, false);
 });
+
+// --- cancelReceipt: Rueckgabe als Gutschein (refundAs 'voucher', Spec 2026-11-02) -----------------
+
+const GUTSCHEIN_STORNO_ANTWORT = {
+  ...STORNO_ANTWORT,
+  issuedVouchers: [{ id: 'g1', code: 'K7QM-4XRP-2D9A', type: 'multi_purpose', index: 0, codeSuffix: '2D9A', faceValueCents: 2490, typeId: 's1', typeName: 'Rückgabe', fromReturn: true, validity: { pattern: '1+3', redeemableYears: 1, redeemableUntil: '2027-11-02', refundableUntil: '2030-11-02', validUntil: null } }],
+};
+
+test('cancelReceipt mit refundAs voucher schickt Rueckgabe-Art und Schluessel und liest den Gutschein', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(GUTSCHEIN_STORNO_ANTWORT);
+  const ergebnis = await cancelReceipt(rufen, {
+    cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'customer_cancelled', refundAs: 'voucher', idempotencyKey: 'storno-k-1',
+  });
+  const { params } = gesendet(aufrufe);
+  assert.deepEqual(params, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'customer_cancelled', refundAs: 'voucher', idempotencyKey: 'storno-k-1' });
+  assert.equal(ergebnis.issuedVouchers?.length, 1);
+  assert.equal(ergebnis.issuedVouchers![0]!.code, 'K7QM-4XRP-2D9A');
+  assert.equal(ergebnis.issuedVouchers![0]!.fromReturn, true);
+  assert.equal(ergebnis.replayed, undefined);
+});
+
+test('cancelReceipt: Wiederholung liefert den Gutschein ohne Code mit reprintRequired und replayed', async () => {
+  const { rufen } = apiSchluesselWeg({ ...STORNO_ANTWORT, replayed: true, issuedVouchers: [{ id: 'g1', codeSuffix: '2D9A', faceValueCents: 2490, typeId: 's1', typeName: 'Rückgabe', fromReturn: true, reprintRequired: true }] });
+  const ergebnis = await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'other', refundAs: 'voucher', idempotencyKey: 'k' });
+  assert.equal(ergebnis.replayed, true);
+  assert.equal(ergebnis.issuedVouchers![0]!.code, undefined);
+  assert.equal(ergebnis.issuedVouchers![0]!.reprintRequired, true);
+});
+
+test('cancelReceipt ohne refundAs: kein issuedVouchers im Ergebnis, keine neuen Felder in der Anfrage', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const ergebnis = await cancelReceipt(rufen, { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'input_error' });
+  assert.equal('issuedVouchers' in ergebnis, false);
+  assert.equal('refundAs' in gesendet(aufrufe).params, false);
+});
+
+test('cancelReceipt: refundAs nur voucher, nur mit Schluessel, nie mit payments', async () => {
+  const { rufen, aufrufe } = apiSchluesselWeg(STORNO_ANTWORT);
+  const basis = { cashregisterId: KASSEN_ID, originalReceiptId: 'kasse-1-ID-12', reason: 'customer_cancelled' as const };
+  await assert.rejects(() => cancelReceipt(rufen, { ...basis, refundAs: 'cash' as never, idempotencyKey: 'k' }), (e) => isKasseneckValidationError(e));
+  await assert.rejects(() => cancelReceipt(rufen, { ...basis, refundAs: 'voucher' }), (e) => isKasseneckValidationError(e));
+  await assert.rejects(() => cancelReceipt(rufen, { ...basis, refundAs: 'voucher', idempotencyKey: '' }), (e) => isKasseneckValidationError(e));
+  await assert.rejects(() => cancelReceipt(rufen, { ...basis, refundAs: 'voucher', idempotencyKey: 'x'.repeat(121) }), (e) => isKasseneckValidationError(e));
+  await assert.rejects(() => cancelReceipt(rufen, { ...basis, refundAs: 'voucher', idempotencyKey: 'k', payments: [{ method: KeckPaymentMethod.cash, amountCents: -100 }] }), (e) => isKasseneckValidationError(e));
+  assert.equal(aufrufe.length, 0);
+});

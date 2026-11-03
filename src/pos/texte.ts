@@ -200,6 +200,14 @@ const MELDUNGEN_ROH = {
   'cancellation.tip_source_missing': { text: 'Bitte wählen: Woher kommt das Trinkgeld zurück?' },
   // Beleg mit Wertgutschein: keine Frage, das Trinkgeld geht mit (Ruling R59, asksRefundTip).
   'cancellation.tip_refunded_with_voucher': { text: 'Beleg mit Gutschein: Das Trinkgeld wird mitstorniert.' },
+  // Rueckgabe als Gutschein (refundAs voucher): die Kasse zeigt „Als Gutschein“ nur, wenn es geht; diese
+  // Saetze sind fuer den seltenen Fall, dass der Server trotzdem ablehnt.
+  'cancellation.voucher_not_available': { text: 'Als Gutschein geht hier nicht – bitte wie bezahlt zurückgeben.' },
+  'cancellation.voucher_reason': { text: 'Als Gutschein nur bei „Kunde hat storniert“ oder „Sonstiges“.' },
+  'cancellation.voucher_with_voucher': { text: 'Dieser Beleg hat einen Gutschein – bitte wie bezahlt zurückgeben.' },
+  'cancellation.voucher_no_type': { text: 'Keine Gutschein-Sorte für Rückgaben eingestellt – bitte wie bezahlt zurückgeben.' },
+  'cancellation.voucher_amount': { text: 'Dieser Betrag geht nicht als Gutschein – bitte wie bezahlt zurückgeben.' },
+  'cancellation.voucher_type_changed': { text: 'Die Gutschein-Sorte für Rückgaben hat sich geändert – bitte erneut versuchen.' },
 
   // --- Gutscheine: Fehlersätze (Zuordnung in VOUCHER_ERROR_MESSAGES) ---------
   'voucher_error.not_found': { text: 'Diesen Gutschein gibt es in diesem Betrieb nicht.' },
@@ -681,6 +689,34 @@ export function cancellationPaymentErrorMessage(code: string | undefined | null)
 }
 
 /**
+ * Storno mit Rueckgabe als Gutschein (`refundAs: 'voucher'`, 1.25.0): welcher `code` welchen Satz bekommt.
+ * Eigene Tabelle neben CANCELLATION_PAYMENT_ERROR_MESSAGES (die bleibt der Stand der 0.x-Linie); die Codes
+ * fuer abgelehnte Eingaben und `idempotency_conflict` teilen sich `cancellation.input_rejected`.
+ */
+export const CANCELLATION_VOUCHER_ERROR_MESSAGES = {
+  refund_as_voucher_not_available: 'cancellation.voucher_not_available',
+  refund_as_voucher_reason: 'cancellation.voucher_reason',
+  refund_as_voucher_with_voucher: 'cancellation.voucher_with_voucher',
+  refund_as_voucher_no_type: 'cancellation.voucher_no_type',
+  refund_as_voucher_amount: 'cancellation.voucher_amount',
+  voucher_type_not_found: 'cancellation.voucher_type_changed',
+  voucher_amount_mismatch: 'cancellation.voucher_type_changed',
+  refund_as_invalid: 'cancellation.input_rejected',
+  refund_as_conflict: 'cancellation.input_rejected',
+  idempotency_key_required: 'cancellation.input_rejected',
+  idempotency_conflict: 'cancellation.input_rejected',
+} as const satisfies Record<string, MessageKey>;
+
+/**
+ * Der Satz zu einem `code` eines Stornos: zuerst die Rueckgabe als Gutschein, dann die Storno-Zahlungen,
+ * sonst `cancellation.failed`. Fuer die Kassen der eine Weg beim Storno.
+ */
+export function cancellationErrorMessage(code: string | undefined | null): MessageKey {
+  const gutschein: Record<string, MessageKey> = CANCELLATION_VOUCHER_ERROR_MESSAGES;
+  return (code !== undefined && code !== null && gutschein[code]) || cancellationPaymentErrorMessage(code);
+}
+
+/**
  * Gutschein-Fehler (`/v3`): welcher `code` des Backends welchen Satz bekommt.
  * Wie RECEIPT_EMAIL_ERROR_MESSAGES: beide Kassen entscheiden am Code. Ein
  * unbekannter Code geht den allgemeinen Weg des Aufrufs.
@@ -836,6 +872,9 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.as_paid': { text: 'wie bezahlt' },
   'cancellation.cash': { text: 'bar' },
   'cancellation.all_cash': { text: 'Alles bar' },
+  // Rueckgabe als Gutschein: dritte Wahl in „Wie zurückgeben?“ und die Bestaetigung.
+  'cancellation.as_voucher': { text: 'Als Gutschein' },
+  'cancellation.voucher_confirm': { text: '{amount} als Gutschein zurückgeben', placeholders: ['amount'] },
   'cancellation.payment_remainder': { text: 'Rest {amount}', placeholders: ['amount'] },
   'cancellation.difference': { text: 'Differenz' },
 

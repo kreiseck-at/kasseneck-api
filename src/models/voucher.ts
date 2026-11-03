@@ -56,6 +56,11 @@ export interface Voucher {
   article?: VoucherArticle;
   balanceAfterCents?: number;
   remainingQuantityAfter?: number;
+  /**
+   * Rueckgabe als Gutschein: der Eintrag am Storno-Beleg ist die Ausgabe eines neuen Mehrzweck-
+   * Gutscheins statt einer Rueckzahlung (`action: redeem`). Am Bon Zahlweg statt Einloesung.
+   */
+  fromReturn?: boolean;
   taxedWith?: string;
   exempt?: boolean;
   zeroRateBucket?: boolean;
@@ -79,6 +84,8 @@ export interface IssuedVoucher {
   /** Verkauf ueber eine Sorte: ihre Kennung und ihr Name; sonst fehlen die Felder. */
   typeId?: string;
   typeName?: string;
+  /** Rueckgabe als Gutschein (`cancelReceipt` mit `refundAs: 'voucher'`): `true`; fehlt beim Verkauf. */
+  fromReturn?: true;
   validity?: {
     pattern: string;
     /** Sorte „N Jahre“: die Zahl N (Muster `1+3` fuer jedes N, die Daten gelten); fehlt sonst. */
@@ -88,6 +95,18 @@ export interface IssuedVoucher {
     validUntil: string | null;
   };
 }
+
+/**
+ * Gutschein aus einer Rueckgabe in der Antwort von `cancelReceipt` (`data.issuedVouchers[]`). Beim ersten
+ * Mal wie [IssuedVoucher] mit Klartext-Code; bei einer Wiederholung mit demselben `idempotencyKey` ohne
+ * `code`, dafuer `reprintRequired: true` (der Zettel kommt dann ueber den Nachdruck).
+ */
+export type ReturnIssuedVoucher = Omit<IssuedVoucher, 'code' | 'type' | 'index'> & {
+  code?: string;
+  type?: string;
+  index?: number;
+  reprintRequired?: true;
+};
 
 /** Artikel eines Leistungsgutscheins, wie der Server ihn am Beleg festhaelt. */
 export interface VoucherArticle {
@@ -167,7 +186,7 @@ export function istWertVerkauf(voucher: Pick<Voucher, 'type' | 'action' | 'typeI
  * Felder, die nur der Server setzt; an einem Wunsch sind sie `voucher_invalid`.
  * Sortenname und Auszahlung friert der Server beim Verkauf ein (Stufe 4b).
  */
-export const GUTSCHEIN_SERVERFELDER = ['voucherId', 'codeSuffix', 'zeroRateBucket', 'voucherType', 'typeName', 'payout'] as const;
+export const GUTSCHEIN_SERVERFELDER = ['voucherId', 'codeSuffix', 'zeroRateBucket', 'voucherType', 'typeName', 'payout', 'fromReturn'] as const;
 
 /** Welche Serverfelder tragt der Gutschein (leere Liste = keines)? */
 export function voucherServerFields(voucher: Voucher): string[] {
@@ -176,7 +195,7 @@ export function voucherServerFields(voucher: Voucher): string[] {
 
 const NEUE_FELDER = [
   'amountCents', 'articleId', 'quantity', 'positions', 'reason', 'typeId', 'typeName', 'payout', 'voucherType', 'voucherId', 'codeSuffix',
-  'vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt', 'zeroRateBucket',
+  'vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt', 'zeroRateBucket', 'fromReturn',
 ] as const;
 
 export function toVoucherPayload(voucher: Voucher): VoucherPayload {

@@ -31,6 +31,7 @@ export {
   type Voucher,
   type VoucherArticle,
   type IssuedVoucher,
+  type ReturnIssuedVoucher,
   type VoucherPayload,
   toVoucherPayload,
   fromVoucherPayload,

@@ -7,7 +7,7 @@ import {
   VoucherAction,
   VoucherType,
 } from '../enums/index.js';
-import { istWertVerkauf } from '../models/voucher.js';
+import { istWertVerkauf, type ReturnIssuedVoucher } from '../models/voucher.js';
 import type { ManualReceipt } from '../models/manual-receipt.js';
 import {
   type Receipt,
@@ -263,6 +263,20 @@ export type CancelReceiptOptions = {
    * aus der Lade (kein „gibt die Mitarbeiterin direkt“).
    */
   tipRefundSource?: TipRefundSource;
+  /**
+   * Rueckgabe als Gutschein (Server 2026-11): `voucher` -- statt Geld bekommt der Kunde einen neuen
+   * Mehrzweck-Gutschein der Rueckgabe-Sorte (`getKasseSettings` `vouchers.returnType`). Nur ueber den
+   * Kassenweg mit Kassen-Benutzer, nur ohne `payments` (der Server baut die Rueckzahlung selbst; ein
+   * Mitarbeiter-Trinkgeld geht bar zurueck). Braucht [idempotencyKey]. Den Klartext-Code liefert
+   * [CancelReceiptResult.issuedVouchers] genau einmal.
+   */
+  refundAs?: 'voucher';
+  /**
+   * Schluessel der Wiederholung (1 bis 120 Zeichen), Pflicht mit [refundAs]: die Kasse erzeugt ihn beim
+   * Oeffnen der Bestaetigung und schickt ihn bei jedem erneuten Senden mit. Gleicher Schluessel, gleicher
+   * Inhalt = derselbe Beleg (`replayed`), nie ein zweiter Gutschein; anderer Inhalt = `idempotency_conflict`.
+   */
+  idempotencyKey?: string;
 } & ({ receipt: Receipt; cashregisterId?: string; originalReceiptId?: string } | { receipt?: undefined; cashregisterId: string; originalReceiptId: string });
 
 /** Antwort von [cancelReceipt]: Storno-Beleg, Bezug, Restmengen des Originals danach. */
@@ -270,6 +284,10 @@ export interface CancelReceiptResult {
   receipt: Receipt;
   cancellationOf: CancellationOf;
   remaining: number[];
+  /** Nur mit `refundAs: 'voucher'`: der ausgegebene Gutschein (Klartext-Code nur beim ersten Mal). */
+  issuedVouchers?: ReturnIssuedVoucher[];
+  /** Nur bei einer Wiederholung mit demselben `idempotencyKey`: `true`, es entstand kein neuer Beleg. */
+  replayed?: true;
 }
 
 /**
@@ -628,6 +646,16 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.tipRefundSource !== undefined && options.refundTip === false) {
     throw new KasseneckValidationError('cancelReceipt', 'tipRefundSource nur, wenn das Trinkgeld zurueckgeht (refundTip nicht false)', 'request');
   }
+  if (options.refundAs !== undefined) {
+    if (options.refundAs !== 'voucher') throw new KasseneckValidationError('cancelReceipt', 'refundAs: erlaubt ist nur voucher (oder weglassen)', 'request');
+    if (options.payments != null) throw new KasseneckValidationError('cancelReceipt', 'refundAs und payments gehen nicht zusammen: die Rueckzahlung baut der Server', 'request');
+  }
+  if (options.refundAs !== undefined || options.idempotencyKey !== undefined) {
+    const k = options.idempotencyKey;
+    if (typeof k !== 'string' || k.trim() === '' || k.length > BELEG_SCHLUESSEL_MAX) {
+      throw new KasseneckValidationError('cancelReceipt', `idempotencyKey muss ein Text mit 1 bis ${BELEG_SCHLUESSEL_MAX} Zeichen sein (Pflicht mit refundAs)`, 'request');
+    }
+  }
   const altfeld = ALTE_ZAHLFELDER.find((feld) => (options as unknown as Record<string, unknown>)[feld] != null);
   if (altfeld != null) {
     throw new KasseneckValidationError('cancelReceipt', `${altfeld} gibt es unter /v3 nicht mehr: Rueckzahlungen gehen als payments hinaus.`, 'request');
@@ -649,6 +677,8 @@ export async function cancelReceipt(transport: InternerTransport, options: Cance
   if (options.drawerId !== undefined) params.drawerId = ladeKennung('cancelReceipt', options.drawerId);
   if (options.refundTip !== undefined) params.refundTip = options.refundTip;
   if (options.tipRefundSource !== undefined) params.tipRefundSource = options.tipRefundSource;
+  if (options.refundAs !== undefined) params.refundAs = options.refundAs;
+  if (options.idempotencyKey !== undefined) params.idempotencyKey = options.idempotencyKey;
 
   const daten = await transport('cancelReceipt', params);
   return signiertGelesen('cancelReceipt', () => stornoAusHuelle(daten));
@@ -673,6 +703,7 @@ function stornoAusHuelle(daten: unknown): CancelReceiptResult {
       ...(typeof bezug.timeStamp === 'string' && bezug.timeStamp !== '' ? { timeStamp: bezug.timeStamp } : {}),
     },
     remaining: huelle.remaining as number[],
+    ...rueckgabeGutscheine(daten),
   };
 }
 
@@ -1544,4 +1575,16 @@ export function paymentsExpectedCents(error: unknown): number | undefined {
   if (!isKasseneckApiError(error) || error.code !== 'payments_sum_mismatch') return undefined;
   const wert = error.details['expectedCents'];
   return Number.isSafeInteger(wert) ? (wert as number) : undefined;
+}
+
+/** `issuedVouchers` und `replayed` einer Storno-Antwort; nur was dasteht (ohne refundAs: nichts). */
+function rueckgabeGutscheine(daten: unknown): Pick<CancelReceiptResult, 'issuedVouchers' | 'replayed'> {
+  const d = daten as { issuedVouchers?: unknown; replayed?: unknown };
+  const liste = Array.isArray(d.issuedVouchers)
+    ? d.issuedVouchers.filter((v): v is ReturnIssuedVoucher => v !== null && typeof v === 'object' && typeof (v as { id?: unknown }).id === 'string')
+    : null;
+  return {
+    ...(liste !== null ? { issuedVouchers: liste } : {}),
+    ...(d.replayed === true ? { replayed: true as const } : {}),
+  };
 }

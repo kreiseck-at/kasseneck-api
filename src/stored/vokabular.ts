@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "d0d80190bd87c82b9a1037f6898059a51d56bb89a3fef6747c503b0b028cedce";
+export const VOKABULAR_QUELLE = "44d12486b6108ca8c040230f317438b21c7761477fa1a9a7d6a65b28a5444e32";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -82,7 +82,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "redeemableUntil": "einloesbarBis",
             "refundableUntil": "rueckzahlbarBis",
             "validUntil": "gueltigBis"
-          }
+          },
+          "fromReturn": "rueckgabe"
         }
       ],
       "outputs": [
@@ -294,7 +295,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "soldCount": "verkauft"
           }
         ],
-        "serviceArticles": "leistungsArtikel"
+        "serviceArticles": "leistungsArtikel",
+        "returnType": {
+          "__": "rueckgabe",
+          "typeId": "sorteId",
+          "typeName": "sorteName"
+        }
       },
       "connect": {
         "__": "connect",
