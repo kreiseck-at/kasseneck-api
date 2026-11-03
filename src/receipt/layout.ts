@@ -648,6 +648,28 @@ function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
   return zeilen;
 }
 
+/** Eintrag einer Rueckgabe als Gutschein: nur am Storno-Beleg, Mehrzweck (`value`), `redeem` mit `fromReturn`. */
+function istRueckgabeGutschein(voucher: Voucher): boolean {
+  return voucher.fromReturn === true && voucher.action === VoucherAction.redeem && voucher.type === VoucherType.value;
+}
+
+/**
+ * Zahlwege einer Rueckgabe als Gutschein, je mit Betrag (8:4): zuerst jeder neue Gutschein
+ * „Gutschein ····-XXXX“ | „-24,90 €“, dann jede Zahlung ausser 0 Cent (Mitarbeiter-Trinkgeld bar zurueck)
+ * „Barzahlung“ | „-2,00 €“.
+ */
+function rueckgabeZahlungsZeilen(receipt: Receipt, rueckgaben: Voucher[]): LayoutLine[] {
+  const zeilen: LayoutLine[] = rueckgaben.map((v) => {
+    const endung = gutscheinEndung(v);
+    return paarZeile(endung != null ? `Gutschein ····-${endung}` : 'Gutschein', `${formatCents(-(v.valueCents ?? 0))} €`, 8, 4);
+  });
+  for (const zahlung of receipt.payments ?? []) {
+    if (zahlung.amountCents === 0) continue;
+    zeilen.push(paarZeile(zahlungsartText(zahlung.method), `${formatCents(zahlung.amountCents)} €`, 8, 4));
+  }
+  return zeilen;
+}
+
 // -------------------------------------------------------- Kleinunternehmer
 
 /**
@@ -1476,12 +1498,17 @@ export function buildReceiptLayout(
   lines.push({ kind: 'rule', char: '-' });
 
   // --- Summen
-  const summeCents = receiptSumCents(receipt);
+  // Rueckgabe als Gutschein (Storno, `fromReturn`): der neue Gutschein ist der Zahlweg der Rueckgabe, keine
+  // Einloesung. „Gesamt“ zeigt wie beim Bar-Storno den Betrag der Waren, darunter „Gutschein ····-XXXX“ mit
+  // dem Minus statt „Barzahlung“ (Spec 2026-11-02, A.5).
+  const rueckgaben = receipt.vouchers.filter(istRueckgabeGutschein);
+  const rueckgabeCents = rueckgaben.reduce((summe, v) => summe + (v.valueCents ?? 0), 0);
+  const summeCents = receiptSumCents(receipt) - rueckgabeCents;
   const zwischensummeCents = receiptSubSumCents(receipt);
   if (summeCents !== zwischensummeCents) {
     lines.push(paarZeile('Zwischensumme', `${formatCents(zwischensummeCents)} €`));
     for (const voucher of receipt.vouchers) {
-      if (voucher.type !== VoucherType.value || voucher.zeroRateBucket === true) continue;
+      if (voucher.type !== VoucherType.value || voucher.zeroRateBucket === true || istRueckgabeGutschein(voucher)) continue;
       if (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout) continue;
       // Breite 8:4 — "Wertgutschein GS-1" (Label + Code) passt so auf 58 mm
       // in die Zeile, statt den Code in eine Folgezeile fliessen zu lassen.
@@ -1500,7 +1527,7 @@ export function buildReceiptLayout(
     lines.push({ kind: 'rule', char: '-' });
   }
   lines.push(paarZeile('Gesamt:', `${formatCents(summeCents)} €`));
-  lines.push(...zahlungsZeilen(receipt));
+  lines.push(...(rueckgaben.length > 0 ? rueckgabeZahlungsZeilen(receipt, rueckgaben) : zahlungsZeilen(receipt)));
   lines.push({ kind: 'space', lines: 1 });
 
   // --- Rechtshinweise und Ausfallhinweis

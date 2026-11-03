@@ -58,6 +58,9 @@ const NACH_1_0 = {
     'drawer.inactive', 'tip_payout.recipient_required', 'shift.pending_hint', 'shift.mode_off', 'tip.kept_setting_hint',
     // Storno mit oder ohne Trinkgeld (1.11.0)
     'cancellation.tip_refund_missing', 'cancellation.tip_source_missing', 'cancellation.tip_refunded_with_voucher',
+    // Rueckgabe als Gutschein (1.25.0)
+    'cancellation.voucher_not_available', 'cancellation.voucher_reason', 'cancellation.voucher_with_voucher', 'cancellation.voucher_no_type',
+    'cancellation.voucher_amount', 'cancellation.voucher_type_changed',
     // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
     'tip_payout.none_open',
     // Wechselgeld je Kassenlade und Entnehmen/Einlegen beim Abschluss (1.11.0)
@@ -98,6 +101,8 @@ const NACH_1_0 = {
     // Storno mit oder ohne Trinkgeld (1.11.0)
     'cancellation.tip_refund_question', 'cancellation.tip_refund_yes', 'cancellation.tip_refund_no', 'cancellation.tip_source_question',
     'cancellation.tip_source_drawer', 'cancellation.tip_source_employee', 'cancellation.tip_stays', 'shift_receipt.tip_refunded_by_employee', 'shift_receipt.tip_carried_over',
+    // Rueckgabe als Gutschein (1.25.0)
+    'cancellation.as_voucher', 'cancellation.voucher_confirm',
     // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
     'shift.drawer_should_have', 'shift.drawer_named', 'shift.running_since', 'shift.since', 'shift.collected_outside_drawer', 'shift.non_cash_short',
     'shift.voucher_redeemed', 'shift.all_payments', 'shift.receipt_count_one', 'shift.receipt_count_other', 'shift.openings_without_sale_count',
@@ -145,7 +150,7 @@ const NACH_1_0 = {
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
-  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'voucherErrors', 'returnDispositionLabels'],
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors', 'returnDispositionLabels'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
@@ -362,6 +367,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
   // Gutscheine der neuen Form (1.12.0): Golden-Belege mit Zeilen, Raster und Blatt.
   ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Rueckgabe als Gutschein (Server 2026-11): Storno-Belege mit dem neuen Gutschein als Zahlweg.
+  ...['voucher-return', 'voucher-return-tip']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Nacherfassung (30.10.2026): Golden-Belege mit Block „NACHERFASSUNG“ (manual-receipt-*).
   ...['manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time']
