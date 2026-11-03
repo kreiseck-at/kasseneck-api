@@ -84,7 +84,7 @@ export type { StocktakeStatus } from '../inventory/vertrag.js';
 export {
   VOUCHER_KINDS, VOUCHER_STATUSES, checkVoucher, reprintVoucherLabel, VOUCHER_SETTINGS_DEFAULTS, posVoucherSettingsFromWire,
   VOUCHER_PAYOUTS, VOUCHER_TYPE_KINDS, VOUCHER_AMOUNT_MODES, VOUCHER_TYPE_VALIDITY_PATTERNS,
-  type VoucherKind, type VoucherStatus, type VoucherValidity, type VoucherArticle, type VoucherCheck, type PosVoucherSettings,
+  type VoucherKind, type VoucherStatus, type VoucherValidity, type VoucherArticle, type VoucherCheck, type PosVoucherSettings, type PosVoucherReturnType,
   type VoucherPayout, type VoucherTypeKind, type PosVoucherType, type VoucherLabelTemplate,
 } from './gutschein.js';
 

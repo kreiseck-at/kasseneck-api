@@ -161,6 +161,17 @@ export interface PosVoucherSettings {
   serviceArticles?: boolean;
   /** Standardvorlage des Etiketts (Leistungsgutschein, Notausgang); `null` ohne brauchbare Vorlage. */
   labelDefault?: VoucherLabelTemplate | null;
+  /**
+   * Sorte fuer Rueckgaben (Server 2026-11): nur gesetzt, wenn die Rueckgabe als Gutschein geht (Schalter,
+   * passende Sorte). Fehlt sie, zeigt die Kasse „Als Gutschein“ nicht.
+   */
+  returnType?: PosVoucherReturnType;
+}
+
+/** Sorte fuer Rueckgaben (`vouchers.returnType`): Kennung und Name. */
+export interface PosVoucherReturnType {
+  typeId: string;
+  typeName: string;
 }
 
 /** Ohne Block `vouchers` (alter Server, Konto ohne Schalter): Verkaufen ist aus. */
@@ -218,7 +229,14 @@ export function posVoucherSettingsFromWire(block: unknown): PosVoucherSettings {
     types,
     serviceArticles: leistung,
     labelDefault: vorlageVomDraht(b['labelDefault']),
+    ...rueckgabeSorteVomDraht(b['returnType']),
   };
+}
+
+/** `vouchers.returnType`, nur stimmig (Kennung wie eine Sorte, Name als Text); sonst fehlt es. */
+function rueckgabeSorteVomDraht(roh: unknown): { returnType?: PosVoucherReturnType } {
+  if (!istObjekt(roh) || typeof roh['typeId'] !== 'string' || !SORTE_ID.test(roh['typeId']) || typeof roh['typeName'] !== 'string') return {};
+  return { returnType: { typeId: roh['typeId'], typeName: roh['typeName'] } };
 }
 
 /** Kennung wie am Server (gutschein-core.ID_MUSTER): reservierte `__…__` gibt es nie als Sorte. */

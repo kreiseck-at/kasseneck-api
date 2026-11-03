@@ -32,3 +32,14 @@ test('jeder Rueckgabe-Code hat einen eigenen Satz oder den Satz fuer abgelehnte 
   assert.equal(cancellationErrorMessage('cancellation_outcome_unknown'), 'cancellation.outcome_unknown');
   assert.equal(cancellationErrorMessage('irgendwas'), 'cancellation.failed');
 });
+
+import { posVoucherSettingsFromWire } from '../src/pos/gutschein.js';
+
+test('Kasseneinstellung: vouchers.returnType wird gelesen, fehlt sonst', () => {
+  const basis = { sale: false, valueVoucherType: null, vatRateBp: null, typeSale: false, types: [], serviceArticles: false };
+  assert.deepEqual(posVoucherSettingsFromWire({ ...basis, returnType: { typeId: 's1', typeName: 'Rückgabe' } }).returnType, { typeId: 's1', typeName: 'Rückgabe' });
+  assert.equal('returnType' in posVoucherSettingsFromWire(basis), false);
+  for (const kaputt of [null, 'x', { typeId: '' , typeName: 'R' }, { typeId: 's1' }, { typeId: 's1', typeName: 3 }]) {
+    assert.equal('returnType' in posVoucherSettingsFromWire({ ...basis, returnType: kaputt }), false, JSON.stringify(kaputt));
+  }
+});
