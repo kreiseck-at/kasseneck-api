@@ -39,9 +39,13 @@ export const REFERENCE_PATTERN_TEMPLATES: readonly { key: 'digits' | 'year_numbe
 // eslint-disable-next-line no-control-regex
 const STEUERZEICHEN = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2064\ufeff]/g;
 
-/** Text NFC, ohne Steuerzeichen, Leerraum zusammengezogen und getrimmt. */
+/**
+ * Eingabe an der Kasse: ohne Steuer- und Formatzeichen, Leerraum
+ * zusammengezogen und getrimmt. Bewusst ohne NFC, damit Web und Dart gleich
+ * rechnen (Dart kennt keine Unicode-Normalisierung).
+ */
 export function cleanReferenceText(text: string): string {
-  return text.normalize('NFC').replace(STEUERZEICHEN, '').replace(/\s+/g, ' ').trim();
+  return text.replace(STEUERZEICHEN, '').replace(/\s+/g, ' ').trim();
 }
 
 // Konstrukte, die JS und Dart nicht garantiert gleich auswerten.

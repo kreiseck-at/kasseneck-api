@@ -189,17 +189,6 @@
       "value": "1234"
     },
     {
-      "name": "NFC",
-      "reference": {
-        "mode": "required",
-        "pattern": null,
-        "patternStrict": false
-      },
-      "input": "Mu\u0308ller",
-      "result": "ok",
-      "value": "Müller"
-    },
-    {
       "name": "Hoechstens 40 Zeichen",
       "reference": {
         "mode": "required",
