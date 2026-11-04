@@ -11,6 +11,14 @@ test('Knopf und Bestaetigung', () => {
   assert.equal(labelText('cancellation.voucher_confirm', { amount: '24,90 €' }), '24,90 € als Gutschein zurückgeben');
 });
 
+test('Zeile unter „wie bezahlt“: Teile je Zahlart, mit „ · “ verbunden; Trinkgeld beim Gutschein bar (1.25.1)', () => {
+  const teile = [labelText('cancellation.refund_card', { amount: '20,00 €' }), labelText('cancellation.refund_cash', { amount: '4,90 €' })].join(' · ');
+  assert.equal(labelText('cancellation.refund_line', { refunds: teile }), '20,00 € auf die Karte · 4,90 € bar zurückgeben');
+  assert.equal(labelText('cancellation.refund_line_estimated', { refunds: labelText('cancellation.refund_cash', { amount: '5,96 €' }) }), 'voraussichtlich 5,96 € bar zurückgeben');
+  assert.equal(labelText('cancellation.refund_other', { amount: '5,00 €', method: 'Onlinezahlung' }), '5,00 € per Onlinezahlung');
+  assert.equal(labelText('cancellation.voucher_tip_cash', { amount: '2,00 €' }), '2,00 € Trinkgeld bar zurückgeben');
+});
+
 test('jeder Rueckgabe-Code hat einen eigenen Satz oder den Satz fuer abgelehnte Eingaben', () => {
   const erwartet: Record<string, string> = {
     refund_as_voucher_not_available: 'Als Gutschein geht hier nicht – bitte wie bezahlt zurückgeben.',

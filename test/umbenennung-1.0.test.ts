@@ -103,6 +103,9 @@ const NACH_1_0 = {
     'cancellation.tip_source_drawer', 'cancellation.tip_source_employee', 'cancellation.tip_stays', 'shift_receipt.tip_refunded_by_employee', 'shift_receipt.tip_carried_over',
     // Rueckgabe als Gutschein (1.25.0)
     'cancellation.as_voucher', 'cancellation.voucher_confirm',
+    // Zeile unter „wie bezahlt“, Trinkgeld beim Gutschein (1.25.1)
+    'cancellation.refund_cash', 'cancellation.refund_card', 'cancellation.refund_other', 'cancellation.refund_line', 'cancellation.refund_line_estimated',
+    'cancellation.voucher_tip_cash',
     // Kassenstand und Trinkgeld-Liste an der Kasse (1.11.0)
     'shift.drawer_should_have', 'shift.drawer_named', 'shift.running_since', 'shift.since', 'shift.collected_outside_drawer', 'shift.non_cash_short',
     'shift.voucher_redeemed', 'shift.all_payments', 'shift.receipt_count_one', 'shift.receipt_count_other', 'shift.openings_without_sale_count',

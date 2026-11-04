@@ -4,6 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.25.1 - 2026-11-04
+
+Texts for the cancellation sheet; no API change.
+
+- **Refund line under „wie bezahlt“:** `cancellation.refund_cash` „{amount} bar“, `cancellation.refund_card` „{amount} auf die Karte“ (every method with a card), `cancellation.refund_other` „{amount} per {method}“, joined with „ · “ into `cancellation.refund_line` „{refunds} zurückgeben“ or, when only the server knows the exact amount, `cancellation.refund_line_estimated` „voraussichtlich {refunds} zurückgeben“. Reason: the cashier sees before confirming where the money goes, in one line; web register and app build it the same way.
+- **`cancellation.voucher_tip_cash`** „{amount} Trinkgeld bar zurückgeben“: with „Als Gutschein“ the employee tip goes back in cash, never onto the voucher; the register now says so below the voucher line.
+
 ## 1.25.0 - 2026-11-03
 
 Return as voucher on cancellation (backend November 2026): instead of money, the customer gets a new multi-purpose voucher of the account's return type; the cancellation receipt stays the same as a cash cancellation. Additive; without `refundAs` requests and answers stay byte for byte as before.
