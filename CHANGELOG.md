@@ -4,6 +4,15 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.26.0 - 2026-11-04
+
+Tile with amount and reference: a tile can ask, when tapped, for the amount and/or a reference (fee note, order number). Additive; articles without the new fields read as before.
+
+- **`PosArticle.askPrice`** (wire `askPrice`, stored `preisFragen`) and **`PosArticle.reference`** (`PosReference`: `mode` `optional|required`, `label`, `hint`, `pattern`, `patternStrict`; stored `referenz`). The reader always sets both (`false`/`null`); a malformed `reference` reads as `null`. Reason: a law office takes cash for fee notes; the receipt line „Honorarnote 2026/0123“ refers to the invoice without the client's name.
+- **Helpers** `checkReference` (`ok`/`empty`/`warning`/`error` plus the cleaned value: NFC, no control characters, whitespace collapsed, at most 40 characters), `isValidReferencePattern` (whole-input match; lookbehind, named groups, backreferences and inline flags are refused so JS and Dart agree), `isDigitsOnlyPattern` (numeric keyboard), `referenceLineName`, `isBookableArticle` (without a price only with `askPrice`), `tilePrompts`, `REFERENCE_PATTERN_TEMPLATES`. Contract cases `fixtures/reference-cases.json`, the same as the backend (`referenz-faelle.json`) and the Dart package.
+- **Texts:** `reference.missing` „Bitte „{label}“ eingeben.“, `reference.format_invalid`, `reference.format_warning`; labels `tile_prompt.amount`, `tile_prompt.quantity`, `tile_prompt.apply`, `tile_prompt.apply_anyway`.
+- `./stored`: `fromStoredArticle` reads `preisFragen`/`referenz`. Contract `v3` re-fetched from the backend (`askPrice`, `reference`, catalog `REFERENZ_STUFE`).
+
 ## 1.25.1 - 2026-11-04
 
 Texts for the cancellation sheet; no API change.

@@ -108,7 +108,7 @@
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "function artikelNachAussen(",
-      "sha256": "37473d6e567d46267d400efc380921c6c01f0a20072d0c295e78f06f0d7d5663"
+      "sha256": "3cff956abbf4f515f1f3e650dd21c94e2ba8a4c26e23557bf54d856e371b1c46"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -133,7 +133,7 @@
   ],
   "zwilling": {
     "src/stored/bon-layout.ts": "a032c4c58d794fab0cf97cfe0be74ead3842ec6201d4318bbd554e8360561bbe",
-    "src/stored/draht.ts": "0ee4a3f9e48f6704aee7b328cdc7d2639bf5841440cb2796b8e059a7a1b307e0",
+    "src/stored/draht.ts": "5809753178bdf133eaa7980f427fd916e747f9a2b30553bde1fc0b502b4bd492",
     "src/stored/einstellungen.ts": "4fff519b2f02b72b0315a5ea7896e928b6a163898dd91b1841c231db7a425695",
     "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }

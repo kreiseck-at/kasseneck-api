@@ -87,6 +87,7 @@ const ABNEHMER: Record<string, string> = {
   'invoice-totals.json': 'Prueffaelle Rechnungssummen: Dart-Zwilling; kasseneck-web apps/app/src/lib/invoice-summen.test.ts',
   'invoice-texts.json': 'Textkatalog der Rechnung: Dart (das Backend liest noch die 0.x-Datei)',
   'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/)',
+  'reference-cases.json': 'Pruefaelle Kachel mit Betrag und Referenz (Muster, Eingabe, Ziffernfeld, Positionsname): Dart 11, Web-Kasse, Backend referenz-faelle.json',
   'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
   'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
   'receipt-due-generated.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',

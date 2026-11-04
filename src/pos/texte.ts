@@ -87,6 +87,10 @@ const MELDUNGEN_ROH = {
   'articles.vat_rate_unknown': { text: '„{name}“ hat einen Steuersatz, den die Kasse nicht kennt.', placeholders: ['name'] },
   'item.amount_missing': { text: 'Bitte einen Betrag eingeben.' },
   'item.description_missing': { text: 'Bitte eine Bezeichnung eingeben – sie steht am Beleg.' },
+  // Kachel mit Betrag und Referenz (1.26.0): Eingabeblatt beim Antippen.
+  'reference.missing': { text: 'Bitte „{label}“ eingeben.', placeholders: ['label'] },
+  'reference.format_invalid': { text: 'Das Format passt nicht.' },
+  'reference.format_warning': { text: 'Das Format passt nicht. Trotzdem übernehmen?' },
   'discount.percent_invalid': { text: 'Bitte einen Prozentwert zwischen 0,1 und 100 eingeben.' },
 
   // --- Kassieren -----------------------------------------------------------
@@ -1115,6 +1119,11 @@ const BESCHRIFTUNGEN_ROH = {
   'voucher.code_done': { text: 'Fertig' },
   'voucher.article': { text: 'Artikel' },
   'voucher.add': { text: 'Hinzufügen' },
+  // Kachel mit Betrag und Referenz (1.26.0): Felder und Knoepfe des Eingabeblatts.
+  'tile_prompt.amount': { text: 'Betrag' },
+  'tile_prompt.quantity': { text: 'Menge' },
+  'tile_prompt.apply': { text: 'Übernehmen' },
+  'tile_prompt.apply_anyway': { text: 'Trotzdem übernehmen' },
   // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.17.0): Kachel je Sorte mit Betrag
   // oder „Betrag eingeben“, darunter klein die Art; dazu die feste Kachel „Leistungsgutschein“.
   'voucher.tab': { text: 'Gutscheine' },
