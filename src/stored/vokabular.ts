@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "44d12486b6108ca8c040230f317438b21c7761477fa1a9a7d6a65b28a5444e32";
+export const VOKABULAR_QUELLE = "a17db090c6fb519a9fb0c707461a1da228f4c6ce8e6a6e23cc6e20e2702baf0f";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -390,7 +390,16 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "sort": "sort"
           },
           "stockLocationIds": "standorte",
-          "minStockByLocation": "mindestJeStandort"
+          "minStockByLocation": "mindestJeStandort",
+          "askPrice": "preisFragen",
+          "reference": {
+            "__": "referenz",
+            "mode": "stufe",
+            "label": "bezeichnung",
+            "hint": "hinweis",
+            "pattern": "muster",
+            "patternStrict": "musterStreng"
+          }
         }
       ]
     },
@@ -400,6 +409,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "articles[].e1aGroup": {
         "$catalog": "E1A_GRUPPE"
+      },
+      "articles[].reference.mode": {
+        "$catalog": "REFERENZ_STUFE"
       }
     }
   }
@@ -431,7 +443,9 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "groupId",
   "tile",
   "stockLocationIds",
-  "minStockByLocation"
+  "minStockByLocation",
+  "askPrice",
+  "reference"
 ];
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
@@ -702,6 +716,10 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "MENGENREGEL": {
     "stueck": "piece",
     "dezimal": "decimal"
+  },
+  "REFERENZ_STUFE": {
+    "fragen": "optional",
+    "pflicht": "required"
   },
   "STORNO_GRUND": {
     "fehleingabe": "input_error",

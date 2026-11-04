@@ -1,5 +1,6 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
+import { fromReferencePayload, type PosReference } from './kachel-referenz.js';
 
 /**
  * Artikelgruppen (Kategorien der Kachel-Kasse) und Artikel in der Form, die
@@ -132,6 +133,27 @@ export interface PosArticle {
    * ausdrueckliches `true` gilt.
    */
   serviceVoucher?: boolean;
+  /**
+   * Kasse fragt beim Antippen den Betrag (Kachel mit Betrag und Referenz,
+   * 1.26.0); ein vorhandener Preis ist Vorschlag. Optional wie
+   * `serviceVoucher`, der Leser setzt es immer: nur ein ausdrueckliches `true` gilt.
+   */
+  askPrice?: boolean;
+  /** Kasse fragt beim Antippen eine Referenz ab; null = aus. Der Leser setzt es immer. */
+  reference?: PosReference | null;
+}
+
+/**
+ * Kann die Kachel gebucht werden? Mit festem Preis immer, ohne Preis nur mit
+ * `askPrice` (der Betrag kommt aus dem Eingabeblatt).
+ */
+export function isBookableArticle(a: Pick<PosArticle, 'unitPriceCents' | 'askPrice'>): boolean {
+  return a.askPrice === true || (typeof a.unitPriceCents === 'number' && Number.isInteger(a.unitPriceCents) && a.unitPriceCents >= 0);
+}
+
+/** Fragt die Kachel beim Antippen etwas ab (Betrag, Referenz oder Menge)? */
+export function tilePrompts(a: Pick<PosArticle, 'askPrice' | 'reference' | 'unit' | 'quantityRule' | 'askQuantity'>): { amount: boolean; reference: boolean; quantity: boolean } {
+  return { amount: a.askPrice === true, reference: a.reference != null, quantity: quantityDefaults(a).ask };
 }
 
 /** Deckelt eine gewuenschte Menge an der Hoechstmenge des Artikels (null = keine Grenze). */
@@ -148,6 +170,8 @@ export interface PosArticlePayload {
   stockLocationIds?: string[] | null;
   number?: string | null; ean?: string | null; internalCode?: string | null; stockTracked?: boolean | null;
   serviceVoucher?: boolean | null;
+  askPrice?: boolean | null;
+  reference?: unknown;
 }
 
 /** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
@@ -178,6 +202,8 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     internalCode: textOderNull(p.internalCode),
     stockTracked: typeof p.stockTracked === 'boolean' ? p.stockTracked : null,
     serviceVoucher: p.serviceVoucher === true,
+    askPrice: p.askPrice === true,
+    reference: fromReferencePayload(p.reference),
   };
 }
 

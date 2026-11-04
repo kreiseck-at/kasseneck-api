@@ -312,5 +312,9 @@ export function _storedArticleToWire(id: string, doc: unknown, functionName = 'f
     const kachel = regel(regel(schema.data.articles as SchemaEintrag).unter!.tile as SchemaEintrag).unter!;
     raus.tile = nurBekannte(raus.tile, new Set(Object.keys(kachel)));
   }
+  if (istObjekt(raus.reference)) {
+    const referenz = regel(regel(schema.data.articles as SchemaEintrag).unter!.reference as SchemaEintrag).unter!;
+    raus.reference = nurBekannte(raus.reference, new Set(Object.keys(referenz)), { mode: katalog('articles[].reference.mode') });
+  }
   return raus;
 }

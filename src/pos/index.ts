@@ -33,7 +33,13 @@ export {
   type PosArticle, type PosArticlePayload, fromPosArticlePayload,
   listMyArticleGroups, listMyArticles,
   QUANTITY_RULES, type QuantityRule, type QuantityDefaults, quantityRuleForUnit, quantityDefaults, allowedQuantity,
+  isBookableArticle, tilePrompts,
 } from './artikel.js';
+export {
+  REFERENCE_MODES, type ReferenceMode, type PosReference, REFERENCE_INPUT_MAX, REFERENCE_LABEL_MAX, REFERENCE_HINT_MAX,
+  REFERENCE_PATTERN_MAX, REFERENCE_PATTERN_TEMPLATES, cleanReferenceText, isValidReferencePattern, isDigitsOnlyPattern,
+  type ReferenceCheckResult, checkReference, referenceLineName, fromReferencePayload,
+} from './kachel-referenz.js';
 export {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
   type SetMyPosLogoOptions,

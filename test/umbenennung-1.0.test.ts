@@ -76,7 +76,9 @@ const NACH_1_0 = {
     'dep.manager_only', 'dep.offline', 'dep.creating', 'dep.running', 'dep.failed', 'dep.too_many_exports', 'dep.period_invalid',
     'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked',
     // Reiter „Prüfung“: Kasseninfo für den Prüfer (1.23.0)
-    'inspection.how_it_works_text', 'inspection.print_question', 'inspection.load_failed', 'zero_receipt.check_first'],
+    'inspection.how_it_works_text', 'inspection.print_question', 'inspection.load_failed', 'zero_receipt.check_first',
+    // Kachel mit Betrag und Referenz (1.26.0)
+    'reference.missing', 'reference.format_invalid', 'reference.format_warning'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -126,6 +128,8 @@ const NACH_1_0 = {
     'voucher.button', 'voucher.redeem', 'voucher.sell', 'voucher.payout', 'voucher.code', 'voucher.scan', 'voucher.check', 'voucher.amount', 'voucher.balance', 'voucher.remaining_quantity', 'voucher.reason', 'voucher.multi_purpose', 'voucher.single_purpose', 'voucher.service', 'voucher.promotion', 'voucher.payment_line', 'voucher.covers_items', 'voucher.code_shown_once', 'voucher.not_in_split', 'voucher.payout_not_possible', 'voucher.add_article', 'voucher.payout_confirm', 'cancellation.voucher_back',
     // Gutscheine an der Kasse, Stufe 3 (1.13.0)
     'voucher.apply', 'voucher.redeemable_until', 'voucher.remove_line', 'voucher.reenter_code', 'voucher.refundable_until', 'voucher.code_done', 'voucher.article', 'voucher.add',
+    // Kachel mit Betrag und Referenz (1.26.0)
+    'tile_prompt.amount', 'tile_prompt.quantity', 'tile_prompt.apply', 'tile_prompt.apply_anyway',
     // Kassen-Navigation, Beleg-Fertig-Seite, Mengen, Gutschein-Auszahlung (1.14.0)
     'drawer.reason_voucher_payout', 'quantity.at_most', 'quantity.at_least', 'receipts.number_hint', 'receipts.clear_number', 'receipts.open', 'receipt.creating',
     'receipt_done.sale_title', 'receipt_done.paid_by_voucher', 'receipt_done.payout_title', 'receipt_done.paid_out', 'voucher.code_mask', 'cart.close',
@@ -364,7 +368,7 @@ const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-t
 /** Belegduplikat (1.14.0): die Faelle und je Druckfall eine Hex-Datei. */
 const DUPLIKAT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'duplicate-cases.json'), 'utf8')) as { cases: Array<{ name: string; print: boolean }> };
 const SCHNITT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'print-cut-cases.json'), 'utf8')) as { cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
