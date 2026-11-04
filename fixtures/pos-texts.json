@@ -98,9 +98,9 @@
       "text": "Bitte eine Bezeichnung eingeben – sie steht am Beleg."
     },
     "reference.missing": {
-      "text": "Bitte „{label}“ eingeben.",
+      "text": "Bitte „{name}“ eingeben.",
       "placeholders": [
-        "label"
+        "name"
       ]
     },
     "reference.format_invalid": {

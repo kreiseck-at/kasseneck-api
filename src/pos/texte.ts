@@ -88,7 +88,7 @@ const MELDUNGEN_ROH = {
   'item.amount_missing': { text: 'Bitte einen Betrag eingeben.' },
   'item.description_missing': { text: 'Bitte eine Bezeichnung eingeben – sie steht am Beleg.' },
   // Kachel mit Betrag und Referenz (1.26.0): Eingabeblatt beim Antippen.
-  'reference.missing': { text: 'Bitte „{label}“ eingeben.', placeholders: ['label'] },
+  'reference.missing': { text: 'Bitte „{name}“ eingeben.', placeholders: ['name'] },
   'reference.format_invalid': { text: 'Das Format passt nicht.' },
   'reference.format_warning': { text: 'Das Format passt nicht. Trotzdem übernehmen?' },
   'discount.percent_invalid': { text: 'Bitte einen Prozentwert zwischen 0,1 und 100 eingeben.' },
