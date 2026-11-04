@@ -876,6 +876,15 @@ const BESCHRIFTUNGEN_ROH = {
   'cancellation.as_voucher': { text: 'Als Gutschein' },
   'cancellation.voucher_confirm': { text: '{amount} als Gutschein zurückgeben', placeholders: ['amount'] },
   'cancellation.payment_remainder': { text: 'Rest {amount}', placeholders: ['amount'] },
+  // Die Zeile unter „wie bezahlt“: wohin das Geld zurückgeht, Teile mit „ · “ verbunden
+  // („20,00 € auf die Karte · 4,90 € bar zurückgeben“). Karte = jede Zahlart mit Karte.
+  'cancellation.refund_cash': { text: '{amount} bar', placeholders: ['amount'] },
+  'cancellation.refund_card': { text: '{amount} auf die Karte', placeholders: ['amount'] },
+  'cancellation.refund_other': { text: '{amount} per {method}', placeholders: ['amount', 'method'] },
+  'cancellation.refund_line': { text: '{refunds} zurückgeben', placeholders: ['refunds'] },
+  'cancellation.refund_line_estimated': { text: 'voraussichtlich {refunds} zurückgeben', placeholders: ['refunds'] },
+  // Als Gutschein: das Mitarbeiter-Trinkgeld geht bar zurück, nie auf den Gutschein.
+  'cancellation.voucher_tip_cash': { text: '{amount} Trinkgeld bar zurückgeben', placeholders: ['amount'] },
   'cancellation.difference': { text: 'Differenz' },
 
   // --- Storno mit oder ohne Trinkgeld (Schichten-Spec, Nachtrag 5) -----------
