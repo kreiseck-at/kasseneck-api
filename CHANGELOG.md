@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.37.0
+
+Zusatz-Kacheln, Zwilling von 1.27.0 (nur Bon und Position). Das Backend vendort die 0.x-Linie und setzt damit den Bon.
+
+- **`ReceiptItem.addOnOf`**, innen `zusatzZu` (Draht `/api`, Firestore): Index der Hauptposition eines Zusatzes, gelesen
+  und geschrieben nur als ganze Zahl ≥ 0.
+- **Bon:** Zusätze stehen direkt unter ihrer Hauptposition (stabil, auch wenn der Beleg sie später listet), eingerückt mit
+  „+ “; ein umbrochener Name läuft unter der Menge weiter. Das Raster bricht eine linke Spalte mit führenden Leerzeichen
+  hängend um (wie schon Textzeilen). Neues Golden `zusaetze`, Raster gleich wie `add-ons` in 1.x; alle übrigen unverändert.
+
 ## 0.36.0
 
 Nacherfassung händischer Belege, Zwilling von 1.18.0. Das Backend vendort die 0.x-Linie und setzt damit den Bon.

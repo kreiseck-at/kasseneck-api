@@ -576,6 +576,14 @@
       "grid48": "d331b2b69874f3ee13f196067a5e993f0b5844d8dd021758fce2c625031b776b",
       "blatt32": "eba4d796bacd2c1e57614993e6d377f8e92ea5c918ae03c8edc99fe8818e75e6",
       "blatt48": "a4d2ee1c433d15d58a9dcd1e3c4db108e28b808d958c9a28352829a308d306d8"
+    },
+    "zusaetze": {
+      "eingabe": "49c1c2f9048132274ed8e723b3a4c0b721c35a16abd60cfadc8ad656e69283d0",
+      "erwartet": "e9e212a862e02a2a6a92e0824b6747996caedf134f0d869f8adb72f23a8e7002",
+      "grid32": "043ad3f71b363ceaa2348ad1ed16cccea9c46fd004af57cb634b5dcdb406f1bd",
+      "grid48": "8c1b8afa90ffa0952064377d7ba9a43eb3046d02e46edf5e8ef19a804a1a5f7e",
+      "blatt32": "f659df75afe24a269c564cb559c92f4ccfb546fd03659f2cf392f0b9dc3b0769",
+      "blatt48": "1bcfd2b301862ffae0f33b21d0887453a6e4c9709197a4bcb47070ecab7614ae"
     }
   },
   "logoProbe": {

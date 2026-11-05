@@ -972,7 +972,27 @@ function trinkgeldZeilen(name: string, teile: Array<{ satz: Steuersatz; cents: n
 const rabattZeilen = trinkgeldZeilen;
 
 /** Positionszeile: Menge, Bezeichnung, ab Menge 2 der Einzelpreis. */
-function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine {
+/** Vorsatz einer Zusatzzeile (Zusatz-Kacheln, 0.37.0): eingerueckt unter der Hauptposition. */
+const ZUSATZ_VORSATZ = '  + ';
+
+/** Ist Position `i` ein gueltiger Zusatz (Verweis nach vorne auf eine Hauptposition, die selbst keiner ist)? */
+function istGueltigerZusatz(items: readonly ReceiptItem[], i: number): boolean {
+  const z = items[i]?.addOnOf;
+  return typeof z === 'number' && Number.isInteger(z) && z >= 0 && z < i && items[z]!.addOnOf === undefined;
+}
+
+/** Bon-Reihenfolge: jede Hauptposition, direkt gefolgt von ihren Zusaetzen (stabil); ohne Verweise die des Belegs. */
+function zusatzReihenfolge(items: readonly ReceiptItem[]): number[] {
+  const raus: number[] = [];
+  items.forEach((_it, i) => {
+    if (istGueltigerZusatz(items, i)) return;
+    raus.push(i);
+    items.forEach((z, j) => { if (j > i && istGueltigerZusatz(items, j) && z.addOnOf === i) raus.push(j); });
+  });
+  return raus;
+}
+
+function positionsZeile(item: ReceiptItem, satz: Steuersatz, zusatz = false): LayoutColumnsLine {
   const menge = String(item.quantity);
   // Vorbild: Menge auf zwei Zeichen auffuellen, danach ' x ' — bei drei- und
   // mehrstelligen Mengen faellt das Leerzeichen dahinter weg.
@@ -982,7 +1002,7 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz): LayoutColumnsLine 
   return {
     kind: 'columns',
     columns: [
-      { text: `${kopf}${item.name}${einzelpreis}`, width: 7, align: 'left' },
+      { text: `${zusatz ? ZUSATZ_VORSATZ : ''}${kopf}${item.name}${einzelpreis}`, width: 7, align: 'left' },
       { text: `${formatCents(receiptItemTotalCents(item))} ${satz.category}`, width: 5, align: 'right' },
     ],
   };
@@ -1310,22 +1330,26 @@ export function buildReceiptLayout(
     .reduce((summe, it) => summe + receiptItemTotalCents(it), 0);
   let zwischensummeGezeigt = false;
   const gutscheinZuordnung = gutscheinPositionen(receipt);
+  // Zusatz-Kacheln: Zusaetze direkt unter ihrer Hauptposition (stabil); ohne
+  // Verweise ist die Reihenfolge die des Belegs (byte-gleich).
+  const reihe = zusatzReihenfolge(receipt.items);
+  const an = (k: number): ReceiptItem => receipt.items[reihe[k]!]!;
   let i = 0;
-  while (i < receipt.items.length) {
-    const item = receipt.items[i]!;
+  while (i < reihe.length) {
+    const item = an(i);
     if (!isTipItem(item) && !isDiscountItem(item)) {
       const satz = steuersatz(item.vat);
       gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
-      const gutschein = gutscheinZuordnung.get(i);
-      lines.push(...(gutschein ? gutscheinPositionsZeilen(item, satz, gutschein) : [positionsZeile(item, satz)]));
+      const gutschein = gutscheinZuordnung.get(reihe[i]!);
+      lines.push(...(gutschein ? gutscheinPositionsZeilen(item, satz, gutschein) : [positionsZeile(item, satz, istGueltigerZusatz(receipt.items, reihe[i]!))]));
       i += 1;
       continue;
     }
     const artVon = (it: ReceiptItem): 'tip' | 'discount' => (isTipItem(it) ? 'tip' : 'discount');
     const art = artVon(item);
     const gruppe: ReceiptItem[] = [];
-    while (i < receipt.items.length && artVon(receipt.items[i]!) === art && !(!isTipItem(receipt.items[i]!) && !isDiscountItem(receipt.items[i]!)) && receipt.items[i]!.name === item.name) {
-      gruppe.push(receipt.items[i]!);
+    while (i < reihe.length && artVon(an(i)) === art && !(!isTipItem(an(i)) && !isDiscountItem(an(i))) && an(i).name === item.name) {
+      gruppe.push(an(i));
       i += 1;
     }
     const teile: Array<{ satz: Steuersatz; cents: number }> = [];

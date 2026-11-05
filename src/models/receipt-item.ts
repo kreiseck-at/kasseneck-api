@@ -49,6 +49,11 @@ export interface ReceiptItem {
    * im Bericht. Optional; Handeingaben haben keinen.
    */
   articleId?: string;
+  /**
+   * Zusatz-Kacheln (0.37.0): Index der Hauptposition im selben Beleg; nur an
+   * Zusatzpositionen. Intern (Draht `/api`, Firestore) `zusatzZu`.
+   */
+  addOnOf?: number;
 }
 
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
@@ -98,6 +103,8 @@ export interface ReceiptItemPayload {
   paymentMethod?: string;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string;
+  /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf] (interner Schluessel). */
+  zusatzZu?: number;
 }
 
 /**
@@ -136,6 +143,8 @@ export interface ReceiptItemPayloadRead {
   vat?: number | null;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string | null;
+  /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf] (interner Schluessel). */
+  zusatzZu?: number | null;
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
@@ -166,6 +175,8 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   if (item.kind === 'voucher' || item.kind === 'voucher_float') nutzlast.kind = item.kind;
   // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
   if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
+  // Zusatz-Kacheln: Verweis auf die Hauptposition nur, wenn gesetzt.
+  if (istIndex(item.addOnOf)) nutzlast.zusatzZu = item.addOnOf;
   return nutzlast;
 }
 
@@ -211,7 +222,13 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
           : {}),
     // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
     ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
+    // Zusatz-Kacheln: Verweis auf die Hauptposition (nur eine ganze Zahl >= 0).
+    ...(istIndex(payload.zusatzZu) ? { addOnOf: payload.zusatzZu } : {}),
   };
+}
+
+function istIndex(wert: unknown): wert is number {
+  return Number.isInteger(wert) && (wert as number) >= 0;
 }
 
 /** Erster brauchbarer Zahlenwert der Reihe; `null`/`undefined`/NaN zaehlen nicht. */
