@@ -4,6 +4,17 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.27.0 - 2026-11-05
+
+Add-on tiles: tapping a main service opens a sheet with its add-ons (nail art, repair per nail, hand massage …); each add-on becomes its own receipt line pointing at its main line. Additive; articles, groups and receipts without the new fields read, print and send exactly as before (all existing goldens unchanged).
+
+- **`ArticleGroup.addOns`** and **`PosArticle.addOns`** (`string[] | null`, stored `zusaetze`): the group's list in sheet order; on the article `null` = as the group, `[]` = none, otherwise its own list. The reader always sets both. Reason: a nail studio sells many add-ons that otherwise sit in their own group and have to be searched for at the till.
+- **`ReceiptItem.addOnOf`** (stored `zusatzZu`): index of the main line in the same receipt, read and written only as a whole number ≥ 0. The server checks it (`invalid_add_on_reference`, now in `RECEIPT_ERROR_CODES`); it never touches totals, counter or signature.
+- **Helpers** `addOnsFor` (effective list: the article itself, unknown, inactive and non-selectable articles and duplicates drop out silently), `isSelectableAddOn` (reason `inactive|own_list|asks_price|reference|asks_quantity|no_price|service_voucher`: an add-on is booked without prompts and opens no sheet of its own), `addOnReferencesValid`, `addOnsOfItem` (cancellation pre-selects a main line's add-ons), `addOnRemap`, `addOnDisplayOrder`, `orderAddOnLines` (cart lines with the parent's line id -> receipt order and index), `ADD_ONS_MAX` (30). Contract cases `fixtures/add-on-cases.json`, the same as the backend (`zusatz-faelle.json`) and the Dart package.
+- **Receipt layout:** add-ons stand directly under their main line (stable, also when the receipt lists them later), indented with „+ “; a wrapped name continues under the quantity. The grid applies the same hanging indent to a left column that starts with spaces (as it already did for text lines). New golden `add-ons`.
+- **Texts:** labels `addons.title` „Zusätze zu {name}“, `addons.none` „Ohne Zusatz“, `addons.done` „Fertig“, `addons.open` „Zusätze“.
+- Contract `v3` re-fetched from the backend (`addOns` on articles and groups, `addOnOf` on receipt items).
+
 ## 1.26.0 - 2026-11-04
 
 Tile with amount and reference: a tile can ask, when tapped, for the amount and/or a reference (fee note, order number). Additive; articles without the new fields read as before.

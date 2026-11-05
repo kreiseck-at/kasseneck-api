@@ -58,8 +58,8 @@ function eposFolge(xml: string): Gesetzt[] {
 }
 
 test('Blatt-Zeichner: alle Golden-Belege liegen vor', () => {
-  // 48 bis 1.17, dazu 23 Nacherfassungen (manual-receipt-*) und zero-outage-end-period (30.10.2026).
-  assert.equal(namen.length, 74);
+  // 48 bis 1.17, dazu 23 Nacherfassungen (manual-receipt-*), zero-outage-end-period (30.10.2026) und add-ons (1.27.0).
+  assert.equal(namen.length, 75);
 });
 
 for (const name of namen) {

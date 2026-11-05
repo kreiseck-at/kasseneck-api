@@ -17,11 +17,23 @@ export interface ArticleGroup {
   symbol: string | null;
   sort: number;
   vatRate: number | null;
+  /**
+   * Zusaetze der Gruppe (Zusatz-Kacheln, 1.27.0): Artikel-Kennungen in der
+   * Reihenfolge des Fensters; null = keine. Optional, damit bestehende Literale
+   * weiter uebersetzen; der Leser setzt das Feld immer. Wirksam wird die Liste
+   * erst ueber [addOnsFor].
+   */
+  addOns?: string[] | null;
 }
 
 export interface ArticleGroupPayload {
   id?: string | null; name?: string | null; color?: string | null; symbol?: string | null;
-  sort?: number | null; vatRate?: number | null;
+  sort?: number | null; vatRate?: number | null; addOns?: unknown;
+}
+
+/** Zusatzliste am Draht: nur eine Liste von Texten zaehlt, sonst null. Paketintern. */
+export function addOnListe(wert: unknown): string[] | null {
+  return Array.isArray(wert) ? wert.filter((s): s is string => typeof s === 'string' && s !== '') : null;
 }
 
 export function fromArticleGroupPayload(p: ArticleGroupPayload): ArticleGroup {
@@ -32,6 +44,7 @@ export function fromArticleGroupPayload(p: ArticleGroupPayload): ArticleGroup {
     symbol: p.symbol ?? null,
     sort: typeof p.sort === 'number' ? p.sort : 0,
     vatRate: typeof p.vatRate === 'number' ? p.vatRate : null,
+    addOns: addOnListe(p.addOns),
   };
 }
 
@@ -141,6 +154,12 @@ export interface PosArticle {
   askPrice?: boolean;
   /** Kasse fragt beim Antippen eine Referenz ab; null = aus. Der Leser setzt es immer. */
   reference?: PosReference | null;
+  /**
+   * Eigene Zusatzliste (Zusatz-Kacheln, 1.27.0): null = wie die Gruppe, [] =
+   * keine, sonst die Liste in der Reihenfolge des Fensters. Der Leser setzt es
+   * immer; wirksam wird es ueber [addOnsFor].
+   */
+  addOns?: string[] | null;
 }
 
 /**
@@ -172,6 +191,7 @@ export interface PosArticlePayload {
   serviceVoucher?: boolean | null;
   askPrice?: boolean | null;
   reference?: unknown;
+  addOns?: unknown;
 }
 
 /** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
@@ -204,6 +224,7 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     serviceVoucher: p.serviceVoucher === true,
     askPrice: p.askPrice === true,
     reference: fromReferencePayload(p.reference),
+    addOns: addOnListe(p.addOns),
   };
 }
 

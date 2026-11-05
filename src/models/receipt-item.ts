@@ -63,6 +63,12 @@ export interface ReceiptItem {
   originalIndex?: number;
   /** Nur an Storno-Zeilen mit `articleId`: wohin die Ware ging (Lager-Kern Stufe 2). */
   returnDisposition?: ReturnDisposition;
+  /**
+   * Zusatz-Kacheln (1.27.0): Index der Hauptposition im selben Beleg; nur an
+   * Zusatzpositionen. Der Server prueft: ganze Zahl, zeigt nach vorne auf eine
+   * Warenposition, die selbst kein Zusatz ist (`invalid_add_on_reference`).
+   */
+  addOnOf?: number;
 }
 
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
@@ -115,6 +121,8 @@ export interface ReceiptItemPayload {
   keptByEmployee?: boolean;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string;
+  /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf]. */
+  addOnOf?: number;
 }
 
 /**
@@ -161,6 +169,8 @@ export interface ReceiptItemPayloadRead {
   originalIndex?: number | null;
   /** Storno-Zeile mit `articleId`: Rueckgabe-Wahl, siehe [ReceiptItem.returnDisposition]. */
   returnDisposition?: string | null;
+  /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf]. */
+  addOnOf?: number | null;
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
@@ -193,6 +203,8 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   if (item.kind === 'voucher' || item.kind === 'voucher_float') nutzlast.kind = item.kind;
   // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
   if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
+  // Zusatz-Kacheln: Verweis auf die Hauptposition nur, wenn gesetzt.
+  if (istIndex(item.addOnOf)) nutzlast.addOnOf = item.addOnOf;
   return nutzlast;
 }
 
@@ -244,7 +256,13 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
     // unbekannter Wert faellt weg wie am Rand des Servers).
     ...(Number.isInteger(payload.originalIndex) && (payload.originalIndex as number) >= 0 ? { originalIndex: payload.originalIndex as number } : {}),
     ...(isReturnDisposition(payload.returnDisposition) ? { returnDisposition: payload.returnDisposition } : {}),
+    // Zusatz-Kacheln: Verweis auf die Hauptposition (nur eine ganze Zahl >= 0).
+    ...(istIndex(payload.addOnOf) ? { addOnOf: payload.addOnOf } : {}),
   };
+}
+
+function istIndex(wert: unknown): wert is number {
+  return Number.isInteger(wert) && (wert as number) >= 0;
 }
 
 /** Erster brauchbarer Zahlenwert der Reihe; `null`/`undefined`/NaN zaehlen nicht. */

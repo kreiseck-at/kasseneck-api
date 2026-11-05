@@ -29,6 +29,8 @@ export const RECEIPT_ERROR_CODES = Object.freeze([
   // Seit 1.15.0 (Vertrag): derselbe idempotencyKey mit anderem Inhalt, nichts geschrieben. Seit 1.22.0 sendet
   // dieses Paket den Schluessel, wenn der Aufrufer ihn angibt (`idempotencyKey` an sellReceipt/createReceipt).
   'idempotency_conflict',
+  // Seit 1.27.0 (Zusatz-Kacheln): addOnOf zeigt nicht nach vorne auf eine Warenposition, die selbst kein Zusatz ist.
+  'invalid_add_on_reference',
   'module_inactive',
   'not_permitted',
   'receipt_limit_exceeded',

@@ -1,5 +1,31 @@
 {
  "receipts": {
+  "add-ons": {
+   "escpos.mm58": "ca2adcdb07df3d430153235da203989f1627adac5432b478c4a9f68ed33e346f",
+   "escpos.mm58.marke": "63ceeeea2ca70f0e9b3570f452f27961b451bd35bc588fca8b64f679522aa103",
+   "escpos.mm58.logo": "8b691c7f6f7e6bac9c6dd34f36f5f53392a786c9bead6d59d99745dd00c5b9a8",
+   "escpos.mm58.bild": "f95ae2cbf060c1b5828894226966d44e0a738a04cc58249f21a79c98e89b3c78",
+   "escpos.mm58.model1": "17f4680b286aacecc34419a5fe6ba4869089441d11a7ed4d798360257f57ccb5",
+   "epos.32": "d98461ff8190559858a834e3785e90133e2d1d4c5f669b206af3cc64f080cf6e",
+   "epos.32.logo": "00911c7c8b3e029cbb530a93cf8e79dc2769446a0ae0c029193cfad04db22b1a",
+   "grid.32": "043ad3f71b363ceaa2348ad1ed16cccea9c46fd004af57cb634b5dcdb406f1bd",
+   "blatt.32": "20f87f21cc815d8d2dd455e0bbeeb3139d0b5cc323d3aa7b805871d382963402",
+   "html.blatt.32": "24e38422ea88c9e40b596d8aa643eaed0ba791a85ed9a21fcde783286498c647",
+   "html.blatt.32.verdeckt": "c62eb8480a5188fe53d390737799eb9b6d3eff8724ff183b8ab6c0c098912e01",
+   "escpos.mm80": "a3653340f759e736a93d629093da7d251d9031b7f86afc89c5fdd1074f4cdc18",
+   "escpos.mm80.marke": "d3d73c7122ffd46f670dce1c0fb90367f6d244064b4112767f5bc6fade4cf323",
+   "escpos.mm80.logo": "880a74dca68b2bd55583f356ae059fbffd3f12b6ea0572e61a9a53937fdeba05",
+   "escpos.mm80.bild": "49a58fc486e11a0e59e4ede24513d9ff741eabaab916aa2744044c62b9eebd06",
+   "escpos.mm80.model1": "2a34a40c348df5e3df4f91274205aba847be14f2bb5b623e66529baad4d219df",
+   "epos.48": "be9e60efffba10eb99d770a6f033f0c1a527614dc7d476b93c64f30ee431dc8c",
+   "epos.48.logo": "207bfc7d0e83d8af8e6c579705fad42aa156f609c784b83dc0537ebca8175674",
+   "grid.48": "8c1b8afa90ffa0952064377d7ba9a43eb3046d02e46edf5e8ef19a804a1a5f7e",
+   "blatt.48": "d04f8978d82a16fbba1396a8dc1bec1d37310eb996daa1093e0b530c2518e22a",
+   "html.blatt.48": "22cf8c360648c48ebc484b3802fe001880723b1228c787e2f4c52af4ae6bc661",
+   "html.blatt.48.verdeckt": "565e9dc172d3bf4227ace6b66b05a7b38ee8ea6a585bec9d59c5efa080390c1d",
+   "html.layout": "84c8fa49919c1836c80519126d2e357e9b25c774749b4a90c9b006111c15fcf4",
+   "html.layout.verdeckt": "e1f0ecfc5582f335fe75b01fe2bc8c268bc97223b2cbaafd721ac4088e78e069"
+  },
   "card-custom": {
    "escpos.mm58": "9f0747a6503050bf9c827ca27fa1bead71abf39eb3efb8a7e92a949e1cea503d",
    "escpos.mm58.marke": "c019c8df1a99acc5327e096c70754e77941db4ffbb82ac22339da4e6837c9c51",
