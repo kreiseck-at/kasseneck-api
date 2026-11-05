@@ -41,6 +41,10 @@ export {
   type ReferenceCheckResult, checkReference, referenceLineName, fromReferencePayload,
 } from './kachel-referenz.js';
 export {
+  ADD_ONS_MAX, ADD_ON_BLOCK_REASONS, type AddOnBlockReason, isSelectableAddOn, addOnsFor, addOnReferencesValid,
+  addOnsOfItem, addOnRemap, addOnDisplayOrder, orderAddOnLines,
+} from './zusaetze.js';
+export {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
   type SetMyPosLogoOptions,
 } from './client.js';

@@ -1124,6 +1124,11 @@ const BESCHRIFTUNGEN_ROH = {
   'tile_prompt.quantity': { text: 'Menge' },
   'tile_prompt.apply': { text: 'Übernehmen' },
   'tile_prompt.apply_anyway': { text: 'Trotzdem übernehmen' },
+  // Zusatz-Kacheln (1.27.0): Fenster nach dem Antippen einer Hauptleistung, Knopf an der Korbzeile.
+  'addons.title': { text: 'Zusätze zu {name}', placeholders: ['name'] },
+  'addons.none': { text: 'Ohne Zusatz' },
+  'addons.done': { text: 'Fertig' },
+  'addons.open': { text: 'Zusätze' },
   // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.17.0): Kachel je Sorte mit Betrag
   // oder „Betrag eingeben“, darunter klein die Art; dazu die feste Kachel „Leistungsgutschein“.
   'voucher.tab': { text: 'Gutscheine' },
