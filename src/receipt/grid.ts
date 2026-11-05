@@ -125,7 +125,19 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
         const breiten = gridSpaltenBreiten(z.columns.map((c) => c.width), zeichen);
         // Inhalt jeder nicht-letzten Spalte um 1 Zeichen schmaler: garantierter Abstand.
         const inhalt = breiten.map((b, i) => (i < breiten.length - 1 ? Math.max(1, b - 1) : b));
-        const teile = z.columns.map((c, i) => wortzeilenText(c.text, inhalt[i]!));
+        // Haengender Einzug wie bei Textzeilen: eine linksbuendige Spalte mit
+        // fuehrenden Leerzeichen bricht mit demselben Einzug um; ein Spiegelstrich
+        // „+ “ danach zaehlt mit (Zusatzzeile „  + 1  x …“: Fortsetzung unter der
+        // Menge). Ohne fuehrende Leerzeichen dieselben Zeichen wie bisher.
+        const einzugVon = (c: { text: string; align: string }, i: number): number => {
+          const e = c.align === 'left' ? (/^ +(?:\+ )?/.exec(c.text)?.[0].length ?? 0) : 0;
+          return e > 0 && e < inhalt[i]! && c.text.slice(e).trim() !== '' ? e : 0;
+        };
+        const einzuege = z.columns.map(einzugVon);
+        const umbrechen = (text: string, breite: number, e: number): string[] => (e > 0
+          ? wortzeilenText(text.slice(e), breite - e).map((t, k) => (k === 0 ? text.slice(0, e) : ' '.repeat(e)) + t)
+          : wortzeilenText(text, breite));
+        const teile = z.columns.map((c, i) => umbrechen(c.text, inhalt[i]!, einzuege[i]!));
         // Fliessregel: laeuft nach der ersten Zeile nur noch EINE Spalte weiter (die anderen sind
         // fertig), bekommt ihr Rest die volle Breite -- auf 58 mm sonst 18-Zeichen-Schnipsel.
         // Laufen mehrere weiter, bleibt das Raster (sonst verschoeben sich die Nachbarn).
@@ -144,8 +156,9 @@ export function renderReceiptGrid(layout: ReceiptLayout, options: RenderReceiptG
           const i = weiterlaufend[0]!;
           // Rest aus dem Originaltext (nicht aus den schmal umbrochenen Stuecken), damit
           // Bindestrich-/Hartbrueche der schmalen Spalte nicht als Leerzeichen zurueckbleiben.
-          const rest = restNach(z.columns[i]!.text, teile[i]![0]!);
-          for (const t of wortzeilenText(rest, zeichen)) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
+          const e = einzuege[i]!;
+          const rest = e > 0 ? restNach(z.columns[i]!.text.slice(e), teile[i]![0]!.slice(e)) : restNach(z.columns[i]!.text, teile[i]![0]!);
+          for (const t of (e > 0 ? wortzeilenText(rest, zeichen - e).map((x) => ' '.repeat(e) + x) : wortzeilenText(rest, zeichen))) lines.push({ text: ausrichten(t, zeichen, z.columns[i]!.align), kind: 'columns', bold: false });
         }
         break;
       }
