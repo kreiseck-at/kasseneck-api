@@ -182,10 +182,10 @@ test('Standardwerte: die innere Form unter fixtures/stored ist dieselbe Vorgabe,
 test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide Richtungen', () => {
   const schema = VOKABULAR.schemas.getKasseSettings.data;
   const aussen = (teil: Json) => Object.keys(teil).filter((k) => k !== '__').sort();
-  // Optionale Betriebs-Einstellungen (tipKeptByDefault) ebenso.
-  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS].sort(), aussen(schema.business));
-  // Optionale Geraete-Einstellungen (drawerId) haben keinen Standardwert, stehen aber im Schema.
-  assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS].sort(), aussen(schema.device));
+  // Optionale Betriebs-Einstellungen (tipKeptByDefault; Wahlfelder tipKinds, tipStart) ebenso.
+  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES].sort(), aussen(schema.business));
+  // Optionale Geraete-Einstellungen (drawerId; Wahlfeld cartWidth) haben keinen Standardwert, stehen aber im Schema.
+  assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS, ...kasse.POS_DEVICE_OPTIONAL_CHOICES].sort(), aussen(schema.device));
   assert.deepEqual([...POS_SHORTCUT_ACTIONS], Object.keys(schema.device.shortcuts).filter((k) => k !== '__'));
 });
 
@@ -195,7 +195,9 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
     ...Object.fromEntries(Object.entries(POS_BUSINESS_VALUES).map(([k, v]) => [`business.${k}`, v])),
     ...Object.fromEntries(Object.entries(POS_DEVICE_VALUES).map(([k, v]) => [`device.${k}`, v])),
   };
-  for (const [pfad, verweis] of Object.entries(werte)) {
+  for (const [roherPfad, verweis] of Object.entries(werte)) {
+    // Eine Liste von Werten (`business.tipKinds[]`) steht im Paket unter dem Feldnamen.
+    const pfad = roherPfad.replace(/\[\]$/, '');
     // Der Block `vouchers` liest posVoucherSettingsFromWire (test/register-rechte.test.ts, gutschein-sorten.test.ts).
     if (pfad.startsWith('vouchers.')) {
       const gutschein: Record<string, readonly string[]> = {
@@ -766,7 +768,7 @@ test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere 
     const karte = zuordnung(verweis);
     const aussen = new Set(Object.values(karte));
     const alt = Object.keys(karte).filter((innen) => !aussen.has(innen));
-    if (alt.length) erwartet[pfad.split('.')[1]!] = alt;
+    if (alt.length) erwartet[pfad.split('.')[1]!.replace(/\[\]$/, '')] = alt;
   }
   const tabelle = _ALTFORM_0X;
   assert.deepEqual(Object.fromEntries(Object.entries(tabelle.werte).map(([k, v]) => [k, [...v]])), erwartet);

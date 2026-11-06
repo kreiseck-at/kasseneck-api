@@ -4,6 +4,18 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.28.0 - 2026-11-06
+
+Shift flow of the till: start a shift, count in between, close in steps, tip kinds, column width. Additive; every field below is sent by the server only when it applies, a reader without them behaves as before (all existing goldens unchanged).
+
+- **`recordMyShiftCount`** (`/api/v3`, till path, in `POS_CALLS`): an interim count without closing the shift. Request `shiftId`, `countedCents`, optional `denominations`/`comment`, `idempotencyKey` (same key = same answer, no second entry); answer `count { expectedCents, countedCents, differenceCents }`. Listed among the calls with effect (`UNKNOWN_OUTCOME_CALLS`).
+- **`CloseMyShiftOptions.countedBeforePayout`**: the count is the drawer **before** the tip payouts of the same request. The shift then carries `countedBeforePayoutCents`; `countedCents` stays the content after the payout. Reason: the cashier counts first and pays out afterwards; the raw count belongs on the Z receipt.
+- **`DrawerState.lastShift`** (`{ number, closedAt, closedByName }`, `null` = none) for the card „Letzte Schicht“; **`Shift`**: `openingCounted`, `expectedParts` (`opening | cash_sales | cash_tips | cancellations | cash_in | cash_out | interim_difference`, sum = expected), `cashTipsInDrawerCents`, `interimCounts`, `interimDifferenceCents`, `differenceParts` (`interim | closing`, with time), `countedBeforePayoutCents`. Movement type `interim_difference` (set by the server) in `MOVEMENT_TYPES`.
+- **Z receipt** (`shiftReceiptLayout`): new lines only when the data carries them — „Zwischenzählung“ in the cash block (difference of the interim counts ≠ 0), „Gezählt“ with its denominations before „Ist“ (count before payout), „davon Zwischenzählung HH:mm“ / „davon Abschluss“ after „Differenz“, and „Anfang übernommen, nicht gezählt“ when `openingCounted` is `false`. Receipts without these fields print byte for byte as before.
+- **Settings:** `business.tipKinds` (`percent | round_up | total`, a non-empty subset, as stored) and `business.tipStart`, `device.cartWidth` (`narrow | medium | wide`). All three are optional like `tipKeptByDefault` (the server sends them only when stored); effective values through `posTipKinds`, `posTipStart`, `posCartWidth` (all three kinds, start `percent`, `medium`). Lists `TIP_KINDS`, `TIP_START`, `CART_WIDTH`, `POS_BUSINESS_OPTIONAL_CHOICES`, `POS_DEVICE_OPTIONAL_CHOICES`.
+- **Texts:** 61 new labels and 4 new messages for the flow (start, band, count, close steps, breakdown, tip payout, tip kinds, column width, Z receipt lines). `shift.close_title` and `shift.running_since` keep their wording; the numbered variants are `shift.close_title_numbered` and `shift.running_since_drawer`. `tip.remainder_is_tip` is „Rest ist Trinkgeld“.
+- Contract `v3` re-fetched from the backend (`recordMyShiftCount`, catalogs `SCHICHT_SOLL_TEIL`, `KASSE_BETRIEB_WERTE.tipKinds[]`/`tipStart`, `KASSE_GERAET_WERTE.cartWidth`).
+
 ## 1.27.0 - 2026-11-05
 
 Add-on tiles: tapping a main service opens a sheet with its add-ons (nail art, repair per nail, hand massage …); each add-on becomes its own receipt line pointing at its main line. Additive; articles, groups and receipts without the new fields read, print and send exactly as before (all existing goldens unchanged).

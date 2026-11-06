@@ -21,12 +21,12 @@ export type EurDenomination = (typeof EUR_DENOMINATIONS)[number];
 /**
  * Alle Arten einer Kassenbewegung (Katalog `KASSEN_BEWEGUNG_ART`). Die ersten
  * acht sendet die Kasse ([MANUAL_MOVEMENT_TYPES]); `transfer_in` (Gegenseite
- * einer Umbuchung), `expense`, `count_difference` und `handover_difference`
- * vergibt nur der Server.
+ * einer Umbuchung), `expense`, `count_difference`, `handover_difference` und
+ * `interim_difference` (Differenz einer Zwischenzaehlung) vergibt nur der Server.
  */
 export const MOVEMENT_TYPES = Object.freeze([
   'change_in', 'cash_drop', 'owner_deposit', 'owner_withdrawal', 'tip_payout', 'other_in', 'other_out', 'transfer_out',
-  'transfer_in', 'expense', 'count_difference', 'handover_difference',
+  'transfer_in', 'expense', 'count_difference', 'handover_difference', 'interim_difference',
 ] as const);
 export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
@@ -184,6 +184,35 @@ export interface ShiftReconciliation {
   deviations: Record<string, { stored: unknown; recomputed: unknown }> | null;
 }
 
+/**
+ * Wie sich das Soll in der Lade zusammensetzt (`Shift.expectedParts`, Karte „So setzt sich das zusammen“):
+ * Anfang, Barverkaeufe, Trinkgeld bar, Storno bar, Einzahlungen, Ausgaben aus der Lade und die
+ * Summe der Zwischenzaehlungs-Differenzen. Die Summe der Teile ist das Soll.
+ */
+export const EXPECTED_PART_KEYS = Object.freeze([
+  'opening', 'cash_sales', 'cash_tips', 'cancellations', 'cash_in', 'cash_out', 'interim_difference',
+] as const);
+export type ExpectedPartKey = (typeof EXPECTED_PART_KEYS)[number];
+
+/** Ein Teil des Solls in Cent (Vorzeichen wie gebucht, Ausgaben negativ). */
+export interface ShiftExpectedPart {
+  /** Offen fuer einen kuenftigen Teil des Servers; bekannt sind [EXPECTED_PART_KEYS]. */
+  key: ExpectedPartKey | (string & {});
+  cents: number;
+}
+
+/** Teile der Gesamtdifferenz einer geschlossenen Schicht mit Zwischenzaehlung: `interim` je Zaehlung, `closing` der Abschluss. */
+export const DIFFERENCE_PART_TYPES = Object.freeze(['interim', 'closing'] as const);
+export type DifferencePartType = (typeof DIFFERENCE_PART_TYPES)[number];
+
+export interface ShiftDifferencePart {
+  /** Offen fuer einen kuenftigen Wert; bekannt sind [DIFFERENCE_PART_TYPES]. */
+  type: DifferencePartType | (string & {});
+  cents: number;
+  /** Zeitpunkt der Zaehlung (ISO 8601, UTC); beim Abschluss kann er fehlen. */
+  at: string | null;
+}
+
 export interface Shift {
   id: string;
   drawerId: string;
@@ -219,6 +248,27 @@ export interface Shift {
   afterCount?: AfterCount;
   /** Was danach in der Lade bleibt (Ist ∓ Betrag); fehlt blind (ohne `cashView`). */
   leftInDrawerCents?: number;
+  // Ablauf der Kasse (Spec Kasse-Ablauf): was der Server nur sendet, wenn es zutrifft, fehlt sonst.
+  /**
+   * Wurde der Anfang gezaehlt? `false` heisst: der Bestand wurde ohne Zaehlen uebernommen.
+   * Nur an der offenen Schicht und nur mit `cashView`.
+   */
+  openingCounted?: boolean;
+  /** Das Soll in Teilen (Summe = `expectedCents`); nur an der offenen Schicht mit `cashView`. */
+  expectedParts?: ShiftExpectedPart[];
+  /** Bar-Trinkgeld, das in der Lade liegt (Teil des Solls); nur an der offenen Schicht mit `cashView`. */
+  cashTipsInDrawerCents?: number;
+  /** Zahl der Zwischenzaehlungen dieser Schicht; nur an der offenen Schicht mit `cashView`. */
+  interimCounts?: number;
+  /** Summe der Differenzen der Zwischenzaehlungen in Cent; fehlt, wenn der Server sie nicht sendet. */
+  interimDifferenceCents?: number;
+  /** Teile der Gesamtdifferenz; nur an geschlossenen Schichten mit Zwischenzaehlung. */
+  differenceParts?: ShiftDifferencePart[];
+  /**
+   * Rohwert der Zaehlung vor der Trinkgeld-Auszahlung; nur wenn mit `countedBeforePayout`
+   * geschlossen wurde. `countedCents` bleibt dann der Stand nach der Auszahlung.
+   */
+  countedBeforePayoutCents?: number;
 }
 
 /** Offener Trinkgeld-Anspruch eines Mitarbeiters (auszahlbar beim Abschluss oder per `tip_payout`). */
@@ -267,6 +317,19 @@ export interface DrawerState {
    * mit einem Betrag „Bleibt in der Kassenlade“ schloss.
    */
   suggestedFromShiftNumber?: number;
+  /**
+   * Die zuletzt geschlossene Schicht dieser Lade (Karte „Letzte Schicht“ am Schichtbeginn);
+   * `null`, wenn es keine gibt, fehlt ohne Recht `shift`.
+   */
+  lastShift?: LastShift | null;
+}
+
+/** Die zuletzt geschlossene Schicht einer Lade. */
+export interface LastShift {
+  number: number;
+  closedAt: string;
+  /** Wer sie schloss; `null`, wenn kein Name bekannt ist. */
+  closedByName: string | null;
 }
 
 export interface CashMovement {
@@ -335,6 +398,22 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
    * (mit „Entnommen“ ergaebe es sonst das Ist).
    */
   leftInDrawerCents?: number | null;
+  /**
+   * Wurde der Anfang gezaehlt? Nur mit `false` druckt der Bon „Anfang uebernommen, nicht
+   * gezaehlt“; fehlt das Feld (der Server sendet es auf dem Bon nicht), bleibt die Zeile weg.
+   */
+  openingCounted?: boolean;
+  /** Summe der Zwischenzaehlungs-Differenzen; fehlt, wenn sie 0 ist oder blind. */
+  interimDifferenceCents?: number;
+  /** Teile der Gesamtdifferenz (Zwischenzaehlungen und Abschluss); fehlt ohne Zwischenzaehlung und blind. */
+  differenceParts?: ShiftDifferencePart[];
+  /**
+   * Die Zaehlung vor der Trinkgeld-Auszahlung (Rohwert); nur wenn so geschlossen wurde, blind `null`.
+   * `countedCents` ist dann der Stand nach der Auszahlung.
+   */
+  countedBeforePayoutCents?: number | null;
+  /** Stueckelung zu `countedBeforePayoutCents`; blind `null`. */
+  countedBeforePayoutDenominations?: Denominations | null;
 }
 
 /** Bon-Daten einer Kassenbewegung. */
@@ -360,6 +439,11 @@ export interface OpenShiftResult {
   shift: Shift;
   /** Unterschied zum uebergebenen Bestand beim Zaehlen; nur mit `cashView`. */
   handoverDifferenceCents?: number | null;
+}
+
+/** Antwort von `recordMyShiftCount`: Soll, Zaehlung und Differenz dieser Zwischenzaehlung (Cent). */
+export interface ShiftCountResult {
+  count: { expectedCents: number; countedCents: number; differenceCents: number };
 }
 
 export interface CashMovementResult {

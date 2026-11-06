@@ -1,7 +1,7 @@
 import type { ApiCall, InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { anfrage, schluessel } from '../inventory/schreiben.js';
-import { abschluss, bericht, gebucht, geoeffnet, gemeldet, ladeStand, type Ort } from './schicht-lesen.js';
+import { abschluss, bericht, gebucht, geoeffnet, gemeldet, gezaehlt, ladeStand, type Ort } from './schicht-lesen.js';
 import { labelText } from './texte.js';
 import {
   CASH_LOCATIONS,
@@ -16,6 +16,7 @@ import {
   type ManualMovementType,
   type OpeningReason,
   type OpenShiftResult,
+  type ShiftCountResult,
   type ShiftReport,
   type ShiftTipTotals,
 } from './schicht-typen.js';
@@ -150,6 +151,27 @@ export interface CloseMyShiftOptions {
    * danach derselbe Betrag, gilt er als dieselbe Zaehlung.
    */
   checkOnly?: boolean;
+  /**
+   * `countedCents` ist der Stand **vor** den Trinkgeld-Auszahlungen derselben Anfrage: die
+   * Kasse zaehlt zuerst, zahlt dann aus. Der Server speichert den Rohwert (Antwort:
+   * `shift.countedBeforePayoutCents`, auf dem Bon „Gezaehlt“) und rechnet Ist und Differenz
+   * mit dem Stand nach der Auszahlung. Ohne die Angabe zaehlt der Betrag wie bisher als Ist.
+   */
+  countedBeforePayout?: boolean;
+}
+
+/**
+ * Zwischenzaehlung waehrend der Schicht ([recordMyShiftCount], Recht `shift`): der Kassenstand
+ * wird gezaehlt, ohne die Schicht zu schliessen.
+ */
+export interface RecordMyShiftCountOptions {
+  idempotencyKey: string;
+  shiftId: string;
+  /** Gezaehltes Bargeld in Cent (`0` erlaubt). */
+  countedCents: number;
+  denominations?: Denominations | null;
+  /** Freitext zur Zaehlung (z. B. Grund einer Abweichung). */
+  comment?: string;
 }
 
 /** Entnehmen oder Einlegen beim Abschluss (siehe [CloseMyShiftOptions.afterCount]). */
@@ -261,12 +283,29 @@ export async function closeMyShift(transport: InternerTransport, options: CloseM
     p.tipPayouts.forEach((a, i) => cent(name, `tipPayouts[${i}].cents`, a !== null && typeof a === 'object' ? (a as Params).cents : undefined));
   }
   if (p.checkOnly !== undefined && typeof p.checkOnly !== 'boolean') throw anfragefehler(name, 'checkOnly muss true oder false sein');
+  if (p.countedBeforePayout !== undefined && typeof p.countedBeforePayout !== 'boolean') throw anfragefehler(name, 'countedBeforePayout muss true oder false sein');
   // Nur die Form: die Art (Katalog) und die Grenzen prueft der Server.
   if (p.afterCount !== undefined && p.afterCount !== null) {
     if (typeof p.afterCount !== 'object' || Array.isArray(p.afterCount)) throw anfragefehler(name, 'afterCount muss ein Objekt { type, amountCents } sein');
     cent(name, 'afterCount.amountCents', (p.afterCount as Params).amountCents);
   }
   return rufe(transport, name, p, abschluss);
+}
+
+/**
+ * Zwischenzaehlung festhalten (Recht `shift`): der Server vergleicht die Zaehlung mit dem Soll
+ * und haelt die Differenz fest, die Schicht bleibt offen. Antwort: Soll, Zaehlung und Differenz
+ * dieser Zaehlung. Derselbe `idempotencyKey` ergibt dieselbe Antwort und keinen zweiten Eintrag.
+ */
+export async function recordMyShiftCount(transport: InternerTransport, options: RecordMyShiftCountOptions): Promise<ShiftCountResult> {
+  const name = 'recordMyShiftCount';
+  const p = anfrage(name, options);
+  kennung(name, p, 'shiftId');
+  schluessel(name, p, { pflicht: true });
+  cent(name, 'countedCents', p.countedCents);
+  stueckelungPruefen(name, p);
+  if (p.comment !== undefined && typeof p.comment !== 'string') throw anfragefehler(name, 'comment muss ein Text sein');
+  return rufe(transport, name, p, gezaehlt);
 }
 
 // ---- Helfer der Kasse ---------------------------------------------------------

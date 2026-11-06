@@ -89,6 +89,7 @@ const ABNEHMER: Record<string, string> = {
   'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/)',
   'add-on-cases.json': 'Pruefaelle Zusatz-Kacheln (waehlbar, wirksame Liste, Verweise, Storno, Bon- und Belegreihenfolge): Dart 11, Web-Kasse, Panel, Backend zusatz-faelle.json',
   'reference-cases.json': 'Pruefaelle Kachel mit Betrag und Referenz (Muster, Eingabe, Ziffernfeld, Positionsname): Dart 11, Web-Kasse, Backend referenz-faelle.json',
+  'shift-ablauf-cases.json': 'Z-Bon der Schicht mit Zwischenzaehlung, Zaehlung vor Auszahlung und Differenz-Teilen (shiftReceiptLayout): Dart-Zwilling',
   'tip-round-up-cases.json': 'Pruefaelle Aufrunden-Vorschlaege fuer Trinkgeld (roundUpSuggestions): Dart-Zwilling, Web-Kasse',
   'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
   'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',
