@@ -1356,6 +1356,22 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.counted_before_payout': { text: 'Gezählt' },
   'shift_receipt.difference_part_interim': { text: 'davon Zwischenzählung' },
   'shift_receipt.difference_part_closing': { text: 'davon Abschluss' },
+  // Nachtrag Schicht-Ablauf (1.28.0): Band-Titel ohne Punkt wie `shift.state_closed`.
+  'shift.state_closing': { text: 'Schicht wird geschlossen' },
+  'shift.state_interim': { text: 'Zwischenzählung' },
+  'shift.tips_paid_out': { text: 'Trinkgeld ausgezahlt' },
+  'shift.difference_none': { text: 'stimmt' },
+  'shift.start_new': { text: 'Neue Schicht beginnen' },
+  'shift.drawer_from_to': { text: '{drawer} · {from} bis {to}', placeholders: ['drawer', 'from', 'to'] },
+  'shift.running_since_by': { text: '{drawer} · läuft seit {time} ({name})', placeholders: ['drawer', 'time', 'name'] },
+  'shift.z_receipt_printed': { text: 'Z-Bon gedruckt' },
+  'shift.count_now': { text: 'Jetzt zählen' },
+  'shift.interim_entry': { text: 'Zwischenzählung' },
+  'drawer.open': { text: 'Lade öffnen' },
+  'time.today_at': { text: 'heute {time}', placeholders: ['time'] },
+  'tip.summary_percent': { text: 'Trinkgeld {tip} ({percent} %)', placeholders: ['tip', 'percent'] },
+  'settings.tip_kinds': { text: 'Trinkgeld-Arten' },
+  'settings.tip_start': { text: 'Zuerst offen' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
