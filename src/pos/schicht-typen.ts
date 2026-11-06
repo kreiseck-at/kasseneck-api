@@ -251,7 +251,8 @@ export interface Shift {
   // Ablauf der Kasse (Spec Kasse-Ablauf): was der Server nur sendet, wenn es zutrifft, fehlt sonst.
   /**
    * Wurde der Anfang gezaehlt? `false` heisst: der Bestand wurde ohne Zaehlen uebernommen.
-   * Nur an der offenen Schicht und nur mit `cashView`.
+   * Steht an offenen und geschlossenen Schichten und auf den Z-Bon-Daten (`ShiftSummaryReceipt.openingCounted`);
+   * fehlt das Feld (aeltere Server), gilt es als unbekannt, nicht als gezaehlt.
    */
   openingCounted?: boolean;
   /** Das Soll in Teilen (Summe = `expectedCents`); nur an der offenen Schicht mit `cashView`. */

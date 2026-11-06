@@ -23,7 +23,7 @@ import {
 
 /**
  * Schicht, Kassenstand und Lade-Protokoll an der Kasse (Backend
- * schicht-endpoints.js). Alle sechs Aufrufe gibt es nur ueber den Kassenweg
+ * schicht-endpoints.js). Alle sieben Aufrufe gibt es nur ueber den Kassenweg
  * `/api/v3`; sie laufen mit dem Kassen-Benutzer-Weg (`registerUserAuth`).
  *
  * Rechte am Server: `shift` (Schicht oeffnen und schliessen, Bericht),

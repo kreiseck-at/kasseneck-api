@@ -4,7 +4,7 @@
     "default": {
       "sha256": "e5ed8eb2bdb2b8cba51102c6e00f73fe20bcaa0d8c355ed93901508fa7abc97e",
       "head": [],
-      "inputsSha256": "e0264b9f58a877315b1607c6f4f08af3f34d5867adb2cd915ab359946f694836",
+      "inputsSha256": "2c3aedb9f88609b4c7f3563c5c7e04d827f37ff5e7bc85238bf8f72632239c6d",
       "backendPackage": "@kreiseck/kasseneck-api@0.37.0",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -19,12 +19,12 @@
       ]
     },
     "kasse": {
-      "sha256": "44d4d0698ce94c56bbbaf30cf946110a49d6aa94f657089484d452877bf70365",
+      "sha256": "c9377d30b69fe1595a826337fcf03fbc18e995af024867b0a473cdc65c174724",
       "head": [
         "note",
         "baseline"
       ],
-      "inputsSha256": "74f6226caa6f2eceff869eb1a86ab1f793a20bc288c242fb4cb361f79f2eb970",
+      "inputsSha256": "884e855616022d5633c9c6f0cc6c742bf1a66e5549d3ffc06ca5ab31f850d8fd",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -7404,6 +7404,7 @@
                 },
                 "startCents": 15000,
                 "startUebernommen": true,
+                "startGezaehlt": false,
                 "stueckelungStart": null,
                 "barVerkaufCents": 9400,
                 "barStornoCents": 0,
@@ -7776,6 +7777,7 @@
                 },
                 "startCents": 15000,
                 "startUebernommen": true,
+                "startGezaehlt": false,
                 "stueckelungStart": null,
                 "barVerkaufCents": 9400,
                 "barStornoCents": 0,
@@ -8178,6 +8180,7 @@
                 },
                 "startCents": 15000,
                 "startUebernommen": true,
+                "startGezaehlt": false,
                 "stueckelungStart": null,
                 "barVerkaufCents": 9400,
                 "barStornoCents": 0,
@@ -8609,6 +8612,7 @@
                 },
                 "startCents": 15000,
                 "startUebernommen": true,
+                "startGezaehlt": false,
                 "stueckelungStart": null,
                 "barVerkaufCents": 9400,
                 "barStornoCents": 0,
