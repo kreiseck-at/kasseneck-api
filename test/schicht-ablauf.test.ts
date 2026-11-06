@@ -181,10 +181,10 @@ test('Einstellungen: tipKinds, tipStart, cartWidth haben keinen Standardwert und
   assert.equal('cartWidth' in mergePosSettings(POS_DEVICE_DEFAULTS, { cartWidth: 'breit' } as unknown as Partial<PosDeviceSettings>), false);
 });
 
-test('Einstellungen: wirksame Werte ohne Angabe: alle drei Arten, Start Prozent, Breite medium', () => {
+test('Einstellungen: wirksame Werte ohne Angabe: alle drei Arten, Start Prozent, Breite narrow', () => {
   assert.deepEqual(posTipKinds(POS_BUSINESS_DEFAULTS), [...TIP_KINDS]);
   assert.equal(posTipStart(POS_BUSINESS_DEFAULTS), 'percent');
-  assert.equal(posCartWidth(POS_DEVICE_DEFAULTS), 'medium');
+  assert.equal(posCartWidth(POS_DEVICE_DEFAULTS), 'narrow');
   assert.deepEqual([...TIP_START], [...TIP_KINDS]);
   assert.deepEqual([...CART_WIDTH], ['narrow', 'medium', 'wide']);
   assert.deepEqual(posTipKinds(null), [...TIP_KINDS]);

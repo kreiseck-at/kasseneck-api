@@ -305,7 +305,7 @@ export interface PosDeviceSettings {
    * [POS_DEVICE_OPTIONAL_FIELDS].
    */
   drawerId?: string | null;
-  /** Breite der rechten Spalte; optional, fehlt sie, gilt `medium`. Lesen ueber [posCartWidth]. */
+  /** Breite der rechten Spalte; optional, fehlt sie, gilt `narrow`. Lesen ueber [posCartWidth]. */
   cartWidth?: PosOpen<PosCartWidth>;
   terminalIp: string; terminalPort: number; terminalVia: PosOpen<PosTerminalVia>;
   /** Art des Terminals ('none' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern payCard an). */
@@ -419,7 +419,7 @@ export function posTipStart(business: Readonly<Partial<PosBusinessSettings>> | n
 /** Wirksame Breite der rechten Spalte; ohne Angabe `medium`. */
 export function posCartWidth(device: Readonly<Partial<PosDeviceSettings>> | null | undefined): PosOpen<PosCartWidth> {
   const w = device?.cartWidth;
-  return typeof w === 'string' && w !== '' ? w : 'medium';
+  return typeof w === 'string' && w !== '' ? w : 'narrow';
 }
 
 /** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
