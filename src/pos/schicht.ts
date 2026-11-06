@@ -161,7 +161,7 @@ export interface CloseMyShiftOptions {
 }
 
 /**
- * Zwischenzaehlung waehrend der Schicht ([recordMyShiftCount], Recht `shift`): der Kassenstand
+ * Zwischenzaehlung waehrend der Schicht ([recordMyShiftCount], Recht `cashView`): der Kassenstand
  * wird gezaehlt, ohne die Schicht zu schliessen.
  */
 export interface RecordMyShiftCountOptions {
@@ -293,7 +293,7 @@ export async function closeMyShift(transport: InternerTransport, options: CloseM
 }
 
 /**
- * Zwischenzaehlung festhalten (Recht `shift`): der Server vergleicht die Zaehlung mit dem Soll
+ * Zwischenzaehlung festhalten (Recht `cashView`, ohne es `not_permitted`): der Server vergleicht die Zaehlung mit dem Soll
  * und haelt die Differenz fest, die Schicht bleibt offen. Antwort: Soll, Zaehlung und Differenz
  * dieser Zaehlung. Derselbe `idempotencyKey` ergibt dieselbe Antwort und keinen zweiten Eintrag.
  */

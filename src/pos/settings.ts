@@ -416,7 +416,7 @@ export function posTipStart(business: Readonly<Partial<PosBusinessSettings>> | n
   return arten.includes('percent') ? 'percent' : arten[0]!;
 }
 
-/** Wirksame Breite der rechten Spalte; ohne Angabe `medium`. */
+/** Wirksame Breite der rechten Spalte; ohne Angabe `narrow`. */
 export function posCartWidth(device: Readonly<Partial<PosDeviceSettings>> | null | undefined): PosOpen<PosCartWidth> {
   const w = device?.cartWidth;
   return typeof w === 'string' && w !== '' ? w : 'narrow';

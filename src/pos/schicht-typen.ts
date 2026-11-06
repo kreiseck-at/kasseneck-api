@@ -241,6 +241,11 @@ export interface Shift {
   suggestedFloatCents?: number | null;
   runningTotals?: ShiftRunningTotals;
   expectedCents?: number | null;
+  /**
+   * Gesamtdifferenz der Schicht. Mit Zwischenzaehlungen ist sie NICHT `countedCents − expectedCents`:
+   * jede Zwischenzaehlung verschiebt das Soll um ihre Differenz, gespeichert wird die Summe aus den
+   * Zwischen-Teilen und dem Abschluss-Teil (`differenceParts`). Ohne Zwischenzaehlung gilt Ist − Soll.
+   */
   differenceCents?: number | null;
   reconciliation?: ShiftReconciliation | null;
   // Nur wenn beim Abschluss Geld entnommen oder eingelegt wurde (sonst fehlen beide):
@@ -389,6 +394,10 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
   /** Beim X-Bon immer `null`. */
   countedCents: number | null;
   countedDenominations: Denominations | null;
+  /**
+   * Gesamtdifferenz; mit Zwischenzaehlungen nicht `countedCents − expectedCents`, sondern die Summe der
+   * Zwischen-Teile und des Abschluss-Teils (`differenceParts`), wie an `Shift.differenceCents`.
+   */
   differenceCents: number | null;
   comment: string | null;
   openingsWithoutSale: number;
