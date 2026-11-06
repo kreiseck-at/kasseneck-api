@@ -17,7 +17,7 @@ export function roundUpSuggestions(amountCents: number): number[] {
   if (!Number.isInteger(amountCents) || amountCents <= 0) return [];
   const t = amountCents;
   const [small, large] = steps(t);
-  const lo = Math.max(Math.floor((t * 102) / 100), t + 20);
+  const lo = Math.max(ceilDiv(t * 102, 100), t + 20);
   const hi = Math.floor((t * (t < 1000 ? 125 : 120)) / 100);
 
   const set = new Set<number>();

@@ -13,6 +13,7 @@ test('Pruefaelle: Aufrunden-Vorschlaege', () => {
 
 test('negativ und keine Ganzzahl: leer', () => {
   assert.deepEqual(roundUpSuggestions(-5), []);
+  assert.deepEqual(roundUpSuggestions(840.5), []);
 });
 
 test('immer drei aufsteigende Ganzzahlen ueber dem Betrag', () => {
@@ -20,6 +21,7 @@ test('immer drei aufsteigende Ganzzahlen ueber dem Betrag', () => {
     const r = roundUpSuggestions(t);
     assert.equal(r.length, 3, String(t));
     assert.ok(r[0]! < r[1]! && r[1]! < r[2]!, String(t));
-    for (const k of r) assert.ok(Number.isInteger(k) && k > t, String(t));
+    const lo = Math.max(Math.ceil((t * 102) / 100), t + 20);
+    for (const k of r) assert.ok(Number.isInteger(k) && k > t && k >= lo, `${t}: ${k}`);
   }
 });
