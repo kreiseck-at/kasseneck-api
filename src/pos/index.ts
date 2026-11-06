@@ -131,3 +131,4 @@ export {
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';
+export { roundUpSuggestions } from './aufrunden.js';
