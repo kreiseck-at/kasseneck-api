@@ -17,13 +17,8 @@ import { readEnumKey, requireEnumKey } from './enum-payload.js';
 export interface Voucher {
   name?: string;
   /**
-   * Code eines eigenen Gutscheins (Einloesung, Auszahlung). Am gelesenen Eintrag die Maske.
-   *
-   * Altform: ein Wertgutschein (`type: 'value'`) mit frei getipptem `code` ist **veraltet** (Server 2026-11:
-   * Antwort mit `deprecation`, siehe [ReceiptWithCompany.deprecation]): der Code wird nicht geprueft, steuerlich
-   * ist das ein fremder Mehrzweckgutschein. Gutscheine eines anderen Systems als Fremdgutschein senden
-   * (`source: 'external'`, [externalVoucherIsValid]); eigene Gutscheine ueber eine Sorte verkaufen und mit
-   * ihrem Code einloesen.
+   * Code eines eigenen Gutscheins (Einloesung, Auszahlung). Am gelesenen Eintrag die Maske. Ein Wunsch der
+   * Altform mit frei getipptem Code ist veraltet ([LegacyValueVoucherWish]).
    */
   code?: string;
   /**
@@ -173,6 +168,18 @@ export interface VoucherPayload {
   exempt?: boolean;
   zeroRateBucket?: boolean;
 }
+
+/**
+ * Wunsch der Altform: Wertgutschein mit frei getipptem Code (`{ action, type: 'value', code, valueCents }`).
+ * Nur als Typ fuer Aufrufer, die ihn noch senden; ein gelesener Beleg ist davon nicht betroffen.
+ *
+ * @deprecated Server 2026-11: der Weg bleibt gueltig, die Antwort traegt `deprecation`
+ * ([ReceiptWithCompany.deprecation]). Der Code wird nicht geprueft, steuerlich ist das ein fremder
+ * Mehrzweckgutschein. Einen Gutschein eines anderen Systems als Fremdgutschein senden: `{ source: 'external',
+ * action, type: 'multi_purpose', number, amountCents }`; eigene Gutscheine ueber eine Sorte (`typeId`)
+ * verkaufen und mit ihrem Code einloesen.
+ */
+export type LegacyValueVoucherWish = Voucher & { type: 'value'; code: string };
 
 /** Arten der neuen Gutscheinform (die Altwerte sind `value` und `promo`). */
 export const NEUE_GUTSCHEINARTEN: readonly string[] = [

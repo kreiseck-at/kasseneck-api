@@ -45,6 +45,9 @@ test('Fremdnummer: Rand weg (fester Leerraum-Satz, ohne NEL), keine Normalisieru
   assert.equal(n('K'), 'K');
   assert.equal(n('FG-K1'), 'FG-K1');
   assert.equal(n('A'.repeat(40)), 'A'.repeat(40));
+  // Kelvin-Zeichen (U+212A) sieht aus wie K, ist aber kein ASCII: ungueltig, nie still zu K gefaltet.
+  assert.equal(n('\u212A'), null);
+  assert.equal(n('FG-\u212A1'), null);
   for (const falsch of ['', '   ', 'A'.repeat(41), 'a b', 'ä', '<x>', 'FG-1\u0085', '\u0085FG-1', 'FG​1', 'ＦＧ-1', 'ä', null, 12, undefined]) {
     assert.equal(n(falsch), null, JSON.stringify(falsch));
   }
@@ -55,6 +58,10 @@ test('Fremdnummer: ein gueltiger eigener Gutscheincode (jede Schreibweise der Ka
     assert.deepEqual(checkExternalVoucherNumber(c), { ok: false, code: 'external_voucher_number_is_own_code' }, c);
   }
   for (const c of ['K', 'FG-K1', 'FG-1234', '7148-FGQA-935J']) assert.equal(checkExternalVoucherNumber(c).ok, true, c);
+  // Ein eigener Code mit Kelvin-Zeichen statt K ist kein eigener Code (der Validator faltet nicht), sondern eine ungueltige Nummer.
+  assert.deepEqual(checkExternalVoucherNumber('7148FGQA935\u212A'), { ok: false, code: 'external_voucher_number_invalid' });
+  assert.deepEqual(checkExternalVoucherNumber('7148-FGQA-935\u212A'), { ok: false, code: 'external_voucher_number_invalid' });
+  assert.deepEqual(checkExternalVoucherNumber('FG-\u212A1'), { ok: false, code: 'external_voucher_number_invalid' });
   assert.deepEqual(checkExternalVoucherNumber(' fg-1 '), { ok: true, number: 'fg-1' });
   assert.deepEqual(checkExternalVoucherNumber(''), { ok: false, code: 'external_voucher_number_invalid' });
   assert.deepEqual(checkExternalVoucherNumber('FG-1\u0085'), { ok: false, code: 'external_voucher_number_invalid' });

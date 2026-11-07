@@ -37,6 +37,7 @@ export {
   fromVoucherPayload,
   voucherIsValid,
   type VoucherSource,
+  type LegacyValueVoucherWish,
   VOUCHER_SOURCES,
   isExternalVoucher,
   externalVoucherIsValid,
