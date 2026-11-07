@@ -25,6 +25,26 @@ import {
   type RevokedDepHandoverLink,
   type WaitForDepExportOptions,
 } from './dep-export.js';
+import {
+  claimTerminal,
+  getTerminalAccess,
+  getTerminalCode,
+  registerTerminalDevice,
+  reportTerminalLogin,
+  reportTerminalReady,
+  requestTerminalCode,
+  type ClaimTerminalOptions,
+  type GetTerminalAccessOptions,
+  type RegisteredTerminalDevice,
+  type RegisterTerminalDeviceOptions,
+  type ReportTerminalLoginOptions,
+  type RequestTerminalCodeOptions,
+  type TerminalAccess,
+  type TerminalAccessResult,
+  type TerminalCode,
+  type TerminalCodeRequest,
+  type TerminalDeviceCredentials,
+} from './terminal.js';
 import { listAllReceipts, listReceipts, type ListedReceipt, type ListReceiptsOptions, type ListReceiptsPage, type ListReceiptsView } from './list-receipts.js';
 import {
   sellReceipt,
@@ -119,6 +139,20 @@ export interface KasseneckApi {
   createDepHandoverLink(options: { exportId: string }): Promise<DepHandoverLink>;
   /** Pruefer-Link der eigenen Kasse widerrufen. */
   revokeDepHandoverLink(options: { linkId: string }): Promise<RevokedDepHandoverLink>;
+  /** Geraet fuer das Kartenterminal am Handy einmal anmelden (`registerTerminalDevice`, nur /v3); `deviceSecret` nur in dieser Antwort. */
+  registerTerminalDevice(options: RegisterTerminalDeviceOptions): Promise<RegisteredTerminalDevice>;
+  /** Zugang und TID fuer das Geraet, oder die TIDs des eigenen Betriebs, wenn keine frei ist (`getTerminalAccess`). */
+  getTerminalAccess(options: GetTerminalAccessOptions): Promise<TerminalAccessResult>;
+  /** TID des eigenen Betriebs auf dieses Geraet uebernehmen (`claimTerminal`). */
+  claimTerminal(options: ClaimTerminalOptions): Promise<TerminalAccess>;
+  /** Code fuer die TID aus dem Postfach anfragen (`requestTerminalCode`, nur bei `autoCode`). */
+  requestTerminalCode(options: RequestTerminalCodeOptions): Promise<TerminalCodeRequest>;
+  /** Stand der Code-Anfrage und der Einrichtung, bei `found` mit Code (`getTerminalCode`). */
+  getTerminalCode(options: TerminalDeviceCredentials): Promise<TerminalCode>;
+  /** Ausgang der Anmeldung in der Terminal-App melden (`reportTerminalLogin`). */
+  reportTerminalLogin(options: ReportTerminalLoginOptions): Promise<void>;
+  /** Terminal-App fertig eingerichtet melden (`reportTerminalReady`). */
+  reportTerminalReady(options: TerminalDeviceCredentials): Promise<void>;
   /** Kassenbericht als PDF (v2): abgeschlossener Monat, Tag oder Zeitraum (Endpunkt `getCashregisterReport`). */
   getCashregisterReport(options: CashregisterReportPeriod): Promise<Uint8Array>;
   /** @deprecated Since 1.10.0: use getCashregisterReport. Tagesbericht als PDF (Kalendertag nach Wiener Zeit). */
@@ -179,6 +213,13 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     getDepExportFile: (o) => getDepExportFile(rufenDatei, holen, o),
     createDepHandoverLink: (o) => createDepHandoverLink(rufen, o),
     revokeDepHandoverLink: (o) => revokeDepHandoverLink(rufen, o),
+    registerTerminalDevice: (o) => registerTerminalDevice(rufen, o),
+    getTerminalAccess: (o) => getTerminalAccess(rufen, o),
+    claimTerminal: (o) => claimTerminal(rufen, o),
+    requestTerminalCode: (o) => requestTerminalCode(rufen, o),
+    getTerminalCode: (o) => getTerminalCode(rufen, o),
+    reportTerminalLogin: (o) => reportTerminalLogin(rufen, o),
+    reportTerminalReady: (o) => reportTerminalReady(rufen, o),
     getCashregisterReport: (options) => getCashregisterReport(rufenBinaer, options),
     downloadDailyReport: (date) => downloadDailyReport(rufenBinaer, date),
     downloadMonthlyReport: (reportMonth) => downloadMonthlyReport(rufenBinaer, reportMonth),

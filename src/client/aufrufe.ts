@@ -167,6 +167,14 @@ export const ALL_CALLS = [
   'getRegisterInspectionInfo',
   // Connect-Bestand (./pos): welche Connect-Version an welchem Kassengeraet laeuft; nur ueber den Kassenweg.
   'reportConnectState',
+  // Kartenterminal am Handy: Geraet, Zugang, TID und Code (nur /v3).
+  'registerTerminalDevice',
+  'getTerminalAccess',
+  'claimTerminal',
+  'requestTerminalCode',
+  'getTerminalCode',
+  'reportTerminalLogin',
+  'reportTerminalReady',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -300,6 +308,14 @@ export const PUBLIC_CALLS = [
   'getDepExportFile',
   'createDepHandoverLink',
   'revokeDepHandoverLink',
+  // Kartenterminal am Handy (api_key + Geraete-Ausweis), nur unter /v3; am Kassenweg noch nicht.
+  'registerTerminalDevice',
+  'getTerminalAccess',
+  'claimTerminal',
+  'requestTerminalCode',
+  'getTerminalCode',
+  'reportTerminalLogin',
+  'reportTerminalReady',
 ] as const;
 
 /**
@@ -418,6 +434,8 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'deleteWebhook',
   'extendReservation',
   'financeWebService',
+  // Auf Android verbraucht die Antwort den Code: nach einem Zeitlimit kann er zugestellt und weg sein.
+  'getTerminalCode',
   'hobexPayApi',
   'hobexRefundApi',
   'issueInvoice',
@@ -434,6 +452,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'recordStockLoss',
   'recordStocktakeCount',
   'recountStocktake',
+  'registerTerminalDevice',
   'releaseReservation',
   'reportConnectState',
   'reportCustomerContract',
@@ -496,6 +515,8 @@ export type CallWithoutEffectReason = 'read' | 'repeatable';
 export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReason>> = Object.freeze({
   checkPartnerCustomerEmail: 'read',
   checkVoucher: 'read',
+  // Kartenterminal: dieselbe TID noch einmal uebernehmen aendert nichts am Server.
+  claimTerminal: 'repeatable',
   downloadDailyReport: 'read',
   downloadReceipt: 'read',
   downloadReport: 'read',
@@ -538,6 +559,8 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getStocktake: 'read',
   getSignatureCardOrder: 'read',
   getStocktakePdf: 'read',
+  // Behaelt die TID des Geraets bzw. vergibt eine freie; eine Wiederholung liefert dieselbe Zuordnung und bucht nichts.
+  getTerminalAccess: 'repeatable',
   getVariantGroup: 'read',
   hobexGetStatus: 'read',
   listArticles: 'read',
@@ -576,7 +599,12 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   registerPinLogin: 'repeatable',
   registerUserLogin: 'repeatable',
   renewRegisterSession: 'repeatable',
+  // Kartenterminal: Anmeldung und Einrichtung melden schreiben denselben Stand noch einmal.
+  reportTerminalLogin: 'repeatable',
+  reportTerminalReady: 'repeatable',
   reprintVoucherLabel: 'repeatable',
+  // Eine offene Code-Anfrage juenger als 6 Minuten bleibt; eine Wiederholung legt keine neue an.
+  requestTerminalCode: 'repeatable',
   searchCustomers: 'read',
 });
 
