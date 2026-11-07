@@ -448,11 +448,14 @@ export type ExternalVoucherNumberCheck =
 
 /**
  * Prueft eine Fremdnummer in der Reihenfolge des Servers (`gutschein-beleg.pruefeFremd`): zuerst, ob sie ein
- * gueltiger eigener Gutscheincode ist (12 Zeichen mit Pruefzeichen, in jeder Schreibweise der Kasse) – dann
+ * gueltiger eigener Gutscheincode ist (12 Zeichen mit Pruefzeichen, in jeder Schreibweise der Kasse, auch mit `.`, `_`
+ * oder `/` als Trenner) – dann
  * `external_voucher_number_is_own_code`, der Gutschein gehoert als eigener eingeloest –, danach die Form.
  */
 export function checkExternalVoucherNumber(text: unknown): ExternalVoucherNumberCheck {
-  if (typeof text === 'string' && VoucherCode.validate(text).ok) return { ok: false, code: 'external_voucher_number_is_own_code' };
+  // `.`, `_` und `/` zwischen den Gruppen liest die Pruefung wie `-` (Zwilling von `gutschein-core.istEigenerCode`):
+  // `7148.FGQA.935K` ist der eigene Code. Die Nummer selbst bleibt, wie sie kam.
+  if (typeof text === 'string' && VoucherCode.validate(text.replace(/[._/]/g, '-')).ok) return { ok: false, code: 'external_voucher_number_is_own_code' };
   const number = normalizeExternalVoucherNumber(text);
   return number === null ? { ok: false, code: 'external_voucher_number_invalid' } : { ok: true, number };
 }

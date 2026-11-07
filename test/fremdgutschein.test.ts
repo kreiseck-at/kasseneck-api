@@ -58,6 +58,12 @@ test('Fremdnummer: ein gueltiger eigener Gutscheincode (jede Schreibweise der Ka
     assert.deepEqual(checkExternalVoucherNumber(c), { ok: false, code: 'external_voucher_number_is_own_code' }, c);
   }
   for (const c of ['K', 'FG-K1', 'FG-1234', '7148-FGQA-935J']) assert.equal(checkExternalVoucherNumber(c).ok, true, c);
+  // Trenner einer Fremdnummer (. _ /) zwischen den Gruppen: trotzdem der eigene Code (wie gutschein-core.istEigenerCode).
+  for (const c of ['7148.FGQA.935K', '7148_FGQA_935K', '7148/FGQA/935K', '7148.fgqa_935k', '7148/FGQA-935K']) {
+    assert.deepEqual(checkExternalVoucherNumber(c), { ok: false, code: 'external_voucher_number_is_own_code' }, c);
+    assert.equal(normalizeExternalVoucherNumber(c), c, c);
+  }
+  for (const c of ['7148.FGQA.935J', 'FG.1234', 'A/B_C.D']) assert.equal(checkExternalVoucherNumber(c).ok, true, c);
   // Ein eigener Code mit Kelvin-Zeichen statt K ist kein eigener Code (der Validator faltet nicht), sondern eine ungueltige Nummer.
   assert.deepEqual(checkExternalVoucherNumber('7148FGQA935\u212A'), { ok: false, code: 'external_voucher_number_invalid' });
   assert.deepEqual(checkExternalVoucherNumber('7148-FGQA-935\u212A'), { ok: false, code: 'external_voucher_number_invalid' });
