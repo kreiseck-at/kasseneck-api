@@ -241,7 +241,7 @@ const PARAMETER_WOERTER: ReadonlySet<string> = new Set([
  * englischen Namen einfuehrt, traegt sein Teilwort hier ein.
  */
 const PARAMETER_ENGLISCH: ReadonlySet<string> = new Set(`
-actual after alternate article at before binary block body budget business by bytes cash cashregister cause cents certificate chars client code
+actual after alternate amount article at before binary block body budget business by bytes cash cashregister cause cents certificate chars client code
 columns company connect content count customer data date denominations detail details device dimensions discount email endpoint error event
 due expected export extra fallback fetch field fields file font format from function grid group header height image index info inner instant interface
 interval invoice item items key kind label language last layout logo lookup matrix max message minutes mode module month months name now

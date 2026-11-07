@@ -89,6 +89,12 @@ function zahlartText(methode: string): string {
   return methode === 'card' ? labelText('payment_method.card') : methode;
 }
 
+/** Uhrzeit in Wien als `HH:mm`; unlesbar -> `null`. */
+function uhr(iso: string | null): string | null {
+  const t = zeit(iso);
+  return t === null ? null : t.slice(11);
+}
+
 /** Je Schein und Muenze eine eingerueckte Zeile, vom groessten Wert abwaerts; Anzahl 0 faellt weg. */
 function stueckelungZeilen(karte: Denominations | null): LayoutLine[] {
   if (karte === null) return [];
@@ -155,8 +161,14 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   if (bon.openingFloatCents !== null) zeilen.push(betrag(start, bon.openingFloatCents));
   else if (bon.openingFloatTakenOver) zeilen.push(text(start));
   zeilen.push(...stueckelungZeilen(bon.openingDenominations));
+  // Nur wenn der Server den Anfang ausdruecklich als nicht gezaehlt meldet; ohne das Feld bleibt der Bon wie bisher.
+  if (bon.openingCounted === false) zeilen.push(text(labelText('shift_receipt.opening_not_counted')));
   if (bon.cashSalesCents !== null) zeilen.push(betrag(labelText('shift_receipt.cash_sales'), bon.cashSalesCents));
   if (bon.cashCancellationsCents !== null) zeilen.push(betrag(labelText('shift_receipt.cash_cancellations'), bon.cashCancellationsCents));
+  // Summe der Zwischenzaehlungs-Differenzen: damit Start + Bar + Bewegungen + diese = Soll aufgeht.
+  if (bon.interimDifferenceCents !== undefined && bon.interimDifferenceCents !== 0) {
+    zeilen.push(betrag(labelText('shift_receipt.interim_count'), bon.interimDifferenceCents));
+  }
   if (bon.movements.length > 0) {
     zeilen.push(text(labelText('shift_receipt.movements'), 'left', true));
     for (const m of bon.movements) {
@@ -165,11 +177,26 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
     }
   }
   if (bon.expectedCents !== null) zeilen.push(betrag(labelText('shift_receipt.expected'), bon.expectedCents));
+  // Mit `countedBeforePayout` geschlossen: erst der Rohwert der Zaehlung („Gezaehlt“, mit Stueckelung), dann das Ist nach der Auszahlung.
+  if (bon.countedBeforePayoutCents !== undefined && bon.countedBeforePayoutCents !== null) {
+    zeilen.push(betrag(labelText('shift_receipt.counted_before_payout'), bon.countedBeforePayoutCents));
+    zeilen.push(...stueckelungZeilen(bon.countedBeforePayoutDenominations ?? null));
+  }
   if (bon.countedCents !== null) {
     zeilen.push(betrag(labelText('shift_receipt.counted'), bon.countedCents));
     zeilen.push(...stueckelungZeilen(bon.countedDenominations));
   }
   if (bon.differenceCents !== null) zeilen.push(betrag(labelText('shift_receipt.difference'), bon.differenceCents));
+  // Die Gesamtdifferenz in Teilen: je Zwischenzaehlung (mit Uhrzeit) und der Abschluss; eine Zwischenzaehlung ohne Differenz faellt weg.
+  for (const t of bon.differenceParts ?? []) {
+    if (t.type === 'interim' && t.cents === 0) continue;
+    if (t.type === 'interim') {
+      const um = uhr(t.at);
+      zeilen.push(betrag(`${labelText('shift_receipt.difference_part_interim')}${um === null ? '' : ` ${um}`}`, t.cents));
+    } else if (t.type === 'closing') {
+      zeilen.push(betrag(labelText('shift_receipt.difference_part_closing'), t.cents));
+    }
+  }
   if (bon.comment) zeilen.push(text(`${labelText('shift_receipt.comment')}: ${bon.comment}`));
   zeilen.push(...nachZaehlungZeilen(bon));
 

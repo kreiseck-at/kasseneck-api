@@ -160,6 +160,7 @@ export const ALL_CALLS = [
   'logMyDrawerOpenings',
   'getMyShiftReport',
   'closeMyShift',
+  'recordMyShiftCount',
   // Ausgaben eines Belegs (Drucke, Teilen) melden: nur ueber den Kassenweg.
   'logReceiptOutputs',
   // Kasseninfo fuer die Pruefung (Kassennachschau, Stufe 2b, ./pos): nur ueber den Kassenweg.
@@ -354,6 +355,7 @@ export const POS_CALLS = [
   'logMyDrawerOpenings',
   'getMyShiftReport',
   'closeMyShift',
+  'recordMyShiftCount',
   // Ausgaben eines Belegs melden: nur ueber den Kassenweg.
   'logReceiptOutputs',
   // DEP fuer die Kassennachschau (Stufe 2): zugleich oeffentlich; an der Kasse nur fuer den Chef (manager_only).
@@ -427,6 +429,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'receiveGoods',
   'recordInvoicePayment',
   'recordMyCashMovement',
+  'recordMyShiftCount',
   'recordMyStocktakeCount',
   'recordStockLoss',
   'recordStocktakeCount',

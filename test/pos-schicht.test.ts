@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  getMyDrawerState, openMyShift, recordMyCashMovement, logMyDrawerOpenings, getMyShiftReport, closeMyShift,
+  getMyDrawerState, openMyShift, recordMyCashMovement, logMyDrawerOpenings, getMyShiftReport, closeMyShift, recordMyShiftCount,
   EUR_DENOMINATIONS, MOVEMENT_TYPES, MANUAL_MOVEMENT_TYPES, OPENING_REASONS, MANUAL_OPENING_REASONS, CASH_LOCATIONS,
   SHIFT_RECEIPT_KINDS, newIdempotencyKey,
   isPosError, POS_ERROR_CODES, MESSAGES, LABELS, messageText, labelText, findErrorRule,
@@ -29,7 +29,7 @@ interface Fall { case: string; caller: string; params: Json; httpStatus: number;
 const lies = (datei: string): Json => JSON.parse(readFileSync(fileURLToPath(new URL(`../../fixtures/${datei}`, import.meta.url)), 'utf8')) as Json;
 const KASSE = lies('v3/antworten/kasse.json').endpoints as Record<string, { cases: Fall[] }>;
 const VOKABULAR = lies('v3/v3-vokabular.json');
-const ENDPUNKTE = ['getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift'] as const;
+const ENDPUNKTE = ['getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift', 'recordMyShiftCount'] as const;
 type Endpunkt = (typeof ENDPUNKTE)[number];
 
 function antwortAus(f: Pick<Fall, 'httpStatus' | 'headers' | 'response'>): HttpResponseLike {
@@ -71,6 +71,7 @@ async function rufe(endpunkt: Endpunkt, f: Fall): Promise<{ ergebnis?: unknown; 
     logMyDrawerOpenings: () => logMyDrawerOpenings(r, p),
     getMyShiftReport: () => getMyShiftReport(r, p),
     closeMyShift: () => closeMyShift(r, p),
+    recordMyShiftCount: () => recordMyShiftCount(r, p),
   };
   try {
     return { ergebnis: await aufrufe[endpunkt](), gesendet };
@@ -97,6 +98,8 @@ const VOR_DEM_SENDEN: Record<string, string> = {
   'getMyShiftReport/data_missing': 'shiftId fehlt',
   'closeMyShift/data_missing': 'shiftId fehlt',
   'closeMyShift/key_missing': 'idempotencyKey fehlt',
+  'recordMyShiftCount/data_missing': 'shiftId fehlt',
+  'recordMyShiftCount/key_missing': 'idempotencyKey fehlt',
 };
 
 test('Kassenweg Schicht: jeder Erfolgsfall sendet die Parameter des Falls und liest das Modell wie gesendet', async () => {
@@ -476,4 +479,23 @@ test('Fehlerregeln: jeder neue Schicht-Code zeigt seinen Satz, nie den Satz des 
   for (const code of ['validation', 'module_inactive', 'not_permitted', 'idempotency_conflict']) {
     assert.deepEqual(findErrorRule('api', { code }), { kind: 'api', behavior: 'server_text' }, code);
   }
+});
+
+test('Laufstand: Inhaber-Trinkgeld und Trinkgeld ohne Empfänger werden gelesen wie gesendet, fehlen sonst (1.28.0)', async () => {
+  const { ladeStand } = await import('../src/pos/schicht-lesen.js');
+  const f = KASSE['getMyDrawerState']!.cases.find((c) => c.case === 'success_manager')!;
+  const daten = structuredClone((f.response as { data: Record<string, unknown> }).data);
+  const lauf = (daten.shift as { runningTotals: Record<string, unknown> }).runningTotals;
+  // Ohne die Felder: nichts dazuerfunden.
+  const ohne = ladeStand({ pfad: 'data' } as never, structuredClone(daten));
+  assert.equal(ohne.shift!.runningTotals!.ownerTips, undefined);
+  assert.equal(ohne.shift!.runningTotals!.unassignedTipCents, undefined);
+  lauf.ownerTips = [{ registerUserId: 'ru_mirela', name: 'Mirela Weinzierl', cents: 10 }];
+  lauf.unassignedTipCents = 50;
+  const mit = ladeStand({ pfad: 'data' } as never, daten);
+  assert.deepEqual(mit.shift!.runningTotals!.ownerTips, [{ registerUserId: 'ru_mirela', name: 'Mirela Weinzierl', cents: 10 }]);
+  assert.equal(mit.shift!.runningTotals!.unassignedTipCents, 50);
+  // Ein Betrag, der keine ganze Zahl ist, wird abgewiesen.
+  lauf.ownerTips = [{ registerUserId: 'ru_mirela', name: null, cents: 1.5 }];
+  assert.throws(() => ladeStand({ pfad: 'data' } as never, daten));
 });

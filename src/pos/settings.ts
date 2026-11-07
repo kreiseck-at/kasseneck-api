@@ -33,6 +33,18 @@ export const QUANTITY = ['off', 'x', 'kg'] as const;
 export type PosQuantity = typeof QUANTITY[number];
 export const TIP_MODE = ['amount', 'total', 'both'] as const;
 export type PosTipMode = typeof TIP_MODE[number];
+/**
+ * Trinkgeld-Arten, die die Kasse anbietet (`business.tipKinds`): Prozent, Aufrunden
+ * (der Gast zahlt auf einen runden Betrag) und Gesamt (der Gast nennt den Betrag, den er insgesamt zahlt).
+ * `business.tipStart` ist die zuerst offene Art und liegt immer unter den angebotenen.
+ */
+export const TIP_KINDS = ['percent', 'round_up', 'total'] as const;
+export type PosTipKind = typeof TIP_KINDS[number];
+/** Die zuerst offene Trinkgeld-Art (`business.tipStart`): dieselben Werte wie [TIP_KINDS]. */
+export const TIP_START = TIP_KINDS;
+/** Breite der rechten Spalte (Korb) an diesem Geraet (`device.cartWidth`); in der schmalen Ansicht ohne Wirkung. */
+export const CART_WIDTH = ['narrow', 'medium', 'wide'] as const;
+export type PosCartWidth = typeof CART_WIDTH[number];
 export const CHECKOUT_MODE = ['page', 'panel'] as const;
 export type PosCheckoutMode = typeof CHECKOUT_MODE[number];
 /** Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'external' = eigenes Terminal ohne Anbindung. */
@@ -189,6 +201,14 @@ export interface PosBusinessSettings {
    * Lesen ueber [posTipKeptByDefault]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
    */
   tipKeptByDefault?: boolean;
+  /**
+   * Angebotene Trinkgeld-Arten (nichtleere Teilmenge von [TIP_KINDS], Reihenfolge wie
+   * gespeichert). Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es,
+   * gelten alle drei. Lesen ueber [posTipKinds]. `tipMode` folgt den Arten (der Server leitet ihn ab).
+   */
+  tipKinds?: PosOpen<PosTipKind>[];
+  /** Zuerst offene Trinkgeld-Art; optional, fehlt sie, gilt Prozent (sonst die erste Art). Lesen ueber [posTipStart]. */
+  tipStart?: PosOpen<PosTipKind>;
 }
 
 /** Aktionen der Kasse, die eine Taste bekommen koennen (Schluessel von `device.shortcuts`). */
@@ -285,6 +305,8 @@ export interface PosDeviceSettings {
    * [POS_DEVICE_OPTIONAL_FIELDS].
    */
   drawerId?: string | null;
+  /** Breite der rechten Spalte; optional, fehlt sie, gilt `narrow`. Lesen ueber [posCartWidth]. */
+  cartWidth?: PosOpen<PosCartWidth>;
   terminalIp: string; terminalPort: number; terminalVia: PosOpen<PosTerminalVia>;
   /** Art des Terminals ('none' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern payCard an). */
   terminalType: PosOpen<PosTerminalType>;
@@ -359,6 +381,47 @@ export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault'] a
 
 const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
 
+/**
+ * Optionale Betriebs-Einstellungen mit Wertemenge (Backend `BETRIEB_OPTIONAL`, Katalog
+ * `KASSE_BETRIEB_WERTE.tipKinds[]` und `.tipStart`): ohne Standardwert, der Server sendet sie nur,
+ * wenn sie gespeichert sind. [mergePosSettings] uebernimmt sie, wenn sie die Form haben
+ * (`tipKinds` eine nichtleere Liste von Texten, `tipStart` ein Text); den Wert prueft der Schreibweg.
+ */
+export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart'] as const);
+
+/** Optionale Geraete-Einstellungen mit Wertemenge (Backend `GERAET_OPTIONAL`, Katalog `KASSE_GERAET_WERTE.cartWidth`). */
+export const POS_DEVICE_OPTIONAL_CHOICES = Object.freeze(['cartWidth'] as const);
+
+/** Hat der Wert die Form eines optionalen Wahlfeldes? Texte, die der Server neu einfuehren koennte, bleiben (kein Altwert 0.x). */
+export function _optionalerWahlwert(feld: string, wert: unknown): boolean {
+  if (feld === 'tipKinds') {
+    return Array.isArray(wert) && wert.length > 0 && wert.every((x) => typeof x === 'string' && !_istAltwert0x('tipKinds', x));
+  }
+  return typeof wert === 'string' && wert !== '' && !_istAltwert0x(feld, wert);
+}
+
+const OPTIONALE_WAHL: ReadonlySet<string> = new Set([...POS_BUSINESS_OPTIONAL_CHOICES, ...POS_DEVICE_OPTIONAL_CHOICES]);
+
+/** Wirksame Trinkgeld-Arten: die gespeicherten, sonst alle drei. */
+export function posTipKinds(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): PosOpen<PosTipKind>[] {
+  const k = business?.tipKinds;
+  return Array.isArray(k) && k.length > 0 ? [...k] : [...TIP_KINDS];
+}
+
+/** Wirksame Start-Art: die gespeicherte, wenn sie angeboten wird, sonst Prozent (oder die erste angebotene Art). */
+export function posTipStart(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): PosOpen<PosTipKind> {
+  const arten = posTipKinds(business);
+  const start = business?.tipStart;
+  if (typeof start === 'string' && arten.includes(start)) return start;
+  return arten.includes('percent') ? 'percent' : arten[0]!;
+}
+
+/** Wirksame Breite der rechten Spalte; ohne Angabe `narrow`. */
+export function posCartWidth(device: Readonly<Partial<PosDeviceSettings>> | null | undefined): PosOpen<PosCartWidth> {
+  const w = device?.cartWidth;
+  return typeof w === 'string' && w !== '' ? w : 'narrow';
+}
+
 /** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
 export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
   return !!business && business.tipKeptByDefault === true;
@@ -374,14 +437,14 @@ export const POS_BUSINESS_VALUES: Readonly<Partial<Record<keyof PosBusinessSetti
   tileStyle: TILE_STYLE, autoLogoutMinutes: AUTO_LOGOUT_MINUTES, quantity: QUANTITY, discount: DISCOUNT,
   cardProvider: CARD_PROVIDER, tipMode: TIP_MODE, checkoutMode: CHECKOUT_MODE, receiptOutput: RECEIPT_OUTPUT,
   doneScreenSeconds: DONE_SCREEN_SECONDS, watermarkSide: WATERMARK_SIDE, watermarkStrength: WATERMARK_STRENGTH,
-  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE,
+  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START,
 });
 
 /** Wie [POS_BUSINESS_VALUES] fuer die Geraete-Einstellungen. */
 export const POS_DEVICE_VALUES: Readonly<Partial<Record<keyof PosDeviceSettings, readonly (string | number)[]>>> = Object.freeze({
   layout: LAYOUT, categoryPosition: CATEGORY_POSITION, tileHeight: TILE_HEIGHT, printerType: PRINTER_TYPE,
   paperSize: PAPER_SIZE, codePage: CODE_PAGE, cut: CUT, qrMode: QR_MODE, drawerAutoOpen: DRAWER_AUTO_OPEN,
-  terminalVia: TERMINAL_VIA, terminalType: TERMINAL_TYPE,
+  terminalVia: TERMINAL_VIA, terminalType: TERMINAL_TYPE, cartWidth: CART_WIDTH,
 });
 
 /** Eigene Eigenschaft, nie eine geerbte (`toString`, `constructor`, `__proto__`). */
@@ -412,6 +475,9 @@ const ALTWERTE_0X: Readonly<Record<string, readonly (string | number)[]>> = Obje
   drawerAutoOpen: ['bar', 'immer', 'nie'],
   terminalVia: ['direkt'],
   terminalType: ['keins'],
+  tipKinds: ['prozent', 'aufrunden', 'gesamt'],
+  tipStart: ['prozent', 'aufrunden', 'gesamt'],
+  cartWidth: ['schmal', 'mittel', 'breit'],
 });
 
 /** Tasten-Aktionen der inneren Form (0.x). */
@@ -454,6 +520,7 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
         const wert = (stored as Record<string, unknown>)[key];
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
         if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
+        if (OPTIONALE_WAHL.has(key) && _optionalerWahlwert(key, wert)) out[key] = Array.isArray(wert) ? [...wert] : wert;
         continue;
       }
       const wert = (stored as Record<string, unknown>)[key];
@@ -508,7 +575,13 @@ export function unknownPosSettingValues(settings: PosSettings): string[] {
     for (const k of Object.keys(mengen)) {
       const erlaubt = mengen[k];
       if (!erlaubt || !eigen(block, k)) continue;
-      if (!erlaubt.includes((block as Record<string, string | number>)[k]!)) raus.push(`${teil}.${k}`);
+      const wert = (block as Record<string, unknown>)[k];
+      // Eine Liste (tipKinds): unbekannt, sobald ein Eintrag fremd ist.
+      if (Array.isArray(wert)) {
+        if (wert.some((e) => !erlaubt.includes(e as string | number))) raus.push(`${teil}.${k}`);
+        continue;
+      }
+      if (!erlaubt.includes(wert as string | number)) raus.push(`${teil}.${k}`);
     }
   };
   pruefe('business', settings.business, POS_BUSINESS_VALUES);

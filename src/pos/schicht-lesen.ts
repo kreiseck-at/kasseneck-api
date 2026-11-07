@@ -23,6 +23,10 @@ import type {
   OpenShiftResult,
   ShiftReport,
   CloseShiftResult,
+  LastShift,
+  ShiftCountResult,
+  ShiftDifferencePart,
+  ShiftExpectedPart,
   Denominations,
   DrawerOpening,
   DrawerState,
@@ -31,6 +35,7 @@ import type {
   ShiftActor,
   ShiftReceiptHeader,
   ShiftReconciliation,
+  ShiftOwnerTip,
   ShiftRunningTotals,
   ShiftSummaryReceipt,
   ShiftTip,
@@ -159,7 +164,7 @@ function trinkgeldMitOffen(ort: Ort, w: unknown): ShiftTip {
 
 function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
   const o = pflichtObjekt(ort, w);
-  return {
+  const raus: ShiftRunningTotals = {
     cashSalesCents: ganzzahl(ort, o, 'cashSalesCents'),
     cashCancellationsCents: ganzzahl(ort, o, 'cashCancellationsCents'),
     nonCashByMethod: liste(ort, o, 'nonCashByMethod', unbar),
@@ -172,6 +177,15 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
     tips: liste(ort, o, 'tips', trinkgeld),
     openingsWithoutSale: ganzzahl(ort, o, 'openingsWithoutSale'),
   };
+  // Nur Anzeige (1.28.0); der Server sendet beides nur, wenn es etwas gibt -- gelesen wie gesendet.
+  if (o.ownerTips !== undefined && o.ownerTips !== null) raus.ownerTips = liste(ort, o, 'ownerTips', inhaberTrinkgeld);
+  if (o.unassignedTipCents !== undefined && o.unassignedTipCents !== null) raus.unassignedTipCents = ganzzahl(ort, o, 'unassignedTipCents');
+  return raus;
+}
+
+function inhaberTrinkgeld(ort: Ort, w: unknown): ShiftOwnerTip {
+  const o = pflichtObjekt(ort, w);
+  return { registerUserId: kennung(ort, o, 'registerUserId'), name: text(o.name), cents: ganzzahl(ort, o, 'cents') };
 }
 
 /** Entnehmen oder Einlegen nach dem Zaehlen; die Art bleibt offen fuer kuenftige Werte (Text). */
@@ -194,6 +208,16 @@ function abgleich(ort: Ort, w: unknown): ShiftReconciliation | null {
     }
   }
   return { matches: wahr(ort, o, 'matches'), deviations };
+}
+
+function sollTeil(ort: Ort, w: unknown): ShiftExpectedPart {
+  const o = pflichtObjekt(ort, w);
+  return { key: kennung(ort, o, 'key'), cents: ganzzahl(ort, o, 'cents') };
+}
+
+function differenzTeil(ort: Ort, w: unknown): ShiftDifferencePart {
+  const o = pflichtObjekt(ort, w);
+  return { type: kennung(ort, o, 'type'), cents: ganzzahl(ort, o, 'cents'), at: text(o.at) };
 }
 
 /** Eine Schicht; was nur mit `cashView` kommt, steht nur, wenn gesendet. */
@@ -230,6 +254,14 @@ export function schicht(ort: Ort, w: unknown): Shift {
   // Nur wenn beim Abschluss Geld entnommen oder eingelegt wurde.
   wennWert(r, o, 'afterCount', () => nachZaehlung(unter(ort, 'afterCount'), o.afterCount));
   wennWert(r, o, 'leftInDrawerCents', () => ganzzahl(ort, o, 'leftInDrawerCents'));
+  // Ablauf der Kasse: nur, wenn der Server sie sendet.
+  wennWert(r, o, 'openingCounted', () => wahr(ort, o, 'openingCounted'));
+  wennWert(r, o, 'expectedParts', () => liste(ort, o, 'expectedParts', sollTeil));
+  wennWert(r, o, 'cashTipsInDrawerCents', () => ganzzahl(ort, o, 'cashTipsInDrawerCents'));
+  wennWert(r, o, 'interimCounts', () => ganzzahl(ort, o, 'interimCounts'));
+  wennWert(r, o, 'interimDifferenceCents', () => ganzzahl(ort, o, 'interimDifferenceCents'));
+  wennWert(r, o, 'differenceParts', () => liste(ort, o, 'differenceParts', differenzTeil));
+  wennWert(r, o, 'countedBeforePayoutCents', () => ganzzahl(ort, o, 'countedBeforePayoutCents'));
   return raus;
 }
 
@@ -252,6 +284,12 @@ function oeffnung(ort: Ort, w: unknown): DrawerOpening {
     by: von ? { name: text(von.name) } : null,
     ok: wahr(ort, o, 'ok'),
   };
+}
+
+function letzteSchicht(ort: Ort, w: unknown): LastShift | null {
+  if (w === null) return null;
+  const o = pflichtObjekt(ort, w);
+  return { number: ganzzahl(ort, o, 'number'), closedAt: kennung(ort, o, 'closedAt'), closedByName: text(o.closedByName) };
 }
 
 export function ladeStand(ort: Ort, w: unknown): DrawerState {
@@ -283,6 +321,8 @@ export function ladeStand(ort: Ort, w: unknown): DrawerState {
   wennDa(r, o, 'expectedCents', () => ganzzahlOderNull(ort, o, 'expectedCents'));
   wennDa(r, o, 'recentOpenings', () => liste(ort, o, 'recentOpenings', oeffnung));
   wennWert(r, o, 'suggestedFromShiftNumber', () => ganzzahl(ort, o, 'suggestedFromShiftNumber'));
+  // Letzte Schicht der Lade: `null` ist eine Aussage („keine“), darum bleibt es stehen.
+  wennDa(r, o, 'lastShift', () => (o.lastShift === undefined ? null : letzteSchicht(unter(ort, 'lastShift'), o.lastShift)));
   // Wechselgeld der Lade: nur wenn eingestellt.
   wennWert(raus.drawer as unknown as Roh, lade, 'changeFloatCents', () => ganzzahl(ladeOrt, lade, 'changeFloatCents'));
   return raus;
@@ -370,6 +410,12 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   const r = raus as unknown as Roh;
   wennWert(r, o, 'afterCount', () => nachZaehlung(unter(ort, 'afterCount'), o.afterCount));
   wennDa(r, o, 'leftInDrawerCents', () => ganzzahlOderNull(ort, o, 'leftInDrawerCents'));
+  // Ablauf der Kasse: nur, wenn der Server sie sendet (die Bons davor tragen sie nicht).
+  wennWert(r, o, 'openingCounted', () => wahr(ort, o, 'openingCounted'));
+  wennWert(r, o, 'interimDifferenceCents', () => ganzzahl(ort, o, 'interimDifferenceCents'));
+  wennWert(r, o, 'differenceParts', () => liste(ort, o, 'differenceParts', differenzTeil));
+  wennDa(r, o, 'countedBeforePayoutCents', () => ganzzahlOderNull(ort, o, 'countedBeforePayoutCents'));
+  wennDa(r, o, 'countedBeforePayoutDenominations', () => stueckelung(ort, o, 'countedBeforePayoutDenominations'));
   return raus;
 }
 
@@ -420,6 +466,13 @@ export function geoeffnet(ort: Ort, w: unknown): OpenShiftResult {
   const raus: OpenShiftResult = { shift: schicht(unter(ort, 'shift'), o.shift) };
   wennDa(raus as unknown as Roh, o, 'handoverDifferenceCents', () => ganzzahlOderNull(ort, o, 'handoverDifferenceCents'));
   return raus;
+}
+
+export function gezaehlt(ort: Ort, w: unknown): ShiftCountResult {
+  const o = pflichtObjekt(ort, w);
+  const z = pflichtObjekt(unter(ort, 'count'), o.count);
+  const zOrt = unter(ort, 'count');
+  return { count: { expectedCents: ganzzahl(zOrt, z, 'expectedCents'), countedCents: ganzzahl(zOrt, z, 'countedCents'), differenceCents: ganzzahl(zOrt, z, 'differenceCents') } };
 }
 
 export function gebucht(ort: Ort, w: unknown): CashMovementResult {

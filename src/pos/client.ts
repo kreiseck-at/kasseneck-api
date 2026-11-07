@@ -3,7 +3,7 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { posVoucherSettingsFromWire } from './gutschein.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
-  POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
+  POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -160,10 +160,21 @@ function pruefeTeil(
       if (typeof wert !== 'boolean') throw new KasseneckValidationError(name, `${teil}.${schluessel}: true oder false erwartet`, 'request');
       continue;
     }
-    if (!Object.prototype.hasOwnProperty.call(standard, schluessel)) {
+    const wahl = teil === 'business' ? POS_BUSINESS_OPTIONAL_CHOICES : POS_DEVICE_OPTIONAL_CHOICES;
+    if (!Object.prototype.hasOwnProperty.call(standard, schluessel) && !(wahl as readonly string[]).includes(schluessel)) {
       throw new KasseneckValidationError(name, `${teil}.${schluessel}: unbekanntes Feld`, 'request');
     }
     const erlaubt = Object.prototype.hasOwnProperty.call(werte, schluessel) ? werte[schluessel] : undefined;
+    if (schluessel === 'tipKinds' && !Array.isArray(wert)) {
+      throw new KasseneckValidationError(name, `${teil}.${schluessel}: eine Liste von Trinkgeld-Arten erwartet`, 'request');
+    }
+    // Eine Liste (tipKinds): nichtleer, jeder Eintrag aus der Wertemenge, ohne Dubletten.
+    if (erlaubt && Array.isArray(wert)) {
+      if (wert.length === 0 || new Set(wert).size !== wert.length || !wert.every((e) => erlaubt.includes(e as string | number))) {
+        throw new KasseneckValidationError(name, `${teil}.${schluessel}: ungueltiger Wert (erlaubt: ${erlaubt.join(', ')}, jede Art hoechstens einmal)`, 'request');
+      }
+      continue;
+    }
     if (erlaubt && !erlaubt.includes(wert as string | number)) {
       // Kein Altwert: dann ein Wert, den der Server kennt und dieses Paket
       // nicht. Er kam beim Lesen herein; wer den ganzen Block zurueckschickt,
