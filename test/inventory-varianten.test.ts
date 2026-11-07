@@ -354,7 +354,7 @@ test('Fehler: too_many_positions traegt das Feld (variants), variant_group_inact
 // ---- Ereignisse ------------------------------------------------------------------
 
 test('parseInventoryWebhookEvent: variant_group.created|updated tragen die Gruppe wie getVariantGroup', () => {
-  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-2), ['variant_group.created', 'variant_group.updated']);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(8, 10), ['variant_group.created', 'variant_group.updated']);
   const ereignisse = (LAGER.webhookEvents as Json[]).filter((e) => e.event.startsWith('variant_group.'));
   assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), ['variant_group.created', 'variant_group.updated']);
   for (const { event, body } of ereignisse) {

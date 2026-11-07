@@ -10,6 +10,7 @@ import {
   receiptSumCents,
   receiptValueVoucherSign,
   voucherIsValid,
+  isExternalVoucher,
   type Receipt,
   type ReceiptCompany,
   type ReceiptItem,
@@ -776,6 +777,9 @@ function nettoAusBrutto(bruttoCents: number, rate: number): number {
  * nennt, allein stehen bleibt.
  */
 function gutscheinText(voucher: Voucher): string {
+  // Fremdgutschein: die Nummer des fremden Systems voll, ohne Gutscheinart (die steht beim Verkauf in der Position).
+  const fremd = fremdZeile(voucher);
+  if (fremd != null) return fremd;
   let text = '';
   if (voucher.type === VoucherType.value) {
     text += 'Wertgutschein';
@@ -820,6 +824,15 @@ function gutscheinText(voucher: Voucher): string {
  *   Auszahlung                 8:4 „Auszahlung Gutschein ····-9DWT“ | „-12,00 D“,
  *                              Text „  Grund: <Grund>“
  *   Aktion                     Rabattzeile wie bisher (Aktionsgutschein)
+ *
+ *   Fremdgutschein            wie der eigene, nur mit „Gutschein Nr. <Nummer>“ statt der
+ *   (`source: 'external'`)     Maske: Verkauf „Gutschein Nr. W-77 (Mehrzweckgutschein)“ bzw.
+ *                              „(Einzweckgutschein 20 %)“ (Name der Position vom Server),
+ *                              Einloesung Einzweck 8:4 „Gutschein Nr. FG-1234“ | „-20,00 A“ und
+ *                              Text „  Einzweck, versteuert mit FG-1234-V“ (nur mit
+ *                              `taxedWith`), Mehrzweck nach „Zwischensumme“ „Gutschein Nr.
+ *                              W-77“ | „-3,00 €“, Auszahlung „Auszahlung Gutschein Nr. …“;
+ *                              nie „Rest am Gutschein“ (den Saldo kennt nur das fremde System)
  *
  * Vermerke sind Textzeilen mit zwei fuehrenden Leerzeichen; das Raster bricht
  * sie mit demselben Einzug um (grid.ts, haengender Einzug), auf 58 mm etwa
@@ -869,6 +882,17 @@ function gutscheinEndung(voucher: Voucher): string | null {
 
 const MEHRZWECK_UST_TEXT = '  USt bei Einlösung';
 
+/** Zeile eines Fremdgutscheins `Gutschein Nr. <Nummer>`; null bei einem eigenen Gutschein oder ohne Nummer. */
+function fremdZeile(voucher: Voucher): string | null {
+  return isExternalVoucher(voucher) && typeof voucher.number === 'string' && voucher.number !== '' ? `Gutschein Nr. ${voucher.number}` : null;
+}
+
+/** Ein gelesener Eintrag mit Wert: beim Fremdgutschein ganze positive Cent, sonst wie [voucherIsValid]. */
+function eintragGueltig(voucher: Voucher): boolean {
+  if (!isExternalVoucher(voucher)) return voucherIsValid(voucher);
+  return Number.isSafeInteger(voucher.valueCents) && (voucher.valueCents as number) > 0;
+}
+
 interface GutscheinPosition {
   voucher: Voucher;
   /** Letzte Position dieses Gutscheins (darunter stehen Vermerk und Rest). */
@@ -901,9 +925,10 @@ function gutscheinPositionen(receipt: Receipt): Map<number, GutscheinPosition> {
       if (i >= 0) zuordnung.set(i, { voucher, letzte: true });
       continue;
     }
+    const fremd = fremdZeile(voucher);
     const endung = gutscheinEndung(voucher);
-    if (endung == null || (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout)) continue;
-    const name = `${voucher.action === VoucherAction.payout ? 'Auszahlung ' : ''}Gutschein ····-${endung}`;
+    if ((fremd == null && endung == null) || (voucher.action !== VoucherAction.redeem && voucher.action !== VoucherAction.payout)) continue;
+    const name = `${voucher.action === VoucherAction.payout ? 'Auszahlung ' : ''}${fremd ?? `Gutschein ····-${endung}`}`;
     const ziel = Number.isInteger(voucher.amountCents) ? Math.abs(voucher.amountCents!) : Math.abs(voucher.valueCents ?? 0);
     const genommen: number[] = [];
     let summe = 0;
@@ -945,6 +970,11 @@ function gutscheinPositionsZeilen(item: ReceiptItem, satz: Steuersatz, zu: Gutsc
     return zeilen;
   }
   const art = v.type === VoucherType.service ? 'Leistung' : 'Einzweck';
+  if (isExternalVoucher(v)) {
+    // Fremdgutschein: Vermerk nur mit `taxedWith` (Beleg im fremden System, wie gesendet), kein Rest.
+    if (typeof v.taxedWith === 'string' && v.taxedWith !== '') zeilen.push(textZeile(`  ${art}, versteuert mit ${v.taxedWith}`));
+    return zeilen;
+  }
   if (typeof v.taxedWith === 'string' && v.taxedWith !== '') {
     zeilen.push(textZeile(`  ${art}, versteuert mit Beleg ${v.taxedWith}`));
   } else if (v.exempt === true) {
@@ -1431,17 +1461,18 @@ export function buildReceiptLayout(
     if (gutscheinStehtAlsPosition(voucher)) continue;
     const wert = voucher.valueCents ?? 0;
     const vz = voucher.type === VoucherType.value ? wgVz : 1;
-    if (voucherIsValid(voucher) && voucher.action === VoucherAction.sell) {
+    if (eintragGueltig(voucher) && voucher.action === VoucherAction.sell) {
       gruppeVon(steuersatz(VatRate.vat0)).bruttoCents += vz * wert;
     }
     if (voucher.action === VoucherAction.sell && voucher.type === VoucherType.value) {
       // Mehrzweck mit Code (vor dem Stichtag nur als Eintrag): wie die Position im 0-%-Topf.
       const mehrzweck = istMehrzweckMitCode(voucher);
       const code = gutscheinCodeZusatz(voucher);
+      const fremd = fremdZeile(voucher);
       lines.push({
         kind: 'columns',
         columns: [
-          { text: `1  x ${mehrzweck ? `Mehrzweckgutschein${code}` : gutscheinText(voucher)}`, width: 7, align: 'left' },
+          { text: `1  x ${fremd != null ? `${fremd} (Mehrzweckgutschein)` : mehrzweck ? `Mehrzweckgutschein${code}` : gutscheinText(voucher)}`, width: 7, align: 'left' },
           { text: `${formatCents(vz * wert)} ${VatRate.vat0.category}`, width: 5, align: 'right' },
         ],
       });
@@ -1525,8 +1556,10 @@ export function buildReceiptLayout(
       // (Zahlungszeile laut Spec); eine Auszahlung ohne `zeroRateBucket`
       // (schreibt der Server nicht) zaehlt wie in receiptSumCents.
       const wert = voucher.valueCents ?? 0;
-      const endung = istMehrzweckMitCode(voucher) ? gutscheinEndung(voucher) : null;
-      const text = endung != null ? `Gutschein ····-${endung}` : gutscheinText(voucher);
+      // Fremdgutschein: „Gutschein Nr. <Nummer>“, nie ein Rest (den Saldo kennt nur das fremde System).
+      const fremd = fremdZeile(voucher);
+      const endung = fremd == null && istMehrzweckMitCode(voucher) ? gutscheinEndung(voucher) : null;
+      const text = fremd ?? (endung != null ? `Gutschein ····-${endung}` : gutscheinText(voucher));
       lines.push(paarZeile(voucher.action === VoucherAction.payout ? `Auszahlung ${text}` : text, wgVz === 1 ? `-${formatCents(wert)} €` : `${formatCents(wert)} €`, 8, 4));
       if (endung != null && wgVz === 1 && Number.isInteger(voucher.balanceAfterCents)) {
         lines.push(paarZeile('  Rest am Gutschein', `${formatCents(voucher.balanceAfterCents!)} €`, 8, 4));

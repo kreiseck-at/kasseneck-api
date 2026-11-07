@@ -10,7 +10,11 @@ export {
   type TipRecipient,
   isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem,
 } from './receipt-item.js';
-export { type Voucher, type VoucherArticle, type IssuedVoucher, type ReturnIssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields } from './voucher.js';
+export {
+  type Voucher, type VoucherArticle, type IssuedVoucher, type ReturnIssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields,
+  type VoucherSource, VOUCHER_SOURCES, isExternalVoucher, externalVoucherIsValid, normalizeExternalVoucherNumber, checkExternalVoucherNumber, type ExternalVoucherNumberCheck,
+  EXTERNAL_VOUCHER_NUMBER_MAX, EXTERNAL_VOUCHER_TAXED_WITH_MAX, EXTERNAL_VOUCHER_VAT_RATES_BP,
+} from './voucher.js';
 export {
   type Receipt,
   type RegistrationInfo,

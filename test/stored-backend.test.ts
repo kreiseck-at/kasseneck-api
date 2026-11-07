@@ -285,7 +285,9 @@ test('stored-backend: Gutschein-Katalog - Gesamt = Zahlbetrag, Steuertabelle = T
         if (receiptSumCents(beleg) !== soll) abweichend.push(`${name}: receiptSumCents ${receiptSumCents(beleg)}, Zahlbetrag ${soll}`);
         if (gesamt(l) !== euro(soll)) abweichend.push(`${name}: Gesamt ${gesamt(l)}, Zahlbetrag ${euro(soll)}`);
         const ohneTopf = GUTSCHEIN_VOR_STICHTAG.includes(f.name) || GUTSCHEIN_BEKANNT.includes(f.name);
-        if (!ohneTopf && JSON.stringify(steuer(l)) !== JSON.stringify(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
+        // Reihenfolge der Steuertabelle ist die der Positionen; verglichen werden die Betraege je Kategorie.
+        const sortiert = (o: Record<string, number>): string => JSON.stringify(Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b))));
+        if (!ohneTopf && sortiert(steuer(l)) !== sortiert(toepfe(doc))) abweichend.push(`${name}: Steuer ${JSON.stringify(steuer(l))}, Toepfe ${JSON.stringify(toepfe(doc))}`);
       }
     }
     assert.ok(geprueft > 30, `nur ${geprueft} Belege`);

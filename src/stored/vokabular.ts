@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "eefe98022cb8b6287b5c72ae919341a5fb5c3671fc5cf9afae3d29c35402398b";
+export const VOKABULAR_QUELLE = "9d48439bbba1b70152f4c00f4c5a9b2b00c1cae061503c858d3cb36264d7e4e4";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -56,6 +56,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "testCashregister": "testKasse",
       "testSignature": "testSignatur",
+      "deprecation": "deprecation",
       "logo_scale": "logo_skala",
       "layout": {
         "__": "layout",
@@ -300,6 +301,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           }
         ],
         "serviceArticles": "leistungsArtikel",
+        "externalVouchers": "fremd",
         "returnType": {
           "__": "rueckgabe",
           "typeId": "sorteId",
@@ -385,6 +387,11 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "vouchers.types[].payout": {
         "$catalog": "GUTSCHEIN_AUSZAHLUNG"
+      },
+      "vouchers.externalVouchers": {
+        "aus": "off",
+        "wert": "multi_purpose",
+        "beide": "all"
       }
     }
   },
@@ -757,5 +764,12 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "falsche_zahlart": "wrong_payment_method",
     "doppelt_erfasst": "duplicate",
     "sonstiges": "other"
+  }
+};
+
+/** Kataloge der Gutschein-Eintraege am Beleg ohne Schemaverweis (`quelle` eines Fremdgutscheins), innen -> aussen. */
+export const ZUSATZ_KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "GUTSCHEIN_QUELLE": {
+    "extern": "external"
   }
 };

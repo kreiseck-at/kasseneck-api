@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "7781447b4d50979c70a5d117afb9ef7e93a0d93f01d19b25bbfd1ab233dfff69",
-    "inputsSha256": "cb5e735599e0e27f0f8de95356d7410a2cde1ee8417f426a684e0f61c11c05ce",
+    "sha256": "a3823f85cc0afc99290cc18295aaf4ce4e0a6abe5cdc3746ae28077a7cac5850",
+    "inputsSha256": "c56beb1b8cb9fe32450b48e0240a49d1f582f5e46f9ab1d741fef778604ce3b5",
     "backendPackage": "@kreiseck/kasseneck-api@0.37.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -1771,6 +1771,7 @@
           "registrationInfo": null,
           "testCashregister": true,
           "testSignature": false,
+          "deprecation": "Value vouchers with a freely typed code (vouchers type value) are deprecated: the code is not checked and the voucher is a third-party multi-purpose voucher for VAT. Send vouchers of other systems with source external (kind, tax rate and amount); issue own vouchers with a code from a voucher type.",
           "logo_scale": "M",
           "layout": {
             "paperSize": "mm80",

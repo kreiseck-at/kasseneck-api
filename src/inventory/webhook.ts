@@ -18,7 +18,8 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { verifyWebhookSignature as pruefeSignatur } from '../partner/webhook-signatur.js';
 import { artikel, bestandGeaendert, objekt, reservierung, unterMindestbestand, variantengruppe } from './lesen.js';
 import { INVENTORY_WEBHOOK_EVENTS, type InventoryWebhookEventType } from './vertrag.js';
-import type { InventoryWebhookEvent } from './typen.js';
+import type { InventoryWebhookEvent, ReceiptCancelledEventData, ReceiptCreatedEventData } from './typen.js';
+import { vollerBeleg } from '../client/list-receipts.js';
 
 export {
   WEBHOOK_SIGNATURE_HEADER,
@@ -86,6 +87,9 @@ function kaputt(grund: string): KasseneckValidationError {
  * - `variant_group.created|updated` tragen die Gruppe wie `getVariantGroup`
  *   (seit 1.6.0). Zwei Zustellungen koennen sich ueberholen: den Stand nur
  *   uebernehmen, wenn `data.updatedAt` neuer ist als der gespeicherte.
+ * - `receipt.created|cancelled` (Beleg-Webhooks) tragen den Beleg wie
+ *   `listReceipts` mit `view: 'full'` ([ReceiptCreatedEventData],
+ *   [ReceiptCancelledEventData]).
  * - Ein Rumpf, der keine Huelle ist, oder eine Bruchzahl in einer Menge wirft
  *   `KasseneckValidationError` (`scope: 'response'`).
  *
@@ -123,7 +127,41 @@ export function parseInventoryWebhookEvent(rawBody: string | Uint8Array): Invent
     case 'variant_group.created':
     case 'variant_group.updated':
       return { ...huelle, type: huelle.type, data: variantengruppe(ort, data) };
+    case 'receipt.created':
+      return { ...huelle, type: huelle.type, data: belegDaten(data as Record<string, unknown>) };
+    case 'receipt.cancelled':
+      return { ...huelle, type: huelle.type, data: stornoDaten(data as Record<string, unknown>) };
     default:
       return { ...huelle, type: huelle.type, data: artikel(ort, data) };
   }
+}
+
+/** `data` von `receipt.created`: der Beleg der vollen Ansicht, bei einer gekuerzten Zustellung mit Hinweis. */
+function belegDaten(data: Record<string, unknown>): ReceiptCreatedEventData {
+  const beleg = objekt(data['receipt']);
+  if (!beleg) throw kaputt('Ereignis ohne data.receipt');
+  return {
+    receipt: vollerBeleg(beleg),
+    ...(data['truncated'] === true ? { truncated: true as const } : {}),
+    ...(typeof data['hint'] === 'string' ? { hint: data['hint'] } : {}),
+  };
+}
+
+const ganzOderNull = (w: unknown): number | null => (typeof w === 'number' && Number.isInteger(w) ? w : null);
+const textOderNull = (w: unknown): string | null => (typeof w === 'string' && w !== '' ? w : null);
+
+/** `data` von `receipt.cancelled`: dazu Bezug, stornierte Positionen und Rueckzahlungen aus dem Storno-Beleg. */
+function stornoDaten(data: Record<string, unknown>): ReceiptCancelledEventData {
+  const { cancellationOf, cancelledItems, refunds } = data;
+  if (cancellationOf !== null && typeof cancellationOf !== 'string') throw kaputt('data.cancellationOf ist weder Text noch null');
+  if (!Array.isArray(cancelledItems) || cancelledItems.some((x) => !objekt(x))) throw kaputt('data.cancelledItems ist keine Liste von Positionen');
+  if (!Array.isArray(refunds) || refunds.some((x) => !objekt(x))) throw kaputt('data.refunds ist keine Liste von Rueckzahlungen');
+  return {
+    ...belegDaten(data),
+    cancellationOf: cancellationOf === '' ? null : cancellationOf,
+    cancelledItems: (cancelledItems as Record<string, unknown>[]).map((p) => ({ index: ganzOderNull(p['index']), quantity: ganzOderNull(p['quantity']) })),
+    refunds: (refunds as Record<string, unknown>[]).map((r) => ({
+      refundOf: textOderNull(r['refundOf']), amountCents: ganzOderNull(r['amountCents']), method: textOderNull(r['method']),
+    })),
+  };
 }

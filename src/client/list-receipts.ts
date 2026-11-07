@@ -409,8 +409,11 @@ function kopfdaten(roh: unknown): ReportV2Metadata {
 
 const LOGO_STUFEN: readonly string[] = ['S', 'M', 'L', 'XL'];
 
-/** Ein Beleg der vollen Ansicht vom Draht: das Belegdokument und die Zusaetze, die `getReceipt` in der Huelle traegt. */
-function vollerBeleg(roh: Record<string, unknown>): ListedFullReceipt {
+/**
+ * Ein Beleg der vollen Ansicht vom Draht: das Belegdokument und die Zusaetze, die `getReceipt` in der Huelle traegt.
+ * Paketintern auch fuer die Beleg-Webhooks (dieselbe Darstellung, `parseInventoryWebhookEvent`).
+ */
+export function vollerBeleg(roh: Record<string, unknown>): ListedFullReceipt {
   const beleg: ListedFullReceipt = fromReceiptPayload(roh as unknown as ReceiptPayloadRead);
   if (typeof roh['testSignature'] === 'boolean') beleg.testSignature = roh['testSignature'];
   return beleg;

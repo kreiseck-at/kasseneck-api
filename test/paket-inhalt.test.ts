@@ -86,7 +86,7 @@ const ABNEHMER: Record<string, string> = {
   'invoice-calc-random.json': 'Prueffaelle Rechenkern (Python-Referenz): Server, Dart, Panel',
   'invoice-totals.json': 'Prueffaelle Rechnungssummen: Dart-Zwilling; kasseneck-web apps/app/src/lib/invoice-summen.test.ts',
   'invoice-texts.json': 'Textkatalog der Rechnung: Dart (das Backend liest noch die 0.x-Datei)',
-  'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/)',
+  'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/); voucher-cases.json = Backend gutschein-faelle.json byte-gleich (Gutscheine am Beleg samt Fremdgutscheinen): Dart-Zwilling, Web-Kasse, Kassen-App',
   'add-on-cases.json': 'Pruefaelle Zusatz-Kacheln (waehlbar, wirksame Liste, Verweise, Storno, Bon- und Belegreihenfolge): Dart 11, Web-Kasse, Panel, Backend zusatz-faelle.json',
   'reference-cases.json': 'Pruefaelle Kachel mit Betrag und Referenz (Muster, Eingabe, Ziffernfeld, Positionsname): Dart 11, Web-Kasse, Backend referenz-faelle.json',
   'shift-ablauf-cases.json': 'Z-Bon der Schicht mit Zwischenzaehlung, Zaehlung vor Auszahlung und Differenz-Teilen (shiftReceiptLayout): Dart-Zwilling',

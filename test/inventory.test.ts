@@ -15,6 +15,7 @@ import {
   inventoryRetryAfterSec,
   INVENTORY_ENDPOINTS,
   INVENTORY_WEBHOOK_EVENTS,
+  RECEIPT_WEBHOOK_EVENTS,
   INVENTORY_WEBHOOK_ENVELOPE_FIELDS,
   INVENTORY_ERROR_CODES,
   INVENTORY_REQUEST_ERROR_CODES,
@@ -193,12 +194,14 @@ test('Lager-API: die Wertlisten sind die Kataloge des Vertrags (aussen, in Katal
 });
 
 test('Lager-API: INVENTORY_WEBHOOK_EVENTS sind genau die Konto-Ereignisse des Vertrags, in der Reihenfolge von listWebhooks', () => {
-  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => /^(stock|article|reservation|variant_group)\./.test(e));
+  const imVertrag = Object.keys(VOKABULAR.events).filter((e) => /^(stock|article|reservation|variant_group|receipt)\./.test(e));
   assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS].sort(), imVertrag.sort());
   assert.deepEqual([...INVENTORY_WEBHOOK_EVENTS], daten('list_webhooks').events);
-  // Angehaengt wird hinten: 5b die Reservierung, 5c die Variantengruppen.
+  // Angehaengt wird hinten: 5b die Reservierung, 5c die Variantengruppen, dann die Beleg-Webhooks.
   assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(5, 8), ['reservation.expired', 'reservation.released', 'reservation.redeemed']);
-  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-2), ['variant_group.created', 'variant_group.updated']);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(8, 10), ['variant_group.created', 'variant_group.updated']);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-2), ['receipt.created', 'receipt.cancelled']);
+  assert.deepEqual(INVENTORY_WEBHOOK_EVENTS.slice(-2), [...RECEIPT_WEBHOOK_EVENTS]);
   assert.deepEqual([...INVENTORY_WEBHOOK_ENVELOPE_FIELDS], ['id', 'type', 'createdAt', 'accountId', 'test', 'data']);
 });
 
@@ -355,7 +358,9 @@ test('Vertrag antworten/lager.json: Zustellungen und Webhooks tragen die Namen d
 
 test('Vertrag antworten/lager.json: jedes zugestellte Ereignis liest sich typisiert', () => {
   const ereignisse = LAGER.webhookEvents as Json[];
-  assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), [...INVENTORY_WEBHOOK_EVENTS].sort());
+  // Die Beleg-Ereignisse zeigt der Lager-Export nicht (eigener Test unten, mit dem Beleg aus antworten/belege.json).
+  const lager = INVENTORY_WEBHOOK_EVENTS.filter((e) => !(RECEIPT_WEBHOOK_EVENTS as readonly string[]).includes(e));
+  assert.deepEqual([...new Set(ereignisse.map((e) => e.event))].sort(), [...lager].sort());
   for (const { event, body } of ereignisse.filter((e) => /^(reservation|variant_group)\./.test(e.event))) {
     for (const k of schluessel(VOKABULAR.events[event].data)) assert.ok(k in body.data, `${event}.${k}`);
   }
@@ -379,10 +384,12 @@ test('Lager-API: INVENTORY_ERROR_CODES = errorCodes.inventory (ohne register_use
   assert.deepEqual(INVENTORY_ERROR_CODES.filter((c) => !alle.has(c)), []);
   const vertrag = (VOKABULAR.errorCodes.inventory as string[]).filter((c) => c !== 'register_user_not_allowed');
   assert.deepEqual([...INVENTORY_ERROR_CODES].sort(), [...vertrag].sort());
-  // Angehaengt wird hinten: die 12 Codes aus 1.4.0 stehen unveraendert vorn, dahinter 5b in Vertragsreihenfolge.
-  assert.deepEqual(INVENTORY_ERROR_CODES.slice(0, 12), [
+  // Die 12 Codes aus 1.4.0 stehen unveraendert vorn, dahinter (wie im Vertrag) webhook_event_not_available der
+  // Beleg-Webhooks, dann 5b in Vertragsreihenfolge.
+  assert.deepEqual(INVENTORY_ERROR_CODES.slice(0, 13), [
     'validation', 'invalid_cursor', 'article_not_found', 'webhook_not_found', 'webhook_limit', 'invalid_webhook_url',
     'event_not_subscribed', 'webhook_inactive', 'inventory_api_not_enabled', 'module_inactive', 'rate_limited', 'server_error',
+    'webhook_event_not_available',
   ]);
   assert.deepEqual(INVENTORY_ERROR_CODES.slice(12), vertrag.slice(vertrag.indexOf('server_error') + 1));
   // 5c haengt hinter 5b an (die Reihenfolge der 1.5-Codes bleibt), die Inventur (1.8.0) dahinter.

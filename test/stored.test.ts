@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import * as stored from '../src/stored/index.js';
 import { _RUECKGABE_NACH_AUSSEN, _storedArticleToWire, _storedReceiptToWire } from '../src/stored/draht.js';
 import { _storedPosSettingsToWire } from '../src/stored/einstellungen.js';
-import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, VOKABULAR_QUELLE } from '../src/stored/vokabular.js';
+import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, VOKABULAR_QUELLE, ZUSATZ_KATALOGE } from '../src/stored/vokabular.js';
 import type { InternerTransport } from '../src/client/aufrufe.js';
 import { getReceipt, getReceiptWithCompany } from '../src/client/receipts.js';
 import { posSettingsFromWire } from '../src/pos/client.js';
@@ -85,6 +85,9 @@ test('stored: das Vokabular stammt woertlich aus dem Vertrags-Export', () => {
   const verwiesen = new Set(Object.values(SCHEMAS).flatMap((s) => Object.values(s.werte).map((w) => (w as { $catalog?: string }).$catalog).filter((n): n is string => typeof n === 'string')));
   assert.deepEqual(Object.keys(KATALOGE).sort(), [...verwiesen].sort());
   for (const [name, katalog] of Object.entries(KATALOGE)) assert.deepEqual(katalog, VOKABULAR.catalogs[name], name);
+  // Zusatz: die Herkunft eines Fremdgutscheins am Beleg (ohne Schemaverweis), ebenso woertlich.
+  assert.deepEqual(Object.keys(ZUSATZ_KATALOGE), ['GUTSCHEIN_QUELLE']);
+  for (const [name, katalog] of Object.entries(ZUSATZ_KATALOGE)) assert.deepEqual(katalog, VOKABULAR.catalogs[name], name);
 });
 
 // ---- Belege ------------------------------------------------------------------
@@ -481,7 +484,7 @@ test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit
     assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: innen }).cancellationReason, aussen, innen);
     assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: aussen }).cancellationReason, aussen, aussen);
   }
-  // Die 75 Golden-Belege in der Form 1.0 (fixtures/receipts/): dasselbe Modell
+  // Die 77 Golden-Belege in der Form 1.0 (fixtures/receipts/): dasselbe Modell
   // wie ueber den Leser der Antwort, und daraus dasselbe Zeilenmodell wie das Golden.
   const ordner = new URL('../../fixtures/receipts/', import.meta.url);
   const namen = readdirSync(ordner).filter((n) => n.endsWith('.json'));
@@ -496,5 +499,5 @@ test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit
     assert.deepEqual(buildReceiptLayout(modell, f.company, f.options ?? {}), golden, name);
     geprueft++;
   }
-  assert.equal(geprueft, 75);
+  assert.equal(geprueft, 77);
 });

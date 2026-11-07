@@ -1,5 +1,5 @@
 import { KasseneckValidationError } from '../client/errors.js';
-import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt, type Wertverweis } from './vokabular.js';
+import { ARTIKEL_FELDER, KATALOGE, SCHEMAS, ZUSATZ_KATALOGE, type SchemaEintrag, type SchemaObjekt, type Wertverweis } from './vokabular.js';
 
 /*
  * Gespeicherte Form (Firestore, innen, deutsch) -> Drahtform `/v3` (englisch),
@@ -164,6 +164,8 @@ const BELEG_GUTSCHEIN: Readonly<Record<string, string>> = {
   article: 'artikel', articleId: 'artikelId', quantity: 'stueck', positions: 'positionen',
   balanceAfterCents: 'saldoNachCents', remainingQuantityAfter: 'stueckOffenNach', taxedWith: 'versteuertMit', exempt: 'befreit',
   reason: 'grund', zeroRateBucket: 'imNullTopf', typeId: 'sorteId', typeName: 'sorteName', payout: 'auszahlung',
+  // Fremdgutschein: source external (GUTSCHEIN_QUELLE) und die Nummer des fremden Systems.
+  source: 'quelle', number: 'nummer',
 };
 const BELEG_GUTSCHEIN_AUSSEN: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(BELEG_GUTSCHEIN).map(([aussen, innen]) => [innen, aussen]));
 const GUTSCHEIN_ARTIKEL_AUSSEN: Readonly<Record<string, string>> = { satzBp: 'vatRateBp', preisCents: 'priceCents' };
@@ -177,6 +179,7 @@ function gutscheinEintragNachAussen(v: unknown): unknown {
   if (!istObjekt(v)) return v;
   const art = KATALOGE.GUTSCHEIN_ART ?? {};
   const auszahlung = KATALOGE.GUTSCHEIN_AUSZAHLUNG ?? {};
+  const quelle = ZUSATZ_KATALOGE.GUTSCHEIN_QUELLE ?? {};
   const typNeu = typeof v.type === 'string' && hat(art, v.type);
   if (!typNeu && !Object.keys(v).some((k) => hat(BELEG_GUTSCHEIN_AUSSEN, k))) return v;
   const raus: Objekt = {};
@@ -184,6 +187,7 @@ function gutscheinEintragNachAussen(v: unknown): unknown {
     if (k === 'type') raus.type = typNeu ? art[w as string] : w;
     else if (k === 'art') raus.voucherType = typeof w === 'string' && hat(art, w) ? art[w] : w;
     else if (k === 'artikel') raus.article = istObjekt(w) ? umbenannt(w, GUTSCHEIN_ARTIKEL_AUSSEN) : w;
+    else if (k === 'quelle') raus.source = typeof w === 'string' && hat(quelle, w) ? quelle[w] : w;
     else if (k === 'auszahlung') raus.payout = typeof w === 'string' && hat(auszahlung, w) ? auszahlung[w] : w;
     else raus[hat(BELEG_GUTSCHEIN_AUSSEN, k) ? BELEG_GUTSCHEIN_AUSSEN[k]! : k] = w;
   }

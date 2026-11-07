@@ -4,7 +4,7 @@
     "default": {
       "sha256": "b3ed9b5e54fb6a0c27c2e9b494c8676926b80b4527236f0f4f71403c455fa477",
       "head": [],
-      "inputsSha256": "3621304133a3abf0454ddd1413449a9c4535e048d039d8e65a5f2b9295b2bde5",
+      "inputsSha256": "6ba0c69eed979f4aadf6d735299e824a52b0f5eb8bf9c54043c75cbe16efca7f",
       "backendPackage": "@kreiseck/kasseneck-api@0.37.0",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -19,12 +19,12 @@
       ]
     },
     "kasse": {
-      "sha256": "cb70d2265302087361db82d350eefb7652eda744f241aab3dad00b2b4de85179",
+      "sha256": "1ea9e8da42c9f02eb58e68806be7584d9ccb42b372cd777458f13fd427c92570",
       "head": [
         "channel",
         "note"
       ],
-      "inputsSha256": "0fa65778a716dc201591178d8621e9cd996368524db5ae074cc181f8f95d19e7",
+      "inputsSha256": "0c2964735924e0dbeff53e6f3535b1eaad0b0e6d92d24b1f22d63cb5b8d2c9b7",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
@@ -10891,7 +10891,8 @@
                   "freeText": []
                 },
                 "types": [],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,
@@ -11096,7 +11097,8 @@
                   "freeText": []
                 },
                 "types": [],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,
@@ -11339,7 +11341,8 @@
                   "freeText": []
                 },
                 "types": [],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,
@@ -11544,7 +11547,8 @@
                   "freeText": []
                 },
                 "types": [],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,
@@ -11749,7 +11753,8 @@
                   "freeText": []
                 },
                 "types": [],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,
@@ -12052,7 +12057,8 @@
                     "soldCount": 2
                   }
                 ],
-                "serviceArticles": false
+                "serviceArticles": false,
+                "externalVouchers": "off"
               },
               "connect": {
                 "minimumVersion": null,

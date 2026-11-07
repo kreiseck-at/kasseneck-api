@@ -35,6 +35,7 @@ import type {
   WebhookDeliveryStatus,
   WithdrawalType,
 } from './vertrag.js';
+import type { ListedFullReceipt } from '../client/list-receipts.js';
 
 // ---- Artikel ------------------------------------------------------------------
 
@@ -410,6 +411,47 @@ export interface InventoryWebhookEnvelope<T extends InventoryWebhookEventType, D
   data: D;
 }
 
+/**
+ * Nutzlast von `receipt.created` (Beleg-Webhooks): der Beleg wie `listReceipts` mit `view: 'full'` (dieselbe
+ * Darstellung, auch Fremdgutscheine mit Nummer, eigene maskiert). Ist der Beleg fuer eine Zustellung zu gross,
+ * fehlen seine Positionen (`receipt.items` leer), `truncated` ist `true` und `hint` sagt, ihn mit `getReceipt`
+ * zu holen.
+ */
+export interface ReceiptCreatedEventData {
+  receipt: ListedFullReceipt;
+  /** Nur bei einer gekuerzten Zustellung: `true` (die Positionen fehlen). */
+  truncated?: true;
+  /** Nur bei einer gekuerzten Zustellung: Hinweis (deutsch). */
+  hint?: string;
+}
+
+/** Eine stornierte Position aus dem Storno-Beleg (`cancelledItems[]`). */
+export interface ReceiptCancelledItem {
+  /** Index der Position im Original; `null`, wenn der Storno-Beleg ihn nicht traegt (Positionen ohne Artikel). */
+  index: number | null;
+  quantity: number | null;
+}
+
+/** Eine Rueckzahlung des Storno-Belegs (`refunds[]`): Betrag positiv in Cent. */
+export interface ReceiptRefund {
+  /** Kennung der Zahlung im Original (`payments[].id`); `null` ohne Bezug (etwa bar zurueck). */
+  refundOf: string | null;
+  amountCents: number | null;
+  /** Zahlart wie in `payments[].method`. */
+  method: string | null;
+}
+
+/**
+ * Nutzlast von `receipt.cancelled`: der Storno-Beleg wie bei `receipt.created`, dazu Bezug, stornierte Positionen
+ * und Rueckzahlungen, abgeleitet aus dem Storno-Beleg selbst. `cancellationOf` ist die Beleg-ID des Originals;
+ * der veraltete Storno ohne Bezug traegt `null`.
+ */
+export interface ReceiptCancelledEventData extends ReceiptCreatedEventData {
+  cancellationOf: string | null;
+  cancelledItems: ReceiptCancelledItem[];
+  refunds: ReceiptRefund[];
+}
+
 export type InventoryWebhookEvent =
   | InventoryWebhookEnvelope<'stock.changed', StockChangedEventData>
   | InventoryWebhookEnvelope<'stock.below_minimum', StockBelowMinimumEventData>
@@ -420,7 +462,9 @@ export type InventoryWebhookEvent =
   | InventoryWebhookEnvelope<'reservation.released', Reservation>
   | InventoryWebhookEnvelope<'reservation.redeemed', Reservation>
   | InventoryWebhookEnvelope<'variant_group.created', VariantGroup>
-  | InventoryWebhookEnvelope<'variant_group.updated', VariantGroup>;
+  | InventoryWebhookEnvelope<'variant_group.updated', VariantGroup>
+  | InventoryWebhookEnvelope<'receipt.created', ReceiptCreatedEventData>
+  | InventoryWebhookEnvelope<'receipt.cancelled', ReceiptCancelledEventData>;
 
 // ---- Schreiben (Backend Stufe 5b, seit 1.5.0) ---------------------------------
 //

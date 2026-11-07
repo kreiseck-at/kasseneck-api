@@ -819,6 +819,20 @@ cancellation may have been booked: read the original again, never retry.
 
 `createCancelReceipt` and cancelling through `createReceipt` are gone in 1.0.
 
+**External vouchers.** Vouchers of another system (merchandise management,
+web shop) are sold, redeemed and paid out with `source: 'external'`:
+`{ source: 'external', action, type: 'multi_purpose' | 'single_purpose', number,
+amountCents }`, a single-purpose voucher with `vatRateBp` (the rate it was sold
+with, `0` = sold exempt) and optionally `taxedWith` when redeemed or paid out,
+a payout with `reason`. Kasseneck keeps no balance: the business says kind,
+rate and amount, its own system books the balance (`receipt.created`). The
+account must allow it (`getKasseSettings` `vouchers.externalVouchers`: `off`,
+`multi_purpose`, `all`). `checkExternalVoucherNumber` checks the number like
+the server (1 to 40 characters `A–Z a–z 0–9 - _ . /` after trimming; an own
+voucher code is refused). The receipt shows `Gutschein Nr. <number>`, never a
+remaining balance. A value voucher of the old form with a freely typed `code`
+(`type: 'value'`) still works but is deprecated (`deprecation` in the answer).
+
 **Vouchers.** A value voucher is only mirrored on a full cancellation (without
 `items`); it cannot be split. A discount voucher is already part of the
 original's turnover, and **every** cancellation takes it back in proportion to
@@ -1789,6 +1803,19 @@ app.post('/kasseneck-webhook', express.raw({ type: '*/*' }), async (req, res) =>
   the change; `released` and `redeemed` also fire for a partial release or
   redemption (status still `active`). Deduplicate on `event.id`; deliveries
   are retried after 1 min, 5 min, 30 min, 2 h and 12 h.
+- **Receipt events.** `receipt.created` fires for every newly signed receipt
+  of every kind (sale, cancellation, start, zero, monthly, annual, final),
+  `receipt.cancelled` additionally for every cancellation receipt, with
+  `cancellationOf` (receipt id of the original, `null` for the deprecated
+  cancellation without reference), `cancelledItems` and `refunds`. The receipt
+  is the one `listReceipts` returns with `view: 'full'`
+  (`RECEIPT_WEBHOOK_EVENTS`, `ReceiptCreatedEventData`,
+  `ReceiptCancelledEventData`). The event id is fixed per receipt and event;
+  the receipt number runs on per register, so a gap is fetched with
+  `listReceipts`. A receipt too large for a delivery comes without `items`,
+  with `truncated: true` and a `hint`. Every account may manage webhooks; an
+  event needs its module (`receipt.*` the register, the others inventory),
+  otherwise `webhook_event_not_available`.
 - **Safety net without webhooks.** `listStock({ changedSince })` and
   `listArticles({ updatedSince })` are sorted by `updatedAt` ascending and
   include the boundary, so remembering the last `updatedAt` and asking again

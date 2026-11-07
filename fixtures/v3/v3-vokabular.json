@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "eefe98022cb8b6287b5c72ae919341a5fb5c3671fc5cf9afae3d29c35402398b",
-    "inputsSha256": "cb5e735599e0e27f0f8de95356d7410a2cde1ee8417f426a684e0f61c11c05ce",
+    "sha256": "9d48439bbba1b70152f4c00f4c5a9b2b00c1cae061503c858d3cb36264d7e4e4",
+    "inputsSha256": "c56beb1b8cb9fe32450b48e0240a49d1f582f5e46f9ab1d741fef778604ce3b5",
     "backendPackage": "@kreiseck/kasseneck-api@0.37.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -606,7 +606,9 @@
       "typeId": "sorteId",
       "typeName": "sorteName",
       "payout": "auszahlung",
-      "fromReturn": "rueckgabe"
+      "fromReturn": "rueckgabe",
+      "source": "quelle",
+      "number": "nummer"
     },
     "BEWEGUNG_ART": {
       "verkauf": "sale",
@@ -859,6 +861,9 @@
       "unbefristet": "unlimited",
       "1+3": "1+3",
       "frei": "custom"
+    },
+    "GUTSCHEIN_QUELLE": {
+      "extern": "external"
     },
     "GUTSCHEIN_SORTE_MUSTER": {
       "unbefristet": "unlimited",
@@ -1327,6 +1332,11 @@
       "export_not_ready",
       "export_running",
       "external_id_taken",
+      "external_voucher_duplicate",
+      "external_voucher_not_enabled",
+      "external_voucher_number_invalid",
+      "external_voucher_number_is_own_code",
+      "external_voucher_type_not_enabled",
       "file_not_available",
       "final_receipt_expired",
       "final_receipt_not_allowed",
@@ -1623,6 +1633,7 @@
       "voucher_type_not_found",
       "voucher_type_required",
       "voucher_used_up",
+      "webhook_event_not_available",
       "webhook_inactive",
       "webhook_limit",
       "webhook_not_found",
@@ -1838,6 +1849,11 @@
       "export_not_found",
       "export_not_ready",
       "export_running",
+      "external_voucher_duplicate",
+      "external_voucher_not_enabled",
+      "external_voucher_number_invalid",
+      "external_voucher_number_is_own_code",
+      "external_voucher_type_not_enabled",
       "file_not_available",
       "idempotency_conflict",
       "idempotency_key_required",
@@ -2124,6 +2140,7 @@
       "event_not_subscribed",
       "webhook_inactive",
       "server_error",
+      "webhook_event_not_available",
       "idempotency_key_required",
       "idempotency_conflict",
       "location_not_found",
@@ -2559,6 +2576,11 @@
       ],
       "getReceipt": [],
       "createReceipt": [
+        "external_voucher_duplicate",
+        "external_voucher_not_enabled",
+        "external_voucher_number_invalid",
+        "external_voucher_number_is_own_code",
+        "external_voucher_type_not_enabled",
         "idempotency_conflict",
         "invalid_manual_receipt",
         "manual_receipt_date_in_future",
@@ -3754,7 +3776,11 @@
             "quantity": "stueck",
             "positions": "positionen",
             "reason": "grund",
-            "typeId": "sorteId"
+            "typeId": "sorteId",
+            "source": "quelle",
+            "number": "nummer",
+            "vatRateBp": "satzBp",
+            "taxedWith": "versteuertMit"
           }
         ],
         "manualReceipt": {
@@ -3774,6 +3800,9 @@
         },
         "vouchers[].action": {
           "$catalog": "GUTSCHEIN_AKTION"
+        },
+        "vouchers[].source": {
+          "$catalog": "GUTSCHEIN_QUELLE"
         },
         "manualReceipt.reason": {
           "$catalog": "HANDBELEG_GRUND"
@@ -3818,6 +3847,7 @@
         },
         "testCashregister": "testKasse",
         "testSignature": "testSignatur",
+        "deprecation": "deprecation",
         "logo_scale": "logo_skala",
         "layout": {
           "__": "layout",
@@ -4636,6 +4666,7 @@
             }
           ],
           "serviceArticles": "leistungsArtikel",
+          "externalVouchers": "fremd",
           "returnType": {
             "__": "rueckgabe",
             "typeId": "sorteId",
@@ -4721,6 +4752,11 @@
         },
         "vouchers.types[].payout": {
           "$catalog": "GUTSCHEIN_AUSZAHLUNG"
+        },
+        "vouchers.externalVouchers": {
+          "aus": "off",
+          "wert": "multi_purpose",
+          "beide": "all"
         }
       }
     },
@@ -4956,7 +4992,8 @@
           },
           "confirmedAt": "bestaetigtAt",
           "confirmedBy": "bestaetigtVon",
-          "returnTypeId": "rueckgabeSorteId"
+          "returnTypeId": "rueckgabeSorteId",
+          "externalVouchers": "fremd"
         },
         "confirmed": "bestaetigt",
         "suggestion": {
@@ -4974,6 +5011,11 @@
         },
         "settings.validity": {
           "$catalog": "GUTSCHEIN_MUSTER"
+        },
+        "settings.externalVouchers": {
+          "aus": "off",
+          "wert": "multi_purpose",
+          "beide": "all"
         },
         "settings.suggestion.valueVoucherType": {
           "$catalog": "GUTSCHEIN_ART"
@@ -5108,6 +5150,7 @@
         },
         "testCashregister": "testKasse",
         "testSignature": "testSignatur",
+        "deprecation": "deprecation",
         "logo_scale": "logo_skala",
         "layout": {
           "__": "layout",
@@ -7969,7 +8012,8 @@
           },
           "freeText": "freitext"
         },
-        "returnTypeId": "rueckgabeSorteId"
+        "returnTypeId": "rueckgabeSorteId",
+        "externalVouchers": "fremd"
       },
       "paramWerte": {
         "valueVoucherType": {
@@ -7977,6 +8021,11 @@
         },
         "validity": {
           "$catalog": "GUTSCHEIN_MUSTER"
+        },
+        "externalVouchers": {
+          "aus": "off",
+          "wert": "multi_purpose",
+          "beide": "all"
         }
       },
       "data": {
@@ -8008,7 +8057,8 @@
           },
           "confirmedAt": "bestaetigtAt",
           "confirmedBy": "bestaetigtVon",
-          "returnTypeId": "rueckgabeSorteId"
+          "returnTypeId": "rueckgabeSorteId",
+          "externalVouchers": "fremd"
         },
         "confirmed": "bestaetigt",
         "suggestion": {
@@ -8026,6 +8076,11 @@
         },
         "settings.validity": {
           "$catalog": "GUTSCHEIN_MUSTER"
+        },
+        "settings.externalVouchers": {
+          "aus": "off",
+          "wert": "multi_purpose",
+          "beide": "all"
         },
         "settings.suggestion.valueVoucherType": {
           "$catalog": "GUTSCHEIN_ART"
@@ -8379,6 +8434,102 @@
         "source": {
           "$catalog": "QUELLE"
         }
+      }
+    },
+    "receipt.cancelled": {
+      "data": {
+        "receipt": {
+          "__": "receipt",
+          "headerVersionId": "kopfId",
+          "layoutRuleset": "layoutRegeln",
+          "registrationInfo": {
+            "__": "pruefangaben",
+            "cardRegisteredAt": "karteRegistriertAm",
+            "cashregisterRegisteredAt": "kasseRegistriertAm"
+          },
+          "items": [
+            {
+              "__": "items",
+              "receivedImmediately": "sofortErhalten",
+              "keptByEmployee": "direkt",
+              "addOnOf": "zusatzZu"
+            }
+          ],
+          "manualReceipt": {
+            "__": "handbeleg",
+            "number": "nummer",
+            "numberTo": "nummerBis",
+            "count": "anzahl",
+            "date": "datum",
+            "time": "uhrzeit",
+            "reason": "grund",
+            "note": "grundText"
+          },
+          "cancellationStatus": "stornoStand",
+          "testSignature": "testSignatur"
+        }
+      },
+      "werte": {
+        "receipt.cancellationStatus": {
+          "$catalog": "STORNO_STAND"
+        },
+        "receipt.cancellationReason": {
+          "$catalog": "STORNO_GRUND"
+        },
+        "receipt.manualReceipt.reason": {
+          "$catalog": "HANDBELEG_GRUND"
+        }
+      },
+      "ergaenze": {
+        "$function": "belegEreignisNachAussen"
+      }
+    },
+    "receipt.created": {
+      "data": {
+        "receipt": {
+          "__": "receipt",
+          "headerVersionId": "kopfId",
+          "layoutRuleset": "layoutRegeln",
+          "registrationInfo": {
+            "__": "pruefangaben",
+            "cardRegisteredAt": "karteRegistriertAm",
+            "cashregisterRegisteredAt": "kasseRegistriertAm"
+          },
+          "items": [
+            {
+              "__": "items",
+              "receivedImmediately": "sofortErhalten",
+              "keptByEmployee": "direkt",
+              "addOnOf": "zusatzZu"
+            }
+          ],
+          "manualReceipt": {
+            "__": "handbeleg",
+            "number": "nummer",
+            "numberTo": "nummerBis",
+            "count": "anzahl",
+            "date": "datum",
+            "time": "uhrzeit",
+            "reason": "grund",
+            "note": "grundText"
+          },
+          "cancellationStatus": "stornoStand",
+          "testSignature": "testSignatur"
+        }
+      },
+      "werte": {
+        "receipt.cancellationStatus": {
+          "$catalog": "STORNO_STAND"
+        },
+        "receipt.cancellationReason": {
+          "$catalog": "STORNO_GRUND"
+        },
+        "receipt.manualReceipt.reason": {
+          "$catalog": "HANDBELEG_GRUND"
+        }
+      },
+      "ergaenze": {
+        "$function": "belegEreignisNachAussen"
       }
     },
     "reservation.expired": {
