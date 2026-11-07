@@ -467,6 +467,10 @@ const MELDUNGEN_ROH = {
   'tip.summary': { text: 'Trinkgeld {tip} · der Gast zahlt {total}', placeholders: ['tip', 'total'] },
   'tip.total_below_sum': { text: 'Der Betrag liegt unter der Summe.' },
   'shift.interim_saved': { text: 'Zählung festgehalten.' },
+  // Waehrend Zwischenzaehlung oder Abschluss rechts: getippte Wege der Kopfzeile sagen, warum sie gesperrt sind.
+  'shift.finish_step_first': { text: 'Erst den Schritt rechts abschließen oder abbrechen.' },
+  'tip.revenue_hint': { text: 'Steuerpflichtiges Trinkgeld zählt als Umsatz des Betriebs und wird nicht ausgezahlt.' },
+  'tip.unassigned_hint': { text: 'Trinkgeld ohne angemeldeten Benutzer.' },
 } as const satisfies Record<string, TextEntry>;
 
 export type MessageKey = keyof typeof MELDUNGEN_ROH;
@@ -1286,6 +1290,13 @@ const BESCHRIFTUNGEN_ROH = {
   // mit Belegnummer und Uhrzeit. Scheitert er, gilt `completion.zero_receipt_failed`.
   'zero_receipt.create': { text: 'Nullbeleg erstellen' },
   'zero_receipt.created': { text: 'Nullbeleg {number} erstellt, {time}', placeholders: ['number', 'time'] },
+  // Prüfung kompakt (1.28.0): der Nullbeleg steht danach wie ein Verkaufsbeleg da (Titel, Rückweg);
+  // das DEP fragt den Zeitraum erst nach „DEP exportieren“ in einem Fenster.
+  'zero_receipt.done_title': { text: 'Nullbeleg erstellt' },
+  'zero_receipt.back': { text: 'Zurück zur Prüfung' },
+  'dep.export': { text: 'DEP exportieren' },
+  'dep.period_question': { text: 'Welcher Zeitraum?' },
+  'common.close': { text: 'Schließen' },
 
   // --- Schicht-Ablauf der Kasse (1.28.0) -----------------------------------
   // Schicht beginnen, laufen lassen, zaehlen, schliessen. `shift.close_title` und
@@ -1297,6 +1308,12 @@ const BESCHRIFTUNGEN_ROH = {
   'shift.band_closed': { text: 'Zum Verkaufen rechts die Schicht beginnen.' },
   'shift.band_closing': { text: 'Verkaufen ist pausiert, bis du fertig bist oder abbrichst.' },
   'shift.band_interim': { text: 'Verkaufen ist kurz pausiert.' },
+  'shift.band_cash': { text: 'Zum Verkaufen auf die Kacheln tippen.' },
+  // Trinkgeld, das als Umsatz zählt (steuerpflichtig, Inhaber) bzw. ohne Empfänger -- nur Anzeige im Kassenstand,
+  // wortgleich mit dem Kundenbereich.
+  'tip.revenue_title': { text: 'Als Umsatz erfasst' },
+  'tip.revenue_badge': { text: 'Umsatz' },
+  'tip.unassigned': { text: 'Nicht zugeordnet' },
   'shift.last_shift': { text: 'Letzte Schicht' },
   'shift.in_drawer_by_system': { text: 'Laut Kasse in der Lade' },
   'shift.take_over_amount': { text: '{amount} übernehmen', placeholders: ['amount'] },

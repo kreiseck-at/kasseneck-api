@@ -480,3 +480,22 @@ test('Fehlerregeln: jeder neue Schicht-Code zeigt seinen Satz, nie den Satz des 
     assert.deepEqual(findErrorRule('api', { code }), { kind: 'api', behavior: 'server_text' }, code);
   }
 });
+
+test('Laufstand: Inhaber-Trinkgeld und Trinkgeld ohne Empfänger werden gelesen wie gesendet, fehlen sonst (1.28.0)', async () => {
+  const { ladeStand } = await import('../src/pos/schicht-lesen.js');
+  const f = KASSE['getMyDrawerState']!.cases.find((c) => c.case === 'success_manager')!;
+  const daten = structuredClone((f.response as { data: Record<string, unknown> }).data);
+  const lauf = (daten.shift as { runningTotals: Record<string, unknown> }).runningTotals;
+  // Ohne die Felder: nichts dazuerfunden.
+  const ohne = ladeStand({ pfad: 'data' } as never, structuredClone(daten));
+  assert.equal(ohne.shift!.runningTotals!.ownerTips, undefined);
+  assert.equal(ohne.shift!.runningTotals!.unassignedTipCents, undefined);
+  lauf.ownerTips = [{ registerUserId: 'ru_mirela', name: 'Mirela Weinzierl', cents: 10 }];
+  lauf.unassignedTipCents = 50;
+  const mit = ladeStand({ pfad: 'data' } as never, daten);
+  assert.deepEqual(mit.shift!.runningTotals!.ownerTips, [{ registerUserId: 'ru_mirela', name: 'Mirela Weinzierl', cents: 10 }]);
+  assert.equal(mit.shift!.runningTotals!.unassignedTipCents, 50);
+  // Ein Betrag, der keine ganze Zahl ist, wird abgewiesen.
+  lauf.ownerTips = [{ registerUserId: 'ru_mirela', name: null, cents: 1.5 }];
+  assert.throws(() => ladeStand({ pfad: 'data' } as never, daten));
+});

@@ -175,6 +175,21 @@ export interface ShiftRunningTotals {
   /** Nach Name sortiert. */
   tips: ShiftTipTotals[];
   openingsWithoutSale: number;
+  /**
+   * Trinkgeld an Kassen-Benutzer mit „Trinkgeld steuerpflichtig“ (Inhaber): zählt als Umsatz des Betriebs,
+   * nie als Anspruch, nie in „offen“ (nur Anzeige, 1.28.0). Nach Name sortiert; der Server sendet es nur,
+   * wenn es etwas gibt (fehlt = keines).
+   */
+  ownerTips?: ShiftOwnerTip[];
+  /** Trinkgeld ohne angemeldeten Empfänger in Cent (nur Anzeige, 1.28.0); fehlt = 0. */
+  unassignedTipCents?: number;
+}
+
+/** Ein Eintrag von [ShiftRunningTotals.ownerTips]: Trinkgeld, das als Umsatz erfasst ist. */
+export interface ShiftOwnerTip {
+  registerUserId: string;
+  name: string | null;
+  cents: number;
 }
 
 /** Nachrechnung des Laufstands beim Abschluss: stimmt er, oder welche Felder weichen ab. */

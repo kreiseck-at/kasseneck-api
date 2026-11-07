@@ -35,6 +35,7 @@ import type {
   ShiftActor,
   ShiftReceiptHeader,
   ShiftReconciliation,
+  ShiftOwnerTip,
   ShiftRunningTotals,
   ShiftSummaryReceipt,
   ShiftTip,
@@ -163,7 +164,7 @@ function trinkgeldMitOffen(ort: Ort, w: unknown): ShiftTip {
 
 function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
   const o = pflichtObjekt(ort, w);
-  return {
+  const raus: ShiftRunningTotals = {
     cashSalesCents: ganzzahl(ort, o, 'cashSalesCents'),
     cashCancellationsCents: ganzzahl(ort, o, 'cashCancellationsCents'),
     nonCashByMethod: liste(ort, o, 'nonCashByMethod', unbar),
@@ -176,6 +177,15 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
     tips: liste(ort, o, 'tips', trinkgeld),
     openingsWithoutSale: ganzzahl(ort, o, 'openingsWithoutSale'),
   };
+  // Nur Anzeige (1.28.0); der Server sendet beides nur, wenn es etwas gibt -- gelesen wie gesendet.
+  if (o.ownerTips !== undefined && o.ownerTips !== null) raus.ownerTips = liste(ort, o, 'ownerTips', inhaberTrinkgeld);
+  if (o.unassignedTipCents !== undefined && o.unassignedTipCents !== null) raus.unassignedTipCents = ganzzahl(ort, o, 'unassignedTipCents');
+  return raus;
+}
+
+function inhaberTrinkgeld(ort: Ort, w: unknown): ShiftOwnerTip {
+  const o = pflichtObjekt(ort, w);
+  return { registerUserId: kennung(ort, o, 'registerUserId'), name: text(o.name), cents: ganzzahl(ort, o, 'cents') };
 }
 
 /** Entnehmen oder Einlegen nach dem Zaehlen; die Art bleibt offen fuer kuenftige Werte (Text). */

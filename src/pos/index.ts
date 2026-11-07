@@ -112,7 +112,7 @@ export {
   type LastShift, type ShiftCountResult,
   type EurDenomination, type MovementType, type ManualMovementType, type CashLocation, type OpeningReason, type ManualOpeningReason,
   type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
-  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
+  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
   type DrawerOpening, type DrawerState, type CashMovement, type ShiftReceiptHeader, type ShiftReceiptMovement, type ShiftReceiptTip,
   type ShiftSummaryReceipt, type CashMovementReceipt, type ShiftReceipt, type OpenShiftResult, type CashMovementResult,
   type DrawerOpeningsResult, type ShiftReport, type CloseShiftResult,
