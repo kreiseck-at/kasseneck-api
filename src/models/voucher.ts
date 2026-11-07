@@ -1,4 +1,5 @@
 import { VoucherAction, VoucherType } from '../enums/index.js';
+import { VoucherCode } from '@kreiseck/validator';
 import { euroToCents } from '../money.js';
 import { readEnumKey, requireEnumKey } from './enum-payload.js';
 
@@ -15,7 +16,22 @@ import { readEnumKey, requireEnumKey } from './enum-payload.js';
  */
 export interface Voucher {
   name?: string;
+  /**
+   * Code eines eigenen Gutscheins (Einloesung, Auszahlung). Am gelesenen Eintrag die Maske. Ein Wunsch der
+   * Altform mit frei getipptem Code ist veraltet ([LegacyValueVoucherWish]).
+   */
   code?: string;
+  /**
+   * Fremdgutschein (Server 2026-11): `external` = Gutschein eines anderen Systems (Warenwirtschaft, Webshop) mit
+   * seiner Nummer in [number]. Kein Dokument bei Kasseneck, kein Saldo, keine Pruefung: Art, Satz und Betrag sagt
+   * der Betrieb. Fehlt bei eigenen Gutscheinen.
+   */
+  source?: VoucherSource | string;
+  /**
+   * Nummer des Fremdgutscheins (nur mit `source: 'external'`): nach [normalizeExternalVoucherNumber] 1 bis 40
+   * Zeichen aus `A–Z a–z 0–9 - _ . /`; ein eigener Gutscheincode ist keine Fremdnummer. Steht voll am Bon.
+   */
+  number?: string;
   action: VoucherAction | string;
   /**
    * Art des Gutscheins. Beim Verkauf ueber eine Sorte die Art der Sorte
@@ -127,6 +143,8 @@ export interface VoucherArticle {
 export interface VoucherPayload {
   name?: string | null;
   code?: string | null;
+  source?: string;
+  number?: string;
   action: string;
   type: string;
   value?: number | null;
@@ -151,6 +169,18 @@ export interface VoucherPayload {
   zeroRateBucket?: boolean;
 }
 
+/**
+ * Wunsch der Altform: Wertgutschein mit frei getipptem Code (`{ action, type: 'value', code, valueCents }`).
+ * Nur als Typ fuer Aufrufer, die ihn noch senden; ein gelesener Beleg ist davon nicht betroffen.
+ *
+ * @deprecated Server 2026-11: der Weg bleibt gueltig, die Antwort traegt `deprecation`
+ * ([ReceiptWithCompany.deprecation]). Der Code wird nicht geprueft, steuerlich ist das ein fremder
+ * Mehrzweckgutschein. Einen Gutschein eines anderen Systems als Fremdgutschein senden: `{ source: 'external',
+ * action, type: 'multi_purpose', number, amountCents }`; eigene Gutscheine ueber eine Sorte (`typeId`)
+ * verkaufen und mit ihrem Code einloesen.
+ */
+export type LegacyValueVoucherWish = Voucher & { type: 'value'; code: string };
+
 /** Arten der neuen Gutscheinform (die Altwerte sind `value` und `promo`). */
 export const NEUE_GUTSCHEINARTEN: readonly string[] = [
   VoucherType.multi_purpose,
@@ -158,6 +188,15 @@ export const NEUE_GUTSCHEINARTEN: readonly string[] = [
   VoucherType.service,
   VoucherType.promotion,
 ];
+
+/** Herkunft eines Gutscheins: `external` = Fremdgutschein (Katalog `GUTSCHEIN_QUELLE`). */
+export type VoucherSource = 'external';
+export const VOUCHER_SOURCES: readonly VoucherSource[] = Object.freeze(['external'] as const);
+
+/** Fremdgutschein (`source: 'external'`)? Zwilling von `gutschein-beleg.istFremd`. */
+export function isExternalVoucher(voucher: Pick<Voucher, 'source'>): boolean {
+  return voucher.source === 'external';
+}
 
 /**
  * Verkauf ueber eine Sorte ohne Art (`typeId` ohne `type`): die Art kommt aus
@@ -168,8 +207,9 @@ function istSortenVerkaufOhneArt(voucher: Pick<Voucher, 'type' | 'action' | 'typ
 }
 
 /** Gehoert der Gutschein zur neuen Form (Art, Aktion `payout` oder Verkauf ueber eine Sorte ohne Art)? */
-export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'>): boolean {
-  return NEUE_GUTSCHEINARTEN.includes(voucher.type) || voucher.action === VoucherAction.payout || istSortenVerkaufOhneArt(voucher);
+export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'> & Pick<Voucher, 'source'>): boolean {
+  return NEUE_GUTSCHEINARTEN.includes(voucher.type) || voucher.action === VoucherAction.payout || istSortenVerkaufOhneArt(voucher)
+    || isExternalVoucher(voucher);
 }
 
 /**
@@ -177,8 +217,8 @@ export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action' | 'typ
  * oder nur ueber die Sorte). Paketintern: Zahlbetrag und Pruefung vor dem
  * Senden entscheiden daran, ob eine Sorte noetig ist.
  */
-export function istWertVerkauf(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'>): boolean {
-  return voucher.action === VoucherAction.sell
+export function istWertVerkauf(voucher: Pick<Voucher, 'type' | 'action' | 'typeId'> & Pick<Voucher, 'source'>): boolean {
+  return !isExternalVoucher(voucher) && voucher.action === VoucherAction.sell
     && (voucher.type === VoucherType.multi_purpose || voucher.type === VoucherType.single_purpose || istSortenVerkaufOhneArt(voucher));
 }
 
@@ -194,7 +234,7 @@ export function voucherServerFields(voucher: Voucher): string[] {
 }
 
 const NEUE_FELDER = [
-  'amountCents', 'articleId', 'quantity', 'positions', 'reason', 'typeId', 'typeName', 'payout', 'voucherType', 'voucherId', 'codeSuffix',
+  'source', 'number', 'amountCents', 'articleId', 'quantity', 'positions', 'reason', 'typeId', 'typeName', 'payout', 'voucherType', 'voucherId', 'codeSuffix',
   'vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt', 'zeroRateBucket', 'fromReturn',
 ] as const;
 
@@ -227,6 +267,7 @@ export function toVoucherPayload(voucher: Voucher): VoucherPayload {
  * gesetzter Wert muss positiv sein.
  */
 export function voucherIsValid(voucher: Voucher): boolean {
+  if (isExternalVoucher(voucher)) return externalVoucherIsValid(voucher);
   if (isNewFormVoucher(voucher)) return newFormVoucherIsValid(voucher);
   if (voucher.type === VoucherType.value && voucher.valueCents == null) {
     return false;
@@ -319,10 +360,16 @@ function newFormVoucherIsValid(v: Voucher): boolean {
  * Stufe 4b antwortet darauf `voucher_type_required`). Paketintern.
  */
 export function wunschFormGueltig(v: Voucher, sorteNoetig: boolean): boolean {
+  if (isExternalVoucher(v)) return externalVoucherIsValid(v);
   if (voucherServerFields(v).length > 0) return false;
   const r = v as unknown as Record<string, unknown>;
-  for (const feld of ['vatRateBp', 'article', 'balanceAfterCents', 'remainingQuantityAfter', 'taxedWith', 'exempt']) {
+  for (const feld of ['article', 'balanceAfterCents', 'remainingQuantityAfter', 'exempt']) {
     if (r[feld] != null) return false;
+  }
+  // Felder nur des Fremdgutscheins (gutschein-beleg.NUR_BEI_FREMD): der Server weist sie an einem eigenen Wunsch
+  // schon gesendet ab, auch als `null` (`voucher_invalid`); eine andere Herkunft als `external` gibt es nicht.
+  for (const feld of ['number', 'taxedWith', 'vatRateBp', 'source']) {
+    if (r[feld] !== undefined) return false;
   }
   if (v.valueCents != null) return false;
   // Die Sorte gehoert nur an einen Wert-Verkauf (Server: sorteId sonst voucher_invalid).
@@ -359,4 +406,101 @@ export function wunschFormGueltig(v: Voucher, sorteNoetig: boolean): boolean {
   }
   // Altart mit neuer Aktion (payout + value/promo): nicht sendbar.
   return false;
+}
+
+// ---- Fremdgutscheine (Server 2026-11) -------------------------------------------
+
+/**
+ * Rand einer Fremdnummer (Zwilling von `gutschein-core.FREMD_RAND`): ASCII-Leerraum und die Unicode-Leerzeichen,
+ * die beim Kopieren aus Fremdsystemen mitkommen. Bewusst ohne U+0085 (NEL): ein Steuerzeichen, das nie still
+ * verschwindet, sondern die Nummer ungueltig macht.
+ */
+const FREMD_RAND = '\\t\\n\\v\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF';
+const FREMD_RAND_MUSTER = new RegExp(`^[${FREMD_RAND}]+|[${FREMD_RAND}]+$`, 'g');
+const FREMD_NUMMER_MUSTER = /^[A-Za-z0-9\-_./]{1,40}$/;
+
+/** Hoechstlaenge der Nummer eines Fremdgutscheins (nach dem Abschneiden des Rands). */
+export const EXTERNAL_VOUCHER_NUMBER_MAX = 40;
+/** Hoechstlaenge von `taxedWith` (Vermerk, mit welchem Beleg im fremden System der Einzweckgutschein versteuert ist). */
+export const EXTERNAL_VOUCHER_TAXED_WITH_MAX = 40;
+/**
+ * Saetze, mit denen ein fremder Einzweckgutschein verkauft sein kann (Basispunkte): die Saetze der Kasse
+ * (20, 10, 13, 19, 4,9 %) und 0 = befreit verkauft (Kleinunternehmer).
+ */
+export const EXTERNAL_VOUCHER_VAT_RATES_BP: readonly number[] = Object.freeze([2000, 1000, 1300, 1900, 490, 0]);
+
+/**
+ * Nummer eines Fremdgutscheins in der Form, mit der der Server sie speichert und druckt
+ * (`gutschein-core.normiereFremdnummer`): Rand weg, **keine** Unicode-Normalisierung, Gross-/Kleinschreibung
+ * bleibt; dann 1 bis 40 Zeichen aus `A–Z a–z 0–9 - _ . /`. Sonst `null` (`external_voucher_number_invalid`).
+ * Einen eigenen Gutscheincode erkennt erst [checkExternalVoucherNumber].
+ */
+export function normalizeExternalVoucherNumber(text: unknown): string | null {
+  if (typeof text !== 'string') return null;
+  const n = text.replace(FREMD_RAND_MUSTER, '');
+  return FREMD_NUMMER_MUSTER.test(n) ? n : null;
+}
+
+/** Ergebnis von [checkExternalVoucherNumber]: die Nummer wie gespeichert, oder der Fehlercode des Servers. */
+export type ExternalVoucherNumberCheck =
+  | { ok: true; number: string }
+  | { ok: false; code: 'external_voucher_number_is_own_code' | 'external_voucher_number_invalid' };
+
+/**
+ * Prueft eine Fremdnummer in der Reihenfolge des Servers (`gutschein-beleg.pruefeFremd`): zuerst, ob sie ein
+ * gueltiger eigener Gutscheincode ist (12 Zeichen mit Pruefzeichen, in jeder Schreibweise der Kasse, auch mit `.`, `_`
+ * oder `/` als Trenner) – dann
+ * `external_voucher_number_is_own_code`, der Gutschein gehoert als eigener eingeloest –, danach die Form.
+ */
+export function checkExternalVoucherNumber(text: unknown): ExternalVoucherNumberCheck {
+  // `.`, `_` und `/` zwischen den Gruppen liest die Pruefung wie `-` (Zwilling von `gutschein-core.istEigenerCode`):
+  // `7148.FGQA.935K` ist der eigene Code. Die Nummer selbst bleibt, wie sie kam.
+  if (typeof text === 'string' && VoucherCode.validate(text.replace(/[._/]/g, '-')).ok) return { ok: false, code: 'external_voucher_number_is_own_code' };
+  const number = normalizeExternalVoucherNumber(text);
+  return number === null ? { ok: false, code: 'external_voucher_number_invalid' } : { ok: true, number };
+}
+
+/** Steuer- und Formatzeichen (`gutschein-core.STEUERZEICHEN`): nie in `taxedWith`. */
+const STEUERZEICHEN = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * Ist der Fremdgutschein sendbar? Die Form wie `gutschein-beleg.pruefeFremd` (ohne die Freigabe des Kontos, die
+ * kennt nur der Server bzw. `PosVoucherSettings.externalVouchers`): Aktion `sell`/`redeem`/`payout`, Art
+ * `multi_purpose`/`single_purpose`, gueltige Nummer (kein eigener Code), Betrag 1 bis 1.000.000 Cent; Einzweck mit
+ * einem Satz aus [EXTERNAL_VOUCHER_VAT_RATES_BP], Mehrzweck ohne; `taxedWith` nur bei Einzweck-Einloesung bzw.
+ * -Auszahlung (1 bis 40 Zeichen ohne Steuerzeichen); Auszahlung mit Grund (1 bis 200 Zeichen). Felder eigener
+ * Gutscheine (Code, Sorte, Artikel, Menge, Positionen) und Serverfelder nie.
+ */
+export function externalVoucherIsValid(voucher: Voucher): boolean {
+  const v = voucher;
+  if (!isExternalVoucher(v)) return false;
+  if (voucherServerFields(v).length > 0) return false;
+  const r = v as unknown as Record<string, unknown>;
+  // gutschein-beleg.NICHT_BEI_FREMD (gesendet heisst voucher_invalid, auch als null).
+  for (const feld of ['code', 'typeId', 'articleId', 'article', 'quantity', 'positions']) {
+    if (r[feld] !== undefined) return false;
+  }
+  for (const feld of ['balanceAfterCents', 'remainingQuantityAfter', 'exempt']) {
+    if (r[feld] != null) return false;
+  }
+  if (v.valueCents != null) return false;
+  if (v.action !== VoucherAction.sell && v.action !== VoucherAction.redeem && v.action !== VoucherAction.payout) return false;
+  if (v.type !== VoucherType.multi_purpose && v.type !== VoucherType.single_purpose) return false;
+  if (!checkExternalVoucherNumber(v.number).ok) return false;
+  if (!istCent(v.amountCents)) return false;
+  if (v.type === VoucherType.single_purpose) {
+    if (!(typeof v.vatRateBp === 'number' && EXTERNAL_VOUCHER_VAT_RATES_BP.includes(v.vatRateBp))) return false;
+  } else if (v.vatRateBp != null) {
+    return false;
+  }
+  if (v.taxedWith != null) {
+    if (v.type !== VoucherType.single_purpose || v.action === VoucherAction.sell) return false;
+    const t = typeof v.taxedWith === 'string' ? v.taxedWith.trim() : '';
+    if (t.length < 1 || t.length > EXTERNAL_VOUCHER_TAXED_WITH_MAX || STEUERZEICHEN.test(t)) return false;
+  }
+  if (v.action === VoucherAction.payout) {
+    const g = typeof v.reason === 'string' ? v.reason.trim() : '';
+    if (g.length < 1 || g.length > MAX_GRUND) return false;
+  }
+  return true;
 }

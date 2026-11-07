@@ -56,7 +56,7 @@ test('Einstellungen: der Block vouchers aus dem Vertrag wird gelesen', () => {
 });
 
 /** Neue Felder (Gutscheine Stufe 4b) ohne Angabe: kein Sortenverkauf, keine Sorten, keine Vorlage. */
-const OHNE_SORTEN = { typeSale: false, types: [], serviceArticles: false, labelDefault: null };
+const OHNE_SORTEN = { typeSale: false, types: [], serviceArticles: false, labelDefault: null, externalVouchers: 'off' };
 
 test('Einstellungen: fehlt der Block, ist Verkaufen aus', () => {
   const aus = { sale: false, valueVoucherType: null, vatRateBp: null, ...OHNE_SORTEN };

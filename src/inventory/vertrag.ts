@@ -151,6 +151,9 @@ export type WebhookDeliveryStatus = (typeof WEBHOOK_DELIVERY_STATUSES)[number];
  * Variantengruppe wie `getVariantGroup`; `updated` kommt nur bei einer aussen
  * sichtbaren Aenderung (neuer Wert, neue oder stillgelegte Variante, Name,
  * Vorgaben, Stilllegen der Gruppe).
+ * `receipt.created` und `receipt.cancelled` (Beleg-Webhooks, Server 2026-11) tragen den Beleg wie
+ * `listReceipts` mit `view: 'full'` ([RECEIPT_WEBHOOK_EVENTS]); sie brauchen das Modul Registrierkasse, nicht
+ * das Lager (sonst `webhook_event_not_available` beim Anlegen oder Aendern).
  */
 export const INVENTORY_WEBHOOK_EVENTS = [
   'stock.changed',
@@ -163,8 +166,19 @@ export const INVENTORY_WEBHOOK_EVENTS = [
   'reservation.redeemed',
   'variant_group.created',
   'variant_group.updated',
+  'receipt.created',
+  'receipt.cancelled',
 ] as const;
 export type InventoryWebhookEventType = (typeof INVENTORY_WEBHOOK_EVENTS)[number];
+
+/**
+ * Die Beleg-Ereignisse der Konto-Webhooks: `receipt.created` fuer jeden neu signierten Beleg jeder Art (auch den
+ * Storno-Beleg), `receipt.cancelled` zusaetzlich fuer jeden Storno-Beleg. Ein Storno bringt also beide. Die
+ * Ereignis-ID ist je Beleg und Ereignis fest: darauf entdoppeln. Fehlt eine fortlaufende Belegnummer einer Kasse,
+ * den Zeitraum mit `listReceipts` nachholen.
+ */
+export const RECEIPT_WEBHOOK_EVENTS = ['receipt.created', 'receipt.cancelled'] as const;
+export type ReceiptWebhookEventType = (typeof RECEIPT_WEBHOOK_EVENTS)[number];
 
 /**
  * Die Felder der Huelle jeder Zustellung, in der Reihenfolge am Draht. Statt
@@ -238,6 +252,9 @@ export const INVENTORY_ERROR_CODES = [
   'module_inactive',
   'rate_limited',
   'server_error',
+  // Seit Beleg-Webhooks (Server 2026-11, Stelle wie im Vertrag): ein Ereignis, dessen Modul dem Konto fehlt
+  // (`receipt.*` ohne Registrierkasse, `stock.*` u. a. ohne Lager), laesst sich nicht abonnieren; mit `field: 'events'`.
+  'webhook_event_not_available',
   'idempotency_key_required',
   'idempotency_conflict',
   'location_not_found',

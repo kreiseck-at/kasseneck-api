@@ -2,7 +2,11 @@
  * Gutscheinart — Zwilling von `VoucherType` in kasseneck_api/lib/enums/voucher_type.dart.
  */
 export const VoucherType = {
-  /** Altform: Wertgutschein (Wert im Cent, Code frei). */
+  /**
+   * Altform: Wertgutschein (Wert im Cent, Code frei). Gelesene Belege tragen `value` fuer jeden
+   * Mehrzweck-Eintrag (eigen und fremd); dort ist der Wert gueltig. Als Wunsch mit frei getipptem Code
+   * veraltet: siehe [LegacyValueVoucherWish].
+   */
   value: 'value',
   /** Altform: Rabatt-/Aktionsgutschein. */
   promo: 'promo',

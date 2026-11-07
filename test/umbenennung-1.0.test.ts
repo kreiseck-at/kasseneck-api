@@ -72,6 +72,9 @@ const NACH_1_0 = {
     // Gutschein-Sorten (1.17.0)
     'voucher_error.type_required', 'voucher_error.type_not_found', 'voucher_error.amount_mismatch', 'voucher_error.service_not_allowed', 'voucher_error.payout_not_allowed',
     'voucher.type_changed',
+    // Fremdgutscheine (Server 2026-11)
+    'voucher_error.external_not_enabled', 'voucher_error.external_type_not_enabled', 'voucher_error.external_number_invalid',
+    'voucher_error.external_number_is_own_code', 'voucher_error.external_duplicate',
     // Prüfung (DEP) an der Kasse (1.21.0)
     'dep.manager_only', 'dep.offline', 'dep.creating', 'dep.running', 'dep.failed', 'dep.too_many_exports', 'dep.period_invalid',
     'dep.usb_hint', 'dep.saved', 'dep.save_failed', 'dep.zip_fallback', 'dep.code_once', 'dep.revoked',
@@ -393,6 +396,10 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Zusatz-Kacheln (1.27.0): Zusaetze eingerueckt unter ihrer Hauptposition.
   ...['add-ons']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Fremdgutscheine (Server 2026-11): Golden-Belege mit „Gutschein Nr. …“ und die Pruefaelle des Backends.
+  'stored/voucher-cases.json',
+  ...['voucher-external-redeem', 'voucher-external-sale']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Nullbeleg nach Signaturausfall mit Beginn und Ende (30.10.2026).
   ...['zero-outage-end-period']

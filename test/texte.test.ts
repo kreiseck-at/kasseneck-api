@@ -625,7 +625,8 @@ test('Storno: abgelehnte Eingabe – Wortlaut exakt, Halbgeviertstrich mit Leerr
 
 test('Gutschein-Fehler: jeder Gutschein-Code des /v3-Vokabulars hat einen Satz, sonst keiner', () => {
   const vokabular = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/v3/v3-vokabular.json', import.meta.url)), 'utf8')) as { errorCodes: { all: string[] } };
-  const serverCodes = vokabular.errorCodes.all.filter((c) => c.startsWith('voucher_') || c === 'too_many_voucher_checks').sort();
+  // Dazu die Codes der Fremdgutscheine (external_voucher_*).
+  const serverCodes = vokabular.errorCodes.all.filter((c) => c.startsWith('voucher_') || c.startsWith('external_voucher_') || c === 'too_many_voucher_checks').sort();
   assert.deepEqual(Object.keys(VOUCHER_ERROR_MESSAGES).sort(), serverCodes);
   for (const code of serverCodes) {
     const key = voucherErrorMessage(code);
