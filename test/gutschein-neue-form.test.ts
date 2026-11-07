@@ -36,7 +36,8 @@ const ZAHLUNG = [{ method: 'cash', amountCents: 5000 }] as Json;
 const v = (o: Json): Voucher => o as Voucher;
 
 test('Golden-Belege der neuen Form liegen vor (Verkauf, Einloesung, Auszahlung, Storno)', () => {
-  assert.equal(GUTSCHEIN_BELEGE.length, 8, GUTSCHEIN_BELEGE.join(', '));
+  // 8 bis 0.37, dazu zwei Fremdgutscheine (gutschein-fremd-*, 0.38.0).
+  assert.equal(GUTSCHEIN_BELEGE.length, 10, GUTSCHEIN_BELEGE.join(', '));
 });
 
 test('jeder Gutschein-Beleg ueberlebt Lesen, Schreiben, Lesen (intern)', () => {

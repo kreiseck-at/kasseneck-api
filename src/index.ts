@@ -34,6 +34,8 @@ export {
   toVoucherPayload,
   fromVoucherPayload,
   voucherIsValid,
+  isExternalVoucher,
+  type VoucherSource,
   type Receipt,
   type ReceiptPayload,
   type ReceiptPayloadRead,

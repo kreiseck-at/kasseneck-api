@@ -16,6 +16,13 @@ import { readEnumKey, requireEnumKey } from './enum-payload.js';
 export interface Voucher {
   name?: string;
   code?: string;
+  /**
+   * Fremdgutschein: `external` = Gutschein eines anderen Systems (Warenwirtschaft, Webshop) mit seiner Nummer in
+   * [number]; kein Dokument bei Kasseneck, kein Saldo. Fehlt bei eigenen Gutscheinen. Intern `quelle` (`extern`).
+   */
+  source?: VoucherSource | string;
+  /** Nummer des Fremdgutscheins (nur mit `source: 'external'`), steht voll am Bon. Intern `nummer`. */
+  number?: string;
   action: VoucherAction | string;
   type: VoucherType | string;
   valueCents?: number;
@@ -92,7 +99,18 @@ export const NEUE_GUTSCHEINARTEN: readonly string[] = [
   VoucherType.promotion,
 ];
 
-/** Gehoert der Gutschein zur neuen Form (Art oder Aktion `payout`)? */
+/** Herkunft eines Gutscheins: `external` = Fremdgutschein (Katalog `GUTSCHEIN_QUELLE`, intern `extern`). */
+export type VoucherSource = 'external';
+
+/** Fremdgutschein (`source: 'external'`)? Zwilling von `gutschein-beleg.istFremd`. */
+export function isExternalVoucher(voucher: Pick<Voucher, 'source'>): boolean {
+  return voucher.source === 'external';
+}
+
+/**
+ * Gehoert der Gutschein zur neuen Form (Art oder Aktion `payout`)? Fremdgutscheine liest und druckt diese Linie nur
+ * (Bon des Backends); senden kann sie erst die 1.x-Linie.
+ */
 export function isNewFormVoucher(voucher: Pick<Voucher, 'type' | 'action'>): boolean {
   return NEUE_GUTSCHEINARTEN.includes(voucher.type) || voucher.action === VoucherAction.payout;
 }
@@ -110,6 +128,8 @@ export function voucherServerFields(voucher: Voucher): string[] {
  * GUTSCHEIN_ART, GUTSCHEIN_ARTIKEL). Modellfeld -> interner Schluessel.
  */
 const INTERNE_FELDER = {
+  source: 'quelle',
+  number: 'nummer',
   amountCents: 'betragCents',
   articleId: 'artikelId',
   quantity: 'stueck',
@@ -139,6 +159,9 @@ const ART_AUS_INTERN: Readonly<Record<string, string>> = {
 const ART_NACH_INTERN: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(ART_AUS_INTERN).map(([innen, aussen]) => [aussen, innen]));
 const artAusIntern = (wert: unknown): unknown => (typeof wert === 'string' && Object.prototype.hasOwnProperty.call(ART_AUS_INTERN, wert) ? ART_AUS_INTERN[wert] : wert);
 const artNachIntern = (wert: unknown): unknown => (typeof wert === 'string' && Object.prototype.hasOwnProperty.call(ART_NACH_INTERN, wert) ? ART_NACH_INTERN[wert] : wert);
+/** Herkunft (Katalog `GUTSCHEIN_QUELLE`): intern `extern`, im Modell `external`. */
+const quelleAusIntern = (wert: unknown): unknown => (wert === 'extern' ? 'external' : wert);
+const quelleNachIntern = (wert: unknown): unknown => (wert === 'external' ? 'extern' : wert);
 
 const istObjekt = (w: unknown): w is Record<string, unknown> => w != null && typeof w === 'object' && !Array.isArray(w);
 
@@ -195,7 +218,7 @@ function neueFormNachIntern(voucher: Voucher): VoucherPayload {
   for (const feld of NEUE_FELDER) {
     const wert = roh[feld];
     if (wert == null) continue;
-    raus[INTERNE_FELDER[feld]] = feld === 'voucherType' ? artNachIntern(wert) : feld === 'article' ? artikelNachIntern(wert) : wert;
+    raus[INTERNE_FELDER[feld]] = feld === 'voucherType' ? artNachIntern(wert) : feld === 'article' ? artikelNachIntern(wert) : feld === 'source' ? quelleNachIntern(wert) : wert;
   }
   return raus as VoucherPayload;
 }
@@ -266,7 +289,7 @@ function lesenNeu(payload: VoucherPayload): Partial<Voucher> {
   for (const feld of NEUE_FELDER) {
     const wert = roh[feld] ?? roh[INTERNE_FELDER[feld]];
     if (wert == null) continue;
-    neu[feld] = feld === 'voucherType' ? artAusIntern(wert) : feld === 'article' ? artikelAusIntern(wert) : wert;
+    neu[feld] = feld === 'voucherType' ? artAusIntern(wert) : feld === 'article' ? artikelAusIntern(wert) : feld === 'source' ? quelleAusIntern(wert) : wert;
   }
   return neu as Partial<Voucher>;
 }

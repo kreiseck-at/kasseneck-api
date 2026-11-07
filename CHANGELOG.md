@@ -4,6 +4,20 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.38.0
+
+Fremdgutscheine im Bon, Zwilling der Bonzeilen von 1.x (Fremdgutscheine). Das Backend vendort die 0.x-Linie und setzt damit
+Bon, PDF und Mail; senden kann Fremdgutscheine nur 1.x.
+
+- **Lesen:** `Voucher.source` (innen `quelle`, Wert `extern` → `external`) und `Voucher.number` (innen `nummer`), neu
+  `isExternalVoucher`. Geschrieben wird wieder die innere Form.
+- **Bon:** statt der Code-Maske `Gutschein Nr. <Nummer>`; Einlösung Einzweck als Minuszeile in ihrem Satz, darunter nur mit
+  `versteuertMit` `  Einzweck, versteuert mit <Beleg>` (ohne „Beleg“); Mehrzweck nach „Zwischensumme“; Auszahlung
+  `Auszahlung Gutschein Nr. …`; nie „Rest am Gutschein“ (den Saldo kennt nur das fremde System). Verkauf: der Name der
+  Position kommt vom Server (`(Mehrzweckgutschein)` bzw. `(Einzweckgutschein 20 %)`), ein Mehrzweck-Verkauf nur als Eintrag
+  druckt `Gutschein Nr. <Nummer> (Mehrzweckgutschein)`. Neue Goldens `gutschein-fremd-einloesung` und
+  `gutschein-fremd-verkauf`, Raster gleich `voucher-external-redeem`/`-sale` in 1.x; alle übrigen unverändert.
+
 ## 0.37.0
 
 Zusatz-Kacheln, Zwilling von 1.27.0 (nur Bon und Position). Das Backend vendort die 0.x-Linie und setzt damit den Bon.
