@@ -1,7 +1,10 @@
 import { VoucherCode } from '@kreiseck/validator';
 import type { Voucher } from '../models/voucher.js';
-import { isNewFormVoucher, istWertVerkauf, voucherIsValid, voucherServerFields, wunschFormGueltig } from '../models/voucher.js';
-import type { PosVoucherSettings, PosVoucherType, VoucherArticle, VoucherCheck } from '../pos/gutschein.js';
+import {
+  EXTERNAL_VOUCHER_TAXED_WITH_MAX, EXTERNAL_VOUCHER_VAT_RATES_BP, checkExternalVoucherNumber, isExternalVoucher, isNewFormVoucher, istWertVerkauf,
+  voucherIsValid, voucherServerFields, wunschFormGueltig,
+} from '../models/voucher.js';
+import type { PosExternalVouchers, PosVoucherSettings, PosVoucherType, VoucherArticle, VoucherCheck } from '../pos/gutschein.js';
 
 /**
  * Gutscheine der neuen Form im Zahlbetrag: Zwilling von
@@ -30,6 +33,11 @@ import type { PosVoucherSettings, PosVoucherType, VoucherArticle, VoucherCheck }
  * - Leistung verkaufen: Stueck mal Artikelpreis im Artikelsatz; einloesen: je
  *   Satz eine Minuszeile ueber die gewaehlten Positionen.
  * - Aktion: Rabatt wie `promo`, Betrag aus der Pruefung, hoechstens die Summe.
+ * - Fremdgutschein (`source: 'external'`, Server 2026-11): dieselbe Strecke
+ *   wie ein eigener Mehrzweck- bzw. Einzweckgutschein, nur ohne Pruefung und
+ *   Saldo (verfuegbar ist genau der Betrag des Wunschs); Satz und Vermerk
+ *   sagt der Wunsch, Satz 0 heisst befreit verkauft. Freigabe aus
+ *   `externalVouchers` (sonst `voucherSettings.externalVouchers`).
  *
  * Kein Fehler wird still geschluckt: was der Server mit einem Gutschein-Code
  * abwiese, liefert `fehler` mit genau diesem Code (`voucher_*`). Der
@@ -85,6 +93,11 @@ export const VOUCHER_ZERO_RATE_BUCKET_FROM = '2099-12-31';
 export interface PlanOptionen {
   voucherInfo?: readonly VoucherDueInfo[];
   voucherSettings?: PosVoucherSettings;
+  /**
+   * Freigabe fuer Fremdgutscheine des Kontos; ohne Angabe die aus `voucherSettings`. Fehlen beide, prueft nur
+   * der Server die Freigabe.
+   */
+  externalVouchers?: PosExternalVouchers;
   voucherTypes?: readonly VoucherDueType[];
   voucherArticles?: readonly VoucherDueArticle[];
   smallBusiness?: boolean;
@@ -231,6 +244,52 @@ function kuTeile(kunde: readonly Innen[], betragCents: number): Array<{ satzBp: 
   return saetze.filter((s) => s.cents > 0).map((s) => ({ satzBp: s.satzBp, cents: s.cents }));
 }
 
+/** Steuer- und Formatzeichen (`gutschein-core.STEUERZEICHEN`). */
+const STEUERZEICHEN = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * Form eines Fremdgutschein-Wunschs in der Reihenfolge von `gutschein-beleg.pruefeFremd`: Freigabe, Aktion, Art,
+ * Freigabe der Art, Felder eigener Gutscheine, eigener Code, Nummer, Dublette, Betrag, Satz, Vermerk, Grund.
+ * `freigabe` undefined: die Freigabe prueft nur der Server.
+ */
+function pruefeFremd(v: Voucher, i: number, freigabe: PosExternalVouchers | undefined, gesehen: Set<string>): PlanFehler | null {
+  const nein = (fehler: string, text: string): PlanFehler => ({ fehler, text });
+  const falsch = (feld: string) => nein('voucher_invalid', `Gutschein ${i + 1}: ${feld} passt nicht zum Fremdgutschein.`);
+  if (freigabe === 'off') return nein('external_voucher_not_enabled', `Gutschein ${i + 1}: Fremdgutscheine sind nicht freigegeben.`);
+  if (v.action !== 'sell' && v.action !== 'redeem' && v.action !== 'payout') return falsch('action');
+  if (v.type !== 'multi_purpose' && v.type !== 'single_purpose') return falsch('type');
+  if (v.type === 'single_purpose' && freigabe !== undefined && freigabe !== 'all') {
+    return nein('external_voucher_type_not_enabled', `Gutschein ${i + 1}: fremde Einzweckgutscheine sind nicht freigegeben.`);
+  }
+  const r = v as unknown as Record<string, unknown>;
+  for (const feld of ['code', 'typeId', 'articleId', 'article', 'quantity', 'positions']) {
+    if (r[feld] !== undefined) return falsch(feld);
+  }
+  if (v.valueCents != null) return falsch('valueCents');
+  const nummer = checkExternalVoucherNumber(v.number);
+  if (!nummer.ok) return nein(nummer.code, `Gutschein ${i + 1}: die Nummer ist ${nummer.code === 'external_voucher_number_is_own_code' ? 'ein eigener Gutscheincode' : 'ungueltig'}.`);
+  if (gesehen.has(nummer.number)) return nein('external_voucher_duplicate', `Gutschein ${i + 1}: dieselbe Nummer steht zweimal am Beleg.`);
+  gesehen.add(nummer.number);
+  const c = v.amountCents;
+  if (!(typeof c === 'number' && Number.isInteger(c) && c >= 1 && c <= 1_000_000)) return falsch('amountCents');
+  if (v.type === 'single_purpose') {
+    if (!(typeof v.vatRateBp === 'number' && EXTERNAL_VOUCHER_VAT_RATES_BP.includes(v.vatRateBp))) return falsch('vatRateBp');
+  } else if (v.vatRateBp != null) {
+    return falsch('vatRateBp');
+  }
+  if (v.taxedWith != null) {
+    if (v.type !== 'single_purpose' || v.action === 'sell') return falsch('taxedWith');
+    const t = typeof v.taxedWith === 'string' ? v.taxedWith.trim() : '';
+    if (t.length < 1 || t.length > EXTERNAL_VOUCHER_TAXED_WITH_MAX || STEUERZEICHEN.test(t)) return falsch('taxedWith');
+  }
+  if (v.action === 'payout') {
+    const g = typeof v.reason === 'string' ? v.reason.trim() : '';
+    if (g.length < 1 || g.length > 200) return falsch('reason');
+  }
+  // Uebrige Serverfelder am Wunsch: wie bei eigenen Gutscheinen nie sendbar.
+  return voucherIsValid(v) ? null : falsch('Angaben');
+}
+
 /**
  * Wuensche und gelesene Eintraege in Positionen und Belegeintraege, wie
  * `plane` sie baut. `kunde` sind Ware und Trinkgeld in innerer Form.
@@ -272,9 +331,16 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
   if (storno) return nein('voucher_invalid', 'Gutscheine der neuen Form gibt es am Storno nur gespiegelt vom Server.');
   if (art === 'training') return nein('voucher_invalid', 'Gutscheine der neuen Form gibt es nicht auf Schulungsbelegen.');
   if (kunde.some(istGutscheinZeile)) return nein('voucher_invalid', 'Gutschein-Positionen setzt nur der Server.');
+  const freigabe = o.externalVouchers ?? o.voucherSettings?.externalVouchers;
+  const nummern = new Set<string>();
   for (const [i, v] of vouchers.entries()) {
     if (istGelesen(v)) return nein('voucher_invalid', `Gutschein ${i + 1}: Serverfelder an einem Wunsch.`);
     if (!isNewFormVoucher(v)) continue;
+    if (isExternalVoucher(v)) {
+      const f = pruefeFremd(v, i, freigabe, nummern);
+      if (f) return f;
+      continue;
+    }
     if (istWertVerkauf(v) && v.typeId == null) {
       // Wie gutschein-beleg.pruefeWuensche: ein Wert-Verkauf ohne Sorte ist voucher_type_required.
       // Nur eine alte Gutschein-Einstellung MIT Art (Aufrufer bis 1.16) rechnet wie bisher; ein Server ab
@@ -296,7 +362,8 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
   if (wuensche.some((v) => v.action === 'payout') && vouchers.some((v) => !isNewFormVoucher(v) && v.type === 'promo')) {
     return nein('voucher_invalid', 'Rabatt und Auszahlung gehen nicht am selben Beleg.');
   }
-  const codes = wuensche.filter((v) => v.action !== 'sell').map((v) => normalerCode(v.code));
+  // Die Nummer eines Fremdgutscheins prueft pruefeFremd (external_voucher_duplicate).
+  const codes = wuensche.filter((v) => v.action !== 'sell' && !isExternalVoucher(v)).map((v) => normalerCode(v.code));
   if (codes.some((c) => c == null)) return nein('voucher_invalid', 'Ein Gutscheincode ist ungueltig.');
   if (new Set(codes).size !== codes.length) return nein('voucher_invalid', 'Derselbe Gutschein steht zweimal am Beleg.');
 
@@ -338,6 +405,47 @@ export function planeGutscheine(kunde: readonly Innen[], vouchers: readonly Vouc
         g.imNullTopf = true;
       }
       gutscheine.push(g);
+      continue;
+    }
+    if (isExternalVoucher(v)) {
+      // gutschein-beleg.plane mit sichtExtern: kein Dokument, kein Saldo, keine Statuspruefung.
+      const c = v.amountCents as number;
+      const satz = v.type === 'single_purpose' ? (v.vatRateBp as number) : 0;
+      if (v.action === 'sell') {
+        if (v.type === 'multi_purpose') {
+          if (nulltopf) {
+            zusatz.push(position(0, c, 'voucher_float'));
+            gutscheine.push({ action: 'sell', type: 'value', value: c / 100, imNullTopf: true });
+          } else {
+            gutscheine.push({ action: 'sell', type: 'value', value: c / 100 });
+          }
+        } else {
+          // Kleinunternehmer verkauft befreit: Satz 0, egal was gesendet wird.
+          zusatz.push(position(ku ? 0 : satz, c, 'voucher'));
+        }
+      } else if (v.action === 'payout') {
+        if (v.type === 'multi_purpose') {
+          zusatz.push(position(0, -c, 'voucher_float'));
+          gutscheine.push({ action: 'payout', type: 'value', value: c / 100, imNullTopf: true });
+        } else {
+          // Ohne Dokument berichtigt ein Kleinunternehmer-Konto im 0-%-Topf (nie USt, die es nie geschuldet hat).
+          zusatz.push(position(ku ? 0 : satz, -c, 'voucher'));
+        }
+        auszahlungCents += c;
+      } else if (v.type === 'multi_purpose') {
+        gutscheine.push({ action: 'redeem', type: 'value', value: c / 100 });
+      } else if (satz === 0 || ku) {
+        // Befreit verkauft (Satz 0) oder Kleinunternehmer-Konto: anteilig auf alle Toepfe des Korbs.
+        const teile = kuTeile(kunde, c);
+        if (!teile) return nein('voucher_rate_mismatch', `Gutschein ${i + 1}: der Korb deckt den Betrag nicht.`);
+        for (const t of teile) {
+          zusatz.push(position(t.satzBp, -t.cents, 'voucher'));
+          minus(t.satzBp, t.cents);
+        }
+      } else {
+        zusatz.push(position(satz, -c, 'voucher'));
+        minus(satz, c);
+      }
       continue;
     }
     if (istWertVerkauf(v) && v.typeId != null) {

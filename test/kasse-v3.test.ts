@@ -207,6 +207,7 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
         'vouchers.types[].amount.mode': kasse.VOUCHER_AMOUNT_MODES,
         'vouchers.types[].validity.pattern': kasse.VOUCHER_TYPE_VALIDITY_PATTERNS,
         'vouchers.types[].payout': kasse.VOUCHER_PAYOUTS,
+        'vouchers.externalVouchers': kasse.EXTERNAL_VOUCHERS,
       };
       assert.ok(gutschein[pfad], `${pfad}: Wertemenge des Gutschein-Blocks ohne Gegenstueck im Paket`);
       assert.deepEqual(Object.values(zuordnung(verweis)).sort(), [...gutschein[pfad]!].sort(), pfad);
@@ -754,7 +755,7 @@ test('F2: der 0.x-Filter gilt immer, auch fuer eine Kopie der Standards', () => 
   assert.equal(s.business.theme, 'clear');
   assert.equal(s.business.fontSize, 'L');
   assert.equal(s.device.layout, 'right');
-  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null, typeSale: false, types: [], serviceArticles: false, labelDefault: null } });
+  assert.deepEqual(kasse.sanitizePosSettings(null), { business: JSON.parse(JSON.stringify(POS_BUSINESS_DEFAULTS)), device: JSON.parse(JSON.stringify(POS_DEVICE_DEFAULTS)), vouchers: { sale: false, valueVoucherType: null, vatRateBp: null, typeSale: false, types: [], serviceArticles: false, labelDefault: null, externalVouchers: 'off' } });
   // Ein neuer englischer Wert ist kein Altwert und bleibt.
   assert.equal(kasse.sanitizePosSettings({ business: { theme: 'sepia' } }).business.theme, 'sepia');
 });

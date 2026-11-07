@@ -237,6 +237,12 @@ const MELDUNGEN_ROH = {
   'voucher_error.amount_mismatch': { text: 'Die Gutschein-Sorte hat sich geändert. Die Kasse lädt die Sorten neu.' },
   'voucher_error.service_not_allowed': { text: 'Dieser Artikel ist nicht als Leistungsgutschein freigegeben.' },
   'voucher_error.payout_not_allowed': { text: 'Dieser Gutschein kann nicht ausgezahlt werden.' },
+  // Fremdgutscheine (Server 2026-11): Woerter wie gutschein-transaktion.fehlerText im Backend.
+  'voucher_error.external_not_enabled': { text: 'Fremde Gutscheine sind für dieses Konto nicht freigegeben.' },
+  'voucher_error.external_type_not_enabled': { text: 'Fremde Einzweckgutscheine sind für dieses Konto nicht freigegeben.' },
+  'voucher_error.external_number_invalid': { text: 'Gutscheinnummer prüfen: 1 bis 40 Zeichen, nur Buchstaben, Ziffern und - _ . / sind erlaubt.' },
+  'voucher_error.external_number_is_own_code': { text: 'Das ist ein eigener Gutscheincode. Bitte als eigenen Gutschein einlösen.' },
+  'voucher_error.external_duplicate': { text: 'Diese Gutscheinnummer steht schon auf dem Beleg.' },
   // Satz der Kasse selbst (1.17.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
   // geaendert, deaktiviert oder geloescht). Die Zeile sperrt das Kassieren, bis sie entfernt und neu gewaehlt ist;
   // der Satz nach einer Absage des Servers bleibt voucher_error.type_not_found bzw. voucher_error.amount_mismatch.
@@ -757,6 +763,11 @@ export const VOUCHER_ERROR_MESSAGES = {
   voucher_amount_mismatch: 'voucher_error.amount_mismatch',
   voucher_service_not_allowed: 'voucher_error.service_not_allowed',
   voucher_payout_not_allowed: 'voucher_error.payout_not_allowed',
+  external_voucher_not_enabled: 'voucher_error.external_not_enabled',
+  external_voucher_type_not_enabled: 'voucher_error.external_type_not_enabled',
+  external_voucher_number_invalid: 'voucher_error.external_number_invalid',
+  external_voucher_number_is_own_code: 'voucher_error.external_number_is_own_code',
+  external_voucher_duplicate: 'voucher_error.external_duplicate',
 } as const satisfies Record<string, MessageKey>;
 
 export type VoucherMessageCode = keyof typeof VOUCHER_ERROR_MESSAGES;

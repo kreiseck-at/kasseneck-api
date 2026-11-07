@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  VOUCHER_SETTINGS_DEFAULTS, VOUCHER_TYPE_KINDS, VOUCHER_AMOUNT_MODES, VOUCHER_TYPE_VALIDITY_PATTERNS, VOUCHER_PAYOUTS,
+  VOUCHER_SETTINGS_DEFAULTS, VOUCHER_TYPE_KINDS, VOUCHER_AMOUNT_MODES, VOUCHER_TYPE_VALIDITY_PATTERNS, VOUCHER_PAYOUTS, EXTERNAL_VOUCHERS,
   posVoucherSettingsFromWire, checkVoucher, fromPosArticlePayload, labelText, messageText, voucherErrorMessage, sanitizePosSettings,
   type PosVoucherType,
 } from '../src/pos/index.js';
@@ -50,7 +50,7 @@ function sorte(aendern: Json = {}): Json {
 }
 const STANDARD = { layout: 'a', size: '40x30', fields: { logo: true, qr: true, business: true, value: true, validity: true, checkPage: true, designation: true }, freeText: [] };
 const block = (aendern: Json = {}): Json => ({
-  sale: false, typeSale: true, valueVoucherType: null, vatRateBp: null, labelDefault: STANDARD, types: [sorte()], serviceArticles: false, ...aendern,
+  sale: false, typeSale: true, valueVoucherType: null, vatRateBp: null, labelDefault: STANDARD, types: [sorte()], serviceArticles: false, externalVouchers: 'off', ...aendern,
 });
 
 // --- Einstellungen: Block vouchers -----------------------------------------------
@@ -76,7 +76,7 @@ test('Sorten: der Vertragsfall owner_with_voucher_type liest jede Sorte mit alle
 
 test('Sorten: ein Block eines aelteren Servers (nur sale, Art, Satz) liest die neuen Felder als aus', () => {
   const s = posVoucherSettingsFromWire({ sale: true, valueVoucherType: 'single_purpose', vatRateBp: 2000 });
-  assert.deepEqual(s, { sale: true, valueVoucherType: 'single_purpose', vatRateBp: 2000, typeSale: false, types: [], serviceArticles: false, labelDefault: null });
+  assert.deepEqual(s, { sale: true, valueVoucherType: 'single_purpose', vatRateBp: 2000, typeSale: false, types: [], serviceArticles: false, labelDefault: null, externalVouchers: 'off' });
 });
 
 test('Sorten: stimmiger Block mit Sorten geht durch (Mehrzweck ohne Satz, freier Betrag, unbefristet)', () => {
@@ -465,4 +465,20 @@ test('Woerter: Reiter, Kacheln und Fehlersaetze der Gutschein-Sorten mit genau d
 test('Woerter: Satz fuer eine Verkaufszeile mit geaenderter Sorte', () => {
   assert.equal(messageText('voucher.type_changed'), 'Diese Gutschein-Sorte hat sich geändert. Bitte die Zeile entfernen und die Kachel neu antippen.');
   assert.notEqual(messageText('voucher.type_changed'), messageText('voucher_error.amount_mismatch'));
+});
+
+test('Fremdgutscheine: vouchers.externalVouchers wird gelesen, unbekannt oder fehlend ist aus', () => {
+  for (const wert of ['off', 'multi_purpose', 'all'] as const) assert.equal(posVoucherSettingsFromWire(block({ externalVouchers: wert })).externalVouchers, wert);
+  // Ein aelterer Server sendet das Feld nicht; ein unbekannter Wert schliesst nur den Fremdgutschein, nie den Block.
+  const { externalVouchers: _weg, ...ohne } = block();
+  assert.equal(posVoucherSettingsFromWire(ohne).externalVouchers, 'off');
+  for (const kaputt of ['wert', 'beide', 'aus', true, 1, null]) {
+    const s = posVoucherSettingsFromWire(block({ externalVouchers: kaputt }));
+    assert.equal(s.externalVouchers, 'off', String(kaputt));
+    assert.equal(s.types!.length, 1, String(kaputt));
+  }
+  // Der Vertrag liefert den Wert in jedem Fall mit Block vouchers.
+  const draht = fall('getKasseSettings', 'owner_with_voucher_type').response.data.vouchers;
+  assert.equal(draht.externalVouchers, 'off');
+  assert.deepEqual([...EXTERNAL_VOUCHERS], ['off', 'multi_purpose', 'all']);
 });

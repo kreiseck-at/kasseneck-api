@@ -1,7 +1,7 @@
 import { ReceiptType, type ReceiptTypeKey, KeckPaymentMethod, VoucherAction, VoucherType } from '../enums/index.js';
 import type { ReceiptItem } from '../models/receipt-item.js';
 import type { Voucher } from '../models/voucher.js';
-import type { PosVoucherSettings, VoucherCheck } from '../pos/gutschein.js';
+import type { PosExternalVouchers, PosVoucherSettings, VoucherCheck } from '../pos/gutschein.js';
 import { VoucherCode } from '@kreiseck/validator';
 import { toViennaWallClock } from '../vienna-time.js';
 import {
@@ -114,6 +114,13 @@ export interface ReceiptDueOptions {
    * einen Wert-Verkauf ohne `typeId` nicht mehr.
    */
   voucherSettings?: PosVoucherSettings;
+  /**
+   * Freigabe fuer Fremdgutscheine (`getKasseSettings` `vouchers.externalVouchers`). Bei `off` rechnet ein
+   * Fremdgutschein nicht (`external_voucher_not_enabled`), ein fremder Einzweck nur bei `all`
+   * (`external_voucher_type_not_enabled`). Ohne Angabe gilt die aus `voucherSettings`; fehlen beide, prueft
+   * nur der Server die Freigabe.
+   */
+  externalVouchers?: PosExternalVouchers;
   /**
    * Artikel fuer den Verkauf von Dienstleistungsgutscheinen (Preis und Satz,
    * wie im Artikelstamm). Fehlt der verkaufte Artikel hier:
@@ -263,6 +270,7 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
   const plan = planeGutscheine(positionen, vouchers, art, {
     voucherInfo: options.voucherInfo,
     voucherSettings: options.voucherSettings,
+    ...(options.externalVouchers !== undefined ? { externalVouchers: options.externalVouchers } : {}),
     voucherTypes: options.voucherTypes,
     voucherArticles: options.voucherArticles,
     smallBusiness: options.smallBusiness,

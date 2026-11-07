@@ -336,6 +336,12 @@ export interface ReceiptWithCompany {
    * neuer Beleg). Fehlt sonst, auch beim ersten Verkauf mit Schluessel.
    */
   replayed?: true;
+  /**
+   * Nur nach einem Verkauf auf einem veralteten Weg (Server 2026-11: Wertgutschein der Altform mit frei getipptem
+   * Code, `type: 'value'`): der Hinweis des Servers (englisch). Der Beleg gilt; kuenftig den Gutschein als
+   * Fremdgutschein (`source: 'external'`) bzw. als eigenen ueber eine Sorte senden. Fehlt sonst.
+   */
+  deprecation?: string;
 }
 
 /**
@@ -1545,6 +1551,7 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     logo_scale?: unknown;
     outputs?: unknown;
     replayed?: unknown;
+    deprecation?: unknown;
   };
   const outputs = receiptOutputsFromWire(d.outputs);
   const layout = d.layout && typeof d.layout === 'object' && Array.isArray((d.layout as { lines?: unknown }).lines) ? (d.layout as ReceiptLayout) : null;
@@ -1561,6 +1568,7 @@ export function belegMitFirmaAusHuelle(daten: unknown, functionName: string): Re
     ...(outputs !== undefined ? { outputs } : {}),
     // Nur genau true: ohne Wiederholung bleibt die Form des Ergebnisses wie bisher.
     ...(d.replayed === true ? { replayed: true as const } : {}),
+    ...(typeof d.deprecation === 'string' && d.deprecation !== '' ? { deprecation: d.deprecation } : {}),
   };
 }
 

@@ -39,6 +39,14 @@ for (const name of [...katalogNamen].sort()) {
   catalogs[name] = vokabular.catalogs[name];
 }
 
+// Kataloge, die der Rand an Gutschein-Eintraegen am Beleg anwendet, ohne dass ein Schema auf sie verweist
+// (api-vokabular-v3.gutscheinEintragNachAussen: `quelle` ueber GUTSCHEIN_QUELLE).
+const zusatz = {};
+for (const name of ['GUTSCHEIN_QUELLE']) {
+  if (!vokabular.catalogs[name]) throw new Error(`Katalog ${name} fehlt im Vertrag`);
+  zusatz[name] = vokabular.catalogs[name];
+}
+
 const json = (wert) => JSON.stringify(wert, null, 2);
 const inhalt = `// Erzeugt von scripts/stored-vokabular.mjs aus fixtures/v3/v3-vokabular.json.
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
@@ -64,6 +72,9 @@ export const ARTIKEL_FELDER: readonly string[] = ${json(vokabular.articleFields.
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
 export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = ${json(catalogs)};
+
+/** Kataloge der Gutschein-Eintraege am Beleg ohne Schemaverweis (\`quelle\` eines Fremdgutscheins), innen -> aussen. */
+export const ZUSATZ_KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = ${json(zusatz)};
 `;
 
 writeFileSync(new URL('../src/stored/vokabular.ts', import.meta.url), inhalt);

@@ -50,6 +50,15 @@ export const VOUCHER_AMOUNT_MODES: readonly ('free' | 'fixed')[] = Object.freeze
 /** Gueltigkeit einer Sorte: unbefristet oder N Jahre (das Muster der Sorte, nicht das eines Gutscheins). */
 export const VOUCHER_TYPE_VALIDITY_PATTERNS: readonly ('unlimited' | 'years')[] = Object.freeze(['unlimited', 'years'] as const);
 
+/**
+ * Freigabe fuer Fremdgutscheine des Kontos (`vouchers.externalVouchers`): `off` keine, `multi_purpose` nur
+ * Wertgutscheine (Mehrzweck) eines anderen Systems, `all` dazu Einzweckgutscheine. Die Kasse zeigt den Weg
+ * „Fremdgutschein“ nur ab `multi_purpose`, die Art Einzweck nur bei `all`; der Server prueft dieselbe Freigabe
+ * (`external_voucher_not_enabled`, `external_voucher_type_not_enabled`). Die Test-Umgebung ist immer `all`.
+ */
+export type PosExternalVouchers = 'off' | 'multi_purpose' | 'all';
+export const EXTERNAL_VOUCHERS: readonly PosExternalVouchers[] = Object.freeze(['off', 'multi_purpose', 'all'] as const);
+
 /** Der Artikel eines Dienstleistungsgutscheins. */
 export interface VoucherArticle {
   id: string;
@@ -166,6 +175,11 @@ export interface PosVoucherSettings {
    * passende Sorte). Fehlt sie, zeigt die Kasse „Als Gutschein“ nicht.
    */
   returnType?: PosVoucherReturnType;
+  /**
+   * Freigabe fuer Fremdgutscheine (Server 2026-11, [EXTERNAL_VOUCHERS]). Der Leser setzt sie immer; fehlt sie
+   * am Draht (aelterer Server) oder ist sie unbekannt, gilt `off`.
+   */
+  externalVouchers?: PosExternalVouchers;
 }
 
 /** Sorte fuer Rueckgaben (`vouchers.returnType`): Kennung und Name. */
@@ -178,6 +192,7 @@ export interface PosVoucherReturnType {
 export const VOUCHER_SETTINGS_DEFAULTS: Readonly<PosVoucherSettings> = Object.freeze({
   sale: false, valueVoucherType: null, vatRateBp: null,
   typeSale: false, types: Object.freeze([]) as unknown as PosVoucherType[], serviceArticles: false, labelDefault: null,
+  externalVouchers: 'off',
 });
 
 /**
@@ -230,6 +245,8 @@ export function posVoucherSettingsFromWire(block: unknown): PosVoucherSettings {
     serviceArticles: leistung,
     labelDefault: vorlageVomDraht(b['labelDefault']),
     ...rueckgabeSorteVomDraht(b['returnType']),
+    // Unbekannt oder fehlend: aus (schliesst nur den Fremdgutschein, nie den Block).
+    externalVouchers: (EXTERNAL_VOUCHERS as readonly unknown[]).includes(b['externalVouchers']) ? (b['externalVouchers'] as PosExternalVouchers) : 'off',
   };
 }
 
