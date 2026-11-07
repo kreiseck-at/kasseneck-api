@@ -33,6 +33,22 @@
       "blatt32": "cee163fea47c580ef036d1f0b085cfff06eda89a6e13be4bf7c055ba3cbe0884",
       "blatt48": "1ab495174dbf6787480ea29a13d3a6ad25c2a20d92b2a167f082b3965caed837"
     },
+    "gutschein-fremd-einloesung": {
+      "eingabe": "e986b819fc032f3bdadc2b13956bbf54676f53694be2981ec05c17dceefd0fa0",
+      "erwartet": "053b8b3e713b207fe236d9dde69eb8704f6e32cd1f79a8913163b05d1a150635",
+      "grid32": "fcc74fb3afcd2249060a38f7c0b4cd0fe08f90e5732d653d48f10fc01448c616",
+      "grid48": "f4852bf86651b9d44664668c9dc0403391ac71c761f5a36a064082397e43e22d",
+      "blatt32": "919d0700429afdec563aa255894d9dc01860e4c434d312a3957a96661c604ee3",
+      "blatt48": "1f5be246b47800683af2903f988a12bdfa6341bf793c09011a82bf6724b242b2"
+    },
+    "gutschein-fremd-verkauf": {
+      "eingabe": "d3697e0782fd3eebdb70c7fe6d57789c13a15f18e9f4570b2b145e30193724c8",
+      "erwartet": "1bd757049bed92b794415a5c046f214120c12c73037c6684acdaa58131287370",
+      "grid32": "88af4d85824fb1134fc19dadcd44b929b786f2e57ad4a0a782363e58cfedda8a",
+      "grid48": "b41f01f35f8a22c8f517657fd2a15588c40dc19c4bb851ba4685a1919b68632a",
+      "blatt32": "24f06a1ac4557cf9a8ee662923be255593bdd14b9f61cc770dd7c61782e4df17",
+      "blatt48": "eebfef8859c4eb7e57dc2b2f4729262147d1c9e5b4f21b9b0ab26b4fab39f8e5"
+    },
     "gutschein-leistung-einloesung": {
       "eingabe": "03b0330e71f08c2dfbebb9704b2fc0b3c066d6f9e6875718f9e3bf9a17ee7beb",
       "erwartet": "30f6c626164654b2c30731c0069a0963afab5e75696e1899398dfd0fb8322fb1",

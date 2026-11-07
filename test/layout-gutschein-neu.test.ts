@@ -71,7 +71,7 @@ const bezahlt = (f: Json): number => (f.receipt.payments as Json[]).reduce((s, p
 const raster = (l: ReceiptLayout, zeichen: 32 | 48): string[] => gridAlsText(renderReceiptGrid(l, { zeichen })).split('\n');
 
 test('jeder Gutschein-Beleg: receiptSumCents und Gesamt = Summe der Zahlungen, Steuertabelle = Positionen je Satz', () => {
-  assert.equal(NAMEN.length, 8);
+  assert.equal(NAMEN.length, 10); // 8 bis 0.37, dazu gutschein-fremd-* (0.38.0)
   for (const name of NAMEN) {
     const f = lade(name);
     const r = lesen(f.receipt);
