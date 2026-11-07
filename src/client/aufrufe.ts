@@ -166,6 +166,14 @@ export const ALL_CALLS = [
   'getRegisterInspectionInfo',
   // Connect-Bestand (./pos): welche Connect-Version an welchem Kassengeraet laeuft; nur ueber den Kassenweg.
   'reportConnectState',
+  // Kartenterminal am Handy: Geraet, Zugang, TID und Code (nur /v3).
+  'registerTerminalDevice',
+  'getTerminalAccess',
+  'claimTerminal',
+  'requestTerminalCode',
+  'getTerminalCode',
+  'reportTerminalLogin',
+  'reportTerminalReady',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -299,6 +307,14 @@ export const PUBLIC_CALLS = [
   'getDepExportFile',
   'createDepHandoverLink',
   'revokeDepHandoverLink',
+  // Kartenterminal am Handy (api_key + Geraete-Ausweis), nur unter /v3; am Kassenweg noch nicht.
+  'registerTerminalDevice',
+  'getTerminalAccess',
+  'claimTerminal',
+  'requestTerminalCode',
+  'getTerminalCode',
+  'reportTerminalLogin',
+  'reportTerminalReady',
 ] as const;
 
 /**
@@ -396,6 +412,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'cancelReceipt',
   'cancelStocktake',
   'changeStockCondition',
+  'claimTerminal',
   'closeMyShift',
   'closeStocktake',
   'createArticle',
@@ -416,6 +433,8 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'deleteWebhook',
   'extendReservation',
   'financeWebService',
+  // Auf Android verbraucht die Antwort den Code: nach einem Zeitlimit kann er zugestellt und weg sein.
+  'getTerminalCode',
   'hobexPayApi',
   'hobexRefundApi',
   'issueInvoice',
@@ -431,10 +450,14 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'recordStockLoss',
   'recordStocktakeCount',
   'recountStocktake',
+  'registerTerminalDevice',
   'releaseReservation',
   'reportConnectState',
   'reportCustomerContract',
+  'reportTerminalLogin',
+  'reportTerminalReady',
   'requestCustomerSignature',
+  'requestTerminalCode',
   'reverseStockMovement',
   'reviewStocktake',
   'revokeCustomerMandate',
@@ -535,6 +558,8 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getStocktake: 'read',
   getSignatureCardOrder: 'read',
   getStocktakePdf: 'read',
+  // Behaelt die TID des Geraets bzw. vergibt eine freie; eine Wiederholung liefert dieselbe Zuordnung und bucht nichts.
+  getTerminalAccess: 'repeatable',
   getVariantGroup: 'read',
   hobexGetStatus: 'read',
   listArticles: 'read',
