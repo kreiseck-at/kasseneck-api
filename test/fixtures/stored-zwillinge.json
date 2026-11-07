@@ -23,7 +23,7 @@
     {
       "datei": "functions/beleg-kopf-core.js",
       "marke": null,
-      "sha256": "0dd75ae601a742beba863aac20ad610e3fd59373ea4cf84772a4e3f158087a68"
+      "sha256": "e92a1031efc98bfa156157247ea06cd5c2bdf3f1d39a51f66ea71555fe474cb0"
     },
     {
       "datei": "functions/beleg-kopf.js",
@@ -108,7 +108,7 @@
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
       "marke": "function artikelNachAussen(",
-      "sha256": "3cff956abbf4f515f1f3e650dd21c94e2ba8a4c26e23557bf54d856e371b1c46"
+      "sha256": "5ff09db2a83f25c7ee447e31a616b332812b40b0a778b881186135cf71fbd291"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",
@@ -123,7 +123,7 @@
     {
       "datei": "functions/index.js",
       "marke": "async function belegKopfVersionOderKonto(",
-      "sha256": "d0a498a905057fa021544d3e34a5f9b351638300b3ecc264f2ed1fcaff527d7b"
+      "sha256": "0dd047a9c0a5b9f16d6eedf5b507fdefbdd8f87b12384b4db816b8810a8e1259"
     },
     {
       "datei": "functions/index.js",
@@ -133,7 +133,7 @@
   ],
   "zwilling": {
     "src/stored/bon-layout.ts": "a032c4c58d794fab0cf97cfe0be74ead3842ec6201d4318bbd554e8360561bbe",
-    "src/stored/draht.ts": "9845f4b481b155de7ea83982584b066bf7f4a35c7a8ba71a1ff2552afa8db719",
+    "src/stored/draht.ts": "e43b6bf87c11fc7974b1ae190aa00acdf4dd9508ba7563864354f99a09dcdfde",
     "src/stored/einstellungen.ts": "24a66afe60d02ef8c4b4a7132c0d862bb957f03f5be3d7227ef1bb5890140ed0",
     "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }

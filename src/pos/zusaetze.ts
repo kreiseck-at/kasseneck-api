@@ -13,10 +13,10 @@ import type { ArticleGroup, PosArticle } from './artikel.js';
 export const ADD_ONS_MAX = 30;
 
 /** Warum ein Artikel kein Zusatz sein kann (Panel zeigt den Grund an). */
-export const ADD_ON_BLOCK_REASONS = ['inactive', 'own_list', 'asks_price', 'reference', 'asks_quantity', 'no_price', 'service_voucher'] as const;
+export const ADD_ON_BLOCK_REASONS = ['inactive', 'own_list', 'asks_price', 'reference', 'asks_quantity', 'no_price', 'service_voucher', 'external_voucher'] as const;
 export type AddOnBlockReason = typeof ADD_ON_BLOCK_REASONS[number];
 
-type ZusatzArtikel = Pick<PosArticle, 'id' | 'active' | 'unitPriceCents'> & Partial<Pick<PosArticle, 'addOns' | 'askPrice' | 'reference' | 'askQuantity' | 'serviceVoucher'>>;
+type ZusatzArtikel = Pick<PosArticle, 'id' | 'active' | 'unitPriceCents'> & Partial<Pick<PosArticle, 'addOns' | 'askPrice' | 'reference' | 'askQuantity' | 'serviceVoucher' | 'externalVoucher'>>;
 type ArtikelNachId<T> = ReadonlyMap<string, T> | Readonly<Record<string, T>>;
 
 const eigeneListe = (a: { addOns?: string[] | null }): boolean => Array.isArray(a.addOns) && a.addOns.length > 0;
@@ -24,7 +24,7 @@ const eigeneListe = (a: { addOns?: string[] | null }): boolean => Array.isArray(
 /**
  * Taugt der Artikel als Zusatz? `null` = ja. Im Fenster wird ohne Abfrage
  * gebucht: Betrag, Referenz oder Menge fragen geht nicht, ein Preis muss
- * feststehen (0 erlaubt), ein Leistungsgutschein liefe am Gutschein-Weg vorbei,
+ * feststehen (0 erlaubt), ein Leistungsgutschein oder fremder Gutschein liefe am Gutschein-Weg vorbei,
  * und ein Artikel mit eigener Liste oeffnete selbst ein Fenster (eine Ebene).
  */
 export function isSelectableAddOn(a: ZusatzArtikel): AddOnBlockReason | null {
@@ -35,6 +35,7 @@ export function isSelectableAddOn(a: ZusatzArtikel): AddOnBlockReason | null {
   if (a.askQuantity === true) return 'asks_quantity';
   if (typeof a.unitPriceCents !== 'number' || !Number.isInteger(a.unitPriceCents) || a.unitPriceCents < 0) return 'no_price';
   if (a.serviceVoucher === true) return 'service_voucher';
+  if (a.externalVoucher != null) return 'external_voucher';
   return null;
 }
 

@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "3c729299a204cf522158317aa38dcad5bb8ef797c44e9369faecc94be4717d78";
+export const VOKABULAR_QUELLE = "f5ab5e9bba448c05e6ee51f66a4f55c30e5efbff766b5b2e6814d77e3f53eb74";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -420,7 +420,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "pattern": "muster",
             "patternStrict": "musterStreng"
           },
-          "addOns": "zusaetze"
+          "addOns": "zusaetze",
+          "externalVoucher": "fremdgutschein"
         }
       ]
     },
@@ -433,6 +434,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "articles[].reference.mode": {
         "$catalog": "REFERENZ_STUFE"
+      },
+      "articles[].externalVoucher": {
+        "$catalog": "ARTIKEL_FREMDGUTSCHEIN"
       }
     }
   }
@@ -467,11 +471,16 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "minStockByLocation",
   "askPrice",
   "reference",
-  "addOns"
+  "addOns",
+  "externalVoucher"
 ];
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
 export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "ARTIKEL_FREMDGUTSCHEIN": {
+    "mehrzweck": "multi_purpose",
+    "einzweck": "single_purpose"
+  },
   "AUSGABE_ART": {
     "erstdruck": "print",
     "duplikat": "reprint",

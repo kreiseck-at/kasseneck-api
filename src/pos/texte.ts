@@ -24,6 +24,8 @@
 import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 import type { ReturnDisposition } from '../models/cancellation.js';
 import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
+import type { PosExternalVouchers } from './gutschein.js';
+import { ARTICLE_EXTERNAL_VOUCHER_INVALID, type ArticleExternalVoucher, type ExternalVoucherArticleReason, type ExternalVoucherTileBlock } from './fremdgutschein-artikel.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
 export type Surface = 'web' | 'app';
@@ -243,6 +245,25 @@ const MELDUNGEN_ROH = {
   'voucher_error.external_number_invalid': { text: 'Gutscheinnummer prüfen: 1 bis 40 Zeichen, nur Buchstaben, Ziffern und - _ . / sind erlaubt.' },
   'voucher_error.external_number_is_own_code': { text: 'Das ist ein eigener Gutscheincode. Bitte als eigenen Gutschein einlösen.' },
   'voucher_error.external_duplicate': { text: 'Diese Gutscheinnummer steht schon auf dem Beleg.' },
+  // Fremdgutscheine an der Kasse (1.31.0): Kachel gesperrt (Zuordnung in EXTERNAL_VOUCHER_TILE_MESSAGES), Hinweis im
+  // Storno eines Belegs mit fremdem Gutschein-Verkauf, Hilfe-Satz unter dem Schalter im Kundenbereich.
+  'external_voucher.not_enabled': { text: 'Fremde Gutscheine sind aus. Bitte im Panel freischalten.' },
+  'external_voucher.type_not_enabled': { text: 'Fremde Leistungsgutscheine sind aus. Bitte im Panel freischalten.' },
+  'cancellation.external_voucher_check': { text: 'Vorher im eigenen Gutscheinsystem prüfen, ob er schon benutzt wurde.' },
+  'settings.external_vouchers_hint': { text: 'Ob ein Gutschein Wert- oder Leistungsgutschein ist und mit welchem Satz er verkauft wurde, legt der Betrieb fest. Das Guthaben führt sein eigenes System.' },
+  // Artikel als fremder Gutschein speichern (article_external_voucher_invalid, Zuordnung je data.grund in
+  // EXTERNAL_VOUCHER_ARTICLE_MESSAGES): Woerter wie fremdgutschein-artikel-core im Backend; `invalid` fuer
+  // invalid_type und einen unbekannten Grund (der Backend-Satz dazu ist technisch); invalid_rate mit deutschem
+  // Dezimalkomma statt der Liste aus STEUERSAETZE.join.
+  'external_voucher_article.invalid': { text: 'Diese Art von fremdem Gutschein gibt es nicht.' },
+  'external_voucher_article.service_voucher': { text: 'Ein fremder Gutschein kann kein Leistungsgutschein mit Code sein.' },
+  'external_voucher_article.add_ons': { text: 'Ein fremder Gutschein hat keine Zusätze.' },
+  'external_voucher_article.stock_tracked': { text: 'Ein fremder Gutschein führt keinen Lagerbestand.' },
+  'external_voucher_article.reference': { text: 'Ein fremder Gutschein fragt keine Referenz ab, die Kasse fragt die Gutscheinnummer.' },
+  'external_voucher_article.asks_quantity': { text: 'Ein fremder Gutschein fragt keine Menge ab.' },
+  'external_voucher_article.rate_required': { text: 'Ein Einzweckgutschein braucht den Steuersatz, mit dem er verkauft wird.' },
+  'external_voucher_article.invalid_rate': { text: 'Ein Einzweckgutschein braucht einen Steuersatz der Kasse: 20, 13, 10, 4,9, 0 oder 19 %.' },
+  'external_voucher_article.price_required': { text: 'Ein fremder Gutschein braucht einen Preis oder „Betrag beim Antippen eingeben“.' },
   // Satz der Kasse selbst (1.17.0): eine Verkaufszeile im Korb passt nach dem Neuladen der Sorten nicht mehr (Sorte
   // geaendert, deaktiviert oder geloescht). Die Zeile sperrt das Kassieren, bis sie entfernt und neu gewaehlt ist;
   // der Satz nach einer Absage des Servers bleibt voucher_error.type_not_found bzw. voucher_error.amount_mismatch.
@@ -737,6 +758,41 @@ export function cancellationErrorMessage(code: string | undefined | null): Messa
 }
 
 /**
+ * Fremdgutscheine an der Kasse (1.31.0): Satz zur gesperrten Kachel ([externalVoucherTileBlock]).
+ */
+export const EXTERNAL_VOUCHER_TILE_MESSAGES = {
+  not_enabled: 'external_voucher.not_enabled',
+  type_not_enabled: 'external_voucher.type_not_enabled',
+} as const satisfies Record<ExternalVoucherTileBlock, MessageKey>;
+
+/**
+ * Artikel als fremder Gutschein: Satz je verletzter Regel (`data.grund` zu
+ * `article_external_voucher_invalid`, bzw. [checkExternalVoucherArticle] im Editor).
+ */
+export const EXTERNAL_VOUCHER_ARTICLE_MESSAGES = {
+  invalid_type: 'external_voucher_article.invalid',
+  service_voucher: 'external_voucher_article.service_voucher',
+  add_ons: 'external_voucher_article.add_ons',
+  stock_tracked: 'external_voucher_article.stock_tracked',
+  reference: 'external_voucher_article.reference',
+  asks_quantity: 'external_voucher_article.asks_quantity',
+  rate_required: 'external_voucher_article.rate_required',
+  invalid_rate: 'external_voucher_article.invalid_rate',
+  price_required: 'external_voucher_article.price_required',
+} as const satisfies Record<ExternalVoucherArticleReason, MessageKey>;
+
+/**
+ * Der Satz zu einer Absage beim Speichern eines Artikels: nur fuer
+ * `article_external_voucher_invalid` (sonst `undefined`), je `grund`; ein
+ * unbekannter oder fehlender Grund (`reason` = `data.grund`) bekommt den allgemeinen Satz.
+ */
+export function externalVoucherArticleErrorMessage(code: string | undefined | null, reason?: string | null): MessageKey | undefined {
+  if (code !== ARTICLE_EXTERNAL_VOUCHER_INVALID) return undefined;
+  const saetze: Record<string, MessageKey> = EXTERNAL_VOUCHER_ARTICLE_MESSAGES;
+  return (typeof reason === 'string' && Object.prototype.hasOwnProperty.call(saetze, reason) ? saetze[reason] : undefined) ?? 'external_voucher_article.invalid';
+}
+
+/**
  * Gutschein-Fehler (`/v3`): welcher `code` des Backends welchen Satz bekommt.
  * Wie RECEIPT_EMAIL_ERROR_MESSAGES: beide Kassen entscheiden am Code. Ein
  * unbekannter Code geht den allgemeinen Weg des Aufrufs.
@@ -1151,6 +1207,24 @@ const BESCHRIFTUNGEN_ROH = {
   'addons.none': { text: 'Ohne Zusatz' },
   'addons.done': { text: 'Fertig' },
   'addons.open': { text: 'Zusätze' },
+  // Fremdgutscheine an der Kasse (1.31.0): Kachel-Blatt („Gutscheinnummer“, Betrag = tile_prompt.amount), Blatt
+  // „Fremder Gutschein“ beim Einlösen und Auszahlen (Betrag = voucher.amount, Grund = voucher.reason), Korbzeile,
+  // Umschalter im Blatt „Gutschein auszahlen“; Schalter im Kundenbereich und Haken im Artikel-Editor.
+  'external_voucher.number': { text: 'Gutscheinnummer' },
+  'external_voucher.title': { text: 'Fremder Gutschein' },
+  'external_voucher.kind': { text: 'Art' },
+  'external_voucher.kind_value': { text: 'Wertgutschein' },
+  'external_voucher.kind_service': { text: 'Leistungsgutschein' },
+  'external_voucher.rate': { text: 'Satz' },
+  'external_voucher.taxed_with': { text: 'Versteuert mit (optional)' },
+  'external_voucher.line_name': { text: 'Gutschein Nr. {number}', placeholders: ['number'] },
+  'voucher.payout_source_own': { text: 'Kasseneck-Gutschein' },
+  'voucher.payout_source_external': { text: 'Fremder Gutschein' },
+  'settings.external_vouchers': { text: 'Fremde Gutscheine' },
+  'settings.external_vouchers_off': { text: 'Aus' },
+  'settings.external_vouchers_multi_purpose': { text: 'Nur Wertgutscheine' },
+  'settings.external_vouchers_all': { text: 'Wert- und Leistungsgutscheine' },
+  'article.external_voucher': { text: 'Verkauft einen fremden Gutschein' },
   // Gutschein-Sorten als Kacheln im Reiter „Gutscheine“ (Stufe 4b, 1.17.0): Kachel je Sorte mit Betrag
   // oder „Betrag eingeben“, darunter klein die Art; dazu die feste Kachel „Leistungsgutschein“.
   'voucher.tab': { text: 'Gutscheine' },
@@ -1416,6 +1490,19 @@ export const RETURN_DISPOSITION_LABELS = {
   defective: 'stock.return_defective',
   disposed: 'stock.return_disposed',
 } as const satisfies Record<ReturnDisposition, LabelKey>;
+
+/** Freigabe fuer Fremdgutscheine (`externalVouchers`) -> Beschriftung der Stufe im Kundenbereich. */
+export const EXTERNAL_VOUCHERS_LABELS = {
+  off: 'settings.external_vouchers_off',
+  multi_purpose: 'settings.external_vouchers_multi_purpose',
+  all: 'settings.external_vouchers_all',
+} as const satisfies Record<PosExternalVouchers, LabelKey>;
+
+/** Art eines fremden Gutscheins (Artikel, Blatt) -> Beschriftung: Wert- bzw. Leistungsgutschein. */
+export const EXTERNAL_VOUCHER_KIND_LABELS = {
+  multi_purpose: 'external_voucher.kind_value',
+  single_purpose: 'external_voucher.kind_service',
+} as const satisfies Record<ArticleExternalVoucher, LabelKey>;
 
 /** Art einer Ausgabe -> Beschriftung (`receipt.output_<kind>`). */
 const AUSGABE_BESCHRIFTUNG = {

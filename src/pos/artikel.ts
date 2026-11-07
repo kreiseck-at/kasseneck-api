@@ -1,6 +1,7 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { fromReferencePayload, type PosReference } from './kachel-referenz.js';
+import { isArticleExternalVoucher, type ArticleExternalVoucher } from './fremdgutschein-artikel.js';
 
 /**
  * Artikelgruppen (Kategorien der Kachel-Kasse) und Artikel in der Form, die
@@ -160,6 +161,16 @@ export interface PosArticle {
    * immer; wirksam wird es ueber [addOnsFor].
    */
   addOns?: string[] | null;
+  /**
+   * Kachel verkauft einen fremden Gutschein (1.31.0): `multi_purpose` =
+   * Wertgutschein, `single_purpose` = Leistungsgutschein mit dem Satz des
+   * Artikels; null = normaler Artikel. Die Kasse fragt die Gutscheinnummer ab
+   * und sendet einen `vouchers[]`-Eintrag statt einer Position; sperren ueber
+   * [externalVoucherTileBlock]. Vor `stockTracked` werten (ein Fremdgutschein
+   * fuehrt nie Bestand). Optional wie `addOns`, der Leser setzt es immer; ein
+   * unbekannter Wert wird null.
+   */
+  externalVoucher?: ArticleExternalVoucher | null;
 }
 
 /**
@@ -192,6 +203,7 @@ export interface PosArticlePayload {
   askPrice?: boolean | null;
   reference?: unknown;
   addOns?: unknown;
+  externalVoucher?: unknown;
 }
 
 /** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
@@ -225,6 +237,7 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     askPrice: p.askPrice === true,
     reference: fromReferencePayload(p.reference),
     addOns: addOnListe(p.addOns),
+    externalVoucher: isArticleExternalVoucher(p.externalVoucher) ? p.externalVoucher : null,
   };
 }
 

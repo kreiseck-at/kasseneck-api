@@ -211,6 +211,10 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
     ['a7', { kasse: null, mengenregel: null, e1aGroup: null }],
     ['a8', { kasse: [1], stockTracked: true, stockQty: 3, ean: '123', source: 'foreign', codeSpec: { a: 1 } }],
     ['a9', { standorte: ['haupt', 'van-1'], einkauf: { standardMicros: 1200000 }, bestandsart: 'menge', mindestJeStandort: { haupt: 5000 } }],
+    // Fremdgutschein-Kachel (1.31.0): bekannte Werte uebersetzt, ein unbekannter faellt am Rand weg.
+    ['a10', { unitPriceCents: 2500, fremdgutschein: 'mehrzweck' }],
+    ['a11', { unitPriceCents: 2500, vatRate: 20, fremdgutschein: 'einzweck' }],
+    ['a12', { unitPriceCents: 2500, fremdgutschein: 'leistung' }],
   ];
   for (const [id, doc] of faelle) {
     const erwartet = artikelServer(id, doc);

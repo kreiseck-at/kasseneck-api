@@ -83,7 +83,12 @@ const NACH_1_0 = {
     // Kachel mit Betrag und Referenz (1.26.0)
     'reference.missing', 'reference.format_invalid', 'reference.format_warning',
     // Schicht-Ablauf der Kasse (1.28.0)
-    'shift.started_taken_over', 'tip.summary', 'tip.total_below_sum', 'shift.interim_saved', 'shift.finish_step_first', 'tip.revenue_hint', 'tip.unassigned_hint'],
+    'shift.started_taken_over', 'tip.summary', 'tip.total_below_sum', 'shift.interim_saved', 'shift.finish_step_first', 'tip.revenue_hint', 'tip.unassigned_hint',
+    // Fremdgutscheine an der Kasse (1.31.0)
+    'external_voucher.not_enabled', 'external_voucher.type_not_enabled', 'cancellation.external_voucher_check', 'settings.external_vouchers_hint',
+    'external_voucher_article.invalid', 'external_voucher_article.service_voucher', 'external_voucher_article.add_ons', 'external_voucher_article.stock_tracked',
+    'external_voucher_article.reference', 'external_voucher_article.asks_quantity', 'external_voucher_article.rate_required', 'external_voucher_article.invalid_rate',
+    'external_voucher_article.price_required'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -137,6 +142,11 @@ const NACH_1_0 = {
     'tile_prompt.amount', 'tile_prompt.quantity', 'tile_prompt.apply', 'tile_prompt.apply_anyway',
     // Zusatz-Kacheln (1.27.0)
     'addons.title', 'addons.none', 'addons.done', 'addons.open',
+    // Fremdgutscheine an der Kasse (1.31.0)
+    'external_voucher.number', 'external_voucher.title', 'external_voucher.kind', 'external_voucher.kind_value', 'external_voucher.kind_service',
+    'external_voucher.rate', 'external_voucher.taxed_with', 'external_voucher.line_name', 'voucher.payout_source_own', 'voucher.payout_source_external',
+    'settings.external_vouchers', 'settings.external_vouchers_off', 'settings.external_vouchers_multi_purpose', 'settings.external_vouchers_all',
+    'article.external_voucher',
     // Pruefung kompakt (1.28.0)
     'zero_receipt.done_title', 'zero_receipt.back', 'dep.export', 'dep.period_question', 'common.close',
     // Schicht-Ablauf der Kasse (1.28.0)
@@ -170,7 +180,9 @@ const NACH_1_0 = {
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
-  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors', 'returnDispositionLabels'],
+  fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
+    // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
+    'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
@@ -381,7 +393,7 @@ const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-t
 /** Belegduplikat (1.14.0): die Faelle und je Druckfall eine Hex-Datei. */
 const DUPLIKAT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'duplicate-cases.json'), 'utf8')) as { cases: Array<{ name: string; print: boolean }> };
 const SCHNITT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'print-cut-cases.json'), 'utf8')) as { cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'add-on-cases.json', 'tip-round-up-cases.json', 'shift-ablauf-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'add-on-cases.json', 'external-voucher-article-cases.json', 'tip-round-up-cases.json', 'shift-ablauf-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),

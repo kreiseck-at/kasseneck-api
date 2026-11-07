@@ -45,6 +45,12 @@ export {
   addOnsOfItem, addOnRemap, addOnDisplayOrder, orderAddOnLines,
 } from './zusaetze.js';
 export {
+  ARTICLE_EXTERNAL_VOUCHER_TYPES, type ArticleExternalVoucher, ARTICLE_EXTERNAL_VOUCHER_INVALID, ARTICLE_EXTERNAL_VOUCHER_VAT_RATES,
+  EXTERNAL_VOUCHER_ARTICLE_REASONS, type ExternalVoucherArticleReason, type ExternalVoucherArticleInput,
+  isArticleExternalVoucher, checkExternalVoucherValue, checkExternalVoucherArticle,
+  type ExternalVoucherTileBlock, externalVoucherTileBlock,
+} from './fremdgutschein-artikel.js';
+export {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
   type SetMyPosLogoOptions,
 } from './client.js';
@@ -129,7 +135,9 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage,
+  EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS,
+  LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';
