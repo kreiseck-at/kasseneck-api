@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## Unveröffentlicht
+## 1.30.0 - 2026-11-07
 
 External vouchers and receipt webhooks (backend November 2026). Additive; receipts, requests and settings without the new fields read, send and print exactly as before (all existing goldens unchanged, the generated voucher due cases byte for byte the same).
 
@@ -19,6 +19,17 @@ External vouchers and receipt webhooks (backend November 2026). Additive; receip
 - **Deprecated:** the value voucher of the old form with a freely typed code, at wish level only (new type `LegacyValueVoucherWish`, `@deprecated`; `VoucherType.value` stays undeprecated, receipts carry it for every multi-purpose entry); the server still accepts it and answers with `deprecation`, now read into `ReceiptWithCompany.deprecation`.
 - `./stored`: voucher entries translate `quelle`/`nummer` to `source` (`external`)/`number` (`ZUSATZ_KATALOGE.GUTSCHEIN_QUELLE`, generated from the contract).
 - Contract cases `fixtures/stored/voucher-cases.json`: byte for byte the backend's `gutschein-faelle.json` (inner form); amount due, buckets, rejection code and bon lines of every external case are tested against it. Contract `v3` re-fetched (`GUTSCHEIN_QUELLE`, `externalVouchers`, `deprecation`, receipt events, the six codes), `receipt-due-voucher-generated.json` re-generated (only `_source` changed).
+
+## 1.29.0 - 2026-11-07
+
+Card terminal on the phone: Kasseneck keeps the terminal app's accounts, the terminal IDs (TID) of each business and the code the provider mails when a TID moves to another device. Any app gets access, TID and code over `/v3`; nobody at the device types e-mail, password or TID. Additive.
+
+- **Seven calls** (root and `createKasseneckApi`, only on `/v3`, `PUBLIC_CALLS` now 120; not on the register path yet): `registerTerminalDevice({ label, platform, app, requestedBy? })` -> `{ deviceId, deviceSecret }` (the secret only in this answer); `getTerminalAccess({ deviceId, deviceSecret, platform?, app?, label? })` -> `TerminalAccess` (`available: true`, `username`, `password`, `terminalId`, `terminalName`, `accountId`, `autoCode`, `codeFormat { length, labels }`, `setup { state, since }`, `updatedAt`) or `{ available: false, reason: 'no_free_terminal', terminals[] }` with the TIDs of the own business; `claimTerminal({ …, terminalId, label? })` -> `TerminalAccess`; `requestTerminalCode({ …, platform, requestedBy? })` -> `{ status }`; `getTerminalCode({ deviceId, deviceSecret })` -> `{ status, code?, source?, validUntil?, setup }`; `reportTerminalLogin({ …, terminalId, success, newOnDevice })` and `reportTerminalReady({ … })` answer nothing. Sign-in is the business's `api_key` alone; the `cashregister-token` of `apiKeyAuth` is ignored, an app without a register can use `inventoryKeyAuth`. Reason: three apps share one terminal account and moved TIDs by typing credentials and asking support for the code.
+- **Secrets:** `deviceSecret`, `password` and `code` never appear in an error of this package (the device secret goes to the transport as a secret parameter, response checks name only the missing field). Callers must never log them and keep `deviceSecret` in the device's secure storage.
+- **Form checked before sending** (`KasseneckValidationError`, `scope: 'request'`): `label` 1-60, `app` 1-40, `requestedBy` 1-80 characters (spaces at the edges do not count, as on the server), `platform` `android|ios`, `deviceId`/`deviceSecret`/`terminalId` not empty, `success`/`newOnDevice` booleans; only set optional fields go out. A later setup state, code status or source arrives unchanged (`(string & {})`).
+- **Outcome after a timeout:** only `registerTerminalDevice` (a retry registers another device) and `getTerminalCode` (on Android the answer consumes the code) report `outcome: 'unknown'`. The other five are repeatable and stay `'rejected'`: `getTerminalAccess` (a retry returns the same assignment), `claimTerminal` (claiming the same TID again changes nothing), `requestTerminalCode` (an open request younger than 6 minutes stays, no new one) and `reportTerminalLogin`/`reportTerminalReady` (the same state written again). Same classification as the Dart package.
+- **`TERMINAL_ERROR_CODES`** equal to `errorCodes.terminal` of the contract (order included, pinned by a test): `terminal_not_enabled`, `terminal_test_environment`, `terminal_device_unknown`, `terminal_device_blocked`, `invalid_terminal_device`, `too_many_terminal_devices`, `terminal_not_in_business`, `terminal_code_manual`, `terminal_code_rate_limited`, `terminal_not_assigned`, `server_error`. Lists `TERMINAL_PLATFORMS`, `TERMINAL_SETUP_STATES`, `TERMINAL_CODE_STATUSES`, `TERMINAL_CODE_SOURCES`.
+- Contract `v3` re-fetched from the backend (the seven endpoints, `errorCodes.terminal`).
 
 ## 1.28.0 - 2026-11-06
 

@@ -159,6 +159,44 @@ export {
   type RevokedDepHandoverLink,
 } from './dep-export.js';
 
+export {
+  registerTerminalDevice,
+  getTerminalAccess,
+  claimTerminal,
+  requestTerminalCode,
+  getTerminalCode,
+  reportTerminalLogin,
+  reportTerminalReady,
+  TERMINAL_PLATFORMS,
+  TERMINAL_SETUP_STATES,
+  TERMINAL_CODE_STATUSES,
+  TERMINAL_CODE_SOURCES,
+  TERMINAL_ERROR_CODES,
+  TERMINAL_LABEL_MAX,
+  TERMINAL_APP_MAX,
+  TERMINAL_REQUESTED_BY_MAX,
+  type TerminalPlatform,
+  type TerminalSetupState,
+  type TerminalCodeStatus,
+  type TerminalCodeSource,
+  type TerminalErrorCode,
+  type TerminalDeviceCredentials,
+  type RegisterTerminalDeviceOptions,
+  type RegisteredTerminalDevice,
+  type GetTerminalAccessOptions,
+  type ClaimTerminalOptions,
+  type RequestTerminalCodeOptions,
+  type ReportTerminalLoginOptions,
+  type TerminalSetup,
+  type TerminalCodeFormat,
+  type TerminalAccess,
+  type TerminalListEntry,
+  type TerminalAccessUnavailable,
+  type TerminalAccessResult,
+  type TerminalCodeRequest,
+  type TerminalCode,
+} from './terminal.js';
+
 export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 
 export {

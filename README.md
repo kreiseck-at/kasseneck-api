@@ -1232,6 +1232,90 @@ this README.
 Terminals that can only be driven through a vendor's Android SDK cannot be
 reached from a browser and are not part of this package.
 
+### Card terminal on the phone: access, terminal ID and code
+
+For a card terminal that runs as an app on the phone, Kasseneck keeps the
+terminal app's login, the terminal IDs (TID) of each business and the code the
+provider mails when a TID moves to another device. The app gets all three from
+here; nobody at the device types e-mail, password or TID. Only on `/v3`, not on
+the register path yet. Sign-in is the business's `api_key` alone: the
+`cashregister-token` of `apiKeyAuth` is ignored, and an app without a register
+can sign in with `inventoryKeyAuth` from `./inventory`. A business gets access
+only once Kasseneck has assigned it at least one TID, and never in the test
+environment (`kr_test_`).
+
+```ts
+// Once per device; keep deviceSecret in the device's secure storage.
+const device = await api.registerTerminalDevice({ label: 'Pixel 8 - Livia', platform: 'android', app: 'karteck/1.6.21' });
+
+// On every start and at least once a day.
+const access = await api.getTerminalAccess({ ...device, app: 'karteck/1.6.22' });
+if (!access.available) {
+  // No free TID: show access.terminals (TIDs of the own business) and let the user pick one.
+  const taken = await api.claimTerminal({ ...device, terminalId: access.terminals[0]!.terminalId });
+}
+
+// The terminal app asks for the code after a TID moved: let Kasseneck read it from the mailbox.
+if (access.available && access.autoCode) {
+  await api.requestTerminalCode({ ...device, platform: 'android' });
+  const code = await api.getTerminalCode(device);   // poll until status 'found'
+}
+await api.reportTerminalLogin({ ...device, terminalId: '12345678', success: true, newOnDevice: true });
+await api.reportTerminalReady(device);
+```
+
+- **`registerTerminalDevice({ label, platform, app, requestedBy? })`**:
+  `label` 1-60 characters, `platform` `android` or `ios`, `app` 1-40 (app and
+  version), `requestedBy` up to 80 (written to the log). Answers
+  `{ deviceId, deviceSecret }`; the secret comes only in this answer. At most
+  20 devices per business and 10 registrations per day
+  (`too_many_terminal_devices`). After a lost answer (`outcome: 'unknown'`) a
+  retry registers another device.
+- **`getTerminalAccess({ deviceId, deviceSecret, platform?, app?, label? })`**:
+  the device keeps its TID; without one it gets a free TID of its business.
+  Answers `TerminalAccess` (`available: true`, `username`, `password`,
+  `terminalId`, `terminalName`, `accountId`, `autoCode`, `codeFormat { length, labels }`
+  for checking a pasted code, `setup { state, since }`, `updatedAt`) or, when no
+  TID is free, `{ available: false, reason: 'no_free_terminal', terminals }`
+  with `{ terminalId, name, lastUsedBy, lastUsedAt }` of the own business only.
+  The optional fields update what the device shows in the log. Repeatable.
+- **`claimTerminal({ deviceId, deviceSecret, terminalId, label? })`** moves a
+  TID of the own business to this device (the previous device loses it) and
+  answers `TerminalAccess`. Unknown and foreign TIDs get the same answer,
+  `terminal_not_in_business`.
+- **`requestTerminalCode({ deviceId, deviceSecret, platform, requestedBy? })`**
+  only when `autoCode` is `true` (otherwise `terminal_code_manual`: the app asks
+  the user for the code). An open request younger than 6 minutes stays, so a
+  double tap does no harm; at most 6 requests per device and hour
+  (`terminal_code_rate_limited`). Answers `{ status }`.
+- **`getTerminalCode({ deviceId, deviceSecret })`** answers
+  `{ status, code?, source?, validUntil?, setup }`; `status` is `none` (no
+  request), `searching`, `found`, `delivered`, `unclear`, `no_code` or
+  `expired`. The `code` (case matters, never change it) comes with `found`; on
+  Android this answer consumes it, on iOS it stays readable until `validUntil`.
+  After a lost answer (`outcome: 'unknown'`) the code may be gone: request a new
+  one. Without a request the call still reports the `setup` state.
+- **`reportTerminalLogin({ deviceId, deviceSecret, terminalId, success, newOnDevice })`**
+  and **`reportTerminalReady({ deviceId, deviceSecret })`** report the login in
+  the terminal app (`newOnDevice`: first login of this TID on this device) and
+  the finished setup. Both answer nothing.
+- **After a timeout:** only `registerTerminalDevice` and `getTerminalCode`
+  report `outcome: 'unknown'`. The other five are repeatable: claiming the same
+  TID again changes nothing, an open code request younger than 6 minutes stays
+  (no new one), and both reports write the same state again.
+- **Secrets:** `deviceSecret`, `password` and `code` never appear in an error of
+  this package. **Never log them** in the app, and do not keep the password or
+  the code longer than the terminal app needs them.
+- **Errors** (`KasseneckApiError.code`, `TERMINAL_ERROR_CODES`, the list
+  `errorCodes.terminal` of the contract): `terminal_not_enabled` (no TID
+  assigned to the business), `terminal_test_environment`,
+  `terminal_device_unknown` (id or secret wrong, same answer for both),
+  `terminal_device_blocked`, `invalid_terminal_device`,
+  `too_many_terminal_devices`, `terminal_not_in_business`,
+  `terminal_code_manual`, `terminal_code_rate_limited`, `terminal_not_assigned`
+  (call `getTerminalAccess` first), `server_error`, plus the codes of sign-in and
+  edge. A later setup state, code status or source arrives unchanged.
+
 ## Partner API (`./partner`)
 
 For software vendors who build Kasseneck into their own product: create
