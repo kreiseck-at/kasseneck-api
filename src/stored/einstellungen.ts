@@ -1,6 +1,6 @@
 import {
   POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS,
-  POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, _optionalerWert,
+  POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, _optionalerWert,
 } from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
 import { katalogVon } from './draht.js';
@@ -93,6 +93,14 @@ const BETRIEB_OPTIONAL: Readonly<Record<string, Pruefer>> = Object.fromEntries(
   POS_BUSINESS_OPTIONAL_FIELDS.map((feld) => [feld, (v: unknown) => typeof v === 'boolean']),
 );
 
+/**
+ * Optionale Wahlfelder (Zwilling von `BETRIEB_OPTIONAL.tgArten/tgStart` und `GERAET_OPTIONAL.korbBreite`):
+ * gespeichert in der inneren Form (`['prozent', 'aufrunden']`, `'schmal'`), nur gueltige Werte gehen
+ * hinaus, uebersetzt durch den Katalog. `tipKinds` ist eine nichtleere Teilmenge ohne Dubletten
+ * (`tgArtenListe`). Ob der Start unter den Arten liegt, rechnet der Leser ([posTipStart]).
+ */
+const WAHLFELDER: Readonly<Record<Teil, readonly string[]>> = { business: POS_BUSINESS_OPTIONAL_CHOICES, device: POS_DEVICE_OPTIONAL_CHOICES };
+
 /** Aufzaehlungen (aussen, englisch) je Teil. */
 const AUFZAEHLUNGEN: Readonly<Record<Teil, Readonly<Record<string, readonly (string | number)[] | undefined>>>> = {
   business: POS_BUSINESS_VALUES, device: POS_DEVICE_VALUES,
@@ -112,7 +120,8 @@ function teilSchema(teil: Teil): SchemaObjekt {
   return regel(SCHEMAS.getKasseSettings.data[teil] as SchemaEintrag).unter as SchemaObjekt;
 }
 function katalogFuer(teil: Teil, aussen: string): Readonly<Record<string, string>> | null {
-  const verweis = SCHEMAS.getKasseSettings.werte[`${teil}.${aussen}`];
+  const werte = SCHEMAS.getKasseSettings.werte;
+  const verweis = werte[`${teil}.${aussen}`] ?? werte[`${teil}.${aussen}[]`];
   return verweis ? katalogVon(verweis) ?? null : null;
 }
 
@@ -176,6 +185,19 @@ function teilNachAussen(teil: Teil, gespeichert: unknown, weg: string[]): Objekt
     // mische: was innen unbekannt ist, kommt gar nicht erst in den Stand.
     if (aussen === undefined || w === undefined) continue;
     const pfad = `${teil}.${aussen}`;
+    if (hat(WAHLFELDER, teil) && WAHLFELDER[teil].includes(aussen)) {
+      const katalog = katalogFuer(teil, aussen);
+      const einzeln = (e: unknown): string | undefined => (typeof e === 'string' && katalog !== null && hat(katalog, e) ? katalog[e] : undefined);
+      if (aussen === 'tipKinds') {
+        const arten = Array.isArray(w) && w.length > 0 && w.length <= (katalog ? Object.keys(katalog).length : 0) && new Set(w).size === w.length
+          ? w.map(einzeln) : null;
+        if (arten !== null && arten.every((a) => a !== undefined)) raus[aussen] = arten;
+      } else {
+        const wert = einzeln(w);
+        if (wert !== undefined) raus[aussen] = wert;
+      }
+      continue;
+    }
     if (teil === 'device' && hat(GERAET_OPTIONAL, aussen)) {
       if (GERAET_OPTIONAL[aussen]!(w)) raus[aussen] = w;
       continue;
@@ -238,7 +260,10 @@ export function _storedPosSettingsToWire(stored: { betrieb?: unknown; geraet?: u
 
 /** Nur fuer den Test: die Feldliste der Pruefer (muss mit der Vorgabe deckungsgleich sein). */
 export const _PRUEFER_FELDER = Object.freeze({
-  business: [...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(BETRIEB_OPTIONAL), ...Object.keys(KARTEN)],
-  device: [...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), ...Object.keys(GERAET_OPTIONAL), 'shortcuts'],
-  standard: { business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS], device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS] },
+  business: [...new Set([...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(BETRIEB_OPTIONAL), ...Object.keys(KARTEN)])],
+  device: [...new Set([...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), ...Object.keys(GERAET_OPTIONAL), 'shortcuts'])],
+  standard: {
+    business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS, ...POS_BUSINESS_OPTIONAL_CHOICES],
+    device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS, ...POS_DEVICE_OPTIONAL_CHOICES],
+  },
 });

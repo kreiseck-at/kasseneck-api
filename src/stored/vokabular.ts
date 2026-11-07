@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "3bb65a5fd076f45d799ce40864fe406a9ff9e4582c8cf638a1f81955d6efb732";
+export const VOKABULAR_QUELLE = "c137b0f64dd1a06c8cddd9d9164bd2360ecbc3133cc04ca2b82d0e37f9d4fe5d";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -162,6 +162,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "tipChips": "tgChips",
         "exactCash": "schnellbar",
         "tipKeptByDefault": "tgDirekt",
+        "tipKinds": "tgArten",
+        "tipStart": "tgStart",
         "checkoutMode": "kassierenModus",
         "receiptOutput": "belegAusgabe",
         "doneScreenSeconds": "fertigSekunden",
@@ -226,7 +228,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "terminalTid": "terminalTid",
         "terminalVia": "terminalVia",
         "terminalType": "terminalArt",
-        "shortcutHints": "tastenMarken"
+        "shortcutHints": "tastenMarken",
+        "cartWidth": "korbBreite"
       },
       "vouchers": {
         "__": "gutscheine",
@@ -331,6 +334,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       "business.tipMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.tipMode"
       },
+      "business.tipKinds[]": {
+        "$catalog": "KASSE_BETRIEB_WERTE.tipKinds[]"
+      },
+      "business.tipStart": {
+        "$catalog": "KASSE_BETRIEB_WERTE.tipStart"
+      },
       "business.checkoutMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.checkoutMode"
       },
@@ -357,6 +366,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "device.terminalType": {
         "$catalog": "KASSE_GERAET_WERTE.terminalType"
+      },
+      "device.cartWidth": {
+        "$catalog": "KASSE_GERAET_WERTE.cartWidth"
       },
       "vouchers.valueVoucherType": {
         "mehrzweck": "multi_purpose",
@@ -668,10 +680,20 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "streifen": "stripe",
     "voll": "full"
   },
+  "KASSE_BETRIEB_WERTE.tipKinds[]": {
+    "prozent": "percent",
+    "aufrunden": "round_up",
+    "gesamt": "total"
+  },
   "KASSE_BETRIEB_WERTE.tipMode": {
     "betrag": "amount",
     "gesamt": "total",
     "beides": "both"
+  },
+  "KASSE_BETRIEB_WERTE.tipStart": {
+    "prozent": "percent",
+    "aufrunden": "round_up",
+    "gesamt": "total"
   },
   "KASSE_BETRIEB_WERTE.watermark": {
     "aus": "off",
@@ -682,6 +704,11 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "links": "left",
     "mitte": "center",
     "rechts": "right"
+  },
+  "KASSE_GERAET_WERTE.cartWidth": {
+    "schmal": "narrow",
+    "mittel": "medium",
+    "breit": "wide"
   },
   "KASSE_GERAET_WERTE.categoryPosition": {
     "oben": "top",
