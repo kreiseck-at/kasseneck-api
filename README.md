@@ -1285,6 +1285,10 @@ await api.reportTerminalReady(device);
   and **`reportTerminalReady({ deviceId, deviceSecret })`** report the login in
   the terminal app (`newOnDevice`: first login of this TID on this device) and
   the finished setup. Both answer nothing.
+- **After a timeout:** only `registerTerminalDevice` and `getTerminalCode`
+  report `outcome: 'unknown'`. The other five are repeatable: claiming the same
+  TID again changes nothing, an open code request younger than 6 minutes stays
+  (no new one), and both reports write the same state again.
 - **Secrets:** `deviceSecret`, `password` and `code` never appear in an error of
   this package. **Never log them** in the app, and do not keep the password or
   the code longer than the terminal app needs them.

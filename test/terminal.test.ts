@@ -114,12 +114,15 @@ test('Kartenterminal: sieben oeffentliche Aufrufe nur unter /v3, nicht am Kassen
   assert.deepEqual(PUBLIC_CALLS.slice(-7), NAMEN);
 });
 
-test('Kartenterminal: Ausgang nach Zeitlimit - Code holen, Anmelden, Uebernehmen und Melden haben Wirkung, Zugang holen ist wiederholbar', () => {
-  for (const n of ['registerTerminalDevice', 'claimTerminal', 'requestTerminalCode', 'getTerminalCode', 'reportTerminalLogin', 'reportTerminalReady']) {
+test('Kartenterminal: Ausgang nach Zeitlimit – nur Geraet anmelden und Code holen haben Wirkung, der Rest ist wiederholbar', () => {
+  for (const n of ['registerTerminalDevice', 'getTerminalCode']) {
     assert.equal(isUnknownOutcomeCall(n), true, n);
+    assert.equal(n in CALLS_WITHOUT_EFFECT, false, n);
   }
-  assert.equal(isUnknownOutcomeCall('getTerminalAccess'), false);
-  assert.equal(CALLS_WITHOUT_EFFECT['getTerminalAccess'], 'repeatable');
+  for (const n of ['getTerminalAccess', 'claimTerminal', 'requestTerminalCode', 'reportTerminalLogin', 'reportTerminalReady']) {
+    assert.equal(isUnknownOutcomeCall(n), false, n);
+    assert.equal(CALLS_WITHOUT_EFFECT[n], 'repeatable', n);
+  }
 });
 
 test('Kartenterminal: TERMINAL_ERROR_CODES = errorCodes.terminal des Vertrags (mit Reihenfolge), jeder Code in errorCodes.all', () => {
@@ -400,6 +403,15 @@ test('getTerminalCode: Netzfehler nach dem Senden ist ein unklarer Ausgang (auf 
   await assert.rejects(() => api.getTerminalCode(AUSWEIS), (e: unknown) => {
     ohneGeheimnis(e);
     return isKasseneckNetworkError(e) && isOutcomeUnknown(e);
+  });
+});
+
+test('claimTerminal und reportTerminalReady: Netzfehler nach dem Senden ist abgelehnt (wiederholbar), nicht unklar', async () => {
+  const { api } = server([new TypeError('fetch failed'), new TypeError('fetch failed')]);
+  await assert.rejects(() => api.claimTerminal({ ...AUSWEIS, terminalId: '12345679' }), (e: unknown) => isKasseneckNetworkError(e) && !isOutcomeUnknown(e));
+  await assert.rejects(() => api.reportTerminalReady(AUSWEIS), (e: unknown) => {
+    ohneGeheimnis(e);
+    return isKasseneckNetworkError(e) && !isOutcomeUnknown(e);
   });
 });
 

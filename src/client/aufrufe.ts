@@ -412,7 +412,6 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'cancelReceipt',
   'cancelStocktake',
   'changeStockCondition',
-  'claimTerminal',
   'closeMyShift',
   'closeStocktake',
   'createArticle',
@@ -454,10 +453,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'releaseReservation',
   'reportConnectState',
   'reportCustomerContract',
-  'reportTerminalLogin',
-  'reportTerminalReady',
   'requestCustomerSignature',
-  'requestTerminalCode',
   'reverseStockMovement',
   'reviewStocktake',
   'revokeCustomerMandate',
@@ -516,6 +512,8 @@ export type CallWithoutEffectReason = 'read' | 'repeatable';
 export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReason>> = Object.freeze({
   checkPartnerCustomerEmail: 'read',
   checkVoucher: 'read',
+  // Kartenterminal: dieselbe TID noch einmal uebernehmen aendert nichts am Server.
+  claimTerminal: 'repeatable',
   downloadDailyReport: 'read',
   downloadReceipt: 'read',
   downloadReport: 'read',
@@ -598,7 +596,12 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   registerPinLogin: 'repeatable',
   registerUserLogin: 'repeatable',
   renewRegisterSession: 'repeatable',
+  // Kartenterminal: Anmeldung und Einrichtung melden schreiben denselben Stand noch einmal.
+  reportTerminalLogin: 'repeatable',
+  reportTerminalReady: 'repeatable',
   reprintVoucherLabel: 'repeatable',
+  // Eine offene Code-Anfrage juenger als 6 Minuten bleibt; eine Wiederholung legt keine neue an.
+  requestTerminalCode: 'repeatable',
   searchCustomers: 'read',
 });
 
