@@ -50,6 +50,8 @@ export {
   isArticleExternalVoucher, checkExternalVoucherValue, checkExternalVoucherArticle,
   type ExternalVoucherTileBlock, externalVoucherTileBlock,
 } from './fremdgutschein-artikel.js';
+// Form-Erkennung eigener Codes im Gutschein-Feld (Nachfrage statt Abweisung); dieselbe Funktion wie an der Wurzel.
+export { ownVoucherCodeShape, OWN_VOUCHER_CODE_SHAPES, type OwnVoucherCodeShape } from '../models/voucher.js';
 export {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
   type SetMyPosLogoOptions,

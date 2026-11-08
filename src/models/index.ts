@@ -12,7 +12,7 @@ export {
 } from './receipt-item.js';
 export {
   type Voucher, type VoucherArticle, type IssuedVoucher, type ReturnIssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields,
-  type VoucherSource, type LegacyValueVoucherWish, VOUCHER_SOURCES, isExternalVoucher, externalVoucherIsValid, normalizeExternalVoucherNumber, checkExternalVoucherNumber, type ExternalVoucherNumberCheck,
+  type VoucherSource, type LegacyValueVoucherWish, VOUCHER_SOURCES, isExternalVoucher, externalVoucherIsValid, normalizeExternalVoucherNumber, checkExternalVoucherNumber, type ExternalVoucherNumberCheck, ownVoucherCodeShape, OWN_VOUCHER_CODE_SHAPES, type OwnVoucherCodeShape,
   EXTERNAL_VOUCHER_NUMBER_MAX, EXTERNAL_VOUCHER_TAXED_WITH_MAX, EXTERNAL_VOUCHER_VAT_RATES_BP,
 } from './voucher.js';
 export {

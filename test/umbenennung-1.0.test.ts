@@ -85,7 +85,7 @@ const NACH_1_0 = {
     // Schicht-Ablauf der Kasse (1.28.0)
     'shift.started_taken_over', 'tip.summary', 'tip.total_below_sum', 'shift.interim_saved', 'shift.finish_step_first', 'tip.revenue_hint', 'tip.unassigned_hint',
     // Fremdgutscheine an der Kasse (1.31.0)
-    'external_voucher.not_enabled', 'external_voucher.type_not_enabled', 'cancellation.external_voucher_check', 'settings.external_vouchers_hint',
+    'external_voucher.not_enabled', 'external_voucher.type_not_enabled', 'external_voucher.looks_like_own_code', 'cancellation.external_voucher_check', 'settings.external_vouchers_hint',
     'external_voucher_article.invalid', 'external_voucher_article.service_voucher', 'external_voucher_article.add_ons', 'external_voucher_article.stock_tracked',
     'external_voucher_article.reference', 'external_voucher_article.asks_quantity', 'external_voucher_article.rate_required', 'external_voucher_article.invalid_rate',
     'external_voucher_article.price_required'],
@@ -144,7 +144,7 @@ const NACH_1_0 = {
     'addons.title', 'addons.none', 'addons.done', 'addons.open',
     // Fremdgutscheine an der Kasse (1.31.0)
     'external_voucher.number', 'external_voucher.title', 'external_voucher.kind', 'external_voucher.kind_value', 'external_voucher.kind_service',
-    'external_voucher.rate', 'external_voucher.taxed_with', 'external_voucher.line_name', 'voucher.payout_source_own', 'voucher.payout_source_external',
+    'external_voucher.rate', 'external_voucher.taxed_with', 'external_voucher.line_name', 'external_voucher.use_as_external', 'voucher.payout_source_own', 'voucher.payout_source_external',
     'settings.external_vouchers', 'settings.external_vouchers_off', 'settings.external_vouchers_multi_purpose', 'settings.external_vouchers_all',
     'article.external_voucher',
     // Pruefung kompakt (1.28.0)

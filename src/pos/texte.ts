@@ -249,6 +249,8 @@ const MELDUNGEN_ROH = {
   // Storno eines Belegs mit fremdem Gutschein-Verkauf, Hilfe-Satz unter dem Schalter im Kundenbereich.
   'external_voucher.not_enabled': { text: 'Fremde Gutscheine sind aus. Bitte im Panel freischalten.' },
   'external_voucher.type_not_enabled': { text: 'Fremde Leistungsgutscheine sind aus. Bitte im Panel freischalten.' },
+  // Eingabe in der Form eines eigenen Codes, aber keiner (ownVoucherCodeShape `checksum`/`length`): nachfragen, nie abweisen.
+  'external_voucher.looks_like_own_code': { text: 'Sieht aus wie ein Kasseneck-Code, ist aber keiner. Als fremden Gutschein verwenden?' },
   'cancellation.external_voucher_check': { text: 'Vorher im eigenen Gutscheinsystem prüfen, ob er schon benutzt wurde.' },
   'settings.external_vouchers_hint': { text: 'Ob ein Gutschein Wert- oder Leistungsgutschein ist und mit welchem Satz er verkauft wurde, legt der Betrieb fest. Das Guthaben führt sein eigenes System.' },
   // Artikel als fremder Gutschein speichern (article_external_voucher_invalid, Zuordnung je data.grund in
@@ -1218,6 +1220,7 @@ const BESCHRIFTUNGEN_ROH = {
   'external_voucher.rate': { text: 'Satz' },
   'external_voucher.taxed_with': { text: 'Versteuert mit (optional)' },
   'external_voucher.line_name': { text: 'Gutschein Nr. {number}', placeholders: ['number'] },
+  'external_voucher.use_as_external': { text: 'Als fremden Gutschein' },
   'voucher.payout_source_own': { text: 'Kasseneck-Gutschein' },
   'voucher.payout_source_external': { text: 'Fremder Gutschein' },
   'settings.external_vouchers': { text: 'Fremde Gutscheine' },
