@@ -154,7 +154,7 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, DEPOSIT_ERROR_MESSAGES, depositErrorMessage,
   EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS,
   LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,

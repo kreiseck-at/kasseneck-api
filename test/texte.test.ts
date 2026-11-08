@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, voucherErrorMessage } from '../src/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, findErrorRule, receiptEmailErrorMessage, cancellationPaymentErrorMessage, labelText, messageText, messageAppliesTo, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, DEPOSIT_ERROR_MESSAGES, depositErrorMessage } from '../src/pos/texte.js';
 import type { MessageKey, LabelKey } from '../src/pos/texte.js';
 import { CANCELLATION_ERROR_CODES, RETURN_DISPOSITIONS } from '../src/models/cancellation.js';
 import { readFileSync } from 'node:fs';
@@ -674,4 +674,29 @@ test('Katalog: Navigation, Beleg-Fertig-Seite, Mengen und Gutschein-Maske mit ge
   }
   // Die kurze Maske steht neben der Zeile der Zahlung, beide unveraendert.
   assert.equal(LABELS['voucher.payment_line'].text, 'Gutschein ····-{suffix}');
+});
+
+test('Pfand: acht Fehlercodes mit Satz, Beschriftungen und Meldung wie festgelegt', () => {
+  const erwartet: Record<string, string> = {
+    deposit_not_enabled: 'Pfand ist für diesen Betrieb nicht eingeschaltet.',
+    deposit_type_not_found: 'Diese Pfandart gibt es nicht mehr.',
+    deposit_set_by_server: 'Das Pfand bucht die Kasse selbst.',
+    invalid_deposit_quantity: 'Pfand gibt es nur für ganze Stück.',
+    deposit_return_not_offered: 'Diese Kasse nimmt kein Leergut zurück.',
+    deposit_type_not_issued: 'Dieses Leergut wurde hier nie verkauft.',
+    deposit_follows_item: 'Pfand wird mit seinem Artikel storniert.',
+    invalid_deposit: 'Die Pfand-Angaben stimmen nicht.',
+  };
+  assert.deepEqual(Object.keys(DEPOSIT_ERROR_MESSAGES).sort(), Object.keys(erwartet).sort());
+  for (const [code, text] of Object.entries(erwartet)) assert.equal(messageText(depositErrorMessage(code)!), text, code);
+  assert.equal(depositErrorMessage('server_error'), undefined);
+  assert.equal(depositErrorMessage('toString'), undefined);
+  assert.equal(depositErrorMessage(null), undefined);
+  assert.equal(messageText('deposit.changed'), 'Pfand wurde geändert. Bitte Summe prüfen.');
+  const beschriftungen: Record<string, string> = {
+    'deposit.return': 'Leergut', 'deposit.payout': 'Bar auszahlen', 'deposit.offset': 'Mit Einkauf verrechnen',
+    'deposit.unknown_code': 'Welches Leergut ist das?', 'deposit.over_usual': 'Mehr als üblich – trotzdem annehmen?',
+    'deposit.on_premises': 'Vor Ort', 'deposit.takeaway': 'Mitnahme', 'deposit.sum': 'Summe Leergut',
+  };
+  for (const [k, t] of Object.entries(beschriftungen)) assert.equal(labelText(k as never), t, k);
 });

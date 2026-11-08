@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, CANCELLATION_VOUCHER_ERROR_MESSAGES, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS, findErrorRule, messageText } from '../src/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, CANCELLATION_VOUCHER_ERROR_MESSAGES, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, DEPOSIT_ERROR_MESSAGES, EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS, findErrorRule, messageText } from '../src/pos/texte.js';
 import type { ErrorKind } from '../src/pos/texte.js';
 import type { MessageKey } from '../src/pos/texte.js';
 
@@ -10,7 +10,7 @@ const veraltet = 'fixtures/pos-texts.json ist veraltet — `npm run fixtures:tex
 
 test('Golden: der Katalog steht in fixtures/pos-texts.json', () => {
   const vertrag = lies('pos-texts.json');
-  assert.deepEqual(Object.keys(vertrag), ['version', 'messages', 'errorRules', 'errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'receiptEmailErrors', 'cancellationPaymentErrors', 'cancellationVoucherErrors', 'voucherErrors', 'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'labels', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels'], veraltet);
+  assert.deepEqual(Object.keys(vertrag), ['version', 'messages', 'errorRules', 'errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'receiptEmailErrors', 'cancellationPaymentErrors', 'cancellationVoucherErrors', 'voucherErrors', 'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'labels', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels', 'depositErrors'], veraltet);
   assert.deepEqual(vertrag.messages, MESSAGES, veraltet);
   assert.deepEqual(vertrag.errorRules, ERROR_RULES, veraltet);
   assert.deepEqual(vertrag.errorCodeRules, ERROR_CODE_RULES, veraltet);
@@ -21,6 +21,7 @@ test('Golden: der Katalog steht in fixtures/pos-texts.json', () => {
   assert.deepEqual(vertrag.receiptEmailErrors, RECEIPT_EMAIL_ERROR_MESSAGES, veraltet);
   assert.deepEqual(vertrag.cancellationPaymentErrors, CANCELLATION_PAYMENT_ERROR_MESSAGES, veraltet);
   assert.deepEqual(vertrag.voucherErrors, VOUCHER_ERROR_MESSAGES, veraltet);
+  assert.deepEqual(vertrag.depositErrors, DEPOSIT_ERROR_MESSAGES, veraltet);
   assert.deepEqual(vertrag.cancellationVoucherErrors, CANCELLATION_VOUCHER_ERROR_MESSAGES, veraltet);
   assert.deepEqual(vertrag.labels, LABELS, veraltet);
   // Seit 1.3.0: welche Beschriftung jede Rueckgabe-Wahl beim Storno traegt.
