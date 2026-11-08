@@ -61,7 +61,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -219,7 +219,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -399,7 +399,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -571,7 +571,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -744,7 +744,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -899,7 +899,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1054,7 +1054,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1188,7 +1188,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1318,7 +1318,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1448,7 +1448,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1577,7 +1577,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1725,7 +1725,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -1850,7 +1850,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2024,7 +2024,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2198,7 +2198,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2331,7 +2331,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2470,7 +2470,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2610,7 +2610,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2757,7 +2757,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -2902,7 +2902,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3038,7 +3038,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3160,7 +3160,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3285,7 +3285,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3410,7 +3410,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3532,7 +3532,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3654,7 +3654,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -3818,7 +3818,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -4021,7 +4021,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -4190,7 +4190,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -4356,7 +4356,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -4511,7 +4511,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
@@ -4660,7 +4660,7 @@
             "id": "ghost",
             "deposits": [
               {
-                "depositTypeId": "weg",
+                "depositTypeId": "missing",
                 "quantity": 1
               }
             ]
