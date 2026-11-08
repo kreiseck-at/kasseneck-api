@@ -30,6 +30,5 @@ Zahlungsart:          Barzahlung
            [QR-Code]            
                                 
     Danke für Ihren Einkauf     
-Leergut-Rückgabe: Getränkemarkt 
-  Sonnleitner, Hauptstraße 12,  
-           4600 Wels            
+ Leergut-Rückgabe: Max Hollerer 
+   GmbH, Mühlweg 9, 4600 Wels   

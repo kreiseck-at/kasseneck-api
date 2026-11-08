@@ -39,11 +39,11 @@ test('Belege ohne Pfand tragen weder Steuerzusatz noch Rueckgabe-Fusszeile', () 
 
 test('Pfandstelle und vorOrt: Fusszeile aus der Antwort wie aus der gespeicherten Form', () => {
   const items = [ware, { name: 'Pfand Mehrweg', quantity: 2, unitPriceCents: 20, vatRate: 20, kind: 'deposit', depositFor: 0, depositKind: 'reusable' }];
-  const stelle = { name: 'Getränkemarkt Sonnleitner', address: 'Hauptstraße 12, 4600 Wels' };
+  const stelle = { name: 'Max Hollerer GmbH', address: 'Mühlweg 9, 4600 Wels' };
   const r = fromReceiptPayload({ ...rumpf, items, onPremises: true, sharedReturnPoint: stelle } as never);
   assert.equal(r.onPremises, true);
   assert.deepEqual(r.sharedReturnPoint, stelle);
-  assert.ok(texte(items, { sharedReturnPoint: stelle }).some((t) => t === 'Leergut-Rückgabe: Getränkemarkt Sonnleitner, Hauptstraße 12, 4600 Wels'));
+  assert.ok(texte(items, { sharedReturnPoint: stelle }).some((t) => t === 'Leergut-Rückgabe: Max Hollerer GmbH, Mühlweg 9, 4600 Wels'));
   const gespeichert = fromStoredReceipt({ ...rumpf, items: [{ name: 'Cola Dose', amount: 2, priceOne: 2, vat: 20 }], vorOrt: false, pfandStelle: { name: stelle.name, adresse: stelle.address } });
   assert.equal(gespeichert.onPremises, false);
   assert.deepEqual(gespeichert.sharedReturnPoint, stelle);
