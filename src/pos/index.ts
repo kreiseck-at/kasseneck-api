@@ -18,7 +18,7 @@ export {
   type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
-  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posTipKeptMode, tipKeptFor, type TipKeptDecision, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posTipKeptMode, tipKeptFor, type TipKeptDecision, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
   sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   POS_SHORTCUT_SHARED_PAIRS, posShortcutConflict,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
@@ -69,6 +69,11 @@ export {
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
+export {
+  posDiscountPresets, discountPresetChipText, discountChipsFromPresets, checkDiscountPresets, discountBlockLines,
+  INVALID_DISCOUNT_PRESET, DISCOUNT_PRESETS_MAX, DISCOUNT_PRESET_NAME_MAX, DISCOUNT_PRESET_PERCENT_BP, DISCOUNT_PRESET_AMOUNT_CENTS, DISCOUNT_PRESET_MESSAGES,
+  type DiscountPresetReason, type DiscountPresetError, type DiscountPresetsCheck, type DiscountBlockLine, type DiscountTotal,
+} from './rabatt-vorlagen.js';
 // Prüfung (DEP) an der Kasse: Ordner auf dem USB-Stick (gleich in Web-Kasse und Kassen-App).
 export { depFolderName } from './dep.js';
 // Prüfung an der Kasse: Kasseninfo für den Prüfer, am Bildschirm und als Ausdruck (gleich im Dart-Zwilling).
@@ -120,7 +125,7 @@ export {
   type LastShift, type ShiftCountResult,
   type EurDenomination, type MovementType, type ManualMovementType, type CashLocation, type OpeningReason, type ManualOpeningReason,
   type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
-  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
+  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftDiscount, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
   type DrawerOpening, type DrawerState, type CashMovement, type ShiftReceiptHeader, type ShiftReceiptMovement, type ShiftReceiptTip,
   type ShiftSummaryReceipt, type CashMovementReceipt, type ShiftReceipt, type OpenShiftResult, type CashMovementResult,
   type DrawerOpeningsResult, type ShiftReport, type CloseShiftResult,

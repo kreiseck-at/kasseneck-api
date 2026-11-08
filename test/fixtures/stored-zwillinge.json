@@ -3,7 +3,12 @@
     {
       "datei": "functions-kasse/kasse-settings-core.js",
       "marke": null,
-      "sha256": "d407720fc3cdfed7a92150f2d12e4ad92acea6503a51760318951d094adf0192"
+      "sha256": "fcb0e31c995b422b087f74dbc23e8c755fe9980184ac91f898a40876ed47aa50"
+    },
+    {
+      "datei": "functions-kasse/rabatt-vorlagen-core.js",
+      "marke": null,
+      "sha256": "62a38cabe0721b823640e5e138ae14ed4dc6060a4f06d7a11f72f68421cdc3d9"
     },
     {
       "datei": "functions-kasse/kasse-settings-v3.js",
@@ -134,7 +139,7 @@
   "zwilling": {
     "src/stored/bon-layout.ts": "a032c4c58d794fab0cf97cfe0be74ead3842ec6201d4318bbd554e8360561bbe",
     "src/stored/draht.ts": "e43b6bf87c11fc7974b1ae190aa00acdf4dd9508ba7563864354f99a09dcdfde",
-    "src/stored/einstellungen.ts": "24a66afe60d02ef8c4b4a7132c0d862bb957f03f5be3d7227ef1bb5890140ed0",
+    "src/stored/einstellungen.ts": "08b691d7cb8843c5b0c07903ed92a8a90ae59bfe398e7fc4ea70f780e4861418",
     "src/stored/index.ts": "065b444c7c6c118c1a127d4d8bcdd66036ed813a620d9bed85004a59a7ea692b"
   }
 }

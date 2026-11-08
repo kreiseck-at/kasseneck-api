@@ -84,6 +84,14 @@ const EINSTELLUNGEN: Json[] = [
   { betrieb: { tgDirektModus: 'fragen' } },
   { betrieb: { tgDirektModus: 'manchmal' } },
   { betrieb: { tgDirektModus: 3 } },
+  // Rabatt-Vorlagen (1.31.0): gueltig (Chips folgen den Vorlagen), leer, ungueltig, englische Werte sind innen unbekannt.
+  { betrieb: { rabattVorlagen: [{ name: 'Mitarbeiter-Rabatt', art: 'prozent', prozentBp: 2000 }, { name: 'Stammkunde', art: 'betrag', betragCents: 500 }], rabattChips: [5, 10] } },
+  { betrieb: { rabattVorlagen: [{ name: '  Stammkunde ', art: 'betrag', betragCents: 500 }, { name: 'Halb', art: 'prozent', prozentBp: 50 }, { name: 'Zehn', art: 'prozent', prozentBp: 1000 }], rabattChips: 'kaputt' } },
+  { betrieb: { rabattVorlagen: [], rabattChips: [5, 10] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'prozent', prozentBp: 5 }], rabattChips: [5] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'percent', percentBp: 500 }] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'prozent', prozentBp: 500 }, { name: 'a', art: 'betrag', betragCents: 5 }] } },
+  { betrieb: { rabattVorlagen: 'Stammkunde' } },
 ];
 
 function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] } {

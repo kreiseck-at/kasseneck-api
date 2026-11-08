@@ -48,6 +48,25 @@ export const TIP_START = TIP_KINDS;
  */
 export const TIP_KEPT_MODE = ['ask', 'always', 'never'] as const;
 export type PosTipKeptMode = typeof TIP_KEPT_MODE[number];
+/**
+ * Art einer Rabatt-Vorlage (`business.discountPresets[].kind`): Prozent oder fester Betrag
+ * (gespeichert `art`: `prozent | betrag`).
+ */
+export const DISCOUNT_PRESET_KIND = ['percent', 'amount'] as const;
+export type PosDiscountPresetKind = typeof DISCOUNT_PRESET_KIND[number];
+
+/**
+ * Benannte Rabatt-Chips der Kasse: `kind` `percent` traegt `percentBp` (Basispunkte, 10 % = 1000), `amount` traegt
+ * `amountCents` (Cent). Der Name steht auf dem Chip und als Text der Rabattzeile am Beleg; ohne Namen (`''`) bleibt
+ * die Zeile „Rabatt“. Pruefen vor dem Schreiben: [checkDiscountPresets].
+ */
+export interface PosDiscountPreset {
+  name: string;
+  kind: PosDiscountPresetKind;
+  percentBp?: number;
+  amountCents?: number;
+}
+
 /** Breite der rechten Spalte (Korb) an diesem Geraet (`device.cartWidth`); in der schmalen Ansicht ohne Wirkung. */
 export const CART_WIDTH = ['narrow', 'medium', 'wide'] as const;
 export type PosCartWidth = typeof CART_WIDTH[number];
@@ -213,6 +232,13 @@ export interface PosBusinessSettings {
    * gilt `ask`. Lesen ueber [posTipKeptMode], entscheiden ueber [tipKeptFor].
    */
   tipKeptMode?: PosOpen<PosTipKeptMode>;
+  /**
+   * Benannte Rabatt-Chips (Prozent oder Betrag, hoechstens 5). Optional: der Server sendet das Feld nur, wenn es
+   * gespeichert ist; dann sind die Vorlagen die Quelle der Chips und `discountChips` spiegelt ihre Prozentwerte fuer
+   * aeltere Kassen. Fehlt es, gilt `discountChips`. Lesen ueber [posDiscountPresets]; eine Vorlage mit unbekannter
+   * Art verwirft der Leser.
+   */
+  discountPresets?: PosDiscountPreset[];
   /**
    * Angebotene Trinkgeld-Arten (nichtleere Teilmenge von [TIP_KINDS], Reihenfolge wie
    * gespeichert). Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es,
@@ -401,6 +427,27 @@ const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FI
  */
 export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart', 'tipKeptMode'] as const);
 
+/**
+ * Optionale Betriebs-Listen aus Objekten (Backend `BETRIEB_OPTIONAL.rabattVorlagen`): ohne Standardwert, der Server
+ * sendet sie nur, wenn sie gespeichert sind (auch als leere Liste). Der Leser uebernimmt die Eintraege, die die Form
+ * einer Vorlage haben ([_vorlagenLesen]); eine Vorlage mit unbekannter Art faellt weg.
+ */
+export const POS_BUSINESS_OPTIONAL_LISTS = Object.freeze(['discountPresets'] as const);
+
+/** Die lesbaren Vorlagen einer Liste vom Draht oder aus dem Speicher; keine Liste -> `null` (Feld fehlt). */
+export function _vorlagenLesen(wert: unknown): PosDiscountPreset[] | null {
+  if (!Array.isArray(wert)) return null;
+  const raus: PosDiscountPreset[] = [];
+  for (const e of wert) {
+    if (e === null || typeof e !== 'object' || Array.isArray(e)) continue;
+    const v = e as Record<string, unknown>;
+    if (typeof v.name !== 'string') continue;
+    if (v.kind === 'percent' && Number.isSafeInteger(v.percentBp)) raus.push({ name: v.name, kind: 'percent', percentBp: v.percentBp as number });
+    else if (v.kind === 'amount' && Number.isSafeInteger(v.amountCents)) raus.push({ name: v.name, kind: 'amount', amountCents: v.amountCents as number });
+  }
+  return raus;
+}
+
 /** Optionale Geraete-Einstellungen mit Wertemenge (Backend `GERAET_OPTIONAL`, Katalog `KASSE_GERAET_WERTE.cartWidth`). */
 export const POS_DEVICE_OPTIONAL_CHOICES = Object.freeze(['cartWidth'] as const);
 
@@ -559,6 +606,10 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
         if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
         if (OPTIONALE_WAHL.has(key) && _optionalerWahlwert(key, wert)) out[key] = Array.isArray(wert) ? [...wert] : wert;
+        if (key === 'discountPresets') {
+          const liste = _vorlagenLesen(wert);
+          if (liste !== null) out[key] = liste;
+        }
         continue;
       }
       const wert = (stored as Record<string, unknown>)[key];

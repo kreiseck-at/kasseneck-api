@@ -95,6 +95,16 @@ const MELDUNGEN_ROH = {
   'reference.format_invalid': { text: 'Das Format passt nicht.' },
   'reference.format_warning': { text: 'Das Format passt nicht. Trotzdem übernehmen?' },
   'discount.percent_invalid': { text: 'Bitte einen Prozentwert zwischen 0,1 und 100 eingeben.' },
+  // Rabatt-Vorlagen (benannte Rabatt-Chips, 1.31.0): Fehler der Pruefung (checkDiscountPresets) und der gesperrte Chip.
+  'discount.preset_over_total': { text: 'Der Rabatt ist höher als der Betrag, auf den er gilt.' },
+  'discount_preset.list': { text: 'Höchstens 5 Rabatt-Vorlagen als Liste.' },
+  'discount_preset.entry': { text: 'Eine Rabatt-Vorlage ist ein Objekt mit Name, Art und Wert.' },
+  'discount_preset.name': { text: 'Name mit 1 bis 24 Zeichen, ohne Steuerzeichen.' },
+  'discount_preset.duplicate': { text: 'Diesen Namen gibt es schon.' },
+  'discount_preset.kind': { text: 'Prozent oder Betrag.' },
+  'discount_preset.percent': { text: 'Prozent zwischen 0,1 und 100 mit höchstens einer Nachkommastelle.' },
+  'discount_preset.amount': { text: 'Betrag zwischen 0,01 € und 1.000.000,00 €.' },
+  'discount_preset.unknown_field': { text: 'Unbekanntes Feld.' },
 
   // --- Kassieren -----------------------------------------------------------
   // Der Grund ueber dem Knopf, solange der Beleg nicht abgeschlossen werden kann.
@@ -890,6 +900,19 @@ const BESCHRIFTUNGEN_ROH = {
   'tip_kept_mode.always': { text: 'Immer gleich behalten' },
   'tip_kept_mode.never': { text: 'Immer offen lassen' },
   'tip_kept_mode.ask': { text: 'Jedes Mal fragen' },
+  // Editor „Rabatt-Vorlagen“ im Kundenbereich und in den Einstellungen der Kasse (business.discountPresets).
+  'discount_presets.title': { text: 'Rabatt-Vorlagen' },
+  'discount_presets.name': { text: 'Name' },
+  'discount_presets.percent': { text: 'Prozent' },
+  'discount_presets.amount': { text: 'Betrag' },
+  'discount_presets.add': { text: 'Vorlage hinzufügen' },
+  'discount_presets.remove': { text: 'Entfernen' },
+  'discount_presets.limit': { text: 'Höchstens 5 Vorlagen.' },
+  // Block auf Z-Bon und Zwischenbericht (discountBlockLines): je Name „Name (n×)“, ab zwei Eintraegen die Summe.
+  'shift_receipt.discounts': { text: 'Rabatte' },
+  'shift_receipt.discounts_total': { text: 'Rabatte gesamt' },
+  'shift_receipt.discount_line': { text: '{name} ({count}×)', placeholders: ['name', 'count'] },
+  'shift_receipt.discount_unnamed': { text: 'Rabatt' },
   // Die Warte-Karte, solange der Betrag am Terminal steht; `{time}` ist der
   // Rest des Kartenfensters als m:ss.
   'card_payment.amount_on_terminal': { text: 'Betrag steht am Terminal' },

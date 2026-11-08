@@ -2,6 +2,7 @@ import { KasseneckValidationError } from '../client/errors.js';
 import { labelText, LABELS, type LabelKey } from '../pos/texte.js';
 import { bewegungsBon, schichtBon } from '../pos/schicht-lesen.js';
 import { shiftTipLines } from '../pos/schicht.js';
+import { discountBlockLines } from '../pos/rabatt-vorlagen.js';
 import type { CashMovementReceipt, Denominations, ShiftSummaryReceipt } from '../pos/schicht-typen.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
@@ -205,6 +206,12 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   if (bon.nonCashByMethod.length > 0) {
     zeilen.push(text(labelText('shift_receipt.non_cash'), 'left', true));
     for (const u of bon.nonCashByMethod) zeilen.push(betrag(zahlartText(u.method), u.cents));
+  }
+  // Gewaehrte Rabatte je Name: nur wenn es welche gab, sonst bleibt der Bon wie bisher.
+  const rabatte = discountBlockLines(bon.discounts);
+  if (rabatte.length > 0) {
+    zeilen.push(text(labelText('shift_receipt.discounts'), 'left', true));
+    for (const r of rabatte) zeilen.push(betrag(r.label, r.cents));
   }
   zeilen.push(anzahl(labelText('shift_receipt.receipts'), bon.receiptCount));
   zeilen.push(anzahl(labelText('shift_receipt.cancellations'), bon.cancellationCount));

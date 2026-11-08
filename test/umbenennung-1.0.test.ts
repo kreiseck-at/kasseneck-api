@@ -90,7 +90,10 @@ const NACH_1_0 = {
     'external_voucher_article.reference', 'external_voucher_article.asks_quantity', 'external_voucher_article.rate_required', 'external_voucher_article.invalid_rate',
     'external_voucher_article.price_required',
     // Trinkgeld gleich behalten in drei Stufen (1.31.0)
-    'tip.kept_hint', 'tip.open_hint'],
+    'tip.kept_hint', 'tip.open_hint',
+    // Rabatt-Vorlagen (1.31.0)
+    'discount.preset_over_total', 'discount_preset.list', 'discount_preset.entry', 'discount_preset.name', 'discount_preset.duplicate', 'discount_preset.kind',
+    'discount_preset.percent', 'discount_preset.amount', 'discount_preset.unknown_field'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -151,6 +154,9 @@ const NACH_1_0 = {
     'article.external_voucher',
     // Trinkgeld gleich behalten in drei Stufen (1.31.0)
     'tip_kept_mode.title', 'tip_kept_mode.always', 'tip_kept_mode.never', 'tip_kept_mode.ask',
+    // Rabatt-Vorlagen (1.31.0)
+    'discount_presets.title', 'discount_presets.name', 'discount_presets.percent', 'discount_presets.amount', 'discount_presets.add', 'discount_presets.remove', 'discount_presets.limit',
+    'shift_receipt.discounts', 'shift_receipt.discounts_total', 'shift_receipt.discount_line', 'shift_receipt.discount_unnamed',
     // Pruefung kompakt (1.28.0)
     'zero_receipt.done_title', 'zero_receipt.back', 'dep.export', 'dep.period_question', 'common.close',
     // Schicht-Ablauf der Kasse (1.28.0)
@@ -415,6 +421,8 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Fremdgutscheine (Server 2026-11): Golden-Belege mit „Gutschein Nr. …“ und die Pruefaelle des Backends.
   'stored/voucher-cases.json',
+  // Rabatt-Vorlagen (1.31.0): Pruefaelle des Backends, byte-gleich.
+  'discount-preset-cases.json',
   ...['voucher-external-redeem', 'voucher-external-sale']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Nullbeleg nach Signaturausfall mit Beginn und Ende (30.10.2026).

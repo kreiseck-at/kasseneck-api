@@ -1,9 +1,10 @@
 import {
   POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS,
-  POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, _optionalerWert,
+  POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, _optionalerWert,
 } from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
 import { katalogVon } from './draht.js';
+import { checkDiscountPresets, discountChipsFromPresets } from '../pos/rabatt-vorlagen.js';
 import { KATALOGE, SCHEMAS, type SchemaEintrag, type SchemaObjekt } from './vokabular.js';
 
 /*
@@ -175,6 +176,33 @@ function aufzaehlung(liste: readonly (string | number)[], katalog: Readonly<Reco
   return 'unbekannt';
 }
 
+/**
+ * Rabatt-Vorlagen (Zwilling von `rabatt-vorlagen-core.liste` und dem Schema `discountPresets`): die gespeicherte Liste
+ * `[{ name, art, prozentBp | betragCents }]` geht nur hinaus, wenn die Pruefung sie annimmt (sonst faellt sie ganz);
+ * ausgegeben wird sie wie gespeichert (nicht getrimmt), eine ungueltige fehlt still, uebersetzt in `kind`/`percentBp`/`amountCents`. Ein englischer
+ * Wert in `art` oder ein englischer Feldname ist innen unbekannt und macht die Liste ungueltig.
+ */
+function vorlagenNachAussen(w: unknown): Objekt[] | undefined {
+  const schema = teilSchema('business').discountPresets as SchemaEintrag;
+  const aussenName = innereNamen(regel(schema).unter as SchemaObjekt); // innen -> aussen
+  const art = KATALOGE['KASSE_BETRIEB_WERTE.discountPresets[].kind'] ?? {};
+  if (!Array.isArray(w)) return undefined;
+  const draht = w.map((e) => {
+    if (!istObjekt(e)) return e;
+    const raus: Objekt = {};
+    for (const [k, v] of Object.entries(e)) {
+      if (k === 'art') raus[aussenName.get('art') ?? 'kind'] = typeof v === 'string' && hat(art, v) ? art[v] : undefined;
+      else if (k === 'name') raus[k] = v;
+      else if (k === 'prozentBp' || k === 'betragCents') raus[aussenName.get(k) ?? k] = v;
+      // Jeder andere Schluessel (auch ein englischer wie `percentBp`) ist innen unbekannt.
+      else raus[`innen_${k}`] = v;
+    }
+    return raus;
+  });
+  const geprueft = checkDiscountPresets(draht);
+  return geprueft.ok ? (draht as Objekt[]) : undefined;
+}
+
 function teilNachAussen(teil: Teil, gespeichert: unknown, weg: string[]): Objekt {
   if (!istObjekt(gespeichert)) return {};
   const schema = teilSchema(teil);
@@ -185,6 +213,12 @@ function teilNachAussen(teil: Teil, gespeichert: unknown, weg: string[]): Objekt
     // mische: was innen unbekannt ist, kommt gar nicht erst in den Stand.
     if (aussen === undefined || w === undefined) continue;
     const pfad = `${teil}.${aussen}`;
+    if (teil === 'business' && aussen === 'discountPresets') {
+      const liste = vorlagenNachAussen(w);
+      // Wie jede optionale Einstellung: ungueltig fehlt still (mischeBetrieb nimmt sie gar nicht erst), ohne Eintrag in `weg`.
+      if (liste !== undefined) raus[aussen] = liste;
+      continue;
+    }
     if (hat(WAHLFELDER, teil) && WAHLFELDER[teil].includes(aussen)) {
       const katalog = katalogFuer(teil, aussen);
       const einzeln = (e: unknown): string | undefined => (typeof e === 'string' && katalog !== null && hat(katalog, e) ? katalog[e] : undefined);
@@ -240,6 +274,13 @@ function teilNachAussen(teil: Teil, gespeichert: unknown, weg: string[]): Objekt
     if (pruefer && pruefer(w)) raus[aussen] = w;
     else weg.push(pfad);
   }
+  // Mit gueltigen Vorlagen folgen die Chips immer den Vorlagen (mischeBetrieb), auch ein ungueltiges gespeichertes
+  // `rabattChips` faellt dann nicht erst am Validator.
+  if (teil === 'business' && hat(raus, 'discountPresets')) {
+    raus.discountChips = discountChipsFromPresets(raus.discountPresets as never);
+    const i = weg.indexOf('business.discountChips');
+    if (i >= 0) weg.splice(i, 1);
+  }
   return raus;
 }
 
@@ -260,10 +301,10 @@ export function _storedPosSettingsToWire(stored: { betrieb?: unknown; geraet?: u
 
 /** Nur fuer den Test: die Feldliste der Pruefer (muss mit der Vorgabe deckungsgleich sein). */
 export const _PRUEFER_FELDER = Object.freeze({
-  business: [...new Set([...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(BETRIEB_OPTIONAL), ...Object.keys(KARTEN)])],
+  business: [...new Set([...Object.keys(PRUEFER.business), ...Object.keys(POS_BUSINESS_VALUES), ...Object.keys(BETRIEB_OPTIONAL), ...Object.keys(KARTEN), ...POS_BUSINESS_OPTIONAL_LISTS])],
   device: [...new Set([...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), ...Object.keys(GERAET_OPTIONAL), 'shortcuts'])],
   standard: {
-    business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS, ...POS_BUSINESS_OPTIONAL_CHOICES],
+    business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS, ...POS_BUSINESS_OPTIONAL_CHOICES, ...POS_BUSINESS_OPTIONAL_LISTS],
     device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS, ...POS_DEVICE_OPTIONAL_CHOICES],
   },
 });

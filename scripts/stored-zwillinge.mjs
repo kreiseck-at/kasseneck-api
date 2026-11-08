@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 /** Die nachgebauten Stellen: Datei im Backend und Anfang der Stelle (null = ganze Datei). */
 export const BACKEND_STELLEN = [
   ['functions-kasse/kasse-settings-core.js', null],
+  ['functions-kasse/rabatt-vorlagen-core.js', null],
   ['functions-kasse/kasse-settings-v3.js', 'function nurGueltig('],
   ['functions-kasse/article-groups-core.js', 'function kachelAttribute('],
   ['functions-kasse/article-endpoints.js', 'const listMyArticles = '],

@@ -183,6 +183,20 @@ export interface ShiftRunningTotals {
   ownerTips?: ShiftOwnerTip[];
   /** Trinkgeld ohne angemeldeten Empfänger in Cent (nur Anzeige, 1.28.0); fehlt = 0. */
   unassignedTipCents?: number;
+  /**
+   * Gewaehrte Rabatte je Name (nur Anzeige, nie im Soll): `cents` gewaehrt (positiv), `count` Belege mit diesem
+   * Namen, ein Storno nimmt beides zurueck. Der Server sendet es erst ab dem ersten Rabatt (fehlt = keiner);
+   * auf dem Z-Bon steht es als Block ([discountBlockLines]).
+   */
+  discounts?: ShiftDiscount[];
+}
+
+/** Ein Eintrag von [ShiftRunningTotals.discounts] bzw. [ShiftSummaryReceipt.discounts]. */
+export interface ShiftDiscount {
+  /** Name der Rabattzeile am Beleg (`''` = unbenannt, „Rabatt“). */
+  name: string;
+  cents: number;
+  count: number;
 }
 
 /** Ein Eintrag von [ShiftRunningTotals.ownerTips]: Trinkgeld, das als Umsatz erfasst ist. */
@@ -416,6 +430,8 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
   differenceCents: number | null;
   comment: string | null;
   openingsWithoutSale: number;
+  /** Gewaehrte Rabatte je Name; fehlt, wenn es keine gab (der Bon bleibt dann wie bisher). */
+  discounts?: ShiftDiscount[];
   /** Entnommen bzw. eingelegt nach dem Zaehlen; fehlt, wenn kein Geld bewegt wurde. */
   afterCount?: AfterCount;
   /**

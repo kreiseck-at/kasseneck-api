@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "bcdcbb7ada8059ee5356a6dca9677d17fb7dc6eac4ba103a28288cc91751b002";
+export const VOKABULAR_QUELLE = "b8461e82376da744f138a9f65aecabbd9c1176d86185911cff77e5bcc1993c7a";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -178,7 +178,15 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "watermarkScale": "wzSkala",
         "glass": "glas",
         "hints": "hinweise",
-        "discountChips": "rabattChips"
+        "discountChips": "rabattChips",
+        "discountPresets": [
+          {
+            "__": "rabattVorlagen",
+            "kind": "art",
+            "percentBp": "prozentBp",
+            "amountCents": "betragCents"
+          }
+        ]
       },
       "device": {
         "__": "geraet",
@@ -345,6 +353,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "business.tipKeptMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.tipKeptMode"
+      },
+      "business.discountPresets[].kind": {
+        "$catalog": "KASSE_BETRIEB_WERTE.discountPresets[].kind"
       },
       "business.checkoutMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.checkoutMode"
@@ -677,6 +688,10 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "KASSE_BETRIEB_WERTE.discount": {
     "aus": "off",
     "an": "on"
+  },
+  "KASSE_BETRIEB_WERTE.discountPresets[].kind": {
+    "prozent": "percent",
+    "betrag": "amount"
   },
   "KASSE_BETRIEB_WERTE.quantity": {
     "aus": "off",
