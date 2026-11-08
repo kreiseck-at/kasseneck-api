@@ -1,0 +1,230 @@
+{
+  "zeichen": 32,
+  "bloecke": [
+    {
+      "art": "logo",
+      "breiteAnteil": 0.62,
+      "hoeheZeilen": 3.968
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "       Bäckerei Kornblum        ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "           Mühlweg 7            ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "           4600 Wels            ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "          ATU12345675           ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "Datum:       13.08.2026 10:15:30",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kassen-ID:                KASSE1",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Beleg-ID:          AT0-KASSE1-91",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "6  x Cola Dose           12,00 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "je 2,00                         ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  + 1  x                  0,50 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "    Eiswürfel                   ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  + 6  x Pfand            1,50 D",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "    Einweg je 0,25              ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "2  x Bier Flasche         3,60 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "0,5 l je 1,80                   ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  + 2  x Pfand            0,40 A",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "    Flasche je 0,20             ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "MwSt%   MwSt    Netto     Brutto",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "A 20%   2,75    13,75      16,50",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "D 0%    0,00    1,50        1,50",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Pfand, nicht steuerbar      1,50",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "--------------------------------",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Gesamt:                  18,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlungsart:          Barzahlung",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "qr",
+      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-91_2026-08-13T10:15:30_16,50_0,00_0,00_0,00_1,50_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR",
+      "breiteAnteil": 0.828125
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "    Danke für Ihren Einkauf     ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": " Leergut-Rückgabe: Max Hollerer ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "   GmbH, Mühlweg 9, 4600 Wels   ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "marke",
+      "breite": 234,
+      "hoehe": 34
+    }
+  ]
+}

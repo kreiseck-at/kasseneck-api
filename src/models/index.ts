@@ -8,11 +8,12 @@ export {
   receiptItemIsValid,
   negateReceiptItem,
   type TipRecipient,
-  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem,
+  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem,
 } from './receipt-item.js';
 export { type Voucher, type VoucherArticle, type VoucherPayload, type VoucherSource, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, isExternalVoucher, voucherServerFields } from './voucher.js';
 export {
   type Receipt,
+  type SharedReturnPoint,
   type ReceiptPayload,
   type ReceiptPayloadRead,
   toReceiptPayload,

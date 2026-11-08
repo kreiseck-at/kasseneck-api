@@ -4,6 +4,22 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.39.0
+
+Pfand und Leergut im Bon, Zwilling der Bonzeilen von 1.32.0 (nur Lesen und Bon). Das Backend vendort die 0.x-Linie und setzt
+damit Bon, PDF und Bon-Check; bisher druckte es Pfand wie normale Ware. Senden und Einstellungen gibt es nur in 1.x.
+
+- **Lesen (innere Form, wie das Backend sie speichert):** Positionen mit `kind` `pfand` / `pfand_rueckgabe` werden zu
+  `ReceiptItem.kind` `deposit` / `deposit_return` mit `depositTypeId` (`pfandartId`), `depositFor` (`pfandZu`),
+  `depositKind` (`pfandArt`: `einweg` → `single_use`, `mehrweg` → `reusable`), `perUnit` (`jeStueck`), `gtin`, `ean`,
+  `ownFilling` (`eigen`), `codes`. Am Beleg `onPremises` (`vorOrt`) und `sharedReturnPoint { name, address }`
+  (`pfandStelle { name, adresse }`). Neu `isDepositItem`, `isDepositReturnItem`, Typ `SharedReturnPoint`. Geschrieben wird
+  wieder die innere Form.
+- **Bon:** Pfandzeile unter ihrer Ware (nach deren Zusätzen, eingerückt wie ein Zusatz), Steuerzeile `Pfand, nicht
+  steuerbar` unter der 0-%-Zeile bei Einwegpfand, Fußzeile `Leergut-Rückgabe: <Name>, <Adresse>`, reiner Leergutbeleg mit
+  Überschrift `Leergut-Rückgabe` und `Bar ausgezahlt`. Neue Goldens `deposit` und `deposit-return`, Raster gleich wie in 1.x;
+  alle übrigen unverändert.
+
 ## 0.38.0
 
 Fremdgutscheine im Bon, Zwilling der Bonzeilen von 1.x (Fremdgutscheine). Das Backend vendort die 0.x-Linie und setzt damit

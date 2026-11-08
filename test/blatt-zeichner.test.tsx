@@ -59,8 +59,8 @@ function eposFolge(xml: string): Gesetzt[] {
 
 test('Blatt-Zeichner: alle Golden-Belege liegen vor', () => {
   // 48 bis 0.35, dazu 23 Nacherfassungen (nacherfassung-*), null-ausfall-zeitraum (30.10.2026), zusaetze (0.37.0) und
-  // zwei Fremdgutscheine (gutschein-fremd-*, 0.38.0).
-  assert.equal(namen.length, 75);
+  // zwei Fremdgutscheine (gutschein-fremd-*, 0.38.0) und zwei Pfandbelege (deposit*, 0.39.0).
+  assert.equal(namen.length, 77);
 });
 
 for (const name of namen) {
