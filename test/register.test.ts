@@ -361,6 +361,30 @@ test('listRegisterUsersForDevice: cashregister.ready kommt durch, samt Grund; Mu
   assert.equal(kaputt.cashregister, undefined);
 });
 
+test('registerUserLogin: das Recht depositReturn kommt in den perms durch, auch als false', async () => {
+  const { holen } = fetchFake(erfolg({ ...ANMELDE_ANTWORT, user: { ...ANMELDE_ANTWORT.user, perms: { ...ANMELDE_ANTWORT.user.perms, depositReturn: false } } }));
+  const sitzung = await registerUserLogin({
+    ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS,
+    userId: BENUTZER_ID, pin: '1234', cashregisterId: KASSEN_ID, fetch: holen,
+  });
+  assert.equal(sitzung.user.perms.depositReturn, false);
+});
+
+test('listRegisterUsersForDevice: Pfand-Angaben der Kasse kommen durch; ohne Block oder mit Muell fehlt deposit', async () => {
+  const pfand = { returns: 'shared', onPremisesDefault: 'ask', usualQuantity: 6, sharedReturnPoint: { name: 'Getraenkemarkt', address: 'Hauptstrasse 1, 1010 Wien' } };
+  const { holen } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: true, deposit: pfand } }));
+  const stand = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
+  assert.deepEqual(stand.cashregister?.deposit, pfand);
+
+  const { holen: ohne } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: true } }));
+  const alt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: ohne });
+  assert.equal('deposit' in alt.cashregister!, false);
+
+  const { holen: muell } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: true, deposit: { returns: 'ueberall' } } }));
+  const kaputt = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: muell });
+  assert.equal('deposit' in kaputt.cashregister!, false);
+});
+
 test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({ id: GERAET_ID }));
   await unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });

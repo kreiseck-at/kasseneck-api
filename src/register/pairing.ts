@@ -5,6 +5,7 @@ import { createTransport, type TransportOptions } from '../client/transport.js';
 import { fromReceiptCompanyPayload, type ReceiptCompany, type ReceiptCompanyPayload } from '../models/receipt-company.js';
 import type { PosSettings } from '../pos/settings.js';
 import { posSettingsFromWire } from '../pos/client.js';
+import { cashRegisterDepositFromWire, type CashRegisterDeposit } from '../pos/pfand.js';
 
 /**
  * Die drei Aufrufe, die **ohne jede Identitaet** laufen: Kopplung eines
@@ -191,8 +192,9 @@ export interface RegisterDeviceUsers {
    * Startbeleg fehlt): die Kasse sperrt das Kassieren VOR dem ersten Beleg
    * statt an createReceipt zu scheitern. Fehlt das Feld, gilt bereit.
    * `stockLocationId`: Lager-Standort der Kasse, fehlt = Standard-Standort.
+   * `deposit`: Pfand & Leergut der Kasse (Ruecknahme, Vorgaben); fehlt, solange der Betrieb kein Pfand eingeschaltet hat.
    */
-  cashregister?: { ready: boolean; reason?: string | null; stockLocationId?: string };
+  cashregister?: { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit };
   /** Das Geraet haengt an der Test-Umgebung des Betriebs. */
   testEnvironment: boolean;
 }
@@ -256,6 +258,11 @@ export interface RegisterUserPerms {
   voucherRedeem?: boolean;
   /** Gutscheine verwalten, z. B. Etikett nachdrucken (fehlt: verweigert). */
   voucherManage?: boolean;
+  /**
+   * Leergut annehmen (Pfand & Leergut). Fehlt das Recht, gilt es als erteilt (Rollenvorgabe: Kassier und Chef) --
+   * siehe [depositReturnOf]; ein ausdrueckliches `false` sperrt. Unter /v3 loest der Server es bei der Anmeldung auf.
+   */
+  depositReturn?: boolean;
   [weiteresRecht: string]: boolean | RegisterScope | undefined;
 }
 
@@ -289,7 +296,7 @@ export const REGISTER_PERMS = [
   'sell', 'cancel', 'articles', 'layout', 'reports', 'takeover',
   'cancelScope', 'receiptsScope', 'drawer', 'discount', 'tipAssign',
   'stockView', 'stockCosts', 'stockMove', 'stockLoss', 'stocktakeCount', 'stocktakeClose', 'stockLocation',
-  'voucherSell', 'voucherRedeem', 'voucherManage',
+  'voucherSell', 'voucherRedeem', 'voucherManage', 'depositReturn',
 ] as const satisfies readonly BenanntesRecht[];
 
 /**
@@ -332,6 +339,16 @@ export function receiptsScopeOf(perms: RegisterUserPerms | null | undefined): Re
 export function stockViewOf(perms: RegisterUserPerms | null | undefined): boolean {
   if (!perms) return false;
   return perms.stockView === undefined ? true : perms.stockView === true;
+}
+
+/**
+ * Darf der Benutzer Leergut annehmen? Ohne Schluessel gilt das Recht als erteilt (Rollenvorgabe `Leergut annehmen`
+ * ist fuer Kassier und Chef an, ein alter Server und `/api`-Antworten kennen es nicht); nur ein ausdrueckliches
+ * `false` sperrt. Ohne Rechte-Objekt: nein.
+ */
+export function depositReturnOf(perms: Partial<RegisterUserPerms> | null | undefined): boolean {
+  if (!perms) return false;
+  return perms.depositReturn === undefined ? true : perms.depositReturn === true;
 }
 
 /** Die drei Gutschein-Rechte, aufgeloest (kein Schluessel fehlt mehr). */
@@ -625,7 +642,7 @@ export async function listRegisterUsersForDevice(
   };
 }
 
-function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; stockLocationId?: string } | undefined {
+function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit } | undefined {
   if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return undefined;
   const roh = wert as Record<string, unknown>;
   if (typeof roh['ready'] !== 'boolean') return undefined;
@@ -634,6 +651,7 @@ function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; s
     ready: roh['ready'],
     reason: typeof roh['reason'] === 'string' ? roh['reason'] : null,
     ...(typeof standort === 'string' && standort !== '' ? { stockLocationId: standort } : {}),
+    ...(cashRegisterDepositFromWire(roh['deposit']) ? { deposit: cashRegisterDepositFromWire(roh['deposit'])! } : {}),
   };
 }
 

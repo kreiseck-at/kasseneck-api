@@ -45,6 +45,12 @@ export {
   addOnsOfItem, addOnRemap, addOnDisplayOrder, orderAddOnLines,
 } from './zusaetze.js';
 export {
+  DEPOSIT_KINDS, type DepositKind, DEPOSIT_TYPES, type DepositContainerType, DEPOSIT_RETURN_MODES, type DepositReturnMode,
+  DEPOSIT_ON_PREMISES_DEFAULTS, type DepositOnPremisesDefault, type DepositAmount, type DepositType, type DepositSettings,
+  type DepositEntry, type DepositSharedReturnPoint, type CashRegisterDeposit,
+  posDepositSettingsFromWire, depositEntriesFromWire, cashRegisterDepositFromWire,
+} from './pfand.js';
+export {
   ARTICLE_EXTERNAL_VOUCHER_TYPES, type ArticleExternalVoucher, ARTICLE_EXTERNAL_VOUCHER_INVALID, ARTICLE_EXTERNAL_VOUCHER_VAT_RATES,
   EXTERNAL_VOUCHER_ARTICLE_REASONS, type ExternalVoucherArticleReason, type ExternalVoucherArticleInput,
   isArticleExternalVoucher, checkExternalVoucherValue, checkExternalVoucherArticle,
@@ -63,7 +69,7 @@ export {
 export { distributeDiscount } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
-export { cancelScopeOf, receiptsScopeOf, stockViewOf, voucherPermsOf, type VoucherPerms, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
+export { cancelScopeOf, receiptsScopeOf, stockViewOf, voucherPermsOf, depositReturnOf, type VoucherPerms, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
 export {
   type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES, isPrintJobFinished,
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,

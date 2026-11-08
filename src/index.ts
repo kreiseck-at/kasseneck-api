@@ -28,6 +28,8 @@ export {
   isTipItem,
   isVoucherItem,
   isVoucherFloatItem,
+  isDepositItem,
+  isDepositReturnItem,
   type Voucher,
   type VoucherArticle,
   type IssuedVoucher,
@@ -404,4 +406,5 @@ export {
   receiptsScopeOf,
   stockViewOf,
   voucherPermsOf,
+  depositReturnOf,
 } from './pos/index.js';

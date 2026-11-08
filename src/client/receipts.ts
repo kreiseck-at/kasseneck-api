@@ -124,6 +124,17 @@ export interface ReceiptCommonOptions {
    */
   drawerId?: string;
   /**
+   * Pfand & Leergut: der Server setzt die Pfandzeilen aus den Artikeln (`deposits`) selbst und rechnet den Betrag.
+   * Ohne Angabe gilt die Vorgabe des Servers (an, solange der Betrieb Pfand eingeschaltet hat). Mit `false` setzt er
+   * keine; ausdrueckliche Zeilen `deposit` ohne `articleId` und `deposit_return` bleiben erlaubt.
+   */
+  autoDeposits?: boolean;
+  /**
+   * Pfand & Leergut: der Verkauf wird vor Ort verzehrt (`true`) oder mitgenommen (`false`). Ohne Angabe gilt die
+   * Vorgabe der Kasse (`CashRegisterDeposit.onPremisesDefault`). Nur ein Wahrheitswert; anderes wirft vor dem Senden.
+   */
+  onPremises?: boolean;
+  /**
    * Schutz vor einem zweiten Beleg, wenn die Antwort verloren geht (Netzabbruch,
    * Zeitablauf, `outcome: 'unknown'`). Gilt je Kasse: dieselbe Anfrage mit
    * demselben Schluessel liefert den schon signierten Beleg zurueck, ohne neuen
@@ -442,6 +453,17 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     throw eingabefehler('voucher_invalid: Gutschein-Positionen (kind voucher, voucher_float) setzt nur der Server.');
   }
 
+  // Pfandzeilen setzt der Server aus den Artikeln: eine Zeile `deposit` mit `articleId` waere doppelt gemeint.
+  if (items?.some((item) => item.kind === 'deposit' && item.articleId != null && item.articleId !== '') ?? false) {
+    throw eingabefehler('invalid_deposit: Eine Pfandzeile (kind deposit) traegt keine articleId; der Server setzt sie aus dem Artikel (autoDeposits).');
+  }
+  for (const feld of ['autoDeposits', 'onPremises'] as const) {
+    const wert = options[feld];
+    if (wert !== undefined && typeof wert !== 'boolean') {
+      throw eingabefehler(`${feld} muss true oder false sein (oder weglassen).`);
+    }
+  }
+
   if (typ.needsItems) {
     // Ein reiner Gutscheinverkauf ist ein Umsatz ohne Positionen, deshalb
     // zaehlt er hier wie eine Position (wie im Flutter-Vorbild).
@@ -538,6 +560,8 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
   if (options.idempotencyKey != null) {
     params['idempotencyKey'] = belegSchluessel(options.idempotencyKey);
   }
+  if (options.autoDeposits !== undefined) params['autoDeposits'] = options.autoDeposits;
+  if (options.onPremises !== undefined) params['onPremises'] = options.onPremises;
 
   return params;
 }

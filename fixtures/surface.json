@@ -599,7 +599,8 @@
     "stockLocation",
     "voucherSell",
     "voucherRedeem",
-    "voucherManage"
+    "voucherManage",
+    "depositReturn"
   ],
   "registerErrorCodes": [
     "account_not_found",
@@ -717,6 +718,28 @@
     "cashLocations": [
       "bank",
       "safe"
+    ],
+    "depositKinds": [
+      "single_use",
+      "reusable"
+    ],
+    "depositOnPremisesDefaults": [
+      "on_premises",
+      "takeaway",
+      "ask"
+    ],
+    "depositReturnModes": [
+      "here",
+      "shared",
+      "none"
+    ],
+    "depositTypes": [
+      "bottle",
+      "crate",
+      "keg",
+      "cup",
+      "glass",
+      "other"
     ],
     "differencePartTypes": [
       "interim",

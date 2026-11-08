@@ -12,6 +12,7 @@
  * bis die Buchung geklaert ist (Spec kachel-kasse § 9).
  */
 import { posVoucherSettingsFromWire, type PosVoucherSettings } from './gutschein.js';
+import { posDepositSettingsFromWire, type DepositSettings } from './pfand.js';
 
 
 /*
@@ -365,6 +366,8 @@ export interface PosSettings {
   device: PosDeviceSettings;
   /** Gutschein-Verkauf der Kasse (Block `vouchers`); ohne Block ist Verkaufen aus. */
   vouchers: PosVoucherSettings;
+  /** Pfand & Leergut (Block `deposit`); fehlt, solange der Betrieb kein Pfand eingeschaltet hat. */
+  deposit?: DepositSettings;
 }
 
 export const POS_BUSINESS_DEFAULTS: Readonly<PosBusinessSettings> = Object.freeze({
@@ -650,6 +653,12 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
  * ein Verbraucher selbst abgelegt hat; ein Stand in der inneren Form ergibt
  * die Standardwerte, nie einen deutschen Wert und nie einen Absturz.
  */
+/** `{ deposit }`, wenn der Block lesbar ist, sonst nichts: ohne Block fehlt das Feld am Modell. */
+function pfandBlock(wert: unknown): { deposit?: DepositSettings } {
+  const deposit = posDepositSettingsFromWire(wert);
+  return deposit ? { deposit } : {};
+}
+
 export function sanitizePosSettings(stored: unknown): PosSettings {
   const roh = stored !== null && typeof stored === 'object' ? (stored as Record<string, unknown>) : {};
   const teil = (k: string): Record<string, unknown> | null => {
@@ -660,6 +669,7 @@ export function sanitizePosSettings(stored: unknown): PosSettings {
     business: mergePosSettings(POS_BUSINESS_DEFAULTS, teil('business') as Partial<PosBusinessSettings> | null),
     device: mergePosSettings(POS_DEVICE_DEFAULTS, teil('device') as Partial<PosDeviceSettings> | null),
     vouchers: posVoucherSettingsFromWire(eigen(roh, 'vouchers') ? roh['vouchers'] : undefined),
+    ...pfandBlock(eigen(roh, 'deposit') ? roh['deposit'] : undefined),
   };
 }
 

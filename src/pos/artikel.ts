@@ -1,6 +1,7 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { fromReferencePayload, type PosReference } from './kachel-referenz.js';
+import { depositEntriesFromWire, type DepositEntry } from './pfand.js';
 import { isArticleExternalVoucher, type ArticleExternalVoucher } from './fremdgutschein-artikel.js';
 
 /**
@@ -25,11 +26,16 @@ export interface ArticleGroup {
    * erst ueber [addOnsFor].
    */
   addOns?: string[] | null;
+  /**
+   * Pfand der Gruppe (Pfand & Leergut): gilt fuer Artikel ohne eigene Liste; null = keines.
+   * Optional wie `addOns`, der Leser setzt es immer.
+   */
+  deposits?: DepositEntry[] | null;
 }
 
 export interface ArticleGroupPayload {
   id?: string | null; name?: string | null; color?: string | null; symbol?: string | null;
-  sort?: number | null; vatRate?: number | null; addOns?: unknown;
+  sort?: number | null; vatRate?: number | null; addOns?: unknown; deposits?: unknown;
 }
 
 /** Zusatzliste am Draht: nur eine Liste von Texten zaehlt, sonst null. Paketintern. */
@@ -46,6 +52,7 @@ export function fromArticleGroupPayload(p: ArticleGroupPayload): ArticleGroup {
     sort: typeof p.sort === 'number' ? p.sort : 0,
     vatRate: typeof p.vatRate === 'number' ? p.vatRate : null,
     addOns: addOnListe(p.addOns),
+    deposits: depositEntriesFromWire(p.deposits),
   };
 }
 
@@ -171,6 +178,12 @@ export interface PosArticle {
    * unbekannter Wert wird null.
    */
   externalVoucher?: ArticleExternalVoucher | null;
+  /**
+   * Pfand des Artikels (Pfand & Leergut): `null` = keine eigene Angabe (die Gruppe gilt), `[]` = ausdruecklich
+   * ohne Pfand, sonst die Eintraege. Der Server setzt die Pfandzeilen am Beleg daraus (`autoDeposits`). Optional wie
+   * `addOns`, der Leser setzt es immer.
+   */
+  deposits?: DepositEntry[] | null;
 }
 
 /**
@@ -204,6 +217,7 @@ export interface PosArticlePayload {
   reference?: unknown;
   addOns?: unknown;
   externalVoucher?: unknown;
+  deposits?: unknown;
 }
 
 /** Ein Text mit Inhalt, unveraendert; leer, nur Leerraum oder kein Text -> null. */
@@ -238,6 +252,7 @@ export function fromPosArticlePayload(p: PosArticlePayload): PosArticle {
     reference: fromReferencePayload(p.reference),
     addOns: addOnListe(p.addOns),
     externalVoucher: isArticleExternalVoucher(p.externalVoucher) ? p.externalVoucher : null,
+    deposits: depositEntriesFromWire(p.deposits),
   };
 }
 

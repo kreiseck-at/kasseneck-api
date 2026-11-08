@@ -215,6 +215,13 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
       assert.deepEqual(Object.values(zuordnung(verweis)).sort(), [...gutschein[pfad]!].sort(), pfad);
       continue;
     }
+    // Der Block `deposit` liest pos/pfand.ts (test/pfand.test.ts).
+    if (pfad.startsWith('deposit.')) {
+      const pfand: Record<string, readonly string[]> = { 'deposit.depositTypes[].kind': kasse.DEPOSIT_KINDS, 'deposit.depositTypes[].type': kasse.DEPOSIT_TYPES };
+      assert.ok(pfand[pfad], `${pfad}: Wertemenge des Pfand-Blocks ohne Gegenstueck im Paket`);
+      assert.deepEqual([...pfand[pfad]!], Object.values(zuordnung(verweis)), pfad);
+      continue;
+    }
     assert.deepEqual([...(paket[pfad] ?? [])], Object.values(zuordnung(verweis)), pfad);
   }
   // Jede Liste heisst wie ihr Feld (TILE_STYLE -> tileStyle).

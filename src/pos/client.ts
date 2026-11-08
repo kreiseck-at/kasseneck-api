@@ -1,6 +1,7 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { posVoucherSettingsFromWire } from './gutschein.js';
+import { posDepositSettingsFromWire } from './pfand.js';
 import { checkDiscountPresets, INVALID_DISCOUNT_PRESET } from './rabatt-vorlagen.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
@@ -32,16 +33,18 @@ import {
 export async function getPosSettings(transport: InternerTransport, options: { deviceId?: string } = {}): Promise<PosSettings> {
   const params: Record<string, unknown> = {};
   if (options.deviceId) params.deviceId = options.deviceId;
-  const daten = await transport<{ business?: unknown; device?: unknown; vouchers?: unknown }>('getKasseSettings', params);
+  const daten = await transport<{ business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown }>('getKasseSettings', params);
   return posSettingsFromWire(daten);
 }
 
 /** `{business, device, vouchers}` einer Antwort, gemischt mit den Standardwerten. */
-export function posSettingsFromWire(data: { business?: unknown; device?: unknown; vouchers?: unknown } | null | undefined): PosSettings {
+export function posSettingsFromWire(data: { business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown } | null | undefined): PosSettings {
+  const deposit = posDepositSettingsFromWire(data?.deposit);
   return {
     vouchers: posVoucherSettingsFromWire(data?.vouchers),
     business: mergePosSettings(POS_BUSINESS_DEFAULTS, objekt(data?.business) as Partial<PosBusinessSettings> | null),
     device: mergePosSettings(POS_DEVICE_DEFAULTS, objekt(data?.device) as Partial<PosDeviceSettings> | null),
+    ...(deposit ? { deposit } : {}),
   };
 }
 
