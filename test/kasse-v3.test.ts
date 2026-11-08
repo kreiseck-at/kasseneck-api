@@ -673,7 +673,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     'listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation',
     'listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount',
     'getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift',
-    'getRegisterInspectionInfo',
+    'getRegisterInspectionInfo', 'learnMyLeergutCode', 'listMyLeergutCodes',
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);

@@ -93,6 +93,10 @@ export {
 // Connect-Bestand: die Kasse meldet Version und System von Kasseneck Connect.
 export { type ConnectStateReport, reportConnectState } from './connect-bestand.js';
 export {
+  type ReturnCode, type ReturnCodeEntry, type ReturnCodeMatch, type ReturnCodeArticle, type ReturnCodeGroup, type ReturnCodeInput,
+  learnReturnCode, listReturnCodes, matchReturnCode,
+} from './leergut.js';
+export {
   STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
   type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
   type SetMyCashregisterStockLocationOptions, type CashregisterStockLocation,

@@ -167,6 +167,9 @@ export const ALL_CALLS = [
   'getRegisterInspectionInfo',
   // Connect-Bestand (./pos): welche Connect-Version an welchem Kassengeraet laeuft; nur ueber den Kassenweg.
   'reportConnectState',
+  // Leergut-Codes (Pfand, ./pos): Codes lernen und lesen; nur ueber den Kassenweg.
+  'learnMyLeergutCode',
+  'listMyLeergutCodes',
   // Kartenterminal am Handy: Geraet, Zugang, TID und Code (nur /v3).
   'registerTerminalDevice',
   'getTerminalAccess',
@@ -384,6 +387,9 @@ export const POS_CALLS = [
   'getRegisterInspectionInfo',
   // Connect-Bestand: nur ueber den Kassenweg, jeder Kassen-Benutzer.
   'reportConnectState',
+  // Leergut-Codes lernen und lesen: Kassen-Benutzer mit dem Recht depositReturn.
+  'learnMyLeergutCode',
+  'listMyLeergutCodes',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -439,6 +445,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'hobexPayApi',
   'hobexRefundApi',
   'issueInvoice',
+  'learnMyLeergutCode',
   'logMyDrawerOpenings',
   'logReceiptOutputs',
   'openMyShift',
@@ -525,6 +532,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   generateFullReceiptId: 'read',
   getCashregisterReport: 'read',
   getArticle: 'read',
+  listMyLeergutCodes: 'read',
   getCustomer: 'read',
   getCustomerCredentials: 'read',
   getCustomerSignatureStatus: 'read',
