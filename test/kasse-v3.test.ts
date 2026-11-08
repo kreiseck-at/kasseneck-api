@@ -183,7 +183,7 @@ test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide
   const schema = VOKABULAR.schemas.getKasseSettings.data;
   const aussen = (teil: Json) => Object.keys(teil).filter((k) => k !== '__').sort();
   // Optionale Betriebs-Einstellungen (tipKeptByDefault; Wahlfelder tipKinds, tipStart) ebenso.
-  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES].sort(), aussen(schema.business));
+  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES, ...kasse.POS_BUSINESS_OPTIONAL_LISTS].sort(), aussen(schema.business));
   // Optionale Geraete-Einstellungen (drawerId; Wahlfeld cartWidth) haben keinen Standardwert, stehen aber im Schema.
   assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS, ...kasse.POS_DEVICE_OPTIONAL_CHOICES].sort(), aussen(schema.device));
   assert.deepEqual([...POS_SHORTCUT_ACTIONS], Object.keys(schema.device.shortcuts).filter((k) => k !== '__'));
@@ -194,6 +194,8 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
   const paket: Record<string, readonly (string | number)[] | undefined> = {
     ...Object.fromEntries(Object.entries(POS_BUSINESS_VALUES).map(([k, v]) => [`business.${k}`, v])),
     ...Object.fromEntries(Object.entries(POS_DEVICE_VALUES).map(([k, v]) => [`device.${k}`, v])),
+    // Art einer Rabatt-Vorlage: Wert einer Liste von Objekten, im Paket eine eigene Liste.
+    'business.discountPresets[].kind': kasse.DISCOUNT_PRESET_KIND,
   };
   for (const [roherPfad, verweis] of Object.entries(werte)) {
     // Eine Liste von Werten (`business.tipKinds[]`) steht im Paket unter dem Feldnamen.
@@ -766,6 +768,8 @@ test('F2: die Tabelle der Altwerte ist aus den Katalogen des Vokabulars (innere 
   for (const [pfad, verweis] of Object.entries(werte)) {
     // Der Block `vouchers` ist kein Teil von business/device und hat keine 0.x-Form.
     if (pfad.startsWith('vouchers.')) continue;
+    // Wert innerhalb einer Liste von Objekten (discountPresets[].kind): der Leser nimmt nur die englischen Arten an.
+    if (pfad.includes('[].')) continue;
     const karte = zuordnung(verweis);
     const aussen = new Set(Object.values(karte));
     const alt = Object.keys(karte).filter((innen) => !aussen.has(innen));

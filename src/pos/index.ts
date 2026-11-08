@@ -18,11 +18,11 @@ export {
   type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
-  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posCustomDiscountAllowed, posTipKeptMode, tipKeptFor, type TipKeptDecision, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
   sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   POS_SHORTCUT_SHARED_PAIRS, posShortcutConflict,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
-  THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, TIP_KINDS, TIP_START, CART_WIDTH, type PosTipKind, type PosCartWidth, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
+  THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, TIP_KINDS, TIP_START, TIP_KEPT_MODE, type PosTipKeptMode, CART_WIDTH, type PosTipKind, type PosCartWidth, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
   LAYOUT, CATEGORY_POSITION, TILE_HEIGHT, PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, PAPER_SIZE,
   CODE_PAGE, CUT, DRAWER_AUTO_OPEN, QR_MODE,
   LOGO_SIZE, SETTINGS_FONT_SIZE, TILE_STYLE, AUTO_LOGOUT_MINUTES, DISCOUNT, WATERMARK_SIDE,
@@ -45,6 +45,14 @@ export {
   addOnsOfItem, addOnRemap, addOnDisplayOrder, orderAddOnLines,
 } from './zusaetze.js';
 export {
+  ARTICLE_EXTERNAL_VOUCHER_TYPES, type ArticleExternalVoucher, ARTICLE_EXTERNAL_VOUCHER_INVALID, ARTICLE_EXTERNAL_VOUCHER_VAT_RATES,
+  EXTERNAL_VOUCHER_ARTICLE_REASONS, type ExternalVoucherArticleReason, type ExternalVoucherArticleInput,
+  isArticleExternalVoucher, checkExternalVoucherValue, checkExternalVoucherArticle,
+  type ExternalVoucherTileBlock, externalVoucherTileBlock,
+} from './fremdgutschein-artikel.js';
+// Form-Erkennung eigener Codes im Gutschein-Feld (Nachfrage statt Abweisung); dieselbe Funktion wie an der Wurzel.
+export { ownVoucherCodeShape, OWN_VOUCHER_CODE_SHAPES, type OwnVoucherCodeShape } from '../models/voucher.js';
+export {
   getPosSettings, setMyPosSettings, setMyRegisterDeviceSettings, setMyPosLogo, posSettingsFromWire,
   type SetMyPosLogoOptions,
 } from './client.js';
@@ -61,6 +69,11 @@ export {
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
 export { listMyTipRecipients } from './trinkgeld.js';
+export {
+  posDiscountPresets, discountPresetChipText, discountChipsFromPresets, checkDiscountPresets, discountBlockLines,
+  INVALID_DISCOUNT_PRESET, DISCOUNT_PRESETS_MAX, DISCOUNT_PRESET_NAME_MAX, DISCOUNT_PRESET_PERCENT_BP, DISCOUNT_PRESET_AMOUNT_CENTS, DISCOUNT_PRESET_MESSAGES,
+  type DiscountPresetReason, type DiscountPresetError, type DiscountPresetsCheck, type DiscountBlockLine, type DiscountTotal,
+} from './rabatt-vorlagen.js';
 // Prüfung (DEP) an der Kasse: Ordner auf dem USB-Stick (gleich in Web-Kasse und Kassen-App).
 export { depFolderName } from './dep.js';
 // Prüfung an der Kasse: Kasseninfo für den Prüfer, am Bildschirm und als Ausdruck (gleich im Dart-Zwilling).
@@ -112,7 +125,7 @@ export {
   type LastShift, type ShiftCountResult,
   type EurDenomination, type MovementType, type ManualMovementType, type CashLocation, type OpeningReason, type ManualOpeningReason,
   type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
-  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
+  type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftDiscount, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
   type DrawerOpening, type DrawerState, type CashMovement, type ShiftReceiptHeader, type ShiftReceiptMovement, type ShiftReceiptTip,
   type ShiftSummaryReceipt, type CashMovementReceipt, type ShiftReceipt, type OpenShiftResult, type CashMovementResult,
   type DrawerOpeningsResult, type ShiftReport, type CloseShiftResult,
@@ -129,7 +142,9 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage,
+  EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS,
+  LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,
 } from './texte.js';

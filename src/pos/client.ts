@@ -1,9 +1,10 @@
 import type { InternerTransport } from '../client/aufrufe.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import { posVoucherSettingsFromWire } from './gutschein.js';
+import { checkDiscountPresets, INVALID_DISCOUNT_PRESET } from './rabatt-vorlagen.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
-  POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
+  POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -158,6 +159,16 @@ function pruefeTeil(
     }
     if (teil === 'business' && (POS_BUSINESS_OPTIONAL_FIELDS as readonly string[]).includes(schluessel)) {
       if (typeof wert !== 'boolean') throw new KasseneckValidationError(name, `${teil}.${schluessel}: true oder false erwartet`, 'request');
+      continue;
+    }
+    // Rabatt-Vorlagen: dieselbe Pruefung wie am Server, der erste Fehler mit Vorlage, Feld und Satz.
+    if (teil === 'business' && (POS_BUSINESS_OPTIONAL_LISTS as readonly string[]).includes(schluessel)) {
+      const geprueft = checkDiscountPresets(wert);
+      if (!geprueft.ok) {
+        const f = geprueft.errors[0]!;
+        const ort = `${teil}.${schluessel}${f.index === null ? '' : `[${f.index}]`}${f.field === null ? '' : `.${f.field}`}`;
+        throw new KasseneckValidationError(name, `${ort}: ${f.message} (${INVALID_DISCOUNT_PRESET})`, 'request');
+      }
       continue;
     }
     const wahl = teil === 'business' ? POS_BUSINESS_OPTIONAL_CHOICES : POS_DEVICE_OPTIONAL_CHOICES;

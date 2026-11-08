@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "3c729299a204cf522158317aa38dcad5bb8ef797c44e9369faecc94be4717d78";
+export const VOKABULAR_QUELLE = "04ab5e1d031979a4f0aa31ea000f4cbe1d6e557e2411e439899ac19a1bba0325";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -163,6 +163,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "tipChips": "tgChips",
         "exactCash": "schnellbar",
         "tipKeptByDefault": "tgDirekt",
+        "tipKeptMode": "tgDirektModus",
         "tipKinds": "tgArten",
         "tipStart": "tgStart",
         "checkoutMode": "kassierenModus",
@@ -177,7 +178,16 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "watermarkScale": "wzSkala",
         "glass": "glas",
         "hints": "hinweise",
-        "discountChips": "rabattChips"
+        "discountChips": "rabattChips",
+        "discountPresets": [
+          {
+            "__": "rabattVorlagen",
+            "kind": "art",
+            "percentBp": "prozentBp",
+            "amountCents": "betragCents"
+          }
+        ],
+        "customDiscountAllowed": "rabattFrei"
       },
       "device": {
         "__": "geraet",
@@ -342,6 +352,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       "business.tipStart": {
         "$catalog": "KASSE_BETRIEB_WERTE.tipStart"
       },
+      "business.tipKeptMode": {
+        "$catalog": "KASSE_BETRIEB_WERTE.tipKeptMode"
+      },
+      "business.discountPresets[].kind": {
+        "$catalog": "KASSE_BETRIEB_WERTE.discountPresets[].kind"
+      },
       "business.checkoutMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.checkoutMode"
       },
@@ -420,7 +436,8 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "pattern": "muster",
             "patternStrict": "musterStreng"
           },
-          "addOns": "zusaetze"
+          "addOns": "zusaetze",
+          "externalVoucher": "fremdgutschein"
         }
       ]
     },
@@ -433,6 +450,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "articles[].reference.mode": {
         "$catalog": "REFERENZ_STUFE"
+      },
+      "articles[].externalVoucher": {
+        "$catalog": "ARTIKEL_FREMDGUTSCHEIN"
       }
     }
   }
@@ -467,11 +487,16 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "minStockByLocation",
   "askPrice",
   "reference",
-  "addOns"
+  "addOns",
+  "externalVoucher"
 ];
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
 export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "ARTIKEL_FREMDGUTSCHEIN": {
+    "mehrzweck": "multi_purpose",
+    "einzweck": "single_purpose"
+  },
   "AUSGABE_ART": {
     "erstdruck": "print",
     "duplikat": "reprint",
@@ -665,6 +690,10 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "aus": "off",
     "an": "on"
   },
+  "KASSE_BETRIEB_WERTE.discountPresets[].kind": {
+    "prozent": "percent",
+    "betrag": "amount"
+  },
   "KASSE_BETRIEB_WERTE.quantity": {
     "aus": "off",
     "x": "x",
@@ -686,6 +715,11 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "KASSE_BETRIEB_WERTE.tileStyle": {
     "streifen": "stripe",
     "voll": "full"
+  },
+  "KASSE_BETRIEB_WERTE.tipKeptMode": {
+    "fragen": "ask",
+    "immer": "always",
+    "nie": "never"
   },
   "KASSE_BETRIEB_WERTE.tipKinds[]": {
     "prozent": "percent",

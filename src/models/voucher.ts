@@ -460,6 +460,41 @@ export function checkExternalVoucherNumber(text: unknown): ExternalVoucherNumber
   return number === null ? { ok: false, code: 'external_voucher_number_invalid' } : { ok: true, number };
 }
 
+/**
+ * Wie sehr eine Eingabe einem eigenen Gutscheincode gleicht ([ownVoucherCodeShape]): `valid` = gueltiger eigener
+ * Code; `checksum` = 12 Zeichen des Code-Alphabets mit falschem Pruefzeichen (z. B. eine zwoelfstellige
+ * Webshop-Nummer); `length` = Muster `4-4-x` mit echten Bindestrichen `-` (nie `.`, `_`, `/`), aber nicht 12 Zeichen;
+ * `none` = keine Aehnlichkeit.
+ */
+export type OwnVoucherCodeShape = 'valid' | 'checksum' | 'length' | 'none';
+export const OWN_VOUCHER_CODE_SHAPES: readonly OwnVoucherCodeShape[] = Object.freeze(['valid', 'checksum', 'length', 'none'] as const);
+
+/** Alphabet der eigenen Codes (Crockford-Base32 ohne U), nach der Normalisierung von `VoucherCode`. */
+const CODE_ALPHABET = /^[0-9A-HJKMNP-TV-Z]+$/;
+const CODE_GRUPPEN = /^[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]+$/;
+
+/**
+ * Form-Erkennung eigener Codes fuer das Feld „Code eingeben oder scannen“ (Web-Kasse und Kassen-App gleich):
+ * `valid` laeuft als eigener Gutschein, `checksum`/`length` fragt die Kasse nach („Sieht aus wie ein
+ * Kasseneck-Code, ist aber keiner. Als fremden Gutschein verwenden?“, `external_voucher.looks_like_own_code`),
+ * `none` geht bei Freigabe direkt in das Blatt „Fremder Gutschein“. Gelesen wie [checkExternalVoucherNumber]:
+ * Rand weg, `.`, `_`, `/` wie `-`, dann die Normalisierung von `VoucherCode` (gross, ohne Leerraum und `-`,
+ * O → 0, I/L → 1); `length` nur mit echten Bindestrichen. Eine Nachfrage weist nichts ab: der Server prueft die Fremdnummer selbst
+ * (`external_voucher_number_is_own_code` nur bei `valid`).
+ */
+export function ownVoucherCodeShape(text: unknown): OwnVoucherCodeShape {
+  if (typeof text !== 'string') return 'none';
+  const roh = text.replace(FREMD_RAND_MUSTER, '');
+  const t = roh.replace(/[._/]/g, '-');
+  if (t === '') return 'none';
+  if (VoucherCode.validate(t).ok) return 'valid';
+  const s = t.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+  if (!CODE_ALPHABET.test(s)) return 'none';
+  if (s.length === 12) return 'checksum';
+  // Falsche Laenge nur mit echten Bindestrichen: eigene Codes stehen immer so da, `WEIN.2026/7` ist keiner.
+  return CODE_GRUPPEN.test(roh) ? 'length' : 'none';
+}
+
 /** Steuer- und Formatzeichen (`gutschein-core.STEUERZEICHEN`): nie in `taxedWith`. */
 const STEUERZEICHEN = /[\p{Cc}\p{Cf}]/u;
 

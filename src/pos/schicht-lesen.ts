@@ -36,6 +36,7 @@ import type {
   ShiftReceiptHeader,
   ShiftReconciliation,
   ShiftOwnerTip,
+  ShiftDiscount,
   ShiftRunningTotals,
   ShiftSummaryReceipt,
   ShiftTip,
@@ -180,7 +181,13 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
   // Nur Anzeige (1.28.0); der Server sendet beides nur, wenn es etwas gibt -- gelesen wie gesendet.
   if (o.ownerTips !== undefined && o.ownerTips !== null) raus.ownerTips = liste(ort, o, 'ownerTips', inhaberTrinkgeld);
   if (o.unassignedTipCents !== undefined && o.unassignedTipCents !== null) raus.unassignedTipCents = ganzzahl(ort, o, 'unassignedTipCents');
+  if (o.discounts !== undefined && o.discounts !== null) raus.discounts = liste(ort, o, 'discounts', rabatt);
   return raus;
+}
+
+function rabatt(ort: Ort, w: unknown): ShiftDiscount {
+  const o = pflichtObjekt(ort, w);
+  return { name: typeof o.name === 'string' ? o.name : '', cents: ganzzahl(ort, o, 'cents'), count: ganzzahl(ort, o, 'count') };
 }
 
 function inhaberTrinkgeld(ort: Ort, w: unknown): ShiftOwnerTip {
@@ -413,6 +420,8 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   // Ablauf der Kasse: nur, wenn der Server sie sendet (die Bons davor tragen sie nicht).
   wennWert(r, o, 'openingCounted', () => wahr(ort, o, 'openingCounted'));
   wennWert(r, o, 'interimDifferenceCents', () => ganzzahl(ort, o, 'interimDifferenceCents'));
+  // Nur Anzeige: gewaehrte Rabatte je Name; der Server sendet sie erst ab dem ersten Rabatt.
+  wennWert(r, o, 'discounts', () => liste(ort, o, 'discounts', rabatt));
   wennWert(r, o, 'differenceParts', () => liste(ort, o, 'differenceParts', differenzTeil));
   wennDa(r, o, 'countedBeforePayoutCents', () => ganzzahlOderNull(ort, o, 'countedBeforePayoutCents'));
   wennDa(r, o, 'countedBeforePayoutDenominations', () => stueckelung(ort, o, 'countedBeforePayoutDenominations'));

@@ -42,6 +42,31 @@ export const TIP_KINDS = ['percent', 'round_up', 'total'] as const;
 export type PosTipKind = typeof TIP_KINDS[number];
 /** Die zuerst offene Trinkgeld-Art (`business.tipStart`): dieselben Werte wie [TIP_KINDS]. */
 export const TIP_START = TIP_KINDS;
+/**
+ * Bar-Trinkgeld gleich behalten (`business.tipKeptMode`): `ask` = Schalter an der Kasse, vorbelegt mit
+ * `tipKeptByDefault`; `always`/`never` = kein Schalter, die Kasse setzt die Wahl selbst. Entscheidung ueber [tipKeptFor].
+ */
+export const TIP_KEPT_MODE = ['ask', 'always', 'never'] as const;
+export type PosTipKeptMode = typeof TIP_KEPT_MODE[number];
+/**
+ * Art einer Rabatt-Vorlage (`business.discountPresets[].kind`): Prozent oder fester Betrag
+ * (gespeichert `art`: `prozent | betrag`).
+ */
+export const DISCOUNT_PRESET_KIND = ['percent', 'amount'] as const;
+export type PosDiscountPresetKind = typeof DISCOUNT_PRESET_KIND[number];
+
+/**
+ * Benannte Rabatt-Chips der Kasse: `kind` `percent` traegt `percentBp` (Basispunkte, 10 % = 1000), `amount` traegt
+ * `amountCents` (Cent). Der Name steht auf dem Chip und als Text der Rabattzeile am Beleg; ohne Namen (`''`) bleibt
+ * die Zeile „Rabatt“. Pruefen vor dem Schreiben: [checkDiscountPresets].
+ */
+export interface PosDiscountPreset {
+  name: string;
+  kind: PosDiscountPresetKind;
+  percentBp?: number;
+  amountCents?: number;
+}
+
 /** Breite der rechten Spalte (Korb) an diesem Geraet (`device.cartWidth`); in der schmalen Ansicht ohne Wirkung. */
 export const CART_WIDTH = ['narrow', 'medium', 'wide'] as const;
 export type PosCartWidth = typeof CART_WIDTH[number];
@@ -201,6 +226,25 @@ export interface PosBusinessSettings {
    * Lesen ueber [posTipKeptByDefault]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
    */
   tipKeptByDefault?: boolean;
+  /**
+   * Ob die Kasse beim Bar-Trinkgeld fragt (`ask`) oder es immer (`always`) bzw. nie (`never`) gleich behalten
+   * wird. Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es (oder ist es unbekannt),
+   * gilt `ask`. Lesen ueber [posTipKeptMode], entscheiden ueber [tipKeptFor].
+   */
+  tipKeptMode?: PosOpen<PosTipKeptMode>;
+  /**
+   * Benannte Rabatt-Chips (Prozent oder Betrag, hoechstens 5). Optional: der Server sendet das Feld nur, wenn es
+   * gespeichert ist; dann sind die Vorlagen die Quelle der Chips und `discountChips` spiegelt ihre Prozentwerte fuer
+   * aeltere Kassen. Fehlt es, gilt `discountChips`. Lesen ueber [posDiscountPresets]; eine Vorlage mit unbekannter
+   * Art verwirft der Leser.
+   */
+  discountPresets?: PosDiscountPreset[];
+  /**
+   * Eigener Rabatt an der Kasse: `true` = neben den Rabatt-Chips das freie Feld (Betrag oder Prozent), `false` = nur
+   * die Chips. Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es, gilt `true` (wie bisher).
+   * Lesen ueber [posCustomDiscountAllowed]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
+   */
+  customDiscountAllowed?: boolean;
   /**
    * Angebotene Trinkgeld-Arten (nichtleere Teilmenge von [TIP_KINDS], Reihenfolge wie
    * gespeichert). Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es,
@@ -377,17 +421,38 @@ const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
  * [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg
  * nimmt nur `true`/`false`.
  */
-export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault'] as const);
+export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault', 'customDiscountAllowed'] as const);
 
 const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
 
 /**
  * Optionale Betriebs-Einstellungen mit Wertemenge (Backend `BETRIEB_OPTIONAL`, Katalog
- * `KASSE_BETRIEB_WERTE.tipKinds[]` und `.tipStart`): ohne Standardwert, der Server sendet sie nur,
+ * `KASSE_BETRIEB_WERTE.tipKinds[]`, `.tipStart` und `.tipKeptMode`): ohne Standardwert, der Server sendet sie nur,
  * wenn sie gespeichert sind. [mergePosSettings] uebernimmt sie, wenn sie die Form haben
  * (`tipKinds` eine nichtleere Liste von Texten, `tipStart` ein Text); den Wert prueft der Schreibweg.
  */
-export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart'] as const);
+export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart', 'tipKeptMode'] as const);
+
+/**
+ * Optionale Betriebs-Listen aus Objekten (Backend `BETRIEB_OPTIONAL.rabattVorlagen`): ohne Standardwert, der Server
+ * sendet sie nur, wenn sie gespeichert sind (auch als leere Liste). Der Leser uebernimmt die Eintraege, die die Form
+ * einer Vorlage haben ([_vorlagenLesen]); eine Vorlage mit unbekannter Art faellt weg.
+ */
+export const POS_BUSINESS_OPTIONAL_LISTS = Object.freeze(['discountPresets'] as const);
+
+/** Die lesbaren Vorlagen einer Liste vom Draht oder aus dem Speicher; keine Liste -> `null` (Feld fehlt). */
+export function _vorlagenLesen(wert: unknown): PosDiscountPreset[] | null {
+  if (!Array.isArray(wert)) return null;
+  const raus: PosDiscountPreset[] = [];
+  for (const e of wert) {
+    if (e === null || typeof e !== 'object' || Array.isArray(e)) continue;
+    const v = e as Record<string, unknown>;
+    if (typeof v.name !== 'string') continue;
+    if (v.kind === 'percent' && Number.isSafeInteger(v.percentBp)) raus.push({ name: v.name, kind: 'percent', percentBp: v.percentBp as number });
+    else if (v.kind === 'amount' && Number.isSafeInteger(v.amountCents)) raus.push({ name: v.name, kind: 'amount', amountCents: v.amountCents as number });
+  }
+  return raus;
+}
 
 /** Optionale Geraete-Einstellungen mit Wertemenge (Backend `GERAET_OPTIONAL`, Katalog `KASSE_GERAET_WERTE.cartWidth`). */
 export const POS_DEVICE_OPTIONAL_CHOICES = Object.freeze(['cartWidth'] as const);
@@ -427,6 +492,36 @@ export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettin
   return !!business && business.tipKeptByDefault === true;
 }
 
+/** Darf an der Kasse ein eigener Rabatt (Betrag oder Prozent) eingetippt werden? Fehlt die Einstellung, gilt ja. */
+export function posCustomDiscountAllowed(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return business?.customDiscountAllowed !== false;
+}
+
+/** Wirksame Stufe „Trinkgeld gleich behalten“: die gespeicherte, wenn sie bekannt ist, sonst `ask`. */
+export function posTipKeptMode(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): PosTipKeptMode {
+  const m = business?.tipKeptMode;
+  return (TIP_KEPT_MODE as readonly unknown[]).includes(m) ? (m as PosTipKeptMode) : 'ask';
+}
+
+/** Ergebnis von [tipKeptFor]: zeigt die Kasse den Schalter, und wird das Bar-Trinkgeld gleich behalten? */
+export interface TipKeptDecision {
+  showSwitch: boolean;
+  kept: boolean;
+}
+
+/**
+ * Die eine Regel fuer Web-Kasse und Kassen-App beim Bar-Trinkgeld: `ask` zeigt den Schalter, gewaehlt ist
+ * `wanted` (die Wahl am Schalter, ein Wahrheitswert), sonst die Vorbelegung `tipKeptByDefault`; `always` bzw. `never` zeigen
+ * keinen Schalter und behalten gleich bzw. lassen offen, eine Schalterwahl zaehlt dann nicht. `kept` geht als
+ * `tip.direkt` an den Beleg (der Server erzwingt die Stufe dort nicht).
+ */
+export function tipKeptFor(business: Readonly<Partial<PosBusinessSettings>> | null | undefined, wanted?: boolean | null): TipKeptDecision {
+  const stufe = posTipKeptMode(business);
+  if (stufe === 'always') return { showSwitch: false, kept: true };
+  if (stufe === 'never') return { showSwitch: false, kept: false };
+  return { showSwitch: true, kept: typeof wanted === 'boolean' ? wanted : posTipKeptByDefault(business) };
+}
+
 /**
  * Die Wertemenge je Feld, soweit das Feld eine hat: dagegen prueft der
  * Schreibweg vor dem Senden (ein deutscher Wert wie `'nacht'` geht so gar
@@ -437,7 +532,7 @@ export const POS_BUSINESS_VALUES: Readonly<Partial<Record<keyof PosBusinessSetti
   tileStyle: TILE_STYLE, autoLogoutMinutes: AUTO_LOGOUT_MINUTES, quantity: QUANTITY, discount: DISCOUNT,
   cardProvider: CARD_PROVIDER, tipMode: TIP_MODE, checkoutMode: CHECKOUT_MODE, receiptOutput: RECEIPT_OUTPUT,
   doneScreenSeconds: DONE_SCREEN_SECONDS, watermarkSide: WATERMARK_SIDE, watermarkStrength: WATERMARK_STRENGTH,
-  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START,
+  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START, tipKeptMode: TIP_KEPT_MODE,
 });
 
 /** Wie [POS_BUSINESS_VALUES] fuer die Geraete-Einstellungen. */
@@ -477,6 +572,7 @@ const ALTWERTE_0X: Readonly<Record<string, readonly (string | number)[]>> = Obje
   terminalType: ['keins'],
   tipKinds: ['prozent', 'aufrunden', 'gesamt'],
   tipStart: ['prozent', 'aufrunden', 'gesamt'],
+  tipKeptMode: ['fragen', 'immer', 'nie'],
   cartWidth: ['schmal', 'mittel', 'breit'],
 });
 
@@ -521,6 +617,10 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
         if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
         if (OPTIONALE_WAHL.has(key) && _optionalerWahlwert(key, wert)) out[key] = Array.isArray(wert) ? [...wert] : wert;
+        if (key === 'discountPresets') {
+          const liste = _vorlagenLesen(wert);
+          if (liste !== null) out[key] = liste;
+        }
         continue;
       }
       const wert = (stored as Record<string, unknown>)[key];

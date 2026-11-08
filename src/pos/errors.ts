@@ -51,6 +51,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'invalid_amount',
   'invalid_cursor',
   'invalid_denominations',
+  'invalid_discount_preset',
   'invalid_movement_type',
   'invalid_quantity',
   'invalid_serial',

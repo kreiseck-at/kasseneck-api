@@ -311,6 +311,7 @@ export function _storedArticleToWire(id: string, doc: unknown, functionName = 'f
   const katalog = (pfad: string): ReadonlySet<string> => aeussereWerte(schema.werte[pfad]!);
   const raus = nurBekannte(artikel, new Set(ARTIKEL_FELDER), {
     quantityRule: katalog('articles[].quantityRule'), e1aGroup: katalog('articles[].e1aGroup'),
+    externalVoucher: katalog('articles[].externalVoucher'),
   });
   if (istObjekt(raus.tile)) {
     const kachel = regel(regel(schema.data.articles as SchemaEintrag).unter!.tile as SchemaEintrag).unter!;

@@ -78,6 +78,25 @@ const EINSTELLUNGEN: Json[] = [
   { betrieb: { stil: 'sepia', kartenanbieter: 'neu' }, geraet: { druckerArt: 'neuart', ladeAuto: 5 } },
   { geraet: { druckerName: ' TM ', druckerIp: '', connectDruckerId: 'a b', druckerId: 'x/y' } },
   { betrieb: 'x', geraet: [] },
+  // Trinkgeld gleich behalten in drei Stufen (1.31.0): gespeichert uebersetzt, unbekannt/kein Text faellt weg.
+  { betrieb: { tgDirektModus: 'immer', tgDirekt: false } },
+  { betrieb: { tgDirektModus: 'nie', tgDirekt: true } },
+  { betrieb: { tgDirektModus: 'fragen' } },
+  { betrieb: { tgDirektModus: 'manchmal' } },
+  { betrieb: { tgDirektModus: 3 } },
+  // Rabatt-Vorlagen (1.31.0): gueltig (Chips folgen den Vorlagen), leer, ungueltig, englische Werte sind innen unbekannt.
+  { betrieb: { rabattVorlagen: [{ name: 'Mitarbeiter-Rabatt', art: 'prozent', prozentBp: 2000 }, { name: 'Stammkunde', art: 'betrag', betragCents: 500 }], rabattChips: [5, 10] } },
+  { betrieb: { rabattVorlagen: [{ name: '  Stammkunde ', art: 'betrag', betragCents: 500 }, { name: 'Halb', art: 'prozent', prozentBp: 50 }, { name: 'Zehn', art: 'prozent', prozentBp: 1000 }], rabattChips: 'kaputt' } },
+  { betrieb: { rabattVorlagen: [], rabattChips: [5, 10] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'prozent', prozentBp: 5 }], rabattChips: [5] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'percent', percentBp: 500 }] } },
+  { betrieb: { rabattVorlagen: [{ name: 'A', art: 'prozent', prozentBp: 500 }, { name: 'a', art: 'betrag', betragCents: 5 }] } },
+  { betrieb: { rabattVorlagen: 'Stammkunde' } },
+  // Eigener Rabatt an der Kasse (1.31.0): nur ein gespeicherter Wahrheitswert geht hinaus, sonst fehlt das Feld.
+  { betrieb: { rabattFrei: false, rabatt: 'an' } },
+  { betrieb: { rabattFrei: true } },
+  { betrieb: { rabattFrei: 'nein' } },
+  { betrieb: { rabattFrei: 0 } },
 ];
 
 function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] } {
@@ -86,8 +105,9 @@ function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] 
   const vok = lade!('./gemeinsam/api-vokabular-v3');
   const weg: string[] = [];
   const s = istObjekt(stand) ? stand : {};
-  const betrieb = v3.nurGueltig('betrieb', core.mische(core.BETRIEB_STANDARD, s.betrieb), (p: string) => weg.push(p));
-  const geraet = v3.nurGueltig('geraet', core.mische(core.GERAET_STANDARD, s.geraet), (p: string) => weg.push(p));
+  // Wie kasse-settings-endpoints.js getKasseSettings: mischeBetrieb/mischeGeraet nehmen die optionalen Felder mit.
+  const betrieb = v3.nurGueltig('betrieb', core.mischeBetrieb(s.betrieb), (p: string) => weg.push(p));
+  const geraet = v3.nurGueltig('geraet', core.mischeGeraet(s.geraet), (p: string) => weg.push(p));
   const aus = vok.antwortNachAussen('getKasseSettings', { status: 'success', data: { betrieb, geraet } });
   return { modell: posSettingsFromWire(json(aus.data)), weg };
 }
@@ -211,6 +231,10 @@ test('stored-backend: Artikel wie listMyArticles und Rand des Servers', (t: Test
     ['a7', { kasse: null, mengenregel: null, e1aGroup: null }],
     ['a8', { kasse: [1], stockTracked: true, stockQty: 3, ean: '123', source: 'foreign', codeSpec: { a: 1 } }],
     ['a9', { standorte: ['haupt', 'van-1'], einkauf: { standardMicros: 1200000 }, bestandsart: 'menge', mindestJeStandort: { haupt: 5000 } }],
+    // Fremdgutschein-Kachel (1.31.0): bekannte Werte uebersetzt, ein unbekannter faellt am Rand weg.
+    ['a10', { unitPriceCents: 2500, fremdgutschein: 'mehrzweck' }],
+    ['a11', { unitPriceCents: 2500, vatRate: 20, fremdgutschein: 'einzweck' }],
+    ['a12', { unitPriceCents: 2500, fremdgutschein: 'leistung' }],
   ];
   for (const [id, doc] of faelle) {
     const erwartet = artikelServer(id, doc);
