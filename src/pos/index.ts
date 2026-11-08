@@ -49,6 +49,8 @@ export {
   DEPOSIT_ON_PREMISES_DEFAULTS, type DepositOnPremisesDefault, type DepositAmount, type DepositType, type DepositSettings,
   type DepositEntry, type DepositSharedReturnPoint, type CashRegisterDeposit,
   posDepositSettingsFromWire, depositEntriesFromWire, cashRegisterDepositFromWire,
+  depositsFor, depositAmountOn, viennaDay, withDepositLines, depositReturnLine,
+  type DepositPreviewItem, type DepositPreviewLine, type DepositPreviewInput, type DepositPreviewArticle, type DepositPreviewResult, type DepositPreviewErrorCode,
 } from './pfand.js';
 export {
   ARTICLE_EXTERNAL_VOUCHER_TYPES, type ArticleExternalVoucher, ARTICLE_EXTERNAL_VOUCHER_INVALID, ARTICLE_EXTERNAL_VOUCHER_VAT_RATES,
