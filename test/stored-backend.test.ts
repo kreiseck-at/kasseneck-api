@@ -92,6 +92,11 @@ const EINSTELLUNGEN: Json[] = [
   { betrieb: { rabattVorlagen: [{ name: 'A', art: 'percent', percentBp: 500 }] } },
   { betrieb: { rabattVorlagen: [{ name: 'A', art: 'prozent', prozentBp: 500 }, { name: 'a', art: 'betrag', betragCents: 5 }] } },
   { betrieb: { rabattVorlagen: 'Stammkunde' } },
+  // Eigener Rabatt an der Kasse (1.31.0): nur ein gespeicherter Wahrheitswert geht hinaus, sonst fehlt das Feld.
+  { betrieb: { rabattFrei: false, rabatt: 'an' } },
+  { betrieb: { rabattFrei: true } },
+  { betrieb: { rabattFrei: 'nein' } },
+  { betrieb: { rabattFrei: 0 } },
 ];
 
 function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] } {

@@ -240,6 +240,12 @@ export interface PosBusinessSettings {
    */
   discountPresets?: PosDiscountPreset[];
   /**
+   * Eigener Rabatt an der Kasse: `true` = neben den Rabatt-Chips das freie Feld (Betrag oder Prozent), `false` = nur
+   * die Chips. Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es, gilt `true` (wie bisher).
+   * Lesen ueber [posCustomDiscountAllowed]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
+   */
+  customDiscountAllowed?: boolean;
+  /**
    * Angebotene Trinkgeld-Arten (nichtleere Teilmenge von [TIP_KINDS], Reihenfolge wie
    * gespeichert). Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es,
    * gelten alle drei. Lesen ueber [posTipKinds]. `tipMode` folgt den Arten (der Server leitet ihn ab).
@@ -415,7 +421,7 @@ const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
  * [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg
  * nimmt nur `true`/`false`.
  */
-export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault'] as const);
+export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault', 'customDiscountAllowed'] as const);
 
 const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
 
@@ -484,6 +490,11 @@ export function posCartWidth(device: Readonly<Partial<PosDeviceSettings>> | null
 /** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
 export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
   return !!business && business.tipKeptByDefault === true;
+}
+
+/** Darf an der Kasse ein eigener Rabatt (Betrag oder Prozent) eingetippt werden? Fehlt die Einstellung, gilt ja. */
+export function posCustomDiscountAllowed(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return business?.customDiscountAllowed !== false;
 }
 
 /** Wirksame Stufe „Trinkgeld gleich behalten“: die gespeicherte, wenn sie bekannt ist, sonst `ask`. */

@@ -77,7 +77,7 @@ test('Trinkgeld-Position: keptByEmployee wird gelesen und beim Storno-Spiegeln w
 });
 
 test('Einstellung tipKeptByDefault: optional, Standard aus, nur ein Wahrheitswert wird gemischt', () => {
-  assert.deepEqual([...POS_BUSINESS_OPTIONAL_FIELDS], ['tipKeptByDefault']);
+  assert.deepEqual([...POS_BUSINESS_OPTIONAL_FIELDS], ['tipKeptByDefault', 'customDiscountAllowed']);
   assert.equal('tipKeptByDefault' in POS_BUSINESS_DEFAULTS, false);
   assert.equal(posTipKeptByDefault(POS_BUSINESS_DEFAULTS), false);
   const an = mergePosSettings(POS_BUSINESS_DEFAULTS, { tipKeptByDefault: true });

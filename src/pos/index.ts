@@ -18,7 +18,7 @@ export {
   type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
-  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posTipKeptMode, tipKeptFor, type TipKeptDecision, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posCustomDiscountAllowed, posTipKeptMode, tipKeptFor, type TipKeptDecision, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
   sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   POS_SHORTCUT_SHARED_PAIRS, posShortcutConflict,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
