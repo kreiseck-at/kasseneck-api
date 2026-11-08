@@ -78,6 +78,12 @@ const EINSTELLUNGEN: Json[] = [
   { betrieb: { stil: 'sepia', kartenanbieter: 'neu' }, geraet: { druckerArt: 'neuart', ladeAuto: 5 } },
   { geraet: { druckerName: ' TM ', druckerIp: '', connectDruckerId: 'a b', druckerId: 'x/y' } },
   { betrieb: 'x', geraet: [] },
+  // Trinkgeld gleich behalten in drei Stufen (1.31.0): gespeichert uebersetzt, unbekannt/kein Text faellt weg.
+  { betrieb: { tgDirektModus: 'immer', tgDirekt: false } },
+  { betrieb: { tgDirektModus: 'nie', tgDirekt: true } },
+  { betrieb: { tgDirektModus: 'fragen' } },
+  { betrieb: { tgDirektModus: 'manchmal' } },
+  { betrieb: { tgDirektModus: 3 } },
 ];
 
 function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] } {
@@ -86,8 +92,9 @@ function einstellungenServer(stand: Json): { modell: PosSettings; weg: string[] 
   const vok = lade!('./gemeinsam/api-vokabular-v3');
   const weg: string[] = [];
   const s = istObjekt(stand) ? stand : {};
-  const betrieb = v3.nurGueltig('betrieb', core.mische(core.BETRIEB_STANDARD, s.betrieb), (p: string) => weg.push(p));
-  const geraet = v3.nurGueltig('geraet', core.mische(core.GERAET_STANDARD, s.geraet), (p: string) => weg.push(p));
+  // Wie kasse-settings-endpoints.js getKasseSettings: mischeBetrieb/mischeGeraet nehmen die optionalen Felder mit.
+  const betrieb = v3.nurGueltig('betrieb', core.mischeBetrieb(s.betrieb), (p: string) => weg.push(p));
+  const geraet = v3.nurGueltig('geraet', core.mischeGeraet(s.geraet), (p: string) => weg.push(p));
   const aus = vok.antwortNachAussen('getKasseSettings', { status: 'success', data: { betrieb, geraet } });
   return { modell: posSettingsFromWire(json(aus.data)), weg };
 }

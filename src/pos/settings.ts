@@ -42,6 +42,12 @@ export const TIP_KINDS = ['percent', 'round_up', 'total'] as const;
 export type PosTipKind = typeof TIP_KINDS[number];
 /** Die zuerst offene Trinkgeld-Art (`business.tipStart`): dieselben Werte wie [TIP_KINDS]. */
 export const TIP_START = TIP_KINDS;
+/**
+ * Bar-Trinkgeld gleich behalten (`business.tipKeptMode`): `ask` = Schalter an der Kasse, vorbelegt mit
+ * `tipKeptByDefault`; `always`/`never` = kein Schalter, die Kasse setzt die Wahl selbst. Entscheidung ueber [tipKeptFor].
+ */
+export const TIP_KEPT_MODE = ['ask', 'always', 'never'] as const;
+export type PosTipKeptMode = typeof TIP_KEPT_MODE[number];
 /** Breite der rechten Spalte (Korb) an diesem Geraet (`device.cartWidth`); in der schmalen Ansicht ohne Wirkung. */
 export const CART_WIDTH = ['narrow', 'medium', 'wide'] as const;
 export type PosCartWidth = typeof CART_WIDTH[number];
@@ -201,6 +207,12 @@ export interface PosBusinessSettings {
    * Lesen ueber [posTipKeptByDefault]. Siehe [POS_BUSINESS_OPTIONAL_FIELDS].
    */
   tipKeptByDefault?: boolean;
+  /**
+   * Ob die Kasse beim Bar-Trinkgeld fragt (`ask`) oder es immer (`always`) bzw. nie (`never`) gleich behalten
+   * wird. Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es (oder ist es unbekannt),
+   * gilt `ask`. Lesen ueber [posTipKeptMode], entscheiden ueber [tipKeptFor].
+   */
+  tipKeptMode?: PosOpen<PosTipKeptMode>;
   /**
    * Angebotene Trinkgeld-Arten (nichtleere Teilmenge von [TIP_KINDS], Reihenfolge wie
    * gespeichert). Optional: der Server sendet das Feld nur, wenn es gespeichert ist; fehlt es,
@@ -383,11 +395,11 @@ const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FI
 
 /**
  * Optionale Betriebs-Einstellungen mit Wertemenge (Backend `BETRIEB_OPTIONAL`, Katalog
- * `KASSE_BETRIEB_WERTE.tipKinds[]` und `.tipStart`): ohne Standardwert, der Server sendet sie nur,
+ * `KASSE_BETRIEB_WERTE.tipKinds[]`, `.tipStart` und `.tipKeptMode`): ohne Standardwert, der Server sendet sie nur,
  * wenn sie gespeichert sind. [mergePosSettings] uebernimmt sie, wenn sie die Form haben
  * (`tipKinds` eine nichtleere Liste von Texten, `tipStart` ein Text); den Wert prueft der Schreibweg.
  */
-export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart'] as const);
+export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart', 'tipKeptMode'] as const);
 
 /** Optionale Geraete-Einstellungen mit Wertemenge (Backend `GERAET_OPTIONAL`, Katalog `KASSE_GERAET_WERTE.cartWidth`). */
 export const POS_DEVICE_OPTIONAL_CHOICES = Object.freeze(['cartWidth'] as const);
@@ -427,6 +439,31 @@ export function posTipKeptByDefault(business: Readonly<Partial<PosBusinessSettin
   return !!business && business.tipKeptByDefault === true;
 }
 
+/** Wirksame Stufe „Trinkgeld gleich behalten“: die gespeicherte, wenn sie bekannt ist, sonst `ask`. */
+export function posTipKeptMode(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): PosTipKeptMode {
+  const m = business?.tipKeptMode;
+  return (TIP_KEPT_MODE as readonly unknown[]).includes(m) ? (m as PosTipKeptMode) : 'ask';
+}
+
+/** Ergebnis von [tipKeptFor]: zeigt die Kasse den Schalter, und wird das Bar-Trinkgeld gleich behalten? */
+export interface TipKeptDecision {
+  showSwitch: boolean;
+  kept: boolean;
+}
+
+/**
+ * Die eine Regel fuer Web-Kasse und Kassen-App beim Bar-Trinkgeld: `ask` zeigt den Schalter, gewaehlt ist
+ * `wanted` (die Wahl am Schalter, ein Wahrheitswert), sonst die Vorbelegung `tipKeptByDefault`; `always` bzw. `never` zeigen
+ * keinen Schalter und behalten gleich bzw. lassen offen, eine Schalterwahl zaehlt dann nicht. `kept` geht als
+ * `tip.direkt` an den Beleg (der Server erzwingt die Stufe dort nicht).
+ */
+export function tipKeptFor(business: Readonly<Partial<PosBusinessSettings>> | null | undefined, wanted?: boolean | null): TipKeptDecision {
+  const stufe = posTipKeptMode(business);
+  if (stufe === 'always') return { showSwitch: false, kept: true };
+  if (stufe === 'never') return { showSwitch: false, kept: false };
+  return { showSwitch: true, kept: typeof wanted === 'boolean' ? wanted : posTipKeptByDefault(business) };
+}
+
 /**
  * Die Wertemenge je Feld, soweit das Feld eine hat: dagegen prueft der
  * Schreibweg vor dem Senden (ein deutscher Wert wie `'nacht'` geht so gar
@@ -437,7 +474,7 @@ export const POS_BUSINESS_VALUES: Readonly<Partial<Record<keyof PosBusinessSetti
   tileStyle: TILE_STYLE, autoLogoutMinutes: AUTO_LOGOUT_MINUTES, quantity: QUANTITY, discount: DISCOUNT,
   cardProvider: CARD_PROVIDER, tipMode: TIP_MODE, checkoutMode: CHECKOUT_MODE, receiptOutput: RECEIPT_OUTPUT,
   doneScreenSeconds: DONE_SCREEN_SECONDS, watermarkSide: WATERMARK_SIDE, watermarkStrength: WATERMARK_STRENGTH,
-  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START,
+  logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START, tipKeptMode: TIP_KEPT_MODE,
 });
 
 /** Wie [POS_BUSINESS_VALUES] fuer die Geraete-Einstellungen. */
@@ -477,6 +514,7 @@ const ALTWERTE_0X: Readonly<Record<string, readonly (string | number)[]>> = Obje
   terminalType: ['keins'],
   tipKinds: ['prozent', 'aufrunden', 'gesamt'],
   tipStart: ['prozent', 'aufrunden', 'gesamt'],
+  tipKeptMode: ['fragen', 'immer', 'nie'],
   cartWidth: ['schmal', 'mittel', 'breit'],
 });
 

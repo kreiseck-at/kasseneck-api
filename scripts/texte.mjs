@@ -3,7 +3,7 @@
 // Datei aus dem Tarball und erzeugt daraus ihre Konstanten; das Web importiert
 // die Quelle direkt. Aufruf: `npm run fixtures:texte` (bewusst, nie automatisch).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, CANCELLATION_VOUCHER_ERROR_MESSAGES, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS } from '../dist/esm/pos/texte.js';
+import { RECEIPT_EMAIL_ERROR_MESSAGES, LABELS, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, MESSAGES, CANCELLATION_PAYMENT_ERROR_MESSAGES, CANCELLATION_VOUCHER_ERROR_MESSAGES, RETURN_DISPOSITION_LABELS, VOUCHER_ERROR_MESSAGES, EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS } from '../dist/esm/pos/texte.js';
 
 const paket = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 // Die Zuordnung `code` -> Satz steht mit in der Datei: die App liest sie aus
@@ -37,6 +37,8 @@ const vertrag = {
   // Seit 1.31.0: Freigabestufe der Fremdgutscheine bzw. Art eines fremden Gutscheins -> Beschriftung.
   externalVouchersLabels: EXTERNAL_VOUCHERS_LABELS,
   externalVoucherKindLabels: EXTERNAL_VOUCHER_KIND_LABELS,
+  // Seit 1.31.0: Stufe „Trinkgeld gleich behalten“ -> Beschriftung.
+  tipKeptModeLabels: TIP_KEPT_MODE_LABELS,
 };
 writeFileSync(new URL('../fixtures/pos-texts.json', import.meta.url), JSON.stringify(vertrag, null, 2) + '\n');
 console.log('Kassen-Texte geschrieben:', Object.keys(MESSAGES).length, 'Meldungen,', ERROR_RULES.length, 'Regeln,', ERROR_CODE_RULES.length + ERROR_OUTCOME_RULES.length, 'Verfeinerungen,',

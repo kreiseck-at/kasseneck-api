@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "f5ab5e9bba448c05e6ee51f66a4f55c30e5efbff766b5b2e6814d77e3f53eb74";
+export const VOKABULAR_QUELLE = "bcdcbb7ada8059ee5356a6dca9677d17fb7dc6eac4ba103a28288cc91751b002";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -163,6 +163,7 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "tipChips": "tgChips",
         "exactCash": "schnellbar",
         "tipKeptByDefault": "tgDirekt",
+        "tipKeptMode": "tgDirektModus",
         "tipKinds": "tgArten",
         "tipStart": "tgStart",
         "checkoutMode": "kassierenModus",
@@ -341,6 +342,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "business.tipStart": {
         "$catalog": "KASSE_BETRIEB_WERTE.tipStart"
+      },
+      "business.tipKeptMode": {
+        "$catalog": "KASSE_BETRIEB_WERTE.tipKeptMode"
       },
       "business.checkoutMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.checkoutMode"
@@ -695,6 +699,11 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "KASSE_BETRIEB_WERTE.tileStyle": {
     "streifen": "stripe",
     "voll": "full"
+  },
+  "KASSE_BETRIEB_WERTE.tipKeptMode": {
+    "fragen": "ask",
+    "immer": "always",
+    "nie": "never"
   },
   "KASSE_BETRIEB_WERTE.tipKinds[]": {
     "prozent": "percent",

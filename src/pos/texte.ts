@@ -25,6 +25,7 @@ import type { ReceiptEmailSendErrorCode } from '../models/receipt-email.js';
 import type { ReturnDisposition } from '../models/cancellation.js';
 import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import type { PosExternalVouchers } from './gutschein.js';
+import type { PosTipKeptMode } from './settings.js';
 import { ARTICLE_EXTERNAL_VOUCHER_INVALID, type ArticleExternalVoucher, type ExternalVoucherArticleReason, type ExternalVoucherTileBlock } from './fremdgutschein-artikel.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
@@ -108,6 +109,9 @@ const MELDUNGEN_ROH = {
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
   // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
   'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  // Hinweis unter dem Trinkgeld beim Kassieren je nach Wahl (tipKeptFor): gleich behalten bzw. offen fuer den Benutzer.
+  'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
+  'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -881,6 +885,11 @@ const BESCHRIFTUNGEN_ROH = {
   // Schalter beim Trinkgeld (nur Mitarbeiter-Trinkgeld, reine Barzahlung), vorbelegt aus der Einstellung.
   'checkout.tip_kept': { text: 'gleich behalten' },
   'tip.kept_setting': { text: 'Bar-Trinkgeld behält der Mitarbeiter gleich' },
+  // Stufe „Trinkgeld gleich behalten“ im Kundenbereich (business.tipKeptMode, Zuordnung TIP_KEPT_MODE_LABELS).
+  'tip_kept_mode.title': { text: 'Trinkgeld gleich behalten' },
+  'tip_kept_mode.always': { text: 'Immer gleich behalten' },
+  'tip_kept_mode.never': { text: 'Immer offen lassen' },
+  'tip_kept_mode.ask': { text: 'Jedes Mal fragen' },
   // Die Warte-Karte, solange der Betrag am Terminal steht; `{time}` ist der
   // Rest des Kartenfensters als m:ss.
   'card_payment.amount_on_terminal': { text: 'Betrag steht am Terminal' },
@@ -1493,6 +1502,13 @@ export const RETURN_DISPOSITION_LABELS = {
   defective: 'stock.return_defective',
   disposed: 'stock.return_disposed',
 } as const satisfies Record<ReturnDisposition, LabelKey>;
+
+/** Stufe „Trinkgeld gleich behalten“ (`business.tipKeptMode`) -> Beschriftung im Kundenbereich. */
+export const TIP_KEPT_MODE_LABELS = {
+  ask: 'tip_kept_mode.ask',
+  always: 'tip_kept_mode.always',
+  never: 'tip_kept_mode.never',
+} as const satisfies Record<PosTipKeptMode, LabelKey>;
 
 /** Freigabe fuer Fremdgutscheine (`externalVouchers`) -> Beschriftung der Stufe im Kundenbereich. */
 export const EXTERNAL_VOUCHERS_LABELS = {

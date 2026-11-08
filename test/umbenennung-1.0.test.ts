@@ -88,7 +88,9 @@ const NACH_1_0 = {
     'external_voucher.not_enabled', 'external_voucher.type_not_enabled', 'external_voucher.looks_like_own_code', 'cancellation.external_voucher_check', 'settings.external_vouchers_hint',
     'external_voucher_article.invalid', 'external_voucher_article.service_voucher', 'external_voucher_article.add_ons', 'external_voucher_article.stock_tracked',
     'external_voucher_article.reference', 'external_voucher_article.asks_quantity', 'external_voucher_article.rate_required', 'external_voucher_article.invalid_rate',
-    'external_voucher_article.price_required'],
+    'external_voucher_article.price_required',
+    // Trinkgeld gleich behalten in drei Stufen (1.31.0)
+    'tip.kept_hint', 'tip.open_hint'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -147,6 +149,8 @@ const NACH_1_0 = {
     'external_voucher.rate', 'external_voucher.taxed_with', 'external_voucher.line_name', 'external_voucher.use_as_external', 'voucher.payout_source_own', 'voucher.payout_source_external',
     'settings.external_vouchers', 'settings.external_vouchers_off', 'settings.external_vouchers_multi_purpose', 'settings.external_vouchers_all',
     'article.external_voucher',
+    // Trinkgeld gleich behalten in drei Stufen (1.31.0)
+    'tip_kept_mode.title', 'tip_kept_mode.always', 'tip_kept_mode.never', 'tip_kept_mode.ask',
     // Pruefung kompakt (1.28.0)
     'zero_receipt.done_title', 'zero_receipt.back', 'dep.export', 'dep.period_question', 'common.close',
     // Schicht-Ablauf der Kasse (1.28.0)
@@ -182,7 +186,7 @@ const NACH_1_0 = {
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
   fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
     // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
-    'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels'],
+    'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
