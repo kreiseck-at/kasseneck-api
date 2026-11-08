@@ -103,6 +103,11 @@ for (const f of FAELLE.bonBlock as Json[]) {
   });
 }
 
+test('bonBlock: ein voll stornierter Name (Betrag 0) entfaellt, auch die Summe zaehlt ihn nicht', () => {
+  assert.deepEqual(discountBlockLines([{ name: 'A', cents: 0, count: 2 }, { name: 'B', cents: 300, count: 1 }]), [{ label: 'B (1×)', cents: -300 }]);
+  assert.deepEqual(discountBlockLines([{ name: 'A', cents: 0, count: 2 }]), []);
+});
+
 test('Texte: Fehlertexte der Pruefung sind die Saetze des Backends', () => {
   for (const f of FAELLE.pruefung as Json[]) {
     for (const e of (f.fehler ?? []) as Json[]) assert.ok(Object.values(MELDUNGEN()).includes(e.meldung), e.meldung);

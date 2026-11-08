@@ -166,10 +166,10 @@ export interface DiscountTotal {
 
 /**
  * Zeilen des Rabatte-Blocks auf Z-Bon und Zwischenbericht: je Name `<Name> (n×)` mit dem Abzug, ab zwei Eintraegen
- * zusaetzlich `Rabatte gesamt`. Ein leerer Name heisst „Rabatt“. Ohne Rabatte leer (kein Block).
+ * zusaetzlich `Rabatte gesamt`. Ein leerer Name heisst „Rabatt“. Ein voll stornierter Name (Betrag 0) entfaellt wie in der Liste des Servers. Ohne Rabatte leer (kein Block).
  */
 export function discountBlockLines(discounts: readonly DiscountTotal[] | null | undefined): DiscountBlockLine[] {
-  const liste = (discounts ?? []).filter((r) => r && Number.isSafeInteger(r.cents) && Number.isSafeInteger(r.count));
+  const liste = (discounts ?? []).filter((r) => r && Number.isSafeInteger(r.cents) && Number.isSafeInteger(r.count) && r.cents !== 0);
   const zeilen = liste.map((r) => ({ label: labelText('shift_receipt.discount_line', { name: r.name || labelText('shift_receipt.discount_unnamed'), count: r.count }), cents: -r.cents }));
   if (zeilen.length > 1) zeilen.push({ label: labelText('shift_receipt.discounts_total'), cents: -liste.reduce((x, r) => x + r.cents, 0) });
   return zeilen;
