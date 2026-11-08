@@ -147,9 +147,19 @@ const TOPF_REIHENFOLGE: readonly TopfName[] = ['amountRateStandard', 'amountRate
 function istGutscheinZeile(p: { kind?: string }): boolean {
   return p.kind !== undefined && KINDS.includes(p.kind);
 }
-/** Position, die ein Gutschein decken darf: weder Trinkgeld noch Gutscheinzeile. */
+/** Pfand- oder Leergutzeile: durchlaufend wie das Trinkgeld, nie rabattiert, nie von einem Gutschein gedeckt. */
+export function istPfandZeile(p: { kind?: string }): boolean {
+  return p.kind === 'deposit' || p.kind === 'deposit_return';
+}
+/** Position, die ein Gutschein decken darf: weder Trinkgeld noch Gutscheinzeile noch Pfand oder Leergut (E18). */
 export function istDeckbar(p: Innen): boolean {
-  return p.tip == null && p.kind !== 'tip' && !istGutscheinZeile(p);
+  return p.tip == null && p.kind !== 'tip' && !istGutscheinZeile(p) && !istPfandZeile(p);
+}
+/** Summe der Leergutzeilen in Cent (<= 0), wie `pfand-core.leergutCents`: Menge x Einzelpreis, auf Cent gerundet. */
+export function leergutCents(positionen: readonly Innen[]): number {
+  let summe = 0;
+  for (const p of positionen) if (p.kind === 'deposit_return') summe += Math.round(p.amount * Math.round(p.priceOne * 100));
+  return summe;
 }
 /** Summe der Trinkgeldzeilen (Personal und Inhaber) in Cent, wie `centSumme(kunde.filter(istTip))` im Backend. */
 export function trinkgeldCents(kunde: readonly Innen[]): number {

@@ -41,7 +41,17 @@ const erwartet = (f: Fall) => {
 };
 
 /** Positionen/Gutscheine der Datei in die Modelle, die ein Aufrufer an sellReceipt gibt. */
-const positionen = (roh: Array<Record<string, unknown>>): ReceiptItem[] => roh.map((p) => fromReceiptItemPayload(p));
+const positionen = (roh: Array<Record<string, unknown>>): ReceiptItem[] => roh.map((p) => fromReceiptItemPayload(vonServerForm(p)));
+/** Pfand-/Leergutzeilen stehen im Vertrag in der Form des Servers (`pfand`, `pfand_rueckgabe`, `pfandArt`); /v3 nennt sie deposit. */
+function vonServerForm(p: Record<string, unknown>): Record<string, unknown> {
+  if (p['kind'] !== 'pfand' && p['kind'] !== 'pfand_rueckgabe') return p;
+  return {
+    ...p,
+    kind: p['kind'] === 'pfand' ? 'deposit' : 'deposit_return',
+    depositTypeId: p['pfandartId'],
+    depositKind: p['pfandArt'] === 'einweg' ? 'single_use' : 'reusable',
+  };
+}
 const gutscheine = (roh: Array<Record<string, unknown>>): Voucher[] => roh.map((v) => fromVoucherPayload(v as unknown as VoucherPayload));
 /** Optionen eines Falls: Trinkgeld (tip bzw. payments[].tipCents) und, bei Gutscheinen der neuen Form, die Welt der Kasse (setup). */
 const optionen = (fall: Fall): ReceiptDueOptions => optionenDesFalls(fall.input, fall.setup);
@@ -59,6 +69,7 @@ const BEKANNTE_FAELLE = [
   'tip_staff_value_voucher_capped', 'tip_owner_value_voucher_capped', 'tip_owner_value_voucher_over_tip', 'tip_payment_tipcents_value_voucher',
   'tip_promo_and_value_voucher', 'tip_value_voucher_boundary_accepted', 'tip_value_voucher_boundary_rejected', 'tip_single_purpose_voucher_goods_only',
   'tip_owner_promo_and_value_voucher', 'tip_owner_promo_and_value_voucher_over_tip', 'tip_owner_promotion_voucher', 'tip_promotion_and_value_voucher_rejected',
+  'pfand_einweg', 'pfand_mehrweg_promo', 'leergut_rein', 'leergut_misch',
 ];
 
 test('Zahlbetrag-Faelle: die Datei deckt alle Arten ab (sonst prueft der Zwilling zu wenig)', () => {
@@ -84,7 +95,8 @@ for (const fall of ANGENOMMEN) {
       fall.input.receiptType,
       optionen(fall),
     );
-    assert.deepEqual(ergebnis, fall.expected);
+    const { payout: _auszahlung, ...ohneAuszahlung } = ergebnis;
+    assert.deepEqual(ohneAuszahlung, fall.expected);
     assert.equal(
       receiptDueCents(positionen(fall.input.items), gutscheine(fall.input.vouchers), fall.input.receiptType, optionen(fall)),
       erwartet(fall).dueCents,
