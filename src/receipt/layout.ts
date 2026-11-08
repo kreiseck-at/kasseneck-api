@@ -4,6 +4,8 @@ import {
   isCancellationReason,
   receiptCompanyTaxInfo,
   receiptItemTotalCents,
+  isDepositItem,
+  isDepositReturnItem,
   isDiscountItem,
   isTipItem,
   receiptSubSumCents,
@@ -625,6 +627,19 @@ function barZeilen(zahlung: ReceiptPayment): LayoutLine[] {
  */
 function zahlungsZeilen(receipt: Receipt): LayoutLine[] {
   const zahlungen = receipt.payments;
+  // Reiner Leergutbeleg: die negative Barzahlung ist eine Auszahlung an den Kunden.
+  if (istReinerLeergutBeleg(receipt)) {
+    const bar = zahlungen != null && zahlungen.length > 0
+      ? zahlungen.filter((z) => BAR_ZAHLARTEN.includes(zahlartSchluessel(z.method)) && z.amountCents < 0)
+      : [];
+    if (zahlungen == null || zahlungen.length === 0) {
+      if (BAR_ZAHLARTEN.includes(zahlartSchluessel(receipt.paymentMethod as ReceiptPayment['method'])) && receiptSumCents(receipt) < 0) {
+        return [paarZeile(LEERGUT_AUSZAHLUNG, `${formatCents(receiptSumCents(receipt))} €`, 8, 4)];
+      }
+    } else if (bar.length === zahlungen.length) {
+      return bar.map((z) => paarZeile(LEERGUT_AUSZAHLUNG, `${formatCents(z.amountCents)} €`, 8, 4));
+    }
+  }
   // Trägt der Beleg eine Gutschein-Zahlungszeile, entfällt, was 0 Cent kostet
   // (§ 132a Abs. 3 BAO: die Zahlungsart ist kein Pflichtinhalt, der Betrag bleibt).
   const mitGutschein = receipt.vouchers.some((v) => v.action === VoucherAction.redeem && v.type !== VoucherType.promo);
@@ -1083,6 +1098,76 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz, zusatz = false): La
   };
 }
 
+// ------------------------------------------------------------ Pfand & Leergut
+
+/** Ueberschrift eines reinen Leergutbelegs (nur Leergut-Positionen). */
+const LEERGUT_UEBERSCHRIFT = 'Leergut-Rückgabe';
+/** Zahlungszeile eines reinen Leergutbelegs: das Pfand geht bar zurueck an den Kunden. */
+const LEERGUT_AUSZAHLUNG = 'Bar ausgezahlt';
+/** Zusatz an der 0-%-Zeile, wenn Einwegpfand darauf liegt (kein Entgelt, nicht steuerbar). */
+const PFAND_NICHT_STEUERBAR = 'Pfand, nicht steuerbar';
+/** Vorsatz der Fusszeile mit der gemeinsamen Ruecknahmestelle. */
+const LEERGUT_STELLE_VORSATZ = 'Leergut-Rückgabe: ';
+
+/** Reiner Leergutbeleg: mindestens eine Leergut-Position, sonst nur Trinkgeld/Rabatt-freie Leergutzeilen. */
+function istReinerLeergutBeleg(receipt: Receipt): boolean {
+  return receipt.items.length > 0 && receipt.items.some(isDepositReturnItem) && receipt.items.every(isDepositReturnItem);
+}
+
+/**
+ * Pfandzeilen, die unter ihrer Warenposition stehen (`depositFor` zeigt auf eine Ware, nicht auf Trinkgeld,
+ * Rabatt, Pfand oder Leergut und nicht auf sich selbst). Alle anderen Pfandzeilen bleiben an ihrem Platz.
+ */
+function pfandZuPosition(items: readonly ReceiptItem[]): Map<number, number[]> {
+  const zu = new Map<number, number[]>();
+  items.forEach((it, i) => {
+    if (!isDepositItem(it)) return;
+    const ziel = it.depositFor;
+    if (typeof ziel !== 'number' || !Number.isInteger(ziel) || ziel < 0 || ziel >= items.length || ziel === i) return;
+    const hauptzeile = items[ziel]!;
+    if (isTipItem(hauptzeile) || isDiscountItem(hauptzeile) || isDepositItem(hauptzeile) || isDepositReturnItem(hauptzeile)) return;
+    zu.set(ziel, [...(zu.get(ziel) ?? []), i]);
+  });
+  return zu;
+}
+
+/**
+ * Bon-Reihenfolge mit Pfand: Hauptposition, ihre Zusaetze (je mit eigener Pfandzeile direkt darunter), dann die
+ * Pfandzeile der Hauptposition. Ohne Pfandverweise bleibt `reihe` unveraendert.
+ */
+function mitPfandReihenfolge(items: readonly ReceiptItem[], reihe: number[], zu: Map<number, number[]>): number[] {
+  if (zu.size === 0) return reihe;
+  const gebunden = new Set<number>();
+  for (const liste of zu.values()) for (const i of liste) gebunden.add(i);
+  const raus: number[] = [];
+  let offen: number[] = [];
+  for (const i of reihe) {
+    if (gebunden.has(i)) continue;
+    if (istGueltigerZusatz(items, i)) {
+      raus.push(i, ...(zu.get(i) ?? []));
+      continue;
+    }
+    raus.push(...offen);
+    raus.push(i);
+    offen = zu.get(i) ?? [];
+  }
+  raus.push(...offen);
+  return raus;
+}
+
+/** Einwegpfand und -leergut auf dem 0-%-Satz in Cent (Pfandzeilen minus Leergut); `null`, wenn keins darauf liegt. */
+function einwegPfandCents(receipt: Receipt): number | null {
+  let summe = 0;
+  let gefunden = false;
+  for (const it of receipt.items) {
+    if (!(isDepositItem(it) || isDepositReturnItem(it)) || it.depositKind !== 'single_use') continue;
+    if (steuersatz(it.vat).rate !== 0) continue;
+    summe += receiptItemTotalCents(it);
+    gefunden = true;
+  }
+  return gefunden ? summe : null;
+}
+
 // ---------------------------------------------------------------- Belegart
 
 const TESTKASSE_TEXT = 'TESTKASSE — kein gültiger Beleg';
@@ -1254,6 +1339,8 @@ function belegartBlock(receipt: Receipt): LayoutLine[] {
   } else if (t === 'training') {
     aus.push(bannerZeile('TRAININGSBELEG'));
     for (const z of TRAINING_ERKLAERUNG) aus.push(textZeile(z, 'center'));
+  } else if (istReinerLeergutBeleg(receipt)) {
+    aus.push(textZeile(LEERGUT_UEBERSCHRIFT, 'center', true));
   } else if (t === 'start') {
     aus.push(bannerZeile('STARTBELEG'));
     aus.push(textZeile('Nullbeleg zur Inbetriebnahme', 'center'));
@@ -1408,7 +1495,10 @@ export function buildReceiptLayout(
   const gutscheinZuordnung = gutscheinPositionen(receipt);
   // Zusatz-Kacheln: Zusaetze direkt unter ihrer Hauptposition (stabil); ohne
   // Verweise ist die Reihenfolge die des Belegs (byte-gleich).
-  const reihe = addOnDisplayOrder(receipt.items);
+  const pfandZu = pfandZuPosition(receipt.items);
+  const gebundenesPfand = new Set<number>();
+  for (const liste of pfandZu.values()) for (const k of liste) gebundenesPfand.add(k);
+  const reihe = mitPfandReihenfolge(receipt.items, addOnDisplayOrder(receipt.items), pfandZu);
   const an = (k: number): ReceiptItem => receipt.items[reihe[k]!]!;
   let i = 0;
   while (i < reihe.length) {
@@ -1417,7 +1507,7 @@ export function buildReceiptLayout(
       const satz = steuersatz(item.vat);
       gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
       const gutschein = gutscheinZuordnung.get(reihe[i]!);
-      lines.push(...(gutschein ? gutscheinPositionsZeilen(item, satz, gutschein) : [positionsZeile(item, satz, istGueltigerZusatz(receipt.items, reihe[i]!))]));
+      lines.push(...(gutschein ? gutscheinPositionsZeilen(item, satz, gutschein) : [positionsZeile(item, satz, istGueltigerZusatz(receipt.items, reihe[i]!) || gebundenesPfand.has(reihe[i]!))]));
       i += 1;
       continue;
     }
@@ -1516,6 +1606,9 @@ export function buildReceiptLayout(
       ),
     );
   }
+  // Einwegpfand liegt auf dem 0-%-Satz, ist aber kein Entgelt: die Zeile sagt es dem Leser der Tabelle.
+  const einwegCents = einwegPfandCents(receipt);
+  if (einwegCents !== null) lines.push(paarZeile(PFAND_NICHT_STEUERBAR, formatCents(einwegCents), 9, 3));
   // Mitarbeiter-Trinkgeld ist als Null-%-Umsatz erfasst (Erlass 2.4.2.1), aber
   // kein Umsatz des Betriebs — die Klarstellung steht direkt unter der
   // 0-%-Zeile, damit der Beleg (auch als Rechnung) nicht nach steuerfreiem
@@ -1606,6 +1699,12 @@ export function buildReceiptLayout(
     if (fuss != null && fuss.length > 0) {
       lines.push(textZeile(fuss, 'center'));
     }
+  }
+  // Gemeinsame Ruecknahmestelle fuer Leergut (nur, wenn der Server sie gestempelt hat).
+  const stelle = receipt.sharedReturnPoint;
+  if (stelle != null) {
+    const angabe = [stelle.name, stelle.address].filter((t) => t !== '').join(', ');
+    if (angabe !== '') lines.push(textZeile(`${LEERGUT_STELLE_VORSATZ}${angabe}`, 'center'));
   }
 
   // --- Warnrahmen unten (Testkasse/Testsignatur)

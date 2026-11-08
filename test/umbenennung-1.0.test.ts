@@ -419,6 +419,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   // Zusatz-Kacheln (1.27.0): Zusaetze eingerueckt unter ihrer Hauptposition.
   ...['add-ons']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Pfand & Leergut: Golden-Belege mit Pfandunterzeile und reinem Leergutbeleg.
+  ...['deposit', 'deposit-return']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Fremdgutscheine (Server 2026-11): Golden-Belege mit „Gutschein Nr. …“ und die Pruefaelle des Backends.
   'stored/voucher-cases.json',
   // Rabatt-Vorlagen (1.31.0): Pruefaelle des Backends, byte-gleich.

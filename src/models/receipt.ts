@@ -88,6 +88,19 @@ export interface Receipt {
   registrationInfo?: RegistrationInfo;
   /** Nur an nacherfassten Belegen: der Handbeleg (siehe [ManualReceipt]). */
   manualReceipt?: ManualReceipt;
+  /** Pfand & Leergut: der Kunde trinkt/verzehrt vor Ort (gespeichert `vorOrt`); nur ein Wahrheitswert. */
+  onPremises?: boolean;
+  /**
+   * Gemeinsame Ruecknahmestelle fuer Leergut (gespeichert `pfandStelle`); der Server stempelt sie nur, wenn die
+   * Kasse `returns: 'shared'` hat und der Beleg Pfand traegt. Der Bon druckt daraus die Fusszeile.
+   */
+  sharedReturnPoint?: SharedReturnPoint;
+}
+
+/** Gemeinsame Ruecknahmestelle fuer Leergut (Name und Anschrift, wie der Server sie am Beleg stempelt). */
+export interface SharedReturnPoint {
+  name: string;
+  address: string;
 }
 
 /** Registrierdaten von Signaturkarte und Kasse (Zeitstempel oder `null`, wenn unbekannt). */
@@ -140,6 +153,8 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   layoutRuleset?: number | null;
   registrationInfo?: { cardRegisteredAt?: string | null; cashregisterRegisteredAt?: string | null } | null;
   manualReceipt?: unknown;
+  onPremises?: boolean | null;
+  sharedReturnPoint?: { name?: string | null; address?: string | null } | null;
 }
 
 /**
@@ -227,7 +242,16 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
       ? { registrationInfo: readRegistrationInfo(payload.registrationInfo) }
       : {}),
     ...handbelegFeld(payload.manualReceipt),
+    ...(typeof payload.onPremises === 'boolean' ? { onPremises: payload.onPremises } : {}),
+    ...pfandStelleFeld(payload.sharedReturnPoint),
   };
+}
+
+function pfandStelleFeld(roh: ReceiptPayloadRead['sharedReturnPoint']): { sharedReturnPoint?: SharedReturnPoint } {
+  if (roh == null || typeof roh !== 'object') return {};
+  const name = typeof roh.name === 'string' ? roh.name : '';
+  const address = typeof roh.address === 'string' ? roh.address : '';
+  return name !== '' || address !== '' ? { sharedReturnPoint: { name, address } } : {};
 }
 
 function handbelegFeld(roh: unknown): { manualReceipt?: ManualReceipt } {
