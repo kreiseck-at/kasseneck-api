@@ -10,10 +10,15 @@ import { centsToEuro, euroToCents } from '../money.js';
  * bleibt deshalb bewusst Euro (siehe [toHobexReceiptPayload]/
  * [fromHobexReceiptPayload]), intern wird ab hier exakt in Cent gefuehrt.
  *
- * Nur der Cloud-API-Pfad (`fromJson` im Dart-Vorbild) ist Teil dieses Pakets;
- * das lokale HPS-Terminal (`fromHps`, TCP-Anbindung an ein physisches Geraet)
- * ist wie SumUp/myPOS eine Android/Desktop-Geraete-Anbindung, die ein
- * Browser-/Node-Paket nicht bedienen kann.
+ * Zwei Wege hinein, je nach Weg der Zahlung:
+ *
+ * - **Cloud-API** (`fromJson` im Dart-Vorbild): [fromHobexReceiptPayload].
+ * - **HPS-Terminal ueber Kasseneck Connect** (`fromHps` im Dart-Vorbild):
+ *   `hobexReceiptFromHps` aus `@kreiseck/kasseneck-api/payments` auf die
+ *   Terminal-Antwort (`HpsPaymentResult.response`). Nur dieser Weg setzt den
+ *   Anbieter `hobexHps` und damit die HPS-Zusatzfelder in
+ *   [hobexReceiptToCardPaymentData]; er liest auch `cvm` als Zahl und
+ *   nicht gefuehrte Felder (`null`) als leeren Text.
  */
 export interface HobexReceipt {
   transactionId: string;
@@ -77,7 +82,20 @@ export function toHobexReceiptPayload(receipt: HobexReceipt): HobexReceiptPayloa
   };
 }
 
-export function fromHobexReceiptPayload(payload: HobexReceiptPayload): HobexReceipt {
+/**
+ * Liest eine Hobex-Nutzlast der **Cloud-API**.
+ *
+ * Der Anbieter ergibt sich aus dem Weg, nicht aus dem JSON; Vorgabe ist
+ * `hobexCloudApi`. Fuer eine Antwort des HPS-Terminals ist der richtige Weg
+ * `hobexReceiptFromHps` (`@kreiseck/kasseneck-api/payments`) — wer trotzdem
+ * hier hereinkommt, gibt [provider] `CreditCardProvider.hobexHps`
+ * mit, sonst fehlen am Beleg Genehmigungsnummer, Ablaufdatum, Kartenausgeber,
+ * Betrag und Waehrung (siehe [hobexReceiptToCardPaymentData]).
+ */
+export function fromHobexReceiptPayload(
+  payload: HobexReceiptPayload,
+  provider: CreditCardProvider = CreditCardProvider.hobexCloudApi,
+): HobexReceipt {
   return {
     transactionId: payload.transactionId,
     tid: payload.tid,
@@ -104,11 +122,12 @@ export function fromHobexReceiptPayload(payload: HobexReceiptPayload): HobexRece
     amountCents: euroToCents(payload.amount),
     tipCents: euroToCents(payload.tip),
     cvm: String(payload.cvm),
-    // Die Cloud-API-Nutzlast traegt keinen eigenen Provider-Schluessel — der
-    // Provider ergibt sich aus dem Transportweg (Cloud vs. HPS), nicht aus
-    // dem JSON. Das Dart-Vorbild setzt ihn in `fromJson` deshalb ebenfalls
-    // nicht, sondern belaesst den Konstruktor-Default.
-    creditCardProvider: CreditCardProvider.hobexCloudApi,
+    // Die Nutzlast traegt keinen eigenen Provider-Schluessel — der Provider
+    // ergibt sich aus dem Transportweg (Cloud vs. HPS), nicht aus dem JSON.
+    // Das Dart-Vorbild setzt ihn in `fromJson` deshalb ebenfalls nicht,
+    // sondern belaesst den Konstruktor-Default (Cloud); den Weg kennt nur
+    // der Aufrufer.
+    creditCardProvider: provider,
   };
 }
 

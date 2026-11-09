@@ -245,7 +245,7 @@ actual after alternate amount article at before binary block body budget busines
 columns company connect content count customer data date day denominations detail details device dimensions discount email endpoint error event
 due expected export list presets preset discounts external extra fallback fetch field fields file font format from function grid group header height image index info inner instant interface
 interval invoice item items key kind label language last layout logo lookup matrix max message minutes mode module month months name now
-input lines number options out outcome output page paper patch pattern payload payment payments price printed quantities quantity query rate raw reason receipt reference refund report
+input lines number options out outcome output page paper patch pattern payload payment payments price printed provider quantities quantity query rate raw reason receipt reference refund report
 request reservation result rule scheme scope search
 secret serial server session setting settings shortcuts size standard status step stocktake stored stripe styles surface table
 target tax terminal text timed timeout tip to transport twelfths type unit value values variant version voucher vouchers wanted webhook

@@ -111,3 +111,45 @@ test('ein als Text gelieferter Betrag landet trotzdem richtig in Cent', () => {
   const kaputt = hobexReceiptFromHps(parseHpsTransactionResponse({ ...GEMESSEN, amount: 'abc' }));
   assert.equal(kaputt.amountCents, 0);
 });
+
+// ---------------------------------------------------------------------------
+// Der HPS-Weg steht am oeffentlichen Unterpfad `./payments` -- bis 1.32 war
+// `hobexReceiptFromHps` nur intern erreichbar, die Browser-Kasse griff deshalb
+// zu `fromHobexReceiptPayload` (Cloud) und verlor auf jedem HPS-Beleg
+// Genehmigungsnummer, Ablaufdatum, Kartenausgeber, Betrag und Waehrung.
+// ---------------------------------------------------------------------------
+
+test('hobexReceiptFromHps und parseHpsTransactionResponse kommen aus ./payments', async () => {
+  const payments = await import('../src/payments/index.js');
+  assert.equal(payments.hobexReceiptFromHps, hobexReceiptFromHps);
+  const daten = hobexReceiptToCardPaymentData(payments.hobexReceiptFromHps(payments.parseHpsTransactionResponse(GEMESSEN)));
+  assert.equal(daten.approvalCode, '000252');
+  assert.equal(daten.currency, '', 'nicht gefuehrte Waehrung (null) wird leer, nie "null"');
+});
+
+test('fromHobexReceiptPayload: Vorgabe Cloud ohne HPS-Felder, mit Anbieter hobexHps mit ihnen', async () => {
+  const { fromHobexReceiptPayload } = await import('../src/models/hobex-receipt.js');
+  const nutzlast = {
+    transactionId: '100000000000000042', tid: '4711001', receipt: '000777', approvalCode: '123456', reference: null,
+    transactionDate: '2026-11-09T09:15:00.000+01:00', cardNumber: '541333******0021', cardExpiry: '2811', brand: 'MASTERCARD',
+    cardIssuer: 'Testbank', responseCode: '0', transactionType: 'SELL', currency: 'EUR', amount: 12.34, tip: 1, cvm: 2,
+  };
+
+  const cloud = fromHobexReceiptPayload(nutzlast);
+  assert.equal(cloud.creditCardProvider, CreditCardProvider.hobexCloudApi);
+  const cloudDaten = hobexReceiptToCardPaymentData(cloud);
+  for (const feld of ['approvalCode', 'cardExpiry', 'cardIssuer', 'amount', 'currency']) {
+    assert.equal(feld in cloudDaten, false, `Cloud-Beleg ohne ${feld}`);
+  }
+
+  const hps = fromHobexReceiptPayload(nutzlast, CreditCardProvider.hobexHps);
+  assert.equal(hps.creditCardProvider, CreditCardProvider.hobexHps);
+  assert.deepEqual(hobexReceiptToCardPaymentData(hps), {
+    ...cloudDaten,
+    approvalCode: '123456',
+    cardExpiry: '2811',
+    cardIssuer: 'Testbank',
+    amount: '12.34',
+    currency: 'EUR',
+  });
+});

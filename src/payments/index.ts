@@ -97,6 +97,7 @@ export {
   HPS_REASON_HINTS,
   hpsCodeInfo,
   hpsCodeReason,
+  hobexReceiptFromHps,
   HpsClarifyTimeoutError,
   HpsConnectException,
   HpsConnectTerminalError,
