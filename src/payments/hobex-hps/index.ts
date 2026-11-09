@@ -39,6 +39,7 @@ export {
   HpsPreflightError,
   HpsTransactionIdError,
   PREFLIGHT_CONNECT_CODES,
+  TERMINAL_UNREACHABLE_CONNECT_CODES,
 } from './errors.js';
 
 export {

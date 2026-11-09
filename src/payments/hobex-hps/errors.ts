@@ -9,9 +9,11 @@ import { NOT_FOUND_HTTP_STATUS, TERMINAL_BUSY_HTTP_STATUS } from './transaction-
  * - [HpsPreflightError] — es ist NACHWEISLICH nichts gesendet worden. Entweder
  *   die Kennung selbst war unbrauchbar (siehe `connect-client.ts`), oder
  *   Connect hat die Anfrage VOR dem Terminal-Kontakt abgelehnt (falscher
- *   Host, keine Kopplung, ...). Wird von `payments.ts` unveraendert
- *   weitergeworfen, niemals in einen Ausgang uebersetzt — Zwilling von
- *   Dart's `ArgumentError`-Sonderfall in `HpsPayments.pay()`.
+ *   Host, keine Kopplung, ...), oder die TCP-Verbindung zum Terminal kam gar
+ *   nicht erst zustande ([TERMINAL_UNREACHABLE_CONNECT_CODES]). Wird von
+ *   `payments.ts` unveraendert weitergeworfen, niemals in einen Ausgang
+ *   uebersetzt — Zwilling von Dart's `ArgumentError`-Sonderfall in
+ *   `HpsPayments.pay()`.
  * - [HpsConnectTerminalError] — die Anfrage GING RAUS (oder der Versuch dazu
  *   scheiterte am Transport), aber es kam keine schluessige Antwort. Das
  *   umfasst ausdruecklich auch [isTerminalBusy]: HTTP `409` ist die einzige
@@ -29,7 +31,12 @@ export abstract class HpsConnectException extends Error {}
 /**
  * Nichts ist gesendet worden. `reason` ist deutscher Klartext, `connectCode`
  * gesetzt, wenn die Ablehnung von Connect kam (statt von der lokalen
- * Kennungspruefung).
+ * Kennungspruefung) — ein Code aus [PREFLIGHT_CONNECT_CODES] oder aus
+ * [TERMINAL_UNREACHABLE_CONNECT_CODES].
+ *
+ * Fuer die Kasse heisst das: sicher nichts belastet, ein neuer Versuch ist
+ * gefahrlos. Bei `terminal_unreachable` liegt die Ursache am Terminal (aus,
+ * anderes Netz, falsche IP), bei den anderen Codes an Connect oder der Kopplung.
  */
 export class HpsPreflightError extends HpsConnectException {
   override readonly name: string = 'HpsPreflightError';
@@ -84,10 +91,33 @@ export const PREFLIGHT_CONNECT_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Connect-Fehlercodes, die AM Weg zum Terminal entstehen, aber beweisbar vor
+ * jedem gesendeten Byte: Connect hat die TCP-Verbindung zum Terminal
+ * versucht, und sie kam nicht zustande (Verbindung abgelehnt, keine Route zum
+ * Host, Zeitablauf beim Verbindungsaufbau). Ohne Verbindung kein Request —
+ * am Terminal ist nichts angekommen, also auch nichts belastet.
+ *
+ * Getrennt von [PREFLIGHT_CONNECT_CODES], weil die Ursache eine andere ist:
+ * dort lehnt Connect die Anfrage ab, ohne das Terminal ueberhaupt zu
+ * versuchen; hier hat Connect es versucht, und das Terminal war nicht da. Fuer
+ * den Ausgang zaehlt beides gleich ([HpsPreflightError]).
+ *
+ * Nur Connect-Fassungen ab der Einfuehrung von `terminal_unreachable` senden
+ * den Code. Aeltere melden jeden Netzfehler zum Terminal als
+ * `terminal_offline` — und der bleibt unklar: dort kann die Verbindung auch
+ * NACH dem Senden gerissen sein. Wie bei [PREFLIGHT_CONNECT_CODES] gilt die
+ * Positivliste: was hier nicht steht, ist [HpsConnectTerminalError].
+ */
+export const TERMINAL_UNREACHABLE_CONNECT_CODES: ReadonlySet<string> = new Set([
+  'terminal_unreachable',
+]);
+
+/**
  * Die Anfrage ging (oder der Versuch dazu) in Richtung Terminal, aber es kam
  * keine schluessige Antwort — Connect meldete `terminal_error`, `timeout`
  * oder `terminal_offline` (`kasseneck-connect/lib/src/terminal/hps.dart`),
- * oder einen Fehlercode, den dieses Paket nicht kennt.
+ * oder einen Fehlercode, den dieses Paket nicht kennt. `terminal_unreachable`
+ * gehoert NICHT hierher (beweisbar nichts gesendet, [HpsPreflightError]).
  */
 export class HpsConnectTerminalError extends HpsConnectException {
   override readonly name = 'HpsConnectTerminalError';
