@@ -178,6 +178,10 @@ export const ALL_CALLS = [
   'getTerminalCode',
   'reportTerminalLogin',
   'reportTerminalReady',
+  // Feste TID je Geraet loesen (nur dem Namen nach bekannt, keine eigene Methode).
+  'unfixTerminal',
+  // Pfandarten des Betriebs lesen, nur unter /v3.
+  'listDepositTypes',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -319,6 +323,10 @@ export const PUBLIC_CALLS = [
   'getTerminalCode',
   'reportTerminalLogin',
   'reportTerminalReady',
+  // Feste TID je Geraet loesen (nur dem Namen nach bekannt, keine eigene Methode).
+  'unfixTerminal',
+  // Pfandarten des Betriebs lesen, nur unter /v3.
+  'listDepositTypes',
 ] as const;
 
 /**
@@ -591,6 +599,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   listPartnerCustomers: 'read',
   listPartnerWebhookDeliveries: 'read',
   listPartnerWebhooks: 'read',
+  listDepositTypes: 'read',
   listReceipts: 'read',
   listRegisterSessionsForDevice: 'read',
   listRegisterUsersForDevice: 'read',
@@ -610,6 +619,8 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   // Kartenterminal: Anmeldung und Einrichtung melden schreiben denselben Stand noch einmal.
   reportTerminalLogin: 'repeatable',
   reportTerminalReady: 'repeatable',
+  // Kartenterminal: die feste Bindung noch einmal loesen aendert nichts am Server.
+  unfixTerminal: 'repeatable',
   reprintVoucherLabel: 'repeatable',
   // Eine offene Code-Anfrage juenger als 6 Minuten bleibt; eine Wiederholung legt keine neue an.
   requestTerminalCode: 'repeatable',

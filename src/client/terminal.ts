@@ -65,6 +65,8 @@ export const TERMINAL_ERROR_CODES = Object.freeze([
   'terminal_code_manual', // Konto ohne Postfach: die App fragt nach dem Code
   'terminal_code_rate_limited', // hoechstens 6 Code-Anfragen je Geraet und Stunde
   'terminal_not_assigned', // dem Geraet ist keine TID zugeordnet: zuerst getTerminalAccess
+  'terminal_fixed', // die TID gehoert fest einem anderen Geraet
+  'terminal_device_fixed', // dem Geraet ist eine TID fest zugeordnet: Wechsel nur ueber den Support
   'server_error',
 ] as const);
 export type TerminalErrorCode = (typeof TERMINAL_ERROR_CODES)[number];

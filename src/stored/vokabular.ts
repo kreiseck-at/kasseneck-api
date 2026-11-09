@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "168261a0b5130d454fc3b5d51e8ee567d6a3e9a5d2d8e172829e9ccb17c47f31";
+export const VOKABULAR_QUELLE = "820ce0391fbe5a2f51ad441f6b0777e4c2370cafd83fe69b94edb349836caad5";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];

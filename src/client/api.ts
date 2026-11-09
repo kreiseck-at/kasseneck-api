@@ -45,6 +45,8 @@ import {
   type TerminalCodeRequest,
   type TerminalDeviceCredentials,
 } from './terminal.js';
+import { listDepositTypes } from './list-deposit-types.js';
+import type { DepositSettings } from '../pos/pfand.js';
 import { listAllReceipts, listReceipts, type ListedReceipt, type ListReceiptsOptions, type ListReceiptsPage, type ListReceiptsView } from './list-receipts.js';
 import {
   sellReceipt,
@@ -127,6 +129,8 @@ export interface KasseneckApi {
   listReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): Promise<ListReceiptsPage<V>>;
   /** Alle Belege eines Tages oder Zeitraums, Seite fuer Seite geholt (hoechstens 100 Seiten). */
   listAllReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): AsyncGenerator<ListedReceipt<V>, void, undefined>;
+  /** Pfandarten des Betriebs (`listDepositTypes`, nur /v3, ohne Kassen-Token); `null` = Pfand aus, dann keine Pfandzeilen senden. */
+  listDepositTypes(): Promise<DepositSettings | null>;
   /** DEP-Export fuer die Kassennachschau einstellen (`createDepExport`, nur /v3); antwortet sofort, der Export laeuft im Hintergrund. */
   createDepExport(options?: CreateDepExportOptions): Promise<CreateDepExportResult>;
   /** Zustand, Kennzahlen, Befund und Pruefer-Links eines Exports (`getDepExport`). */
@@ -207,6 +211,7 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     getReportV2: (o) => getReportV2(rufen, o),
     listReceipts: (o) => listReceipts(rufen, o),
     listAllReceipts: (o) => listAllReceipts(rufen, o),
+    listDepositTypes: () => listDepositTypes(rufen),
     createDepExport: (o) => createDepExport(rufen, o),
     getDepExport: (o) => getDepExport(rufen, o),
     waitForDepExport: (o) => waitForDepExport(rufen, o),

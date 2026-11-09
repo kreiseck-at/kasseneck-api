@@ -4,6 +4,14 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.34.0 - unveröffentlicht
+
+Read the deposit types of a business with the API key: new `listDepositTypes()` on the API client (`/v3` only, right `read`, no effect). Additive; every existing call, receipt and golden behaves as before.
+
+- **`listDepositTypes(): Promise<DepositSettings | null>`** returns the `deposit` block of `getKasseSettings` (`singleUse`, `reusable`, `depositTypes[]` with `id`, `kind`, `name`, `type`, `amounts[{ from, cents }]`, `returnRate`, `used`), read with `posDepositSettingsFromWire`. Deposit switched off is not an error: the answer is `null`, which tells a merchandise system that it must not send deposit lines. An answer where `deposit` is missing or neither `null` nor an object throws `KasseneckValidationError` (scope `response`), never a silent `null`. Reason: a third-party merchandise system needs the deposit types of the business to send correct deposit lines.
+- **Contract:** `unfixTerminal` and the codes `terminal_fixed`, `terminal_device_fixed` (fixed TID per device) are known by name (call lists, `TERMINAL_ERROR_CODES`); a typed method follows. `listDepositTypes` needs no till token.
+- `fixtures/v3/*` taken over from the backend (vocabulary entry `listDepositTypes`), `fixtures/surface.json` lists the call.
+
 ## 1.33.0 - unveröffentlicht
 
 Card terminal and the browser till on a Mac (Chrome as an installed app, Hobex HPS and printer through Kasseneck Connect). Additive; receipts, bons and every existing call behave as before (all goldens unchanged).
