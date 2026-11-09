@@ -12,6 +12,8 @@ import {
   HpsConnectTransportError,
   HpsPreflightError,
   HpsTransactionIdError,
+  PREFLIGHT_CONNECT_CODES,
+  TERMINAL_UNREACHABLE_CONNECT_CODES,
 } from '../src/payments/hobex-hps/errors.js';
 import {
   createHpsTransactionIdGenerator,
@@ -385,6 +387,93 @@ test('bad_request von Connect wirft sofort (HpsPreflightError) -- kein Klaerlauf
     (e: unknown) => e instanceof HpsPreflightError,
   );
   assert.equal(calls.length, 1, 'nur der abgelehnte Versuch selbst, keine Klaerung');
+});
+
+// ---------------------------------------------------------------------------
+// terminal_unreachable: Connect kam gar nicht bis zum Terminal (keine
+// TCP-Verbindung) -- vor jedem gesendeten Byte, also beweisbar nichts gesendet.
+// terminal_offline (aeltere Connect-Fassungen, jeder Netzfehler) bleibt unklar.
+// ---------------------------------------------------------------------------
+
+const UNERREICHBAR = failConnect('terminal_unreachable', 'Terminal unter 192.168.1.50:8080 nicht erreichbar (Verbindung abgelehnt).');
+
+test('terminal_unreachable bei der Zahlung wirft HpsPreflightError -- kein Abbruch, keine Statusabfrage', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments({ '/v1/terminal/payment': [UNERREICHBAR] }, calls);
+  await assert.rejects(
+    () => payments.pay({ amountCents: 1000, transactionId: '130' }),
+    (e: unknown) => e instanceof HpsPreflightError && e.connectCode === 'terminal_unreachable'
+      && e.message === 'Terminal unter 192.168.1.50:8080 nicht erreichbar (Verbindung abgelehnt).',
+  );
+  assert.deepEqual(calls.map((c) => c.path), ['/v1/terminal/payment'], 'nichts gesendet heisst: nichts zu klaeren');
+});
+
+test('terminal_unreachable bei Gutschrift und Aufhebung wirft ebenso HpsPreflightError', async () => {
+  for (const [weg, aufruf] of [
+    ['/v1/terminal/refund', (p: ReturnType<typeof buildPayments>) => p.refund({ amountCents: 500, transactionId: '131', originalTransactionId: '130' })],
+    ['/v1/terminal/cancel', (p: ReturnType<typeof buildPayments>) => p.cancel({ amountCents: 500, transactionId: '130' })],
+  ] as const) {
+    const calls: RecordedCall[] = [];
+    const payments = buildPayments({ [weg]: [UNERREICHBAR] }, calls);
+    await assert.rejects(
+      () => aufruf(payments),
+      (e: unknown) => e instanceof HpsPreflightError && e.connectCode === 'terminal_unreachable',
+      weg,
+    );
+    assert.deepEqual(calls.map((c) => c.path), [weg], weg);
+  }
+});
+
+test('terminal_offline (aeltere Connect-Fassung) bleibt unklar: Klaerung statt Ablehnung', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': [failConnect('terminal_offline', 'Terminal unter 192.168.1.50:8080 nicht erreichbar.')],
+      '/v1/terminal/abort': [failConnect('terminal_offline', 'Terminal unter 192.168.1.50:8080 nicht erreichbar.')],
+      '/v1/terminal/status': [failConnect('terminal_offline', 'Terminal unter 192.168.1.50:8080 nicht erreichbar.')],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '132' });
+  assert.equal(result.outcome, 'unresolved', 'terminal_offline sagt nicht, ob die Verbindung vor oder nach dem Senden riss');
+  assert.ok(calls.some((c) => c.path === '/v1/terminal/abort'), 'der Klaerweg muss laufen');
+});
+
+test('terminal_unreachable WAEHREND der Klaerung ist keine Aussage ueber die Zahlung', async () => {
+  // Die Zahlung ging hinaus (Verbindung riss danach); dass Abbruch und
+  // Statusabfrage das Terminal danach nicht mehr erreichen, beweist nur, dass
+  // DIESE Aufrufe nichts gesendet haben -- nie, dass die Zahlung nichts belastet hat.
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [UNERREICHBAR],
+      '/v1/terminal/status': [UNERREICHBAR],
+    },
+    calls,
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '133' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(mayRetrySafely(result), false);
+});
+
+test('ein unbekannter Code bleibt unklar, auch wenn er aehnlich heisst (Positivliste)', async () => {
+  const client = createHpsConnectClient({
+    token: TOKEN,
+    fetch: async () => ({ status: 200, text: async () => JSON.stringify({ ok: false, error: { code: 'terminal_unreachable_maybe', message: 'x' } }) }),
+  });
+  await assert.rejects(
+    () => client.payment({ ...TARGET, transactionId: '134', amountCents: 100 }),
+    (e: unknown) => e instanceof HpsConnectTerminalError && e.connectCode === 'terminal_unreachable_maybe',
+  );
+});
+
+test('die Listen fuer "nichts gesendet" sind getrennt und kennen terminal_offline nicht', () => {
+  assert.deepEqual([...TERMINAL_UNREACHABLE_CONNECT_CODES], ['terminal_unreachable']);
+  for (const code of TERMINAL_UNREACHABLE_CONNECT_CODES) assert.equal(PREFLIGHT_CONNECT_CODES.has(code), false, code);
+  for (const code of ['terminal_offline', 'terminal_error', 'timeout']) {
+    assert.equal(PREFLIGHT_CONNECT_CODES.has(code) || TERMINAL_UNREACHABLE_CONNECT_CODES.has(code), false, code);
+  }
 });
 
 test('unbrauchbare Transaktionskennung wirft LOKAL -- es geht gar keine Anfrage raus', async () => {

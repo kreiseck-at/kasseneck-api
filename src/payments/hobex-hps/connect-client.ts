@@ -4,6 +4,7 @@ import {
   HpsPreflightError,
   HpsTransactionIdError,
   PREFLIGHT_CONNECT_CODES,
+  TERMINAL_UNREACHABLE_CONNECT_CODES,
 } from './errors.js';
 import { isValidHpsTransactionId } from './transaction-id.js';
 import { type HpsTransactionResponse, parseHpsTransactionResponse } from './transaction-response.js';
@@ -182,15 +183,17 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
       ? h.error.message
       : `Kasseneck Connect meldet einen Fehler (HTTP ${antwort.status})`;
 
-    if (code !== undefined && PREFLIGHT_CONNECT_CODES.has(code)) {
+    if (code !== undefined && (PREFLIGHT_CONNECT_CODES.has(code) || TERMINAL_UNREACHABLE_CONNECT_CODES.has(code))) {
       // Siehe errors.ts: diese Codes entstehen laut `kasseneck-connect`
-      // ausnahmslos VOR jedem Terminal-Kontakt -- beweisbar nichts gesendet.
+      // ausnahmslos VOR jedem Terminal-Kontakt bzw. vor jedem gesendeten Byte
+      // (`terminal_unreachable`: keine TCP-Verbindung) -- beweisbar nichts
+      // gesendet.
       throw new HpsPreflightError(message, code);
     }
     // terminal_error / timeout / terminal_offline -- oder ein Code, den
     // dieses Paket nicht kennt. Bewusst dieselbe Klasse fuer beide: ein
     // unbekannter Code ist keine bewiesene Nicht-Aussendung, siehe
-    // PREFLIGHT_CONNECT_CODES.
+    // PREFLIGHT_CONNECT_CODES und TERMINAL_UNREACHABLE_CONNECT_CODES.
     //
     // `error.detail.terminalHttpStatus` reist seit `kasseneck-connect`
     // Commit `0fb6f66` mit, wenn das TERMINAL selbst einen HTTP-Status
