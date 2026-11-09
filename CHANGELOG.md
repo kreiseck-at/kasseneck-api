@@ -4,6 +4,10 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.32.1 - unveröffentlicht
+
+Fix: a deposit payout (a receipt whose amount due is negative because of returned empties) is no longer refused before sending. `sellReceipt`/`createReceipt` accept one negative cash payment when the items contain a `deposit_return` line, with no `tenderedCents` and no `tipCents`, and at most the sum of the return lines. Reason: the server allows this payout (`istLeergutAuszahlung`) but the client check demanded `amountCents > 0` unless the receipt was a voucher payout. Without empties a negative payment is still refused; empties with a positive amount stay an ordinary sale.
+
 ## 1.32.0 - unveröffentlicht
 
 Deposit and returnable empties at the till (backend November 2026): the server adds the deposit lines, the till previews them, takes empties back, and the bon prints them. Additive; articles, groups, settings and receipts without the new fields read, send and print exactly as before (all existing goldens unchanged).
