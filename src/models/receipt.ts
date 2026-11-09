@@ -73,6 +73,19 @@ export interface Receipt {
   payments?: ReceiptPayment[];
   /** Nur an nacherfassten Belegen: der Handbeleg (siehe [Handbeleg]). */
   handbeleg?: Handbeleg;
+  /** Pfand & Leergut (0.39.0): der Kunde verzehrt vor Ort; intern `vorOrt`. Nur ein Wahrheitswert. */
+  onPremises?: boolean;
+  /**
+   * Gemeinsame Ruecknahmestelle fuer Leergut; intern `pfandStelle { name, adresse }`. Der Server stempelt sie
+   * nur, wenn die Kasse eine gemeinsame Ruecknahme hat und der Beleg Pfand traegt. Der Bon druckt die Fusszeile.
+   */
+  sharedReturnPoint?: SharedReturnPoint;
+}
+
+/** Gemeinsame Ruecknahmestelle fuer Leergut (Name und Anschrift, wie der Server sie am Beleg stempelt). */
+export interface SharedReturnPoint {
+  name: string;
+  address: string;
 }
 
 export interface ReceiptPayload {
@@ -116,6 +129,8 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   zeroKind?: string | null;
   cancellations?: Cancellation[] | null;
   handbeleg?: unknown;
+  vorOrt?: boolean | null;
+  pfandStelle?: { name?: string | null; adresse?: string | null } | null;
 }
 
 /**
@@ -198,7 +213,16 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...(payload.cancellations ? { cancellations: payload.cancellations.map(leseStorno) } : {}),
     ...(Array.isArray(payload.payments) ? { payments: payload.payments.map(fromReceiptPaymentPayload) } : {}),
     ...handbelegFeld(payload.handbeleg),
+    ...(typeof payload.vorOrt === 'boolean' ? { onPremises: payload.vorOrt } : {}),
+    ...pfandStelleFeld(payload.pfandStelle),
   };
+}
+
+function pfandStelleFeld(roh: ReceiptPayloadRead['pfandStelle']): { sharedReturnPoint?: SharedReturnPoint } {
+  if (roh == null || typeof roh !== 'object') return {};
+  const name = typeof roh.name === 'string' ? roh.name : '';
+  const address = typeof roh.adresse === 'string' ? roh.adresse : '';
+  return name !== '' || address !== '' ? { sharedReturnPoint: { name, address } } : {};
 }
 
 function handbelegFeld(roh: unknown): { handbeleg?: Handbeleg } {

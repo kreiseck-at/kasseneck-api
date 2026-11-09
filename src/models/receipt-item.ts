@@ -39,7 +39,7 @@ export interface ReceiptItem {
    * `voucher`/`voucher_float`: Gutschein-Position der neuen Gutscheinform,
    * setzt nur der Server (siehe [isVoucherItem], [isVoucherFloatItem]).
    */
-  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float';
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'deposit' | 'deposit_return';
   /** Empfaenger der Trinkgeld-Position; `null` = nicht zugeordnet. */
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
@@ -54,6 +54,35 @@ export interface ReceiptItem {
    * Zusatzpositionen. Intern (Draht `/api`, Firestore) `zusatzZu`.
    */
   addOnOf?: number;
+  /**
+   * Pfand & Leergut (0.39.0): Pfandart (Kennung aus den Kassen-Einstellungen); nur an `deposit`- und
+   * `deposit_return`-Zeilen. Intern (Draht `/api`, Firestore) `pfandartId`.
+   */
+  depositTypeId?: string;
+  /** Index der Warenposition im selben Beleg, zu der die Pfandzeile gehoert (nur `deposit`); intern `pfandZu`. */
+  depositFor?: number;
+  /** Art der Pfandart zum Belegzeitpunkt; intern `pfandArt` (`einweg` | `mehrweg`). */
+  depositKind?: 'single_use' | 'reusable';
+  /** Pfand je Stueck in Cent; intern `jeStueck`. */
+  perUnit?: number;
+  /** Strichcode des Gebindes (GTIN), falls bekannt. */
+  gtin?: string;
+  /** Strichcode des Artikels (EAN), falls bekannt. */
+  ean?: string;
+  /** Das Gebinde wurde im Betrieb selbst befuellt; intern `eigen`. */
+  ownFilling?: boolean;
+  /** Gelernte Leergut-Codes der Zeile (Code -> Menge); nur an `deposit_return`. */
+  codes?: Record<string, number>;
+}
+
+/** Pfandzeile (Pfand zum Verkauf)? Die eine Erkennungsstelle — niemand prueft `kind` selbst. */
+export function isDepositItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'deposit';
+}
+
+/** Leergutzeile (Ruecknahme, negativer Betrag)? */
+export function isDepositReturnItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'deposit_return';
 }
 
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
@@ -98,13 +127,22 @@ export interface ReceiptItemPayload {
   unitPriceCents: number;
   vatRate: number;
   /** Trinkgeld-/Rabatt-/Gutschein-Kennzeichnung, siehe [ReceiptItem.kind]. */
-  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float';
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'pfand' | 'pfand_rueckgabe';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
   /** Artikel-Verweis, siehe [ReceiptItem.articleId]. */
   articleId?: string;
   /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf] (interner Schluessel). */
   zusatzZu?: number;
+  /** Pfandzeile, interne Schluessel (siehe [ReceiptItem.depositTypeId] und die folgenden Felder). */
+  pfandartId?: string;
+  pfandZu?: number;
+  pfandArt?: 'einweg' | 'mehrweg';
+  jeStueck?: number;
+  gtin?: string;
+  ean?: string;
+  eigen?: boolean;
+  codes?: Record<string, number>;
 }
 
 /**
@@ -145,6 +183,15 @@ export interface ReceiptItemPayloadRead {
   articleId?: string | null;
   /** Hauptposition eines Zusatzes, siehe [ReceiptItem.addOnOf] (interner Schluessel). */
   zusatzZu?: number | null;
+  /** Pfandzeile, interne Schluessel (siehe [ReceiptItem.depositTypeId]). */
+  pfandartId?: string | null;
+  pfandZu?: number | null;
+  pfandArt?: string | null;
+  jeStueck?: number | null;
+  gtin?: string | null;
+  ean?: string | null;
+  eigen?: boolean | null;
+  codes?: Record<string, number> | null;
 }
 
 export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
@@ -173,6 +220,20 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   // wieder hinaus, wie er war; ein Wunsch an den Server traegt sie nie
   // (createReceipt weist sie als voucher_invalid ab).
   if (item.kind === 'voucher' || item.kind === 'voucher_float') nutzlast.kind = item.kind;
+  // Pfand & Leergut: Kennzeichen und Felder reisen mit, in der inneren Form.
+  if (item.kind === 'deposit' || item.kind === 'deposit_return') {
+    nutzlast.kind = item.kind === 'deposit' ? 'pfand' : 'pfand_rueckgabe';
+    if (typeof item.depositTypeId === 'string' && item.depositTypeId !== '') nutzlast.pfandartId = item.depositTypeId;
+    if (istIndex(item.depositFor)) nutzlast.pfandZu = item.depositFor;
+    if (item.depositKind === 'single_use') nutzlast.pfandArt = 'einweg';
+    else if (item.depositKind === 'reusable') nutzlast.pfandArt = 'mehrweg';
+    if (typeof item.perUnit === 'number' && Number.isFinite(item.perUnit)) nutzlast.jeStueck = item.perUnit;
+    if (typeof item.gtin === 'string' && item.gtin !== '') nutzlast.gtin = item.gtin;
+    if (typeof item.ean === 'string' && item.ean !== '') nutzlast.ean = item.ean;
+    if (typeof item.ownFilling === 'boolean') nutzlast.eigen = item.ownFilling;
+    const codes = leergutCodes(item.codes);
+    if (codes != null) nutzlast.codes = codes;
+  }
   // Artikel-Verweis reist mit (Erloesgruppen im Bericht); leere Werte nicht.
   if (item.articleId != null && item.articleId !== '') nutzlast.articleId = item.articleId;
   // Zusatz-Kacheln: Verweis auf die Hauptposition nur, wenn gesetzt.
@@ -219,12 +280,34 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
         ? { kind: 'discount' as const }
         : payload.kind === 'voucher' || payload.kind === 'voucher_float'
           ? { kind: payload.kind }
-          : {}),
+          : payload.kind === 'pfand' || payload.kind === 'pfand_rueckgabe'
+            ? {
+                kind: payload.kind === 'pfand' ? ('deposit' as const) : ('deposit_return' as const),
+                ...(typeof payload.pfandartId === 'string' && payload.pfandartId !== '' ? { depositTypeId: payload.pfandartId } : {}),
+                ...(istIndex(payload.pfandZu) ? { depositFor: payload.pfandZu } : {}),
+                ...(payload.pfandArt === 'einweg' ? { depositKind: 'single_use' as const } : payload.pfandArt === 'mehrweg' ? { depositKind: 'reusable' as const } : {}),
+                ...(typeof payload.jeStueck === 'number' && Number.isFinite(payload.jeStueck) ? { perUnit: payload.jeStueck } : {}),
+                ...(typeof payload.gtin === 'string' && payload.gtin !== '' ? { gtin: payload.gtin } : {}),
+                ...(typeof payload.ean === 'string' && payload.ean !== '' ? { ean: payload.ean } : {}),
+                ...(typeof payload.eigen === 'boolean' ? { ownFilling: payload.eigen } : {}),
+                ...(leergutCodes(payload.codes) != null ? { codes: leergutCodes(payload.codes)! } : {}),
+              }
+            : {}),
     // Artikel-Verweis erhalten (Storno-Spiegelung schreibt ihn wieder mit).
     ...(typeof payload.articleId === 'string' && payload.articleId !== '' ? { articleId: payload.articleId } : {}),
     // Zusatz-Kacheln: Verweis auf die Hauptposition (nur eine ganze Zahl >= 0).
     ...(istIndex(payload.zusatzZu) ? { addOnOf: payload.zusatzZu } : {}),
   };
+}
+
+/** Gelernte Codes (Code -> ganze Menge >= 1); ohne brauchbaren Eintrag `undefined`. */
+function leergutCodes(wert: unknown): Record<string, number> | undefined {
+  if (wert === null || typeof wert !== 'object' || Array.isArray(wert)) return undefined;
+  const raus: Record<string, number> = {};
+  for (const [code, menge] of Object.entries(wert as Record<string, unknown>)) {
+    if (code !== '' && Number.isInteger(menge) && (menge as number) >= 1) raus[code] = menge as number;
+  }
+  return Object.keys(raus).length > 0 ? raus : undefined;
 }
 
 function istIndex(wert: unknown): wert is number {

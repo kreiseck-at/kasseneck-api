@@ -1,6 +1,22 @@
 {
   "regelwerk": 2,
   "belege": {
+    "deposit": {
+      "eingabe": "a58f36b81b8842489c3e2eef57497a2031eeac0672165a23216ab8948dbc6fe4",
+      "erwartet": "2f5cc6a061e9690f905b37b75642703864fead6de57140577036873d5ef6af05",
+      "grid32": "0cb4311cb45c9857d181d176fbb662508149e6597ea986f72e4ee9afbf2aa0e5",
+      "grid48": "c3fa02b731afd1f83e0b442a5c22dc56d6da196ef6fa171b3341aa8c1d69db1d",
+      "blatt32": "07dc8625011e8b86492d7afd317689ff6c0c79bbd224eb665dc5f437be8be109",
+      "blatt48": "c5818c42568c6e4f554f0ab2b0799492e6f259b894c064334d8ba81da6522a0d"
+    },
+    "deposit-return": {
+      "eingabe": "409359f0d301884bf2d08b8421c6e87c9b488c04d7ff8dd9e715730dea258d49",
+      "erwartet": "f7cfb126205258a430d20cb8c569f65a8d3e4b3f74cb43d8bf532bb9d717373c",
+      "grid32": "59d2a5b68cd848be21978b2167c6b837934ffb2c2e49a06bd5aeedeae1ea8a13",
+      "grid48": "af6fccc41e6364cbe8a7f0cb03c5a4a984d6bc7b2ab0505a62c1d7761d6f0c5b",
+      "blatt32": "0a962e57fc410f0dc2f9db16c9b6f30d54461c3c2aa8ba3ee4ccb612b69ef31f",
+      "blatt48": "75115bc512b5e06be690aa15934ebe26a3b806ddc379a6e8187e5218d76fcbee"
+    },
     "gutschein-auszahlung": {
       "eingabe": "9f50c4d26bda61688a981d5a970b9d6fdb1cf5c1d821d30e4ec72148812bb244",
       "erwartet": "1a50145165d3afa8c877f4c17aa5488dcdd1bf5fc2e45cea7cf74be5f1f3f840",
