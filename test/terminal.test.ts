@@ -110,8 +110,8 @@ test('Kartenterminal: sieben oeffentliche Aufrufe nur unter /v3, nicht am Kassen
     assert.equal(isPosOnlyCall(n), false, `${n} geht an die oeffentliche Basis`);
     assert.ok(VOKABULAR.schemas[n], `${n}: kein Schema im Vertrag`);
   }
-  // In Vertragsreihenfolge am Ende der oeffentlichen Liste.
-  assert.deepEqual(PUBLIC_CALLS.slice(-7), NAMEN);
+  // In Vertragsreihenfolge am Ende der oeffentlichen Liste, danach nur unfixTerminal (nur dem Namen nach) und listDepositTypes.
+  assert.deepEqual(PUBLIC_CALLS.slice(-9, -2), NAMEN);
 });
 
 test('Kartenterminal: Ausgang nach Zeitlimit – nur Geraet anmelden und Code holen haben Wirkung, der Rest ist wiederholbar', () => {
