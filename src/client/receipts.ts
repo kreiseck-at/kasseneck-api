@@ -19,6 +19,8 @@ import {
   fromReceiptCompanyPayload,
   fromReceiptPayload,
   toReceiptItemPayload,
+  isDepositReturnItem,
+  receiptItemTotalCents,
   toVoucherPayload,
   receiptItemIsValid,
   voucherIsValid,
@@ -527,7 +529,14 @@ export function createReceiptParams(options: CreateReceiptOptions): Record<strin
     // Wie der Server erst nach dem Anhaengen des Trinkgelds: eine Trinkgeldzeile ist keine Gutscheinzeile.
     const nurAuszahlung = (vouchers?.length ?? 0) > 0 && vouchers!.every((v) => v.action === VoucherAction.payout)
       && (items?.length ?? 0) === 0 && options.tip == null;
-    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt', nurAuszahlung);
+    // Leergut-Auszahlung (Server pfand-core istLeergutAuszahlung): Leergut auf dem Beleg und eine negative Zahlung.
+    const leergut = (items ?? []).filter(isDepositReturnItem);
+    const leergutAuszahlung = leergut.length > 0 && Array.isArray(options.payments)
+      && options.payments.some((z) => typeof z?.amountCents === 'number' && z.amountCents < 0);
+    const leergutSummeCents = leergutAuszahlung
+      ? leergut.reduce((summe, p) => summe + Math.abs(receiptItemTotalCents(p)), 0)
+      : undefined;
+    params['payments'] = gepruefteZahlungen(options.payments, false, 'createReceipt', nurAuszahlung || leergutAuszahlung, false, leergutSummeCents);
   } else if (options.payments != null) {
     throw eingabefehler(`payments sind bei receiptType "${typ.value}" nicht erlaubt.`);
   }
@@ -1375,7 +1384,7 @@ const MAX_ZAHLUNGEN = 20;
  * (Summe, Anbieter-Pflicht und Trinkgeld prueft der Server). Wirft, bevor
  * etwas hinausgeht.
  */
-function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false, stornoAuszahlung = false): Record<string, unknown>[] {
+function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string, auszahlung = false, stornoAuszahlung = false, leergutSummeCents?: number): Record<string, unknown>[] {
   const fehler = (grund: string) => new KasseneckValidationError(functionName, grund, 'request');
   if (!Array.isArray(roh)) throw fehler('payments muss eine Liste sein.');
   if (roh.length > MAX_ZAHLUNGEN) throw fehler(`payments: es sind hoechstens ${MAX_ZAHLUNGEN} Eintraege erlaubt.`);
@@ -1390,6 +1399,11 @@ function gepruefteZahlungen(roh: unknown, storno: boolean, functionName: string,
       if ((typeof m === 'object' && m !== null ? (m as { value?: unknown }).value : m) !== 'cash') throw fehler('Auszahlung: nur in bar moeglich.');
       if (e['tenderedCents'] !== undefined) throw fehler('Auszahlung: tenderedCents ist nicht moeglich.');
       if (e['tipCents'] !== undefined) throw fehler('Auszahlung: tipCents ist nicht moeglich.');
+      // Leergut-Auszahlung: Ware zahlt nie aus, hoechstens die Leergutsumme (der Server prueft ebenso).
+      const b = e['amountCents'];
+      if (leergutSummeCents !== undefined && typeof b === 'number' && -b > leergutSummeCents) {
+        throw fehler('Auszahlung: der Betrag ist hoeher als die Leergutsumme des Belegs.');
+      }
     }
   }
   return roh.map((eintrag: unknown, i) => {

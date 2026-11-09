@@ -481,3 +481,44 @@ test('SellReceiptOptions: ueber die Paketwurzel nutzbar und erweiterbar', async 
   await sellReceipt(a.rufen, eigene);
   assert.deepEqual(gesendet(a.aufrufe).params.payments, [{ method: 'cash', amountCents: 4545 }]);
 });
+
+// --- Leergut-Auszahlung (Server pfand-core istLeergutAuszahlung) -----------
+
+const LEERGUT: ReceiptItem = { name: 'Leergut', quantity: 10, vat: VatRate.vat20, priceCents: -25, kind: 'deposit_return' } as ReceiptItem;
+
+test('Leergut-Auszahlung: eine negative Barzahlung geht hinaus', async () => {
+  const { rufen, aufrufe } = weg(VERKAUF);
+  await sellReceipt(rufen, { items: [LEERGUT], payments: [{ method: 'cash', amountCents: -250 }] });
+  const { params } = gesendet(aufrufe);
+  assert.deepEqual(params['payments'], [{ method: 'cash', amountCents: -250 }]);
+});
+
+test('Leergut-Auszahlung: Karte, zwei Zahlungen, tendered, Trinkgeld und zu hoher Betrag werden abgelehnt', async () => {
+  const { rufen, aufrufe } = weg(VERKAUF);
+  const falsch: Array<[unknown, RegExp]> = [
+    [[{ method: 'creditCard', amountCents: -250 }], /bar/],
+    [[{ method: 'cash', amountCents: -150 }, { method: 'cash', amountCents: -100 }], /genau eine/],
+    [[{ method: 'cash', amountCents: -250, tenderedCents: -250 }], /tenderedCents/],
+    [[{ method: 'cash', amountCents: -250, tipCents: 10 }], /tipCents/],
+    [[{ method: 'cash', amountCents: -251 }], /Leergutsumme/],
+  ];
+  for (const [payments, muster] of falsch) {
+    await assert.rejects(
+      () => sellReceipt(rufen, { items: [LEERGUT], payments } as never),
+      (fehler: unknown) => isKasseneckValidationError(fehler) && muster.test((fehler as Error).message),
+      `nicht abgelehnt: ${JSON.stringify(payments)}`,
+    );
+  }
+  assert.equal(aufrufe.length, 0);
+});
+
+test('Negative Barzahlung ohne Leergut bleibt abgelehnt; Leergut mit Ware und positivem Betrag ist ein normaler Verkauf', async () => {
+  const { rufen, aufrufe } = weg(VERKAUF);
+  await assert.rejects(
+    () => sellReceipt(rufen, { items: [MENUE], payments: [{ method: 'cash', amountCents: -250 }] }),
+    (fehler: unknown) => isKasseneckValidationError(fehler) && /amountCents/.test((fehler as Error).message),
+  );
+  assert.equal(aufrufe.length, 0);
+  await sellReceipt(rufen, { items: [MENUE, LEERGUT], payments: [{ method: 'cash', amountCents: 4295, tenderedCents: 5000 }] });
+  assert.deepEqual(gesendet(aufrufe).params['payments'], [{ method: 'cash', amountCents: 4295, tenderedCents: 5000 }]);
+});
