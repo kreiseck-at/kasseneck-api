@@ -792,6 +792,7 @@
       "stock_tracked",
       "reference",
       "asks_quantity",
+      "deposit",
       "rate_required",
       "invalid_rate",
       "price_required"

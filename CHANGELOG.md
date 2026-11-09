@@ -8,6 +8,8 @@ nur der Grund überlebt den nächsten Umbau.
 
 Fix: a deposit payout (a receipt whose amount due is negative because of returned empties) is no longer refused before sending. `sellReceipt`/`createReceipt` accept one negative cash payment when the items contain a `deposit_return` line, with no `tenderedCents` and no `tipCents`, and at most the sum of the return lines. Reason: the server allows this payout (`istLeergutAuszahlung`) but the client check demanded `amountCents > 0` unless the receipt was a voucher payout. Without empties a negative payment is still refused; empties with a positive amount stay an ordinary sale.
 
+Fix: an article marked as external voucher with a non-empty deposit list is refused (`article_external_voucher_invalid`, reason `deposit`), like the backend; an empty or missing list stays allowed. Reason: the client check did not know the deposit rule of `pruefeArtikel`.
+
 ## 1.32.0 - unveröffentlicht
 
 Deposit and returnable empties at the till (backend November 2026): the server adds the deposit lines, the till previews them, takes empties back, and the bon prints them. Additive; articles, groups, settings and receipts without the new fields read, send and print exactly as before (all existing goldens unchanged).
