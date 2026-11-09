@@ -8,7 +8,7 @@ export {
   receiptItemIsValid,
   negateReceiptItem,
   type TipRecipient,
-  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem,
+  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem,
 } from './receipt-item.js';
 export {
   type Voucher, type VoucherArticle, type IssuedVoucher, type ReturnIssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields,

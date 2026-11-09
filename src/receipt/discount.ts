@@ -1,5 +1,5 @@
 import type { ReceiptItem } from '../models/receipt-item.js';
-import { receiptItemTotalCents } from '../models/receipt-item.js';
+import { isDepositItem, isDepositReturnItem, receiptItemTotalCents } from '../models/receipt-item.js';
 
 /**
  * Rabatt als negative Position(en) — eine je Steuersatz, anteilig zum
@@ -19,6 +19,8 @@ export function distributeDiscount(items: ReceiptItem[], discountCents: number, 
   // Umsatz je Steuersatz (nur positive Positionen -- Rabatte/Stornos zaehlen nicht mit)
   const gruppen = new Map<string, { vat: ReceiptItem['vat']; umsatz: number }>();
   for (const p of items) {
+    // Pfand und Leergut werden nie rabattiert (durchlaufend, Spec E17).
+    if (isDepositItem(p) || isDepositReturnItem(p)) continue;
     const betrag = receiptItemTotalCents(p);
     if (betrag <= 0) continue;
     const key = typeof p.vat === 'object' ? p.vat.value : String(p.vat);

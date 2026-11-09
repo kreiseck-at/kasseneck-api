@@ -484,7 +484,7 @@ test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit
     assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: innen }).cancellationReason, aussen, innen);
     assert.equal(stored.fromStoredReceipt({ ...doc, cancellationReason: aussen }).cancellationReason, aussen, aussen);
   }
-  // Die 77 Golden-Belege in der Form 1.0 (fixtures/receipts/): dasselbe Modell
+  // Die 79 Golden-Belege in der Form 1.0 (fixtures/receipts/): dasselbe Modell
   // wie ueber den Leser der Antwort, und daraus dasselbe Zeilenmodell wie das Golden.
   const ordner = new URL('../../fixtures/receipts/', import.meta.url);
   const namen = readdirSync(ordner).filter((n) => n.endsWith('.json'));
@@ -499,5 +499,5 @@ test('stored: englische Werte (Form 1.0) gehen unveraendert durch, zugesagt seit
     assert.deepEqual(buildReceiptLayout(modell, f.company, f.options ?? {}), golden, name);
     geprueft++;
   }
-  assert.equal(geprueft, 77);
+  assert.equal(geprueft, 79);
 });

@@ -88,6 +88,8 @@ const ABNEHMER: Record<string, string> = {
   'invoice-texts.json': 'Textkatalog der Rechnung: Dart (das Backend liest noch die 0.x-Datei)',
   'stored': 'gespeicherte (innere) Form der Kasseneinstellungen: Dart 10 (4c zieht fixtures/stored/); voucher-cases.json = Backend gutschein-faelle.json byte-gleich (Gutscheine am Beleg samt Fremdgutscheinen): Dart-Zwilling, Web-Kasse, Kassen-App',
   'discount-preset-cases.json': 'Pruefaelle Rabatt-Vorlagen (wirksame Liste, Chip-Text, Spiegelung nach discountChips, Pruefung, Bon-Block; innere Form wie gespeichert): Dart 11, Web-Kasse, Backend discount-preset-cases.json byte-gleich',
+  'deposit-cases.json': 'Pruefaelle Pfand und Leergut (Vorschau-Rechnung withDepositLines, centgenau wie der Server): Dart-Zwilling, Web-Kasse, Backend pfand-faelle.json (/v3-Form)',
+  'return-code-cases.json': 'Pruefaelle Leergut-Scan (matchReturnCode: gelernter Code, Gebinde-GTIN, Kisten-EAN, Gruppenregel, stillgelegte Pfandart): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktion',
   'add-on-cases.json': 'Pruefaelle Zusatz-Kacheln (waehlbar, wirksame Liste, Verweise, Storno, Bon- und Belegreihenfolge): Dart 11, Web-Kasse, Panel, Backend zusatz-faelle.json',
   'reference-cases.json': 'Pruefaelle Kachel mit Betrag und Referenz (Muster, Eingabe, Ziffernfeld, Positionsname): Dart 11, Web-Kasse, Backend referenz-faelle.json',
   'external-voucher-article-cases.json': 'Pruefaelle Artikel als fremder Gutschein (Wert und Regeln am Artikel): Dart 11, Artikel-Editor im Kundenbereich, Backend fremdgutschein-artikel-faelle.json',

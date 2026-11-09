@@ -514,6 +514,17 @@ const MELDUNGEN_ROH = {
   'shift.finish_step_first': { text: 'Erst den Schritt rechts abschließen oder abbrechen.' },
   'tip.revenue_hint': { text: 'Steuerpflichtiges Trinkgeld zählt als Umsatz des Betriebs und wird nicht ausgezahlt.' },
   'tip.unassigned_hint': { text: 'Trinkgeld ohne angemeldeten Benutzer.' },
+
+  // --- Pfand und Leergut (1.32.0): Fehlersätze (Zuordnung in DEPOSIT_ERROR_MESSAGES) ---
+  'deposit.changed': { text: 'Pfand wurde geändert. Bitte Summe prüfen.' },
+  'deposit_error.not_enabled': { text: 'Pfand ist für diesen Betrieb nicht eingeschaltet.' },
+  'deposit_error.type_not_found': { text: 'Diese Pfandart gibt es nicht mehr.' },
+  'deposit_error.set_by_server': { text: 'Das Pfand bucht die Kasse selbst.' },
+  'deposit_error.invalid_quantity': { text: 'Pfand gibt es nur für ganze Stück.' },
+  'deposit_error.return_not_offered': { text: 'Diese Kasse nimmt kein Leergut zurück.' },
+  'deposit_error.type_not_issued': { text: 'Dieses Leergut wurde hier nie verkauft.' },
+  'deposit_error.follows_item': { text: 'Pfand wird mit seinem Artikel storniert.' },
+  'deposit_error.invalid': { text: 'Die Pfand-Angaben stimmen nicht.' },
 } as const satisfies Record<string, TextEntry>;
 
 export type MessageKey = keyof typeof MELDUNGEN_ROH;
@@ -848,6 +859,29 @@ export type VoucherMessageCode = keyof typeof VOUCHER_ERROR_MESSAGES;
 export function voucherErrorMessage(code: string | undefined | null): MessageKey | undefined {
   const fehler: Record<string, MessageKey> = VOUCHER_ERROR_MESSAGES;
   return code !== undefined && code !== null ? fehler[code] : undefined;
+}
+
+/**
+ * Pfand-Fehler (`/v3`, createReceipt und cancelReceipt): welcher `code` des
+ * Backends welchen Satz bekommt. Kassensprache, keine Rechtssprache.
+ */
+export const DEPOSIT_ERROR_MESSAGES = {
+  deposit_not_enabled: 'deposit_error.not_enabled',
+  deposit_type_not_found: 'deposit_error.type_not_found',
+  deposit_set_by_server: 'deposit_error.set_by_server',
+  invalid_deposit_quantity: 'deposit_error.invalid_quantity',
+  deposit_return_not_offered: 'deposit_error.return_not_offered',
+  deposit_type_not_issued: 'deposit_error.type_not_issued',
+  deposit_follows_item: 'deposit_error.follows_item',
+  invalid_deposit: 'deposit_error.invalid',
+} as const satisfies Record<string, MessageKey>;
+
+export type DepositMessageCode = keyof typeof DEPOSIT_ERROR_MESSAGES;
+
+/** Der Satz zu einem Pfand-`code`; `undefined` für jeden anderen Code. */
+export function depositErrorMessage(code: string | undefined | null): MessageKey | undefined {
+  const fehler: Record<string, MessageKey> = DEPOSIT_ERROR_MESSAGES;
+  return code !== undefined && code !== null && Object.prototype.hasOwnProperty.call(fehler, code) ? fehler[code] : undefined;
 }
 
 /**
@@ -1509,6 +1543,16 @@ const BESCHRIFTUNGEN_ROH = {
   'tip.summary_percent': { text: 'Trinkgeld {tip} ({percent} %)', placeholders: ['tip', 'percent'] },
   'settings.tip_kinds': { text: 'Trinkgeld-Arten' },
   'settings.tip_start': { text: 'Zuerst offen' },
+
+  // --- Pfand und Leergut (1.32.0) ---
+  'deposit.return': { text: 'Leergut' },
+  'deposit.payout': { text: 'Bar auszahlen' },
+  'deposit.offset': { text: 'Mit Einkauf verrechnen' },
+  'deposit.unknown_code': { text: 'Welches Leergut ist das?' },
+  'deposit.over_usual': { text: 'Mehr als üblich – trotzdem annehmen?' },
+  'deposit.on_premises': { text: 'Vor Ort' },
+  'deposit.takeaway': { text: 'Mitnahme' },
+  'deposit.sum': { text: 'Summe Leergut' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "04ab5e1d031979a4f0aa31ea000f4cbe1d6e557e2411e439899ac19a1bba0325";
+export const VOKABULAR_QUELLE = "168261a0b5130d454fc3b5d51e8ee567d6a3e9a5d2d8e172829e9ccb17c47f31";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -32,7 +32,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "__": "items",
             "receivedImmediately": "sofortErhalten",
             "keptByEmployee": "direkt",
-            "addOnOf": "zusatzZu"
+            "addOnOf": "zusatzZu",
+            "depositTypeId": "pfandartId",
+            "depositFor": "pfandZu",
+            "depositKind": "pfandArt",
+            "perUnit": "jeStueck",
+            "ownFilling": "eigen"
           }
         ],
         "manualReceipt": {
@@ -44,6 +49,11 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
           "time": "uhrzeit",
           "reason": "grund",
           "note": "grundText"
+        },
+        "onPremises": "vorOrt",
+        "sharedReturnPoint": {
+          "__": "pfandStelle",
+          "address": "adresse"
         }
       },
       "taxNumber": "taxnr",
@@ -107,6 +117,12 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "layout.lines[].tone": {
         "$catalog": "LAYOUT_TON"
+      },
+      "receipt.items[].kind": {
+        "$catalog": "PFAND_KIND"
+      },
+      "receipt.items[].depositKind": {
+        "$catalog": "PFAND_ART"
       },
       "issuedVouchers[].type": {
         "$catalog": "GUTSCHEIN_ART"
@@ -322,9 +338,36 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "__": "connect",
         "minimumVersion": "mindestversion",
         "deadline": "frist"
+      },
+      "deposit": {
+        "__": "pfand",
+        "singleUse": "einweg",
+        "reusable": "mehrweg",
+        "depositTypes": [
+          {
+            "__": "pfandarten",
+            "kind": "art",
+            "type": "typ",
+            "amounts": [
+              {
+                "__": "betraege",
+                "from": "ab"
+              }
+            ],
+            "returnRate": "rueckgabeSatz",
+            "used": "verwendet",
+            "active": "aktiv"
+          }
+        ]
       }
     },
     "werte": {
+      "deposit.depositTypes[].kind": {
+        "$catalog": "PFAND_ART"
+      },
+      "deposit.depositTypes[].type": {
+        "$catalog": "PFAND_TYP"
+      },
       "business.watermark": {
         "$catalog": "KASSE_BETRIEB_WERTE.watermark"
       },
@@ -437,7 +480,15 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
             "patternStrict": "musterStreng"
           },
           "addOns": "zusaetze",
-          "externalVoucher": "fremdgutschein"
+          "externalVoucher": "fremdgutschein",
+          "deposits": [
+            {
+              "__": "pfand",
+              "depositTypeId": "pfandartId",
+              "quantity": "menge",
+              "ownFilling": "eigen"
+            }
+          ]
         }
       ]
     },
@@ -488,7 +539,8 @@ export const ARTIKEL_FELDER: readonly string[] = [
   "askPrice",
   "reference",
   "addOns",
-  "externalVoucher"
+  "externalVoucher",
+  "deposits"
 ];
 
 /** Wertkataloge innen (deutsch) -> aussen (englisch). */
@@ -787,6 +839,22 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
   "MENGENREGEL": {
     "stueck": "piece",
     "dezimal": "decimal"
+  },
+  "PFAND_ART": {
+    "einweg": "single_use",
+    "mehrweg": "reusable"
+  },
+  "PFAND_KIND": {
+    "pfand": "deposit",
+    "pfand_rueckgabe": "deposit_return"
+  },
+  "PFAND_TYP": {
+    "flasche": "bottle",
+    "kiste": "crate",
+    "fass": "keg",
+    "becher": "cup",
+    "glas": "glass",
+    "sonstiges": "other"
   },
   "REFERENZ_STUFE": {
     "fragen": "optional",

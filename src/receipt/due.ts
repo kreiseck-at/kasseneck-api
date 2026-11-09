@@ -7,6 +7,8 @@ import { toViennaWallClock } from '../vienna-time.js';
 import {
   centSumme,
   istDeckbar,
+  istPfandZeile,
+  leergutCents,
   kuSaetze,
   planeGutscheine,
   topfFuerSatz,
@@ -163,6 +165,12 @@ export interface ReceiptDueBreakdown {
   valueVoucherFlowCents: number;
   /** Toepfe je auf Cent gerundet; `null` bei Start- und Nullbeleg. */
   bucketsCents: ReceiptDueBuckets | null;
+  /**
+   * `'deposit'`: der negative Zahlbetrag ist eine Leergut-Auszahlung (Beleg mit Leergut, Betrag hoechstens die
+   * Leergutsumme): genau eine Barzahlung ueber den Betrag, ohne Trinkgeld und ohne `tendered`. Ware fuehrt nie zu
+   * einer Auszahlung. Fehlt sonst.
+   */
+  payout?: 'deposit';
 }
 
 /**
@@ -287,15 +295,20 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
   const fluss = wertgutscheinFlussCents(gutscheine, art);
   const dueCents = t.zaehlerDeltaCents + fluss;
   // Ohne Auszahlungen darf der Zahlbetrag nicht negativ werden (Einloesung hoeher als die Summe).
-  if (plan.mitPlan && dueCents + plan.auszahlungCents < 0) {
+  // Leergut ist nie deckbar und darf als Barauszahlung hinausgehen: es zaehlt in diesen Pruefungen nicht mit.
+  const leergut = leergutCents(kunde);
+  const nachGutscheinen = dueCents + plan.auszahlungCents - leergut;
+  if (plan.mitPlan && nachGutscheinen < 0) {
     throw new ReceiptDueError('invalid_voucher', 'die Gutscheine uebersteigen die Summe des Belegs.', 'voucher_exceeds_total');
   }
   // Ein Gutschein deckt nie das Trinkgeld (Personal wie Inhaber): der Zahlbetrag nach den Gutscheinen
   // muss die Trinkgeldzeilen tragen. Storno ausgenommen (dort gibt es keinen Plan).
   const trinkgeld = trinkgeldCents(kunde);
-  if (plan.mitPlan && art !== 'cancellation' && trinkgeld > 0 && dueCents + plan.auszahlungCents < trinkgeld) {
+  if (plan.mitPlan && art !== 'cancellation' && trinkgeld > 0 && nachGutscheinen < trinkgeld) {
     throw new ReceiptDueError('invalid_voucher', 'die Gutscheine decken das Trinkgeld.', 'voucher_exceeds_total');
   }
+  // pfand-core.istLeergutAuszahlung: negativer Zahlbetrag eines Verkaufs mit Leergut, hoechstens die Leergutsumme.
+  const leergutAuszahlung = art !== 'cancellation' && leergut < 0 && dueCents < 0 && dueCents >= leergut;
   return {
     ergebnis: {
       dueCents,
@@ -309,6 +322,7 @@ function rechne(items: readonly ReceiptItem[], vouchers: readonly Voucher[], rec
         amountRateSpecial: euroToCent(t.amountRateSpecial),
         amountRatOthers: euroToCent(t.amountRatOthers),
       },
+      ...(leergutAuszahlung ? { payout: 'deposit' as const } : {}),
     },
     kunde,
     minusJeTopf: plan.minusJeTopf,
@@ -605,9 +619,12 @@ const FUENF = ['amountRateStandard', 'amountRateReduced1', 'amountRateReduced2',
 /** `beleg-toepfe.belegToepfe`, Schritt fuer Schritt. */
 function belegToepfe(positionen: readonly Innen[], gutscheine: readonly Gutschein[]): Record<TopfName, number> & { zaehlerDeltaCents: number } {
   const t: Record<TopfName, number> = { amountRateStandard: 0, amountRateReduced1: 0, amountRateReduced2: 0, amountRateZero: 0, amountRateSpecial: 0, amountRatOthers: 0 };
-  let personal = 0;
+  // Durchlaufende Posten (beleg-toepfe.durchlaufUndRest): Personal-Trinkgeld im 0-%-Topf, Pfand und Leergut im Topf ihres
+  // Satzes (Einweg hat 0 %, also Null). Sie liegen ungekuerzt im Topf, nach dem Rabatt, und zaehlen nicht in dessen Deckel.
+  const durchlauf: Record<TopfName, number> = { amountRateStandard: 0, amountRateReduced1: 0, amountRateReduced2: 0, amountRateZero: 0, amountRateSpecial: 0, amountRatOthers: 0 };
   for (const p of positionen) {
-    if (p.tip === 'staff') personal += p.amount * p.priceOne;
+    if (p.tip === 'staff') durchlauf.amountRateZero += p.amount * p.priceOne;
+    else if (istPfandZeile(p)) durchlauf[topfFuerSatz(p.vat)] += p.amount * p.priceOne;
     else t[topfFuerSatz(p.vat)] += p.priceOne * p.amount;
   }
   const gesamt = t.amountRateStandard + t.amountRateReduced1 + t.amountRateReduced2 + t.amountRateZero + t.amountRateSpecial;
@@ -635,7 +652,7 @@ function belegToepfe(positionen: readonly Innen[], gutscheine: readonly Gutschei
       t[n] = (cents[i]! - anteil[i]!) / 100;
     });
   }
-  t.amountRateZero += personal;
+  for (const n of [...FUENF, 'amountRatOthers'] as const) t[n] += durchlauf[n];
   const zaehlerDeltaCents =
     euroToCent(t.amountRateStandard) + euroToCent(t.amountRateReduced1) + euroToCent(t.amountRateReduced2) +
     euroToCent(t.amountRateZero) + euroToCent(t.amountRateSpecial) + euroToCent(t.amountRatOthers);

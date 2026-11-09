@@ -45,6 +45,14 @@ export {
   addOnsOfItem, addOnRemap, addOnDisplayOrder, orderAddOnLines,
 } from './zusaetze.js';
 export {
+  DEPOSIT_KINDS, type DepositKind, DEPOSIT_TYPES, type DepositContainerType, DEPOSIT_RETURN_MODES, type DepositReturnMode,
+  DEPOSIT_ON_PREMISES_DEFAULTS, type DepositOnPremisesDefault, type DepositAmount, type DepositType, type DepositSettings,
+  type DepositEntry, type DepositSharedReturnPoint, type CashRegisterDeposit,
+  posDepositSettingsFromWire, depositEntriesFromWire, cashRegisterDepositFromWire,
+  depositsFor, depositAmountOn, viennaDay, withDepositLines, depositReturnLine,
+  type DepositPreviewItem, type DepositPreviewLine, type DepositPreviewInput, type DepositPreviewArticle, type DepositPreviewResult, type DepositPreviewErrorCode,
+} from './pfand.js';
+export {
   ARTICLE_EXTERNAL_VOUCHER_TYPES, type ArticleExternalVoucher, ARTICLE_EXTERNAL_VOUCHER_INVALID, ARTICLE_EXTERNAL_VOUCHER_VAT_RATES,
   EXTERNAL_VOUCHER_ARTICLE_REASONS, type ExternalVoucherArticleReason, type ExternalVoucherArticleInput,
   isArticleExternalVoucher, checkExternalVoucherValue, checkExternalVoucherArticle,
@@ -63,7 +71,7 @@ export {
 export { distributeDiscount } from '../receipt/discount.js';
 // Reichweiten der Kassen-Rechte (Migration wie im Backend) -- bewusst NICHT im
 // Register-Unterpfad: dessen Exportnamen sind 1:1 Function-Namen (Rewrites).
-export { cancelScopeOf, receiptsScopeOf, stockViewOf, voucherPermsOf, type VoucherPerms, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
+export { cancelScopeOf, receiptsScopeOf, stockViewOf, voucherPermsOf, depositReturnOf, type VoucherPerms, type RegisterScope, type RegisterUserPerms } from '../register/pairing.js';
 export {
   type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES, isPrintJobFinished,
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
@@ -84,6 +92,10 @@ export {
 } from './kasseninfo.js';
 // Connect-Bestand: die Kasse meldet Version und System von Kasseneck Connect.
 export { type ConnectStateReport, reportConnectState } from './connect-bestand.js';
+export {
+  type ReturnCode, type ReturnCodeEntry, type ReturnCodeMatch, type ReturnCodeArticle, type ReturnCodeGroup, type ReturnCodeInput,
+  learnReturnCode, listReturnCodes, matchReturnCode,
+} from './leergut.js';
 export {
   STOCK_LOCATION_TYPES, type StockLocationType, type StockLocation, type StockLocationAddress,
   type StockLevel, type StockValue, type StockList, type ListMyStockOptions,
@@ -142,7 +154,7 @@ export { RETURN_DISPOSITIONS, isReturnDisposition, type ReturnDisposition } from
 export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
-  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage,
+  CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, DEPOSIT_ERROR_MESSAGES, depositErrorMessage,
   EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS,
   LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,

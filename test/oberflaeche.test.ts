@@ -169,16 +169,16 @@ test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (50, seit 1.28.0 mit der Zwischenzählung)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (52, seit 1.28.0 mit der Zwischenzählung)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 50);
+  assert.equal(POS_CALLS.length, 52);
 });
 
-test('v3: nur ueber den Kassenweg gehen genau die 39 Namen aus endpoints.registerInternal', () => {
+test('v3: nur ueber den Kassenweg gehen genau die 41 Namen aus endpoints.registerInternal', () => {
   const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
   const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
   assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
-  assert.equal(nurKasse.length, 39);
+  assert.equal(nurKasse.length, 41);
   // Die Kasseninfo fuer die Pruefung (1.23.0) und der Connect-Bestand (1.24.0) gibt es nur am Kassenweg.
   assert.ok(isPosOnlyCall('getRegisterInspectionInfo'));
   assert.ok(isPosOnlyCall('reportConnectState'));

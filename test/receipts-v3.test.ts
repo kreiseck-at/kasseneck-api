@@ -670,7 +670,14 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments, ['route_missing']));
   assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail, ['route_missing']));
   assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES], codes.receiptEmail);
-  const beleg = [...new Set([...codes.receiptMessagesByEndpoint.createReceipt, ...codes.receiptMessagesByEndpoint.getReceipt])].sort();
+  // Pfandzeilen (Pfand & Leergut): die Codes dieser Zeilen kennt createReceipt als Handler-Codes der Kasse
+  // (errorCodes.registerHandlersByEndpoint), nicht als Belegmeldung; die Liste hier nennt sie ausdruecklich.
+  const pfandCodes = [
+    'deposit_not_enabled', 'deposit_return_not_offered', 'deposit_set_by_server', 'deposit_type_not_found',
+    'deposit_type_not_issued', 'invalid_deposit', 'invalid_deposit_quantity', 'invalid_item_kind',
+  ];
+  for (const c of pfandCodes) assert.ok(codes.registerHandlersByEndpoint.createReceipt!.includes(c), c);
+  const beleg = [...new Set([...codes.receiptMessagesByEndpoint.createReceipt, ...codes.receiptMessagesByEndpoint.getReceipt, ...pfandCodes])].sort();
   assert.deepEqual([...RECEIPT_ERROR_CODES], mitRand(beleg, signierend));
   for (const c of ['register_user_not_found', 'session_expired', 'dialect_mismatch', 'response_translation_failed', 'not_found', 'route_missing']) {
     for (const liste of [CANCELLATION_ERROR_CODES, PAYMENT_ERROR_CODES, RECEIPT_EMAIL_ERROR_CODES, RECEIPT_ERROR_CODES]) {

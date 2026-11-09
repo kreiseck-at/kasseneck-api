@@ -215,6 +215,13 @@ test('Einstellungen: jede Wertemenge mit Katalog ist der Katalog, Wert fuer Wert
       assert.deepEqual(Object.values(zuordnung(verweis)).sort(), [...gutschein[pfad]!].sort(), pfad);
       continue;
     }
+    // Der Block `deposit` liest pos/pfand.ts (test/pfand.test.ts).
+    if (pfad.startsWith('deposit.')) {
+      const pfand: Record<string, readonly string[]> = { 'deposit.depositTypes[].kind': kasse.DEPOSIT_KINDS, 'deposit.depositTypes[].type': kasse.DEPOSIT_TYPES };
+      assert.ok(pfand[pfad], `${pfad}: Wertemenge des Pfand-Blocks ohne Gegenstueck im Paket`);
+      assert.deepEqual([...pfand[pfad]!], Object.values(zuordnung(verweis)), pfad);
+      continue;
+    }
     assert.deepEqual([...(paket[pfad] ?? [])], Object.values(zuordnung(verweis)), pfad);
   }
   // Jede Liste heisst wie ihr Feld (TILE_STYLE -> tileStyle).
@@ -666,7 +673,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     'listMyStockLocations', 'listMyStock', 'setMyCashregisterStockLocation',
     'listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount',
     'getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift',
-    'getRegisterInspectionInfo',
+    'getRegisterInspectionInfo', 'learnMyLeergutCode', 'listMyLeergutCodes',
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);
