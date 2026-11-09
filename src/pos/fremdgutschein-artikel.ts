@@ -22,7 +22,7 @@ export const ARTICLE_EXTERNAL_VOUCHER_INVALID = 'article_external_voucher_invali
 
 /** Welche Regel verletzt ist (Antwortfeld `data.grund`), in der Reihenfolge, in der der Server prueft. */
 export const EXTERNAL_VOUCHER_ARTICLE_REASONS = Object.freeze([
-  'invalid_type', 'service_voucher', 'add_ons', 'stock_tracked', 'reference', 'asks_quantity', 'rate_required', 'invalid_rate', 'price_required',
+  'invalid_type', 'service_voucher', 'add_ons', 'stock_tracked', 'reference', 'asks_quantity', 'deposit', 'rate_required', 'invalid_rate', 'price_required',
 ] as const);
 export type ExternalVoucherArticleReason = typeof EXTERNAL_VOUCHER_ARTICLE_REASONS[number];
 
@@ -37,6 +37,7 @@ export interface ExternalVoucherArticleInput {
   askPrice?: boolean | null;
   serviceVoucher?: boolean | null;
   addOns?: readonly unknown[] | null;
+  deposits?: readonly unknown[] | null;
   stockTracked?: boolean | null;
   reference?: unknown;
   askQuantity?: boolean | null;
@@ -64,7 +65,7 @@ export function checkExternalVoucherValue(value: unknown): ExternalVoucherArticl
  * `pruefeArtikel`: `null` = passt. Ohne `externalVoucher` gilt keine Regel.
  * Einzweck verlangt einen Satz der Kasse (0 = befreit verkauft), Mehrzweck ignoriert ihn;
  * nie zusammen mit Leistungsgutschein, eigener Zusatzliste, Lagerbestand,
- * Referenz oder Mengenabfrage (die Kasse fragt die Nummer selbst und bucht
+ * Referenz, Mengenabfrage oder Pfand (die Kasse fragt die Nummer selbst und bucht
  * genau einen); ohne `askPrice` braucht er einen Preis ab 1 Cent.
  */
 export function checkExternalVoucherArticle(a: ExternalVoucherArticleInput): ExternalVoucherArticleReason | null {
@@ -75,6 +76,7 @@ export function checkExternalVoucherArticle(a: ExternalVoucherArticleInput): Ext
   if (a.stockTracked === true) return 'stock_tracked';
   if (a.reference) return 'reference';
   if (a.askQuantity === true) return 'asks_quantity';
+  if (Array.isArray(a.deposits) && a.deposits.length > 0) return 'deposit';
   if (a.externalVoucher === 'single_purpose' && !(typeof a.vatRate === 'number' && Number.isFinite(a.vatRate))) return 'rate_required';
   if (a.externalVoucher === 'single_purpose' && !ARTICLE_EXTERNAL_VOUCHER_VAT_RATES.includes(a.vatRate as number)) return 'invalid_rate';
   if (a.askPrice !== true && !(typeof a.unitPriceCents === 'number' && Number.isInteger(a.unitPriceCents) && a.unitPriceCents >= 1)) return 'price_required';
