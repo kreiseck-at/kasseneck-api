@@ -158,6 +158,10 @@ const MELDUNGEN_ROH = {
   'card_payment.unpair_card_charged': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Terminal zurückerstattet werden (Betrag siehe unten).' },
   'terminal.none_found': { text: 'Kein Hobex-Terminal gefunden – ist es eingeschaltet und im selben Netz wie dieser Rechner?', only: ['web'] },
   'terminal.not_ready': { text: 'Terminal antwortet, ist aber nicht betriebsbereit: {response} – TID prüfen.', placeholders: ['response'], only: ['web'] },
+  // Terminal-Suche mit mehreren Treffern (1.33.0): uebernommen wird nur ein Treffer, an dem die
+  // Diagnose die TID dieses Geraets bestaetigt -- sonst nennt die Kasse die Adressen und setzt keine.
+  'terminal.several_found': { text: 'Mehrere Terminals gefunden: {hosts}. Die IP-Adresse des richtigen von Hand eintragen.', placeholders: ['hosts'], only: ['web'] },
+  'terminal.tid_not_found': { text: 'Mehrere Terminals gefunden: {hosts}. Keines meldet die TID {tid} – TID prüfen oder die IP-Adresse von Hand eintragen.', placeholders: ['hosts', 'tid'], only: ['web'] },
   'gptom.app_missing': { text: 'Die GP-Tom-App ist auf diesem Gerät nicht da.', only: ['app'] },
   'gptom.search_failed': { text: 'GP Tom: Suche nach der App fehlgeschlagen: {reason}', placeholders: ['reason'], only: ['app'] },
   'gptom.payment_failed': { text: 'GP Tom: Zahlung fehlgeschlagen: {reason}', placeholders: ['reason'], only: ['app'] },
@@ -411,6 +415,9 @@ const MELDUNGEN_ROH = {
   'connect.printer_unknown': { text: 'Diesen Drucker kennt Kasseneck Connect nicht (mehr) – bitte neu suchen.', only: ['web'] },
   'connect.origin_not_allowed': { text: 'Kasseneck Connect nimmt von dieser Adresse nichts an (Ursprung nicht freigegeben).', only: ['web'] },
   'connect.not_installed': { text: 'Kasseneck Connect nicht gefunden – bitte installieren.', only: ['web'] },
+  // Chrome fragt ab 142 vor dem Zugriff einer https-Seite auf 127.0.0.1 nach („Lokales Netzwerk“).
+  // Ist das gesperrt, findet die Kasse Connect nicht -- installieren hilft dann nicht (1.33.0).
+  'connect.local_network_blocked': { text: 'Der Browser sperrt den Zugang zu Kasseneck Connect. Freigeben: Schloss neben der Adresse (installierte App: Menü ⋮ → App-Info) → Website-Einstellungen → „Lokales Netzwerk“ → „Zulassen“.', only: ['web'] },
   'connect.unpair_question': { text: 'Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.', only: ['web'] },
 
   // --- Einstellungen -------------------------------------------------------
