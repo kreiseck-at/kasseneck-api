@@ -76,6 +76,13 @@ export {
   type NetworkPrinter, type PrintJob, type PrintJobStatus, PRINT_JOB_STATUSES, type PrintJobSource, PRINT_JOB_SOURCES, isPrintJobFinished,
   type CreatePrintJobOptions, listMyPrinters, createPrintJob, getPrintJob,
 } from './drucker.js';
+// Druckerkatalog (Connect-Einrichtung mit einem Klick): Normierung, Pruefung und der Katalog selbst bleiben im Modul,
+// nach aussen gehen nur das Erkennen und die vorgeschlagenen Einstellungen.
+export {
+  type PrinterCatalogEntry, type PrinterCatalogValues, type PrinterCatalogValueField, type PrinterCatalogApproval,
+  type PrinterDeviceTest, type PrinterCatalogSettings, type PrinterCatalogDeviceSettings, type PrinterCatalogCut,
+  type PrinterCatalogQrMode, printerCatalogEntry, printerCatalogSettings,
+} from './drucker-katalog.js';
 export { listMyTipRecipients } from './trinkgeld.js';
 export {
   posDiscountPresets, discountPresetChipText, discountChipsFromPresets, checkDiscountPresets, discountBlockLines,

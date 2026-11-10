@@ -100,6 +100,7 @@ const ABNEHMER: Record<string, string> = {
   'receipt-due-generated.json': '1206 vom Backend-Code gerechnete Zahlbetrag-Faelle: Dart 10 receiptDueCents (gleiche Gleitkomma-Reihenfolge wie npm, 20 Exportfaelle reichen dafuer nicht)',
   'receipt-due-voucher-generated.json': '480 vom Backend-Code (gutschein-beleg.plane) gerechnete Zahlbetrag-Faelle mit Gutscheinen der neuen Form: Dart receiptDueCents mit voucherInfo und voucherTypes (Betrag, Toepfe, Abweisungscode)',
   'stocktake-quantity-cases.json': 'Prueffaelle parseQuantityMilli (Inventur zaehlen): Dart-Zwilling (gleiche Faelle); kasseneck-web apps/kasse (Mengen-Eingabe)',
+  'printer-catalog.json': 'Druckerkatalog der Connect-Einrichtung (Eintraege, Wertemengen, Prueffaelle printerCatalogEntry/printerCatalogSettings): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktionen',
   'receipt-due-errors.json': 'nicht rechenbare Zahlbetrag-Eingaben (ReceiptDueError, code receipt_due_unavailable, reason je Fall): Dart-Zwilling receiptDueCents; kasseneck-web apps/kasse (Absage vor dem Terminal)',
 };
 
