@@ -79,8 +79,9 @@ export {
 // Druckerkatalog (Connect-Einrichtung mit einem Klick): Normierung, Pruefung und der Katalog selbst bleiben im Modul,
 // nach aussen gehen nur das Erkennen und die vorgeschlagenen Einstellungen.
 export {
-  type PrinterCatalogEntry, type PrinterCatalogValues, type PrinterCatalogApproval, type PrinterDeviceTest,
-  type PrinterCatalogSettings, type PrinterCatalogCut, type PrinterCatalogQrMode, printerCatalogEntry, printerCatalogSettings,
+  type PrinterCatalogEntry, type PrinterCatalogValues, type PrinterCatalogValueField, type PrinterCatalogApproval,
+  type PrinterDeviceTest, type PrinterCatalogSettings, type PrinterCatalogDeviceSettings, type PrinterCatalogCut,
+  type PrinterCatalogQrMode, printerCatalogEntry, printerCatalogSettings,
 } from './drucker-katalog.js';
 export { listMyTipRecipients } from './trinkgeld.js';
 export {

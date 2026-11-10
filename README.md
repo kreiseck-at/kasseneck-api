@@ -1051,10 +1051,12 @@ the same as in 0.x.
 **Printer catalog.** `printerCatalogEntry(model)` finds the approved catalog
 entry for a model name as Kasseneck Connect reports it (case, a leading
 `EPSON` and the kind of separator do not count; `null` for an unknown model),
-and `printerCatalogSettings(entry)` returns the device settings it proposes
-(`paperSize`, `codePage`, `cut`, `qrMode`, `drawerEnabled`). Only entries
-approved after a device test count; the entries and their test cases are in
-`fixtures/printer-catalog.json`.
+and `printerCatalogSettings(entry)` returns what it proposes for the first
+setup: `device` (`paperSize`, `codePage`, `cut`, `qrMode`, `drawerEnabled`)
+and `paperSizeNeedsCheck`, `true` when the model can be switched to another
+paper width and the till should confirm it with a test print. Only entries
+approved after a complete device test count; the entries and their test cases
+are in `fixtures/printer-catalog.json`.
 
 **Stock at the register.** Three calls on the register path (`/api/v3` only),
 permissions checked by the server (`stockView`, `stockCosts`, `stockLocation`

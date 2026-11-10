@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { printerCatalogEntry, printerCatalogSettings, CODE_PAGE, PAPER_SIZE, POS_DEVICE_VALUES, type PosDeviceSettings } from '../src/pos/index.js';
 import {
-  PRINTER_CATALOG, PRINTER_CATALOG_CUTS, PRINTER_CATALOG_PROBLEM_REASONS, PRINTER_CATALOG_QR_MODES, findPrinterCatalogEntry,
-  normalizePrinterModel, printerCatalogProblems, type PrinterCatalogEntry, type PrinterDeviceTest,
+  PRINTER_CATALOG, PRINTER_CATALOG_CUTS, PRINTER_CATALOG_PROBLEM_REASONS, PRINTER_CATALOG_QR_MODES, PRINTER_CATALOG_VALUE_FIELDS,
+  findPrinterCatalogEntry, normalizePrinterModel, printerCatalogProblems, type PrinterCatalogEntry, type PrinterDeviceTest,
 } from '../src/pos/drucker-katalog.js';
 import { CHARS_PER_PAPER_SIZE } from '../src/receipt/grid.js';
 
@@ -27,7 +27,9 @@ const idVon = (e: PrinterCatalogEntry | null): string | null => e?.id ?? null;
 
 test('Vertrag: Abschnitte der Datei', () => {
   assert.deepEqual(Object.keys(VERTRAG), ['_note', 'rules', 'printers', 'cases']);
-  assert.deepEqual(Object.keys(FAELLE), ['normalize', 'lookupShipped', 'lookup', 'lookupPartial', 'deviceTest', 'settings', 'problems']);
+  assert.deepEqual(Object.keys(FAELLE), [
+    'normalize', 'lookupShipped', 'lookup', 'lookupPartial', 'lookupOtherCatalog', 'deviceTest', 'settings', 'problems',
+  ]);
 });
 
 test('Vertrag: die Wertemengen sind die der Geraete-Einstellungen', () => {
@@ -36,6 +38,7 @@ test('Vertrag: die Wertemengen sind die der Geraete-Einstellungen', () => {
   assert.deepEqual(VERTRAG.rules.cut, [...PRINTER_CATALOG_CUTS]);
   assert.deepEqual(VERTRAG.rules.qrMode, [...PRINTER_CATALOG_QR_MODES]);
   assert.deepEqual(VERTRAG.rules.codePage, [...CODE_PAGE]);
+  assert.deepEqual(VERTRAG.rules.valueFields, [...PRINTER_CATALOG_VALUE_FIELDS]);
   assert.deepEqual(VERTRAG.rules.problemReasons, [...PRINTER_CATALOG_PROBLEM_REASONS]);
 });
 
@@ -43,9 +46,24 @@ test('Katalog: im Code stehen genau die Eintraege der Datei', () => {
   assert.deepEqual(PRINTER_CATALOG, VERTRAG.printers);
 });
 
+test('Katalog: der Geraetetest kennt jedes Wertfeld', () => {
+  for (const e of PRINTER_CATALOG) assert.deepEqual(Object.keys(e.values), [...PRINTER_CATALOG_VALUE_FIELDS], e.id);
+});
+
 test('Katalog: der ausgelieferte Katalog hat keinen Fund, auch ganz freigegeben nicht', () => {
   assert.deepEqual(printerCatalogProblems(PRINTER_CATALOG), []);
   assert.deepEqual(printerCatalogProblems(ALLE_FREI), []);
+});
+
+test('Katalog: TM-T88 bekommt das 32-Zeichen-Layout, nie mm80 und keine Breitenbestaetigung', () => {
+  for (const id of ['epson-tm-t88vi', 'epson-tm-t88vii']) {
+    const e = PRINTER_CATALOG.find((x) => x.id === id)!;
+    const vorschlag = printerCatalogSettings(e);
+    assert.equal(e.nativeCharsPerLine, 42, id);
+    assert.deepEqual(e.paperSizes, ['mm58'], id);
+    assert.equal(vorschlag.device.paperSize, 'mm58', id);
+    assert.equal(vorschlag.paperSizeNeedsCheck, false, id);
+  }
 });
 
 test('Katalog: jeder Name fuehrt genau zu seinem Eintrag', () => {
@@ -81,6 +99,21 @@ for (const f of FAELLE.lookup as Json[]) {
   });
 }
 
+test('printerCatalogEntry: ein fehlendes `model` (Connect laesst es weg) geht ohne Umweg', () => {
+  const fund: { model?: string } = {};
+  assert.equal(printerCatalogEntry(fund.model), null);
+});
+
+test('printerCatalogEntry (eigener Katalog): Hersteller aus dem Katalog, laengste Vorsilbe zuerst', async (t) => {
+  const katalog = FAELLE.lookupOtherCatalog.printers as PrinterCatalogEntry[];
+  assert.deepEqual(printerCatalogProblems(katalog), []);
+  for (const f of FAELLE.lookupOtherCatalog.cases as Json[]) {
+    await t.test(JSON.stringify(f.model), () => {
+      assert.equal(idVon(findPrinterCatalogEntry(katalog, f.model)), f.expected);
+    });
+  }
+});
+
 for (const f of FAELLE.lookupPartial as Json[]) {
   test(`printerCatalogEntry (freigegeben ${JSON.stringify(f.approve)}): ${JSON.stringify(f.model)}`, () => {
     const katalog = freigegeben(f.approve);
@@ -89,13 +122,15 @@ for (const f of FAELLE.lookupPartial as Json[]) {
   });
 }
 
-test('printerCatalogSettings: je Eintrag die Einstellungen der Datei, alles gueltige Geraete-Werte', () => {
+test('printerCatalogSettings: je Eintrag der Vorschlag der Datei, alles gueltige Geraete-Werte', () => {
   assert.deepEqual(FAELLE.settings.map((f: Json) => f.id), PRINTER_CATALOG.map((e) => e.id));
   for (const f of FAELLE.settings as Json[]) {
     const eintrag = PRINTER_CATALOG.find((e) => e.id === f.id)!;
-    // Der Vorschlag geht unveraendert als Teil der Geraete-Einstellungen hinaus (setMyRegisterDeviceSettings).
-    const teil: Partial<PosDeviceSettings> = printerCatalogSettings(eintrag);
-    assert.deepEqual(teil, f.settings, f.id);
+    const vorschlag = printerCatalogSettings(eintrag);
+    assert.deepEqual(vorschlag, f.settings, f.id);
+    assert.equal(vorschlag.paperSizeNeedsCheck, eintrag.paperSizes.length > 1, f.id);
+    // `device` geht unveraendert als Teil der Geraete-Einstellungen hinaus (setMyRegisterDeviceSettings).
+    const teil: Partial<PosDeviceSettings> = vorschlag.device;
     for (const [feld, wert] of Object.entries(teil)) {
       const erlaubt = POS_DEVICE_VALUES[feld as keyof PosDeviceSettings];
       if (erlaubt) assert.ok(erlaubt.includes(wert as string), `${f.id}: ${feld} = ${wert}`);
