@@ -182,6 +182,9 @@ export const ALL_CALLS = [
   'unfixTerminal',
   // Pfandarten des Betriebs lesen, nur unter /v3.
   'listDepositTypes',
+  // EWP-Meldung (Einwegpfand) lesen und Zusatzmengen setzen, nur unter /v3.
+  'getEwpReport',
+  'setEwpExtraQuantities',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -327,6 +330,9 @@ export const PUBLIC_CALLS = [
   'unfixTerminal',
   // Pfandarten des Betriebs lesen, nur unter /v3.
   'listDepositTypes',
+  // EWP-Meldung (Einwegpfand) lesen und Zusatzmengen setzen, nur unter /v3.
+  'getEwpReport',
+  'setEwpExtraQuantities',
 ] as const;
 
 /**
@@ -539,6 +545,10 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   endRegisterSession: 'repeatable',
   generateFullReceiptId: 'read',
   getCashregisterReport: 'read',
+  // EWP-Meldung: Lesen vermerkt bei der CSV eines abgeschlossenen Monats nur den Abruf (`downloadedAt`); Setzen ersetzt die
+  // ganze Liste der Zusatzmengen, eine Wiederholung aendert nichts mehr.
+  getEwpReport: 'repeatable',
+  setEwpExtraQuantities: 'repeatable',
   getArticle: 'read',
   listMyLeergutCodes: 'read',
   getCustomer: 'read',

@@ -4,6 +4,9 @@ import type { InternerTransport } from './aufrufe.js';
 
 /**
  * Pfandarten des Betriebs lesen (`listDepositTypes`, nur unter `/v3`, API-Schluessel).
+ * Der Aufruf braucht **kein Kassen-Token**: er gilt dem Betrieb, nicht einer Kasse.
+ * `apiKeyAuth` darf deshalb ohne `cashregisterToken` gebaut werden; der Server
+ * liest das Token bei diesem Aufruf nicht.
  * Die Antwort ist der Block `deposit` aus `getKasseSettings`. Pfand aus ist kein
  * Fehler: `null`, dann darf ein Fremdsystem keine Pfandzeilen schicken. Eine
  * Antwort, in der `deposit` weder `null` noch ein Objekt ist, wirft

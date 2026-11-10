@@ -126,7 +126,8 @@ test('Lager-API: INVENTORY_ENDPOINTS sind die 44 Endpunkte von Stufe 5a, 5b, 5c 
   assert.deepEqual(oeffentlich.slice(start + 44), [
     'orderSignatureCard', 'getSignatureCardOrder', 'listReceipts', 'createDepExport', 'getDepExport', 'getDepExportFile', 'createDepHandoverLink', 'revokeDepHandoverLink',
     'registerTerminalDevice', 'getTerminalAccess', 'claimTerminal', 'requestTerminalCode', 'getTerminalCode', 'reportTerminalLogin', 'reportTerminalReady', 'unfixTerminal', 'listDepositTypes',
-  ], 'hinter der Lager-API folgen nur die Signaturkarten-Bestellung, die Belegliste, der DEP-Export und das Kartenterminal');
+    'getEwpReport', 'setEwpExtraQuantities',
+  ], 'hinter der Lager-API folgen nur die Signaturkarten-Bestellung, die Belegliste, der DEP-Export, das Kartenterminal, die Pfandarten und die EWP-Meldung');
   assert.equal(INVENTORY_ENDPOINTS[13], 'listWebhookDeliveries');
   assert.equal(INVENTORY_ENDPOINTS[26], 'listReservations');
   assert.equal(INVENTORY_ENDPOINTS[31], 'addVariant');

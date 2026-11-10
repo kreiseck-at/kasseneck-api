@@ -26,6 +26,7 @@ import type {
   VatRatePercent,
   WriteOffReasonCode,
 } from './vertrag.js';
+import type { DepositKind } from '../pos/pfand.js';
 
 // ---- Kunden -----------------------------------------------------------------
 
@@ -120,10 +121,30 @@ export interface InvoiceItemInput {
 }
 
 /**
+ * Pfandangabe an einer Position (`deposit`, seit 1.36.0): die Position ist eine
+ * Pfandzeile zu der Position `depositFor` derselben Anfrage. Die Pfandarten des
+ * Betriebs liefert `listDepositTypes`. Ohne eingeschaltetes Pfand antwortet der
+ * Server mit `deposit_not_enabled`.
+ */
+export interface InvoiceItemDepositInput {
+  /** Kennung der Pfandart (`DepositType.id`). */
+  depositTypeId: string;
+  /** Index der Position in `items`, zu der dieses Pfand gehoert (0 bis 499). */
+  depositFor: number;
+  /** GTIN der Verpackung, 8 bis 14 Ziffern (fuer die EWP-Meldung). */
+  gtin?: string;
+  /** Eigene Abfuellung (Mehrweg des Betriebs selbst). */
+  ownFilling?: boolean;
+}
+
+/**
  * Eine Position beim Ausstellen (`issueInvoice`): dazu optional die
- * Reservierung aus der Lager-API, die diese Position einloest.
+ * Reservierung aus der Lager-API, die diese Position einloest, und die
+ * Pfandangabe.
  */
 export interface IssueInvoiceItemInput extends InvoiceItemInput {
+  /** Diese Position ist eine Pfandzeile (siehe [InvoiceItemDepositInput]). */
+  deposit?: InvoiceItemDepositInput;
   /**
    * Kennung aus `createReservation` (`./inventory`); braucht `articleId`.
    * Geprueft beim Ausstellen (`reservation_not_found`, `reservation_mismatch`,
@@ -135,6 +156,8 @@ export interface IssueInvoiceItemInput extends InvoiceItemInput {
 
 /** Eine Gutschriftsposition: wie eine Rechnungsposition (ohne Reservierung), dazu die Rueckgabe-Wahl. */
 export interface CreditNoteItemInput extends InvoiceItemInput {
+  /** Diese Position ist eine Pfandzeile (siehe [InvoiceItemDepositInput]). */
+  deposit?: InvoiceItemDepositInput;
   /** Wohin die Ware dieser Position geht; fehlt = Vorgabe des Aufrufs bzw. `restock`. */
   returnDisposition?: ReturnDisposition;
 }
@@ -379,6 +402,18 @@ export interface InvoiceItem {
   unitPriceMicros?: number;
   vatRate: number;
   discountPct: number;
+  /** Nur an Pfandzeilen: die Pfandangabe, wie der Server sie fuehrt (siehe [InvoiceItemDeposit]). */
+  deposit?: InvoiceItemDeposit;
+}
+
+/** Die Pfandangabe einer gespeicherten Position (`getInvoice`): wie gesendet, dazu die Art der Pfandart. */
+export interface InvoiceItemDeposit {
+  depositTypeId: string;
+  /** Einweg oder Mehrweg, vom Server aus der Pfandart gesetzt. */
+  depositKind: DepositKind;
+  depositFor: number;
+  gtin?: string;
+  ownFilling?: boolean;
 }
 
 /**

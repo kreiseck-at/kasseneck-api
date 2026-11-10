@@ -126,9 +126,9 @@ export interface ReceiptCommonOptions {
    */
   drawerId?: string;
   /**
-   * Pfand & Leergut: der Server setzt die Pfandzeilen aus den Artikeln (`deposits`) selbst und rechnet den Betrag.
-   * Ohne Angabe gilt die Vorgabe des Servers (an, solange der Betrieb Pfand eingeschaltet hat). Mit `false` setzt er
-   * keine; ausdrueckliche Zeilen `deposit` ohne `articleId` und `deposit_return` bleiben erlaubt.
+   * Pfand & Leergut: nur mit `true` leitet der Server die Pfandzeilen aus den Artikeln (`deposits`) selbst ab und
+   * rechnet den Betrag. Ohne Angabe (Vorgabe) und mit `false` leitet er keine ab; ausdrueckliche Zeilen `deposit` ohne
+   * `articleId` und `deposit_return` bleiben in jedem Fall erlaubt.
    */
   autoDeposits?: boolean;
   /**

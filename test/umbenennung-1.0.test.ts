@@ -197,6 +197,8 @@ const NACH_1_0 = {
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
+  // Rechnungstexte ohne 0.x-Vorgaenger: Pfand auf der Rechnung (1.36.0, Wortlaut wie `ZUSATZ_TEXTE` im Backend)
+  invoiceTexts: ['pdf.totals.single_use_deposit', 'pdf.totals.head_rate', 'pdf.totals.head_net', 'pdf.totals.head_vat', 'einvoice.exemption.single_use_deposit'],
   fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
     // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
     'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels', 'depositErrors'],
@@ -313,7 +315,8 @@ test('Platzhalter: jeder Rechnungstext ergibt alt und neu gefuellt denselben Sat
   assert.deepEqual(NEU_RECHNUNG.languages, ALT_RECHNUNG.sprachen);
   assert.deepEqual(NEU_RECHNUNG.units, ALT_RECHNUNG.einheiten);
   for (const sprache of ALT_RECHNUNG.sprachen as ('de' | 'en')[]) {
-    assert.deepEqual(Object.keys(NEU_RECHNUNG.texts[sprache]), Object.keys(ALT_RECHNUNG.texte[sprache]).map((s) => RECHNUNG[s]));
+    assert.deepEqual(Object.keys(ohne(NEU_RECHNUNG.texts[sprache], NACH_1_0.invoiceTexts)), Object.keys(ALT_RECHNUNG.texte[sprache]).map((s) => RECHNUNG[s]));
+    for (const k of NACH_1_0.invoiceTexts) assert.ok(k in NEU_RECHNUNG.texts[sprache] && !Object.values(RECHNUNG).includes(k), `${sprache}: ${k}`);
     for (const [alterSchluessel, text] of Object.entries(ALT_RECHNUNG.texte[sprache] as Record<string, string>)) {
       const neu = RECHNUNG[alterSchluessel]!;
       const soll = fuelle(text, alteWerte(text));
@@ -410,7 +413,7 @@ const BONS_JE_TABELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'code-t
 /** Belegduplikat (1.14.0): die Faelle und je Druckfall eine Hex-Datei. */
 const DUPLIKAT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'duplicate-cases.json'), 'utf8')) as { cases: Array<{ name: string; print: boolean }> };
 const SCHNITT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'print-cut-cases.json'), 'utf8')) as { cases: Array<{ name: string }> };
-const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'add-on-cases.json', 'deposit-cases.json', 'return-code-cases.json', 'external-voucher-article-cases.json', 'tip-round-up-cases.json', 'shift-ablauf-cases.json', 'printer-catalog.json', 'hobex-hps-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
+const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-deposit.json', 'invoice-api-examples/issue-invoice-deposit.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'add-on-cases.json', 'deposit-cases.json', 'return-code-cases.json', 'external-voucher-article-cases.json', 'tip-round-up-cases.json', 'shift-ablauf-cases.json', 'printer-catalog.json', 'hobex-hps-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),

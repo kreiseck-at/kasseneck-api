@@ -86,6 +86,12 @@ export const INVOICE_ERROR_CODES = [
   'reservation_not_active', // schon eingeloest oder freigegeben
   // Seit 1.15.0 (Vertrag): die Rechnungsnummer ist schon vergeben (§ 11 Abs. 1 Z 3 lit. h UStG), nichts ausgestellt.
   'invoice_number_taken',
+  // Seit 1.36.0 (Vertrag): Pfand an Positionen (`items[].deposit`), hinten angehaengt.
+  'deposit_not_enabled', // Pfand ist fuer dieses Konto nicht eingeschaltet
+  'deposit_type_not_found', // die Pfandart gibt es nicht (oder ist stillgelegt)
+  'deposit_set_by_server', // das Pfand zu einer Artikelposition leitet der Server selbst ab
+  'invalid_deposit_quantity', // die Pfandmenge passt nicht zur Menge der Position
+  'invalid_deposit', // sonstige Pfandangabe unzulaessig, `index` nennt die Position
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -436,7 +442,7 @@ export type InvoiceSetupRequirement = (typeof INVOICE_SETUP_REQUIREMENTS)[number
 export type FieldFormat = 'email' | 'phone' | 'vatId' | 'country' | 'date' | 'shortCode';
 
 export type Field =
-  | { type: 'string'; required: boolean; min?: number; max: number; format?: FieldFormat }
+  | { type: 'string'; required: boolean; min?: number; max: number; format?: FieldFormat; pattern?: string }
   | { type: 'integer'; required: boolean; min: number; max: number }
   | { type: 'number'; required: boolean; min: number; max: number; decimals: number; exclusiveMin?: boolean }
   | { type: 'boolean'; required: boolean }
@@ -527,8 +533,26 @@ export const ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
 });
 
 /**
+ * Pfandangabe an einer Position (seit 1.36.0, `deposit`): die Position ist eine
+ * Pfandzeile zu der Position `depositFor` (Index in `items`, 0 bis 499). Gleich
+ * dem Feld `DEPOSIT_FELD` des Backends. Zeile fuer Zeile Pfand sendet das
+ * Fremdsystem selbst; zu einer Position mit `articleId` leitet der Server das
+ * Pfand ab (`deposit_set_by_server`).
+ */
+export const DEPOSIT_ITEM_FIELD: Field = Object.freeze({
+  type: 'object',
+  required: false,
+  fields: Object.freeze<Record<string, Field>>({
+    depositTypeId: { type: 'string', required: true, min: 1, max: 128 },
+    depositFor: { type: 'integer', required: true, min: 0, max: 499 },
+    gtin: { type: 'string', required: false, min: 8, max: 14, pattern: '^[0-9]{8,14}$' },
+    ownFilling: { type: 'boolean', required: false },
+  }),
+});
+
+/**
  * Eine Rechnungsposition beim Ausstellen: die gemeinsamen Positionsfelder plus
- * `reservationId` (seit 1.5.0). Die Reservierung aus der Lager-API
+ * `reservationId` (seit 1.5.0) und `deposit` (seit 1.36.0). Die Reservierung aus der Lager-API
  * (`createReservation`) wird beim Ausstellen geprueft und beim Buchen der
  * Rechnung eingeloest; die Position braucht dazu `articleId`. Unbekannt =
  * `reservation_not_found`, schon eingeloest oder freigegeben =
@@ -538,7 +562,7 @@ export const ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({
  * `reservation_expired`. Weniger verkauft als reserviert gibt den Rest frei.
  * Gutschriften kennen das Feld nicht (`validation`).
  */
-export const INVOICE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, reservationId: id });
+export const INVOICE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, reservationId: id, deposit: DEPOSIT_ITEM_FIELD });
 
 /** Genau einer der beiden Preise je Position (§ 9.1). */
 export const ITEM_PRICE_EXACTLY_ONE: readonly (readonly string[])[] = Object.freeze([
@@ -561,11 +585,11 @@ const returnDisposition: Field = { type: 'enum', required: false, values: RETURN
 
 /**
  * Eine Gutschriftsposition: die gemeinsamen Positionsfelder plus
- * `returnDisposition` (wohin die zurueckgenommene Ware geht), ohne
- * `reservationId`. An einer Rechnungsposition weist der Server
+ * `returnDisposition` (wohin die zurueckgenommene Ware geht) und `deposit`
+ * (seit 1.36.0), ohne `reservationId`. An einer Rechnungsposition weist der Server
  * `returnDisposition` als unbekannt ab.
  */
-export const CREDIT_NOTE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, returnDisposition });
+export const CREDIT_NOTE_ITEM_FIELDS: Readonly<Record<string, Field>> = Object.freeze({ ...ITEM_FIELDS, returnDisposition, deposit: DEPOSIT_ITEM_FIELD });
 
 const gutschriftPositionen: Field = {
   type: 'list',

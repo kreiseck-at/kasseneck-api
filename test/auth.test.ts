@@ -31,6 +31,15 @@ test('apiKeyAuth: fehlender Schluessel faellt sofort auf, ohne den Wert zu nenne
       fehler instanceof KasseneckAuthError && fehler.message.includes('apiKey') && !fehler.message.includes(KASSEN_TOKEN),
   );
   assert.throws(() => apiKeyAuth({ apiKey: API_KEY, cashregisterToken: '' }), /cashregisterToken/);
+  assert.throws(() => apiKeyAuth({ apiKey: API_KEY, cashregisterToken: '  ' }), /cashregisterToken/);
+});
+
+test('apiKeyAuth: ohne Kassen-Token geht keine Kopfzeile cashregister-token mit, mit Token wie bisher', async () => {
+  const ohne = await apiKeyAuth({ apiKey: API_KEY })();
+  assert.equal(ohne.headers['Authorization'], `Bearer ${API_KEY}`);
+  assert.equal('cashregister-token' in ohne.headers, false);
+  const mit = await apiKeyAuth({ apiKey: API_KEY, cashregisterToken: KASSEN_TOKEN })();
+  assert.equal(mit.headers['cashregister-token'], KASSEN_TOKEN);
 });
 
 test('apiKeyAuth: jeder Aufruf liefert ein eigenes Objekt (kein geteilter Zustand)', async () => {

@@ -256,7 +256,7 @@ const FELDER = {
   supplyDateProof: schluessel<InvoiceSupplyDateProof>()(['checkedOn', 'source', 'level']),
   vatIdRisk: schluessel<InvoiceVatIdRisk>()(['acceptedOn']),
   item: schluessel<InvoiceItem>()(['description', 'subtitle', 'quantity', 'unit', 'kind', 'unitPriceCents', 'unitPriceMicros',
-    'vatRate', 'discountPct']),
+    'vatRate', 'discountPct', 'deposit']),
   recipient: schluessel<InvoiceRecipient>()(['name', 'type', 'street', 'houseNumber', 'zip', 'city', 'country', 'vatId',
     'shortCode', 'email', 'isAuthority']),
   detailPayment: schluessel<InvoiceDetailPayment>()(['id', 'amountCents', 'date', 'method', 'reference']),
@@ -277,8 +277,8 @@ const FELDER = {
 } as const;
 
 /** Felder, die der Typ als optional fuehrt und die in einer Antwort fehlen duerfen. */
-// `reservationId` steht nur am Hinweis `reservation_expired` (seit 1.5.0).
-const OPTIONAL = new Set(['unitPriceMicros', 'notice', 'reservationId']);
+// `reservationId` steht nur am Hinweis `reservation_expired` (seit 1.5.0), `deposit` nur an Pfandzeilen (seit 1.36.0).
+const OPTIONAL = new Set(['unitPriceMicros', 'notice', 'reservationId', 'deposit']);
 
 const geprueft = new Set<string>();
 

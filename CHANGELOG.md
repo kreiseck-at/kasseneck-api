@@ -4,7 +4,19 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.35.1 - unveröffentlicht
+## 1.36.0 - unveröffentlicht
+
+Deposit on invoice and credit-note positions, and the EWP report (single-use deposit report) through the API key. Additive; every existing call, invoice and golden behaves as before.
+
+- **`items[].deposit` on `issueInvoice` and `createCreditNote`:** a position that carries `deposit` is a deposit line for the position `depositFor` (index in `items`, 0 to 499). Types `InvoiceItemDepositInput` (`depositTypeId`, `depositFor`, optional `gtin` of 8 to 14 digits, optional `ownFilling`) at `IssueInvoiceItemInput.deposit` and `CreditNoteItemInput.deposit`; `InvoiceItemDeposit` (the same plus `depositKind`, `single_use | reusable`, set by the server) at `InvoiceItem.deposit`, read with `getInvoice` and absent on every position without deposit. The contract field `DEPOSIT_ITEM_FIELD` (`./invoice`) equals the backend field field by field; the string field type of the contract knows `pattern` now (the GTIN), written to `fixtures/invoice-api.schema.json` as `pattern`. The five error codes `deposit_not_enabled`, `deposit_type_not_found`, `deposit_set_by_server`, `invalid_deposit_quantity` and `invalid_deposit` are appended to `INVOICE_ERROR_CODES`; the existing order is unchanged. New examples `issue-invoice-deposit.json` and `issue-error-deposit.json`. Reason: a merchandise system that invoices beverages must be able to bill the deposit as its own lines, and the server prints and reports them.
+- **Texts for the invoice with single-use deposit** (`fixtures/invoice-texts.json`, de and en): `pdf.totals.single_use_deposit`, `pdf.totals.head_rate`, `pdf.totals.head_net`, `pdf.totals.head_vat` (head of the tax table, which gets a 0 % row for single-use deposit) and `einvoice.exemption.single_use_deposit` (UStR Rz 8). Same wording as the backend.
+- **EWP report** (`/v3`, API key, only for businesses with the filler role; no cash-register token needed): `getEwpReport({ month })` returns the report of a month `YYYY-MM` (`dueDate`, `provisional`, `test`, `lines[]` per GTIN with `domestic`, `foreign` and `sources` of the quantity, `warnings[]`, `extraQuantities[]`, `downloadedAt`); `downloadEwpReport({ month })` returns the CSV for the upload (`{ csv, filename, contentType }`, calls `getEwpReport` with `format: 'csv'`; a closed month counts as downloaded afterwards); `setEwpExtraQuantities({ month, extraQuantities })` replaces the extra quantities of the month (own consumption, sampling, donation ...; an empty list clears them) and returns the new report. Types `EwpReport`, `EwpLine`, `EwpWarning` (`code`: `gtin_not_registered`, `foreign_not_reportable`, `master_data_missing`, `negative_quantity`, `invalid_posting`; `country` is `null` for an extra quantity without a country), `EwpExtraQuantity` (`by` is the uid of the login or `'api'`), `EwpExtraQuantityInput`, and the lists `EWP_REASONS` (`own_consumption`, `sampling`, `donation`, `theft`, `free_goods`, `stocktake`, `return`, `external_system`, `other`) and `EWP_WARNING_CODES`. An answer that is not a report throws `KasseneckValidationError` (scope `response`), an empty or missing month and an `extraQuantities` that is not a list throw before sending (scope `request`). Both calls are repeatable (`CALLS_WITHOUT_EFFECT`, `'repeatable'`), not "unknown outcome". Reason: the report is due on the 5th of the following month, and a merchandise system that fills the beverages itself reports from its own data.
+- **`apiKeyAuth` needs no cash-register token for calls without a register (listDepositTypes, EWP report):** `cashregisterToken` is optional; without it the header `cashregister-token` is not sent, an empty or blank text still throws `KasseneckAuthError`, and a call that needs a cash register answers `cashregister_token_missing`. Reason: an integrator with only an API key and no register must be able to use the deposit and EWP calls. A token that is passed behaves as before.
+- **Corrections of doc comments (no change of behavior):** The server derives deposit from the articles only when `autoDeposits` is `true`, not by default (the comment said the opposite). `listDepositTypes` and `apiKeyAuth` say that those calls need no cash-register token.
+- **Contract:** `fixtures/v3/*` taken over from the backend (vocabulary entries `getEwpReport`, `setEwpExtraQuantities`, the five deposit error codes), `fixtures/surface.json` lists both calls. In the tests, the deposit types of `listDepositTypes` have the shape the server sends (`active`, no container type and rate 0 for single-use).
+- `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
+
+## 1.35.1 - 2026-11-10
 
 Fixes in the hobex HPS card payment through Kasseneck Connect (`./payments`). The first two were measured at the test terminal 3600335 (HPS 1.14.4, firmware 7.3.6, `tecstest.hobex.at`) on 10.11.2026; the reversal fix follows from the same lesson.
 
@@ -14,7 +26,7 @@ Fixes in the hobex HPS card payment through Kasseneck Connect (`./payments`). Th
 - **Contract:** new file `fixtures/hobex-hps-cases.json` with the TID cases, receipt cases (`hobexReceiptFromHps` + `hobexReceiptToCardPaymentData` on the full measured payment answer and on a status answer in the v2 form from the shortened 10.11. notes: `aid`, `cvm` as number, `currency: null`; whether `transactionId` is missing there is assumed, not measured, so it is checked with and without) and the clarification cases built from the measured answers, among them the reversal cases (and `reversalAnswers`: every listed answer to the void, once with an approval and once with `9011` in the status), a later approval after two `9027`, a till abort answered with `100002` and an abort answered with HTTP 404; the Dart twin computes the same cases. Card data in the contract and in the tests is a test card (`541333******0021`, expiry `2912`); the real card data of the test terminal (number, expiry, cryptogram, VU) is removed from `fixtures/` and `test/`, in `fixtures/receipts/card-hobex-hps.json` the expiry only (the printed bon and all goldens are unchanged, only its input hash in `manifest.json` moves); real approval and receipt numbers of the test terminal in the tests and doc comments are replaced by invented ones or dropped.
 - `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
 
-## 1.35.0 - unveröffentlicht
+## 1.35.0 - 2026-11-10
 
 Printer catalog for setting up a receipt printer through Kasseneck Connect with one click. Additive; every existing call, receipt and golden behaves as before.
 
@@ -26,7 +38,7 @@ Printer catalog for setting up a receipt printer through Kasseneck Connect with 
 - **Values only from the device settings:** `cut` is `partial` or `none` (what the till offers), `qrMode` `escpos` or `raster` (`auto` means "not decided" and says nothing about a model), and `charsPerLine` must match the factory paper size (`CHARS_PER_PAPER_SIZE`: 32 for `mm58`, 48 for `mm80`).
 - **Contract:** new file `fixtures/printer-catalog.json` with the entries, the value sets and the test cases (normalization, lookup with the shipped catalog, with every entry approved, with some approved and with a catalog of its own with overlapping manufacturers, proposals, catalog problems such as a match name in two entries, a paper size wider than the printer or an incomplete device test). The Dart twin computes the same cases. The catalog itself is checked only by the tests; at run time nothing is repaired or dropped silently.
 
-## 1.34.0 - unveröffentlicht
+## 1.34.0 - 2026-11-09
 
 Read the deposit types of a business with the API key: new `listDepositTypes()` on the API client (`/v3` only, right `read`, no effect). Additive; every existing call, receipt and golden behaves as before.
 
@@ -34,7 +46,7 @@ Read the deposit types of a business with the API key: new `listDepositTypes()` 
 - **Contract:** `unfixTerminal` and the codes `terminal_fixed`, `terminal_device_fixed` (fixed TID per device) are known by name (call lists, `TERMINAL_ERROR_CODES`); a typed method follows. `listDepositTypes` needs no till token.
 - `fixtures/v3/*` taken over from the backend (vocabulary entry `listDepositTypes`), `fixtures/surface.json` lists the call.
 
-## 1.33.0 - unveröffentlicht
+## 1.33.0 - 2026-11-09
 
 Card terminal and the browser till on a Mac (Chrome as an installed app, Hobex HPS and printer through Kasseneck Connect). Additive; receipts, bons and every existing call behave as before (all goldens unchanged).
 
@@ -43,13 +55,13 @@ Card terminal and the browser till on a Mac (Chrome as an installed app, Hobex H
 - **Texts (browser till only):** message `connect.local_network_blocked` (Chrome's "Local network access" denied for the till: the till finds no Connect, and installing does not help; the sentence gives the way to allow it), messages `terminal.several_found` (placeholder `hosts`) and `terminal.tid_not_found` (`hosts`, `tid`) for a terminal search with several hits where no single one confirms the TID of the device.
 - `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
 
-## 1.32.1 - unveröffentlicht
+## 1.32.1 - 2026-11-09
 
 Fix: a deposit payout (a receipt whose amount due is negative because of returned empties) is no longer refused before sending. `sellReceipt`/`createReceipt` accept one negative cash payment when the items contain a `deposit_return` line, with no `tenderedCents` and no `tipCents`, and at most the sum of the return lines. Reason: the server allows this payout (`istLeergutAuszahlung`) but the client check demanded `amountCents > 0` unless the receipt was a voucher payout. Without empties a negative payment is still refused; empties with a positive amount stay an ordinary sale.
 
 Fix: an article marked as external voucher with a non-empty deposit list is refused (`article_external_voucher_invalid`, reason `deposit`), like the backend; an empty or missing list stays allowed. Reason: the client check did not know the deposit rule of `pruefeArtikel`.
 
-## 1.32.0 - unveröffentlicht
+## 1.32.0 - 2026-11-09
 
 Deposit and returnable empties at the till (backend November 2026): the server adds the deposit lines, the till previews them, takes empties back, and the bon prints them. Additive; articles, groups, settings and receipts without the new fields read, send and print exactly as before (all existing goldens unchanged).
 
@@ -65,7 +77,7 @@ Deposit and returnable empties at the till (backend November 2026): the server a
 - **Texts:** `DEPOSIT_ERROR_MESSAGES` (code -> message key) / `depositErrorMessage(code)` (returns the message key, `undefined` for any other code; resolve it with `messageText`; eight codes, short sentences without legal language; also `depositErrors` in `pos-texts.json`), message `deposit.changed`, labels `deposit.return`, `.payout`, `.offset`, `.unknown_code`, `.over_usual`, `.on_premises`, `.takeaway`, `.sum`.
 - Contract `v3` re-fetched (deposit blocks, fields, catalogs and codes), `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json` and `hobex-hps-codes.json` regenerated for the version.
 
-## 1.31.0 - unveröffentlicht
+## 1.31.0 - 2026-11-08
 
 External vouchers at the till: a tile sells an external voucher, the payment screen redeems one through the same code field, the payout sheet switches between own and external, the cancellation flow warns. Additive; articles, groups and receipts without the new field read, print and send exactly as before (all existing goldens unchanged).
 
@@ -109,7 +121,7 @@ Card terminal on the phone: Kasseneck keeps the terminal app's accounts, the ter
 - **`TERMINAL_ERROR_CODES`** equal to `errorCodes.terminal` of the contract (order included, pinned by a test): `terminal_not_enabled`, `terminal_test_environment`, `terminal_device_unknown`, `terminal_device_blocked`, `invalid_terminal_device`, `too_many_terminal_devices`, `terminal_not_in_business`, `terminal_code_manual`, `terminal_code_rate_limited`, `terminal_not_assigned`, `server_error`. Lists `TERMINAL_PLATFORMS`, `TERMINAL_SETUP_STATES`, `TERMINAL_CODE_STATUSES`, `TERMINAL_CODE_SOURCES`.
 - Contract `v3` re-fetched from the backend (the seven endpoints, `errorCodes.terminal`).
 
-## 1.28.0 - 2026-11-06
+## 1.28.0 - 2026-11-07
 
 Shift flow of the till: start a shift, count in between, close in steps, tip kinds, column width. Additive; every field below is sent by the server only when it applies, a reader without them behaves as before (all existing goldens unchanged).
 
@@ -172,7 +184,7 @@ Kasseneck Connect inventory: the register reports which Connect version runs at 
 - **`POS_CALLS` gains `reportConnectState`** (now 49; only on the register path), classified as unknown outcome on a timeout like `logReceiptOutputs`. `reportConnectState(transport, report)` (`./pos`) sends exactly `deviceId`, `version`, `os`, `osVersion`, `arch`, `features`, `httpsTrusted` and `bluetooth` (`ConnectStateReport`); `osVersion`, `arch`, `httpsTrusted` and `bluetooth` may be `null`, `features` may be empty (older Connect versions know none of them). The form is checked before sending (`KasseneckValidationError`, `scope: 'request'`; an unknown field is rejected, so nothing that names the computer or a person slips in); what the server does not accept it rejects with `invalid_connect_report`. Answer: nothing. Reason: Connect itself never talks to Kasseneck; the register knows account and device and reads Connect's status anyway.
 - **`getKasseSettings`** (`/v3`) now carries `connect { minimumVersion, deadline }` (both `null` without a requirement); read by the register to show the update hint. Contract v3 fetched again from the backend.
 
-## 1.23.0 - 2026-10-31
+## 1.23.0 - 2026-11-01
 
 The tab *Prüfung* at the register (*Kassennachschau*, stage 2b): the register info for the inspector on screen and as a printout, the words of the tab (register info, zero receipt, DEP) and two DEP sentences without legal wording. Additive.
 
@@ -298,7 +310,7 @@ Receipt lists page by page: `listReceipts` and `listAllReceipts` for the new pub
 - **`LIST_RECEIPTS_ERROR_CODES`**: `invalid_date`, `invalid_range`, `range_too_long`, `invalid_limit`, `invalid_order`, `invalid_view`, `invalid_cursor`, `server_error` (plus the codes of sign-in and edge). `listReceipts` is a read (`outcome: 'rejected'` after a timeout), in `PUBLIC_CALLS` (now 108) and in the contract `surface.json`.
 - Contract re-fetched from the backend (`listReceipts` in `endpoints.public`, schema with `cancellationStatus`/`cancellationReason` catalogues). Also from it: `idempotency_conflict` in `RECEIPT_ERROR_CODES` (readable only; this package sends no `idempotencyKey` on receipts yet), `invoice_number_taken` at the end of `INVOICE_ERROR_CODES` (`fixtures/invoice-api.schema.json` rewritten), and the old settings field `vouchers.label`, which the package does not read (registers before voucher stage 4b).
 
-## 1.14.0 - 2026-10-23
+## 1.14.0 - 2026-10-24
 
 Vouchers at the register, catch-up: the receipt rules of the voucher form, words for the register navigation, the drawer reason of a voucher payout and three shortcut actions; in addition the line `Duplikat am:` on every reprint (`markAsDuplicate`) and the receipt outputs (`logReceiptOutputs`, `outputs` from `getReceipt`, words for the receipt detail). Additive, with one type narrowing (see below).
 

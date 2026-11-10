@@ -453,3 +453,69 @@ test('Typen: Sprache und Marke an Anfrage und Rechnung', async () => {
   assert.equal(invoice.language, 'en');
   assert.deepEqual(invoice.brand, { id: 'm1', name: 'Haus' });
 });
+
+// ---- Pfand an Rechnungspositionen (1.36.0) ------------------------------------
+
+const FEHLERFALL_PFAND = JSON.parse(readFileSync(new URL('../../fixtures/invoice-api-examples/issue-error-deposit.json', import.meta.url), 'utf8'));
+const GUTFALL_PFAND = JSON.parse(readFileSync(new URL('../../fixtures/invoice-api-examples/issue-invoice-deposit.json', import.meta.url), 'utf8'));
+
+test('issueInvoice nimmt items[].deposit an und sendet es unveraendert', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ invoice: rechnung, replayed: false })));
+  const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+  const anfrage: IssueInvoiceRequest = GUTFALL_PFAND.request;
+  assert.ok(anfrage.items.some((p) => p.deposit !== undefined), 'das Beispiel enthaelt eine Pfandzeile');
+  await api.issueInvoice(anfrage);
+  assert.deepEqual(params(anfragen[0]!), GUTFALL_PFAND.request);
+});
+
+test('createCreditNote nimmt items[].deposit an', async () => {
+  const { fetch, anfragen } = attrappe(antwort(erfolg({ creditNote: rechnung, replayed: false, remainingCents: 0 })));
+  const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+  const anfrage: CreditNoteRequest = {
+    idempotencyKey: 'gs-1', invoiceId: 'inv1', reason: 'return',
+    items: [{ description: 'Pfand Dose', quantity: 12, unitPriceCents: 25, vatRate: 0, deposit: { depositTypeId: 'pf_einweg_dose', depositFor: 0, gtin: '9012345000011' } }],
+  };
+  await api.createCreditNote(anfrage);
+  assert.deepEqual(params(anfragen[0]!), anfrage);
+});
+
+test('Pruefmuster: depositFor 500, gtin "12ab", depositTypeId "" -> Pruefehler wie im Backend (Beispiel mit den drei Feldern)', () => {
+  assert.equal(FEHLERFALL_PFAND.endpoint, 'issueInvoice');
+  const deposit = FEHLERFALL_PFAND.request.items.find((p: { deposit?: unknown }) => p.deposit !== undefined).deposit;
+  assert.deepEqual(deposit, { depositTypeId: '', depositFor: 500, gtin: '12ab' });
+  assert.deepEqual(FEHLERFALL_PFAND.expected, {
+    ok: false,
+    code: 'validation',
+    fields: ['items[1].deposit.depositTypeId', 'items[1].deposit.depositFor', 'items[1].deposit.gtin'],
+  });
+});
+
+test('Pfandfehler des Servers kommen als bekannte Rechnungs-Codes an', async () => {
+  for (const code of ['deposit_not_enabled', 'deposit_type_not_found', 'deposit_set_by_server', 'invalid_deposit_quantity', 'invalid_deposit']) {
+    const { fetch } = attrappe(antwort(fehler('Pfand', code, { index: 1 })));
+    const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+    const e = await api.issueInvoice(GUTFALL_PFAND.request).catch((x: unknown) => x);
+    assert.ok(isInvoiceError(e, code as never), code);
+    assert.equal((e as KasseneckApiError).details['index'], 1);
+  }
+});
+
+test('getInvoice liest deposit an Pfandzeilen, ohne Pfand bleibt die Position unveraendert', async () => {
+  const ware = { description: 'Mineralwasser 12er', subtitle: '', quantity: 1, unit: 'piece', kind: 'goods', unitPriceCents: 1200, vatRate: 20, discountPct: 0 };
+  const pfand = {
+    description: 'Pfand Einweg', subtitle: '', quantity: 12, unit: 'piece', kind: 'goods', unitPriceCents: 25, vatRate: 0, discountPct: 0,
+    deposit: { depositTypeId: 'pf_einweg_dose', depositKind: 'single_use', depositFor: 0, gtin: '9012345000011' },
+  };
+  const eigen = {
+    ...pfand, description: 'Pfand Kiste', unitPriceCents: 300,
+    deposit: { depositTypeId: 'pf_mehrweg_kiste', depositKind: 'reusable', depositFor: 0, ownFilling: true },
+  };
+  const { fetch } = attrappe(antwort(erfolg({ invoice: { ...rechnung, items: [ware, pfand, eigen], customer: null, payments: [] } })));
+  const api = createInvoiceApi({ apiKey: API_KEY, fetch });
+  const gelesen = await api.getInvoice({ invoiceId: 'inv1' });
+  assert.equal(gelesen.items[0]!.deposit, undefined);
+  assert.deepEqual(gelesen.items[0], ware);
+  assert.deepEqual(gelesen.items[1]!.deposit, pfand.deposit);
+  assert.equal(gelesen.items[1]!.deposit!.depositKind, 'single_use');
+  assert.equal(gelesen.items[2]!.deposit!.ownFilling, true);
+});
