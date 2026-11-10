@@ -72,7 +72,8 @@ export interface EwpLine {
 /**
  * Eine Warnung zur Meldung; sie sperrt nichts. Welche Angaben dabei stehen:
  * - `gtin_not_registered`: `gtin`, `quantity` (die GTIN ist nicht registriert, ihre Menge steht nicht in `lines`)
- * - `foreign_not_reportable`: `gtin`, `country`, `quantity` (Auslandsmenge einer oesterreichischen GTIN, nicht meldepflichtig)
+ * - `foreign_not_reportable`: `gtin`, `country`, `quantity` (Auslandsmenge, die nicht gemeldet wird: an eine oesterreichische GTIN
+ *   oder in ein Land ausserhalb des relevanten Auslands; `country` ist `null` bei einer Zusatzmenge ohne Land)
  * - `master_data_missing`: `gtin`, `fields` (die fehlenden Stammdaten)
  * - `negative_quantity`: `gtin`, `column` (`domestic` oder `foreign`), `amount`
  * - `invalid_posting`: `count` (nicht lesbare Posten)
@@ -80,7 +81,7 @@ export interface EwpLine {
 export interface EwpWarning {
   code: EwpWarningCode;
   gtin?: string;
-  country?: string;
+  country?: string | null;
   quantity?: number;
   fields?: string[];
   count?: number;
