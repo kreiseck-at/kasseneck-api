@@ -98,3 +98,22 @@ test('Katalog: jede Einheit hat Kuerzel und Namen in jeder Sprache', () => {
   assert.equal(INVOICE_TEXTS.de['unit_symbol.piece'], 'Stk');
   assert.equal(INVOICE_TEXTS.en['unit_symbol.piece'], 'pcs');
 });
+
+test('Texte de/en fuer single_use_deposit und die Kopfzeile der Steuertabelle, gleiche Platzhalter (wie im Backend)', () => {
+  // Wortlaut wie `ZUSATZ_TEXTE` im Backend (rechnung-texte.js); dort heissen die Schluessel pfandEinweg, kopfSatz, kopfNetto, kopfUst.
+  const erwartet: Record<string, { de: string; en: string }> = {
+    'pdf.totals.single_use_deposit': { de: '0 % Einwegpfand, nicht steuerbar', en: '0 % single-use deposit, not subject to VAT' },
+    'pdf.totals.head_rate': { de: 'Satz', en: 'Rate' },
+    'pdf.totals.head_net': { de: 'Netto', en: 'Net' },
+    'pdf.totals.head_vat': { de: 'USt', en: 'VAT' },
+    'einvoice.exemption.single_use_deposit': { de: 'Pfand Einweg, nicht steuerbar (UStR Rz 8)', en: 'Single-use deposit, not subject to VAT (UStR para. 8)' },
+  };
+  for (const [schluessel, texte] of Object.entries(erwartet)) {
+    const key = schluessel as InvoiceTextKey;
+    assert.equal(INVOICE_TEXTS.de[key], texte.de, `de.${schluessel}`);
+    assert.equal(INVOICE_TEXTS.en[key], texte.en, `en.${schluessel}`);
+    assert.deepEqual(platzhalter(INVOICE_TEXTS.de[key]), platzhalter(INVOICE_TEXTS.en[key]), schluessel);
+    assert.deepEqual(platzhalter(INVOICE_TEXTS.de[key]), [], `${schluessel} hat keine Platzhalter`);
+  }
+  assert.equal(invoiceText('en', 'pdf.totals.head_vat'), 'VAT');
+});

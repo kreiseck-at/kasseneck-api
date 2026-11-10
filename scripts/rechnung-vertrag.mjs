@@ -24,6 +24,7 @@ function schema(feld) {
       if (feld.min !== undefined) s.minLength = feld.min;
       s.maxLength = feld.max;
       if (feld.format) s.format = feld.format;
+      if (feld.pattern) s.pattern = feld.pattern;
       return s;
     }
     case 'integer':

@@ -4,7 +4,18 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.35.1 - unveröffentlicht
+## 1.36.0 - unveröffentlicht
+
+Deposit on invoice and credit-note positions, and the EWP report (single-use deposit report) through the API key. Additive; every existing call, invoice and golden behaves as before.
+
+- **`items[].deposit` on `issueInvoice` and `createCreditNote`:** a position that carries `deposit` is a deposit line for the position `depositFor` (index in `items`, 0 to 499). Types `InvoiceItemDepositInput` (`depositTypeId`, `depositFor`, optional `gtin` of 8 to 14 digits, optional `ownFilling`) at `IssueInvoiceItemInput.deposit` and `CreditNoteItemInput.deposit`; `InvoiceItemDeposit` (the same plus `depositKind`, `single_use | reusable`, set by the server) at `InvoiceItem.deposit`, read with `getInvoice` and absent on every position without deposit. The contract field `DEPOSIT_ITEM_FIELD` (`./invoice`) equals the backend field field by field; the string field type of the contract knows `pattern` now (the GTIN), written to `fixtures/invoice-api.schema.json` as `pattern`. The five error codes `deposit_not_enabled`, `deposit_type_not_found`, `deposit_set_by_server`, `invalid_deposit_quantity` and `invalid_deposit` are appended to `INVOICE_ERROR_CODES`; the existing order is unchanged. New examples `issue-invoice-deposit.json` and `issue-error-deposit.json`. Reason: a merchandise system that invoices beverages must be able to bill the deposit as its own lines, and the server prints and reports them.
+- **Texts for the invoice with single-use deposit** (`fixtures/invoice-texts.json`, de and en): `pdf.totals.single_use_deposit`, `pdf.totals.head_rate`, `pdf.totals.head_net`, `pdf.totals.head_vat` (head of the tax table, which gets a 0 % row for single-use deposit) and `einvoice.exemption.single_use_deposit` (UStR Rz 8). Same wording as the backend.
+- **EWP report** (`/v3`, API key, only for businesses with the filler role; no cash-register token needed): `getEwpReport({ month })` returns the report of a month `YYYY-MM` (`dueDate`, `provisional`, `test`, `lines[]` per GTIN with `domestic`, `foreign` and `sources` of the quantity, `warnings[]`, `extraQuantities[]`, `downloadedAt`); `downloadEwpReport({ month })` returns the CSV for the upload (`{ csv, filename, contentType }`, calls `getEwpReport` with `format: 'csv'`; a closed month counts as downloaded afterwards); `setEwpExtraQuantities({ month, extraQuantities })` replaces the extra quantities of the month (own consumption, sampling, donation ...; an empty list clears them) and returns the new report. Types `EwpReport`, `EwpLine`, `EwpWarning` (`code`: `gtin_not_registered`, `foreign_not_reportable`, `master_data_missing`, `negative_quantity`, `invalid_posting`), `EwpExtraQuantity` (`by` is the uid of the login or `'api'`), `EwpExtraQuantityInput`, and the lists `EWP_REASONS` (`own_consumption`, `sampling`, `donation`, `theft`, `free_goods`, `stocktake`, `return`, `external_system`, `other`) and `EWP_WARNING_CODES`. An answer that is not a report throws `KasseneckValidationError` (scope `response`), an empty or missing month and an `extraQuantities` that is not a list throw before sending (scope `request`). Both calls are repeatable (`CALLS_WITHOUT_EFFECT`, `'repeatable'`), not "unknown outcome". Reason: the report is due on the 5th of the following month, and a merchandise system that fills the beverages itself reports from its own data.
+- **Corrections of doc comments (no change of behavior):** The server derives deposit from the articles only when `autoDeposits` is `true`, not by default (the comment said the opposite). `listDepositTypes` and `apiKeyAuth` say that the call needs no cash-register token.
+- **Contract:** `fixtures/v3/*` taken over from the backend (vocabulary entries `getEwpReport`, `setEwpExtraQuantities`, the five deposit error codes), `fixtures/surface.json` lists both calls. In the tests, the deposit types of `listDepositTypes` have the shape the server sends (`active`, no container type and rate 0 for single-use).
+- `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
+
+## 1.35.1 - 2026-11-10
 
 Fixes in the hobex HPS card payment through Kasseneck Connect (`./payments`). The first two were measured at the test terminal 3600335 (HPS 1.14.4, firmware 7.3.6, `tecstest.hobex.at`) on 10.11.2026; the reversal fix follows from the same lesson.
 
@@ -14,7 +25,7 @@ Fixes in the hobex HPS card payment through Kasseneck Connect (`./payments`). Th
 - **Contract:** new file `fixtures/hobex-hps-cases.json` with the TID cases, receipt cases (`hobexReceiptFromHps` + `hobexReceiptToCardPaymentData` on the full measured payment answer and on a status answer in the v2 form from the shortened 10.11. notes: `aid`, `cvm` as number, `currency: null`; whether `transactionId` is missing there is assumed, not measured, so it is checked with and without) and the clarification cases built from the measured answers, among them the reversal cases (and `reversalAnswers`: every listed answer to the void, once with an approval and once with `9011` in the status), a later approval after two `9027`, a till abort answered with `100002` and an abort answered with HTTP 404; the Dart twin computes the same cases. Card data in the contract and in the tests is a test card (`541333******0021`, expiry `2912`); the real card data of the test terminal (number, expiry, cryptogram, VU) is removed from `fixtures/` and `test/`, in `fixtures/receipts/card-hobex-hps.json` the expiry only (the printed bon and all goldens are unchanged, only its input hash in `manifest.json` moves); real approval and receipt numbers of the test terminal in the tests and doc comments are replaced by invented ones or dropped.
 - `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
 
-## 1.35.0 - unveröffentlicht
+## 1.35.0 - 2026-11-10
 
 Printer catalog for setting up a receipt printer through Kasseneck Connect with one click. Additive; every existing call, receipt and golden behaves as before.
 
@@ -26,7 +37,7 @@ Printer catalog for setting up a receipt printer through Kasseneck Connect with 
 - **Values only from the device settings:** `cut` is `partial` or `none` (what the till offers), `qrMode` `escpos` or `raster` (`auto` means "not decided" and says nothing about a model), and `charsPerLine` must match the factory paper size (`CHARS_PER_PAPER_SIZE`: 32 for `mm58`, 48 for `mm80`).
 - **Contract:** new file `fixtures/printer-catalog.json` with the entries, the value sets and the test cases (normalization, lookup with the shipped catalog, with every entry approved, with some approved and with a catalog of its own with overlapping manufacturers, proposals, catalog problems such as a match name in two entries, a paper size wider than the printer or an incomplete device test). The Dart twin computes the same cases. The catalog itself is checked only by the tests; at run time nothing is repaired or dropped silently.
 
-## 1.34.0 - unveröffentlicht
+## 1.34.0 - 2026-11-09
 
 Read the deposit types of a business with the API key: new `listDepositTypes()` on the API client (`/v3` only, right `read`, no effect). Additive; every existing call, receipt and golden behaves as before.
 
@@ -34,7 +45,7 @@ Read the deposit types of a business with the API key: new `listDepositTypes()` 
 - **Contract:** `unfixTerminal` and the codes `terminal_fixed`, `terminal_device_fixed` (fixed TID per device) are known by name (call lists, `TERMINAL_ERROR_CODES`); a typed method follows. `listDepositTypes` needs no till token.
 - `fixtures/v3/*` taken over from the backend (vocabulary entry `listDepositTypes`), `fixtures/surface.json` lists the call.
 
-## 1.33.0 - unveröffentlicht
+## 1.33.0 - 2026-11-09
 
 Card terminal and the browser till on a Mac (Chrome as an installed app, Hobex HPS and printer through Kasseneck Connect). Additive; receipts, bons and every existing call behave as before (all goldens unchanged).
 

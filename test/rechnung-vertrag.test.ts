@@ -19,6 +19,7 @@ import {
   ITEM_FIELDS,
   CREDIT_NOTE_ITEM_FIELDS,
   INVOICE_ITEM_FIELDS,
+  DEPOSIT_ITEM_FIELD,
   RETURN_DISPOSITIONS,
   ITEM_PRICE_EXACTLY_ONE,
   INVOICE_REQUESTS,
@@ -52,19 +53,38 @@ test('Vertrag: jeder Aufruf hat eine Anfragebeschreibung und keine darueber hina
   assert.deepEqual(Object.keys(INVOICE_REQUESTS).sort(), [...INVOICE_ENDPOINTS].sort());
 });
 
-test('Vertrag: Rechnungspositionen = gemeinsame Felder plus reservationId, Gutschrift-Positionen = gemeinsame plus returnDisposition', () => {
+test('Vertrag: Rechnungspositionen = gemeinsame Felder plus reservationId und deposit, Gutschrift-Positionen = gemeinsame plus returnDisposition und deposit', () => {
   const issue = INVOICE_REQUESTS.issueInvoice['items'];
   const credit = INVOICE_REQUESTS.createCreditNote['items'];
   assert.ok(issue && issue.type === 'list' && issue.item.type === 'object');
   assert.ok(credit && credit.type === 'list' && credit.item.type === 'object');
   assert.equal(issue.item.fields, INVOICE_ITEM_FIELDS);
   assert.equal(credit.item.fields, CREDIT_NOTE_ITEM_FIELDS);
-  assert.deepEqual(INVOICE_ITEM_FIELDS, { ...ITEM_FIELDS, reservationId: { type: 'string', required: false, min: 1, max: 128 } });
-  assert.deepEqual(CREDIT_NOTE_ITEM_FIELDS, { ...ITEM_FIELDS, returnDisposition: { type: 'enum', required: false, values: RETURN_DISPOSITIONS } });
+  assert.deepEqual(INVOICE_ITEM_FIELDS, { ...ITEM_FIELDS, reservationId: { type: 'string', required: false, min: 1, max: 128 }, deposit: DEPOSIT_ITEM_FIELD });
+  assert.deepEqual(CREDIT_NOTE_ITEM_FIELDS, { ...ITEM_FIELDS, returnDisposition: { type: 'enum', required: false, values: RETURN_DISPOSITIONS }, deposit: DEPOSIT_ITEM_FIELD });
+  assert.equal('deposit' in ITEM_FIELDS, false, 'deposit gehoert nur an Rechnung und Gutschrift, nicht an die gemeinsamen Felder');
   assert.equal('returnDisposition' in INVOICE_ITEM_FIELDS, false, 'an der Rechnung weist der Server returnDisposition ab');
   // Eingeloest wird nur beim Ausstellen: an einer Gutschrift ist reservationId ein unbekanntes Feld (validation).
   assert.equal('reservationId' in CREDIT_NOTE_ITEM_FIELDS, false, 'an der Gutschrift weist der Server reservationId ab');
   assert.equal('reservationId' in ITEM_FIELDS, false);
+});
+
+test('DEPOSIT_ITEM_FIELD gleicht dem Backend-Feld (DEPOSIT_FELD in invoice-api-core.js, Feld fuer Feld)', () => {
+  // Literal aus dem Backend (`DEPOSIT_FELD`, typ -> type, pflicht -> required, muster -> pattern).
+  assert.deepEqual(DEPOSIT_ITEM_FIELD, {
+    type: 'object',
+    required: false,
+    fields: {
+      depositTypeId: { type: 'string', required: true, min: 1, max: 128 },
+      depositFor: { type: 'integer', required: true, min: 0, max: 499 },
+      gtin: { type: 'string', required: false, min: 8, max: 14, pattern: '^[0-9]{8,14}$' },
+      ownFilling: { type: 'boolean', required: false },
+    },
+  });
+  assert.ok(Object.isFrozen(DEPOSIT_ITEM_FIELD) && Object.isFrozen(DEPOSIT_ITEM_FIELD.type === 'object' ? DEPOSIT_ITEM_FIELD.fields : null));
+  // Die Pfandzeile haengt an der Reihenfolge des Backends: hinter den bisherigen Positionsfeldern.
+  assert.equal(Object.keys(INVOICE_ITEM_FIELDS).at(-1), 'deposit');
+  assert.equal(Object.keys(CREDIT_NOTE_ITEM_FIELDS).at(-1), 'deposit');
 });
 
 test('Vertrag: Lagerfelder wie im Backend (Kennung 1-128, Rueckgabe-Katalog), alle optional', () => {
@@ -249,17 +269,21 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // Angehaengt wird hinten: ein Fremdsystem, das die Liste als Reihenfolge
   // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
   // derselben Stelle wie zuvor, die beiden neuen (0.23.0) hinten dran.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-14, -8), [
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-19, -13), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-8, -6), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-13, -11), ['einvoice_unavailable', 'amount_too_large']);
   // UID-Pruefung (0.x: 0.33.0, hier 1.5.0) vor der Reservierung, wie im Backend.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-6, -4), ['vat_id_invalid', 'vat_id_check_pending']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-11, -9), ['vat_id_invalid', 'vat_id_check_pending']);
   // 1.5.0: Reservierung an der Rechnungsposition, hinten angehaengt.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-4, -1), ['reservation_not_found', 'reservation_mismatch', 'reservation_not_active']);
-  // 1.15.0: Rechnungsnummer schon vergeben (Vertrag des Servers), hinten angehaengt.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-1), ['invoice_number_taken']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-9, -6), ['reservation_not_found', 'reservation_mismatch', 'reservation_not_active']);
+  // 1.15.0: Rechnungsnummer schon vergeben (Vertrag des Servers), vor den Pfandcodes.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-6, -5), ['invoice_number_taken']);
+  // 1.36.0: Pfand an Positionen (Backend Kasse-Pfand Teil 4), hinten angehaengt.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-5), [
+    'deposit_not_enabled', 'deposit_type_not_found', 'deposit_set_by_server', 'invalid_deposit_quantity', 'invalid_deposit',
+  ]);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
 

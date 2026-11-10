@@ -37,8 +37,9 @@ function server(data: Json) {
 }
 
 const ARTEN = [
-  { id: 'pf_einweg_1', kind: 'single_use', name: 'Einweg Flasche', type: 'bottle', amounts: [{ from: '2025-01-01', cents: 25 }], returnRate: null, used: true },
-  { id: 'pf_mehrweg_1', kind: 'reusable', name: 'Mehrweg Bierkiste', type: 'crate', amounts: [{ from: '2020-01-01', cents: 300 }, { from: '2026-07-01', cents: 350 }], returnRate: null, used: false },
+  // So sendet der Server die Arten: Einweg ohne Behaelterart und Rueckgabesatz 0, Mehrweg mit Satz, `active` immer.
+  { id: 'pf_einweg_1', kind: 'single_use', name: 'Pfand Einweg', type: null, amounts: [{ from: '2025-01-01', cents: 25 }], returnRate: 0, used: false, active: true },
+  { id: 'pf_mehrweg_1', kind: 'reusable', name: 'Mehrweg Bierkiste', type: 'crate', amounts: [{ from: '2020-01-01', cents: 300 }, { from: '2026-07-01', cents: 350 }], returnRate: 20, used: true, active: true },
 ];
 
 test('listDepositTypes ruft /v3 listDepositTypes ohne Parameter', async () => {

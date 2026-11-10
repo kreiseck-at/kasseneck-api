@@ -161,10 +161,10 @@ const vokabular = JSON.parse(
 ) as { endpoints: Record<string, string[]>; names: Record<string, string> };
 const aussenName = new Map(Object.entries(vokabular.names).map(([aussen, innen]) => [innen, aussen]));
 
-test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 122, seit 1.34.0 mit unfixTerminal und listDepositTypes)', () => {
+test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 124, seit 1.34.0 mit unfixTerminal und listDepositTypes, seit 1.36.0 mit getEwpReport und setEwpExtraQuantities)', () => {
   const erwartet = vokabular.endpoints['public']!.map((innen) => aussenName.get(innen) ?? innen);
   assert.deepEqual([...PUBLIC_CALLS], erwartet);
-  assert.equal(PUBLIC_CALLS.length, 122);
+  assert.equal(PUBLIC_CALLS.length, 124);
   // Unter /v3 geroutet ist genau die oeffentliche Liste.
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });

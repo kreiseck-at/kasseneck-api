@@ -46,6 +46,14 @@ import {
   type TerminalDeviceCredentials,
 } from './terminal.js';
 import { listDepositTypes } from './list-deposit-types.js';
+import {
+  downloadEwpReport,
+  getEwpReport,
+  setEwpExtraQuantities,
+  type EwpExtraQuantityInput,
+  type EwpReport,
+  type EwpReportFile,
+} from './ewp.js';
 import type { DepositSettings } from '../pos/pfand.js';
 import { listAllReceipts, listReceipts, type ListedReceipt, type ListReceiptsOptions, type ListReceiptsPage, type ListReceiptsView } from './list-receipts.js';
 import {
@@ -129,8 +137,14 @@ export interface KasseneckApi {
   listReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): Promise<ListReceiptsPage<V>>;
   /** Alle Belege eines Tages oder Zeitraums, Seite fuer Seite geholt (hoechstens 100 Seiten). */
   listAllReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): AsyncGenerator<ListedReceipt<V>, void, undefined>;
-  /** Pfandarten des Betriebs (`listDepositTypes`, nur /v3, ohne Kassen-Token); `null` = Pfand aus, dann keine Pfandzeilen senden. */
+  /** Pfandarten des Betriebs (`listDepositTypes`, nur /v3; braucht kein Kassen-Token); `null` = Pfand aus, dann keine Pfandzeilen senden. */
   listDepositTypes(): Promise<DepositSettings | null>;
+  /** EWP-Meldung eines Monats (`getEwpReport`, nur /v3, Abfueller-Betrieb): Zeilen je GTIN, Warnungen, Zusatzmengen. */
+  getEwpReport(options: { month: string }): Promise<EwpReport>;
+  /** CSV der EWP-Meldung eines Monats (`getEwpReport` mit `format: 'csv'`); ein abgeschlossener Monat gilt danach als heruntergeladen. */
+  downloadEwpReport(options: { month: string }): Promise<EwpReportFile>;
+  /** Zusatzmengen eines Monats ersetzen (`setEwpExtraQuantities`); eine leere Liste leert sie. Antwort ist die neue Meldung. */
+  setEwpExtraQuantities(options: { month: string; extraQuantities: EwpExtraQuantityInput[] }): Promise<EwpReport>;
   /** DEP-Export fuer die Kassennachschau einstellen (`createDepExport`, nur /v3); antwortet sofort, der Export laeuft im Hintergrund. */
   createDepExport(options?: CreateDepExportOptions): Promise<CreateDepExportResult>;
   /** Zustand, Kennzahlen, Befund und Pruefer-Links eines Exports (`getDepExport`). */
@@ -212,6 +226,9 @@ export function createKasseneckApi(options: TransportOptions): KasseneckApi {
     listReceipts: (o) => listReceipts(rufen, o),
     listAllReceipts: (o) => listAllReceipts(rufen, o),
     listDepositTypes: () => listDepositTypes(rufen),
+    getEwpReport: (o) => getEwpReport(rufen, o),
+    downloadEwpReport: (o) => downloadEwpReport(rufen, o),
+    setEwpExtraQuantities: (o) => setEwpExtraQuantities(rufen, o),
     createDepExport: (o) => createDepExport(rufen, o),
     getDepExport: (o) => getDepExport(rufen, o),
     waitForDepExport: (o) => waitForDepExport(rufen, o),

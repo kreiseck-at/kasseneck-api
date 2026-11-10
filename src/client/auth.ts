@@ -40,7 +40,12 @@ export type KasseneckAuth = () => AuthCredentials | Promise<AuthCredentials>;
 export interface ApiKeyAuthOptions {
   /** API-Schluessel im Format `kr_<env>_<...>` (opak). */
   apiKey: string;
-  /** Kassen-Token der Kasse, an der gearbeitet wird (`cb_<env>_<...>`). */
+  /**
+   * Kassen-Token der Kasse, an der gearbeitet wird (`cb_<env>_<...>`). Aufrufe, die dem
+   * Betrieb statt einer Kasse gelten, brauchen es nicht (`listDepositTypes`, `getEwpReport`,
+   * `setEwpExtraQuantities`): der Server liest das Token dort nicht. Die Anmeldung sendet es
+   * trotzdem mit, weil sie fuer alle Aufrufe gleich ist.
+   */
   cashregisterToken: string;
 }
 
