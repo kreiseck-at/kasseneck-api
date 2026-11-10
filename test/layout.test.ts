@@ -221,7 +221,8 @@ test('Layout: Gesamtsumme und Zahlungsart stehen unter der USt-Aufteilung', () =
 
 test('Layout: Hobex-Kartenblock (HPS) steht zentriert UNTER dem QR-Code — PAN ohne Ablauf-Anhang', () => {
   // cardPaymentData in der Form von hobexReceiptToCardPaymentData, Werte wie
-  // vom echten Terminal (hps 1.10.0, Testumgebung, 2026-08-20).
+  // vom echten Terminal (hps 1.10.0, Testumgebung, 2026-08-20), die
+  // Kartennummer durch eine Testkarte ersetzt.
   const beleg: Receipt = {
     ...BELEG,
     paymentMethod: KeckPaymentMethod.creditCard,
@@ -229,20 +230,20 @@ test('Layout: Hobex-Kartenblock (HPS) steht zentriert UNTER dem QR-Code — PAN 
     cardPaymentId: '178720994006835253',
     cardPaymentData: {
       transactionId: '178720994006835253', date: '2026-08-20 09:12:20', tid: '3600335',
-      no: '408462', type: 'SELL', cardBrand: 'MASTERCARD',
-      cardNumber: '543394******4720_2810', responseCode: '0', cvm: '0',
+      no: '400462', type: 'SELL', cardBrand: 'MASTERCARD',
+      cardNumber: '541333******0021_2912', responseCode: '0', cvm: '0',
     },
   };
   const layout = buildReceiptLayout(beleg, FIRMA);
   const texte = alsText(layout);
   assert.ok(texte.includes('Hobex Beleg'));
   // Kompakt und zentriert wie der GP-Tom-Block — keine Beschriftungs-Spalten.
-  assert.ok(texte.includes('TID 3600335 · Nr. 408462'));
+  assert.ok(texte.includes('TID 3600335 · Nr. 400462'));
   assert.ok(texte.includes('SELL · MASTERCARD'));
   // Der PAN traegt beim HPS das Ablaufdatum mit Unterstrich — das gehoert
   // nicht auf den Bon.
-  assert.ok(texte.includes('543394******4720'));
-  assert.ok(!texte.some((t) => t.includes('_2810')));
+  assert.ok(texte.includes('541333******0021'));
+  assert.ok(!texte.some((t) => t.includes('_2912')));
   // Unter dem QR (wie im Vorbild), nicht mehr bei der Zahlungsart.
   const qrStelle = layout.lines.findIndex((z) => z.kind === 'qr');
   const hobexStelle = layout.lines.findIndex((z) => z.kind === 'text' && z.text === 'Hobex Beleg');

@@ -13,22 +13,24 @@ import { hobexReceiptFromHps, parseHpsTransactionResponse } from '../src/payment
  * Die Nutzlast unten ist KEINE erfundene Form: sie ist die woertliche Antwort
  * des Terminals 3600335 auf die Statusabfrage zur Zahlung 178790461613600000
  * am 28.08.2026, samt der beiden Eigenheiten, die eine naive Abbildung
- * zerlegen wuerden -- `cvm` kommt als ZAHL, `currency` als `null`.
+ * zerlegen wuerden -- `cvm` kommt als ZAHL, `currency` als `null`. Nur
+ * Kartennummer, Ablauf, VU, Genehmigungs- und Belegnummer sind durch
+ * erfundene Werte ersetzt (Testkarte wie in `fixtures/hobex-hps-cases.json`).
  */
 const GEMESSEN = {
   aid: 'A0000000041010',
   amount: 0.01,
-  approvalCode: '000252',
+  approvalCode: '000418',
   approvalDate: null,
   brand: 'MASTERCARD',
-  cardExpiry: '2810',
+  cardExpiry: '2912',
   cardIssuer: 'MASTERCARD',
-  cardNumber: '543394******4720_2810',
+  cardNumber: '541333******0021_2912',
   cleared: null,
   currency: null,
   cvm: 3,
   originalTransactionId: '00178790461613600000',
-  receipt: '408859',
+  receipt: '400233',
   reference: null,
   responseCode: '9011',
   responseText: 'Transaction Canceled',
@@ -39,7 +41,7 @@ const GEMESSEN = {
   transactionDate: '2026-08-28T10:10:30.0000000+02:00',
   transactionId: '178790461613600000',
   transactionType: 'S',
-  vu: '000000351985785',
+  vu: '000000123456789',
 };
 
 test('bildet die gemessene Terminal-Antwort auf einen Beleg ab', () => {
@@ -47,11 +49,11 @@ test('bildet die gemessene Terminal-Antwort auf einen Beleg ab', () => {
 
   assert.equal(beleg.transactionId, '178790461613600000');
   assert.equal(beleg.tid, '3600335');
-  assert.equal(beleg.receipt, '408859');
-  assert.equal(beleg.approvalCode, '000252');
+  assert.equal(beleg.receipt, '400233');
+  assert.equal(beleg.approvalCode, '000418');
   assert.equal(beleg.brand, 'MASTERCARD');
-  assert.equal(beleg.cardNumber, '543394******4720_2810');
-  assert.equal(beleg.cardExpiry, '2810');
+  assert.equal(beleg.cardNumber, '541333******0021_2912');
+  assert.equal(beleg.cardExpiry, '2912');
   assert.equal(beleg.responseCode, '9011');
   assert.equal(beleg.transactionType, 'S');
   assert.equal(beleg.amountCents, 1);
@@ -91,12 +93,12 @@ test('der Beleg traegt die HPS-Zusatzfelder in die cardPaymentData', () => {
 
   assert.equal(daten.transactionId, '178790461613600000');
   assert.equal(daten.date, '2026-08-28 10:10:30');
-  assert.equal(daten.no, '408859');
+  assert.equal(daten.no, '400233');
   assert.equal(daten.cardBrand, 'MASTERCARD');
   assert.equal(daten.cvm, '3');
   // nur bei hobexHps -- belegt, dass die Bruecke den Provider richtig setzt
-  assert.equal(daten.approvalCode, '000252');
-  assert.equal(daten.cardExpiry, '2810');
+  assert.equal(daten.approvalCode, '000418');
+  assert.equal(daten.cardExpiry, '2912');
   assert.equal(daten.cardIssuer, 'MASTERCARD');
   assert.equal(daten.amount, '0.01');
 });
@@ -123,7 +125,7 @@ test('hobexReceiptFromHps und parseHpsTransactionResponse kommen aus ./payments'
   const payments = await import('../src/payments/index.js');
   assert.equal(payments.hobexReceiptFromHps, hobexReceiptFromHps);
   const daten = hobexReceiptToCardPaymentData(payments.hobexReceiptFromHps(payments.parseHpsTransactionResponse(GEMESSEN)));
-  assert.equal(daten.approvalCode, '000252');
+  assert.equal(daten.approvalCode, '000418');
   assert.equal(daten.currency, '', 'nicht gefuehrte Waehrung (null) wird leer, nie "null"');
 });
 

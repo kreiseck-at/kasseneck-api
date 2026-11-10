@@ -9,6 +9,7 @@ import {
 import type { HpsPaymentResult } from './outcome.js';
 import { newHpsTransactionId } from './transaction-id.js';
 import {
+  APPROVED_CODE,
   hpsCodeInfo,
   hpsCodeReason,
   isApproved,
@@ -43,49 +44,80 @@ import {
  *
  * Regel, von der nicht abgewichen wird: `outcome: 'declined'` entsteht
  * ausschliesslich aus einer POSITIVEN Aussage — einem GEMESSENEN Ergebniscode
- * des Terminals ungleich `'0'` ([isConclusive]), einem nachweislich
- * gelungenen Abbruch, oder dem gemessenen "Terminal beschaeftigt"-Fall
- * (HTTP 409 auf die ERZEUGENDE Anfrage, siehe `errors.ts`,
- * `HpsConnectTerminalError.isTerminalBusy`). Ein Transportfehler, ein
- * Zeitablauf oder eine Wissensluecke fuehren NIE dorthin: keines davon ist
+ * des Terminals ungleich `'0'` ([isConclusive]) auf die Zahlung oder in der
+ * Statusabfrage, der Zwei-9027-Regel nach einer Antwort MIT Code
+ * ([ausGeschlossenerAntwort]), einem `9011` (aufgehoben) in der Statusabfrage
+ * nach einem nachgeschickten Storno, oder dem gemessenen "Terminal
+ * beschaeftigt"-Fall (HTTP 409 auf die ERZEUGENDE Anfrage, siehe
+ * `errors.ts`, `HpsConnectTerminalError.isTerminalBusy`). Ein
+ * Transportfehler, ein Zeitablauf, eine Wissensluecke, ein quittierter
+ * Abbruch und ein quittiertes Storno fuehren NIE dorthin: keines davon ist
  * eine Aussage darueber, dass nichts belastet wurde. Genau diese
  * Verwechslung hat am 24.08.2026 eine echte Belastung als unbelastet
  * ausgewiesen und den Kunden ein zweites Mal belastet.
  *
- * ## Der Klaerweg, wie er am 26./27.08.2026 am hobex-HPS gemessen wurde
+ * ## Der Klaerweg
  *
- * Bleibt die Antwort auf eine Zahlung aus:
+ * Bleibt die Antwort auf eine Zahlung aus, oder sagt sie nichts:
  *
- * 1. [HpsConnectClient.abort] einmalig versuchen.
- * 2. `responseCode === '0'` -> der Vorgang war noch abbrechbar, also nicht
- *    abgeschlossen -> `declined`, beweisbar.
- * 3. Jeder andere Code (gemessen `100010`) -> der Vorgang ist ueber den
- *    abbrechbaren Punkt hinaus -> JETZT die Statusabfrage pollen, sie liefert
- *    nun eine echte Aussage.
- * 4. Abbruch scheitert am Transport -> pollen wie in 3.
- * 5. Beim Pollen ist `9027` KEIN Ergebnis, sondern ein Grund weiterzumachen.
- *    Budget erschoepft -> `unresolved`.
+ * 1. [HpsConnectClient.abort] einmalig versuchen. Die Absicht: ein
+ *    Kartenfluss, der noch auf die Karte wartet, soll enden, damit nach der
+ *    Klaerung keine spaet aufgelegte Karte mehr belastet wird. Eine Garantie
+ *    ist das nicht -- ob der Abbruch greift, sagt seine Quittung nicht.
+ * 2. Die Antwort auf den Abbruch entscheidet NICHTS, auch `'0'` nicht (siehe
+ *    "Ein quittierter Abbruch ist keine Aussage"). Sie steht nur im Nachweis.
+ * 3. Dann die Statusabfrage pollen: `'0'` -> `approved`, mit der Antwort des
+ *    Status als Beleg; ein schluessiger Code (etwa `9011` aufgehoben) ->
+ *    `declined`; `9027` ist KEIN Ergebnis, sondern ein Grund weiterzumachen
+ *    -- ausser nach einer Antwort MIT Code auf die Zahlung, siehe
+ *    [ausGeschlossenerAntwort].
+ * 4. Budget erschoepft -> `unresolved`.
  *
- * Der Abbruch VOR dem Pollen ist wesentlich: die Statusabfrage meldet
- * "laeuft noch" nie (sie antwortet auf jeden nicht genehmigten Vorgang mit
- * `9027`). Der Abbruchversuch ist auf einen Bruchteil des Klaerbudgets
- * gedeckelt ([ABORT_BUDGET_DIVISOR]), sonst friesst ein haengender Abbruch
- * die ganze Klaerung.
+ * Der Abbruchversuch ist auf einen Bruchteil des Klaerbudgets gedeckelt
+ * ([ABORT_BUDGET_DIVISOR]), sonst friesst ein haengender Abbruch die ganze
+ * Klaerung.
  *
  * Die Kennung ist in JEDEM Ergebnis gesetzt, auch bei `'unresolved'`.
  *
+ * ## Ein quittierter Abbruch ist keine Aussage (10.11.2026)
+ *
+ * Bis 1.35.0 hiess `'0'` auf den Abbruch "der Vorgang war noch abbrechbar,
+ * es ist nichts belastet" -- geschlossen aus einer Messung vom 26.08.2026, bei
+ * der der Abbruch WAEHREND des Wartens auf die Karte kam und die Zahlung
+ * danach mit `100002` "Aborted" endete. Am 10.11.2026 widerlegt (TID 3600335,
+ * HPS 1.14.4, Firmware 7.3.6, Testsystem): Abbruch vier Sekunden nach dem
+ * Start einer Zahlung ueber 0,01 EUR, nach 0,18 s quittiert mit `'0'`
+ * "Authorized" -- und die laufende Zahlung endete trotzdem GENEHMIGT
+ * (kontaktlos), die Statusabfrage danach ebenso. `'0'`
+ * heisst also nur, dass das Terminal die Abbruch-Anfrage angenommen hat,
+ * nicht, dass die Zahlung abgebrochen ist. Als `declined` gelesen, haette die
+ * Kasse "nichts belastet, noch einmal versuchen" gemeldet: der Weg zur
+ * Doppelbelastung vom 24.08.2026.
+ *
+ * Auch ein `9027` kurz nach einem angenommenen Abbruch ist keine Aussage:
+ * solange eine Zahlung laeuft, antwortet die Statusabfrage `9027` (gemessen
+ * 26.08.2026), und dass sie nach einem angenommenen Abbruch weiterlaufen kann,
+ * zeigt die Messung oben. Wie lange danach noch eine Genehmigung kommen kann,
+ * ist ungemessen. Ohne Antwort mit Code auf die Zahlung endet ein Abbruch mit
+ * anhaltendem `9027` deshalb bei `unresolved`, nicht bei `declined`.
+ *
+ * Bricht die KASSE eine laufende Zahlung ab (eigener Aufruf von
+ * [HpsConnectClient.abort], waehrend [pay] noch auf die Antwort wartet),
+ * entscheidet die Antwort auf die Zahlung selbst -- `approved`, wenn sie
+ * genehmigt meldet, `declined` mit `100002`. [pay] liest die Quittung dieses
+ * fremden Abbruchs nicht.
+ *
  * ## [refund] bekommt EXAKT denselben Klaerweg wie [pay]
  *
- * Abbruch eingeschlossen -- und das ist GEMESSEN, nicht analog geschlossen.
- * Am 26.08.2026 nachgemessen: `abort` auf eine LAUFENDE Gutschrift antwortet
- * ebenfalls mit `responseCode '0'`, und die Gutschrift endet daraufhin mit
- * `100002` "Aborted". Der Abbruch ist dort also derselbe Diskriminator wie bei
- * einer Zahlung. Die Kennung ist bei [refund] die des NEUEN Vorgangs (der
- * Gutschrift selbst), eine Statusabfrage darauf liefert also genau deren
- * Ausgang -- deshalb reicht dieselbe [resolve]-Funktion unveraendert. Ohne den
- * Abbruch haette die Klaerung einer Gutschrift gar keinen Diskriminator mehr
- * und endete fast immer bei `unresolved`, weil die Statusabfrage auch hier
- * `9027` antwortet.
+ * Abbruch eingeschlossen. Die Kennung ist bei [refund] die des NEUEN Vorgangs
+ * (der Gutschrift selbst), eine Statusabfrage darauf liefert also genau deren
+ * Ausgang -- deshalb reicht dieselbe [resolve]-Funktion unveraendert. Am
+ * 26.08.2026 gemessen: `abort` auf eine LAUFENDE Gutschrift antwortet
+ * ebenfalls mit `responseCode '0'`, und die Gutschrift endete daraufhin mit
+ * `100002` "Aborted". Wie bei der Zahlung beweist die Quittung allein nichts:
+ * eine Gutschrift, die nach dem angenommenen Abbruch doch durchgeht, als
+ * `declined` zu melden, laedt zu einer zweiten Gutschrift ein. Bleibt die
+ * Statusabfrage danach bei `9027`, endet die Klaerung bei `unresolved`.
  *
  * ## [cancel] ist die Ausnahme, in beiden Richtungen
  *
@@ -141,10 +173,29 @@ import {
  *
  * Fuer einen Teil dieser Codes -- der Host hat nicht oder nicht brauchbar
  * geantwortet, etwa `9908` -- gibt hobex vor, ein Storno nachzuschicken
- * (`sendReversal`). [pay] tut das genau einmal, mit Kennung und Betrag der
- * Zahlung, bevor die Statusabfrage laeuft: quittiert mit `'0'` -> `declined`
- * mit `'voidedAfterHostFault'`; sonst weiter wie oben, und ein `9011` in der
- * Statusabfrage heisst dann ebenfalls `declined`. Am Geraet ungemessen, siehe
+ * (`sendReversal`). [pay] tut das genau einmal, mit der Kennung der Zahlung
+ * und dem Betrag, den das Terminal belastet: Betrag UND Trinkgeld (wie die
+ * Rueckbuchung der Web-Kasse). Danach laeuft immer die Statusabfrage:
+ *
+ * - `9011` (aufgehoben) -> `declined`, die einzige Stelle, an der nach einem
+ *   Storno ein Ausgang feststeht: mit `'voidedAfterHostFault'`, wenn das
+ *   Storno gewirkt haben kann, sonst mit `'canceled'` -- dann hat etwas
+ *   anderes die Zahlung aufgehoben.
+ * - Ist das Storno nicht sicher abgewiesen ([StornoAusgang]: quittiert mit
+ *   `'0'`, abgerissen, ohne Code, mit einem unbekannten oder einem
+ *   Storniert-Code wie `8009`), ist auch `'0'` in der Statusabfrage keine
+ *   Aussage: das Storno kann noch unterwegs sein, oder es hat nicht
+ *   gegriffen. Sie zaehlt dann wie `9027` als "nichts Neues", und nach zwei
+ *   solchen Antworten endet die Klaerung als `unresolved`.
+ * - Nur wenn das Storno nach einer ausdruecklichen Positivliste NICHT
+ *   ausgefuehrt wurde (nicht gesendet, nicht angenommen, abgewiesen -- siehe
+ *   [stornoAbgewiesen]), ist `'0'` in der Statusabfrage `approved`. Gemessen
+ *   ist davon nur `9002` auf eine unbekannte Kennung (27.08.2026); die
+ *   uebrigen Eintraege stuetzen sich auf die Codeliste von hobex und TECS.
+ *
+ * Die Quittung `'0'` auf das Storno allein beweist nichts -- dieselbe Lehre
+ * wie beim Abbruch (10.11.2026). Am Geraet ungemessen sind das Storno nach
+ * einer Host-Stoerung und der Stornobetrag mit Trinkgeld, siehe
  * Dart-Zwilling. [refund] schickt kein Storno nach (TECS: `9031`), [cancel]
  * ist selbst eines.
  */
@@ -218,6 +269,51 @@ const ABORT_BUDGET_DIVISOR = 6;
  * Vorgabe 30 s. Ein Storno geht ueber den Host und darf Sekunden brauchen.
  */
 const REVERSAL_BUDGET_DIVISOR = 3;
+
+/**
+ * Was ein nachgeschicktes Storno bewirkt haben kann, siehe Klassendoku,
+ * "Storno nach ausbleibender Host-Antwort":
+ * - `nichtGesendet`: keines gesendet (Gutschrift ohne Betrag) oder von
+ *   Connect vor jedem Terminal-Kontakt abgewiesen ([HpsPreflightError]).
+ * - `abgewiesen`: das Terminal hat es nachweislich nicht ausgefuehrt
+ *   (HTTP 409 oder ein Code aus [stornoAbgewiesen]).
+ * - `kannGewirkt`: alles andere -- auch die Quittung `'0'`.
+ */
+type StornoAusgang = 'nichtGesendet' | 'abgewiesen' | 'kannGewirkt';
+
+/**
+ * Gruende, die ein Storno als NICHT ausgefuehrt ausweisen -- Teil der
+ * Positivliste in [stornoAbgewiesen], jeder Eintrag einzeln begruendet:
+ * - `cancelDenied` (`9023` "Cancel Denied, TX already cleared", `9222`
+ *   "Offline Tx Cancellation Denied"): TECS lehnt genau diese Aufhebung ab.
+ * - `amountInvalid` (`9003`, `100019` gemessen an Zahlungen, `9012`, `9026`,
+ *   `13`, `64`, `87`, `3031` dokumentiert): der Vorgang ueber diesen Betrag
+ *   wird abgewiesen und nicht ausgefuehrt.
+ */
+const STORNO_ABGEWIESEN_GRUENDE: ReadonlySet<HpsCodeReason> = new Set<HpsCodeReason>(['cancelDenied', 'amountInvalid']);
+
+/**
+ * `true` nur, wenn die Antwort auf das Storno nach einer AUSDRUECKLICHEN
+ * Positivliste sagt, dass es nicht ausgefuehrt wurde:
+ *
+ * - jeder schluessige Code mit `rejectsRequest` -- die Anfrage selbst wurde
+ *   abgewiesen (Form, TID, Vorgangstyp, Geraetezustand, `100998`/`8014`
+ *   "beschaeftigt"), bevor etwas geschah. Gemessen ist davon `9002` "Invalid
+ *   Transaction" auf eine unbekannte Kennung (27.08.2026); die uebrigen stehen
+ *   so in der Codeliste von hobex bzw. TECS.
+ * - jeder Code mit einem Grund aus [STORNO_ABGEWIESEN_GRUENDE].
+ *
+ * Alles andere kann gewirkt haben, ausdruecklich auch ein Code, der selbst
+ * "storniert" oder "aufgehoben" heisst (`8009` "Technical cancellation",
+ * `100029`, `3053`-`3063` "Reversed internally", `9032` "reversed
+ * automatically", `9011`), ein Abbruch-Code (`100002`, `17`, `8004`), eine
+ * Host-Ablehnung (etwa `05`) und jeder unbekannte Code.
+ */
+function stornoAbgewiesen(res: HpsTransactionResponse): boolean {
+  const info = hpsCodeInfo(res.responseCode);
+  if (info === undefined || !info.conclusive || info.code === APPROVED_CODE) return false;
+  return info.rejectsRequest || STORNO_ABGEWIESEN_GRUENDE.has(info.reason);
+}
 
 export function createHpsPayments(
   client: HpsConnectClient,
@@ -569,11 +665,12 @@ export function createHpsPayments(
   }
 
   /**
-   * Versucht den Abbruch GENAU EINMAL. Liefert ein Ergebnis nur im einen
-   * beweisbaren Fall: Connect quittiert den Abbruch mit `responseCode === '0'`.
-   * In jedem anderen Fall `null` -- der Aufrufer pollt dann weiter.
+   * Schickt den Abbruch GENAU EINMAL und haelt im Nachweis fest, was das
+   * Terminal darauf sagt. Entscheidet NIE ueber den Ausgang -- auch nicht mit
+   * `'0'`, siehe Klassendoku, "Ein quittierter Abbruch ist keine Aussage". Der
+   * Aufrufer fragt danach immer den Status ab.
    */
-  async function tryAbort(id: string, steps: string[], elapsedMs: () => number): Promise<HpsPaymentResult | null> {
+  async function tryAbort(id: string, steps: string[], elapsedMs: () => number): Promise<void> {
     let res: HpsTransactionResponse;
     try {
       res = await withinBudget(elapsedMs, () => client.abort({ ...target, transactionId: id }), abortBudgetMs);
@@ -587,32 +684,39 @@ export function createHpsPayments(
           : `Abbruch nicht bestaetigt (${describe(e)}) -- ob er wirkte, ist offen, Ausgang wird abgefragt`,
       );
       noteUnexpected(e, id);
-      return null;
+      return;
     }
+    steps.push(abbruchQuittung(res));
+  }
 
+  /** Nachweistext zur Antwort auf den Abbruch -- keiner davon schliesst auf den Ausgang. */
+  function abbruchQuittung(res: HpsTransactionResponse): string {
     if (res.responseCode === undefined) {
-      steps.push('Abbruch ohne Ergebniscode quittiert -- das beweist nichts, Ausgang wird abgefragt');
-      return null;
+      return 'Abbruch ohne Ergebniscode quittiert -- das beweist nichts, Ausgang wird abgefragt';
     }
-    if (res.responseCode !== '0') {
-      steps.push(
-        isNotAbortable(res)
-          ? `Abbruch abgelehnt (${NOT_ABORTABLE_CODE}) -- der Vorgang ist nicht mehr abbrechbar, Ausgang wird abgefragt`
-          : `Abbruch abgelehnt (${res.responseCode}) -- Grund unbekannt, Ausgang wird abgefragt`,
-      );
-      return null;
+    if (isApproved(res)) {
+      return `Abbruch angenommen (${APPROVED_CODE}) -- das sagt nicht, ob belastet wurde (am 10.11.2026 `
+        + 'endete eine Zahlung nach angenommenem Abbruch genehmigt), Ausgang wird abgefragt';
     }
-
-    steps.push('Abbruch bestaetigt -- der Vorgang war noch abbrechbar, es ist nichts belastet');
-    emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: 'declined', transactionId: id, response: res, reason: 'aborted', steps: [...steps] };
+    if (isNotAbortable(res)) {
+      return `Abbruch abgelehnt (${NOT_ABORTABLE_CODE}) -- der Vorgang ist nicht mehr abbrechbar, Ausgang wird abgefragt`;
+    }
+    return `Abbruch abgelehnt (${res.responseCode}) -- Grund unbekannt, Ausgang wird abgefragt`;
   }
 
   /**
    * Schickt zu einer Zahlung, deren Host-Antwort ausblieb ([anlass] traegt
-   * `sendReversal`), GENAU EINMAL ein Storno nach. Ergebnis nur, wenn das
-   * Terminal es mit `'0'` quittiert; sonst `null`. Ohne [amountCents]
-   * (Gutschrift) wird nichts gesendet.
+   * `sendReversal`), GENAU EINMAL ein Storno ueber [amountCents] nach
+   * (Betrag samt Trinkgeld) und haelt im Nachweis fest, was das Terminal
+   * darauf sagt. Entscheidet NIE ueber den Ausgang, siehe Klassendoku,
+   * "Storno nach ausbleibender Host-Antwort".
+   *
+   * Liefert, was das Storno bewirkt haben kann ([StornoAusgang]).
+   * `nichtGesendet` bei einem [HpsPreflightError]: Connect hat es vor jedem
+   * Terminal-Kontakt abgewiesen, beweisbar ist nichts hinausgegangen (siehe
+   * `errors.ts`). `abgewiesen` bei HTTP 409: das Terminal nimmt waehrend
+   * eines anderen Vorgangs keine Anfrage an (gemessen, ohne Spur; dieselbe
+   * Lesart wie fuer die erzeugende Anfrage in [fromTerminalBusy]).
    */
   async function sendReversal(
     id: string,
@@ -620,10 +724,10 @@ export function createHpsPayments(
     elapsedMs: () => number,
     amountCents: number | undefined,
     anlass: HpsTransactionResponse,
-  ): Promise<HpsPaymentResult | null> {
+  ): Promise<StornoAusgang> {
     if (amountCents === undefined) {
       steps.push('Kein Storno nachgeschickt -- die Aufhebung einer Gutschrift laesst TECS nicht zu');
-      return null;
+      return 'nichtGesendet';
     }
     emit('resolving', `Storno wird nachgeschickt (${anlass.responseCode})`, id);
     let res: HpsTransactionResponse;
@@ -634,23 +738,41 @@ export function createHpsPayments(
         reversalBudgetMs,
       );
     } catch (e) {
+      if (e instanceof HpsPreflightError) {
+        steps.push(
+          `Storno nicht gesendet (${describe(e)}) -- Kasseneck Connect hat es vor dem Terminal abgewiesen, `
+            + 'es kann nicht gewirkt haben, Ausgang wird abgefragt',
+        );
+        return 'nichtGesendet';
+      }
+      if (e instanceof HpsConnectTerminalError && e.isTerminalBusy) {
+        steps.push(
+          'Storno nicht angenommen (HTTP 409) -- das Terminal war beschaeftigt, es kann nicht gewirkt haben, '
+            + 'Ausgang wird abgefragt',
+        );
+        return 'abgewiesen';
+      }
       steps.push(
         `Storno nachgeschickt, aber nicht bestaetigt (${describe(e)}) -- ob es wirkte, ist offen, Ausgang wird abgefragt`,
       );
       noteUnexpected(e, id);
-      return null;
+      return 'kannGewirkt';
     }
-    if (!isApproved(res)) {
-      const titel = hpsCodeInfo(res.responseCode)?.title;
+    if (isApproved(res)) {
       steps.push(
-        `Storno nachgeschickt, nicht bestaetigt (${res.responseCode ?? 'ohne Ergebniscode'}`
-          + `${titel === undefined ? '' : ` "${titel}"`}) -- Ausgang wird abgefragt`,
+        `Storno nachgeschickt und quittiert (${APPROVED_CODE}) -- das allein beweist nicht, dass die Zahlung `
+          + 'aufgehoben ist, Ausgang wird abgefragt',
       );
-      return null;
+      return 'kannGewirkt';
     }
-    steps.push('Storno nachgeschickt und bestaetigt -- die Zahlung ist aufgehoben, es ist nichts belastet');
-    emit('resolved', steps[steps.length - 1]!, id);
-    return { outcome: 'declined', transactionId: id, response: res, reason: 'voidedAfterHostFault', steps: [...steps] };
+    const titel = hpsCodeInfo(res.responseCode)?.title;
+    const code = `${res.responseCode ?? 'ohne Ergebniscode'}${titel === undefined ? '' : ` "${titel}"`}`;
+    if (stornoAbgewiesen(res)) {
+      steps.push(`Storno abgewiesen (${code}) -- es wurde nicht ausgefuehrt, Ausgang wird abgefragt`);
+      return 'abgewiesen';
+    }
+    steps.push(`Storno nachgeschickt, nicht bestaetigt (${code}) -- ob es wirkte, ist offen, Ausgang wird abgefragt`);
+    return 'kannGewirkt';
   }
 
   /**
@@ -664,6 +786,10 @@ export function createHpsPayments(
    * [ausGeschlossenerAntwort]. Meldet sie eine Stoerung beim Host
    * ([isHostUncertain]), bekommt `9027` diesen Aussagewert gerade NICHT --
    * siehe Klassendoku, "Stoerung beim Host".
+   *
+   * [stornoCents] ist, was ein nachgeschicktes Storno aufheben muss: Betrag
+   * samt Trinkgeld der Zahlung. Nur [pay] setzt ihn; ohne ihn wird kein
+   * Storno gesendet.
    */
   async function resolve(
     id: string,
@@ -680,23 +806,26 @@ export function createHpsPayments(
     // Statusabfrage sie nennt und danach 9027 kommt.
     let stoerungsAntwort = antwort && isHostUncertain(antwort) ? antwort : undefined;
     let letzteAntwort = antwort;
-    // Das Storno wird hoechstens einmal erwogen; gesendet ist es nur mit Betrag.
+    // Das Storno wird hoechstens einmal erwogen; versucht wird es nur mit
+    // Betrag, also nur fuer eine Zahlung.
     let stornoErwogen = false;
-    let stornoGesendet = false;
+    let stornoVersucht = false;
+    // Was das Storno bewirkt haben kann; `kannGewirkt` nimmt auch einer
+    // Genehmigung in der Statusabfrage die Aussage.
+    let storno: StornoAusgang | undefined;
 
     if (stoerungsAntwort === undefined) {
-      const aborted = await tryAbort(id, steps, elapsedMs);
-      if (aborted) return aborted;
+      // Entscheidet nichts, beendet nur einen noch wartenden Kartenfluss.
+      await tryAbort(id, steps, elapsedMs);
     } else {
       // Der Vorgang ist am Terminal schon beendet -- mit einer Stoerung beim
-      // Host. Ein quittierter Abbruch bewiese nur, dass am Terminal nichts mehr
-      // laeuft, nicht, dass der Host nichts belastet hat.
+      // Host. Es gibt nichts mehr abzubrechen, und eine Quittung saehe
+      // ohnehin nur das Terminal, nicht den Host.
       steps.push('Kein Abbruchversuch -- das Terminal hat den Vorgang mit einer Stoerung beim hobex-Host beendet');
       if (needsReversal(stoerungsAntwort)) {
         stornoErwogen = true;
-        stornoGesendet = stornoCents !== undefined;
-        const storniert = await sendReversal(id, steps, elapsedMs, stornoCents, stoerungsAntwort);
-        if (storniert) return storniert;
+        stornoVersucht = stornoCents !== undefined;
+        storno = await sendReversal(id, steps, elapsedMs, stornoCents, stoerungsAntwort);
       }
     }
 
@@ -734,13 +863,26 @@ export function createHpsPayments(
       if (isHostUncertain(status)) stoerungsAntwort ??= status;
       const hostUngewiss = stoerungsAntwort !== undefined;
 
-      if (stornoGesendet && isCanceled(status)) {
+      if (stornoVersucht && isCanceled(status)) {
+        // Aufgehoben ist aufgehoben. Wer es war, behauptet der Nachweis nur so
+        // weit, wie es feststeht: hat das Storno nachweislich nicht gewirkt,
+        // war es ein anderer Vorgang, und der Grund ist `canceled`.
+        const durchsStorno = storno === 'kannGewirkt';
         steps.push(
-          `Status: Zahlung aufgehoben (${TRANSACTION_CANCELED_CODE}) -- das nachgeschickte Storno hat gegriffen, `
-            + 'es ist nichts belastet',
+          durchsStorno
+            ? `Status: Zahlung aufgehoben (${TRANSACTION_CANCELED_CODE}) nach dem nachgeschickten Storno -- `
+              + 'es ist nichts belastet'
+            : `Status: Zahlung aufgehoben (${TRANSACTION_CANCELED_CODE}), obwohl das nachgeschickte Storno nicht `
+              + 'ausgefuehrt wurde -- es ist nichts belastet',
         );
         emit('resolved', steps[steps.length - 1]!, id);
-        return { outcome: 'declined', transactionId: id, response: status, reason: 'voidedAfterHostFault', steps: [...steps] };
+        return {
+          outcome: 'declined',
+          transactionId: id,
+          response: status,
+          reason: durchsStorno ? 'voidedAfterHostFault' : 'canceled',
+          steps: [...steps],
+        };
       }
 
       if (!stornoErwogen && needsReversal(status)) {
@@ -748,19 +890,24 @@ export function createHpsPayments(
         // nennt die ausgebliebene Host-Antwort -- dasselbe Storno wie oben.
         steps.push(statusOhneErgebnis(status)!);
         stornoErwogen = true;
-        stornoGesendet = stornoCents !== undefined;
-        const storniert = await sendReversal(id, steps, elapsedMs, stornoCents, status);
-        if (storniert) return storniert;
+        stornoVersucht = stornoCents !== undefined;
+        storno = await sendReversal(id, steps, elapsedMs, stornoCents, status);
         wait = nextWait(wait);
         continue;
       }
+
+      // Nach einem Storno, das gewirkt haben kann, sagt auch '0' nichts: das
+      // Storno kann noch unterwegs sein oder nicht gegriffen haben. Es zaehlt
+      // unten als "nichts Neues" -- siehe Klassendoku, "Storno nach
+      // ausbleibender Host-Antwort".
+      const genehmigtTrotzStorno = storno === 'kannGewirkt' && isApproved(status);
 
       // Auf die Statusabfrage entscheidet nur ein Code, der den gesuchten
       // Vorgang beschreibt -- nicht einer, der diese Abfrage abweist
       // ([isConclusiveAsStatus]). Nach einer Stoerung beim Host entscheidet nur
       // noch eine Genehmigung: jede andere Aussage des Terminals betrifft seinen
       // Speicher, nicht den des Hosts.
-      if (hostUngewiss ? isApproved(status) : isConclusiveAsStatus(status)) {
+      if (!genehmigtTrotzStorno && (hostUngewiss ? isApproved(status) : isConclusiveAsStatus(status))) {
         const settled = fromResponse(status, id, steps);
         if (settled) return settled;
       }
@@ -776,10 +923,15 @@ export function createHpsPayments(
       }
 
       // Nach einer Stoerung ist jede Antwort ausser '0' (die oben schon
-      // entschieden hat) "nichts Neues".
+      // entschieden hat) "nichts Neues" -- nach einem Storno auch '0'.
       stoerungOhneNeues = hostUngewiss ? stoerungOhneNeues + 1 : 0;
 
-      steps.push(statusOhneErgebnis(status) ?? 'Status: noch kein Ergebniscode');
+      steps.push(
+        genehmigtTrotzStorno
+          ? `Status: Zahlung steht unveraendert (${APPROVED_CODE}) -- das nachgeschickte Storno kann noch `
+            + 'unterwegs sein oder nicht gegriffen haben, keine Aussage'
+          : statusOhneErgebnis(status) ?? 'Status: noch kein Ergebniscode',
+      );
 
       if (stoerungOhneNeues >= 2) {
         // Siehe Klassendoku, "Stoerung beim Host": das Terminal weiss es
@@ -810,7 +962,7 @@ export function createHpsPayments(
    * wurde uns gerade geantwortet. Uebrig bleibt "beendet und nicht genehmigt".
    *
    * **Gegenprobe** (28.08.2026, TID 3600335, jeweils nach abgeschlossenem
-   * Vorgang): genehmigt (Beleg 408811) -> Statusabfrage `0`, dreimal
+   * Vorgang): genehmigt -> Statusabfrage `0`, dreimal
    * wiederholt; abgelehnt mit `100003` -> `9027`, zweimal; abgelehnt mit
    * `9003` -> `9027`. Eine genehmigte Zahlung antwortet also nicht `9027`.
    *
@@ -981,7 +1133,8 @@ export function createHpsPayments(
       steps.push(offeneAntwort(res));
     }
 
-    return resolve(id, steps, res, paymentOptions.amountCents);
+    // Ein Storno hebt auf, was das Terminal belastet hat: Betrag UND Trinkgeld.
+    return resolve(id, steps, res, paymentOptions.amountCents + (paymentOptions.tipCents ?? 0));
   }
 
   /**
@@ -1024,8 +1177,9 @@ export function createHpsPayments(
     }
 
     // Dieselbe Klaerfunktion wie [pay]: die Kennung ist die des NEUEN
-    // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang,
-    // und der Abbruch ist derselbe Diskriminator wie bei einer Zahlung.
+    // Vorgangs, eine Statusabfrage darauf liefert also genau dessen Ausgang.
+    // Der Abbruch entscheidet hier so wenig wie bei einer Zahlung, und ohne
+    // Betrag schickt die Klaerung kein Storno nach.
     return resolve(id, steps, res);
   }
 

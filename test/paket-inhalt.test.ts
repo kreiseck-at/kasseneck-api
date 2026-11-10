@@ -73,6 +73,7 @@ const ABNEHMER: Record<string, string> = {
   'receipt-outputs-cases.json': 'Beleg-Ausgaben (Leseregel fuer outputs samt receiptOutputLabel, Pruefung von logReceiptOutputs vor dem Senden): Dart-Zwilling kasseneck_api',
   'code-tables.json': 'Katalog der Code-Tabellen (ESC t, Bytes je Zeichen): Dart-Zwilling kasseneck_api (Zeichensatz-Test)',
   'hobex-hps-codes.json': 'Terminal-Codes: Dart-Zwilling (hobex_hps_codes_vertrag_test)',
+  'hobex-hps-cases.json': 'Prueffaelle HPS-Zahlweg (TID-Schreibweise, Klaerung nach Abbruch mit den Messungen vom 10.11.2026): Dart-Zwilling (hps_faelle_vertrag_test)',
   'pos-message-cases.json': 'Fehlereinordnung der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh); kasseneck-web apps/kasse/src/test/meldung-faelle.test.ts',
   'pos-settings-defaults.json': 'Standardwerte der Kasseneinstellungen: Dart-Zwilling; Kassen-App (kasseneck-apps tool/vertrag.sh)',
   'pos-texts.json': 'Textkatalog der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh; apps/kasse/tool/texte_erzeugen.dart erzeugt daraus die Konstanten)',
