@@ -139,7 +139,7 @@ export interface KasseneckApi {
   listAllReceipts<V extends ListReceiptsView = 'summary'>(options: ListReceiptsOptions<V>): AsyncGenerator<ListedReceipt<V>, void, undefined>;
   /** Pfandarten des Betriebs (`listDepositTypes`, nur /v3; braucht kein Kassen-Token); `null` = Pfand aus, dann keine Pfandzeilen senden. */
   listDepositTypes(): Promise<DepositSettings | null>;
-  /** EWP-Meldung eines Monats (`getEwpReport`, nur /v3, Abfueller-Betrieb): Zeilen je GTIN, Warnungen, Zusatzmengen. */
+  /** EWP-Meldung eines Monats (`getEwpReport`, nur /v3, Abfueller-Betrieb, ohne Kassen-Token): Zeilen je GTIN, Warnungen, Zusatzmengen. */
   getEwpReport(options: { month: string }): Promise<EwpReport>;
   /** CSV der EWP-Meldung eines Monats (`getEwpReport` mit `format: 'csv'`); ein abgeschlossener Monat gilt danach als heruntergeladen. */
   downloadEwpReport(options: { month: string }): Promise<EwpReportFile>;

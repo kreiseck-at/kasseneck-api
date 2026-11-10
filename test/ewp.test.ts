@@ -198,3 +198,16 @@ test('Vertrag: surface.json fuehrt beide Aufrufe', () => {
   const surface = JSON.parse(readFileSync(new URL('../../fixtures/surface.json', import.meta.url), 'utf8')) as Json;
   for (const n of ['getEwpReport', 'setEwpExtraQuantities']) assert.ok(surface.calls.public.includes(n), n);
 });
+
+test('Nur API-Schluessel, keine Kasse: getEwpReport sendet keine Kopfzeile cashregister-token', async () => {
+  const kopfzeilen: Array<Record<string, string>> = [];
+  const holen: FetchLike = async (_url: string, init: HttpRequestInit) => {
+    kopfzeilen.push(init.headers as Record<string, string>);
+    return antwort({ status: 'success', message: '', data: MELDUNG });
+  };
+  const api = createKasseneckApi({ auth: apiKeyAuth({ apiKey: 'kr_test_Beispielschluessel0123456789' }), fetch: holen });
+  await api.getEwpReport({ month: '2026-11' });
+  assert.equal(kopfzeilen.length, 1);
+  assert.match(kopfzeilen[0]!['Authorization'] ?? '', /^Bearer kr_test_/);
+  assert.equal(Object.keys(kopfzeilen[0]!).some((k) => k.toLowerCase() === 'cashregister-token'), false);
+});

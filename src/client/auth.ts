@@ -3,7 +3,7 @@
  * keiner ist der bevorzugte:
  *
  * - `apiKeyAuth` — der Weg der Geraete, POS-Apps und Dritten: der `api_key` als
- *   Bearer plus die Kopfzeile `cashregister-token` (wie im Flutter-Zwilling
+ *   Bearer plus (fuer Aufrufe an einer Kasse) die Kopfzeile `cashregister-token` (wie im Flutter-Zwilling
  *   `kasseneck_api`).
  * - `registerUserAuth` — der Weg der Browser-Kasse: ein Kassen-Benutzer, per
  *   PIN an einem gekoppelten Geraet angemeldet. ID-Token als Bearer,
@@ -41,12 +41,13 @@ export interface ApiKeyAuthOptions {
   /** API-Schluessel im Format `kr_<env>_<...>` (opak). */
   apiKey: string;
   /**
-   * Kassen-Token der Kasse, an der gearbeitet wird (`cb_<env>_<...>`). Aufrufe, die dem
-   * Betrieb statt einer Kasse gelten, brauchen es nicht (`listDepositTypes`, `getEwpReport`,
-   * `setEwpExtraQuantities`): der Server liest das Token dort nicht. Die Anmeldung sendet es
-   * trotzdem mit, weil sie fuer alle Aufrufe gleich ist.
+   * Kassen-Token der Kasse, an der gearbeitet wird (`cb_<env>_<...>`). Optional: Aufrufe, die dem
+   * Betrieb statt einer Kasse gelten, brauchen ihn nicht (`listDepositTypes`, `getEwpReport`,
+   * `setEwpExtraQuantities`); ohne Token geht die Kopfzeile `cashregister-token` nicht mit.
+   * Ein Aufruf, der eine Kasse braucht, antwortet ohne Token mit `cashregister_token_missing`.
+   * Ein leerer Text oder nur Leerraum wirft sofort.
    */
-  cashregisterToken: string;
+  cashregisterToken?: string;
 }
 
 export interface RegisterUserAuthOptions {
@@ -65,8 +66,9 @@ export function apiKeyAuth(options: ApiKeyAuthOptions): KasseneckAuth {
   if (!options.apiKey) {
     throw new KasseneckAuthError('apiKeyAuth: apiKey fehlt');
   }
-  if (!options.cashregisterToken) {
-    throw new KasseneckAuthError('apiKeyAuth: cashregisterToken fehlt');
+  const gegeben = options.cashregisterToken !== undefined && options.cashregisterToken !== null;
+  if (gegeben && (typeof options.cashregisterToken !== 'string' || options.cashregisterToken.trim() === '')) {
+    throw new KasseneckAuthError('apiKeyAuth: cashregisterToken ist leer');
   }
   const { apiKey, cashregisterToken } = options;
   // Pro Aufruf ein frisches Objekt: der Transport (oder ein Aufrufer) darf
@@ -74,7 +76,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions): KasseneckAuth {
   return () => ({
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'cashregister-token': cashregisterToken,
+      ...(cashregisterToken ? { 'cashregister-token': cashregisterToken } : {}),
     },
     params: {},
   });
