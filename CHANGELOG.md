@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.35.0 - unveröffentlicht
+
+Printer catalog for setting up a receipt printer through Kasseneck Connect with one click. Additive; every existing call, receipt and golden behaves as before.
+
+- **`printerCatalogEntry(model: string | null)`** (`./pos`) returns the approved catalog entry for a model name as Connect reports it (mDNS, `GS I`), or `null` for an unknown model. **`printerCatalogSettings(entry)`** returns the part of the device settings the entry proposes: `paperSize`, `codePage`, `cut`, `qrMode` and `drawerEnabled` (from `drawerKick`, a drawer port that opens on the till's pulse). Reason: the boss should set up a known printer without knowing paper width, code page or QR mode; an unknown model only asks for the paper width.
+- **Only approved entries count.** An entry that is not approved behaves like an unknown model; approval needs a device test (date, Connect version, printer firmware, who tested). The starting stock (Epson TM-m30III, TM-m30II, TM-T20III, TM-T88VI, TM-T88VII with 80 mm and 48 characters, TM-m10 with 58 mm and 32 characters; all with drawer port, QR from the printer, CP1252) is not approved yet, so `printerCatalogEntry` answers `null` for every model until a device test approves an entry in a later version.
+- **Model names are normalized** before matching: `a-z` to upper case (ASCII only, the same in Dart), every run of other characters than `A-Z`/`0-9` becomes one `-`, none at the edges, and one leading manufacturer of the catalog (`EPSON-`) is dropped. `TM-m30III`, `EPSON TM-m30III`, `tm m30iii` and `(EPSON TM-m30III)` find the same entry. Separators stay as one `-` instead of disappearing, because `TM-T20II-i` and `TM-T88V-i` are models of their own and would otherwise match `TM-T20III` and `TM-T88VI`. Matching is exact: a variant such as `TM-m30III-H` is unknown.
+- **Values only from the device settings:** `cut` is `partial` or `none` (what the till offers), `qrMode` `escpos` or `raster` (`auto` means "not decided" and says nothing about a model), and `charsPerLine` must match the paper size (`CHARS_PER_PAPER_SIZE`: 32 for `mm58`, 48 for `mm80`).
+- **Contract:** new file `fixtures/printer-catalog.json` with the entries, the value sets and the test cases (normalization, lookup with the shipped catalog, with every entry approved and with some approved, settings, catalog problems such as a match name in two entries). The Dart twin computes the same cases. The catalog itself is checked only by the tests; at run time nothing is repaired or dropped silently.
+
 ## 1.34.0 - unveröffentlicht
 
 Read the deposit types of a business with the API key: new `listDepositTypes()` on the API client (`/v3` only, right `read`, no effect). Additive; every existing call, receipt and golden behaves as before.

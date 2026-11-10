@@ -208,7 +208,7 @@ adapter:
 | `…/printing` | ESC/POS generation (byte sequences for thermal printers), QR sizing, printing over WebUSB. |
 | `…/payments` | Stripe payment links, Hobex cloud (both HTTP endpoints of the backend), and Hobex **HPS** via **Kasseneck Connect** (local device agent that talks to the terminal). |
 | `…/register` | Sign-in for the browser register: pair and unpair a device, list its users and sessions, sign in by PIN, renew and end the session. |
-| `…/pos` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, tip recipients, the register's message catalogue. |
+| `…/pos` | Tile register: register settings (business-wide and per device), article groups and articles for tiles, discount distribution per VAT rate, scopes of register permissions, network printers and print jobs, the printer catalog for setting up a printer through Kasseneck Connect, tip recipients, the register's message catalogue. |
 | `…/partner` | Partner API (`/v3`, English): create businesses, FinanzOnline link, signature, cash registers, credentials, webhooks with signature verification. **Belongs on a server.** |
 | `…/stored` | Stored Firestore documents (inner form, German) as the same English models the `/v3` wire returns: receipts with company and layout, register settings, articles. For clients that read Firestore directly, such as the admin panel. |
 | `…/invoice` | Invoice API: create and search customers, issue finalised invoices, credit notes and cancellation, PDF and e-invoice XML, the contract as data. **Belongs on a server.** |
@@ -1047,6 +1047,14 @@ the register's text catalogue (`MESSAGES`, `LABELS`, `messageText`,
 `split.add_payment`), and so are the placeholders:
 `messageText('checkout.locked', { reason })`. The rendered German texts are
 the same as in 0.x.
+
+**Printer catalog.** `printerCatalogEntry(model)` finds the approved catalog
+entry for a model name as Kasseneck Connect reports it (case, a leading
+`EPSON` and the kind of separator do not count; `null` for an unknown model),
+and `printerCatalogSettings(entry)` returns the device settings it proposes
+(`paperSize`, `codePage`, `cut`, `qrMode`, `drawerEnabled`). Only entries
+approved after a device test count; the entries and their test cases are in
+`fixtures/printer-catalog.json`.
 
 **Stock at the register.** Three calls on the register path (`/api/v3` only),
 permissions checked by the server (`stockView`, `stockCosts`, `stockLocation`
