@@ -173,18 +173,45 @@ test('abgelehnt direkt -- ein gemessener Code, der nicht 0 ist, entscheidet sofo
 // Der gemessene Klaerweg: Abbruch vor Polling
 // ---------------------------------------------------------------------------
 
-test('Antwort bleibt aus, Abbruch gelingt (responseCode 0) -- declined, beweisbar, ohne Polling', async () => {
+// Mutationsprobe: "ein angenommener Abbruch heisst nichts belastet". Am
+// 10.11.2026 widerlegt -- die Zahlung endete nach Abbruch '0' genehmigt
+// (fixtures/hobex-hps-cases.json). Kehrt die Abkuerzung in tryAbort zurueck,
+// endet dieser Test bei 'declined' ohne eine einzige Statusabfrage.
+test('Antwort bleibt aus, Abbruch angenommen (responseCode 0) -- kein Beweis: gepollt wird, 9027 bleibt unresolved', async () => {
   const calls: RecordedCall[] = [];
   const payments = buildPayments(
     {
       '/v1/terminal/payment': ['network-error'],
       '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '113' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027', transactionId: '113' })],
+    },
+    calls,
+    { resolveBudgetMs: 5000, maxBackoffMs: 2000 },
+  );
+  const result = await payments.pay({ amountCents: 1000, transactionId: '113' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(mayRetrySafely(result), false);
+  assert.equal(result.response, undefined);
+  assert.ok(calls.filter((c) => c.path === '/v1/terminal/status').length >= 2, 'nach dem Abbruch wird gepollt');
+  assert.ok(result.steps.some((s) => s.startsWith('Abbruch angenommen (0)')), result.steps.join(' | '));
+  assert.ok(!result.steps.some((s) => s.includes('nichts belastet')), result.steps.join(' | '));
+});
+
+test('Antwort bleibt aus, Abbruch angenommen (0), Status genehmigt -- approved mit der Antwort des Status', async () => {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments(
+    {
+      '/v1/terminal/payment': ['network-error'],
+      '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '118' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', transactionId: '118', approvalCode: '000287' })],
     },
     calls,
   );
-  const result = await payments.pay({ amountCents: 1000, transactionId: '113' });
-  assert.equal(result.outcome, 'declined');
-  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 0, 'ein gelungener Abbruch braucht kein Polling');
+  const result = await payments.pay({ amountCents: 1, transactionId: '118' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(result.reason, 'approved');
+  assert.equal(result.response?.approvalCode, '000287');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 1);
 });
 
 test('Antwort bleibt aus, Abbruch scheitert (100010 nicht abbrechbar) -- Polling entscheidet: genehmigt', async () => {
@@ -683,18 +710,23 @@ test('Gutschrift auf unbekannte Original-Kennung -- 9002 ist ein gemessener, sch
   assert.equal(result.outcome, 'declined');
 });
 
-test('Gutschrift: Antwort bleibt aus, Abbruch gelingt (responseCode 0) -- declined, ohne Polling', async () => {
+test('Gutschrift: Antwort bleibt aus, Abbruch angenommen (0) -- kein Beweis: gepollt wird, 9027 bleibt unresolved', async () => {
+  // Eine Gutschrift, die nach dem angenommenen Abbruch doch durchgeht, als
+  // declined zu melden, hiesse zu einer zweiten Gutschrift einzuladen.
   const calls: RecordedCall[] = [];
   const payments = buildPayments(
     {
       '/v1/terminal/refund': ['network-error'],
       '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '202' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027', transactionId: '202' })],
     },
     calls,
+    { resolveBudgetMs: 5000, maxBackoffMs: 2000 },
   );
   const result = await payments.refund({ amountCents: 500, originalTransactionId: '199', transactionId: '202' });
-  assert.equal(result.outcome, 'declined');
-  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 0);
+  assert.equal(result.outcome, 'unresolved');
+  assert.ok(calls.filter((c) => c.path === '/v1/terminal/status').length >= 2);
+  assert.ok(!result.steps.some((s) => s.includes('nichts belastet')), result.steps.join(' | '));
 });
 
 test('Gutschrift: Antwort bleibt aus, Abbruch scheitert (100010) -- Polling entscheidet: genehmigt (100002 waere abgebrochen)', async () => {
@@ -771,9 +803,8 @@ test('Aufhebung: Klaerung nutzt NIEMALS einen Abbruch -- die Originalzahlung ist
   const payments = buildPayments(
     {
       '/v1/terminal/cancel': ['network-error'],
-      // Ein Abbruch waere hier scharf geladen: wuerde die Klaerung ihn
-      // dennoch versuchen, antwortete er mit '0' und der Test bestaetigte
-      // faelschlich "declined", OHNE dass ueberhaupt die Statusabfrage lief.
+      // Ein Abbruch ist hinterlegt, damit ein Versuch nicht schon an der
+      // Attrappe scheitert -- die Zaehlung unten entscheidet.
       '/v1/terminal/abort': [okPayment({ responseCode: '0', transactionId: '213' })],
       '/v1/terminal/status': [
         okPayment({ responseCode: '9011', transactionId: '213' }),
@@ -897,7 +928,7 @@ test('Codetabelle: 9011 ist schluessig -- isCanceled trifft nur auf 9011 zu', ()
 test('unbekannter Code direkt, dann zweimal 9027 -> declined', async () => {
   // Am 28.08.2026 gemessen: hat das Terminal die Zahlung mit einem
   // Ergebniscode beantwortet, ist der Vorgang dort BEENDET. Die Statusabfrage
-  // unterscheidet dann sehr wohl -- genehmigt antwortet '0' (Beleg 408811,
+  // unterscheidet dann sehr wohl -- genehmigt antwortet '0' (gemessen,
   // dreimal geprueft), abgelehnt antwortet 9027. Genau das deckt den
   // Alltagsfall ab, dessen Code wir nicht kennen ("keine Deckung",
   // "Karte abgelaufen").
@@ -978,7 +1009,7 @@ test('eine genehmigte Zahlung bleibt genehmigt, auch nach 9027 davor', async () 
       '/v1/terminal/abort': [okPayment({ responseCode: '100010' })],
       '/v1/terminal/status': [
         okPayment({ responseCode: '9027' }),
-        okPayment({ responseCode: '0', receipt: '408811' }),
+        okPayment({ responseCode: '0', receipt: '400311' }),
       ],
     },
     calls,
@@ -987,7 +1018,7 @@ test('eine genehmigte Zahlung bleibt genehmigt, auch nach 9027 davor', async () 
   const result = await payments.pay({ amountCents: 2500, transactionId: '913' });
 
   assert.equal(result.outcome, 'approved');
-  assert.equal(result.response?.receipt, '408811');
+  assert.equal(result.response?.receipt, '400311');
 });
 
 test('zwei 9027 mit etwas dazwischen zaehlen nicht als zwei in Folge', async () => {
@@ -1089,13 +1120,13 @@ test('unbekannter Code bis zum Budgetende -> unresolved, lastResponse traegt Cod
 test('schluessiger Ausgang: lastResponse fehlt, response gesetzt', async () => {
   const calls: RecordedCall[] = [];
   const payments = buildPayments(
-    { '/v1/terminal/payment': [okPayment({ responseCode: '0', receipt: '408811' })] },
+    { '/v1/terminal/payment': [okPayment({ responseCode: '0', receipt: '400311' })] },
     calls,
   );
   const result = await payments.pay({ amountCents: 2500, transactionId: '941' });
 
   assert.equal(result.outcome, 'approved');
-  assert.equal(result.response?.receipt, '408811');
+  assert.equal(result.response?.receipt, '400311');
   assert.equal(result.lastResponse, undefined);
 });
 
@@ -1244,14 +1275,55 @@ test('hobex-Liste: dieselben Codes auf die ZAHLUNG sind eine Ablehnung', async (
   assert.equal(result.reason, 'terminalBlocked');
 });
 
-test('hobex-Liste: 100007, dann meldet der Status 0 -> approved', async () => {
-  const result = await zahlungMit(
-    '100007',
-    [okPayment({ responseCode: '9027' }), okPayment({ responseCode: '0', approvalCode: '000193' })],
+test('hobex-Liste: 100007, Storno abgewiesen (9002), dann meldet der Status 0 -> approved', async () => {
+  // 100007 schickt ein Storno nach. Weist das Terminal es schluessig ab, hat
+  // es sicher nicht gewirkt -- dann entscheidet die Genehmigung im Status.
+  const result = await buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '100007' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '9002' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' }), okPayment({ responseCode: '0', approvalCode: '000193' })],
+    },
     [],
   ).pay({ amountCents: 2500, transactionId: '1006' });
   assert.equal(result.outcome, 'approved');
   assert.equal(result.reason, 'approved');
+});
+
+test('hobex-Liste: 100007, Storno reisst ab, dann meldet der Status 0 -> unresolved', async () => {
+  // Ob das Storno ankam, ist offen -- dann ist auch eine Genehmigung im
+  // Status keine Aussage: das Storno kann noch unterwegs sein.
+  const calls: RecordedCall[] = [];
+  const result = await buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '100007' })],
+      '/v1/terminal/cancel': ['network-error'],
+      '/v1/terminal/status': [okPayment({ responseCode: '9027' }), okPayment({ responseCode: '0', approvalCode: '000193' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1006' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostFault');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/cancel').length, 1);
+  assert.ok(result.steps.some((s) => s.startsWith('Status: Zahlung steht unveraendert (0)')), result.steps.join(' | '));
+});
+
+test('TECS: Storno von Connect vor dem Terminal abgewiesen (terminal_unreachable) -- nicht gesendet, Status 0 entscheidet', async () => {
+  // HpsPreflightError: beweisbar ist nichts hinausgegangen (errors.ts). Das
+  // Storno kann nicht gewirkt haben, und der Nachweis sagt das auch.
+  const calls: RecordedCall[] = [];
+  const result = await buildPayments(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [failConnect('terminal_unreachable', 'Terminal nicht erreichbar (Verbindung abgelehnt).')],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', approvalCode: '000193' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1009' });
+  assert.equal(result.outcome, 'approved');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 1);
+  assert.ok(result.steps.some((s) => s.startsWith('Storno nicht gesendet (')), result.steps.join(' | '));
+  assert.ok(!result.steps.some((s) => s.includes('ob es wirkte, ist offen')), result.steps.join(' | '));
 });
 
 test('hobex-Liste: 100999 -> unresolved mit Grund internalError', async () => {
@@ -1307,17 +1379,21 @@ test('hobex-Liste: 100011 in der Statusabfrage schreibt nicht "keine Auskunft"',
   assert.ok(!result.steps.some((s) => s.includes('keine Auskunft')));
 });
 
-test('hobex-Liste: bestaetigter Abbruch -> Grund aborted, nicht approved', async () => {
+test('hobex-Liste: angenommener Abbruch setzt keinen Grund -- der Status meldet aufgehoben (9011) -> declined, canceled', async () => {
+  const calls: RecordedCall[] = [];
   const payments = buildPayments(
     {
       '/v1/terminal/payment': ['network-error'],
       '/v1/terminal/abort': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9011', responseText: 'Transaction Canceled' })],
     },
-    [],
+    calls,
   );
   const result = await payments.pay({ amountCents: 2500, transactionId: '1012' });
   assert.equal(result.outcome, 'declined');
-  assert.equal(result.reason, 'aborted');
+  assert.equal(result.reason, 'canceled');
+  assert.equal(result.response?.responseCode, '9011');
+  assert.equal(calls.filter((c) => c.path === '/v1/terminal/status').length, 1);
 });
 
 test('hobex-Liste: Gutschrift mit 100020 -> declined, Passwort', async () => {
@@ -1400,7 +1476,11 @@ function tecsZahlung(script: Script, calls: RecordedCall[]) {
 
 const zaehle = (calls: RecordedCall[], path: ScriptPath) => calls.filter((c) => c.path === path).length;
 
-test('TECS: 9908, Storno quittiert -> declined, ohne Abbruch und ohne Abfrage', async () => {
+// Mutationsprobe: "ein quittiertes Storno heisst nichts belastet". Wie beim
+// Abbruch beweist die Quittung allein nichts; erst 9011 im Status entscheidet.
+// Kehrt die Abkuerzung in sendReversal zurueck, endet dieser Test bei declined
+// ohne eine einzige Statusabfrage.
+test('TECS: 9908, Storno quittiert (0) -- kein Beweis: erst 9011 im Status macht declined', async () => {
   // Der Fall vom 11.09.2026 (TID 3556988). hobex: "ein Timeout wie jeder
   // andere. Richtigerweise sollte in dem Fall ein Storno nachgeschickt werden."
   const calls: RecordedCall[] = [];
@@ -1408,20 +1488,56 @@ test('TECS: 9908, Storno quittiert -> declined, ohne Abbruch und ohne Abfrage', 
     {
       '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
       '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9011' })],
     },
     calls,
   ).pay({ amountCents: 2500, transactionId: '1101' });
   assert.equal(result.outcome, 'declined');
   assert.equal(result.reason, 'voidedAfterHostFault');
+  assert.equal(result.response?.responseCode, '9011', 'den Ausgang traegt die Statusabfrage, nicht die Quittung');
   assert.equal(mayRetrySafely(result), true);
   assert.equal(zaehle(calls, '/v1/terminal/abort'), 0);
-  assert.equal(zaehle(calls, '/v1/terminal/status'), 0);
+  assert.equal(zaehle(calls, '/v1/terminal/status'), 1);
   const storno = calls.filter((c) => c.path === '/v1/terminal/cancel');
   assert.equal(storno.length, 1);
   assert.equal(storno[0]!.body['transactionId'], '1101');
   assert.equal(storno[0]!.body['amountCents'], 2500);
   assert.ok(result.steps.some((s) => s.includes('9908')));
-  assert.ok(result.steps[result.steps.length - 1]!.includes('Storno nachgeschickt und bestaetigt'));
+  assert.ok(result.steps.some((s) => s.startsWith('Storno nachgeschickt und quittiert (0)')), result.steps.join(' | '));
+});
+
+test('TECS: 9908, Storno quittiert (0), Status bleibt 0 -> unresolved, nicht approved und nicht declined', async () => {
+  const calls: RecordedCall[] = [];
+  const result = await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '0', approvalCode: '000193' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, transactionId: '1107' });
+  assert.equal(result.outcome, 'unresolved');
+  assert.equal(result.reason, 'hostTimeout');
+  assert.equal(result.response, undefined);
+  assert.equal(zaehle(calls, '/v1/terminal/status'), 2);
+  assert.ok(!result.steps.some((s) => s.includes('nichts belastet')), result.steps.join(' | '));
+});
+
+test('TECS: der Stornobetrag traegt das Trinkgeld', async () => {
+  const calls: RecordedCall[] = [];
+  await tecsZahlung(
+    {
+      '/v1/terminal/payment': [okPayment({ responseCode: '9908' })],
+      '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9011' })],
+    },
+    calls,
+  ).pay({ amountCents: 2500, tipCents: 300, transactionId: '1108' });
+  const zahlung = calls.find((c) => c.path === '/v1/terminal/payment')!;
+  assert.equal(zahlung.body['amountCents'], 2500);
+  assert.equal(zahlung.body['tipCents'], 300);
+  const storno = calls.find((c) => c.path === '/v1/terminal/cancel')!;
+  assert.equal(storno.body['amountCents'], 2800, 'aufgehoben wird, was belastet ist: Betrag und Trinkgeld');
 });
 
 test('TECS: Storno ohne Quittung, Status meldet 9011 -> declined', async () => {
@@ -1466,13 +1582,13 @@ test('TECS: Storno abgewiesen (9002), Status meldet 0 -> approved', async () => 
   assert.equal(result.outcome, 'approved');
 });
 
-test('TECS: Leitung reisst ab, erst der Status nennt 9905 -> Storno, declined', async () => {
+test('TECS: Leitung reisst ab, erst der Status nennt 9905 -> Storno, danach 9011 -> declined', async () => {
   const calls: RecordedCall[] = [];
   const result = await tecsZahlung(
     {
       '/v1/terminal/payment': ['network-error'],
       '/v1/terminal/cancel': [okPayment({ responseCode: '0' })],
-      '/v1/terminal/status': [okPayment({ responseCode: '9905' })],
+      '/v1/terminal/status': [okPayment({ responseCode: '9905' }), okPayment({ responseCode: '9011' })],
     },
     calls,
   ).pay({ amountCents: 2500, transactionId: '1105' });
@@ -1480,6 +1596,7 @@ test('TECS: Leitung reisst ab, erst der Status nennt 9905 -> Storno, declined', 
   assert.equal(result.reason, 'voidedAfterHostFault');
   assert.equal(zaehle(calls, '/v1/terminal/abort'), 1);
   assert.equal(zaehle(calls, '/v1/terminal/cancel'), 1);
+  assert.equal(zaehle(calls, '/v1/terminal/status'), 2);
 });
 
 test('TECS: das Storno geht hoechstens einmal hinaus', async () => {

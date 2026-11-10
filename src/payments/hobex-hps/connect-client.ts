@@ -34,8 +34,62 @@ export interface HpsConnectTarget {
   host: string;
   /** Vorgabe: `8080` (hobex-HPS-Standardport), siehe Connect. */
   port?: number;
-  /** Terminal-ID, wie am Geraet angezeigt (fuehrende Nullen werden toleriert). */
+  /**
+   * Terminal-ID, gern so, wie sie am Geraet und auf dem Beleg steht (achtstellig
+   * mit fuehrender Null, `03600335`). Das HPS kennt sie nur OHNE fuehrende Null
+   * und weist jede andere Schreibweise mit `100108 "Invalid TID"` ab; dieser
+   * Client schreibt sie deshalb vor jedem Aufruf um, siehe [normalizeHpsTid].
+   */
   tid: string;
+}
+
+/** Nur eine rein ziffrige TID wird umgeschrieben. */
+const NUR_ZIFFERN = /^[0-9]+$/;
+const FUEHRENDE_NULLEN = /^0+/;
+/**
+ * Leerraum am Rand, der wegfaellt: nur ASCII (Leerzeichen, Tab, Zeilenvorschub,
+ * Wagenruecklauf, vertikaler Tab, Seitenvorschub). Bewusst eine feste Liste
+ * statt `trim()`: JavaScript und Dart zaehlen Unicode-Leerraum verschieden
+ * (U+0085 trimmt Dart, JavaScript nicht), und die Zwillinge sollen dieselbe
+ * TID hinausschicken. Jedes andere Zeichen am Rand laesst die TID unveraendert.
+ */
+const RAND_LEERRAUM = /^[ \t\n\r\x0B\x0C]+|[ \t\n\r\x0B\x0C]+$/g;
+
+/**
+ * Die TID in der Form, die das hobex-HPS annimmt: Leerraum am Rand
+ * ([RAND_LEERRAUM]) und fuehrende Nullen fallen weg.
+ *
+ * Am 10.11.2026 gemessen (TID 3600335, HPS 1.14.4, Firmware 7.3.6): Diagnose
+ * und Zahlung mit `03600335` antworten sofort `100108 "Invalid TID"` (nichts
+ * belastet), mit `3600335` normal; `003600335`, `0360033` und `36003350` sind
+ * ebenfalls `Invalid TID`. Auf Beleg und Geraet steht die TID achtstellig mit
+ * fuehrender Null -- so wird sie auch eingetragen.
+ *
+ * Umgeschrieben wird NUR eine rein ziffrige TID mit mindestens einer Ziffer
+ * ungleich `0`. Alles andere geht UNVERAENDERT hinaus, auch die `0` der
+ * Erkennungsprobe von Connect und eine TID aus lauter Nullen: still etwas
+ * anderes daraus zu machen, hiesse ein anderes Terminal anzusprechen als das
+ * eingetragene. Bewusst kein Wurf: Connect weist eine nicht rein ziffrige TID
+ * selbst ab (`bad_request`, vor jedem Terminal-Kontakt, hier
+ * [HpsPreflightError]), und das HPS antwortet auf eine unbekannte mit
+ * `100108` -- in beiden Faellen geht kein Geld, und der Aufrufer bekommt den
+ * Grund auf dem Weg, den er fuer jede andere Abweisung auch auswertet.
+ *
+ * Kein Text (ein Aufrufer ohne Typpruefung uebergibt etwa eine Zahl) geht
+ * ebenso unveraendert hinaus: Connect weist ihn dann mit "Es fehlt die
+ * Terminal-ID" ab ([HpsPreflightError]), statt dass hier ein Wurf aus dem
+ * Zahlweg einen offenen Ausgang machte.
+ *
+ * Die einzige Stelle, an der die TID umgeschrieben wird: jeder Aufruf geht
+ * ueber `target`. Zwilling: `HpsClient` im Dart-Paket (`_normalizeTid`), Faelle
+ * in `fixtures/hobex-hps-cases.json`.
+ */
+export function normalizeHpsTid(tid: string): string {
+  if (typeof tid !== 'string') return tid;
+  const ohneRand = tid.replace(RAND_LEERRAUM, '');
+  if (!NUR_ZIFFERN.test(ohneRand)) return tid;
+  const ohneNullen = ohneRand.replace(FUEHRENDE_NULLEN, '');
+  return ohneNullen === '' ? tid : ohneNullen;
 }
 
 export interface HpsConnectPaymentOptions extends HpsConnectTarget {
@@ -109,6 +163,13 @@ export interface HpsConnectClientOptions {
 export interface HpsConnectClient {
   payment(options: HpsConnectPaymentOptions): Promise<HpsTransactionResponse>;
   status(options: HpsConnectTransactionOptions): Promise<HpsTransactionResponse>;
+  /**
+   * Abbruch eines laufenden Vorgangs. `responseCode '0'` heisst nur, dass das
+   * Terminal die Anfrage angenommen hat -- NICHT, dass der Vorgang abgebrochen
+   * ist: am 10.11.2026 endete eine Zahlung nach so einer Quittung genehmigt.
+   * Den Ausgang sagt die Antwort auf die Zahlung oder die Statusabfrage, siehe
+   * `payments.ts`.
+   */
   abort(options: HpsConnectTransactionOptions): Promise<HpsTransactionResponse>;
   /** Gutschrift — ein Kartenfluss wie [payment], deshalb dieselbe lange Frist. */
   refund(options: HpsConnectRefundOptions): Promise<HpsTransactionResponse>;
@@ -212,7 +273,7 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
   }
 
   function target(t: HpsConnectTarget): Record<string, unknown> {
-    return { host: t.host, port: t.port, tid: t.tid };
+    return { host: t.host, port: t.port, tid: normalizeHpsTid(t.tid) };
   }
 
   return {

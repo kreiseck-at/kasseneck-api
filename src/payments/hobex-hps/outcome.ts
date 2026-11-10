@@ -42,9 +42,10 @@ export interface HpsPaymentResult {
    * fuer den Bediener in `HPS_REASON_HINTS`.
    *
    * Gesetzt an der Stelle, die den Ausgang entschieden hat, nicht aus
-   * [response] abgeleitet: ein bestaetigter Abbruch antwortet `'0'` und ist
-   * trotzdem `'aborted'`, und wenn die Zwei-9027-Regel eine Zahlung als
-   * abgelehnt klaert, zaehlt der Code der ZAHLUNG, nicht das `9027` danach.
+   * [response] abgeleitet: ein quittiertes Storno nach einer Stoerung beim
+   * Host antwortet `'0'` und ist trotzdem `'voidedAfterHostFault'`, und wenn
+   * die Zwei-9027-Regel eine Zahlung als abgelehnt klaert, zaehlt der Code der
+   * ZAHLUNG, nicht das `9027` danach.
    * Fehlt, wenn kein Code etwas erklaert (die Leitung riss ab, bevor das
    * Terminal etwas sagte) und bei einer Aufhebung, die nicht gegriffen hat.
    */

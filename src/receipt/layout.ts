@@ -305,7 +305,7 @@ function verbunden(teile: string[]): string {
  * (models/hobex-receipt.ts) — Datum, TID, Genehmigungsnummer, Karte, PAN,
  * Antwortcode. Bei CVM "1" verlangt die Karte eine Unterschrift; dafuer
  * bekommt der Bon eine Linie. Der PAN haengt beim HPS das Ablaufdatum mit
- * Unterstrich an ("…4720_2810") — gedruckt wird nur die maskierte Nummer.
+ * Unterstrich an ("…0021_2912") — gedruckt wird nur die maskierte Nummer.
  */
 function hobexBlock(daten: Record<string, unknown>): LayoutLine[] {
   const feld = (k: string) => kartenFeld(daten, k);
