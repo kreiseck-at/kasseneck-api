@@ -93,6 +93,7 @@ const NACH_1_0 = {
     'tip.kept_hint', 'tip.open_hint',
     // Kartentrinkgeld an der Kasse (1.37.0)
     'tip.card_kept_setting_hint', 'tip.self_payout_hint', 'tip.overpaid_hint', 'tip.terminal_hint',
+    'tip_claim_scope.hint', 'my_tips.payout_not_allowed',
     // Rabatt-Vorlagen (1.31.0)
     'discount.preset_over_total', 'discount_preset.list', 'discount_preset.entry', 'discount_preset.name', 'discount_preset.duplicate', 'discount_preset.kind',
     'discount_preset.percent', 'discount_preset.amount', 'discount_preset.unknown_field',
@@ -166,6 +167,7 @@ const NACH_1_0 = {
     'done.tip_title', 'done.tip_open', 'done.tip_open_loading', 'done.tip_kept_card', 'done.tip_kept_cash', 'done.tip_pay_out',
     'my_tips.title', 'my_tips.open_here', 'my_tips.open_total', 'my_tips.kept_today', 'my_tips.other_drawer', 'my_tips.nothing_open', 'my_tips.overpaid', 'my_tips.pay_out', 'my_tips.pay_out_amount',
     'cancellation.tip_deducted', 'shift_receipt.tip_card_taken', 'shift.part_card_tips_taken', 'tip_card_kept_mode.title', 'tip.card_kept_setting', 'tip_self_payout.title',
+    'tip_claim_scope.title', 'tip_claim_scope.per_drawer', 'tip_claim_scope.per_person',
     // Rabatt-Vorlagen (1.31.0)
     'discount_presets.title', 'discount_presets.name', 'discount_presets.percent', 'discount_presets.amount', 'discount_presets.add', 'discount_presets.remove', 'discount_presets.limit',
     'shift_receipt.discounts', 'shift_receipt.discounts_total', 'shift_receipt.discount_line', 'shift_receipt.discount_unnamed',
@@ -208,7 +210,9 @@ const NACH_1_0 = {
   invoiceTexts: ['pdf.totals.single_use_deposit', 'pdf.totals.head_rate', 'pdf.totals.head_net', 'pdf.totals.head_vat', 'einvoice.exemption.single_use_deposit'],
   fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
     // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
-    'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels', 'depositErrors'],
+    'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels',
+    // Kartentrinkgeld an der Kasse (1.37.0): Anspruchs-Modus -> Beschriftung
+    'tipClaimScopeLabels', 'depositErrors'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;

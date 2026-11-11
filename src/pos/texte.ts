@@ -26,6 +26,7 @@ import type { ReturnDisposition } from '../models/cancellation.js';
 import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import type { PosExternalVouchers } from './gutschein.js';
 import type { PosTipKeptMode } from './settings.js';
+import type { TipClaimScope } from './schicht-typen.js';
 import { ARTICLE_EXTERNAL_VOUCHER_INVALID, type ArticleExternalVoucher, type ExternalVoucherArticleReason, type ExternalVoucherTileBlock } from './fremdgutschein-artikel.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
@@ -127,6 +128,9 @@ const MELDUNGEN_ROH = {
   'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
   'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
   'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },
+  // Kartentrinkgeld Stufe 3 (1.37.0): Anspruchs-Modus im Kundenbereich (F2) und „Mein Trinkgeld“ ohne Auszahl-Recht.
+  'tip_claim_scope.hint': { text: 'Je Kassenlade: das Trinkgeld steht an der Kassenlade, an der es entstand, und wird dort ausgezahlt. Je Person: ein Stand über alle Kassenladen, an jeder auszahlbar.' },
+  'my_tips.payout_not_allowed': { text: 'Auszahlen nur mit dem Recht „Schicht“.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -1600,6 +1604,10 @@ const BESCHRIFTUNGEN_ROH = {
   'tip_card_kept_mode.title': { text: 'Kartentrinkgeld gleich behalten' },
   'tip.card_kept_setting': { text: 'Kartentrinkgeld nimmt der Mitarbeiter gleich bar aus der Lade' },
   'tip_self_payout.title': { text: 'Mitarbeiter zahlen sich ihr Trinkgeld selbst aus' },
+  // Anspruchs-Modus (F2, Kundenbereich; Werte TIP_CLAIM_SCOPES, Zuordnung TIP_CLAIM_SCOPE_LABELS).
+  'tip_claim_scope.title': { text: 'Offenes Trinkgeld zählt' },
+  'tip_claim_scope.per_drawer': { text: 'Je Kassenlade' },
+  'tip_claim_scope.per_person': { text: 'Je Person (alle Kassenladen)' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
@@ -1623,6 +1631,15 @@ export const TIP_KEPT_MODE_LABELS = {
   always: 'tip_kept_mode.always',
   never: 'tip_kept_mode.never',
 } as const satisfies Record<PosTipKeptMode, LabelKey>;
+
+/**
+ * Wo der offene Trinkgeld-Anspruch gefuehrt wird (`TIP_CLAIM_SCOPES`, Spec 2026-11-11-kartentrinkgeld F2) ->
+ * Beschriftung im Kundenbereich.
+ */
+export const TIP_CLAIM_SCOPE_LABELS = {
+  per_drawer: 'tip_claim_scope.per_drawer',
+  per_person: 'tip_claim_scope.per_person',
+} as const satisfies Record<TipClaimScope, LabelKey>;
 
 /** Freigabe fuer Fremdgutscheine (`externalVouchers`) -> Beschriftung der Stufe im Kundenbereich. */
 export const EXTERNAL_VOUCHERS_LABELS = {

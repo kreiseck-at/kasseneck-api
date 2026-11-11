@@ -178,6 +178,12 @@
     "tip.terminal_hint": {
       "text": "Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht."
     },
+    "tip_claim_scope.hint": {
+      "text": "Je Kassenlade: das Trinkgeld steht an der Kassenlade, an der es entstand, und wird dort ausgezahlt. Je Person: ein Stand über alle Kassenladen, an jeder auszahlbar."
+    },
+    "my_tips.payout_not_allowed": {
+      "text": "Auszahlen nur mit dem Recht „Schicht“."
+    },
     "completion.failed": {
       "text": "Der Abschluss ist fehlgeschlagen."
     },
@@ -3520,6 +3526,15 @@
     },
     "tip_self_payout.title": {
       "text": "Mitarbeiter zahlen sich ihr Trinkgeld selbst aus"
+    },
+    "tip_claim_scope.title": {
+      "text": "Offenes Trinkgeld zählt"
+    },
+    "tip_claim_scope.per_drawer": {
+      "text": "Je Kassenlade"
+    },
+    "tip_claim_scope.per_person": {
+      "text": "Je Person (alle Kassenladen)"
     }
   },
   "returnDispositionLabels": {
@@ -3540,6 +3555,10 @@
     "ask": "tip_kept_mode.ask",
     "always": "tip_kept_mode.always",
     "never": "tip_kept_mode.never"
+  },
+  "tipClaimScopeLabels": {
+    "per_drawer": "tip_claim_scope.per_drawer",
+    "per_person": "tip_claim_scope.per_person"
   },
   "depositErrors": {
     "deposit_not_enabled": "deposit_error.not_enabled",

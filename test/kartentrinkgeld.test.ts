@@ -7,7 +7,7 @@ import {
   POS_BUSINESS_DEFAULTS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_VALUES, TIP_KEPT_MODE, TIP_CLAIM_SCOPES,
   EXPECTED_PART_KEYS, POS_ERROR_CODES,
   mergePosSettings, posTipCardKeptMode, posTipCardKeptByDefault, posTipSelfPayout, tipKeptFor, tipStatus, shiftTipLines, labelText, messageText,
-  getMyTipBalance, type PosBusinessSettings, type ShiftTip,
+  getMyTipBalance, TIP_CLAIM_SCOPE_LABELS, TIP_KEPT_MODE_LABELS, type PosBusinessSettings, type ShiftTip,
 } from '../src/pos/index.js';
 import { KATALOGE } from '../src/stored/vokabular.js';
 import { createTransport, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
@@ -178,4 +178,15 @@ test('getMyTipBalance: unlesbare Antwort ist ein Fehler, nie ein Stand mit 0', a
   assert.equal(ergebnis, undefined);
   assert.ok(fehler instanceof Error);
   assert.match(String((fehler as Error).message), /openCents/);
+});
+
+test('Stufe 3: Anspruchs-Modus je Lade / je Person mit Beschriftung je Wert (Kundenbereich), Satz ohne Auszahl-Recht', () => {
+  // Jeder Wert des Katalogs hat genau eine Beschriftung -- eine neue Stufe ohne Wort waere hier rot.
+  assert.deepEqual(Object.keys(TIP_CLAIM_SCOPE_LABELS).sort(), [...TIP_CLAIM_SCOPES].sort());
+  assert.deepEqual(TIP_CLAIM_SCOPES.map((s) => labelText(TIP_CLAIM_SCOPE_LABELS[s])), ['Je Kassenlade', 'Je Person (alle Kassenladen)']);
+  assert.equal(labelText('tip_claim_scope.title'), 'Offenes Trinkgeld zählt');
+  assert.match(messageText('tip_claim_scope.hint'), /^Je Kassenlade: .+ Je Person: .+\.$/);
+  assert.equal(messageText('my_tips.payout_not_allowed'), 'Auszahlen nur mit dem Recht „Schicht“.');
+  // Die Karten-Stufe nimmt dieselben Woerter wie Bar (eine Zuordnung, keine zweite Liste).
+  assert.deepEqual(TIP_KEPT_MODE.map((m) => labelText(TIP_KEPT_MODE_LABELS[m])), ['Jedes Mal fragen', 'Immer gleich behalten', 'Immer offen lassen']);
 });
