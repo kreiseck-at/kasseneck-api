@@ -1,8 +1,8 @@
 {
   "_hinweis": "Vertrags-Export /v3, erzeugt aus den echten Handlern (npm run vertrag:v3 in functions/ und functions-kasse/). Nicht von Hand pflegen.",
   "_quelle": {
-    "sha256": "9693cc6fa524b9e63742971e7659161d803e749e983b5524ba577a57ea58b688",
-    "inputsSha256": "cbc822728c60a8d04084d28744e04bc0f485524e1bfa9febfa4c6f93754b88e8",
+    "sha256": "78eb90dbffbd44f2b16d78963d35c6e977245f5f53bb171a19b73b15d5cb0a3c",
+    "inputsSha256": "d736f3d749e4a91d825a72c07541a0cf6cb2de8e056b7805fb3a1bb06f3546ad",
     "backendPackage": "@kreiseck/kasseneck-api@0.39.0",
     "inputs": [
       "docs/api/fehlercodes.json",
@@ -1400,6 +1400,7 @@
       "car_useful_life_too_short",
       "card_pool_empty",
       "card_pool_unavailable",
+      "card_tips_require_shift_mode",
       "cash_movement_exceeds_balance",
       "cashregister_closed",
       "cashregister_decommissioned",
@@ -1904,7 +1905,8 @@
       "pfand_ungueltig": "invalid_deposit",
       "zu_viele_pfandarten": "too_many_deposit_types",
       "ewp_nicht_abfueller": "filler_role_required",
-      "kind_ungueltig": "invalid_item_kind"
+      "kind_ungueltig": "invalid_item_kind",
+      "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
     },
     "edge": [
       "validation",
@@ -2677,7 +2679,8 @@
       "invalid_deposit",
       "too_many_deposit_types",
       "filler_role_required",
-      "invalid_item_kind"
+      "invalid_item_kind",
+      "card_tips_require_shift_mode"
     ],
     "receiptMessagesByEndpoint": {
       "createReceipt": [
@@ -3906,7 +3909,8 @@
             "pfand_ungueltig": "invalid_deposit",
             "zu_viele_pfandarten": "too_many_deposit_types",
             "ewp_nicht_abfueller": "filler_role_required",
-            "kind_ungueltig": "invalid_item_kind"
+            "kind_ungueltig": "invalid_item_kind",
+            "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
           }
         }
       }
@@ -4667,7 +4671,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         },
         "signatures[].error.code": {
           "zeitraum_offen": "period_not_closed",
@@ -4797,7 +4802,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         }
       }
     },
@@ -6304,7 +6310,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         }
       }
     },
@@ -8285,7 +8292,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         }
       },
       "fehler": {
@@ -9768,7 +9776,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         }
       }
     },
@@ -10113,7 +10122,8 @@
           "pfand_ungueltig": "invalid_deposit",
           "zu_viele_pfandarten": "too_many_deposit_types",
           "ewp_nicht_abfueller": "filler_role_required",
-          "kind_ungueltig": "invalid_item_kind"
+          "kind_ungueltig": "invalid_item_kind",
+          "kartentrinkgeld_schichtbetrieb_noetig": "card_tips_require_shift_mode"
         }
       }
     },
