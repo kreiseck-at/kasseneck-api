@@ -93,6 +93,7 @@ export {
   createHpsConnectClient,
   createHpsPayments,
   createHpsTransactionIdGenerator,
+  HOBEX_SUPPORT,
   HPS_CODES,
   HPS_MEASURED_CODES,
   HPS_REASON_HINTS,

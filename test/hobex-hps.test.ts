@@ -1875,3 +1875,12 @@ test('Nachfrage: ein Nachfrage-Ergebnis als Vorgeschichte entscheidet nie -- auc
     .pay({ amountCents: 100, transactionId: '701' });
   assert.equal(zahlung.clarified, undefined);
 });
+
+test('HOBEX_SUPPORT: Technik von hobex, eingefroren, ueber ./payments erreichbar', async () => {
+  const { HOBEX_SUPPORT } = await import('../src/payments/index.js');
+  assert.deepEqual({ ...HOBEX_SUPPORT }, { phone: '+43 662 2255-88', display: '0662 2255-88', availability: '24/7' });
+  assert.ok(Object.isFrozen(HOBEX_SUPPORT));
+  // Dieselbe Nummer in beiden Schreibweisen: Durchwahl 88 der Zentrale 2255-0.
+  assert.equal(HOBEX_SUPPORT.phone.replace(/[^\d+]/g, ''), '+43662225588');
+  assert.equal(`+43${HOBEX_SUPPORT.display.replace(/\D/g, '').slice(1)}`, '+43662225588');
+});

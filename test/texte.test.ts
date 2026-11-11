@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CLIENT_ERROR_CODES, KasseneckApiError } from '../src/client/errors.js';
 import { PAYMENT_ERROR_CODES } from '../src/models/payment-errors.js';
+import { HOBEX_SUPPORT, HPS_REASON_HINTS, isHostUncertainReason, type HpsCodeReason } from '../src/payments/hobex-hps/index.js';
 
 const SCHLUESSEL_MUSTER = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
@@ -150,6 +151,28 @@ test('Klaeren-Fenster: jede Zeile ohne Antwort des Terminals schickt zum Termina
   assert.equal(messageText('split.clarify_manual'), 'Bitte am Terminal-Beleg nachsehen.');
   assert.equal(labelText('split.clarify_title', { amount: '15,00 €' }), 'Karte klären · 15,00 €');
   assert.equal(labelText('split.clarify_reference', { reference: '888888888888888888' }), 'Kennung 888888888888888888');
+});
+
+test('Klaeren-Fenster: jeder Grund mit Stoerung beim hobex-Host hat seine kurze Zeile, Schluessel = Grund in snake_case', () => {
+  const hostGruende = Object.keys(HPS_REASON_HINTS).filter((g) => isHostUncertainReason(g as HpsCodeReason));
+  assert.deepEqual(hostGruende.sort(), ['approvedWithCondition', 'hostFault', 'hostTimeout', 'internalError']);
+  for (const grund of hostGruende) {
+    const schluessel = `split.clarify_reason_${grund.replace(/[A-Z]/g, (b) => `_${b.toLowerCase()}`)}`;
+    assert.ok(schluessel in MESSAGES, schluessel);
+    assert.match(MESSAGES[schluessel as MessageKey].text, /^Grund: /, schluessel);
+    assert.equal(MESSAGES[schluessel as MessageKey].placeholders, undefined, schluessel);
+  }
+  assert.equal(
+    messageText('split.clarify_reason_terminal', { text: 'Etwas Neues', code: '4711' }),
+    'Grund: Das Terminal meldete „Etwas Neues“ (Code 4711).',
+  );
+});
+
+test('Technik von hobex: ein Satz mit der Nummer, auf beiden Seiten', () => {
+  const eintrag = MESSAGES['card_payment.hobex_support'];
+  assert.deepEqual(eintrag.placeholders, ['phone']);
+  assert.equal(eintrag.only, undefined);
+  assert.equal(messageText('card_payment.hobex_support', { phone: HOBEX_SUPPORT.display }), 'Technik von hobex (rund um die Uhr): 0662 2255-88.');
 });
 
 // --- Die Kennung ueberlebt den Abriss --------------------------------------

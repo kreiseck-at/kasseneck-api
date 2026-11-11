@@ -104,7 +104,10 @@ const NACH_1_0 = {
     // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
     'version.new_available',
     // Unklare Kartenzahlung kurz mit Kennung, Klaeren ohne Nachfrage (1.37.0)
-    'split.clarify_manual', 'card_payment.unclear_short'],
+    'split.clarify_manual', 'card_payment.unclear_short',
+    // Grund im Klaeren-Fenster, Technik von hobex (1.37.0)
+    'split.clarify_reason_host_fault', 'split.clarify_reason_host_timeout', 'split.clarify_reason_internal_error',
+    'split.clarify_reason_approved_with_condition', 'split.clarify_reason_terminal', 'card_payment.hobex_support'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',

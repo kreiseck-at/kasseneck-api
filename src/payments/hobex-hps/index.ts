@@ -142,3 +142,4 @@ export {
 } from './transaction-response.js';
 
 export { hobexReceiptFromHps } from './receipt.js';
+export { HOBEX_SUPPORT } from './support.js';

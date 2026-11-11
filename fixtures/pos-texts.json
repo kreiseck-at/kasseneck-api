@@ -212,6 +212,12 @@
         "reference"
       ]
     },
+    "card_payment.hobex_support": {
+      "text": "Technik von hobex (rund um die Uhr): {phone}.",
+      "placeholders": [
+        "phone"
+      ]
+    },
     "card_payment.waiting_for_terminal": {
       "text": "Bitte am Terminal fortfahren …"
     },
@@ -748,6 +754,25 @@
     },
     "split.clarify_manual": {
       "text": "Bitte am Terminal-Beleg nachsehen."
+    },
+    "split.clarify_reason_host_fault": {
+      "text": "Grund: Störung zwischen Terminal und hobex."
+    },
+    "split.clarify_reason_host_timeout": {
+      "text": "Grund: hobex hat nicht rechtzeitig geantwortet."
+    },
+    "split.clarify_reason_internal_error": {
+      "text": "Grund: Das Terminal meldet einen internen Fehler."
+    },
+    "split.clarify_reason_approved_with_condition": {
+      "text": "Grund: Genehmigung mit Vorbehalt, etwa nur über einen Teilbetrag."
+    },
+    "split.clarify_reason_terminal": {
+      "text": "Grund: Das Terminal meldete „{text}“ (Code {code}).",
+      "placeholders": [
+        "text",
+        "code"
+      ]
     },
     "receipt.link_copied": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."

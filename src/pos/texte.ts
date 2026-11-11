@@ -144,6 +144,11 @@ const MELDUNGEN_ROH = {
   // Klaeren-Fenster. Die Kennung darf gekuerzt sein (erste und letzte Ziffern);
   // ganz steht sie im Fenster und in der Liste.
   'card_payment.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Kennung {reference}.', placeholders: ['amount', 'reference'] },
+  // Die Technik von hobex (`HOBEX_SUPPORT` in ./payments, `{phone}` = `display`): nur
+  // dort, wo hobex helfen kann -- Stoerung beim hobex-Host, Terminal nicht
+  // betriebsbereit, TID passt nicht, Ausgang am Terminal offen. Nie bei Fehlern
+  // im eigenen Netz oder an Kasseneck Connect.
+  'card_payment.hobex_support': { text: 'Technik von hobex (rund um die Uhr): {phone}.', placeholders: ['phone'] },
   'card_payment.waiting_for_terminal': { text: 'Bitte am Terminal fortfahren …' },
   // Das Kartenfenster des Terminals ist abgelaufen: es bricht selbst ab, die
   // Kasse muss nichts tun.
@@ -356,6 +361,15 @@ const MELDUNGEN_ROH = {
   'split.clarify_open': { text: 'Das Terminal weiß es nicht. Bitte am Terminal-Beleg nachsehen.' },
   'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen.', placeholders: ['reason'] },
   'split.clarify_manual': { text: 'Bitte am Terminal-Beleg nachsehen.' },
+  // Der Grund, warum der Ausgang offen blieb, als kurze Zeile unter dem Stand:
+  // je Grund mit Stoerung beim oder nach dem hobex-Host (`isHostUncertainReason`,
+  // Schluessel = Grund in snake_case) und fuer einen Code ohne feste Bedeutung
+  // das, was das Terminal meldete.
+  'split.clarify_reason_host_fault': { text: 'Grund: Störung zwischen Terminal und hobex.' },
+  'split.clarify_reason_host_timeout': { text: 'Grund: hobex hat nicht rechtzeitig geantwortet.' },
+  'split.clarify_reason_internal_error': { text: 'Grund: Das Terminal meldet einen internen Fehler.' },
+  'split.clarify_reason_approved_with_condition': { text: 'Grund: Genehmigung mit Vorbehalt, etwa nur über einen Teilbetrag.' },
+  'split.clarify_reason_terminal': { text: 'Grund: Das Terminal meldete „{text}“ (Code {code}).', placeholders: ['text', 'code'] },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
