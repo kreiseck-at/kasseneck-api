@@ -82,6 +82,8 @@ test('tipStatus: die eine Zeile je Zahlart und Ergebnis, mit Betrag; einzeilig',
   assert.equal(labelText('my_tips.nothing_open'), 'Nichts offen');
   assert.equal(labelText('shift_receipt.tip_card_taken'), 'davon Kartentrinkgeld');
   assert.match(messageText('tip.card_kept_setting_hint'), /bar aus der Lade/);
+  // F1 an der Kasse: gleich behalten nur mit offener Schicht und bekanntem, ausreichendem Soll -- sonst offen.
+  assert.match(messageText('tip.card_kept_setting_hint'), /nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen\.$/);
 });
 
 test('shiftTipLines: „davon Kartentrinkgeld“ nach „schon genommen“, nur ≠ 0; Soll-Teil card_tips_taken', () => {

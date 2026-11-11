@@ -124,7 +124,7 @@ const MELDUNGEN_ROH = {
   'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
   'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
   // Kartentrinkgeld (Spec 2026-11-11-kartentrinkgeld, 1.37.0): Hinweise zur Karten-Stufe und zum Not-Aus Selbst-Auszahlen.
-  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen.' },
   'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
   'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
   'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },

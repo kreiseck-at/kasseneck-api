@@ -167,7 +167,7 @@
       "text": "Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird."
     },
     "tip.card_kept_setting_hint": {
-      "text": "Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen."
+      "text": "Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen."
     },
     "tip.self_payout_hint": {
       "text": "Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“."
