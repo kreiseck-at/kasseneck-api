@@ -56,6 +56,10 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * aufgenommen; dazu die Server-Layouts `belege/sale_manual_receipt` und `kasse-belege/sale_manual_receipt` aus dem
  * Vertrag (Backend mit vendortem Paket 0.36.0). Alle vorhandenen Digests blieben (reine Ergaenzung).
  *
+ * Zahlung auf Rechnung (11.11.2026, 1.38.0): acht neue Golden-Belege `invoice-payment-*` (Positionsart
+ * `invoice_payment` ohne Satzkennzeichen und ohne Steuertabelle, „inkl. USt“) sind neu aufgenommen. Alle
+ * vorhandenen Digests blieben (reine Ergaenzung).
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

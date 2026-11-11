@@ -205,8 +205,13 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   if (bon.comment) zeilen.push(text(`${labelText('shift_receipt.comment')}: ${bon.comment}`));
   zeilen.push(...nachZaehlungZeilen(bon));
 
-  // Zur Information: unbar, Zaehler.
+  // Zur Information: Zahlungen auf Rechnungen, unbar, Zaehler.
   zeilen.push(regel());
+  // Zahlungen auf Rechnungen (1.38.0): nur Information, das Geld steckt schon im Barumsatz bzw. unbar.
+  // Ohne Betrag (fehlt oder 0) keine Zeile, der Bon bleibt wie bisher.
+  if (bon.invoicePaymentCents !== undefined && bon.invoicePaymentCents !== 0) {
+    zeilen.push(betrag(labelText('shift_receipt.invoice_payments'), bon.invoicePaymentCents));
+  }
   if (bon.nonCashByMethod.length > 0) {
     zeilen.push(text(labelText('shift_receipt.non_cash'), 'left', true));
     for (const u of bon.nonCashByMethod) zeilen.push(betrag(zahlartText(u.method), u.cents));

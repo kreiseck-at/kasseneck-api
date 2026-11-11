@@ -872,6 +872,16 @@ vom 11.08.2026, 09:02 Uhr / Grund: Fehleingabe". The date comes from
 `cancellationOf.timeStamp` (backend since 2026-09-04); older receipts without
 it omit that line.
 
+**Payment receipts (payment on invoices).** A receipt whose positions carry
+`kind: 'invoice_payment'` (`isInvoicePaymentItem`) takes money for one or more
+invoices (cash or card on site) or pays it back for a credit note; only the
+server creates it, and `receipt.invoicePayments` names the invoices in the
+order of the positions. It is cancelled only at its invoice in the customer
+area: `cancelReceipt` answers `invoice_payment_not_cancellable`, and the till
+shows `cancellation.invoice_payment_not_cancellable` (`./pos`). The printed
+receipt shows these positions without tax category and without VAT table,
+with `inkl. USt` below when the invoice shows VAT.
+
 ## Sending a receipt by email
 
 ```ts
@@ -980,6 +990,12 @@ Logo sizes: S 42 % × 5 lines, M 62 % × 8, L 80 % × 12, XL 94 % × 16, always
 fitted, never scaled up. Banners (TESTKASSE, STORNOBELEG, …) are framed by
 `=` lines, the same on every path. The package rasterises finished RGBA pixels;
 loading and decoding the image (PNG, JPEG) stays with your application.
+
+A page that shows a receipt in its own arrangement (the cash-register section
+on an A4 invoice) takes the notes from `receiptNotes(receipt, { testCashregister,
+testSignature })` (`./receipt`): `{ kind, title, lines }` for test register, test
+signature, training, cancellation, recorded handwritten receipt and signature
+outage, in this order, with the same words as the printed receipt.
 
 ### Getting the bytes to the printer
 

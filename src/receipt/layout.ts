@@ -1,18 +1,18 @@
 import { VatRate, VoucherAction, VoucherType } from '../enums/index.js';
 import {
-  CANCELLATION_REASONS,
-  isCancellationReason,
   receiptCompanyTaxInfo,
   receiptItemTotalCents,
   isDepositItem,
   isDepositReturnItem,
   isDiscountItem,
+  isInvoicePaymentItem,
   isTipItem,
   receiptSubSumCents,
   receiptSumCents,
   receiptValueVoucherSign,
   voucherIsValid,
   isExternalVoucher,
+  type InvoicePaymentRef,
   type Receipt,
   type ReceiptCompany,
   type ReceiptItem,
@@ -24,6 +24,19 @@ import { parseServerTimeStamp, toViennaWallClock } from '../vienna-time.js';
 import { KasseneckValidationError } from '../client/errors.js';
 import type { PosPaperSize } from '../printing/escpos.js';
 import { addOnDisplayOrder, istGueltigerZusatz } from '../pos/zusaetze.js';
+import {
+  belegtyp,
+  nacherfassungTeile,
+  receiptSignatureFailed,
+  signaturausfallVermerk,
+  stornoVermerk,
+  testkasseVermerk,
+  testsignaturVermerk,
+  trainingVermerk,
+  type ReceiptNote,
+} from './vermerke.js';
+
+export { receiptSignatureFailed };
 
 /**
  * Beleg-Layout — der Bauplan eines Kasseneck-Belegs als reines Datenmodell.
@@ -241,21 +254,6 @@ function belegZeit(timeStamp: string): string {
   }
   const zwei = (n: number): string => String(n).padStart(2, '0');
   return `${zwei(t.day)}.${zwei(t.month)}.${t.year} ${zwei(t.hour)}:${zwei(t.minute)}:${zwei(t.second)}`;
-}
-
-/**
- * Datum des stornierten Originals fuer den Kopfblock: „11.08.2026, 09:02 Uhr".
- * Ein unlesbarer Zeitstempel am BEZUG ist kein Grund, den Storno-Bon zu
- * verweigern (der Beleg selbst ist gueltig) — dann bleibt die Zeile weg.
- */
-function originalDatum(timeStamp: string): string | null {
-  try {
-    const t = toViennaWallClock(parseServerTimeStamp(timeStamp));
-    const zwei = (n: number): string => String(n).padStart(2, '0');
-    return `${zwei(t.day)}.${zwei(t.month)}.${t.year}, ${zwei(t.hour)}:${zwei(t.minute)} Uhr`;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -710,21 +708,8 @@ export const SMALL_BUSINESS_NOTICE = 'Umsatzsteuerbefreit – Kleinunternehmer g
 
 // ------------------------------------------------------------------ Signatur
 
-/** Text, den das Backend statt einer Signatur ablegt, wenn die Karte ausfaellt. */
-const SIGNATUR_AUSGEFALLEN = 'Sicherheitseinrichtung ausgefallen';
-
-/**
- * Derselbe Text base64url-kodiert — so steht er als dritter JWS-Teil im Feld
- * `sig` (Zwilling von `RKSVService.isSigSuccess`). Fest hinterlegt statt zur
- * Laufzeit kodiert: `btoa`/`Buffer` sind in Browser und Node verschieden zu
- * haben, und der Wert ist unveraenderlich.
- */
-const SIGNATUR_AUSGEFALLEN_BASE64URL = 'U2ljaGVyaGVpdHNlaW5yaWNodHVuZyBhdXNnZWZhbGxlbg';
-
-/** Wurde der Beleg ohne funktionierende Signatureinheit ausgestellt? */
-export function receiptSignatureFailed(receipt: Receipt): boolean {
-  return receipt.sig.split('.')[2] === SIGNATUR_AUSGEFALLEN_BASE64URL;
-}
+// Ob der Beleg ohne Signatureinheit ausgestellt wurde (`receiptSignatureFailed`), steht bei den
+// Vermerken (vermerke.ts): der Vermerk „Sicherheitseinrichtung ausgefallen“ haengt daran.
 
 /**
  * Traegt der Beleg eine **Test**-Signatur? Erkannt am ZDA-Kennzeichen `AT100`
@@ -1168,23 +1153,65 @@ function einwegPfandCents(receipt: Receipt): number | null {
   return gefunden ? summe : null;
 }
 
-// ---------------------------------------------------------------- Belegart
+// ---------------------------------------------------------- Zahlung auf Rechnung
 
-const TESTKASSE_TEXT = 'TESTKASSE — kein gültiger Beleg';
-const TESTSIGNATUR_TEXT = 'TESTSIGNATUR — kein gültiger Beleg';
-/** Erklaerung am Trainingsbeleg (Wortlaut mit dem Betreiber abgestimmt). */
-const TRAINING_ERKLAERUNG = [
-  'Trainingsbuchung — kein Kauf, keine Zahlung, keine steuerliche Buchung.',
-  'Sollten Sie diesen Beleg als Kunde erhalten haben, sagen Sie bitte dem Betrieb Bescheid.',
-];
+/** Steuerhinweis unter einer Zahlung auf eine Rechnung, die Umsatzsteuer ausweist (eingerueckt wie „  USt bei Einlösung“). */
+const INKL_UST_TEXT = '  inkl. USt';
+
+/**
+ * Zahlungsbeleg: jede Position ist eine Zahlung auf Rechnung (ein Beleg mit einer solchen Position
+ * besteht nur aus solchen, das prueft der Server).
+ */
+function istNurRechnungszahlung(receipt: Receipt): boolean {
+  return receipt.items.length > 0 && receipt.items.every(isInvoicePaymentItem);
+}
+
+/**
+ * Bezug je Position „Zahlung auf Rechnung“: die n-te solche Position (Belegreihenfolge) gehoert zur
+ * n-ten Rechnung in `invoicePayments`; der Server legt beide in derselben Reihenfolge an, eine Zeile
+ * je Rechnung. Ohne Bezug bleibt die Position ohne Steuerhinweis.
+ */
+function rechnungszahlungBezuege(receipt: Receipt): Map<number, InvoicePaymentRef> {
+  const bezuege = receipt.invoicePayments ?? [];
+  const zu = new Map<number, InvoicePaymentRef>();
+  let n = 0;
+  receipt.items.forEach((it, i) => {
+    if (!isInvoicePaymentItem(it)) return;
+    const bezug = bezuege[n];
+    n += 1;
+    if (bezug !== undefined) zu.set(i, bezug);
+  });
+  return zu;
+}
+
+/**
+ * Zeilen einer Zahlung auf Rechnung: Text der Position (er nennt die Rechnung) und Betrag, ohne Menge
+ * und ohne Satzkennzeichen -- der Betrag zaehlt im RKSV-Feld „Null“, ist aber kein steuerfreier Umsatz,
+ * „0 %“ waere falsch. Darunter „inkl. USt“, wenn die Rechnung Umsatzsteuer ausweist (Spec 2026-11-11,
+ * Entscheidung 6). Breite 8:4 wie die Gutscheinzeilen.
+ */
+function rechnungszahlungZeilen(item: ReceiptItem, bezug: InvoicePaymentRef | undefined): LayoutLine[] {
+  const zeilen: LayoutLine[] = [{
+    kind: 'columns',
+    columns: [
+      { text: item.name, width: 8, align: 'left' },
+      // Zwei Fuellzeichen, wo bei den Warenzeilen " B" steht: die Betraege fluchten in einer Spalte.
+      { text: `${formatCents(receiptItemTotalCents(item))}  `, width: 4, align: 'right' },
+    ],
+  }];
+  if (bezug?.includesVat === true) zeilen.push(textZeile(INKL_UST_TEXT));
+  return zeilen;
+}
+
+// ---------------------------------------------------------------- Belegart
 
 function bannerZeile(text: string, tone: LayoutBannerTone = 'receipt_type'): LayoutBannerLine {
   return { kind: 'banner', text, tone };
 }
 
-/** Belegtyp als Zeichenkette (Enum-Objekt oder roher Serverwert). */
-function belegtyp(receipt: Receipt): string {
-  return typeof receipt.receiptType === 'object' ? receipt.receiptType.value : String(receipt.receiptType ?? '');
+/** Ein Vermerk am Bon: Titel als Banner, jede Zeile zentriert darunter. */
+function vermerkZeilen(vermerk: ReceiptNote): LayoutLine[] {
+  return [bannerZeile(vermerk.title), ...vermerk.lines.map((z) => textZeile(z, 'center'))];
 }
 
 /** Ist das ein Nullbeleg (Start-, Monats-, Jahres-, Schluss-, Pruefbeleg)? */
@@ -1262,16 +1289,6 @@ function belegMonatJahr(timeStamp: string): { monat: string; jahr: string } {
 }
 
 /**
- * Grund eines Stornos lesbar -- aus dem EINEN Katalog des Modells
- * (`CANCELLATION_REASONS`, derselbe, den die Kasse anbietet und das Backend
- * annimmt). Unbekannter Code (Fremdclient): sichtbar, aber ohne zu werfen.
- */
-function stornoGrundText(code: string | undefined): string | null {
-  if (!code) return null;
-  return isCancellationReason(code) ? CANCELLATION_REASONS[code] : code;
-}
-
-/**
  * Kleinunternehmer (§ 6 Abs. 1 Z 27 UStG, unechte Befreiung): auf dem Beleg
  * darf keine USt stehen -- jede Position 0 %. Sagt, ob der Beleg dazu passt;
  * das Backend weist Widersprueche beim Ausstellen ab, hier ist es die Probe.
@@ -1280,45 +1297,25 @@ export function receiptIsSmallBusinessConsistent(receipt: Receipt): boolean {
   return receipt.items.every((it) => Number(steuersatz(it.vat).rate) === 0);
 }
 
-/** Grund-Zeile nach einem Ausfall der Kasse; `other` druckt den eigenen Text. */
-const NACHERFASSUNG_GRUND: Readonly<Record<string, string>> = {
-  network_outage: 'Internet', power_outage: 'Strom', device_failure: 'Gerät defekt', system_outage: 'Störung',
-};
-
-/** `YYYY-MM-DD` als `TT.MM.JJJJ`; anderes bleibt, wie es kam. */
-function handbelegDatum(tag: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tag);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : tag;
-}
-
 /**
- * Block „NACHERFASSUNG“ (manualReceipt) unter dem Kopf: Art, Grund, Nummer
- * und Tag des Handbelegs bzw. der Handbelege eines Tagessammelbelegs, dazu
- * der Hinweis, dass der Beleg fuer die USt ein Duplikat ist
- * (Registrierkassenerlass 3.3 Faelle 5 und 6, 2.4.11). Der Zeitstempel des Belegs bleibt der der
- * Nacherfassung und steht wie immer unter „Datum:“. Kleinunternehmer
- * (keine USt am Beleg) bekommen den USt-Hinweis nicht.
+ * Block „NACHERFASSUNG“ (manualReceipt) unter dem Kopf, aus dem Baustein
+ * [nacherfassungTeile]: Titel, Anlass, Leerzeile, Handbeleg, dann der Hinweis,
+ * dass der Beleg fuer die USt ein Duplikat ist. Der Zeitstempel des Belegs
+ * bleibt der der Nacherfassung und steht wie immer unter „Datum:“.
+ * Kleinunternehmer (keine USt am Beleg) bekommen den USt-Hinweis nicht, ebenso
+ * ein Zahlungsbeleg (seine Umsatzsteuer steht auf der Rechnung).
  */
 function nacherfassungBlock(receipt: Receipt, company: ReceiptCompany): LayoutLine[] {
-  const m = receipt.manualReceipt;
-  if (!m) return [];
-  const aus: LayoutLine[] = [bannerZeile('NACHERFASSUNG')];
-  aus.push(textZeile(m.reason === 'outside_premises' ? 'Leistung außer Haus' : 'nach Ausfall der Kasse', 'center'));
-  const grund = m.reason === 'other' ? m.note : NACHERFASSUNG_GRUND[m.reason];
-  if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
-  aus.push({ kind: 'space', lines: 1 });
-  const tag = handbelegDatum(m.date);
-  if (m.numberTo) {
-    aus.push(textZeile('Tagessammelbeleg', 'center'));
-    aus.push(textZeile(`Handbelege Nr. ${m.number} bis ${m.numberTo}`, 'center'));
-    aus.push(textZeile(`${m.count ? `${m.count} Belege ` : ''}vom ${tag}`, 'center'));
-    if (!company.isSmallBusiness) aus.push(textZeile('USt: Duplikat der Handbelege', 'center'));
-  } else {
-    aus.push(textZeile(`Handbeleg Nr. ${m.number}`, 'center'));
-    aus.push(textZeile(`vom ${tag}${m.time ? `, ${m.time} Uhr` : ''}`, 'center'));
-    if (!company.isSmallBusiness) aus.push(textZeile('USt: Duplikat des Handbelegs', 'center'));
-  }
-  return aus;
+  const teile = nacherfassungTeile(receipt);
+  if (!teile) return [];
+  const ust = !company.isSmallBusiness && !istNurRechnungszahlung(receipt);
+  return [
+    bannerZeile(teile.title),
+    ...teile.anlass.map((z) => textZeile(z, 'center')),
+    { kind: 'space', lines: 1 },
+    ...teile.handbeleg.map((z) => textZeile(z, 'center')),
+    ...(ust ? [textZeile(teile.ustHinweis, 'center')] : []),
+  ];
 }
 
 /**
@@ -1328,17 +1325,9 @@ function nacherfassungBlock(receipt: Receipt, company: ReceiptCompany): LayoutLi
 function belegartBlock(receipt: Receipt): LayoutLine[] {
   const t = belegtyp(receipt);
   const aus: LayoutLine[] = [];
-  if (t === 'cancellation') {
-    aus.push(bannerZeile('STORNOBELEG'));
-    aus.push(textZeile(receipt.cancellationOf ? `Stornobuchung zu Beleg ${receipt.cancellationOf.receiptId}` : 'Stornobuchung', 'center'));
-    // Datum des Originals, wenn der Bezug es traegt (Backend seit 2026-09-04).
-    const datum = receipt.cancellationOf?.timeStamp ? originalDatum(receipt.cancellationOf.timeStamp) : null;
-    if (datum) aus.push(textZeile(`vom ${datum}`, 'center'));
-    const grund = stornoGrundText(typeof receipt.cancellationReason === 'string' ? receipt.cancellationReason : undefined);
-    if (grund) aus.push(textZeile(`Grund: ${grund}`, 'center'));
-  } else if (t === 'training') {
-    aus.push(bannerZeile('TRAININGSBELEG'));
-    for (const z of TRAINING_ERKLAERUNG) aus.push(textZeile(z, 'center'));
+  const vermerk = stornoVermerk(receipt) ?? trainingVermerk(receipt);
+  if (vermerk) {
+    aus.push(...vermerkZeilen(vermerk));
   } else if (istReinerLeergutBeleg(receipt)) {
     aus.push(textZeile(LEERGUT_UEBERSCHRIFT, 'center', true));
   } else if (t === 'start') {
@@ -1392,8 +1381,8 @@ export function buildReceiptLayout(
   // die Zahlen stehen drauf, statt hinter einer Null zu verschwinden.
   const nullbeleg = receiptIsZero(receipt) && (ruleset === 1 || receiptAmountsAreZero(receipt));
   const warnungen: LayoutBannerLine[] = [];
-  if (options.testCashregister) warnungen.push(bannerZeile(TESTKASSE_TEXT, 'warning'));
-  if (options.testSignature) warnungen.push(bannerZeile(TESTSIGNATUR_TEXT, 'warning'));
+  if (options.testCashregister) warnungen.push(bannerZeile(testkasseVermerk().title, 'warning'));
+  if (options.testSignature) warnungen.push(bannerZeile(testsignaturVermerk().title, 'warning'));
 
   // --- Warnrahmen oben (Testkasse/Testsignatur): ueber dem Kopf, damit ihn niemand uebersieht.
   lines.push(...warnungen);
@@ -1440,8 +1429,9 @@ export function buildReceiptLayout(
       for (const zeile of receipt.legalMessage) lines.push(textZeile(zeile, 'center'));
       lines.push({ kind: 'space', lines: 1 });
     }
-    if (receiptSignatureFailed(receipt)) {
-      lines.push(textZeile(SIGNATUR_AUSGEFALLEN, 'center'));
+    const ausfall = signaturausfallVermerk(receipt);
+    if (ausfall) {
+      lines.push(textZeile(ausfall.title, 'center'));
       lines.push({ kind: 'space', lines: 1 });
     }
     lines.push({ kind: 'qr', data: receipt.qr });
@@ -1500,9 +1490,16 @@ export function buildReceiptLayout(
   for (const liste of pfandZu.values()) for (const k of liste) gebundenesPfand.add(k);
   const reihe = mitPfandReihenfolge(receipt.items, addOnDisplayOrder(receipt.items), pfandZu);
   const an = (k: number): ReceiptItem => receipt.items[reihe[k]!]!;
+  const rzBezuege = rechnungszahlungBezuege(receipt);
   let i = 0;
   while (i < reihe.length) {
     const item = an(i);
+    // Zahlung auf Rechnung: eigene Zeilen, nicht in der Steuertabelle (die Umsatzsteuer steht auf der Rechnung).
+    if (isInvoicePaymentItem(item)) {
+      lines.push(...rechnungszahlungZeilen(item, rzBezuege.get(reihe[i]!)));
+      i += 1;
+      continue;
+    }
     if (!isTipItem(item) && !isDiscountItem(item)) {
       const satz = steuersatz(item.vat);
       gruppeVon(satz).bruttoCents += receiptItemTotalCents(item);
@@ -1584,9 +1581,12 @@ export function buildReceiptLayout(
 
   verteilePromoGutschein(gruppen, promoCents);
 
-  // --- USt-Aufteilung
-  lines.push({ kind: 'space', lines: 1 });
-  lines.push(tabellenZeile(['MwSt%', 'MwSt', 'Netto', 'Brutto'], paperSize));
+  // --- USt-Aufteilung; ein Zahlungsbeleg hat keine (seine Umsatzsteuer steht auf der Rechnung).
+  const nurRechnungszahlung = istNurRechnungszahlung(receipt);
+  if (!(nurRechnungszahlung && gruppen.size === 0)) {
+    lines.push({ kind: 'space', lines: 1 });
+    lines.push(tabellenZeile(['MwSt%', 'MwSt', 'Netto', 'Brutto'], paperSize));
+  }
   for (const gruppe of gruppen.values()) {
     // Netto aus dem Brutto in ganzen Cent, MwSt als Rest: so ergeben Netto und
     // MwSt zusammen immer wieder exakt den Brutto-Betrag der Zeile. (Das
@@ -1664,8 +1664,9 @@ export function buildReceiptLayout(
   lines.push(...(rueckgaben.length > 0 ? rueckgabeZahlungsZeilen(receipt, rueckgaben) : zahlungsZeilen(receipt)));
   lines.push({ kind: 'space', lines: 1 });
 
-  // --- Rechtshinweise und Ausfallhinweis
-  const hinweise = company.isSmallBusiness
+  // --- Rechtshinweise und Ausfallhinweis. Der Kleinunternehmer-Hinweis erklaert die 0-%-Zeilen der
+  //     Steuertabelle; ein Zahlungsbeleg hat keine, den Hinweis traegt seine Rechnung.
+  const hinweise = company.isSmallBusiness && !nurRechnungszahlung
     ? [SMALL_BUSINESS_NOTICE, ...receipt.legalMessage]
     : receipt.legalMessage;
   if (hinweise.length > 0) {
@@ -1674,8 +1675,9 @@ export function buildReceiptLayout(
     }
     lines.push({ kind: 'space', lines: 1 });
   }
-  if (receiptSignatureFailed(receipt)) {
-    lines.push(textZeile(SIGNATUR_AUSGEFALLEN, 'center'));
+  const ausfall = signaturausfallVermerk(receipt);
+  if (ausfall) {
+    lines.push(textZeile(ausfall.title, 'center'));
     lines.push({ kind: 'space', lines: 1 });
   }
 

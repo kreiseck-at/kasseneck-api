@@ -113,7 +113,9 @@ const NACH_1_0 = {
     'split.clarify_reason_approved_with_condition', 'split.clarify_reason_terminal',
     // HPS ohne Terminal-Beleg, Terminal belegt beim Klaeren (1.37.0)
     'card_payment.unknown_hps', 'card_payment.unknown_with_id_hps', 'split.card_reverse_failed_hps', 'split.card_reverse_unknown_hps',
-    'split.card_already_reversed_hps', 'split.clarify_busy', 'split.clarify_no_answer'],
+    'split.card_already_reversed_hps', 'split.clarify_busy', 'split.clarify_no_answer',
+    // Zahlung auf Rechnung (1.38.0)
+    'cancellation.invoice_payment_not_cancellable'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -221,13 +223,19 @@ const NACH_1_0 = {
     // Fenster „Technik von hobex“ (1.37.0)
     'hobex_help.open', 'hobex_help.title', 'hobex_help.data', 'hobex_help.tid', 'hobex_help.reference', 'hobex_help.reversal_reference',
     'hobex_help.amount', 'hobex_help.time', 'hobex_help.reason', 'hobex_help.protocol', 'hobex_help.address', 'hobex_help.serial',
-    'hobex_help.copy', 'hobex_help.copied'],
+    'hobex_help.copy', 'hobex_help.copied',
+    // Zahlung auf Rechnung (1.38.0)
+    'shift_receipt.invoice_payments'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
   // seit 1.3.0 die Beschriftung je Rueckgabe-Wahl.
   // Rechnungstexte ohne 0.x-Vorgaenger: Pfand auf der Rechnung (1.36.0, Wortlaut wie `ZUSATZ_TEXTE` im Backend)
-  invoiceTexts: ['pdf.totals.single_use_deposit', 'pdf.totals.head_rate', 'pdf.totals.head_net', 'pdf.totals.head_vat', 'einvoice.exemption.single_use_deposit'],
+  invoiceTexts: ['pdf.totals.single_use_deposit', 'pdf.totals.head_rate', 'pdf.totals.head_net', 'pdf.totals.head_vat', 'einvoice.exemption.single_use_deposit',
+    // Kassenteil und Zahlungsbestaetigung (1.38.0, Zahlung auf Rechnung)
+    'pdf.title.payment_confirmation', 'pdf.title.refund_confirmation', 'pdf.cash_register.header', 'pdf.cash_register.receipt_number', 'pdf.cash_register.date',
+    'pdf.confirmation.intro', 'pdf.confirmation.not_invoice', 'pdf.confirmation.table.invoice', 'pdf.confirmation.table.amount',
+    'pdf.confirmation.table.paid_so_far', 'pdf.confirmation.table.received_today', 'pdf.confirmation.table.still_open'],
   fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
     // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
     'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels',
@@ -235,6 +243,14 @@ const NACH_1_0 = {
     'tipClaimScopeLabels', 'depositErrors'],
 };
 const ohne = (o: Record<string, unknown>, weg: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
+
+/**
+ * Rechnungstexte, deren Wortlaut nach 1.0 bewusst gekuerzt wurde (neuer Schluessel -> Grund). Fuer sie gilt
+ * statt „derselbe Satz“: der neue Text ist der Anfang des alten, und er ist kuerzer.
+ */
+const GEKUERZT_NACH_1_0: Record<string, string> = {
+  'pdf.paid.text': 'Bezahlt-Vermerk ohne „Es ist nichts weiter zu tun.“ (1.38.0, Spec Barzahlung auf Rechnungen, Entscheidung 8)',
+};
 const VERHALTEN = WERTE['pos-texts.json']!['errorRules[].behavior']!;
 const PLATZ = TABELLE.placeholders as Record<string, string>;
 const MELDUNGEN = TABELLE.texts.pos.messages as Record<string, string>;
@@ -350,6 +366,12 @@ test('Platzhalter: jeder Rechnungstext ergibt alt und neu gefuellt denselben Sat
     for (const k of NACH_1_0.invoiceTexts) assert.ok(k in NEU_RECHNUNG.texts[sprache] && !Object.values(RECHNUNG).includes(k), `${sprache}: ${k}`);
     for (const [alterSchluessel, text] of Object.entries(ALT_RECHNUNG.texte[sprache] as Record<string, string>)) {
       const neu = RECHNUNG[alterSchluessel]!;
+      if (neu in GEKUERZT_NACH_1_0) {
+        const jetzt = INVOICE_TEXTS[sprache][neu as InvoiceTextKey];
+        assert.ok(text.startsWith(jetzt) && jetzt.length < text.length, `${sprache}: ${neu} ist nicht der gekuerzte alte Text`);
+        assert.equal(NEU_RECHNUNG.texts[sprache][neu], jetzt, `${sprache} (Datei): ${neu}`);
+        continue;
+      }
       const soll = fuelle(text, alteWerte(text));
       assert.equal(invoiceText(sprache, neu as InvoiceTextKey, neueWerte(text)), soll, `${sprache}: ${alterSchluessel} -> ${neu}`);
       assert.equal(fuelle(NEU_RECHNUNG.texts[sprache][neu], neueWerte(text)), soll, `${sprache} (Datei): ${neu}`);
@@ -476,6 +498,10 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Nullbeleg nach Signaturausfall mit Beginn und Ende (30.10.2026).
   ...['zero-outage-end-period']
+    .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
+  // Zahlung auf Rechnung (1.38.0): Zahlungsbelege mit Positionsart invoice_payment.
+  ...['invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial',
+    'invoice-payment-refund', 'invoice-payment-training', 'invoice-payment-without-vat']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Belegduplikat (1.14.0): Prueffaelle und Bytes der Nachdrucke.
   'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`),

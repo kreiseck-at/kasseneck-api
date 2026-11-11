@@ -37,8 +37,10 @@ export interface ReceiptItem {
    * Inhaber-Trinkgeld (`recipient.owner`) Umsatz. Rabatt-Positionen sind
    * negative Entgeltminderungen je Steuersatz; die Kennzeichnung steuert nur
    * die Bon-Darstellung (Summenzeile mit Aufteilung), nie die Beträge.
+   * `invoice_payment`: Zahlung auf Rechnung (Zahlungsbeleg, nur vom Server; Bezug in
+   * `Receipt.invoicePayments`), siehe [isInvoicePaymentItem].
    */
-  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'deposit' | 'deposit_return';
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'deposit' | 'deposit_return' | 'invoice_payment';
   /** Empfaenger der Trinkgeld-Position; `null` = nicht zugeordnet. */
   recipient?: TipRecipient | null;
   /** Zahlart der Trinkgeld-Position (kann von der des Belegs abweichen). */
@@ -101,6 +103,15 @@ export function isDepositReturnItem(item: ReceiptItem | ReceiptItemPayloadRead):
   return item != null && (item as { kind?: unknown }).kind === 'deposit_return';
 }
 
+/**
+ * Zahlung auf Rechnung (Zahlungsbeleg)? Die Position zaehlt im RKSV-Feld „Null“, ist aber kein
+ * steuerfreier Umsatz: die Umsatzsteuer steht auf der Rechnung. Am Bon steht sie ohne Satzkennzeichen
+ * und nicht in der Steuertabelle. Ein Beleg mit einer solchen Position besteht nur aus solchen.
+ */
+export function isInvoicePaymentItem(item: ReceiptItem | ReceiptItemPayloadRead): boolean {
+  return item != null && (item as { kind?: unknown }).kind === 'invoice_payment';
+}
+
 /** Empfaenger einer Trinkgeld-Position (Kassen-Benutzer, Snapshot des Namens). */
 export interface TipRecipient {
   registerUserId: string;
@@ -143,7 +154,7 @@ export interface ReceiptItemPayload {
   unitPriceCents: number;
   vatRate: number;
   /** Trinkgeld-/Rabatt-/Gutschein-Kennzeichnung, siehe [ReceiptItem.kind]. */
-  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'deposit' | 'deposit_return';
+  kind?: 'tip' | 'discount' | 'voucher' | 'voucher_float' | 'deposit' | 'deposit_return' | 'invoice_payment';
   recipient?: TipRecipient | null;
   paymentMethod?: string;
   receivedImmediately?: boolean;
@@ -249,6 +260,9 @@ export function toReceiptItemPayload(item: ReceiptItem): ReceiptItemPayload {
   // gelesene Belege wieder, und ein Wunsch an den Server traegt sie nie
   // (createReceipt weist sie als voucher_invalid ab).
   if (item.kind === 'voucher' || item.kind === 'voucher_float') nutzlast.kind = item.kind;
+  // Zahlung auf Rechnung (vom Server): reist mit wie die Gutschein-Positionen; ein Wunsch an den Server
+  // traegt sie nie (createReceipt weist sie ausser beim Selbstaufruf ab).
+  if (item.kind === 'invoice_payment') nutzlast.kind = 'invoice_payment';
   // Pfand & Leergut: Kennzeichen und Felder reisen mit (Cache schreibt gelesene Belege wieder; ein Wunsch an
   // den Server traegt `deposit` nie mit `articleId`, siehe createReceiptParams).
   if (item.kind === 'deposit' || item.kind === 'deposit_return') {
@@ -309,7 +323,7 @@ export function fromReceiptItemPayload(payload: ReceiptItemPayloadRead): Receipt
         }
       : payload.kind === 'discount'
         ? { kind: 'discount' as const }
-        : payload.kind === 'voucher' || payload.kind === 'voucher_float'
+        : payload.kind === 'voucher' || payload.kind === 'voucher_float' || payload.kind === 'invoice_payment'
           ? { kind: payload.kind }
           : payload.kind === 'deposit' || payload.kind === 'deposit_return'
             ? {

@@ -103,6 +103,8 @@ export const CANCELLATION_ERROR_CODES = Object.freeze([
   'refund_as_voucher_no_type',              // keine passende Rueckgabe-Sorte eingestellt
   'refund_as_voucher_amount',               // Betrag ohne Trinkgeld ausserhalb 1,00 bis 10.000,00 Euro
   'idempotency_key_required',               // refundAs ohne idempotencyKey
+  // Zahlung auf Rechnung (Server 2026-11): ein Zahlungsbeleg wird nur im Kundenbereich bei der Rechnung storniert
+  'invoice_payment_not_cancellable',        // Original ist ein Zahlungsbeleg (Positionen invoice_payment)
   // Anmeldung und Rand (errorCodes.auth ohne Partner-Zugang, errorCodes.edge)
   'account_not_found',
   'action_confirmation_required',

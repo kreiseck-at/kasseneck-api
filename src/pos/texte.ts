@@ -251,6 +251,9 @@ const MELDUNGEN_ROH = {
   'cancellation.voucher_no_type': { text: 'Keine Gutschein-Sorte für Rückgaben eingestellt – bitte wie bezahlt zurückgeben.' },
   'cancellation.voucher_amount': { text: 'Dieser Betrag geht nicht als Gutschein – bitte wie bezahlt zurückgeben.' },
   'cancellation.voucher_type_changed': { text: 'Die Gutschein-Sorte für Rückgaben hat sich geändert – bitte erneut versuchen.' },
+  // Zahlung auf Rechnung (1.38.0): ein Zahlungsbeleg steht in der Belegliste, storniert wird er nur bei
+  // der Rechnung (sonst passten Rechnung und Beleg nicht mehr zusammen). Code invoice_payment_not_cancellable.
+  'cancellation.invoice_payment_not_cancellable': { text: 'Diese Zahlung gehört zu einer Rechnung. Storniere sie im Kundenbereich bei der Rechnung.' },
 
   // --- Gutscheine: Fehlersätze (Zuordnung in VOUCHER_ERROR_MESSAGES) ---------
   'voucher_error.not_found': { text: 'Diesen Gutschein gibt es in diesem Betrieb nicht.' },
@@ -674,6 +677,9 @@ export const ERROR_CODE_RULES = [
   { kind: 'api', codes: ['manager_only'], key: 'dep.manager_only' },
   { kind: 'api', codes: ['export_running'], key: 'dep.running' },
   { kind: 'api', codes: ['too_many_exports'], key: 'dep.too_many_exports' },
+  // Storno eines Zahlungsbelegs (Zahlung auf Rechnung, 1.38.0): der Satz sagt, wo es geht. Der Server
+  // hat nichts storniert. Gilt auch auf dem Storno-Weg ([cancellationErrorMessage]).
+  { kind: 'api', codes: ['invoice_payment_not_cancellable'], key: 'cancellation.invoice_payment_not_cancellable' },
 ] as const;
 
 /**
@@ -844,12 +850,16 @@ export const CANCELLATION_VOUCHER_ERROR_MESSAGES = {
 } as const satisfies Record<string, MessageKey>;
 
 /**
- * Der Satz zu einem `code` eines Stornos: zuerst die Rueckgabe als Gutschein, dann die Storno-Zahlungen,
- * sonst `cancellation.failed`. Fuer die Kassen der eine Weg beim Storno.
+ * Der Satz zu einem `code` eines Stornos: zuerst die Rueckgabe als Gutschein, dann eine Code-Regel mit
+ * Storno-Satz (Schluessel `cancellation.*` in [ERROR_CODE_RULES], seit 1.38.0 der Zahlungsbeleg), dann
+ * die Storno-Zahlungen, sonst `cancellation.failed`. Fuer die Kassen der eine Weg beim Storno.
  */
 export function cancellationErrorMessage(code: string | undefined | null): MessageKey {
+  if (code === undefined || code === null) return cancellationPaymentErrorMessage(code);
   const gutschein: Record<string, MessageKey> = CANCELLATION_VOUCHER_ERROR_MESSAGES;
-  return (code !== undefined && code !== null && gutschein[code]) || cancellationPaymentErrorMessage(code);
+  if (gutschein[code]) return gutschein[code];
+  const regel = ERROR_CODE_RULES.find((r) => r.key.startsWith('cancellation.') && (r.codes as readonly string[]).includes(code));
+  return regel?.key ?? cancellationPaymentErrorMessage(code);
 }
 
 /**
@@ -1625,6 +1635,9 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.counted_before_payout': { text: 'Gezählt' },
   'shift_receipt.difference_part_interim': { text: 'davon Zwischenzählung' },
   'shift_receipt.difference_part_closing': { text: 'davon Abschluss' },
+  // Zahlungen auf Rechnungen (1.38.0): Summe der Zahlungsbelege der Schicht, nur Information (das Geld
+  // steckt schon im Barumsatz bzw. unbar).
+  'shift_receipt.invoice_payments': { text: 'Zahlungen auf Rechnungen' },
   // Nachtrag Schicht-Ablauf (1.28.0): Band-Titel ohne Punkt wie `shift.state_closed`.
   'shift.state_closing': { text: 'Schicht wird geschlossen' },
   'shift.state_interim': { text: 'Zwischenzählung' },
