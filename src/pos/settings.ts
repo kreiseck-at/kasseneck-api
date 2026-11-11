@@ -49,6 +49,8 @@ export const TIP_START = TIP_KINDS;
  */
 export const TIP_KEPT_MODE = ['ask', 'always', 'never'] as const;
 export type PosTipKeptMode = typeof TIP_KEPT_MODE[number];
+/** Dieselben drei Stufen fuer Kartentrinkgeld (`business.tipCardKeptMode`, Spec 2026-11-11-kartentrinkgeld). */
+export const TIP_CARD_KEPT_MODE = TIP_KEPT_MODE;
 /**
  * Art einer Rabatt-Vorlage (`business.discountPresets[].kind`): Prozent oder fester Betrag
  * (gespeichert `art`: `prozent | betrag`).
@@ -233,6 +235,23 @@ export interface PosBusinessSettings {
    * gilt `ask`. Lesen ueber [posTipKeptMode], entscheiden ueber [tipKeptFor].
    */
   tipKeptMode?: PosOpen<PosTipKeptMode>;
+  /**
+   * Kartentrinkgeld „gleich behalten“ (Spec 2026-11-11-kartentrinkgeld, § 4.1): die Mitarbeiterin nimmt den
+   * Betrag beim Verkauf bar aus der Lade. Vorbelegung des Schalters bei Stufe `ask`. Optional wie
+   * `tipKeptByDefault`; fehlt es, gilt aus. Wirkt nur an Konten mit Kartentrinkgeld ueber die Kasse
+   * (`RegisterCashregisterInfo.cardTips`). Lesen ueber [posTipCardKeptByDefault].
+   */
+  tipCardKeptByDefault?: boolean;
+  /**
+   * Stufe fuer Kartentrinkgeld wie [tipKeptMode] (`ask` | `always` | `never`); fehlt es, gilt `ask`.
+   * Lesen ueber [posTipCardKeptMode], entscheiden ueber [tipKeptFor] mit `method: 'card'`.
+   */
+  tipCardKeptMode?: PosOpen<PosTipKeptMode>;
+  /**
+   * Not-Aus „Mitarbeiter zahlen sich ihr Trinkgeld selbst aus“ (Spec 2026-11-11, § 4.6): fehlt es, gilt an.
+   * `false` = eigenes Trinkgeld nur mit dem Recht `shift` auszahlbar (R49). Lesen ueber [posTipSelfPayout].
+   */
+  tipSelfPayout?: boolean;
   /**
    * Benannte Rabatt-Chips (Prozent oder Betrag, hoechstens 5). Optional: der Server sendet das Feld nur, wenn es
    * gespeichert ist; dann sind die Vorlagen die Quelle der Chips und `discountChips` spiegelt ihre Prozentwerte fuer
@@ -424,7 +443,7 @@ const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
  * [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg
  * nimmt nur `true`/`false`.
  */
-export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault', 'customDiscountAllowed'] as const);
+export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault', 'customDiscountAllowed', 'tipCardKeptByDefault', 'tipSelfPayout'] as const);
 
 const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
 
@@ -434,7 +453,7 @@ const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FI
  * wenn sie gespeichert sind. [mergePosSettings] uebernimmt sie, wenn sie die Form haben
  * (`tipKinds` eine nichtleere Liste von Texten, `tipStart` ein Text); den Wert prueft der Schreibweg.
  */
-export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart', 'tipKeptMode'] as const);
+export const POS_BUSINESS_OPTIONAL_CHOICES = Object.freeze(['tipKinds', 'tipStart', 'tipKeptMode', 'tipCardKeptMode'] as const);
 
 /**
  * Optionale Betriebs-Listen aus Objekten (Backend `BETRIEB_OPTIONAL.rabattVorlagen`): ohne Standardwert, der Server
@@ -506,23 +525,46 @@ export function posTipKeptMode(business: Readonly<Partial<PosBusinessSettings>> 
   return (TIP_KEPT_MODE as readonly unknown[]).includes(m) ? (m as PosTipKeptMode) : 'ask';
 }
 
-/** Ergebnis von [tipKeptFor]: zeigt die Kasse den Schalter, und wird das Bar-Trinkgeld gleich behalten? */
+/** Kartentrinkgeld „gleich behalten“ (bar aus der Lade) vorbelegt? Fehlt die Einstellung, gilt aus. */
+export function posTipCardKeptByDefault(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return !!business && business.tipCardKeptByDefault === true;
+}
+
+/** Wirksame Stufe fuer Kartentrinkgeld: die gespeicherte, wenn sie bekannt ist, sonst `ask`. */
+export function posTipCardKeptMode(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): PosTipKeptMode {
+  const m = business?.tipCardKeptMode;
+  return (TIP_KEPT_MODE as readonly unknown[]).includes(m) ? (m as PosTipKeptMode) : 'ask';
+}
+
+/** Zahlen sich Mitarbeiter ihr Trinkgeld selbst aus (Not-Aus)? Fehlt die Einstellung, gilt ja. */
+export function posTipSelfPayout(business: Readonly<Partial<PosBusinessSettings>> | null | undefined): boolean {
+  return business?.tipSelfPayout !== false;
+}
+
+/** Zahlart des Trinkgelds, nach der die Stufe gilt: bar (`tipKeptMode`) oder Karte (`tipCardKeptMode`). */
+export type TipPaymentKind = 'cash' | 'card';
+
+/** Ergebnis von [tipKeptFor]: zeigt die Kasse den Schalter, und wird das Trinkgeld gleich behalten? */
 export interface TipKeptDecision {
   showSwitch: boolean;
   kept: boolean;
 }
 
 /**
- * Die eine Regel fuer Web-Kasse und Kassen-App beim Bar-Trinkgeld: `ask` zeigt den Schalter, gewaehlt ist
- * `wanted` (die Wahl am Schalter, ein Wahrheitswert), sonst die Vorbelegung `tipKeptByDefault`; `always` bzw. `never` zeigen
- * keinen Schalter und behalten gleich bzw. lassen offen, eine Schalterwahl zaehlt dann nicht. `kept` geht als
- * `tip.direkt` an den Beleg (der Server erzwingt die Stufe dort nicht).
+ * Die eine Regel fuer Web-Kasse und Kassen-App beim Trinkgeld: `ask` zeigt den Schalter, gewaehlt ist
+ * `wanted` (die Wahl am Schalter, ein Wahrheitswert), sonst die Vorbelegung (`tipKeptByDefault` bzw. bei Karte
+ * `tipCardKeptByDefault`); `always` bzw. `never` zeigen keinen Schalter und behalten gleich bzw. lassen offen, eine
+ * Schalterwahl zaehlt dann nicht. `kept` geht als `tip.keptByEmployee` an den Beleg (der Server erzwingt die Stufe
+ * dort nicht). `method` waehlt die Stufe der Zahlart: ohne Angabe bar wie bisher, `'card'` die Karten-Stufe
+ * (Spec 2026-11-11-kartentrinkgeld, § 4.1) -- „gleich behalten“ heisst bei Karte: bar aus der Lade nehmen.
  */
-export function tipKeptFor(business: Readonly<Partial<PosBusinessSettings>> | null | undefined, wanted?: boolean | null): TipKeptDecision {
-  const stufe = posTipKeptMode(business);
+export function tipKeptFor(business: Readonly<Partial<PosBusinessSettings>> | null | undefined, wanted?: boolean | null, method: TipPaymentKind = 'cash'): TipKeptDecision {
+  const karte = method === 'card';
+  const stufe = karte ? posTipCardKeptMode(business) : posTipKeptMode(business);
   if (stufe === 'always') return { showSwitch: false, kept: true };
   if (stufe === 'never') return { showSwitch: false, kept: false };
-  return { showSwitch: true, kept: typeof wanted === 'boolean' ? wanted : posTipKeptByDefault(business) };
+  const vorbelegt = karte ? posTipCardKeptByDefault(business) : posTipKeptByDefault(business);
+  return { showSwitch: true, kept: typeof wanted === 'boolean' ? wanted : vorbelegt };
 }
 
 /**
@@ -536,6 +578,7 @@ export const POS_BUSINESS_VALUES: Readonly<Partial<Record<keyof PosBusinessSetti
   cardProvider: CARD_PROVIDER, tipMode: TIP_MODE, checkoutMode: CHECKOUT_MODE, receiptOutput: RECEIPT_OUTPUT,
   doneScreenSeconds: DONE_SCREEN_SECONDS, watermarkSide: WATERMARK_SIDE, watermarkStrength: WATERMARK_STRENGTH,
   logoScale: LOGO_SCALE, watermarkScale: WATERMARK_SCALE, tipKinds: TIP_KINDS, tipStart: TIP_START, tipKeptMode: TIP_KEPT_MODE,
+  tipCardKeptMode: TIP_KEPT_MODE,
 });
 
 /** Wie [POS_BUSINESS_VALUES] fuer die Geraete-Einstellungen. */
@@ -576,6 +619,7 @@ const ALTWERTE_0X: Readonly<Record<string, readonly (string | number)[]>> = Obje
   tipKinds: ['prozent', 'aufrunden', 'gesamt'],
   tipStart: ['prozent', 'aufrunden', 'gesamt'],
   tipKeptMode: ['fragen', 'immer', 'nie'],
+  tipCardKeptMode: ['fragen', 'immer', 'nie'],
   cartWidth: ['schmal', 'mittel', 'breit'],
 });
 

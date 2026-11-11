@@ -122,6 +122,11 @@ const MELDUNGEN_ROH = {
   // Hinweis unter dem Trinkgeld beim Kassieren je nach Wahl (tipKeptFor): gleich behalten bzw. offen fuer den Benutzer.
   'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
   'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
+  // Kartentrinkgeld (Spec 2026-11-11-kartentrinkgeld, 1.37.0): Hinweise zur Karten-Stufe und zum Not-Aus Selbst-Auszahlen.
+  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
+  'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
+  'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -1562,6 +1567,39 @@ const BESCHRIFTUNGEN_ROH = {
   'deposit.on_premises': { text: 'Vor Ort' },
   'deposit.takeaway': { text: 'Mitnahme' },
   'deposit.sum': { text: 'Summe Leergut' },
+
+  // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
+  // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
+  'tip.line_cash_kept': { text: '{amount} gleich einstecken', placeholders: ['amount'] },
+  'tip.line_cash_open': { text: '{amount} in der Lade lassen', placeholders: ['amount'] },
+  'tip.line_card_kept': { text: '{amount} aus der Lade nehmen', placeholders: ['amount'] },
+  'tip.line_card_open': { text: '{amount} später auszahlen', placeholders: ['amount'] },
+  // Fertig-Seite unter „Bezahlt“ (§ 4.5): Titel mit Name, dann der Betrag und was geschieht.
+  'done.tip_title': { text: 'Trinkgeld {name}', placeholders: ['name'] },
+  'done.tip_open': { text: '{amount} · offen {open}', placeholders: ['amount', 'open'] },
+  'done.tip_open_loading': { text: '{amount}', placeholders: ['amount'] },
+  'done.tip_kept_card': { text: '{amount} · jetzt aus der Lade nehmen', placeholders: ['amount'] },
+  'done.tip_kept_cash': { text: '{amount} · gleich einstecken', placeholders: ['amount'] },
+  'done.tip_pay_out': { text: 'Auszahlen' },
+  // „Mein Trinkgeld“ im Namen-Menü (§ 4.6).
+  'my_tips.title': { text: 'Mein Trinkgeld' },
+  'my_tips.open_here': { text: 'Offen an dieser Lade' },
+  'my_tips.open_total': { text: 'Offen (alle Laden)' },
+  'my_tips.kept_today': { text: 'Heute schon genommen' },
+  'my_tips.other_drawer': { text: '{drawer}: {amount} offen', placeholders: ['drawer', 'amount'] },
+  'my_tips.nothing_open': { text: 'Nichts offen' },
+  'my_tips.overpaid': { text: 'Zu viel ausgezahlt: {amount}, wird verrechnet', placeholders: ['amount'] },
+  'my_tips.pay_out': { text: 'Auszahlen' },
+  'my_tips.pay_out_amount': { text: 'Betrag' },
+  // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
+  'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
+  // Z-/X-Bon und Kassenstand: Teil von „schon genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
+  'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld bar genommen' },
+  'shift.part_card_tips_taken': { text: 'Kartentrinkgeld bar genommen' },
+  // Einstellungen (Kasse und Kundenbereich): Karten-Stufe (Werte wie TIP_KEPT_MODE_LABELS), Vorbelegung, Not-Aus.
+  'tip_card_kept_mode.title': { text: 'Kartentrinkgeld gleich behalten' },
+  'tip.card_kept_setting': { text: 'Kartentrinkgeld nimmt der Mitarbeiter gleich bar aus der Lade' },
+  'tip_self_payout.title': { text: 'Mitarbeiter zahlen sich ihr Trinkgeld selbst aus' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

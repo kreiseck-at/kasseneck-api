@@ -4,7 +4,19 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.36.0 - unveröffentlicht
+## 1.37.0 - unveröffentlicht
+
+Card tips at the register (backend spec 2026-11-11-kartentrinkgeld, stages 1 and 2). Additive; every existing call, golden and text behaves as before.
+
+- **Card tips in three stages:** `PosBusinessSettings.tipCardKeptMode` (`ask` | `always` | `never`, optional like `tipKeptMode`), `tipCardKeptByDefault` (the switch's default at stage `ask`) and `tipSelfPayout` (emergency off switch, missing = on). Readers `posTipCardKeptMode`, `posTipCardKeptByDefault`, `posTipSelfPayout`; `tipKeptFor(business, wanted, method)` takes a third argument `'cash' | 'card'` (default `'cash'`, unchanged behaviour) and decides the card stage from the card fields. "Kept" means for a card tip: the employee takes the amount in cash out of the drawer. The settings only take effect at accounts the backend has switched to card tips via the register (`cashregister.cardTips` at login). Reason: the owner chose the same three stages for card tips as for cash tips; the register says in one line what happens to the money.
+- **`tipStatus(method, kept)`** (`./pos`): the one line at checkout and on the done page, keyed by payment kind and outcome (`tip.line_cash_kept` "{amount} gleich einstecken", `tip.line_cash_open` "{amount} in der Lade lassen", `tip.line_card_kept` "{amount} aus der Lade nehmen", `tip.line_card_open` "{amount} später auszahlen"); the text comes from `labelText(key, { amount })`. Reason: both registers must say the same words, and the line says what really happens, not the stage.
+- **`getMyTipBalance({ drawerId? | cashregisterId? })`** (register path `/api/v3`, read without effect): "Mein Trinkgeld" of the logged-in person — `openCents` (negative when paid out too much), `keptTodayCents`, `claimScope` (`per_drawer` | `per_person`, `TIP_CLAIM_SCOPES`), `currency` and `otherDrawers[]`; type `TipBalance`. Only a personal login; a shared device login or the owner gets `not_a_person_login` (appended to `POS_ERROR_CODES`). Reason: every employee sees her own stand and pays herself out.
+- **`ShiftTipTotals.cardTipsTakenCents`** (optional, sent only when not 0, part of `paidOutCents`), `shiftTipLines` prints the line `shift_receipt.tip_card_taken` "davon Kartentrinkgeld bar genommen" after "schon genommen", `EXPECTED_PART_KEYS` gains `card_tips_taken` (`shift.part_card_tips_taken` "Kartentrinkgeld bar genommen", expected = … − card tips taken) and the Z-/X-receipt data carry `cardTipsTakenCents` (sum) when there is any. Shared cases in `fixtures/shift-cases.json` (two new) and the new contract file `fixtures/stored/card-tip-cases.json` (drawer arithmetic per receipt, replayed by the backend; here `tipLines` and `tipStatus`). Reason: the drawer's expected cash drops by the card tips taken in cash, and the receipt must show why.
+- **Texts** for the done page (`done.tip_*`), "Mein Trinkgeld" (`my_tips.*`), the cancellation line `cancellation.tip_deducted` "{amount} Trinkgeld werden vom Guthaben von {name} abgezogen", the settings (`tip_card_kept_mode.title`, `tip.card_kept_setting`, `tip_self_payout.title`) and the hints `tip.card_kept_setting_hint`, `tip.self_payout_hint`, `tip.overpaid_hint`, `tip.terminal_hint`. Same wording as the backend spec.
+- **Contract:** `fixtures/v3/*` taken over from the backend (vocabulary entries `getMyTipBalance`, `tipCardKeptMode`, `tipCardKeptByDefault`, `tipSelfPayout`, catalogs `KASSE_BETRIEB_WERTE.tipCardKeptMode`, `TRINKGELD_ANSPRUCH`, expected part `card_tips_taken`, error code `not_a_person_login`), `fixtures/surface.json` lists the call.
+- `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
+
+## 1.36.0 - 2026-11-10
 
 Deposit on invoice and credit-note positions, and the EWP report (single-use deposit report) through the API key. Additive; every existing call, invoice and golden behaves as before.
 

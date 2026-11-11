@@ -91,6 +91,8 @@ const NACH_1_0 = {
     'external_voucher_article.price_required',
     // Trinkgeld gleich behalten in drei Stufen (1.31.0)
     'tip.kept_hint', 'tip.open_hint',
+    // Kartentrinkgeld an der Kasse (1.37.0)
+    'tip.card_kept_setting_hint', 'tip.self_payout_hint', 'tip.overpaid_hint', 'tip.terminal_hint',
     // Rabatt-Vorlagen (1.31.0)
     'discount.preset_over_total', 'discount_preset.list', 'discount_preset.entry', 'discount_preset.name', 'discount_preset.duplicate', 'discount_preset.kind',
     'discount_preset.percent', 'discount_preset.amount', 'discount_preset.unknown_field',
@@ -159,6 +161,11 @@ const NACH_1_0 = {
     'article.external_voucher',
     // Trinkgeld gleich behalten in drei Stufen (1.31.0)
     'tip_kept_mode.title', 'tip_kept_mode.always', 'tip_kept_mode.never', 'tip_kept_mode.ask',
+    // Kartentrinkgeld an der Kasse (1.37.0): Zeile je Zahlart, Fertig-Seite, „Mein Trinkgeld“, Storno-Zeile, Bon, Einstellungen.
+    'tip.line_cash_kept', 'tip.line_cash_open', 'tip.line_card_kept', 'tip.line_card_open',
+    'done.tip_title', 'done.tip_open', 'done.tip_open_loading', 'done.tip_kept_card', 'done.tip_kept_cash', 'done.tip_pay_out',
+    'my_tips.title', 'my_tips.open_here', 'my_tips.open_total', 'my_tips.kept_today', 'my_tips.other_drawer', 'my_tips.nothing_open', 'my_tips.overpaid', 'my_tips.pay_out', 'my_tips.pay_out_amount',
+    'cancellation.tip_deducted', 'shift_receipt.tip_card_taken', 'shift.part_card_tips_taken', 'tip_card_kept_mode.title', 'tip.card_kept_setting', 'tip_self_payout.title',
     // Rabatt-Vorlagen (1.31.0)
     'discount_presets.title', 'discount_presets.name', 'discount_presets.percent', 'discount_presets.amount', 'discount_presets.add', 'discount_presets.remove', 'discount_presets.limit',
     'shift_receipt.discounts', 'shift_receipt.discounts_total', 'shift_receipt.discount_line', 'shift_receipt.discount_unnamed',
@@ -416,6 +423,8 @@ const SCHNITT_FAELLE = JSON.parse(readFileSync(join(wurzel, 'fixtures', 'print-c
 const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 'code-table-receipts.json', ...BONS_JE_TABELLE.cases.flatMap((c) => BONS_JE_TABELLE.tables.map((t) => `expected/code-table-receipt.${c.name}.${t}.hex`)), 'code-tables.json', 'expected/code-table-test-sheet.lines.json', 'expected/code-table-test-sheet.mm58.hex', 'expected/code-table-test-sheet.mm80.hex', 'invoice-api-examples/cancel-error-return-disposition.json', 'invoice-api-examples/credit-error-reservation.json', 'invoice-api-examples/credit-error-return-disposition.json', 'invoice-api-examples/credit-return-disposition.json', 'invoice-api-examples/issue-error-reservation-article.json', 'invoice-api-examples/issue-error-return-disposition.json', 'invoice-api-examples/issue-error-deposit.json', 'invoice-api-examples/issue-invoice-deposit.json', 'invoice-api-examples/issue-error-stock-id.json', 'invoice-api-examples/issue-error-vat-id-risk.json', 'invoice-api-examples/issue-reservation.json', 'invoice-api-examples/issue-stock.json', 'invoice-api-examples/issue-vat-id-risk.json', 'receipt-due-errors.json', 'receipt-due-generated.json', 'receipt-due-voucher-generated.json', 'reference-cases.json', 'add-on-cases.json', 'deposit-cases.json', 'return-code-cases.json', 'external-voucher-article-cases.json', 'tip-round-up-cases.json', 'shift-ablauf-cases.json', 'printer-catalog.json', 'hobex-hps-cases.json', 'renames-1.0.json', 'stocktake-quantity-cases.json', 'stored/pos-settings-defaults.json',
   // Schicht und Kassenstand (1.9.0): Prueffaelle, Bons und ihre Goldens.
   'shift-cases.json', 'shift-receipts.json',
+  // Kartentrinkgeld an der Kasse (1.37.0): Lade-Rechnung je Beleg, Vertrag mit dem Backend.
+  'stored/card-tip-cases.json',
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
   // Gutscheine der neuen Form (1.12.0): Golden-Belege mit Zeilen, Raster und Blatt.
   ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']
