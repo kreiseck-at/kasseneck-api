@@ -112,3 +112,25 @@ test('stored: Mehrzweck im Nulltopf (imNullTopf) und Auszahlung fallen aus der G
   // Keine zweite Zeile aus der Gutscheinliste.
   assert.equal(texte.filter((t) => t.includes('Gutschein')).length, 1, texte.join('\n'));
 });
+
+test('stored: Zahlung auf Rechnung - rechnungszahlung wird zu invoicePayments mit allen acht Schluesseln', () => {
+  const doc = {
+    ...BASIS,
+    rechnungszahlung: [
+      { invoiceId: 'rg-erfunden-1', nummer: '2026-0042', paymentId: 'zahlung-erfunden-1', kundeId: 'kunde-erfunden-1', betragCents: 156960, teil: false, zahlungVom: '2026-11-11', inklUst: true },
+      { invoiceId: 'rg-erfunden-2', nummer: '2026-0043', paymentId: 'zahlung-erfunden-2', kundeId: 'kunde-erfunden-1', betragCents: 5000, teil: true, zahlungVom: '2026-11-11', inklUst: false },
+    ],
+  };
+  const zahlungen = stored.fromStoredReceipt(doc).invoicePayments!;
+  assert.equal(zahlungen.length, 2);
+  assert.deepEqual(zahlungen[0], {
+    invoiceId: 'rg-erfunden-1', invoiceNumber: '2026-0042', paymentId: 'zahlung-erfunden-1', customerId: 'kunde-erfunden-1',
+    amountCents: 156960, partial: false, paidOn: '2026-11-11', includesVat: true,
+  });
+  assert.deepEqual(Object.keys(zahlungen[1]!).sort(),
+    ['amountCents', 'customerId', 'includesVat', 'invoiceId', 'invoiceNumber', 'paidOn', 'partial', 'paymentId']);
+  assert.equal(zahlungen[1]!.partial, true);
+  assert.equal(zahlungen[1]!.includesVat, false);
+  // ohne rechnungszahlung bleibt die Liste leer
+  assert.deepEqual(stored.fromStoredReceipt(BASIS).invoicePayments ?? [], []);
+});

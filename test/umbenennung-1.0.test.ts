@@ -235,7 +235,9 @@ const NACH_1_0 = {
     // Kassenteil und Zahlungsbestaetigung (1.38.0, Zahlung auf Rechnung)
     'pdf.title.payment_confirmation', 'pdf.title.refund_confirmation', 'pdf.cash_register.header', 'pdf.cash_register.receipt_number', 'pdf.cash_register.date',
     'pdf.confirmation.intro', 'pdf.confirmation.not_invoice', 'pdf.confirmation.table.invoice', 'pdf.confirmation.table.amount',
-    'pdf.confirmation.table.paid_so_far', 'pdf.confirmation.table.received_today', 'pdf.confirmation.table.still_open'],
+    'pdf.confirmation.table.paid_so_far', 'pdf.confirmation.table.received_today', 'pdf.confirmation.table.still_open',
+    // Kurztexte bezahlt vor Ort (1.38.0)
+    'pdf.paid.cash', 'pdf.paid.card'],
   fileKeys: ['errorCodeRules', 'errorOutcomeRules', 'callsWithEffect', 'cancellationVoucherErrors', 'voucherErrors',
     // Fremdgutscheine an der Kasse (1.31.0): je neben ihrem Nachbarn in der Datei
     'externalVoucherTileMessages', 'externalVoucherArticleErrors', 'returnDispositionLabels', 'externalVouchersLabels', 'externalVoucherKindLabels', 'tipKeptModeLabels',

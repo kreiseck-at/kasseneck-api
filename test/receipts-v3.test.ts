@@ -96,15 +96,6 @@ const BELEGMAIL = lies('antworten/belegmail.json').cases as Fall[];
 const KASSE = lies('antworten/kasse.json').endpoints as Record<string, { cases: Fall[] }>;
 const VOKABULAR = lies('v3-vokabular.json');
 
-/**
- * Codes, die das Paket kennt, bevor der Vertrags-Export des Servers sie fuehrt: das Backend legt sie in
- * derselben Lieferung an (Zahlung auf Rechnung, 1.38.0). Sie stehen hinter den Codes ihres Endpunkts.
- * Sobald der Vertrag neu geholt ist und sie fuehrt, wird der Test unten rot und der Eintrag faellt weg.
- */
-const VOR_DEM_VERTRAG: Readonly<Record<'cancellation', readonly string[]>> = {
-  cancellation: ['invoice_payment_not_cancellable'],
-};
-
 const API_KEY = 'kr_test_GEHEIMERAPIKEY';
 const KASSEN_TOKEN = 'cb_test_GEHEIMESKASSENTOKEN';
 
@@ -675,8 +666,7 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   const mitRand = (eigen: string[], paket: readonly string[]) => [...eigen, ...rand.filter((c) => !eigen.includes(c)), ...paket];
   const signierend = ['route_missing', 'response_unreadable'];
   assert.deepEqual([...CLIENT_ERROR_CODES], signierend);
-  assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand([...codes.cancellation, ...VOR_DEM_VERTRAG.cancellation], signierend));
-  for (const code of VOR_DEM_VERTRAG.cancellation) assert.ok(!codes.all.includes(code), `${code} steht jetzt im Vertrag: aus VOR_DEM_VERTRAG nehmen`);
+  assert.deepEqual([...CANCELLATION_ERROR_CODES], mitRand(codes.cancellation, signierend));
   assert.deepEqual([...PAYMENT_ERROR_CODES], mitRand(codes.payments, ['route_missing']));
   assert.deepEqual([...RECEIPT_EMAIL_ERROR_CODES], mitRand(codes.receiptEmail, ['route_missing']));
   assert.deepEqual([...RECEIPT_EMAIL_SEND_ERROR_CODES], codes.receiptEmail);
@@ -719,7 +709,7 @@ test('Kataloge und Codes sind die des /v3-Vokabulars', () => {
   // Jeder Code ist ein /v3-Code (klein, kein alter deutscher oder grosser)
   // oder einer, den das Paket selbst vergibt.
   for (const code of [...CANCELLATION_ERROR_CODES, ...PAYMENT_ERROR_CODES, ...RECEIPT_EMAIL_ERROR_CODES, ...RECEIPT_ERROR_CODES, ...MANUAL_RECEIPT_ERROR_CODES]) {
-    assert.ok(codes.all.includes(code) || (CLIENT_ERROR_CODES as readonly string[]).includes(code) || VOR_DEM_VERTRAG.cancellation.includes(code), code);
+    assert.ok(codes.all.includes(code) || (CLIENT_ERROR_CODES as readonly string[]).includes(code), code);
   }
   assert.equal(isPaymentErrorCode('PAYMENTS_SUM_MISMATCH'), false);
   assert.equal(isCancellationErrorCode('bereits_storniert'), false);

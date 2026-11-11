@@ -95,6 +95,9 @@ const DE = {
   // Kurz, fuer jede bezahlte Rechnung (auch Ueberweisung); der Satz „Es ist nichts weiter zu tun.“ entfiel mit 1.38.0.
   'pdf.paid.text': 'Diese Rechnung ist beglichen.',
   'pdf.paid.date': 'Bezahlt am',
+  // Kurztexte (1.38.0) fuer die Zahlung vor Ort; {date} = Zahltag.
+  'pdf.paid.cash': 'Bar bezahlt am {date}.',
+  'pdf.paid.card': 'Mit Karte bezahlt am {date}.',
   'pdf.paid.payment_method': 'Zahlungsart',
   // Kassenteil (1.38.0): der Zahlungsbeleg der Kasse unten auf Rechnung und Zahlungsbestaetigung. Kopfzeile
   // mit der Kassen-ID dahinter; Vermerke und Positionstexte bleiben deutsch (Pflichtwoerter, receiptNotes).
@@ -322,6 +325,8 @@ const EN: Readonly<Record<InvoiceTextKey, string>> = {
   'pdf.payment.qr': 'Scan with your banking app to pay',
   'pdf.paid.text': 'This invoice has been paid.',
   'pdf.paid.date': 'Paid on',
+  'pdf.paid.cash': 'Paid in cash on {date}.',
+  'pdf.paid.card': 'Paid by card on {date}.',
   'pdf.paid.payment_method': 'Payment method',
   'pdf.cash_register.header': 'CASH REGISTER',
   'pdf.cash_register.receipt_number': 'Receipt no.',
