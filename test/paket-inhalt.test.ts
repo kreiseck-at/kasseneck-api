@@ -79,6 +79,7 @@ const ABNEHMER: Record<string, string> = {
   'pos-texts.json': 'Textkatalog der Kasse: Kassen-App (kasseneck-apps tool/vertrag.sh; apps/kasse/tool/texte_erzeugen.dart erzeugt daraus die Konstanten)',
   'shift-cases.json': 'Prueffaelle sumDenominations und parseCentsAllowZero (Schicht): Dart-Zwilling kasseneck_api',
   'shift-receipts.json': 'Bons der Schicht (Z, X, Kassenbewegung): Quelle im Vertrag und Pruefsummen der Goldens unter expected/shift-*, cash-movement.*: Dart-Zwilling kasseneck_api',
+  'shift-receipts-card-tips.json': 'Bons der Schicht mit Kartentrinkgeld bar genommen (1.37.0): Vertragsfall + overlay und Pruefsummen der Goldens unter expected/shift-*-card-tips.*: Dart-Zwilling kasseneck_api (Spiegel folgt)',
   'surface.json': 'Aufrufe, Wege und Enums: Dart-Zwilling (zwillinge.yaml); kasseneck-web scripts/vertrag.sh + scripts/check-rewrites.mjs (Routen je Aufruf)',
   'item-from-euro.json': 'Prueffaelle itemFromEuro: Dart-Zwilling, Panel',
   'invoice-api-examples': 'Rechnungs-API-Beispiele: Dart-Zwilling',

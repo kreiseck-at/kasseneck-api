@@ -381,9 +381,9 @@ export interface ShiftTipLine {
  * Lohn) immer, „über Lohn“, „schon genommen“, „selbst zurückgegeben“ (R62)
  * und „offen“ nur, wenn nicht 0. Davor „aus früheren Schichten“ (R64, nur ≠ 0):
  * offen = aus früheren Schichten + verdient − über Lohn − schon genommen +
- * selbst zurückgegeben. Hinter „schon genommen“ steht „davon Kartentrinkgeld
- * bar genommen“ (Spec 2026-11-11-kartentrinkgeld, nur ≠ 0, Teil von „schon
- * genommen“, kein eigener Summand).
+ * selbst zurückgegeben. Hinter „schon genommen“ steht „davon Kartentrinkgeld“
+ * (bar aus der Lade genommen; Spec 2026-11-11-kartentrinkgeld, nur ≠ 0, Teil
+ * von „schon genommen“, kein eigener Summand).
  * Ist alles 0, gibt es keine Zeile, und der Mitarbeiter entfaellt ganz. Ohne
  * `openCents` (Laufstand) zaehlt offen als 0. Gemeinsame Faelle mit dem
  * Dart-Zwilling: `fixtures/shift-cases.json`.

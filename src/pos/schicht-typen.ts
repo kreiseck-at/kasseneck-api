@@ -145,7 +145,7 @@ export interface ShiftTipTotals {
   /**
    * Kartentrinkgeld, das die Mitarbeiterin beim Verkauf bar aus der Lade genommen hat (Spec
    * 2026-11-11-kartentrinkgeld, § 4.3; Teil von `paidOutCents`). Der Server sendet es nur, wenn es eines gibt;
-   * fehlt = 0. Auf Bon und Kassenstand die Zeile „davon Kartentrinkgeld bar genommen“ ([shiftTipLines]).
+   * fehlt = 0. Auf Bon und Kassenstand die Zeile „davon Kartentrinkgeld“ ([shiftTipLines]).
    */
   cardTipsTakenCents?: number;
 }

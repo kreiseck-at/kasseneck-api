@@ -1339,6 +1339,8 @@ const BESCHRIFTUNGEN_ROH = {
   // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
   'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
   'tip_payout.done': { text: 'erledigt' },
+  // Kartentrinkgeld ueber die Kasse (1.37.0, Spec keck 2026-11-11 § 4.3): statt „erledigt“ bei 0 offen.
+  'tip_payout.nothing_open': { text: 'nichts offen' },
   'tip_payout.for_all': { text: 'Für alle' },
   'tip_payout.nothing': { text: 'Nichts' },
   'tip_payout.all_open': { text: 'Alles Offene' },
@@ -1598,7 +1600,8 @@ const BESCHRIFTUNGEN_ROH = {
   // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
   'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
   // Z-/X-Bon und Kassenstand: Teil von „schon genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
-  'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld bar genommen' },
+  // Kurz, damit die Zeile unter „schon genommen“ auf 80 mm in eine Zeile passt (eingerueckt, mit Betrag).
+  'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld' },
   'shift.part_card_tips_taken': { text: 'Kartentrinkgeld bar genommen' },
   // Einstellungen (Kasse und Kundenbereich): Karten-Stufe (Werte wie TIP_KEPT_MODE_LABELS), Vorbelegung, Not-Aus.
   'tip_card_kept_mode.title': { text: 'Kartentrinkgeld gleich behalten' },

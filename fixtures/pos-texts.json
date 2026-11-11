@@ -2692,6 +2692,9 @@
     "tip_payout.done": {
       "text": "erledigt"
     },
+    "tip_payout.nothing_open": {
+      "text": "nichts offen"
+    },
     "tip_payout.for_all": {
       "text": "Für alle"
     },
@@ -3513,7 +3516,7 @@
       ]
     },
     "shift_receipt.tip_card_taken": {
-      "text": "davon Kartentrinkgeld bar genommen"
+      "text": "davon Kartentrinkgeld"
     },
     "shift.part_card_tips_taken": {
       "text": "Kartentrinkgeld bar genommen"

@@ -167,7 +167,7 @@ const NACH_1_0 = {
     'done.tip_title', 'done.tip_open', 'done.tip_open_loading', 'done.tip_kept_card', 'done.tip_kept_cash', 'done.tip_pay_out',
     'my_tips.title', 'my_tips.open_here', 'my_tips.open_total', 'my_tips.kept_today', 'my_tips.other_drawer', 'my_tips.nothing_open', 'my_tips.overpaid', 'my_tips.pay_out', 'my_tips.pay_out_amount',
     'cancellation.tip_deducted', 'shift_receipt.tip_card_taken', 'shift.part_card_tips_taken', 'tip_card_kept_mode.title', 'tip.card_kept_setting', 'tip_self_payout.title',
-    'tip_claim_scope.title', 'tip_claim_scope.per_drawer', 'tip_claim_scope.per_person',
+    'tip_claim_scope.title', 'tip_claim_scope.per_drawer', 'tip_claim_scope.per_person', 'tip_payout.nothing_open',
     // Rabatt-Vorlagen (1.31.0)
     'discount_presets.title', 'discount_presets.name', 'discount_presets.percent', 'discount_presets.amount', 'discount_presets.add', 'discount_presets.remove', 'discount_presets.limit',
     'shift_receipt.discounts', 'shift_receipt.discounts_total', 'shift_receipt.discount_line', 'shift_receipt.discount_unnamed',
@@ -429,6 +429,9 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
   'shift-cases.json', 'shift-receipts.json',
   // Kartentrinkgeld an der Kasse (1.37.0): Lade-Rechnung je Beleg, Vertrag mit dem Backend.
   'stored/card-tip-cases.json',
+  // Bons der Schicht mit Kartentrinkgeld bar genommen (1.37.0): eigenes Manifest, Zeilen und Raster.
+  'shift-receipts-card-tips.json',
+  ...['shift-interim-card-tips', 'shift-close-card-tips'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
   ...['shift-close', 'shift-close-blind', 'shift-interim', 'cash-movement', 'shift-close-take-out', 'shift-close-put-in'].flatMap((n) => [`expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`]),
   // Gutscheine der neuen Form (1.12.0): Golden-Belege mit Zeilen, Raster und Blatt.
   ...['voucher-cancellation', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale']

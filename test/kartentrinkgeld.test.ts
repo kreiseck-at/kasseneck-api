@@ -17,8 +17,8 @@ import { isKasseneckApiError } from '../src/client/errors.js';
 /*
  * Kartentrinkgeld an der Kasse (Backend-Spec 2026-11-11-kartentrinkgeld, Stufe 1 und 2): dieselben drei Stufen
  * wie bei Bar (business.tipCardKeptMode, tipCardKeptByDefault), der Not-Aus tipSelfPayout, die eine Zeile mit
- * Betrag (tipStatus), „Mein Trinkgeld“ (getMyTipBalance gegen den Vertrag) und die Zeile „davon Kartentrinkgeld
- * bar genommen“ auf Bon und Kassenstand. Die gemeinsamen Faelle mit dem Backend liegen in
+ * Betrag (tipStatus), „Mein Trinkgeld“ (getMyTipBalance gegen den Vertrag) und die Zeile „davon Kartentrinkgeld“
+ * auf Bon und Kassenstand. Die gemeinsamen Faelle mit dem Backend liegen in
  * fixtures/stored/card-tip-cases.json.
  */
 
@@ -80,14 +80,14 @@ test('tipStatus: die eine Zeile je Zahlart und Ergebnis, mit Betrag; einzeilig',
   }
   assert.equal(labelText('cancellation.tip_deducted', { amount: '5,00 €', name: 'Livia Lindmayr' }), '5,00 € Trinkgeld werden vom Guthaben von Livia Lindmayr abgezogen');
   assert.equal(labelText('my_tips.nothing_open'), 'Nichts offen');
-  assert.equal(labelText('shift_receipt.tip_card_taken'), 'davon Kartentrinkgeld bar genommen');
+  assert.equal(labelText('shift_receipt.tip_card_taken'), 'davon Kartentrinkgeld');
   assert.match(messageText('tip.card_kept_setting_hint'), /bar aus der Lade/);
 });
 
-test('shiftTipLines: „davon Kartentrinkgeld bar genommen“ nach „schon genommen“, nur ≠ 0; Soll-Teil card_tips_taken', () => {
+test('shiftTipLines: „davon Kartentrinkgeld“ nach „schon genommen“, nur ≠ 0; Soll-Teil card_tips_taken', () => {
   const z = shiftTipLines({ registerUserId: 'ru_livia', name: 'Livia Lindmayr', receivedImmediatelyCents: 500, retainedCents: 0, paidOutCents: 500, refundedByEmployeeCents: 0, cardTipsTakenCents: 500, openCents: 0 });
   assert.deepEqual(z.map((x) => [x.key, x.cents]), [['shift_receipt.tip_earned', 500], ['shift_receipt.tip_paid_out', 500], ['shift_receipt.tip_card_taken', 500]]);
-  assert.equal(z[2]!.text, 'davon Kartentrinkgeld bar genommen');
+  assert.equal(z[2]!.text, 'davon Kartentrinkgeld');
   // Ohne das Feld (Server vor 1.37.0, bar) keine Zeile – byte-gleich wie bisher.
   assert.deepEqual(shiftTipLines({ registerUserId: 'ru_livia', name: 'L', receivedImmediatelyCents: 500, retainedCents: 0, paidOutCents: 500, refundedByEmployeeCents: 0, openCents: 0 }).map((x) => x.key),
     ['shift_receipt.tip_earned', 'shift_receipt.tip_paid_out']);
