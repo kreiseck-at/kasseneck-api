@@ -1666,3 +1666,209 @@ test('TECS: Host-Ablehnung (05) entscheidet sofort', async () => {
   assert.equal(zaehle(calls, '/v1/terminal/status'), 0);
   assert.deepEqual(result.steps, ['Terminal: abgelehnt (5 "declined")']);
 });
+
+// ---------------------------------------------------------------------------
+// Spaete Nachfrage (clarifyPayment): liest nur, entscheidet nur, was die
+// bisherige Klaerung zulaesst. Jede Regel unten hat eine Rot-Probe: wer sie
+// lockert (etwa "'0' heisst immer belastet"), macht den jeweiligen Test rot.
+// ---------------------------------------------------------------------------
+
+function nachfrage(
+  previous: Parameters<ReturnType<typeof buildPayments>['clarifyPayment']>[0]['previous'],
+  status: ScriptEntry[],
+  overrides: { maxTransportFailures?: number } = {},
+) {
+  const calls: RecordedCall[] = [];
+  const payments = buildPayments({ '/v1/terminal/status': status }, calls, overrides);
+  return { calls, lauf: payments.clarifyPayment({ transactionId: '700', previous }) };
+}
+
+/** Nichts ausser Statusabfragen -- kein Abbruch, kein Storno, keine neue Zahlung. */
+function nurStatus(calls: RecordedCall[]): void {
+  assert.ok(calls.length > 0, 'mindestens eine Statusabfrage');
+  assert.deepEqual(new Set(calls.map((c) => c.path)), new Set(['/v1/terminal/status']), calls.map((c) => c.path).join(','));
+  for (const c of calls) assert.equal(c.body['transactionId'], '700');
+}
+
+const GENEHMIGT = okPayment({ responseCode: '0', transactionId: '700', approvalCode: '654321' });
+const AUFGEHOBEN = okPayment({ responseCode: '9011', transactionId: '700' });
+const KEINE_AUSKUNFT = okPayment({ responseCode: '9027', transactionId: '700' });
+const ABGELEHNT = okPayment({ responseCode: '100003', transactionId: '700' });
+const HOST_TIMEOUT = okPayment({ responseCode: '9908', transactionId: '700' });
+
+test('Nachfrage vor der Klaerung (Seite riss waehrend der Zahlung ab), Status 0 -- approved mit der Antwort', async () => {
+  const { calls, lauf } = nachfrage('beforeResolve', [GENEHMIGT]);
+  const r = await lauf;
+  assert.equal(r.outcome, 'approved');
+  assert.equal(r.transactionId, '700');
+  assert.equal(r.response?.raw['approvalCode'], '654321', 'die Antwort traegt die Belegdaten');
+  nurStatus(calls);
+  assert.equal(calls.length, 1);
+});
+
+test('Nachfrage nach offener Klaerung ohne Stoerung (Leitung riss ab, kein Code), Status 0 -- approved', async () => {
+  const { calls, lauf } = nachfrage({ reason: undefined }, [GENEHMIGT]);
+  assert.equal((await lauf).outcome, 'approved');
+  nurStatus(calls);
+});
+
+test('Nachfrage ohne Stoerung, Status 9011 -- declined (aufgehoben), nichts belastet', async () => {
+  const { calls, lauf } = nachfrage('beforeResolve', [AUFGEHOBEN]);
+  const r = await lauf;
+  assert.equal(r.outcome, 'declined');
+  assert.equal(r.reason, 'canceled');
+  nurStatus(calls);
+});
+
+test('Nachfrage ohne Stoerung, schluessige Ablehnung -- declined', async () => {
+  const { calls, lauf } = nachfrage({ reason: 'unknown' }, [ABGELEHNT]);
+  const r = await lauf;
+  assert.equal(r.outcome, 'declined');
+  assert.equal(r.response?.responseCode, '100003');
+  nurStatus(calls);
+});
+
+// Rot-Probe: "'0' heisst immer belastet" -- nach einem moeglichen Storno falsch.
+test('Nachfrage nach Host-Timeout (Storno nachgeschickt), Status 0 -- bleibt offen, nie approved', async () => {
+  const { calls, lauf } = nachfrage({ reason: 'hostTimeout' }, [GENEHMIGT]);
+  const r = await lauf;
+  assert.equal(r.outcome, 'unresolved');
+  assert.equal(r.reason, 'hostTimeout', 'der Grund der Zahlung bleibt der Grund');
+  assert.equal(r.lastResponse?.responseCode, '0');
+  assert.equal(r.response, undefined);
+  assert.ok(r.steps.some((s) => s.startsWith('Status: genehmigt (0)') && s.includes('Storno')), r.steps.join(' | '));
+  nurStatus(calls);
+  assert.equal(calls.length, 2, 'zweimal ohne Aussage, dann Schluss');
+});
+
+test('Nachfrage nach Host-Stoerung mit Storno, Status 9011 -- declined, wie in der Klaerung von pay', async () => {
+  for (const reason of ['hostTimeout', 'hostFault'] as const) {
+    const { calls, lauf } = nachfrage({ reason }, [AUFGEHOBEN]);
+    const r = await lauf;
+    assert.equal(r.outcome, 'declined', reason);
+    assert.equal(r.reason, 'canceled');
+    nurStatus(calls);
+  }
+});
+
+// Rot-Probe: "nach einer Host-Stoerung entscheidet jede Ablehnung" -- der Host weiss es, nicht das Terminal.
+// Gehalten von `!gestoert` im Ablehnungszweig (die Regel-Tabelle sagt es zusaetzlich).
+test('Nachfrage nach Host-Stoerung, schluessige Ablehnung -- bleibt offen', async () => {
+  const { lauf } = nachfrage({ reason: 'hostFault' }, [ABGELEHNT]);
+  assert.equal((await lauf).outcome, 'unresolved');
+});
+
+// Rot-Probe: eine Stoerung ohne Storno-Pflicht (interner Fehler) kann spaeter
+// trotzdem eines ausgeloest haben -- weder 0 noch 9011 entscheiden.
+test('Nachfrage nach Stoerung ohne sicheres Storno (internalError, approvedWithCondition) -- 0 und 9011 bleiben offen', async () => {
+  for (const reason of ['internalError', 'approvedWithCondition'] as const) {
+    for (const status of [GENEHMIGT, AUFGEHOBEN]) {
+      const { calls, lauf } = nachfrage({ reason }, [status]);
+      const r = await lauf;
+      assert.equal(r.outcome, 'unresolved', `${reason} ${(status.body as { hps: { responseCode: string } }).hps.responseCode}`);
+      assert.equal(r.reason, reason);
+      nurStatus(calls);
+    }
+  }
+});
+
+// Rot-Probe: "unbekannte Vorgeschichte wie ohne Stoerung behandeln".
+test('Nachfrage ohne bekannte Vorgeschichte (null) -- keine Antwort entscheidet', async () => {
+  for (const status of [GENEHMIGT, AUFGEHOBEN, ABGELEHNT]) {
+    const { calls, lauf } = nachfrage(null, [status]);
+    const r = await lauf;
+    assert.equal(r.outcome, 'unresolved');
+    assert.ok(r.steps[0]!.includes('nicht bekannt'), r.steps[0]);
+    nurStatus(calls);
+  }
+});
+
+// Rot-Probe: die Zwei-9027-Regel ohne Antwort auf die Zahlung -- 9027 heisst hier nie "abgelehnt".
+test('Nachfrage, Status zweimal 9027 -- unresolved nach genau zwei Abfragen, nie declined', async () => {
+  for (const previous of ['beforeResolve', { reason: 'unknown' as const }, { reason: undefined }] as const) {
+    const { calls, lauf } = nachfrage(previous, [KEINE_AUSKUNFT]);
+    const r = await lauf;
+    assert.equal(r.outcome, 'unresolved');
+    assert.equal(calls.length, 2);
+    assert.ok(r.steps.some((s) => s.startsWith('Statusabfrage zweimal ohne Aussage')), r.steps.join(' | '));
+  }
+});
+
+test('Nachfrage: erst 9027, dann 0 -- approved (ohne Aussage zaehlt nur in Folge)', async () => {
+  const { calls, lauf } = nachfrage('beforeResolve', [KEINE_AUSKUNFT, GENEHMIGT]);
+  assert.equal((await lauf).outcome, 'approved');
+  assert.equal(calls.length, 2);
+});
+
+// Rot-Probe: meldet der Status selbst eine Host-Stoerung, entscheidet danach nur noch die Genehmigung.
+test('Nachfrage: Status meldet Host-Timeout, dann 9011 -- offen; dann 0 -- approved', async () => {
+  const aufgehoben = await nachfrage('beforeResolve', [HOST_TIMEOUT, AUFGEHOBEN]).lauf;
+  assert.equal(aufgehoben.outcome, 'unresolved');
+  assert.equal(aufgehoben.reason, 'hostTimeout');
+  const genehmigt = await nachfrage('beforeResolve', [HOST_TIMEOUT, GENEHMIGT]).lauf;
+  assert.equal(genehmigt.outcome, 'approved');
+});
+
+test('Nachfrage: Terminal antwortet nicht -- nach maxTransportFailures offen, nie ein Storno', async () => {
+  const { calls, lauf } = nachfrage('beforeResolve', ['network-error']);
+  const r = await lauf;
+  assert.equal(r.outcome, 'unresolved');
+  assert.equal(calls.length, 3);
+  nurStatus(calls);
+  assert.ok(r.steps.some((s) => s === 'Terminal antwortet nicht -- Ausgang bleibt offen'), r.steps.join(' | '));
+});
+
+test('Nachfrage: das Budget ist ein Sechstel der Klaerung (15 s bei 90 s)', async () => {
+  const calls: RecordedCall[] = [];
+  const client = createHpsConnectClient({ baseUrl: 'http://127.0.0.1:27182', token: TOKEN, fetch: fakeConnect({ '/v1/terminal/status': ['network-error'] }, calls) });
+  const clock = fakeClock();
+  const payments = createHpsPayments(client, TARGET, { resolveBudgetMs: 90_000, maxBackoffMs: 10_000, maxTransportFailures: 100, now: clock.now, sleep: clock.sleep });
+  const r = await payments.clarifyPayment({ transactionId: '700', previous: 'beforeResolve' });
+  assert.equal(r.outcome, 'unresolved');
+  assert.ok(clock.now() <= 15_000, `nach ${clock.now()} ms`);
+  assert.ok(clock.now() >= 7_000, `die Pausen laufen bis ans Budget (${clock.now()} ms)`);
+});
+
+test('Nachfrage: terminal_unreachable wirft HpsPreflightError wie bei der Zahlung', async () => {
+  const { calls, lauf } = nachfrage('beforeResolve', [UNERREICHBAR]);
+  await assert.rejects(lauf, (e: unknown) => e instanceof HpsPreflightError && e.connectCode === 'terminal_unreachable');
+  assert.equal(calls.length, 1);
+});
+
+test('Nachfrage meldet sich beim Beobachter (resolving, resolved) mit der Kennung', async () => {
+  const calls: RecordedCall[] = [];
+  const client = createHpsConnectClient({ baseUrl: 'http://127.0.0.1:27182', token: TOKEN, fetch: fakeConnect({ '/v1/terminal/status': [GENEHMIGT] }, calls) });
+  const clock = fakeClock();
+  const ereignisse: string[] = [];
+  const payments = createHpsPayments(client, TARGET, { now: clock.now, sleep: clock.sleep, observer: (e) => ereignisse.push(`${e.kind}:${e.transactionId}`) });
+  await payments.clarifyPayment({ transactionId: '700', previous: 'beforeResolve' });
+  assert.deepEqual(ereignisse, ['resolving:700', 'resolved:700']);
+});
+
+// Rot-Probe (Review 11.11.2026): das Ergebnis einer Nachfrage als Vorgeschichte
+// der naechsten wuerde eine unbekannte Vorgeschichte reinwaschen -- sein
+// `reason` (hier `noStatement` aus dem 9027 der ersten Nachfrage) ist kein
+// Grund der Zahlung. Ohne die Marke `clarified` endete die zweite Nachfrage
+// bei `approved`.
+test('Nachfrage: ein Nachfrage-Ergebnis als Vorgeschichte entscheidet nie -- auch nicht mit Status 0', async () => {
+  const erste = await nachfrage(null, [KEINE_AUSKUNFT]).lauf;
+  assert.equal(erste.outcome, 'unresolved');
+  assert.equal(erste.clarified, true);
+  assert.equal(erste.reason, 'noStatement');
+  for (const status of [GENEHMIGT, AUFGEHOBEN, ABGELEHNT]) {
+    const { calls, lauf } = nachfrage(erste, [status]);
+    const zweite = await lauf;
+    assert.equal(zweite.outcome, 'unresolved');
+    assert.notEqual(zweite.reason, 'noStatement', 'kein geerbter Grund aus der ersten Nachfrage');
+    assert.ok(zweite.steps[0]!.includes('frueheren Nachfrage'), zweite.steps[0]);
+    nurStatus(calls);
+  }
+  // Auch ein entschiedenes Nachfrage-Ergebnis traegt die Marke.
+  const genehmigt = await nachfrage('beforeResolve', [GENEHMIGT]).lauf;
+  assert.equal(genehmigt.clarified, true);
+  // Das Ergebnis von pay traegt sie nie.
+  const calls: RecordedCall[] = [];
+  const zahlung = await buildPayments({ '/v1/terminal/payment': [okPayment({ responseCode: '0', transactionId: '701' })] }, calls)
+    .pay({ amountCents: 100, transactionId: '701' });
+  assert.equal(zahlung.clarified, undefined);
+});

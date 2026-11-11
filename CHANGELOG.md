@@ -4,7 +4,15 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.36.0 - unveröffentlicht
+## 1.37.0 - unveröffentlicht
+
+Late terminal query for a card payment with an open outcome (`HpsPayments.clarifyPayment` in `./payments`). Additive; `pay`, `refund` and `cancel` behave as before.
+
+- **`clarifyPayment({ transactionId, previous })`:** asks the terminal LATER whether a payment went through – when the cashier clarifies an unclear card, possibly minutes after the payment or after a page reload. Read-only: only status queries, never an abort, never a reversal, never a new transaction. Budget a sixth of `resolveBudgetMs` (15 s by default); two answers without a statement in a row end it as `unresolved` at once (the payment is long finished, the terminal will not know later either). What an answer may decide depends on `previous` – the `unresolved` result of `pay` (only `reason` counts), `'beforeResolve'` when the clarification of `pay` never started (the page died during the card flow, so no reversal was sent), or `null` when the history is unknown: after a host fault (`hostFault`, `hostTimeout`, `internalError`, `approvedWithCondition`) a reversal may have been sent, so `'0'` never means "charged" there; `9011` means "nothing charged" only without a host fault or when a reversal was surely attempted (every code with that reason carries `sendReversal`, computed from the table); any other conclusive decline decides only without a host fault; with unknown history nothing decides and the cashier decides by the terminal receipt as before. Reason: until now the register could only offer two blind buttons ("was charged" / "not charged") – the terminal knows better, and a wrong click costs a double charge or a receipt without money.
+- `HpsClarifyOptions` exported from `./payments`.
+- `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
+
+## 1.36.0 - 2026-11-11
 
 Deposit on invoice and credit-note positions, and the EWP report (single-use deposit report) through the API key. Additive; every existing call, invoice and golden behaves as before.
 

@@ -1,5 +1,5 @@
 {
-  "version": "1.36.0",
+  "version": "1.37.0",
   "messages": {
     "network.no_connection": {
       "text": "Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen."
@@ -720,6 +720,24 @@
     },
     "split.tendered_missing": {
       "text": "Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an."
+    },
+    "split.clarify_asking": {
+      "text": "Das Terminal wird gefragt, ob die Karte belastet wurde …"
+    },
+    "split.clarify_charged": {
+      "text": "Das Terminal meldet: belastet. Die Zahlung wurde übernommen."
+    },
+    "split.clarify_not_charged": {
+      "text": "Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen."
+    },
+    "split.clarify_open": {
+      "text": "Das Terminal kann es nicht sagen. Bitte am Terminal-Beleg nachsehen und dann entscheiden."
+    },
+    "split.clarify_not_asked": {
+      "text": "Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen und dann entscheiden.",
+      "placeholders": [
+        "reason"
+      ]
     },
     "receipt.link_copied": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."

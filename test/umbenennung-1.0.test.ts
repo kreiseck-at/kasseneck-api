@@ -98,7 +98,9 @@ const NACH_1_0 = {
     'deposit.changed', 'deposit_error.not_enabled', 'deposit_error.type_not_found', 'deposit_error.set_by_server', 'deposit_error.invalid_quantity',
     'deposit_error.return_not_offered', 'deposit_error.type_not_issued', 'deposit_error.follows_item', 'deposit_error.invalid',
     // Browser-Kasse am Mac: Lokales Netzwerk gesperrt, Terminal-Suche mit mehreren Treffern (1.33.0)
-    'connect.local_network_blocked', 'terminal.several_found', 'terminal.tid_not_found'],
+    'connect.local_network_blocked', 'terminal.several_found', 'terminal.tid_not_found',
+    // Klaeren einer unklaren Karte: Nachfrage beim Terminal (1.37.0)
+    'split.clarify_asking', 'split.clarify_charged', 'split.clarify_not_charged', 'split.clarify_open', 'split.clarify_not_asked'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',

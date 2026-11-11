@@ -71,6 +71,7 @@ export {
   type HpsConnectTarget,
   type HpsConnectTransactionOptions,
   type HpsCancelOptions,
+  type HpsClarifyOptions,
   type HpsCode,
   type HpsCodeEffect,
   type HpsCodeReason,

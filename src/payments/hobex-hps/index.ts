@@ -57,6 +57,7 @@ export {
 
 export {
   type HpsCancelOptions,
+  type HpsClarifyOptions,
   type HpsPaymentOptions,
   type HpsPayments,
   type HpsPaymentsOptions,

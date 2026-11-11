@@ -337,6 +337,14 @@ const MELDUNGEN_ROH = {
   // hinzugefuegt – derselbe Grund wie beim Abschluss einer Barzahlung, auf
   // DIESE Zahlung bezogen.
   'split.tendered_missing': { text: 'Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an.' },
+  // Klaeren einer Karte mit offenem Ausgang: zuerst fragt die Kasse das Terminal
+  // (Paket `clarifyPayment`), erst wenn es nichts sagen kann, entscheidet der
+  // Kassier am Terminal-Beleg mit „Wurde belastet" / „Nicht belastet".
+  'split.clarify_asking': { text: 'Das Terminal wird gefragt, ob die Karte belastet wurde …' },
+  'split.clarify_charged': { text: 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.' },
+  'split.clarify_not_charged': { text: 'Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen.' },
+  'split.clarify_open': { text: 'Das Terminal kann es nicht sagen. Bitte am Terminal-Beleg nachsehen und dann entscheiden.' },
+  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen und dann entscheiden.', placeholders: ['reason'] },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
