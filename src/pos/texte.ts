@@ -521,6 +521,12 @@ const MELDUNGEN_ROH = {
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
 
+  // --- Nur Browser-Kasse: neue Fassung (1.37.0) ----------------------------
+  // Ein offener Tab laeuft nach einem Deploy mit dem alten Buendel weiter. Die
+  // Zeile steht nur, solange an der Kasse nichts laeuft, und laedt nie von
+  // selbst neu (Knopf `version.reload`). Die App kommt ueber den Store.
+  'version.new_available': { text: 'Neue Fassung verfügbar – bei Gelegenheit neu laden.', only: ['web'] },
+
   // --- Schicht-Ablauf der Kasse (1.28.0) -----------------------------------
   'shift.started_taken_over': { text: 'Schicht {number} hat begonnen – mit {amount} in der Lade, übernommen von Schicht {from} ({time}).', placeholders: ['number', 'amount', 'from', 'time'] },
   'tip.summary': { text: 'Trinkgeld {tip} · der Gast zahlt {total}', placeholders: ['tip', 'total'] },
@@ -1570,6 +1576,10 @@ const BESCHRIFTUNGEN_ROH = {
   'deposit.on_premises': { text: 'Vor Ort' },
   'deposit.takeaway': { text: 'Mitnahme' },
   'deposit.sum': { text: 'Summe Leergut' },
+
+  // --- Nur Browser-Kasse: neue Fassung (1.37.0) ---
+  // Der Knopf an `version.new_available`.
+  'version.reload': { text: 'Neu laden', only: ['web'] },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

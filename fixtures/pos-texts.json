@@ -1178,6 +1178,12 @@
         "app"
       ]
     },
+    "version.new_available": {
+      "text": "Neue Fassung verfügbar – bei Gelegenheit neu laden.",
+      "only": [
+        "web"
+      ]
+    },
     "shift.started_taken_over": {
       "text": "Schicht {number} hat begonnen – mit {amount} in der Lade, übernommen von Schicht {from} ({time}).",
       "placeholders": [
@@ -3412,6 +3418,12 @@
     },
     "deposit.sum": {
       "text": "Summe Leergut"
+    },
+    "version.reload": {
+      "text": "Neu laden",
+      "only": [
+        "web"
+      ]
     }
   },
   "returnDispositionLabels": {

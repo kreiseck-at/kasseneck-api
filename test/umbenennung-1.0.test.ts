@@ -100,7 +100,9 @@ const NACH_1_0 = {
     // Browser-Kasse am Mac: Lokales Netzwerk gesperrt, Terminal-Suche mit mehreren Treffern (1.33.0)
     'connect.local_network_blocked', 'terminal.several_found', 'terminal.tid_not_found',
     // Klaeren einer unklaren Karte: Nachfrage beim Terminal (1.37.0)
-    'split.clarify_asking', 'split.clarify_charged', 'split.clarify_not_charged', 'split.clarify_open', 'split.clarify_not_asked'],
+    'split.clarify_asking', 'split.clarify_charged', 'split.clarify_not_charged', 'split.clarify_open', 'split.clarify_not_asked',
+    // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
+    'version.new_available'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -194,7 +196,9 @@ const NACH_1_0 = {
     'inspection.check_holder', 'inspection.status', 'inspection.status_active', 'inspection.status_outage', 'inspection.status_outage_since',
     'inspection.dep', 'inspection.dep_online', 'inspection.closings', 'inspection.closings_monthly_first', 'inspection.closings_monthly_day',
     'inspection.closings_annual_december', 'inspection.contact', 'inspection.how_it_works', 'inspection.printed_at', 'inspection.print',
-    'inspection.print_yes', 'inspection.print_no', 'zero_receipt.create', 'zero_receipt.created'],
+    'inspection.print_yes', 'inspection.print_no', 'zero_receipt.create', 'zero_receipt.created',
+    // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
+    'version.reload'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
