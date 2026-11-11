@@ -1773,11 +1773,14 @@ test('Nachfrage nach Stoerung ohne sicheres Storno (internalError, approvedWithC
 });
 
 // Rot-Probe: "unbekannte Vorgeschichte wie ohne Stoerung behandeln".
-test('Nachfrage ohne bekannte Vorgeschichte (null) -- keine Antwort entscheidet', async () => {
+// Der Grund kommt nie aus einem Code, der nicht entscheiden durfte (am Terminal
+// 11.11.2026 gesehen: sonst stand „approved“ an einem offenen Ergebnis).
+test('Nachfrage ohne bekannte Vorgeschichte (null) -- keine Antwort entscheidet, kein Grund aus ihr', async () => {
   for (const status of [GENEHMIGT, AUFGEHOBEN, ABGELEHNT]) {
     const { calls, lauf } = nachfrage(null, [status]);
     const r = await lauf;
     assert.equal(r.outcome, 'unresolved');
+    assert.equal(r.reason, undefined, `kein Grund aus ${(status.body as { hps: { responseCode: string } }).hps.responseCode}`);
     assert.ok(r.steps[0]!.includes('nicht bekannt'), r.steps[0]);
     nurStatus(calls);
   }

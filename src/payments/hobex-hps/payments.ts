@@ -1351,10 +1351,16 @@ export function createHpsPayments(
     let stoerung: HpsTransactionResponse | undefined;
     let letzteAntwort: HpsTransactionResponse | undefined;
 
-    const offen = (): HpsPaymentResult => ({
-      ...open(id, steps, letzteAntwort, vorherGrund ?? offenerGrund(stoerung, letzteAntwort)),
-      clarified: true,
-    });
+    // Ein schluessiger Code, der hier nicht entscheiden durfte (`'0'`, `9011`, eine
+    // Ablehnung), erklaert den offenen Ausgang nicht -- sonst stuende etwa „genehmigt“
+    // als Grund an einem offenen Ergebnis (Geraetetest 11.11.2026, Vorgeschichte unbekannt).
+    const offen = (): HpsPaymentResult => {
+      const erklaerend = letzteAntwort && !isConclusiveAsStatus(letzteAntwort) ? letzteAntwort : undefined;
+      return {
+        ...open(id, steps, letzteAntwort, vorherGrund ?? offenerGrund(stoerung, erklaerend)),
+        clarified: true,
+      };
+    };
 
     /** Warum eine Antwort, die sonst entschiede, hier nichts sagt. */
     const vorbehalt = (): string => {
