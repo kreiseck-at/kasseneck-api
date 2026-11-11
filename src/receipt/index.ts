@@ -23,6 +23,7 @@ export {
   SMALL_BUSINESS_NOTICE,
   formatCents,
 } from './layout.js';
+export { type BelegVermerk, type BelegVermerkArt, type BelegVermerkOptionen, belegVermerke } from './vermerke.js';
 
 export {
   type EscPosLayoutOptions,

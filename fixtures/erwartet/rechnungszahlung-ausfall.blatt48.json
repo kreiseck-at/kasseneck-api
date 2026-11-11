@@ -1,0 +1,152 @@
+{
+  "zeichen": 48,
+  "bloecke": [
+    {
+      "art": "logo",
+      "breiteAnteil": 0.5208333333333334,
+      "hoeheZeilen": 5
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "               Bäckerei Kornblum                ",
+      "fett": true,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  Hauptplatz 1                  ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 4830 Hallstatt                 ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                  ATU12345675                   ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                 +43 6134 12345                 ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "Datum:                       11.11.2026 13:05:44",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Kassen-ID:                                KASSE1",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Beleg-ID:                         AT0-KASSE1-120",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlung auf Rechnung 2026-0043          234,00  ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "  inkl. USt                                     ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "------------------------------------------------",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Gesamt:                                 234,00 €",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "Zahlungsart:                          Barzahlung",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "       Sicherheitseinrichtung ausgefallen       ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "qr",
+      "nutzlast": "_R1-AT1_KASSE1_AT0-KASSE1-120_2026-11-11T13:05:44_0,00_0,00_0,00_234,00_0,00_UMSATZ_VORGAENGER_5A1C3E07_SIGNATUR",
+      "breiteAnteil": 0.5520833333333334
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "zeile",
+      "text": "         Vielen Dank für Ihren Einkauf          ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
+      "text": "                                                ",
+      "fett": false,
+      "leer": true
+    },
+    {
+      "art": "marke",
+      "breite": 352,
+      "hoehe": 51
+    }
+  ]
+}

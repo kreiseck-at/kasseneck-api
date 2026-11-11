@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { CreditCardProvider } from '../src/enums/index.js';
 import { fromReceiptPayload } from '../src/models/index.js';
-import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRasterMass, logoRaster, type BuildReceiptLayoutOptions, type ReceiptLayout } from '../src/receipt/index.js';
+import { buildReceiptLayout, escPosLayoutBytes, belegBlatt, logoMass, logoRasterMass, logoRaster, SMALL_BUSINESS_NOTICE, type BuildReceiptLayoutOptions, type LayoutLine, type ReceiptLayout } from '../src/receipt/index.js';
 import { ReceiptLayoutView } from '../src/react/index.js';
 
 /**
@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['deposit', 'deposit-return', 'gutschein-auszahlung', 'gutschein-einzweck-einloesung', 'gutschein-einzweck-einloesung-befreit', 'gutschein-einzweck-leistung-verkauf', 'gutschein-fremd-einloesung', 'gutschein-fremd-verkauf', 'gutschein-leistung-einloesung', 'gutschein-mehrzweck-einloesung', 'gutschein-mehrzweck-verkauf', 'gutschein-storno-einzweck', 'karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'nacherfassung-einzel-ausser-haus-ohne-zeit', 'nacherfassung-einzel-ausser-haus-zeit', 'nacherfassung-einzel-geraet-ohne-zeit', 'nacherfassung-einzel-geraet-zeit', 'nacherfassung-einzel-internet-ohne-zeit', 'nacherfassung-einzel-internet-zeit', 'nacherfassung-einzel-sonstiges-ohne-zeit', 'nacherfassung-einzel-sonstiges-zeit', 'nacherfassung-einzel-stoerung-ohne-zeit', 'nacherfassung-einzel-stoerung-zeit', 'nacherfassung-einzel-strom-ohne-zeit', 'nacherfassung-einzel-strom-zeit', 'nacherfassung-kleinunternehmer', 'nacherfassung-sammel-geraet-anzahl', 'nacherfassung-sammel-geraet-ohne-anzahl', 'nacherfassung-sammel-internet-anzahl', 'nacherfassung-sammel-internet-ohne-anzahl', 'nacherfassung-sammel-sonstiges-anzahl', 'nacherfassung-sammel-sonstiges-ohne-anzahl', 'nacherfassung-sammel-stoerung-anzahl', 'nacherfassung-sammel-stoerung-ohne-anzahl', 'nacherfassung-sammel-strom-anzahl', 'nacherfassung-sammel-strom-ohne-anzahl', 'null-ausfall', 'null-ausfall-zeitraum', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer', 'zusaetze']);
+  assert.deepEqual(namen, ['deposit', 'deposit-return', 'gutschein-auszahlung', 'gutschein-einzweck-einloesung', 'gutschein-einzweck-einloesung-befreit', 'gutschein-einzweck-leistung-verkauf', 'gutschein-fremd-einloesung', 'gutschein-fremd-verkauf', 'gutschein-leistung-einloesung', 'gutschein-mehrzweck-einloesung', 'gutschein-mehrzweck-verkauf', 'gutschein-storno-einzweck', 'karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'nacherfassung-einzel-ausser-haus-ohne-zeit', 'nacherfassung-einzel-ausser-haus-zeit', 'nacherfassung-einzel-geraet-ohne-zeit', 'nacherfassung-einzel-geraet-zeit', 'nacherfassung-einzel-internet-ohne-zeit', 'nacherfassung-einzel-internet-zeit', 'nacherfassung-einzel-sonstiges-ohne-zeit', 'nacherfassung-einzel-sonstiges-zeit', 'nacherfassung-einzel-stoerung-ohne-zeit', 'nacherfassung-einzel-stoerung-zeit', 'nacherfassung-einzel-strom-ohne-zeit', 'nacherfassung-einzel-strom-zeit', 'nacherfassung-kleinunternehmer', 'nacherfassung-sammel-geraet-anzahl', 'nacherfassung-sammel-geraet-ohne-anzahl', 'nacherfassung-sammel-internet-anzahl', 'nacherfassung-sammel-internet-ohne-anzahl', 'nacherfassung-sammel-sonstiges-anzahl', 'nacherfassung-sammel-sonstiges-ohne-anzahl', 'nacherfassung-sammel-stoerung-anzahl', 'nacherfassung-sammel-stoerung-ohne-anzahl', 'nacherfassung-sammel-strom-anzahl', 'nacherfassung-sammel-strom-ohne-anzahl', 'null-ausfall', 'null-ausfall-zeitraum', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'rechnungszahlung-ausfall', 'rechnungszahlung-kleinunternehmer', 'rechnungszahlung-nacherfassung', 'rechnungszahlung-normal', 'rechnungszahlung-rueckzahlung', 'rechnungszahlung-storno', 'rechnungszahlung-teilzahlung', 'rechnungszahlung-training', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer', 'zusaetze']);
 });
 
 /**
@@ -189,4 +189,93 @@ test('Rot-Probe: ein Stornobeleg OHNE Aufdruck ist kein gueltiges Golden -- der 
   const l = layoutVon(lade('storno-voll'));
   const ohne: ReceiptLayout = { ...l, lines: l.lines.filter((z) => z.kind !== 'banner') };
   assert.notDeepEqual(ohne, erwartet('storno-voll'));
+});
+
+// --- Zahlung auf Rechnung (Positionsart `invoice_payment`, 0.40.0) -----------------------------------------------
+
+/**
+ * Der Zahlungsbeleg zaehlt im RKSV-Feld „Null“, ist aber kein steuerfreier Umsatz: die Umsatzsteuer
+ * steht auf der Rechnung. Darum steht an seinen Positionen nie „0 %“ und kein Satzkennzeichen, und er
+ * kommt nicht in die Steuertabelle. „inkl. USt“ steht genau dann, wenn die Rechnung Umsatzsteuer ausweist.
+ */
+const RZ = namen.filter((n) => n.startsWith('rechnungszahlung-'));
+const texteVon = (zeilen: LayoutLine[]): string[] => zeilen.flatMap((z) => {
+  if (z.kind === 'text' || z.kind === 'banner') return [z.text];
+  if (z.kind === 'columns') return z.columns.map((c) => c.text);
+  return [];
+});
+interface Bezug { nummer: string; inklUst: boolean }
+const bezuege = (name: string): Bezug[] => (lade(name).receipt.rechnungszahlung as Bezug[] | undefined) ?? [];
+
+test('Zahlung auf Rechnung: die Faelle liegen als Golden vor', () => {
+  assert.deepEqual(RZ, ['rechnungszahlung-ausfall', 'rechnungszahlung-kleinunternehmer', 'rechnungszahlung-nacherfassung', 'rechnungszahlung-normal',
+    'rechnungszahlung-rueckzahlung', 'rechnungszahlung-storno', 'rechnungszahlung-teilzahlung', 'rechnungszahlung-training']);
+  for (const name of RZ) {
+    const items = lade(name).receipt.items as Array<{ kind?: string }>;
+    assert.ok(items.length > 0 && items.every((it) => it.kind === 'invoice_payment'), name);
+    assert.ok(bezuege(name).length > 0, `${name}: ohne rechnungszahlung`);
+  }
+});
+
+test('Zahlung auf Rechnung: nie „0%“, kein Satzkennzeichen an der Position und keine Steuertabelle', () => {
+  for (const name of RZ) {
+    const l = erwartet(name);
+    const texte = texteVon(l.lines);
+    assert.ok(!texte.some((t) => /0 ?%/.test(t)), `${name}: „0%“ am Bon`);
+    assert.ok(!texte.some((t) => /MwSt/.test(t)), `${name}: Steuertabelle am Bon`);
+    for (const it of lade(name).receipt.items as Array<{ name: string }>) {
+      const zeile = l.lines.find((z): z is Extract<LayoutLine, { kind: 'columns' }> => z.kind === 'columns' && z.columns[0]!.text === it.name);
+      assert.ok(zeile, `${name}: Zeile „${it.name}“ fehlt`);
+      // Betrag ohne Kategorie-Buchstaben; die zwei Fuellzeichen halten die Betragsspalte buendig.
+      assert.match(zeile.columns[1]!.text, /^-?\d+,\d{2} {2}$/, `${name}: ${zeile.columns[1]!.text}`);
+    }
+  }
+});
+
+test('Zahlung auf Rechnung: „inkl. USt“ genau dann, wenn die Rechnung Umsatzsteuer ausweist (inklUst)', () => {
+  let mit = 0;
+  let ohne = 0;
+  for (const name of RZ) {
+    const soll = bezuege(name).filter((b) => b.inklUst).length;
+    const ist = texteVon(erwartet(name).lines).filter((t) => t.trim() === 'inkl. USt').length;
+    assert.equal(ist, soll, name);
+    if (soll > 0) mit += 1; else ohne += 1;
+  }
+  assert.ok(mit > 0 && ohne > 0, 'beide Faelle muessen vorkommen');
+});
+
+test('Zahlung auf Rechnung beim Kleinunternehmer: weder „inkl. USt“ noch ein USt-Hinweis', () => {
+  const texte = texteVon(erwartet('rechnungszahlung-kleinunternehmer').lines);
+  assert.ok((lade('rechnungszahlung-kleinunternehmer').company as { isSmallBusiness: boolean }).isSmallBusiness);
+  assert.ok(!texte.includes(SMALL_BUSINESS_NOTICE));
+  assert.ok(!texte.some((t) => /USt/.test(t)), texte.join(' | '));
+});
+
+test('Zahlung auf Rechnung: mehrere Rechnungen, „inkl. USt“ steht unter der Position, deren Rechnung USt ausweist', () => {
+  const f = lade('rechnungszahlung-normal');
+  const items = [
+    { name: 'Zahlung auf Rechnung 2026-0042', quantity: 1, unitPriceCents: 156960, vatRate: 0, kind: 'invoice_payment' },
+    { name: 'Zahlung auf Rechnung 2026-0050', quantity: 1, unitPriceCents: 8500, vatRate: 0, kind: 'invoice_payment' },
+  ];
+  const rechnungszahlung = [
+    { ...bezuege('rechnungszahlung-normal')[0]!, inklUst: false },
+    { invoiceId: 'inv_4Ab1', nummer: '2026-0050', paymentId: 'pay_8', kundeId: null, betragCents: 8500, teil: false, zahlungVom: '2026-11-11', inklUst: true },
+  ];
+  const l = layoutVon({ ...f, receipt: { ...f.receipt, items, rechnungszahlung, payments: [{ id: 'p1', method: 'cash', amountCents: 165460 }] } });
+  const texte = texteVon(l.lines);
+  const erste = texte.indexOf('Zahlung auf Rechnung 2026-0042');
+  const zweite = texte.indexOf('Zahlung auf Rechnung 2026-0050');
+  assert.ok(erste >= 0 && zweite > erste);
+  assert.equal(texte.filter((t) => t.trim() === 'inkl. USt').length, 1);
+  assert.equal(texte[zweite + 2]?.trim(), 'inkl. USt', texte.slice(zweite).join(' | '));
+  // Ohne Bezug (fremder Beleg, Altbestand) nie „inkl. USt“: der Beleg behauptet keine Steuer, die er nicht kennt.
+  const ohneBezug = layoutVon({ ...f, receipt: { ...f.receipt, rechnungszahlung: undefined } });
+  assert.ok(!texteVon(ohneBezug.lines).some((t) => t.trim() === 'inkl. USt'));
+});
+
+test('Rot-Probe: dieselbe Zeile ohne Positionsart steht als „D 0%“ in der Steuertabelle, die Pruefung oben schluege an', () => {
+  const f = lade('rechnungszahlung-normal');
+  const items = (f.receipt.items as Array<Record<string, unknown>>).map(({ kind: _kind, ...rest }) => rest);
+  const texte = texteVon(layoutVon({ ...f, receipt: { ...f.receipt, items } }).lines);
+  assert.ok(texte.some((t) => /0%/.test(t)), texte.join(' | '));
 });
