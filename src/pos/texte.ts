@@ -139,6 +139,11 @@ const MELDUNGEN_ROH = {
   'card_payment.unknown': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
   // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden – liegt sie vor, gilt dieser Satz statt card_payment.unknown.
   'card_payment.unknown_with_id': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {reference}.', placeholders: ['reference'] },
+  // Kurzfassung fuer eine Karte, die schon zum Klaeren in der Liste steht (rote Ecke,
+  // Sperre einer neuen Zahlung): Betrag und Kennung genuegen, den Rest sagt das
+  // Klaeren-Fenster. Die Kennung darf gekuerzt sein (erste und letzte Ziffern);
+  // ganz steht sie im Fenster und in der Liste.
+  'card_payment.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Kennung {reference}.', placeholders: ['amount', 'reference'] },
   'card_payment.waiting_for_terminal': { text: 'Bitte am Terminal fortfahren …' },
   // Das Kartenfenster des Terminals ist abgelaufen: es bricht selbst ab, die
   // Kasse muss nichts tun.
@@ -340,11 +345,17 @@ const MELDUNGEN_ROH = {
   // Klaeren einer Karte mit offenem Ausgang: zuerst fragt die Kasse das Terminal
   // (Paket `clarifyPayment`), erst wenn es nichts sagen kann, entscheidet der
   // Kassier am Terminal-Beleg mit „Wurde belastet" / „Nicht belastet".
-  'split.clarify_asking': { text: 'Das Terminal wird gefragt, ob die Karte belastet wurde …' },
+  // Im Fenster steht unter dem Titel (`split.clarify_title`) genau eine dieser
+  // Zeilen zum Stand, darunter die Kennung (`split.clarify_reference`):
+  // `clarify_asking` waehrend der Nachfrage, `clarify_open` (Terminal weiss es
+  // nicht), `clarify_not_asked` (Nachfrage ging nicht) und `clarify_manual`,
+  // wenn gar nicht gefragt wurde (kein Terminal, nichts mehr beweisbar).
+  'split.clarify_asking': { text: 'Das Terminal wird gefragt …' },
   'split.clarify_charged': { text: 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.' },
   'split.clarify_not_charged': { text: 'Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen.' },
-  'split.clarify_open': { text: 'Das Terminal kann es nicht sagen. Bitte am Terminal-Beleg nachsehen und dann entscheiden.' },
-  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen und dann entscheiden.', placeholders: ['reason'] },
+  'split.clarify_open': { text: 'Das Terminal weiß es nicht. Bitte am Terminal-Beleg nachsehen.' },
+  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen.', placeholders: ['reason'] },
+  'split.clarify_manual': { text: 'Bitte am Terminal-Beleg nachsehen.' },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
@@ -1002,6 +1013,11 @@ const BESCHRIFTUNGEN_ROH = {
   'split.pair_again_anyway': { text: 'Trotzdem neu koppeln' },
   'split.keep_payment': { text: 'Zahlung behalten' },
   'split.clarify': { text: 'Klären' },
+  // Titel und Kennungszeile des Klaeren-Fensters: der Betrag, den das Terminal
+  // belasten sollte, und die ganze Kennung, mit der sich die Zahlung am
+  // Terminal-Beleg wiederfinden laesst.
+  'split.clarify_title': { text: 'Karte klären · {amount}', placeholders: ['amount'] },
+  'split.clarify_reference': { text: 'Kennung {reference}', placeholders: ['reference'] },
   'split.reverse_again': { text: 'Erneut zurückbuchen' },
   'split.was_charged': { text: 'Wurde belastet – übernehmen' },
   'split.not_charged': { text: 'Nicht belastet – verwerfen' },

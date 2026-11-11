@@ -129,6 +129,29 @@ test('ein unklarer Ausgang warnt vor dem zweiten Kassieren, statt nur zu melden'
   }
 });
 
+// --- Unklare Karte in der Liste: kurz mit Kennung (1.37.0) ------------------
+// Steht die Karte schon zum Klaeren in der Liste, reicht ein Satz mit Betrag und
+// Kennung (die Ecke, die Sperre einer neuen Zahlung); den Rest sagt das
+// Klaeren-Fenster. Ohne Liste gilt weiter die lange Fassung card_payment.unknown*.
+test('die Kurzfassung zur unklaren Karte nennt Betrag und Kennung und gilt auf beiden Seiten', () => {
+  const eintrag = MESSAGES['card_payment.unclear_short'];
+  assert.deepEqual([...(eintrag.placeholders ?? [])].sort(), ['amount', 'reference']);
+  assert.equal(eintrag.only, undefined);
+  assert.equal(
+    messageText('card_payment.unclear_short', { amount: '15,00 €', reference: '8888…8888' }),
+    'Kartenzahlung 15,00 € unklar – bitte klären. Kennung 8888…8888.',
+  );
+});
+
+test('Klaeren-Fenster: jede Zeile ohne Antwort des Terminals schickt zum Terminal-Beleg, Titel und Kennung sind Beschriftungen', () => {
+  for (const schluessel of ['split.clarify_open', 'split.clarify_not_asked', 'split.clarify_manual'] as const) {
+    assert.ok(MESSAGES[schluessel].text.endsWith(MESSAGES['split.clarify_manual'].text), schluessel);
+  }
+  assert.equal(messageText('split.clarify_manual'), 'Bitte am Terminal-Beleg nachsehen.');
+  assert.equal(labelText('split.clarify_title', { amount: '15,00 €' }), 'Karte klären · 15,00 €');
+  assert.equal(labelText('split.clarify_reference', { reference: '888888888888888888' }), 'Kennung 888888888888888888');
+});
+
 // --- Die Kennung ueberlebt den Abriss --------------------------------------
 // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg
 // wiederzufinden. Jede Fassung `…_with_id` ist die Fassung ohne sie plus

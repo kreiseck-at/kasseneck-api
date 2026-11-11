@@ -205,6 +205,13 @@
         "reference"
       ]
     },
+    "card_payment.unclear_short": {
+      "text": "Kartenzahlung {amount} unklar – bitte klären. Kennung {reference}.",
+      "placeholders": [
+        "amount",
+        "reference"
+      ]
+    },
     "card_payment.waiting_for_terminal": {
       "text": "Bitte am Terminal fortfahren …"
     },
@@ -722,7 +729,7 @@
       "text": "Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an."
     },
     "split.clarify_asking": {
-      "text": "Das Terminal wird gefragt, ob die Karte belastet wurde …"
+      "text": "Das Terminal wird gefragt …"
     },
     "split.clarify_charged": {
       "text": "Das Terminal meldet: belastet. Die Zahlung wurde übernommen."
@@ -731,13 +738,16 @@
       "text": "Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen."
     },
     "split.clarify_open": {
-      "text": "Das Terminal kann es nicht sagen. Bitte am Terminal-Beleg nachsehen und dann entscheiden."
+      "text": "Das Terminal weiß es nicht. Bitte am Terminal-Beleg nachsehen."
     },
     "split.clarify_not_asked": {
-      "text": "Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen und dann entscheiden.",
+      "text": "Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen.",
       "placeholders": [
         "reason"
       ]
+    },
+    "split.clarify_manual": {
+      "text": "Bitte am Terminal-Beleg nachsehen."
     },
     "receipt.link_copied": {
       "text": "Der Link zum Beleg liegt in der Zwischenablage."
@@ -1714,6 +1724,18 @@
     },
     "split.clarify": {
       "text": "Klären"
+    },
+    "split.clarify_title": {
+      "text": "Karte klären · {amount}",
+      "placeholders": [
+        "amount"
+      ]
+    },
+    "split.clarify_reference": {
+      "text": "Kennung {reference}",
+      "placeholders": [
+        "reference"
+      ]
     },
     "split.reverse_again": {
       "text": "Erneut zurückbuchen"
