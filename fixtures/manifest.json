@@ -458,7 +458,7 @@
       "blatt48": "6a16d354a49ff9c1ba88c0b8b65c19dc43844b19d7239e5d6abcb649ca97be80"
     },
     "rechnungszahlung-ausfall": {
-      "eingabe": "b134a7e9faa8cb0747e4431f0551d460e359f4bc92ac925d3a74819d6dc9fff3",
+      "eingabe": "8686ecceec064185e32f7d352d4500e9b7c5ab161d525d252cde6415e74a7db7",
       "erwartet": "dcd076f801218702fc68d8186c76370196a29a294730a050aaa036f9ce61cd03",
       "grid32": "cca1b54e31ab76626f6a1a17fcc209a3cdf3d0f5b260b795b68046d0bdf2b58b",
       "grid48": "bc21ec35b88d77247e19095345ea437532d26ffdd888263a6a9901f930ffffef",
@@ -466,15 +466,15 @@
       "blatt48": "4eb76f6d63f8ce77e1756de3c6503f9c3368e09a256c955f8dcdbb57722b7ffb"
     },
     "rechnungszahlung-kleinunternehmer": {
-      "eingabe": "9a075ff5748b65d0e856104f84678197ccef538d9c0b390dc03dc2d9f15a8a8e",
-      "erwartet": "8da039fe719ed1ad74afa596da712fa4fe487fb0c2a430feb8cd2c7da95e0303",
-      "grid32": "cd3043b086076a0a09ea7cbb6e13cf1aaff4baf2cb2954e28c78708fe13bd56a",
-      "grid48": "796deea6a3f919ba728325bbdcf388f88ef7b8d8314388272531c56e2722bd61",
-      "blatt32": "5b50cd9c2015d52a0a9c0a473eb14947bdea711a2109c196e95b885e1702f8e7",
-      "blatt48": "8e54fc52425c7798eed8a9ea1bfdd715c206cdc236da05a30fc07bbca7bd7893"
+      "eingabe": "f7cd6cfe75a93ad57032b0905363dfca667f2dc813a9182eea99401799d33fe0",
+      "erwartet": "ad28c05ca20d252ff3bd2a75883ead9acfd9c4246639dd672744533d3634137e",
+      "grid32": "d4d8fa47d54ecfd57ad9d7cdf6a1224a182b9278306a574f700727b8d712eaed",
+      "grid48": "7b67714be22cbeaeaef9cb2de970d254d61c6628132905be4958f5a4b365d775",
+      "blatt32": "9d874508fd280047848b5b5a7558ab210b4c1718f30ef0ce43ea87537cbc02d7",
+      "blatt48": "a8b2007e511292ba80f4c7a628be87012f0eb6be438855900221cb9af77a74de"
     },
     "rechnungszahlung-nacherfassung": {
-      "eingabe": "cf20d336f164b91729973263bf4100fbdeefb61f39327d4aba28177c4a1e4999",
+      "eingabe": "579fa646cf6f3a1ebedf1441bf095f7ee1edbfe9bd12bd75b9b4d022df41191e",
       "erwartet": "aa75ba12d3581c29b22fa71b27d8cc7690d0a4ed43c03ace74d673caff4cbb26",
       "grid32": "7721a1a4321119dd073a944f53a99e6b8cb77ea8f83f2c34d7c31a4d8d7f9ebd",
       "grid48": "940a4cf74e5eff4a04d5896f44660b7d5f8af09e702e46be67a1dca8e3433cc8",
@@ -482,23 +482,39 @@
       "blatt48": "12350120af07ed1d634c4a6979f3f60595ecff450c1f8e2a02e8adf2dd6eb3c3"
     },
     "rechnungszahlung-normal": {
-      "eingabe": "107d4cc26aa1cd1dba5f2c5ddf0da9248ca63937ba6e5861a616d8f03c022ab5",
+      "eingabe": "d75a18897470fb188dde02ffeb5e483a79cdc1a5efce47f2f749e2f3970ead51",
       "erwartet": "af195233dd3b3a4bd16739e048b6206e315107a5ef0ebdd0e4c997e7e20c19e1",
       "grid32": "033c16d54fcc88ceb2cf9ed7c4009a08c5ad828fcb4f2cde5365edca06e3baf6",
       "grid48": "00e8bc20d0653946461b9b681b677c431fb1da799a44abcb2d120a67ac9808da",
       "blatt32": "bcad06b11765cb99e6867ed991bc65b6998398faa848efc0b1386b3472b3309e",
       "blatt48": "815fb5765236b66729eca18fd6cfb188b6552fbbcdbbffaa4664085ad30d1cb3"
     },
+    "rechnungszahlung-reverse-charge": {
+      "eingabe": "1f3a071aabb6d7eae45933a63bf909b9a80af38ee0556f95d51ab7053edafce1",
+      "erwartet": "2cfdc6daee1a9cc24c894284d60a2a4ea1bf289313f0ea7cf0a21693b64ee0a7",
+      "grid32": "599e69f8dd5ca66efd60b60380a370172c44038a0e0e1fd37245c5fed5870280",
+      "grid48": "e09ebf144099f4795eebfbe696a97b76165d173bccd870742dedeb24acad57a9",
+      "blatt32": "98c6eb36847d0de5658c976054c93fee61a6b23af9ea174e170c7ff8752fcfa4",
+      "blatt48": "11f97161091f32207b60ec3164b09912c0f476e18af6f21db190324db3282a68"
+    },
     "rechnungszahlung-rueckzahlung": {
-      "eingabe": "be501a1a128ac63f2d9f176252df81a6a1f5f48f3c6ed33b2880b9ace373de8a",
+      "eingabe": "ea2f1176667862e8a5c07de140c9949939547c4bb28f4226e60e6bf85c8c772a",
       "erwartet": "235ee4cdcc517cd52fcc70039ea6090966f74a44b9616fab29abd70af7cff16d",
       "grid32": "37df525c3dd8be7fe69c510490386d6128074c56f1d55a65e09d464e88466a64",
       "grid48": "45b4d14048329ddf3a928bc5d9f0af42c5984b9dc05a7391874e7e16c2164c16",
       "blatt32": "7d75341ce65e5f62cb18f7a069fe425de72a809034743ac5a6e66dc70f0fd9d4",
       "blatt48": "765d3daf7bb1e83596a44575e0bd9d4365e7714ea64335b499cc7b788d3b40a5"
     },
+    "rechnungszahlung-steuerfrei": {
+      "eingabe": "79ea9deb0bec583bd7d65ca495b243a7a5ee4a7d49f2a57dd8a0db9bc0fffa32",
+      "erwartet": "e0df710f45048ddb8b0e0ec847120e8513780c9e2c6b1ac46437c40a87ade530",
+      "grid32": "6cf531d23540139df68e16544b3f9dfcb5c3248de3321e6924a03319202e253e",
+      "grid48": "92496fbbe904380af9cc13b129d179634dab1abbba3f034563bb4e1cf9303b90",
+      "blatt32": "76563f23009f01fb372fdb36dac4ac1c84860a07b202277e6fb925469178f552",
+      "blatt48": "bfded795e0e1f8535ff843d98fa42a2489c32b24f74c53caae2640f25208694c"
+    },
     "rechnungszahlung-storno": {
-      "eingabe": "645f6a65e29e3e28a8779066ed0a488c57a9a167743e0190ae3bebe4a504dded",
+      "eingabe": "531d19ccb0e4359ad2bb59bba94fbf9587580e7ef0b7734bcc3df8aa52099ff1",
       "erwartet": "a01227e1966833f6dbac9c699226e44cbc1e8a97236da5c9efd7113fa11f195e",
       "grid32": "2e264dde01f2eacd5a920899214f39254bd4d48440a67b094377b16f1f997def",
       "grid48": "6481baefc57b42bd04c778306f30f2ee30a60ab795e89ab1dc0b6f30dbc8e5f3",
@@ -506,7 +522,7 @@
       "blatt48": "1aac5a5a313b798f366acc1661b35b4b926621bef35532c606724ec0c79aef34"
     },
     "rechnungszahlung-teilzahlung": {
-      "eingabe": "5bcc3c9068b0b1a10eaf477fe4146a8300db1fe363833d388cd1b2fded82b50d",
+      "eingabe": "e8d8792f0dcdae414bd3438a6ee5f2310fd4401ee09b66a01696d6e3c3fbc826",
       "erwartet": "8c8e197f9d32e018533d4edad7232c3f0ee726558ce8e00379e53e85b5a245ab",
       "grid32": "3dd42b81afd43460b9d9c63390ea65d8576ef255b2e7a37d8cab0914ba467435",
       "grid48": "e0969539773ea3ce0952a29b416e4cd8d0bc5c8495520963899ab32b0323fec0",
@@ -514,7 +530,7 @@
       "blatt48": "88a8c5c4b72dabf7fea35b800ba6f84a3469737e9fb4d6a934c2d0aac0ca2690"
     },
     "rechnungszahlung-training": {
-      "eingabe": "83e599c9d8de476394059e2e45c99bd75bf2f452baad4d8439a332534f486339",
+      "eingabe": "b4bc4ce45a630a9f27205b016d7188090861fabf31e8eaf5ef6622441eb0ab77",
       "erwartet": "fb7ffeeac9a02b834f88d4d84f6193a49f270d5bd877b9684f48bb7b1ea1291f",
       "grid32": "a54a0ba84b8d5cfd23f27cf2270889085a5d16fbd070e0bfe591dad7cfd31fcb",
       "grid48": "ea9bb191c4231058456ea5b0524fdd7b42a90cd4cd2b0e1bcd7e553fc9ead828",

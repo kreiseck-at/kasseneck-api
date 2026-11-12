@@ -1111,8 +1111,12 @@ function positionsZeile(item: ReceiptItem, satz: Steuersatz, zusatz = false): La
 
 // ---------------------------------------------------------- Zahlung auf Rechnung
 
-/** Steuerhinweis unter einer Zahlung auf eine Rechnung, die Umsatzsteuer ausweist (eingerueckt wie „  USt bei Einlösung“). */
-const INKL_UST_TEXT = '  inkl. USt';
+/** Steuerhinweis unter einer Zahlung auf eine Rechnung (eingerueckt wie „  USt bei Einlösung“). */
+const STEUERHINWEIS_TEXT = {
+  inkl_ust: '  inkl. USt',
+  null_prozent: '  0 % USt',
+  siehe_rechnung: '  Steuerangaben siehe Rechnung',
+} as const;
 
 /**
  * Zahlungsbeleg: jede Position ist eine Zahlung auf Rechnung (ein Beleg mit einer solchen Position
@@ -1143,7 +1147,8 @@ function rechnungszahlungBezuege(receipt: Receipt): Map<number, Rechnungszahlung
 /**
  * Zeilen einer Zahlung auf Rechnung: Text der Position (er nennt die Rechnung) und Betrag, ohne Menge
  * und ohne Satzkennzeichen -- der Betrag zaehlt im RKSV-Feld „Null“, ist aber kein steuerfreier Umsatz,
- * „0 %“ waere falsch. Darunter „inkl. USt“, wenn die Rechnung Umsatzsteuer ausweist. Breite 8:4 wie die
+ * keine Steuerkategorie. Darunter der Steuerhinweis der Rechnung („inkl. USt“, „0 % USt“ oder
+ * „Steuerangaben siehe Rechnung“). Breite 8:4 wie die
  * Gutscheinzeilen.
  */
 function rechnungszahlungZeilen(item: ReceiptItem, bezug: Rechnungszahlung | undefined): LayoutLine[] {
@@ -1155,7 +1160,7 @@ function rechnungszahlungZeilen(item: ReceiptItem, bezug: Rechnungszahlung | und
       { text: `${formatCents(receiptItemTotalCents(item))}  `, width: 4, align: 'right' },
     ],
   }];
-  if (bezug?.inklUst === true) zeilen.push(textZeile(INKL_UST_TEXT));
+  if (bezug?.steuerhinweis !== undefined) zeilen.push(textZeile(STEUERHINWEIS_TEXT[bezug.steuerhinweis]));
   return zeilen;
 }
 

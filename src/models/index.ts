@@ -85,4 +85,4 @@ export {
   hobexReceiptNeedsSignature,
 } from './hobex-receipt.js';
 export { type Handbeleg, type HandbelegGrund, HANDBELEG_GRUENDE, leseHandbeleg } from './handbeleg.js';
-export { type Rechnungszahlung, leseRechnungszahlung } from './rechnungszahlung.js';
+export { type Rechnungszahlung, type Steuerhinweis, leseRechnungszahlung } from './rechnungszahlung.js';

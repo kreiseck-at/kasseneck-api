@@ -53,7 +53,7 @@
         "betragCents": 35000,
         "teil": false,
         "zahlungVom": "2026-11-10",
-        "inklUst": true
+        "steuerhinweis": "inkl_ust"
       }
     ],
     "handbeleg": {

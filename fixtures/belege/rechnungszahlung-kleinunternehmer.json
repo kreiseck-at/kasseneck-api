@@ -53,7 +53,7 @@
         "betragCents": 8500,
         "teil": false,
         "zahlungVom": "2026-11-11",
-        "inklUst": false
+        "steuerhinweis": "null_prozent"
       }
     ]
   },

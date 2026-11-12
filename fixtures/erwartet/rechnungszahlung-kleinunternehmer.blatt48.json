@@ -80,6 +80,12 @@
     },
     {
       "art": "zeile",
+      "text": "  0 % USt                                       ",
+      "fett": false,
+      "leer": false
+    },
+    {
+      "art": "zeile",
       "text": "------------------------------------------------",
       "fett": false,
       "leer": false

@@ -53,7 +53,7 @@
         "betragCents": -4990,
         "teil": false,
         "zahlungVom": "2026-11-11",
-        "inklUst": true
+        "steuerhinweis": "inkl_ust"
       }
     ]
   },

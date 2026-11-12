@@ -11,17 +11,20 @@ Zahlung auf Rechnung im Beleg, Zwilling der Bonzeilen und Vermerke von 1.38.0 (n
 
 - **Lesen (innere Form, wie das Backend sie speichert):** Positionen mit `kind` `invoice_payment` (neu `isInvoicePaymentItem`) und
   am Beleg `rechnungszahlung`, je Rechnung ein Bezug `{ invoiceId, nummer, paymentId, kundeId, betragCents, teil, zahlungVom,
-  inklUst }` in der Reihenfolge der Positionen (neu `Receipt.rechnungszahlung`, Typ `Rechnungszahlung`). Ein unbrauchbarer Eintrag
-  fällt beim Lesen weg, `inklUst` gilt nur bei ausdrücklichem `true`.
+  steuerhinweis }` in der Reihenfolge der Positionen (neu `Receipt.rechnungszahlung`, Typ `Rechnungszahlung`). Ein unbrauchbarer Eintrag
+  fällt beim Lesen weg. `steuerhinweis` ist dreiwertig: `inkl_ust` (die Rechnung weist USt aus), `null_prozent` (steuerfrei oder nicht
+  steuerbar, auch Kleinunternehmer; Erlass 4.6.6: als 0 % ausweisen) und `siehe_rechnung` (Reverse Charge); unbekannt oder fehlend
+  heißt kein Hinweis.
 - **Bon:** Zahlung auf Rechnung ohne Satzkennzeichen und nie „0 %“, nicht in der Steuertabelle (ein reiner Zahlungsbeleg hat keine),
-  darunter `inkl. USt` nur, wenn die Rechnung Umsatzsteuer ausweist (`inklUst`). Kleinunternehmer ohne Steuerhinweis, ein nacherfasster
-  Zahlungsbeleg ohne „USt: Duplikat …“ (die Steuer steht auf der Rechnung). Acht neue Goldens `rechnungszahlung-*`, alle bestehenden
-  byte-gleich.
+  darunter der Steuerhinweis: `inkl. USt` | `0 % USt` | `Steuerangaben siehe Rechnung`. „0 %“ steht nur bei `null_prozent`. Ein
+  nacherfasster Zahlungsbeleg ohne „USt: Duplikat …“ (die Steuer steht auf der Rechnung). Zehn neue Goldens `rechnungszahlung-*`, alle
+  bestehenden byte-gleich.
 - **Vermerke:** neu `belegVermerke(beleg, { testKasse, testSignatur })` liefert `[{ art, titel, zeilen }]` (Testkasse, Testsignatur,
   Training, Storno, Nacherfassung, Signaturausfall, feste Reihenfolge). Der Bon setzt seine Blöcke aus denselben Bausteinen
   (`receipt/vermerke.ts`), damit Kassenteil und Zahlungsbestätigung der A4-Rechnung dieselben Worte tragen. Eine unbekannte Option wirft.
 - **Rechnungstexte (de/en):** `pdf.bezahlt.text` jetzt „Diese Rechnung ist beglichen.“ (ohne „Es ist nichts weiter zu tun.“), neu
-  `pdf.bezahlt.bar` / `pdf.bezahlt.karte` (`{datum}`), `kassenteil.*` und `bestaetigung.*` (Titel, Einleitung, Hinweis, Spalten).
+  `pdf.bezahlt.bar` / `pdf.bezahlt.karte` (`{datum}`), `kassenteil.*` (dazu `kassenteil.steuer.inkl_ust|null_prozent|siehe_rechnung`
+  in der Rechnungssprache) und `bestaetigung.*` (Titel, Einleitung, Hinweis, Spalten).
 
 ## 0.39.0
 

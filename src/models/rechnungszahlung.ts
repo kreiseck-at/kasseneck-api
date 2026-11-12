@@ -24,17 +24,25 @@ export interface Rechnungszahlung {
   teil: boolean;
   /** Zahlungstag `YYYY-MM-DD` (Wiener Tag), `null` wenn unbekannt. */
   zahlungVom: string | null;
-  /** Weist die Rechnung Umsatzsteuer aus? Nur dann steht „inkl. USt“ am Beleg. */
-  inklUst: boolean;
+  /**
+   * Steuerhinweis am Beleg: `inkl_ust` (die Rechnung weist Umsatzsteuer aus), `null_prozent`
+   * (steuerfrei oder nicht steuerbar, auch Kleinunternehmer) oder `siehe_rechnung` (Reverse
+   * Charge). `undefined`: kein Hinweis.
+   */
+  steuerhinweis?: Steuerhinweis;
 }
+
+export type Steuerhinweis = 'inkl_ust' | 'null_prozent' | 'siehe_rechnung';
+
+const STEUERHINWEISE: readonly string[] = ['inkl_ust', 'null_prozent', 'siehe_rechnung'];
 
 const istText = (w: unknown): w is string => typeof w === 'string' && w !== '';
 
 /**
  * Liest `rechnungszahlung`. Ein Eintrag ohne Rechnungs-ID, Nummer, Zahlungs-ID oder
  * ganzzahligen Betrag faellt weg (lesen tolerant, der Beleg bleibt anzeigbar); ohne
- * brauchbaren Eintrag gibt es keinen Bezug (`undefined`). `inklUst` gilt nur bei
- * ausdruecklichem `true`: ein Beleg behauptet nie eine Steuer, die er nicht kennt.
+ * brauchbaren Eintrag gibt es keinen Bezug (`undefined`). Ein unbekannter oder fehlender
+ * `steuerhinweis` ergibt keinen Hinweis: ein Beleg behauptet nie eine Steuer, die er nicht kennt.
  */
 export function leseRechnungszahlung(roh: unknown): Rechnungszahlung[] | undefined {
   if (!Array.isArray(roh)) return undefined;
@@ -44,6 +52,7 @@ export function leseRechnungszahlung(roh: unknown): Rechnungszahlung[] | undefin
     const o = e as Record<string, unknown>;
     if (!istText(o['invoiceId']) || !istText(o['nummer']) || !istText(o['paymentId'])) continue;
     if (!Number.isSafeInteger(o['betragCents'])) continue;
+    const hinweis = o['steuerhinweis'];
     raus.push({
       invoiceId: o['invoiceId'],
       nummer: o['nummer'],
@@ -52,7 +61,7 @@ export function leseRechnungszahlung(roh: unknown): Rechnungszahlung[] | undefin
       betragCents: o['betragCents'] as number,
       teil: o['teil'] === true,
       zahlungVom: istText(o['zahlungVom']) ? o['zahlungVom'] : null,
-      inklUst: o['inklUst'] === true,
+      ...(typeof hinweis === 'string' && STEUERHINWEISE.includes(hinweis) ? { steuerhinweis: hinweis as Steuerhinweis } : {}),
     });
   }
   return raus.length > 0 ? raus : undefined;
