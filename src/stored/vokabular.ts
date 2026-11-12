@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "78eb90dbffbd44f2b16d78963d35c6e977245f5f53bb171a19b73b15d5cb0a3c";
+export const VOKABULAR_QUELLE = "7e3020d455e62e578fdf507fbe5d632c6463fd70cc02eaf4e75a9a19096670ea";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -54,7 +54,18 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "sharedReturnPoint": {
           "__": "pfandStelle",
           "address": "adresse"
-        }
+        },
+        "invoicePayments": [
+          {
+            "__": "rechnungszahlung",
+            "invoiceNumber": "nummer",
+            "customerId": "kundeId",
+            "amountCents": "betragCents",
+            "partial": "teil",
+            "paidOn": "zahlungVom",
+            "taxNote": "steuerhinweis"
+          }
+        ]
       },
       "taxNumber": "taxnr",
       "vatId": "uid",
@@ -124,6 +135,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       "receipt.items[].depositKind": {
         "$catalog": "PFAND_ART"
       },
+      "receipt.invoicePayments[].taxNote": {
+        "$catalog": "RECHNUNGSZAHLUNG_STEUERHINWEIS"
+      },
       "issuedVouchers[].type": {
         "$catalog": "GUTSCHEIN_ART"
       },
@@ -182,9 +196,6 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "tipKeptMode": "tgDirektModus",
         "tipKinds": "tgArten",
         "tipStart": "tgStart",
-        "tipCardKeptByDefault": "tgKarteDirekt",
-        "tipCardKeptMode": "tgKarteModus",
-        "tipSelfPayout": "tgSelbstAuszahlen",
         "checkoutMode": "kassierenModus",
         "receiptOutput": "belegAusgabe",
         "doneScreenSeconds": "fertigSekunden",
@@ -400,9 +411,6 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "business.tipKeptMode": {
         "$catalog": "KASSE_BETRIEB_WERTE.tipKeptMode"
-      },
-      "business.tipCardKeptMode": {
-        "$catalog": "KASSE_BETRIEB_WERTE.tipCardKeptMode"
       },
       "business.discountPresets[].kind": {
         "$catalog": "KASSE_BETRIEB_WERTE.discountPresets[].kind"
@@ -774,11 +782,6 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "streifen": "stripe",
     "voll": "full"
   },
-  "KASSE_BETRIEB_WERTE.tipCardKeptMode": {
-    "fragen": "ask",
-    "immer": "always",
-    "nie": "never"
-  },
   "KASSE_BETRIEB_WERTE.tipKeptMode": {
     "fragen": "ask",
     "immer": "always",
@@ -866,6 +869,11 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "becher": "cup",
     "glas": "glass",
     "sonstiges": "other"
+  },
+  "RECHNUNGSZAHLUNG_STEUERHINWEIS": {
+    "inkl_ust": "incl_vat",
+    "null_prozent": "zero_percent",
+    "siehe_rechnung": "see_invoice"
   },
   "REFERENZ_STUFE": {
     "fragen": "optional",

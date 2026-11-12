@@ -1228,11 +1228,6 @@
         "streifen": "stripe",
         "voll": "full"
       },
-      "*.tipCardKeptMode": {
-        "fragen": "ask",
-        "immer": "always",
-        "nie": "never"
-      },
       "*.tipKeptMode": {
         "fragen": "ask",
         "immer": "always",
@@ -1340,11 +1335,6 @@
       "enums.tileStyle[]": {
         "streifen": "stripe",
         "voll": "full"
-      },
-      "enums.tipCardKeptMode[]": {
-        "fragen": "ask",
-        "immer": "always",
-        "nie": "never"
       },
       "enums.tipKeptMode[]": {
         "fragen": "ask",
