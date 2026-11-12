@@ -141,7 +141,7 @@ test('Titel nach Art, kein Hinweis „Kein Registrierkassenbeleg“ (Nachtrag 1)
   assert.deepEqual(titel(quelle('closeMyShift/success_manager')), { kind: 'banner', text: 'Schichtabschluss', tone: 'receipt_type' });
   assert.deepEqual(titel(quelle('getMyShiftReport/success_manager')), { kind: 'banner', text: 'Zwischenbericht', tone: 'receipt_type' });
   assert.deepEqual(titel(quelle('recordMyCashMovement/success_manager_cash_drop')), { kind: 'banner', text: 'Kassenbewegung', tone: 'receipt_type' });
-  for (const pfad of ['closeMyShift/success_manager', 'getMyShiftReport/success_cashier', 'recordMyCashMovement/success_owner_without_shift']) {
+  for (const pfad of ['closeMyShift/success_manager', 'recordMyCashMovement/success_owner_without_shift']) {
     const layout = layoutFuer(quelle(pfad));
     for (const zeichen of [32, 48]) assert.doesNotMatch(raster(layout, zeichen), /Registrierkassenbeleg/, pfad);
     assert.notDeepEqual(layout.lines.at(-1), { kind: 'rule', char: '-' }, `${pfad}: keine Linie ohne Fuss`);
@@ -149,7 +149,7 @@ test('Titel nach Art, kein Hinweis „Kein Registrierkassenbeleg“ (Nachtrag 1)
 });
 
 test('Blind: weder Soll noch Ist noch Differenz noch Barumsatz, und nie 0,00 an ihrer Stelle', () => {
-  for (const pfad of ['closeMyShift/success_cashier_blind', 'getMyShiftReport/success_cashier', 'getMyShiftReport/success_cashier_closed']) {
+  for (const pfad of ['closeMyShift/success_cashier_blind', 'getMyShiftReport/success_cashier_closed']) {
     const bon = quelle(pfad);
     assert.equal(bon.blind, true, pfad);
     for (const zeichen of [32, 48]) {

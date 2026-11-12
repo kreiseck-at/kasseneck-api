@@ -4,7 +4,7 @@
     "default": {
       "sha256": "e5ed8eb2bdb2b8cba51102c6e00f73fe20bcaa0d8c355ed93901508fa7abc97e",
       "head": [],
-      "inputsSha256": "925aedfe852df5fbf34b07b6a86a045291ce88535fc7a60332501be15c7fcbf7",
+      "inputsSha256": "c6f99c9f83910d436b65673792017a081b6bd6728abeb089824bbb3a89a50fe3",
       "backendPackage": "@kreiseck/kasseneck-api@0.40.0",
       "inputs": [
         "functions-kasse/test/unit/fixtures/kassen-welt.js",
@@ -24,7 +24,7 @@
         "note",
         "baseline"
       ],
-      "inputsSha256": "e36ae694d6079158103747070edfab79882a063c3cc2962b87c3105e77bc1af7",
+      "inputsSha256": "757d890593921c8947e4a90ecea3c36169265fbcb9d224c764372dd4a13dbb52",
       "backendPackage": "@kreiseck/kasseneck-api@0.14.0",
       "inputs": [
         "functions-kasse/gemeinsam/api-rand.js",
