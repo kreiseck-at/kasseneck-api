@@ -130,6 +130,28 @@ test('ein unklarer Ausgang warnt vor dem zweiten Kassieren, statt nur zu melden'
   }
 });
 
+// Das hobex-HPS-Terminal druckt keinen Beleg (Inhaber, 12.11.2026): kein Satz,
+// der bei HPS erscheint, schickt den Kassier dorthin.
+test('HPS: kein Satz schickt zum Terminal-Beleg, der lange Satz warnt trotzdem vor dem zweiten Kassieren', () => {
+  const hps = [
+    'card_payment.unknown_hps', 'card_payment.unknown_with_id_hps', 'split.card_reverse_failed_hps', 'split.card_reverse_unknown_hps',
+    'split.card_already_reversed_hps', 'split.clarify_asking', 'split.clarify_open', 'split.clarify_not_asked', 'split.clarify_busy', 'split.clarify_no_answer', 'split.clarify_manual',
+  ] as const;
+  for (const schluessel of hps) assert.doesNotMatch(MESSAGES[schluessel].text, /Terminal-?[Bb]eleg|Terminalbeleg/, schluessel);
+  for (const grund of Object.keys(HPS_REASON_HINTS) as HpsCodeReason[]) {
+    assert.doesNotMatch(HPS_REASON_HINTS[grund], /Terminal-?[Bb]eleg|Terminalbeleg/, grund);
+  }
+  for (const schluessel of ['card_payment.unknown_hps', 'card_payment.unknown_with_id_hps'] as const) {
+    assert.match(MESSAGES[schluessel].text, /kann belastet sein/, schluessel);
+    assert.match(MESSAGES[schluessel].text, /erst klären, dann neu kassieren/, schluessel);
+  }
+  // Die Fassung mit Kennung ist die ohne plus dem Anker.
+  assert.equal(
+    messageText('card_payment.unknown_with_id_hps', { reference: '42' }),
+    `${messageText('card_payment.unknown_hps')} Kennung der Zahlung: 42.`,
+  );
+});
+
 // --- Unklare Karte in der Liste: kurz mit Kennung (1.37.0) ------------------
 // Steht die Karte schon zum Klaeren in der Liste, reicht ein Satz mit Betrag und
 // Kennung (die Ecke, die Sperre einer neuen Zahlung); den Rest sagt das
@@ -144,11 +166,17 @@ test('die Kurzfassung zur unklaren Karte nennt Betrag und Kennung und gilt auf b
   );
 });
 
-test('Klaeren-Fenster: jede Zeile ohne Antwort des Terminals schickt zum Terminal-Beleg, Titel und Kennung sind Beschriftungen', () => {
-  for (const schluessel of ['split.clarify_open', 'split.clarify_not_asked', 'split.clarify_manual'] as const) {
-    assert.ok(MESSAGES[schluessel].text.endsWith(MESSAGES['split.clarify_manual'].text), schluessel);
+test('Klaeren-Fenster: jede Zeile sagt, wer es weiss oder wann es noch einmal geht; Titel und Kennung sind Beschriftungen', () => {
+  // Wo das Terminal geantwortet hat oder eine Antwort nichts mehr bewiese: hobex weiss es.
+  for (const schluessel of ['split.clarify_open', 'split.clarify_manual'] as const) {
+    assert.match(MESSAGES[schluessel].text, /hobex kann die Zahlung nachsehen\.$/, schluessel);
   }
-  assert.equal(messageText('split.clarify_manual'), 'Bitte am Terminal-Beleg nachsehen.');
+  // Wo Connect, das Netz oder ein laufender Vorgang die Nachfrage verhinderte: noch einmal klaeren, nie hobex.
+  for (const schluessel of ['split.clarify_not_asked', 'split.clarify_busy', 'split.clarify_no_answer'] as const) {
+    assert.match(MESSAGES[schluessel].text, /erneut klären\.$/, schluessel);
+    assert.doesNotMatch(MESSAGES[schluessel].text, /hobex/, schluessel);
+  }
+  assert.equal(messageText('split.clarify_not_asked', { reason: 'Kasseneck Connect antwortet nicht' }), 'Das Terminal konnte nicht gefragt werden (Kasseneck Connect antwortet nicht). Bitte später erneut klären.');
   assert.equal(labelText('split.clarify_title', { amount: '15,00 €' }), 'Karte klären · 15,00 €');
   assert.equal(labelText('split.clarify_reference', { reference: '888888888888888888' }), 'Kennung 888888888888888888');
 });
@@ -168,11 +196,19 @@ test('Klaeren-Fenster: jeder Grund mit Stoerung beim hobex-Host hat seine kurze 
   );
 });
 
-test('Technik von hobex: ein Satz mit der Nummer, auf beiden Seiten', () => {
-  const eintrag = MESSAGES['card_payment.hobex_support'];
-  assert.deepEqual(eintrag.placeholders, ['phone']);
-  assert.equal(eintrag.only, undefined);
-  assert.equal(messageText('card_payment.hobex_support', { phone: HOBEX_SUPPORT.display }), 'Technik von hobex (rund um die Uhr): 0662 2255-88.');
+test('Technik von hobex: eigenes Fenster mit Nummer und den Angaben, die hobex fragt -- auf beiden Seiten', () => {
+  assert.equal(HOBEX_SUPPORT.display, '0662 2255-88');
+  assert.equal(labelText('hobex_help.title'), 'Technik von hobex');
+  assert.equal(labelText('hobex_help.open'), 'Technik von hobex …');
+  assert.equal(HOBEX_SUPPORT.availability, '24/7');
+  for (const k of ['hobex_help.open', 'hobex_help.title', 'hobex_help.data', 'hobex_help.tid', 'hobex_help.reference', 'hobex_help.reversal_reference',
+    'hobex_help.amount', 'hobex_help.time', 'hobex_help.reason', 'hobex_help.protocol', 'hobex_help.address', 'hobex_help.serial',
+    'hobex_help.copy', 'hobex_help.copied'] as const) {
+    assert.equal(LABELS[k].only, undefined, k);
+    assert.equal(LABELS[k].placeholders, undefined, k);
+  }
+  // Die Nummer steht nur noch im Fenster, kein Satz traegt sie.
+  assert.ok(!('card_payment.hobex_support' in MESSAGES));
 });
 
 // --- Die Kennung ueberlebt den Abriss --------------------------------------
@@ -324,6 +360,13 @@ test('Getrennt zahlen: jeder Satz zur belasteten Karte nennt den Betrag und raet
     assert.deepEqual([...(MESSAGES[s].placeholders ?? [])].sort(), ['amount', 'reference'], s);
     assert.match(MESSAGES[s].text, /Terminal-Beleg/, s);
     assert.doesNotMatch(MESSAGES[s].text, /kassieren/, s);
+  }
+  // Die HPS-Fassungen: dieselben Platzhalter, ohne Terminal-Beleg.
+  for (const s of ['split.card_reverse_failed', 'split.card_reverse_unknown', 'split.card_already_reversed'] as const) {
+    const hps = `${s}_hps` as MessageKey;
+    assert.deepEqual(MESSAGES[hps].placeholders, MESSAGES[s].placeholders, hps);
+    assert.match(MESSAGES[hps].text, /\(Kennung \{reference\}\)/, hps);
+    assert.doesNotMatch(MESSAGES[hps].text, /kassieren/, hps);
   }
   for (const s of ['split.external_reverse', 'split.return_cash', 'split.session_open'] as const) {
     assert.deepEqual(MESSAGES[s].placeholders, ['amount'], s);

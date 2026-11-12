@@ -107,7 +107,10 @@ const NACH_1_0 = {
     'split.clarify_manual', 'card_payment.unclear_short',
     // Grund im Klaeren-Fenster, Technik von hobex (1.37.0)
     'split.clarify_reason_host_fault', 'split.clarify_reason_host_timeout', 'split.clarify_reason_internal_error',
-    'split.clarify_reason_approved_with_condition', 'split.clarify_reason_terminal', 'card_payment.hobex_support'],
+    'split.clarify_reason_approved_with_condition', 'split.clarify_reason_terminal',
+    // HPS ohne Terminal-Beleg, Terminal belegt beim Klaeren (1.37.0)
+    'card_payment.unknown_hps', 'card_payment.unknown_with_id_hps', 'split.card_reverse_failed_hps', 'split.card_reverse_unknown_hps',
+    'split.card_already_reversed_hps', 'split.clarify_busy', 'split.clarify_no_answer'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -205,7 +208,11 @@ const NACH_1_0 = {
     // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
     'version.reload',
     // Klaeren-Fenster: Titel mit Betrag, Kennungszeile (1.37.0)
-    'split.clarify_title', 'split.clarify_reference'],
+    'split.clarify_title', 'split.clarify_reference',
+    // Fenster „Technik von hobex“ (1.37.0)
+    'hobex_help.open', 'hobex_help.title', 'hobex_help.data', 'hobex_help.tid', 'hobex_help.reference', 'hobex_help.reversal_reference',
+    'hobex_help.amount', 'hobex_help.time', 'hobex_help.reason', 'hobex_help.protocol', 'hobex_help.address', 'hobex_help.serial',
+    'hobex_help.copy', 'hobex_help.copied'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,

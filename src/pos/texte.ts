@@ -139,16 +139,16 @@ const MELDUNGEN_ROH = {
   'card_payment.unknown': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
   // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden – liegt sie vor, gilt dieser Satz statt card_payment.unknown.
   'card_payment.unknown_with_id': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {reference}.', placeholders: ['reference'] },
+  // Dieselben Saetze fuer das hobex-HPS-Terminal: es druckt keinen Beleg, an dem
+  // der Kassier nachsehen koennte (Inhaber, 12.11.2026). Den Ausgang sagt das
+  // Klaeren (Nachfrage beim Terminal) oder die Technik von hobex.
+  'card_payment.unknown_hps': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Die Karte kann belastet sein: erst klären, dann neu kassieren.' },
+  'card_payment.unknown_with_id_hps': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Die Karte kann belastet sein: erst klären, dann neu kassieren. Kennung der Zahlung: {reference}.', placeholders: ['reference'] },
   // Kurzfassung fuer eine Karte, die schon zum Klaeren in der Liste steht (rote Ecke,
   // Sperre einer neuen Zahlung): Betrag und Kennung genuegen, den Rest sagt das
   // Klaeren-Fenster. Die Kennung darf gekuerzt sein (erste und letzte Ziffern);
   // ganz steht sie im Fenster und in der Liste.
   'card_payment.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Kennung {reference}.', placeholders: ['amount', 'reference'] },
-  // Die Technik von hobex (`HOBEX_SUPPORT` in ./payments, `{phone}` = `display`): nur
-  // dort, wo hobex helfen kann -- Stoerung beim hobex-Host, Terminal nicht
-  // betriebsbereit, TID passt nicht, Ausgang am Terminal offen. Nie bei Fehlern
-  // im eigenen Netz oder an Kasseneck Connect.
-  'card_payment.hobex_support': { text: 'Technik von hobex (rund um die Uhr): {phone}.', placeholders: ['phone'] },
   'card_payment.waiting_for_terminal': { text: 'Bitte am Terminal fortfahren …' },
   // Das Kartenfenster des Terminals ist abgelaufen: es bricht selbst ab, die
   // Kasse muss nichts tun.
@@ -335,6 +335,11 @@ const MELDUNGEN_ROH = {
   // Das Terminal meldet eine Gutschrift, die hier noch als offene Ruecknahme
   // steht – ein zweites Zurueckbuchen waere die doppelte Rueckgabe.
   'split.card_already_reversed': { text: 'Das Terminal meldet, dass die Kartenzahlung über {amount} bereits gutgeschrieben wurde (Kennung {reference}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.', placeholders: ['amount', 'reference'] },
+  // Dieselben drei Saetze fuer das hobex-HPS-Terminal: es druckt keinen Beleg
+  // (Inhaber, 12.11.2026) -- sie sagen, was zu tun ist, nicht wo man nachsieht.
+  'split.card_reverse_failed_hps': { text: 'Die Kartenzahlung über {amount} (Kennung {reference}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte erneut versuchen.', placeholders: ['amount', 'reference'] },
+  'split.card_reverse_unknown_hps': { text: 'Unklar, ob die Rückbuchung über {amount} (Kennung {reference}) durchgegangen ist – die Zahlung bleibt in der Liste. Nicht noch einmal zurückbuchen, bevor das geklärt ist.', placeholders: ['amount', 'reference'] },
+  'split.card_already_reversed_hps': { text: 'Das Terminal meldet, dass die Kartenzahlung über {amount} bereits gutgeschrieben wurde (Kennung {reference}) – bitte nicht erneut zurückbuchen.', placeholders: ['amount', 'reference'] },
   'split.external_reverse': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {amount} jetzt am Terminal zurückbuchen und danach bestätigen.', placeholders: ['amount'] },
   'split.session_open': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {amount} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', placeholders: ['amount'] },
   'split.session_unreadable': { text: 'Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen.' },
@@ -347,20 +352,27 @@ const MELDUNGEN_ROH = {
   // hinzugefuegt – derselbe Grund wie beim Abschluss einer Barzahlung, auf
   // DIESE Zahlung bezogen.
   'split.tendered_missing': { text: 'Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an.' },
-  // Klaeren einer Karte mit offenem Ausgang: zuerst fragt die Kasse das Terminal
-  // (Paket `clarifyPayment`), erst wenn es nichts sagen kann, entscheidet der
-  // Kassier am Terminal-Beleg mit „Wurde belastet" / „Nicht belastet".
+  // Klaeren einer Karte mit offenem Ausgang am hobex-HPS-Terminal: zuerst fragt
+  // die Kasse das Terminal (Paket `clarifyPayment`), erst wenn es nichts sagen
+  // kann, entscheidet der Kassier mit „Wurde belastet" / „Nicht belastet". Das
+  // HPS-Terminal druckt keinen Beleg (Inhaber, 12.11.2026): die Zeilen sagen,
+  // wer es weiss oder wann es noch einmal geht.
   // Im Fenster steht unter dem Titel (`split.clarify_title`) genau eine dieser
   // Zeilen zum Stand, darunter die Kennung (`split.clarify_reference`):
-  // `clarify_asking` waehrend der Nachfrage, `clarify_open` (Terminal weiss es
-  // nicht), `clarify_not_asked` (Nachfrage ging nicht) und `clarify_manual`,
-  // wenn gar nicht gefragt wurde (kein Terminal, nichts mehr beweisbar).
+  // `clarify_asking` waehrend der Nachfrage, `clarify_open` (das Terminal hat
+  // geantwortet und weiss es nicht), `clarify_not_asked` (Kasseneck Connect oder
+  // das Netz verhinderten die Nachfrage), `clarify_no_answer` (gefragt, aber nie
+  // eine Antwort -- Connect oder das Netz), `clarify_busy` (das Terminal arbeitet
+  // gerade an etwas anderem) und `clarify_manual` (eine Antwort bewiese nichts
+  // mehr, oder es ist kein Terminal eingerichtet).
   'split.clarify_asking': { text: 'Das Terminal wird gefragt …' },
   'split.clarify_charged': { text: 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.' },
   'split.clarify_not_charged': { text: 'Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen.' },
-  'split.clarify_open': { text: 'Das Terminal weiß es nicht. Bitte am Terminal-Beleg nachsehen.' },
-  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte am Terminal-Beleg nachsehen.', placeholders: ['reason'] },
-  'split.clarify_manual': { text: 'Bitte am Terminal-Beleg nachsehen.' },
+  'split.clarify_open': { text: 'Das Terminal weiß es nicht. hobex kann die Zahlung nachsehen.' },
+  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte später erneut klären.', placeholders: ['reason'] },
+  'split.clarify_busy': { text: 'Das Terminal ist gerade belegt. Bitte gleich erneut klären.' },
+  'split.clarify_no_answer': { text: 'Das Terminal hat nicht geantwortet. Bitte später erneut klären.' },
+  'split.clarify_manual': { text: 'Das Terminal kann es nicht sicher sagen. hobex kann die Zahlung nachsehen.' },
   // Der Grund, warum der Ausgang offen blieb, als kurze Zeile unter dem Stand:
   // je Grund mit Stoerung beim oder nach dem hobex-Host (`isHostUncertainReason`,
   // Schluessel = Grund in snake_case) und fuer einen Code ohne feste Bedeutung
@@ -1033,6 +1045,27 @@ const BESCHRIFTUNGEN_ROH = {
   'split.clarify_title': { text: 'Karte klären · {amount}', placeholders: ['amount'] },
   'split.clarify_reference': { text: 'Kennung {reference}', placeholders: ['reference'] },
   'split.reverse_again': { text: 'Erneut zurückbuchen' },
+  // Fenster „Technik von hobex“ (Inhaber, 12.11.2026): die Nummer gross zum
+  // Antippen, daneben die Erreichbarkeit (`HOBEX_SUPPORT.availability`, „24/7“),
+  // und darunter, was hobex am Telefon fragt -- TID, Kennung, Betrag, Zeit,
+  // Meldung, Anbindung, Adresse, Seriennummer. Nur was die Kasse kennt: eine
+  // Zeile ohne Wert (etwa die Seriennummer, solange sie fehlt) steht nicht da.
+  // Geoeffnet ueber `hobex_help.open`, nur bei einem Problem am Terminal oder
+  // beim hobex-Host, nie bei Kasseneck Connect oder dem eigenen Netz.
+  'hobex_help.open': { text: 'Technik von hobex …' },
+  'hobex_help.title': { text: 'Technik von hobex' },
+  'hobex_help.data': { text: 'Das fragt hobex' },
+  'hobex_help.tid': { text: 'TID' },
+  'hobex_help.reference': { text: 'Kennung der Zahlung' },
+  'hobex_help.reversal_reference': { text: 'Kennung der Rückbuchung' },
+  'hobex_help.amount': { text: 'Betrag' },
+  'hobex_help.time': { text: 'Zeit' },
+  'hobex_help.reason': { text: 'Meldung' },
+  'hobex_help.protocol': { text: 'Anbindung' },
+  'hobex_help.address': { text: 'Adresse' },
+  'hobex_help.serial': { text: 'Seriennummer' },
+  'hobex_help.copy': { text: 'Angaben kopieren' },
+  'hobex_help.copied': { text: 'Kopiert' },
   'split.was_charged': { text: 'Wurde belastet – übernehmen' },
   'split.not_charged': { text: 'Nicht belastet – verwerfen' },
   // Aufteilung: eigener Schritt nach „Weiter“, Tabs „Nach Positionen“ / „Betrag“.

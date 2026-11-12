@@ -118,7 +118,7 @@ export const HPS_REASON_HINTS: Readonly<Record<HpsCodeReason, string>> = {
   approved:
     'Vom Terminal genehmigt.',
   approvedWithCondition:
-    'Das Terminal meldet eine Genehmigung mit Vorbehalt (etwa nur über einen Teilbetrag). Ob und in welcher Höhe belastet wurde, bitte am Terminalbeleg prüfen – nicht erneut kassieren, bevor es geklärt ist.',
+    'Das Terminal meldet eine Genehmigung mit Vorbehalt (etwa nur über einen Teilbetrag). Ob und in welcher Höhe belastet wurde, weiß hobex – nicht erneut kassieren, bevor es geklärt ist.',
   aborted:
     'Der Vorgang wurde abgebrochen. Es wurde kein Geld bewegt.',
   noCard:
