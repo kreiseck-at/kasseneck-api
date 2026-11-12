@@ -186,6 +186,8 @@ function laufstand(ort: Ort, w: unknown): ShiftRunningTotals {
   if (o.ownerTips !== undefined && o.ownerTips !== null) raus.ownerTips = liste(ort, o, 'ownerTips', inhaberTrinkgeld);
   if (o.unassignedTipCents !== undefined && o.unassignedTipCents !== null) raus.unassignedTipCents = ganzzahl(ort, o, 'unassignedTipCents');
   if (o.discounts !== undefined && o.discounts !== null) raus.discounts = liste(ort, o, 'discounts', rabatt);
+  // Zahlungen auf Rechnungen (1.38.0, nur Information): gelesen wie gesendet.
+  if (o.invoicePaymentCents !== undefined && o.invoicePaymentCents !== null) raus.invoicePaymentCents = ganzzahl(ort, o, 'invoicePaymentCents');
   return raus;
 }
 
@@ -444,6 +446,8 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   wennWert(r, o, 'discounts', () => liste(ort, o, 'discounts', rabatt));
   // Kartentrinkgeld bar aus der Lade genommen (Summe); nur mit Karten-direkt.
   wennWert(r, o, 'cardTipsTakenCents', () => ganzzahl(ort, o, 'cardTipsTakenCents'));
+  // Nur Information: Zahlungen auf Rechnungen (1.38.0); der Server sendet sie erst mit dem ersten Zahlungsbeleg.
+  wennWert(r, o, 'invoicePaymentCents', () => ganzzahl(ort, o, 'invoicePaymentCents'));
   wennWert(r, o, 'differenceParts', () => liste(ort, o, 'differenceParts', differenzTeil));
   wennDa(r, o, 'countedBeforePayoutCents', () => ganzzahlOderNull(ort, o, 'countedBeforePayoutCents'));
   wennDa(r, o, 'countedBeforePayoutDenominations', () => stueckelung(ort, o, 'countedBeforePayoutDenominations'));

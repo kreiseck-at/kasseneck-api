@@ -195,6 +195,12 @@ export interface ShiftRunningTotals {
    * auf dem Z-Bon steht es als Block ([discountBlockLines]).
    */
   discounts?: ShiftDiscount[];
+  /**
+   * Zahlungen auf Rechnungen in Cent (1.38.0): Summe der Positionen „Zahlung auf Rechnung“ der Schicht,
+   * bar und unbar, ein Storno negativ. Nur Information, nie zusaetzlich im Soll: das Geld steckt schon im
+   * Barumsatz bzw. in `nonCashByMethod`. Der Server sendet es nur, wenn es etwas gibt (fehlt = keine).
+   */
+  invoicePaymentCents?: number;
 }
 
 /** Ein Eintrag von [ShiftRunningTotals.discounts] bzw. [ShiftSummaryReceipt.discounts]. */
@@ -470,6 +476,11 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
   discounts?: ShiftDiscount[];
   /** Kartentrinkgeld bar aus der Lade genommen, Summe (Soll − Betrag); fehlt ohne Karten-direkt. */
   cardTipsTakenCents?: number;
+  /**
+   * Zahlungen auf Rechnungen in Cent, wie [ShiftRunningTotals.invoicePaymentCents]; fehlt ohne solche
+   * (der Bon bleibt dann wie bisher).
+   */
+  invoicePaymentCents?: number;
   /** Entnommen bzw. eingelegt nach dem Zaehlen; fehlt, wenn kein Geld bewegt wurde. */
   afterCount?: AfterCount;
   /**

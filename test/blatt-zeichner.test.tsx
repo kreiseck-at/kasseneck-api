@@ -58,9 +58,9 @@ function eposFolge(xml: string): Gesetzt[] {
 }
 
 test('Blatt-Zeichner: alle Golden-Belege liegen vor', () => {
-  // 48 bis 1.17, dazu 23 Nacherfassungen (manual-receipt-*), zero-outage-end-period (30.10.2026), add-ons (1.27.0)
-  // und die Fremdgutscheine voucher-external-redeem und voucher-external-sale.
-  assert.equal(namen.length, 79);
+  // 48 bis 1.17, dazu 23 Nacherfassungen (manual-receipt-*), zero-outage-end-period (30.10.2026), add-ons (1.27.0),
+  // die Fremdgutscheine voucher-external-redeem und voucher-external-sale und zehn Zahlungen auf Rechnung (1.38.0).
+  assert.equal(namen.length, 89);
 });
 
 for (const name of namen) {

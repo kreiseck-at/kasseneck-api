@@ -2,7 +2,7 @@
 // Nicht von Hand aendern: test/stored.test.ts vergleicht mit dem Vertrag.
 
 /** Fingerabdruck des Vertrags-Exports, aus dem diese Datei stammt (`_quelle.sha256`). */
-export const VOKABULAR_QUELLE = "78eb90dbffbd44f2b16d78963d35c6e977245f5f53bb171a19b73b15d5cb0a3c";
+export const VOKABULAR_QUELLE = "7e41f406752cf109d3809bd187db0dfccceafbc3c9d88305edf32c98d57bced3";
 
 /** Schema-Notation des Vertrags: Blatt 'aussen': 'innen', Objekt { __: 'innen', ... }, Liste [ { __: 'innen', ... } ]. */
 export type SchemaEintrag = string | SchemaObjekt | readonly [SchemaObjekt];
@@ -54,7 +54,18 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
         "sharedReturnPoint": {
           "__": "pfandStelle",
           "address": "adresse"
-        }
+        },
+        "invoicePayments": [
+          {
+            "__": "rechnungszahlung",
+            "invoiceNumber": "nummer",
+            "customerId": "kundeId",
+            "amountCents": "betragCents",
+            "partial": "teil",
+            "paidOn": "zahlungVom",
+            "taxNote": "steuerhinweis"
+          }
+        ]
       },
       "taxNumber": "taxnr",
       "vatId": "uid",
@@ -123,6 +134,9 @@ export const SCHEMAS: Readonly<Record<'getReceipt' | 'getKasseSettings' | 'listM
       },
       "receipt.items[].depositKind": {
         "$catalog": "PFAND_ART"
+      },
+      "receipt.invoicePayments[].taxNote": {
+        "$catalog": "RECHNUNGSZAHLUNG_STEUERHINWEIS"
       },
       "issuedVouchers[].type": {
         "$catalog": "GUTSCHEIN_ART"
@@ -866,6 +880,11 @@ export const KATALOGE: Readonly<Record<string, Readonly<Record<string, string>>>
     "becher": "cup",
     "glas": "glass",
     "sonstiges": "other"
+  },
+  "RECHNUNGSZAHLUNG_STEUERHINWEIS": {
+    "inkl_ust": "incl_vat",
+    "null_prozent": "zero_percent",
+    "siehe_rechnung": "see_invoice"
   },
   "REFERENZ_STUFE": {
     "fragen": "optional",

@@ -1,6 +1,7 @@
 import { ReceiptType, KeckPaymentMethod, CreditCardProvider, VoucherAction, VoucherType } from '../enums/index.js';
 import { readEnumKey, requireEnumKey } from './enum-payload.js';
 import { type ManualReceipt, readManualReceipt } from './manual-receipt.js';
+import { type InvoicePaymentRef, readInvoicePaymentRefs } from './invoice-payment-ref.js';
 import {
   type ReceiptItem,
   type ReceiptItemPayload,
@@ -95,6 +96,11 @@ export interface Receipt {
    * Kasse `returns: 'shared'` hat und der Beleg Pfand traegt. Der Bon druckt daraus die Fusszeile.
    */
   sharedReturnPoint?: SharedReturnPoint;
+  /**
+   * Nur am Zahlungsbeleg (Zahlung auf Rechnung, Positionen `kind: 'invoice_payment'`): je Rechnung ein
+   * Bezug, in der Reihenfolge der Positionen (gespeichert `rechnungszahlung`). Siehe [InvoicePaymentRef].
+   */
+  invoicePayments?: InvoicePaymentRef[];
 }
 
 /** Gemeinsame Ruecknahmestelle fuer Leergut (Name und Anschrift, wie der Server sie am Beleg stempelt). */
@@ -155,6 +161,7 @@ export interface ReceiptPayloadRead extends Omit<ReceiptPayload, 'items' | 'vouc
   manualReceipt?: unknown;
   onPremises?: boolean | null;
   sharedReturnPoint?: { name?: string | null; address?: string | null } | null;
+  invoicePayments?: unknown;
 }
 
 /**
@@ -244,7 +251,13 @@ export function fromReceiptPayload(payload: ReceiptPayloadRead): Receipt {
     ...handbelegFeld(payload.manualReceipt),
     ...(typeof payload.onPremises === 'boolean' ? { onPremises: payload.onPremises } : {}),
     ...pfandStelleFeld(payload.sharedReturnPoint),
+    ...rechnungszahlungFeld(payload.invoicePayments),
   };
+}
+
+function rechnungszahlungFeld(roh: unknown): { invoicePayments?: InvoicePaymentRef[] } {
+  const invoicePayments = readInvoicePaymentRefs(roh);
+  return invoicePayments ? { invoicePayments } : {};
 }
 
 function pfandStelleFeld(roh: ReceiptPayloadRead['sharedReturnPoint']): { sharedReturnPoint?: SharedReturnPoint } {

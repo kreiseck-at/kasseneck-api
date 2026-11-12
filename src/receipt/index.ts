@@ -24,6 +24,7 @@ export {
   formatCents,
 } from './layout.js';
 export { markAsDuplicate } from './duplikat.js';
+export { type ReceiptNote, type ReceiptNoteKind, type ReceiptNotesOptions, receiptNotes } from './vermerke.js';
 
 export {
   type EscPosLayoutOptions,

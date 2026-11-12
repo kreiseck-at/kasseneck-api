@@ -8,7 +8,7 @@ export {
   receiptItemIsValid,
   negateReceiptItem,
   type TipRecipient,
-  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem,
+  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem, isInvoicePaymentItem,
 } from './receipt-item.js';
 export {
   type Voucher, type VoucherArticle, type IssuedVoucher, type ReturnIssuedVoucher, type VoucherPayload, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, voucherServerFields,
@@ -127,6 +127,7 @@ export {
   type ManualReceipt, type ManualReceiptReason, MANUAL_RECEIPT_REASONS, readManualReceipt,
   type ManualReceiptErrorCode, MANUAL_RECEIPT_ERROR_CODES, isManualReceiptErrorCode,
 } from './manual-receipt.js';
+export { type InvoicePaymentRef, type InvoicePaymentTaxNote, readInvoicePaymentRefs } from './invoice-payment-ref.js';
 export {
   type ReportMonth,
   reportMonthFromDate,

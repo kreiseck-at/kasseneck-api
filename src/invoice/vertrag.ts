@@ -92,6 +92,7 @@ export const INVOICE_ERROR_CODES = [
   'deposit_set_by_server', // das Pfand zu einer Artikelposition leitet der Server selbst ab
   'invalid_deposit_quantity', // die Pfandmenge passt nicht zur Menge der Position
   'invalid_deposit', // sonstige Pfandangabe unzulaessig, `index` nennt die Position
+  'cash_receipt_pending', // Rechnung bar bezahlt, der Kassenbeleg der Zahlung ist noch nicht fertig: PDF spaeter abrufen
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 

@@ -117,3 +117,34 @@ test('Texte de/en fuer single_use_deposit und die Kopfzeile der Steuertabelle, g
   }
   assert.equal(invoiceText('en', 'pdf.totals.head_vat'), 'VAT');
 });
+
+test('Bezahlt-Vermerk ist kurz: ohne „Es ist nichts weiter zu tun.“, in jeder Sprache (Spec Barzahlung auf Rechnungen, Entscheidung 8)', () => {
+  assert.equal(INVOICE_TEXTS.de['pdf.paid.text'], 'Diese Rechnung ist beglichen.');
+  assert.equal(INVOICE_TEXTS.en['pdf.paid.text'], 'This invoice has been paid.');
+});
+
+test('Kassenteil und Zahlungsbestaetigung: Beschriftungen de/en ohne Platzhalter', () => {
+  const erwartet: Record<string, { de: string; en: string }> = {
+    'pdf.cash_register.header': { de: 'REGISTRIERKASSE', en: 'CASH REGISTER' },
+    'pdf.cash_register.receipt_number': { de: 'Beleg-Nr.', en: 'Receipt no.' },
+    'pdf.cash_register.date': { de: 'Datum', en: 'Date' },
+    'pdf.cash_register.tax.incl_vat': { de: 'inkl. USt', en: 'incl. VAT' },
+    'pdf.cash_register.tax.zero_percent': { de: '0 % USt', en: '0 % VAT' },
+    'pdf.cash_register.tax.see_invoice': { de: 'Steuerangaben siehe Rechnung', en: 'Tax details see invoice' },
+    'pdf.title.payment_confirmation': { de: 'ZAHLUNGSBESTÄTIGUNG', en: 'PAYMENT CONFIRMATION' },
+    'pdf.title.refund_confirmation': { de: 'RÜCKZAHLUNGSBESTÄTIGUNG', en: 'REFUND CONFIRMATION' },
+    'pdf.confirmation.intro': { de: 'Wir bestätigen den Erhalt Ihrer Zahlung.', en: 'We confirm receipt of your payment.' },
+    'pdf.confirmation.not_invoice': { de: 'Diese Bestätigung ist keine Rechnung.', en: 'This confirmation is not an invoice.' },
+    'pdf.confirmation.table.invoice': { de: 'Rechnung', en: 'Invoice' },
+    'pdf.confirmation.table.amount': { de: 'Betrag', en: 'Amount' },
+    'pdf.confirmation.table.paid_so_far': { de: 'Bisher bezahlt', en: 'Paid so far' },
+    'pdf.confirmation.table.received_today': { de: 'Heute erhalten', en: 'Received today' },
+    'pdf.confirmation.table.still_open': { de: 'Noch offen', en: 'Still open' },
+  };
+  for (const [schluessel, texte] of Object.entries(erwartet)) {
+    const key = schluessel as InvoiceTextKey;
+    assert.equal(INVOICE_TEXTS.de[key], texte.de, `de.${schluessel}`);
+    assert.equal(INVOICE_TEXTS.en[key], texte.en, `en.${schluessel}`);
+    assert.deepEqual(platzhalter(INVOICE_TEXTS.de[key]), [], `${schluessel} hat keine Platzhalter`);
+  }
+});
