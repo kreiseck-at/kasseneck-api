@@ -243,9 +243,10 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
 
 /**
  * Steuerhinweis der Zahlung auf Rechnung: innen `steuerhinweis` (`inkl_ust` | `null_prozent` | `siehe_rechnung`),
- * aussen `taxNote` (`incl_vat` | `zero_percent` | `see_invoice`). Der Vertrags-Export kennt das Feld noch nicht
- * (er nennt `inklUst`/`includesVat`); bis er nachgezogen ist, uebersetzt diese Zeile es von Hand. Ein anderer
- * oder fehlender Wert ergibt keinen Hinweis; das alte Feld `includesVat` faellt weg.
+ * aussen `taxNote` (`incl_vat` | `zero_percent` | `see_invoice`). Der Vertrags-Export kennt die Umbenennung und den
+ * Wertekatalog inzwischen; diese Zeile bleibt trotzdem, weil sie bewusst deutsche UND englische Werte annimmt
+ * (Huellen kommen innen wie aussen vor). Ein anderer oder fehlender Wert ergibt keinen Hinweis; das alte Feld
+ * `includesVat` faellt weg.
  */
 const STEUERHINWEIS_AUSSEN: Readonly<Record<string, string>> = {
   inkl_ust: 'incl_vat', null_prozent: 'zero_percent', siehe_rechnung: 'see_invoice',
