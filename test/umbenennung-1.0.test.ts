@@ -98,7 +98,19 @@ const NACH_1_0 = {
     'deposit.changed', 'deposit_error.not_enabled', 'deposit_error.type_not_found', 'deposit_error.set_by_server', 'deposit_error.invalid_quantity',
     'deposit_error.return_not_offered', 'deposit_error.type_not_issued', 'deposit_error.follows_item', 'deposit_error.invalid',
     // Browser-Kasse am Mac: Lokales Netzwerk gesperrt, Terminal-Suche mit mehreren Treffern (1.33.0)
-    'connect.local_network_blocked', 'terminal.several_found', 'terminal.tid_not_found'],
+    'connect.local_network_blocked', 'terminal.several_found', 'terminal.tid_not_found',
+    // Klaeren einer unklaren Karte: Nachfrage beim Terminal (1.37.0)
+    'split.clarify_asking', 'split.clarify_charged', 'split.clarify_not_charged', 'split.clarify_open', 'split.clarify_not_asked',
+    // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
+    'version.new_available',
+    // Unklare Kartenzahlung kurz mit Kennung, Klaeren ohne Nachfrage (1.37.0)
+    'split.clarify_manual', 'card_payment.unclear_short',
+    // Grund im Klaeren-Fenster, Technik von hobex (1.37.0)
+    'split.clarify_reason_host_fault', 'split.clarify_reason_host_timeout', 'split.clarify_reason_internal_error',
+    'split.clarify_reason_approved_with_condition', 'split.clarify_reason_terminal',
+    // HPS ohne Terminal-Beleg, Terminal belegt beim Klaeren (1.37.0)
+    'card_payment.unknown_hps', 'card_payment.unknown_with_id_hps', 'split.card_reverse_failed_hps', 'split.card_reverse_unknown_hps',
+    'split.card_already_reversed_hps', 'split.clarify_busy', 'split.clarify_no_answer'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -192,7 +204,15 @@ const NACH_1_0 = {
     'inspection.check_holder', 'inspection.status', 'inspection.status_active', 'inspection.status_outage', 'inspection.status_outage_since',
     'inspection.dep', 'inspection.dep_online', 'inspection.closings', 'inspection.closings_monthly_first', 'inspection.closings_monthly_day',
     'inspection.closings_annual_december', 'inspection.contact', 'inspection.how_it_works', 'inspection.printed_at', 'inspection.print',
-    'inspection.print_yes', 'inspection.print_no', 'zero_receipt.create', 'zero_receipt.created'],
+    'inspection.print_yes', 'inspection.print_no', 'zero_receipt.create', 'zero_receipt.created',
+    // Browser-Kasse: neue Fassung verfuegbar (1.37.0)
+    'version.reload',
+    // Klaeren-Fenster: Titel mit Betrag, Kennungszeile (1.37.0)
+    'split.clarify_title', 'split.clarify_reference',
+    // Fenster „Technik von hobex“ (1.37.0)
+    'hobex_help.open', 'hobex_help.title', 'hobex_help.data', 'hobex_help.tid', 'hobex_help.reference', 'hobex_help.reversal_reference',
+    'hobex_help.amount', 'hobex_help.time', 'hobex_help.reason', 'hobex_help.protocol', 'hobex_help.address', 'hobex_help.serial',
+    'hobex_help.copy', 'hobex_help.copied'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
