@@ -134,10 +134,11 @@ test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, 
   const stand = ergebnis as Json;
   assert.equal(stand.rights.cashView, false);
   assert.ok(!('expectedCents' in stand));
+  // Ohne cashView und cashMove nur das eigene Trinkgeld (keck#936): der Eintrag von Anna Chef fehlt.
   assert.deepEqual(stand.tips, [
-    { registerUserId: 'ru_chef', name: 'Anna Chef', receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 0, carriedOverCents: 0, openCents: 300 },
     { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 150, paidOutCents: 250, refundedByEmployeeCents: 0, carriedOverCents: 0, openCents: 150 },
   ]);
+  assert.deepEqual((stand.tipClaims as Json[]).map((t) => t.registerUserId), ['ru_kellner']);
   // Ohne Trinkgeld eine leere Liste, nie ein fehlendes Feld.
   const ohne = (await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_owner_new_main_drawer'))).ergebnis as Json;
   assert.deepEqual(ohne.tips, []);
