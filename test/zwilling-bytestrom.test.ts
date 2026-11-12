@@ -77,6 +77,10 @@ test('80 mm mit Marke: Byte fuer Byte wie das Dart-Paket', () => {
  * Bon der Schicht mit fetter Spaltenzeile („Bleibt in der Kassenlade“, Wechselgeld 1.11.0):
  * der einzige Weg, auf dem eine Spaltenzeile fett gedruckt wird (`ESC E 1`/`ESC E 0`).
  * Ohne Marke; dieselben Digests stehen im Dart-Paket.
+ *
+ * Trinkgeld „genommen“ statt „schon genommen“ (1.37.0, Inhaber 12.11.2026): der Z-Bon mit
+ * Entnahme traegt die kuerzere Zeile, beide Digests sind neu gezogen. Der Dart-Zwilling zieht
+ * sie beim Release mit den Texten nach (`test/printing/zwilling_bytestrom_test.dart`).
  */
 const schichtBon = (paperSize: 'mm58' | 'mm80'): string =>
   createHash('sha256')
@@ -87,9 +91,9 @@ const schichtBon = (paperSize: 'mm58' | 'mm80'): string =>
     .digest('hex');
 
 test('Z-Bon mit Entnahme, 58 mm: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(schichtBon('mm58'), '44f5b442f94b50e400fb02bca545b5b902821a95640833f618751799506dd845');
+  assert.equal(schichtBon('mm58'), '68c12b1750eb7b0b919ccbbc22ee59ba6e5345251ffa192d7325caaab46b3bac');
 });
 
 test('Z-Bon mit Entnahme, 80 mm: Byte fuer Byte wie das Dart-Paket', () => {
-  assert.equal(schichtBon('mm80'), '07e4b23d5861922cf74edd9092d0ecb49c21f1c89d0082ae9db1fb7cc273c340');
+  assert.equal(schichtBon('mm80'), '465e61f5d112a2268a3273aa69a7df2a18a947f07ac2ce6aeb7f43969266751c');
 });

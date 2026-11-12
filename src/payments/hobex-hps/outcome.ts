@@ -51,6 +51,16 @@ export interface HpsPaymentResult {
    */
   readonly reason?: HpsCodeReason;
   /**
+   * Gesetzt, wenn dieses Ergebnis aus einer SPAETEN Nachfrage stammt
+   * (`HpsPayments.clarifyPayment`). Ein solches Ergebnis taugt nicht als
+   * `previous` einer weiteren Nachfrage: die Vorgeschichte einer Zahlung ist
+   * das Ergebnis von `pay`, und das bleibt sie -- ein `reason` aus der
+   * Nachfrage selbst (etwa `noStatement`) sagt nichts darueber, ob die
+   * Klaerung von `pay` ein Storno nachgeschickt hat. Die Nachfrage weist ein
+   * so markiertes `previous` deshalb zurueck: keine Antwort entscheidet.
+   */
+  readonly clarified?: true;
+  /**
    * Verlauf der Klaerung, in Reihenfolge — der Nachweis, der im
    * Belastungsstreit gelesen wird. Behauptet nie eine Ursache, die nicht
    * feststeht.

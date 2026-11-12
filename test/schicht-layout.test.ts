@@ -56,6 +56,48 @@ test('Goldens: die vier Bons aus dem Vertrag ergeben Zeilen und Raster wie aufge
   }
 });
 
+/** Bons mit Kartentrinkgeld bar aus der Lade (1.37.0): eigenes Manifest, Eingabe = Vertragsfall + `overlay`. */
+const KARTEN = JSON.parse(lies('shift-receipts-card-tips.json')) as {
+  _note: string;
+  receipts: Record<string, { source: string; overlay: Json; expected: string; grid32: string; grid48: string }>;
+};
+
+test('Goldens Kartentrinkgeld: Vertragsfall + overlay ergeben Zeilen und Raster wie aufgenommen; das alte Manifest bleibt', () => {
+  assert.deepEqual(Object.keys(KARTEN.receipts).sort(), ['shift-close-card-tips', 'shift-interim-card-tips']);
+  for (const [name, eintrag] of Object.entries(KARTEN.receipts)) {
+    assert.ok(!(name in MANIFEST.receipts), `${name} steht nicht im alten Manifest`);
+    const layout = layoutFuer({ ...quelle(eintrag.source), ...eintrag.overlay });
+    const zeilen = JSON.stringify(layout, null, 2) + '\n';
+    assert.equal(zeilen, lies(`expected/${name}.lines.json`), `${name}.lines.json (npm run fixtures:erneuern)`);
+    assert.equal(sha(zeilen), eintrag.expected, name);
+    for (const zeichen of [32, 48] as const) {
+      const text = raster(layout, zeichen);
+      assert.equal(text, lies(`expected/${name}.grid${zeichen}.txt`), `${name}.grid${zeichen}.txt`);
+      assert.equal(sha(text), eintrag[`grid${zeichen}`], `${name} grid${zeichen}`);
+    }
+  }
+});
+
+test('Kartentrinkgeld bar genommen: eigene Zeile mit Minus nach „Bar aus Verkäufen“, Soll geht auf; ohne Feld oder 0 kein Unterschied', () => {
+  const bon = { ...quelle('closeMyShift/success_manager'), ...KARTEN.receipts['shift-close-card-tips']!.overlay };
+  const text = raster(layoutFuer(bon), 48);
+  assert.match(text, /^Bar aus Verkäufen +94,00\nKartentrinkgeld bar genommen +-5,00\nBar aus Storno/m);
+  // Start + Bar − Kartentrinkgeld + Storno + Bewegungen = Soll (150 + 94 − 5 + 0 + 50 − 4 = 285).
+  assert.match(text, /^Soll +285,00$/m);
+  // Je Mitarbeiter: „davon Kartentrinkgeld“ hinter „genommen“ (shiftTipLines).
+  assert.match(text, /^ {2}genommen +9,00\n {2}davon Kartentrinkgeld +5,00$/m);
+  // Ohne das Feld und mit 0: genau der Bon von vorher (Zeilenmodell gleich).
+  const alt = quelle('closeMyShift/success_manager');
+  const vorher = JSON.stringify(layoutFuer(alt));
+  assert.equal(JSON.stringify(layoutFuer({ ...alt, cardTipsTakenCents: 0 })), vorher);
+  assert.doesNotMatch(raster(layoutFuer(alt), 48), /Kartentrinkgeld/);
+  // Blind steht die Zeile wie die Bewegungen (das Geld hat die Lade sichtbar verlassen), Soll nicht.
+  const blind = { ...quelle('closeMyShift/success_cashier_blind'), cardTipsTakenCents: 500 };
+  const blindText = raster(layoutFuer(blind), 48);
+  assert.match(blindText, /^Kartentrinkgeld bar genommen +-5,00$/m);
+  assert.doesNotMatch(blindText, /Soll/);
+});
+
 test('Nach der Zaehlung: „Entnommen“ negativ bzw. „Eingelegt“, dann „Bleibt in der Kassenlade“ fett (Wechselgeld, 1.11.0)', () => {
   // Bleibt-Zeile = Ergebnis: fett im Bauplan und im Raster.
   const bleibtZeile = (layout: ReceiptLayout) => layout.lines.find((z) => z.kind === 'columns' && z.columns[0]!.text === 'Bleibt in der Kassenlade');
@@ -142,20 +184,20 @@ test('Mit Recht: Soll, Ist und Differenz mit formatCents, die Stueckelung je Sch
   assert.doesNotMatch(x, /^Ist\b|Differenz|Geschlossen/m);
 });
 
-test('Trinkgeld je Mitarbeiter: verdient immer, ueber Lohn, schon genommen und offen nur ungleich 0 (Nachtrag 3, R51)', () => {
+test('Trinkgeld je Mitarbeiter: verdient immer, ueber Lohn, genommen und offen nur ungleich 0 (Nachtrag 3, R51)', () => {
   // Z-Bon: Ben Kellner 4,00 sofort, beim Abschluss ausgezahlt, nichts offen.
   const z = raster(layoutFuer(quelle('closeMyShift/success_manager')), 48);
   // Ab der Ueberschrift „Trinkgeld“ (Zeilen auf die Breite aufgefuellt).
   const block = (text: string) => { const i = text.search(/^Trinkgeld +$/m); return i < 0 ? '' : text.slice(i); };
   assert.match(block(z), /^Ben Kellner +$/m);
   assert.match(block(z), /^ {2}verdient +4,00$/m);
-  assert.match(block(z), /^ {2}schon genommen +4,00$/m);
+  assert.match(block(z), /^ {2}genommen +4,00$/m);
   assert.doesNotMatch(block(z), /über Lohn|offen|sofort|0,00/);
   // X-Bon: noch nichts genommen, 4,00 offen.
   const x = raster(layoutFuer(quelle('getMyShiftReport/success_manager')), 48);
   assert.match(block(x), /^ {2}verdient +4,00$/m);
   assert.match(block(x), /^ {2}offen +4,00$/m);
-  assert.doesNotMatch(block(x), /schon genommen|über Lohn|0,00/);
+  assert.doesNotMatch(block(x), /genommen|über Lohn|0,00/);
   // Wer ueberall 0 hat, entfaellt ganz -- ohne Mitarbeiter auch keine Ueberschrift.
   const bon = structuredClone(quelle('getMyShiftReport/success_manager'));
   bon.tips = bon.tips.map((t: Json) => ({ ...t, receivedImmediatelyCents: 0, retainedCents: 0, paidOutCents: 0, openCents: 0 }));
@@ -177,7 +219,7 @@ test('Trinkgeld: ein negatives „offen“ steht mit Minus (Storno aus der Lade 
   const block = (text: string) => { const i = text.search(/^Trinkgeld +$/m); return i < 0 ? '' : text.slice(i); };
   const b = block(raster(layoutFuer(bon), 48));
   assert.match(b, /^ {2}verdient +0,00$/m);
-  assert.match(b, /^ {2}schon genommen +1,50$/m);
+  assert.match(b, /^ {2}genommen +1,50$/m);
   assert.match(b, /^ {2}offen +-1,50$/m);
 });
 

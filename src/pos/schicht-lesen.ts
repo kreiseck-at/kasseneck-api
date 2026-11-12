@@ -41,6 +41,7 @@ import type {
   ShiftSummaryReceipt,
   ShiftTip,
   ShiftTipTotals,
+  TipBalance,
   TipClaim,
 } from './schicht-typen.js';
 
@@ -141,7 +142,7 @@ function unbar(ort: Ort, w: unknown): NonCashAmount {
 
 function trinkgeld(ort: Ort, w: unknown): ShiftTipTotals {
   const o = pflichtObjekt(ort, w);
-  return {
+  const raus: ShiftTipTotals = {
     registerUserId: kennung(ort, o, 'registerUserId'),
     name: text(o.name),
     receivedImmediatelyCents: ganzzahl(ort, o, 'receivedImmediatelyCents'),
@@ -150,6 +151,9 @@ function trinkgeld(ort: Ort, w: unknown): ShiftTipTotals {
     // Fehlt bei einem Backend vor der Regel R62: dann 0, statt die ganze Antwort zu verwerfen.
     refundedByEmployeeCents: o.refundedByEmployeeCents === undefined || o.refundedByEmployeeCents === null ? 0 : ganzzahl(ort, o, 'refundedByEmployeeCents'),
   };
+  // Kartentrinkgeld bar genommen: der Server sendet es nur, wenn es eines gibt -- gelesen wie gesendet.
+  if (o.cardTipsTakenCents !== undefined && o.cardTipsTakenCents !== null) raus.cardTipsTakenCents = ganzzahl(ort, o, 'cardTipsTakenCents');
+  return raus;
 }
 
 /** Trinkgeld mit offenem Anspruch (Kassenstand, Bon). */
@@ -335,6 +339,22 @@ export function ladeStand(ort: Ort, w: unknown): DrawerState {
   return raus;
 }
 
+/** „Mein Trinkgeld“ (getMyTipBalance): Stand der angemeldeten Person, Drahtform Feld fuer Feld. */
+export function tipStand(ort: Ort, w: unknown): TipBalance {
+  const o = pflichtObjekt(ort, w);
+  return {
+    drawerId: kennung(ort, o, 'drawerId'),
+    claimScope: kennung(ort, o, 'claimScope'),
+    openCents: ganzzahl(ort, o, 'openCents'),
+    keptTodayCents: ganzzahl(ort, o, 'keptTodayCents'),
+    currency: kennung(ort, o, 'currency'),
+    otherDrawers: liste(ort, o, 'otherDrawers', (lOrt, lw) => {
+      const l = pflichtObjekt(lOrt, lw);
+      return { drawerId: kennung(lOrt, l, 'drawerId'), name: text(l.name), openCents: ganzzahl(lOrt, l, 'openCents') };
+    }),
+  };
+}
+
 export function bewegung(ort: Ort, w: unknown): CashMovement {
   const o = pflichtObjekt(ort, w);
   const empfaenger = objekt(o.recipient);
@@ -422,6 +442,8 @@ export function schichtBon(ort: Ort, w: unknown): ShiftSummaryReceipt {
   wennWert(r, o, 'interimDifferenceCents', () => ganzzahl(ort, o, 'interimDifferenceCents'));
   // Nur Anzeige: gewaehrte Rabatte je Name; der Server sendet sie erst ab dem ersten Rabatt.
   wennWert(r, o, 'discounts', () => liste(ort, o, 'discounts', rabatt));
+  // Kartentrinkgeld bar aus der Lade genommen (Summe); nur mit Karten-direkt.
+  wennWert(r, o, 'cardTipsTakenCents', () => ganzzahl(ort, o, 'cardTipsTakenCents'));
   wennWert(r, o, 'differenceParts', () => liste(ort, o, 'differenceParts', differenzTeil));
   wennDa(r, o, 'countedBeforePayoutCents', () => ganzzahlOderNull(ort, o, 'countedBeforePayoutCents'));
   wennDa(r, o, 'countedBeforePayoutDenominations', () => stueckelung(ort, o, 'countedBeforePayoutDenominations'));

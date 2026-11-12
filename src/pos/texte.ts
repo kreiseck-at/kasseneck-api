@@ -26,6 +26,7 @@ import type { ReturnDisposition } from '../models/cancellation.js';
 import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import type { PosExternalVouchers } from './gutschein.js';
 import type { PosTipKeptMode } from './settings.js';
+import type { TipClaimScope } from './schicht-typen.js';
 import { ARTICLE_EXTERNAL_VOUCHER_INVALID, type ArticleExternalVoucher, type ExternalVoucherArticleReason, type ExternalVoucherTileBlock } from './fremdgutschein-artikel.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
@@ -118,10 +119,18 @@ const MELDUNGEN_ROH = {
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
   // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
-  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
   // Hinweis unter dem Trinkgeld beim Kassieren je nach Wahl (tipKeptFor): gleich behalten bzw. offen fuer den Benutzer.
   'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
   'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
+  // Kartentrinkgeld (Spec 2026-11-11-kartentrinkgeld, 1.37.0): Hinweise zur Karten-Stufe und zum Not-Aus Selbst-Auszahlen.
+  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen.' },
+  'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
+  'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
+  'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },
+  // Kartentrinkgeld Stufe 3 (1.37.0): Anspruchs-Modus im Kundenbereich (F2) und „Mein Trinkgeld“ ohne Auszahl-Recht.
+  'tip_claim_scope.hint': { text: 'Je Kassenlade: das Trinkgeld steht an der Kassenlade, an der es entstand, und wird dort ausgezahlt. Je Person: ein Stand über alle Kassenladen, an jeder auszahlbar.' },
+  'my_tips.payout_not_allowed': { text: 'Auszahlen nur mit dem Recht „Schicht“.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -139,6 +148,16 @@ const MELDUNGEN_ROH = {
   'card_payment.unknown': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein.' },
   // Die Kennung ist der einzige Anker, um die Zahlung am Terminal-Beleg wiederzufinden – liegt sie vor, gilt dieser Satz statt card_payment.unknown.
   'card_payment.unknown_with_id': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird: die Karte kann belastet sein. Kennung der Zahlung: {reference}.', placeholders: ['reference'] },
+  // Dieselben Saetze fuer das hobex-HPS-Terminal: es druckt keinen Beleg, an dem
+  // der Kassier nachsehen koennte (Inhaber, 12.11.2026). Den Ausgang sagt das
+  // Klaeren (Nachfrage beim Terminal) oder die Technik von hobex.
+  'card_payment.unknown_hps': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Die Karte kann belastet sein: erst klären, dann neu kassieren.' },
+  'card_payment.unknown_with_id_hps': { text: 'Unklar, ob die Kartenzahlung durchgegangen ist – die Verbindung zum Terminal riss ab. Die Karte kann belastet sein: erst klären, dann neu kassieren. Kennung der Zahlung: {reference}.', placeholders: ['reference'] },
+  // Kurzfassung fuer eine Karte, die schon zum Klaeren in der Liste steht (rote Ecke,
+  // Sperre einer neuen Zahlung): Betrag und Kennung genuegen, den Rest sagt das
+  // Klaeren-Fenster. Die Kennung darf gekuerzt sein (erste und letzte Ziffern);
+  // ganz steht sie im Fenster und in der Liste.
+  'card_payment.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Kennung {reference}.', placeholders: ['amount', 'reference'] },
   'card_payment.waiting_for_terminal': { text: 'Bitte am Terminal fortfahren …' },
   // Das Kartenfenster des Terminals ist abgelaufen: es bricht selbst ab, die
   // Kasse muss nichts tun.
@@ -325,6 +344,11 @@ const MELDUNGEN_ROH = {
   // Das Terminal meldet eine Gutschrift, die hier noch als offene Ruecknahme
   // steht – ein zweites Zurueckbuchen waere die doppelte Rueckgabe.
   'split.card_already_reversed': { text: 'Das Terminal meldet, dass die Kartenzahlung über {amount} bereits gutgeschrieben wurde (Kennung {reference}) – bitte am Terminal-Beleg prüfen und nicht erneut zurückbuchen.', placeholders: ['amount', 'reference'] },
+  // Dieselben drei Saetze fuer das hobex-HPS-Terminal: es druckt keinen Beleg
+  // (Inhaber, 12.11.2026) -- sie sagen, was zu tun ist, nicht wo man nachsieht.
+  'split.card_reverse_failed_hps': { text: 'Die Kartenzahlung über {amount} (Kennung {reference}) ließ sich nicht zurückbuchen – sie bleibt in der Liste. Bitte erneut versuchen.', placeholders: ['amount', 'reference'] },
+  'split.card_reverse_unknown_hps': { text: 'Unklar, ob die Rückbuchung über {amount} (Kennung {reference}) durchgegangen ist – die Zahlung bleibt in der Liste. Nicht noch einmal zurückbuchen, bevor das geklärt ist.', placeholders: ['amount', 'reference'] },
+  'split.card_already_reversed_hps': { text: 'Das Terminal meldet, dass die Kartenzahlung über {amount} bereits gutgeschrieben wurde (Kennung {reference}) – bitte nicht erneut zurückbuchen.', placeholders: ['amount', 'reference'] },
   'split.external_reverse': { text: 'Diese Karte ist nicht an die Kasse angebunden. Bitte {amount} jetzt am Terminal zurückbuchen und danach bestätigen.', placeholders: ['amount'] },
   'split.session_open': { text: 'Eine getrennte Zahlung ist nicht abgeschlossen, {amount} sind schon kassiert. Bitte weiter kassieren oder alles zurückbuchen.', placeholders: ['amount'] },
   'split.session_unreadable': { text: 'Eine gespeicherte getrennte Zahlung auf diesem Gerät ließ sich nicht lesen – bitte prüfen, ob schon Karten belastet wurden (Kasseneck-Panel oder Terminal), und offene Beträge von Hand ausgleichen.' },
@@ -337,6 +361,36 @@ const MELDUNGEN_ROH = {
   // hinzugefuegt – derselbe Grund wie beim Abschluss einer Barzahlung, auf
   // DIESE Zahlung bezogen.
   'split.tendered_missing': { text: 'Erst eintippen, was der Gast für diese Zahlung gibt – der Rückgeld-Rechner ist an.' },
+  // Klaeren einer Karte mit offenem Ausgang am hobex-HPS-Terminal: zuerst fragt
+  // die Kasse das Terminal (Paket `clarifyPayment`), erst wenn es nichts sagen
+  // kann, entscheidet der Kassier mit „Wurde belastet" / „Nicht belastet". Das
+  // HPS-Terminal druckt keinen Beleg (Inhaber, 12.11.2026): die Zeilen sagen,
+  // wer es weiss oder wann es noch einmal geht.
+  // Im Fenster steht unter dem Titel (`split.clarify_title`) genau eine dieser
+  // Zeilen zum Stand, darunter die Kennung (`split.clarify_reference`):
+  // `clarify_asking` waehrend der Nachfrage, `clarify_open` (das Terminal hat
+  // geantwortet und weiss es nicht), `clarify_not_asked` (Kasseneck Connect oder
+  // das Netz verhinderten die Nachfrage), `clarify_no_answer` (gefragt, aber nie
+  // eine Antwort -- Connect oder das Netz), `clarify_busy` (das Terminal arbeitet
+  // gerade an etwas anderem) und `clarify_manual` (eine Antwort bewiese nichts
+  // mehr, oder es ist kein Terminal eingerichtet).
+  'split.clarify_asking': { text: 'Das Terminal wird gefragt …' },
+  'split.clarify_charged': { text: 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.' },
+  'split.clarify_not_charged': { text: 'Das Terminal meldet: nicht belastet. Die Zahlung wurde verworfen.' },
+  'split.clarify_open': { text: 'Das Terminal weiß es nicht. hobex kann die Zahlung nachsehen.' },
+  'split.clarify_not_asked': { text: 'Das Terminal konnte nicht gefragt werden ({reason}). Bitte später erneut klären.', placeholders: ['reason'] },
+  'split.clarify_busy': { text: 'Das Terminal ist gerade belegt. Bitte gleich erneut klären.' },
+  'split.clarify_no_answer': { text: 'Das Terminal hat nicht geantwortet. Bitte später erneut klären.' },
+  'split.clarify_manual': { text: 'Das Terminal kann es nicht sicher sagen. hobex kann die Zahlung nachsehen.' },
+  // Der Grund, warum der Ausgang offen blieb, als kurze Zeile unter dem Stand:
+  // je Grund mit Stoerung beim oder nach dem hobex-Host (`isHostUncertainReason`,
+  // Schluessel = Grund in snake_case) und fuer einen Code ohne feste Bedeutung
+  // das, was das Terminal meldete.
+  'split.clarify_reason_host_fault': { text: 'Grund: Störung zwischen Terminal und hobex.' },
+  'split.clarify_reason_host_timeout': { text: 'Grund: hobex hat nicht rechtzeitig geantwortet.' },
+  'split.clarify_reason_internal_error': { text: 'Grund: Das Terminal meldet einen internen Fehler.' },
+  'split.clarify_reason_approved_with_condition': { text: 'Grund: Genehmigung mit Vorbehalt, etwa nur über einen Teilbetrag.' },
+  'split.clarify_reason_terminal': { text: 'Grund: Das Terminal meldete „{text}“ (Code {code}).', placeholders: ['text', 'code'] },
 
   // --- Beleg weitergeben: Link, Teilen, E-Mail -----------------------------
   // Kopieren, Teilen und Senden fuehren zu demselben Ziel: der oeffentlichen
@@ -512,6 +566,12 @@ const MELDUNGEN_ROH = {
   // --- Nur App -------------------------------------------------------------
   'app.not_in_browser': { text: 'Die Kassen-App läuft nicht im Browser – dafür gibt es kasse.kasseneck.at.', only: ['app'] },
   'app.open_in_browser': { text: 'Bitte im Browser öffnen: {target}', placeholders: ['target'], only: ['app'] },
+
+  // --- Nur Browser-Kasse: neue Fassung (1.37.0) ----------------------------
+  // Ein offener Tab laeuft nach einem Deploy mit dem alten Buendel weiter. Die
+  // Zeile steht nur, solange an der Kasse nichts laeuft, und laedt nie von
+  // selbst neu (Knopf `version.reload`). Die App kommt ueber den Store.
+  'version.new_available': { text: 'Neue Fassung verfügbar – bei Gelegenheit neu laden.', only: ['web'] },
 
   // --- Schicht-Ablauf der Kasse (1.28.0) -----------------------------------
   'shift.started_taken_over': { text: 'Schicht {number} hat begonnen – mit {amount} in der Lade, übernommen von Schicht {from} ({time}).', placeholders: ['number', 'amount', 'from', 'time'] },
@@ -988,7 +1048,33 @@ const BESCHRIFTUNGEN_ROH = {
   'split.pair_again_anyway': { text: 'Trotzdem neu koppeln' },
   'split.keep_payment': { text: 'Zahlung behalten' },
   'split.clarify': { text: 'Klären' },
+  // Titel und Kennungszeile des Klaeren-Fensters: der Betrag, den das Terminal
+  // belasten sollte, und die ganze Kennung, mit der sich die Zahlung am
+  // Terminal-Beleg wiederfinden laesst.
+  'split.clarify_title': { text: 'Karte klären · {amount}', placeholders: ['amount'] },
+  'split.clarify_reference': { text: 'Kennung {reference}', placeholders: ['reference'] },
   'split.reverse_again': { text: 'Erneut zurückbuchen' },
+  // Fenster „Technik von hobex“ (Inhaber, 12.11.2026): die Nummer gross zum
+  // Antippen, daneben die Erreichbarkeit (`HOBEX_SUPPORT.availability`, „24/7“),
+  // und darunter, was hobex am Telefon fragt -- TID, Kennung, Betrag, Zeit,
+  // Meldung, Anbindung, Adresse, Seriennummer. Nur was die Kasse kennt: eine
+  // Zeile ohne Wert (etwa die Seriennummer, solange sie fehlt) steht nicht da.
+  // Geoeffnet ueber `hobex_help.open`, nur bei einem Problem am Terminal oder
+  // beim hobex-Host, nie bei Kasseneck Connect oder dem eigenen Netz.
+  'hobex_help.open': { text: 'Technik von hobex …' },
+  'hobex_help.title': { text: 'Technik von hobex' },
+  'hobex_help.data': { text: 'Das fragt hobex' },
+  'hobex_help.tid': { text: 'TID' },
+  'hobex_help.reference': { text: 'Kennung der Zahlung' },
+  'hobex_help.reversal_reference': { text: 'Kennung der Rückbuchung' },
+  'hobex_help.amount': { text: 'Betrag' },
+  'hobex_help.time': { text: 'Zeit' },
+  'hobex_help.reason': { text: 'Meldung' },
+  'hobex_help.protocol': { text: 'Anbindung' },
+  'hobex_help.address': { text: 'Adresse' },
+  'hobex_help.serial': { text: 'Seriennummer' },
+  'hobex_help.copy': { text: 'Angaben kopieren' },
+  'hobex_help.copied': { text: 'Kopiert' },
   'split.was_charged': { text: 'Wurde belastet – übernehmen' },
   'split.not_charged': { text: 'Nicht belastet – verwerfen' },
   // Aufteilung: eigener Schritt nach „Weiter“, Tabs „Nach Positionen“ / „Betrag“.
@@ -1173,8 +1259,9 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.tips': { text: 'Trinkgeld' },
   'shift_receipt.tip_earned': { text: 'verdient' },
   'shift_receipt.tip_retained': { text: 'über Lohn' },
-  'shift_receipt.tip_paid_out': { text: 'schon genommen' },
-  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
+  // „genommen“ statt „genommen“ (Inhaber, 12.11.2026): kuerzer, gleich auf Bon, Kassenstand, Panel und PDF.
+  'shift_receipt.tip_paid_out': { text: 'genommen' },
+  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „genommen“.
   'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
   // Offene Forderung beim Oeffnen der Schicht (Fix-Runde 2, R64).
   'shift_receipt.tip_carried_over': { text: 'aus früheren Schichten' },
@@ -1330,6 +1417,8 @@ const BESCHRIFTUNGEN_ROH = {
   // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
   'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
   'tip_payout.done': { text: 'erledigt' },
+  // Kartentrinkgeld ueber die Kasse (1.37.0, Spec keck 2026-11-11 § 4.3): statt „erledigt“ bei 0 offen.
+  'tip_payout.nothing_open': { text: 'nichts offen' },
   'tip_payout.for_all': { text: 'Für alle' },
   'tip_payout.nothing': { text: 'Nichts' },
   'tip_payout.all_open': { text: 'Alles Offene' },
@@ -1562,6 +1651,48 @@ const BESCHRIFTUNGEN_ROH = {
   'deposit.on_premises': { text: 'Vor Ort' },
   'deposit.takeaway': { text: 'Mitnahme' },
   'deposit.sum': { text: 'Summe Leergut' },
+
+  // --- Nur Browser-Kasse: neue Fassung (1.37.0) ---
+  // Der Knopf an `version.new_available`.
+  'version.reload': { text: 'Neu laden', only: ['web'] },
+
+  // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
+  // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
+  'tip.line_cash_kept': { text: '{amount} gleich einstecken', placeholders: ['amount'] },
+  'tip.line_cash_open': { text: '{amount} in der Lade lassen', placeholders: ['amount'] },
+  'tip.line_card_kept': { text: '{amount} aus der Lade nehmen', placeholders: ['amount'] },
+  'tip.line_card_open': { text: '{amount} später auszahlen', placeholders: ['amount'] },
+  // Fertig-Seite unter „Bezahlt“ (§ 4.5): Titel mit Name, dann der Betrag und was geschieht.
+  'done.tip_title': { text: 'Trinkgeld {name}', placeholders: ['name'] },
+  'done.tip_open': { text: '{amount} · offen {open}', placeholders: ['amount', 'open'] },
+  'done.tip_open_loading': { text: '{amount}', placeholders: ['amount'] },
+  'done.tip_kept_card': { text: '{amount} · jetzt aus der Lade nehmen', placeholders: ['amount'] },
+  'done.tip_kept_cash': { text: '{amount} · gleich einstecken', placeholders: ['amount'] },
+  'done.tip_pay_out': { text: 'Auszahlen' },
+  // „Mein Trinkgeld“ im Namen-Menü (§ 4.6).
+  'my_tips.title': { text: 'Mein Trinkgeld' },
+  'my_tips.open_here': { text: 'Offen an dieser Lade' },
+  'my_tips.open_total': { text: 'Offen (alle Laden)' },
+  'my_tips.kept_today': { text: 'Heute genommen' },
+  'my_tips.other_drawer': { text: '{drawer}: {amount} offen', placeholders: ['drawer', 'amount'] },
+  'my_tips.nothing_open': { text: 'Nichts offen' },
+  'my_tips.overpaid': { text: 'Zu viel ausgezahlt: {amount}, wird verrechnet', placeholders: ['amount'] },
+  'my_tips.pay_out': { text: 'Auszahlen' },
+  'my_tips.pay_out_amount': { text: 'Betrag' },
+  // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
+  'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
+  // Z-/X-Bon und Kassenstand: Teil von „genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
+  // Kurz, damit die Zeile unter „genommen“ auf 80 mm in eine Zeile passt (eingerueckt, mit Betrag).
+  'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld' },
+  'shift.part_card_tips_taken': { text: 'Kartentrinkgeld bar genommen' },
+  // Einstellungen (Kasse und Kundenbereich): Karten-Stufe (Werte wie TIP_KEPT_MODE_LABELS), Vorbelegung, Not-Aus.
+  'tip_card_kept_mode.title': { text: 'Kartentrinkgeld gleich behalten' },
+  'tip.card_kept_setting': { text: 'Kartentrinkgeld nimmt der Mitarbeiter gleich bar aus der Lade' },
+  'tip_self_payout.title': { text: 'Mitarbeiter zahlen sich ihr Trinkgeld selbst aus' },
+  // Anspruchs-Modus (F2, Kundenbereich; Werte TIP_CLAIM_SCOPES, Zuordnung TIP_CLAIM_SCOPE_LABELS).
+  'tip_claim_scope.title': { text: 'Offenes Trinkgeld zählt' },
+  'tip_claim_scope.per_drawer': { text: 'Je Kassenlade' },
+  'tip_claim_scope.per_person': { text: 'Je Person (alle Kassenladen)' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
@@ -1585,6 +1716,15 @@ export const TIP_KEPT_MODE_LABELS = {
   always: 'tip_kept_mode.always',
   never: 'tip_kept_mode.never',
 } as const satisfies Record<PosTipKeptMode, LabelKey>;
+
+/**
+ * Wo der offene Trinkgeld-Anspruch gefuehrt wird (`TIP_CLAIM_SCOPES`, Spec 2026-11-11-kartentrinkgeld F2) ->
+ * Beschriftung im Kundenbereich.
+ */
+export const TIP_CLAIM_SCOPE_LABELS = {
+  per_drawer: 'tip_claim_scope.per_drawer',
+  per_person: 'tip_claim_scope.per_person',
+} as const satisfies Record<TipClaimScope, LabelKey>;
 
 /** Freigabe fuer Fremdgutscheine (`externalVouchers`) -> Beschriftung der Stufe im Kundenbereich. */
 export const EXTERNAL_VOUCHERS_LABELS = {

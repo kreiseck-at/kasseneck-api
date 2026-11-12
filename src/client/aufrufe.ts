@@ -170,6 +170,8 @@ export const ALL_CALLS = [
   // Leergut-Codes (Pfand, ./pos): Codes lernen und lesen; nur ueber den Kassenweg.
   'learnMyLeergutCode',
   'listMyLeergutCodes',
+  // „Mein Trinkgeld“ (./pos): Stand der angemeldeten Person; nur ueber den Kassenweg.
+  'getMyTipBalance',
   // Kartenterminal am Handy: Geraet, Zugang, TID und Code (nur /v3).
   'registerTerminalDevice',
   'getTerminalAccess',
@@ -404,6 +406,8 @@ export const POS_CALLS = [
   // Leergut-Codes lernen und lesen: Kassen-Benutzer mit dem Recht depositReturn.
   'learnMyLeergutCode',
   'listMyLeergutCodes',
+  // „Mein Trinkgeld“: nur ueber den Kassenweg, nur persoenliche Anmeldung.
+  'getMyTipBalance',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -571,6 +575,7 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   getInvoiceXml: 'read',
   getKasseSettings: 'read',
   getMyDrawerState: 'read',
+  getMyTipBalance: 'read',
   getMyShiftReport: 'read',
   getPartnerBilling: 'read',
   getPartnerBillingMonth: 'read',
