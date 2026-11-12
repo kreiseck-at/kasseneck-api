@@ -158,7 +158,7 @@
       "text": "Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld."
     },
     "tip.kept_setting_hint": {
-      "text": "Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen."
+      "text": "Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen."
     },
     "tip.kept_hint": {
       "text": "Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade."
@@ -167,7 +167,7 @@
       "text": "Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird."
     },
     "tip.card_kept_setting_hint": {
-      "text": "Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen."
+      "text": "Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen."
     },
     "tip.self_payout_hint": {
       "text": "Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“."
@@ -2185,7 +2185,7 @@
       "text": "über Lohn"
     },
     "shift_receipt.tip_paid_out": {
-      "text": "schon genommen"
+      "text": "genommen"
     },
     "shift_receipt.tip_refunded_by_employee": {
       "text": "selbst zurückgegeben"
@@ -3484,7 +3484,7 @@
       "text": "Offen (alle Laden)"
     },
     "my_tips.kept_today": {
-      "text": "Heute schon genommen"
+      "text": "Heute genommen"
     },
     "my_tips.other_drawer": {
       "text": "{drawer}: {amount} offen",

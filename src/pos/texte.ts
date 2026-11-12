@@ -119,12 +119,12 @@ const MELDUNGEN_ROH = {
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
   // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
-  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
   // Hinweis unter dem Trinkgeld beim Kassieren je nach Wahl (tipKeptFor): gleich behalten bzw. offen fuer den Benutzer.
   'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
   'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
   // Kartentrinkgeld (Spec 2026-11-11-kartentrinkgeld, 1.37.0): Hinweise zur Karten-Stufe und zum Not-Aus Selbst-Auszahlen.
-  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen.' },
+  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen.' },
   'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
   'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
   'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },
@@ -1182,8 +1182,9 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.tips': { text: 'Trinkgeld' },
   'shift_receipt.tip_earned': { text: 'verdient' },
   'shift_receipt.tip_retained': { text: 'über Lohn' },
-  'shift_receipt.tip_paid_out': { text: 'schon genommen' },
-  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
+  // „genommen“ statt „genommen“ (Inhaber, 12.11.2026): kuerzer, gleich auf Bon, Kassenstand, Panel und PDF.
+  'shift_receipt.tip_paid_out': { text: 'genommen' },
+  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „genommen“.
   'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
   // Offene Forderung beim Oeffnen der Schicht (Fix-Runde 2, R64).
   'shift_receipt.tip_carried_over': { text: 'aus früheren Schichten' },
@@ -1591,7 +1592,7 @@ const BESCHRIFTUNGEN_ROH = {
   'my_tips.title': { text: 'Mein Trinkgeld' },
   'my_tips.open_here': { text: 'Offen an dieser Lade' },
   'my_tips.open_total': { text: 'Offen (alle Laden)' },
-  'my_tips.kept_today': { text: 'Heute schon genommen' },
+  'my_tips.kept_today': { text: 'Heute genommen' },
   'my_tips.other_drawer': { text: '{drawer}: {amount} offen', placeholders: ['drawer', 'amount'] },
   'my_tips.nothing_open': { text: 'Nichts offen' },
   'my_tips.overpaid': { text: 'Zu viel ausgezahlt: {amount}, wird verrechnet', placeholders: ['amount'] },
@@ -1599,8 +1600,8 @@ const BESCHRIFTUNGEN_ROH = {
   'my_tips.pay_out_amount': { text: 'Betrag' },
   // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
   'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
-  // Z-/X-Bon und Kassenstand: Teil von „schon genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
-  // Kurz, damit die Zeile unter „schon genommen“ auf 80 mm in eine Zeile passt (eingerueckt, mit Betrag).
+  // Z-/X-Bon und Kassenstand: Teil von „genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
+  // Kurz, damit die Zeile unter „genommen“ auf 80 mm in eine Zeile passt (eingerueckt, mit Betrag).
   'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld' },
   'shift.part_card_tips_taken': { text: 'Kartentrinkgeld bar genommen' },
   // Einstellungen (Kasse und Kundenbereich): Karten-Stufe (Werte wie TIP_KEPT_MODE_LABELS), Vorbelegung, Not-Aus.

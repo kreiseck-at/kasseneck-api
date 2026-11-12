@@ -39,7 +39,7 @@ export interface GetMyTipBalanceOptions {
 
 /**
  * „Mein Trinkgeld“ (Spec 2026-11-11-kartentrinkgeld, § 4.6, § 5): der Trinkgeld-Stand der angemeldeten Person an
- * dieser Lade -- offen (auch negativ: zu viel ausgezahlt), heute schon genommen, andere Laden mit offenem Betrag.
+ * dieser Lade -- offen (auch negativ: zu viel ausgezahlt), heute genommen, andere Laden mit offenem Betrag.
  * Nur ueber den Kassenweg `/api/v3` und nur fuer eine persoenliche Anmeldung (Kassen-Benutzer `kind: person`);
  * eine gemeinsame Geraete-Anmeldung und der Inhaber bekommen `not_a_person_login`. Nie der Stand einer anderen
  * Person. Lesen ohne Wirkung.

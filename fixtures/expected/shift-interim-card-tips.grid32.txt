@@ -28,7 +28,7 @@ Verkauf
 Trinkgeld                       
 Ben Kellner                     
   verdient                  9,00
-  schon genommen            5,00
+  genommen                  5,00
   davon                     5,00
   Kartentrinkgeld               
   offen                     4,00

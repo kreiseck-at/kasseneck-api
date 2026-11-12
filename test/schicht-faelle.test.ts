@@ -55,7 +55,7 @@ test('shiftTipLines: ohne openCents (Laufstand) zaehlt offen als 0; Woerter fuer
   const { openCents, ...laufstand } = FAELLE.shiftTipLines[1]!.tip;
   void openCents;
   assert.deepEqual(shiftTipLines(laufstand).map((z) => z.key), ['shift_receipt.tip_earned', 'shift_receipt.tip_retained', 'shift_receipt.tip_paid_out']);
-  assert.deepEqual(shiftTipLines(FAELLE.shiftTipLines[1]!.tip).map((z) => z.text), ['verdient', 'über Lohn', 'schon genommen', 'offen']);
+  assert.deepEqual(shiftTipLines(FAELLE.shiftTipLines[1]!.tip).map((z) => z.text), ['verdient', 'über Lohn', 'genommen', 'offen']);
 });
 
 test('Faelle-Datei: jede Zeile hat genau ihre Felder', () => {

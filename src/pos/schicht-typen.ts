@@ -134,11 +134,11 @@ export interface ShiftTipTotals {
   receivedImmediatelyCents: number;
   /** Behaelt der Betrieb und zahlt es ueber den Lohn („über Lohn“). */
   retainedCents: number;
-  /** In dieser Schicht aus der Lade ausgezahlt („schon genommen“). */
+  /** In dieser Schicht aus der Lade ausgezahlt („genommen“). */
   paidOutCents: number;
   /**
    * Beim Storno selbst zurueckgegeben („Gibt die Mitarbeiterin direkt“, „selbst zurückgegeben“).
-   * Eigene Zahl, damit „schon genommen“ nie negativ wird: offen = verdient − genommen + selbst
+   * Eigene Zahl, damit „genommen“ nie negativ wird: offen = verdient − genommen + selbst
    * zurueckgegeben. Fehlt es in der Antwort (Backend vor dieser Regel), gilt 0.
    */
   refundedByEmployeeCents: number;
@@ -159,7 +159,7 @@ export interface ShiftTip extends ShiftTipTotals {
   /**
    * Offene Forderung an die Lade beim Oeffnen der Schicht („aus früheren Schichten“, Fix-Runde 2,
    * R64); ohne offene Schicht der ganze Anspruch. Fehlt es (Backend bzw. Schicht vor dieser Regel), 0.
-   * Fuer den Leser geht auf: offen = aus früheren Schichten + verdient − über Lohn − schon genommen
+   * Fuer den Leser geht auf: offen = aus früheren Schichten + verdient − über Lohn − genommen
    * + selbst zurückgegeben.
    */
   carriedOverCents: number;
@@ -335,7 +335,7 @@ export interface TipBalanceOtherDrawer {
 
 /**
  * „Mein Trinkgeld“ ([getMyTipBalance]): der Stand der angemeldeten Person. `openCents` kann negativ sein (zu viel
- * ausgezahlt, wird mit dem naechsten Trinkgeld verrechnet); `keptTodayCents` = heute schon genommen (ausgezahlt,
+ * ausgezahlt, wird mit dem naechsten Trinkgeld verrechnet); `keptTodayCents` = heute genommen (ausgezahlt,
  * bar gleich behalten, Kartentrinkgeld bar). Bei `per_person` die Summe ueber alle Laden, `otherDrawers` leer.
  * Ohne Schichtbetrieb der Lade immer 0 (kein Anspruch).
  */

@@ -36,5 +36,5 @@ Stornos                                        0
 Trinkgeld                                       
 Ben Kellner                                     
   verdient                                  9,00
-  schon genommen                            9,00
+  genommen                                  9,00
   davon Kartentrinkgeld                     5,00

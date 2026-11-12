@@ -221,7 +221,7 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   zeilen.push(anzahl(labelText('shift_receipt.cancellations'), bon.cancellationCount));
   zeilen.push(anzahl(labelText('shift_receipt.openings_without_sale'), bon.openingsWithoutSale));
 
-  // Trinkgeld je Mitarbeiter (shiftTipLines): verdient immer, ueber Lohn, schon genommen und offen
+  // Trinkgeld je Mitarbeiter (shiftTipLines): verdient immer, ueber Lohn, genommen und offen
   // nur ungleich 0; wer ueberall 0 hat, entfaellt, ohne Mitarbeiter auch die Ueberschrift.
   const trinkgeld = bon.tips.map((t) => ({ t, z: shiftTipLines(t) })).filter(({ z }) => z.length > 0);
   if (trinkgeld.length > 0) {

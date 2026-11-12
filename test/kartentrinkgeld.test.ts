@@ -86,7 +86,7 @@ test('tipStatus: die eine Zeile je Zahlart und Ergebnis, mit Betrag; einzeilig',
   assert.match(messageText('tip.card_kept_setting_hint'), /nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen\.$/);
 });
 
-test('shiftTipLines: „davon Kartentrinkgeld“ nach „schon genommen“, nur ≠ 0; Soll-Teil card_tips_taken', () => {
+test('shiftTipLines: „davon Kartentrinkgeld“ nach „genommen“, nur ≠ 0; Soll-Teil card_tips_taken', () => {
   const z = shiftTipLines({ registerUserId: 'ru_livia', name: 'Livia Lindmayr', receivedImmediatelyCents: 500, retainedCents: 0, paidOutCents: 500, refundedByEmployeeCents: 0, cardTipsTakenCents: 500, openCents: 0 });
   assert.deepEqual(z.map((x) => [x.key, x.cents]), [['shift_receipt.tip_earned', 500], ['shift_receipt.tip_paid_out', 500], ['shift_receipt.tip_card_taken', 500]]);
   assert.equal(z[2]!.text, 'davon Kartentrinkgeld');

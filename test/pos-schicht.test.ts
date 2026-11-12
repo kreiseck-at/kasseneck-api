@@ -143,7 +143,7 @@ test('getMyDrawerState: Trinkgeld je Mitarbeiter (sofort, ueber Lohn, genommen, 
   assert.deepEqual(ohne.tips, []);
 });
 
-test('getMyDrawerState: selbst zurückgegeben als eigene Zahl, schon genommen bleibt 0 (Fix-Runde 1, R62)', async () => {
+test('getMyDrawerState: selbst zurückgegeben als eigene Zahl, genommen bleibt 0 (Fix-Runde 1, R62)', async () => {
   const { ergebnis } = await rufe('getMyDrawerState', fall('getMyDrawerState', 'success_cashier_tip_self_refunded'));
   assert.deepEqual((ergebnis as Json).tips, [
     { registerUserId: 'ru_kellner', name: 'Ben Kellner', receivedImmediatelyCents: 400, retainedCents: 0, paidOutCents: 0, refundedByEmployeeCents: 200, carriedOverCents: 0, openCents: 600 },
@@ -415,7 +415,7 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
     'shift_receipt.tips': 'Trinkgeld',
     'shift_receipt.tip_earned': 'verdient',
     'shift_receipt.tip_retained': 'über Lohn',
-    'shift_receipt.tip_paid_out': 'schon genommen',
+    'shift_receipt.tip_paid_out': 'genommen',
     'shift_receipt.tip_open': 'offen',
     'drawer.reason_title': 'Warum öffnen Sie die Lade?',
     'drawer.reason_change': 'Wechselgeld',
@@ -445,7 +445,7 @@ test('Saetze und Beschriftungen der Schicht: Wortlaut exakt, beide Seiten, kein 
   for (const art of MOVEMENT_TYPES) assert.ok(`cash_movement.type_${art}` in LABELS, art);
   // Die Bons tragen keinen Hinweis „Kein Registrierkassenbeleg“ mehr; der Text ist weg, nicht nur ungenutzt.
   assert.ok(!('shift.not_a_receipt' in LABELS));
-  // „sofort“ steht nirgends mehr (Nachtrag 3: verdient, über Lohn, schon genommen, offen).
+  // „sofort“ steht nirgends mehr (Nachtrag 3: verdient, über Lohn, genommen, offen).
   assert.ok(!('shift_receipt.tip_immediately' in LABELS));
   assert.ok(!Object.values(LABELS as Record<string, { text: string }>).some((l) => /Registrierkassenbeleg/.test(l.text)));
   for (const grund of MANUAL_OPENING_REASONS) assert.ok(`drawer.reason_${grund}` in LABELS, grund);
