@@ -165,6 +165,10 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   // Nur wenn der Server den Anfang ausdruecklich als nicht gezaehlt meldet; ohne das Feld bleibt der Bon wie bisher.
   if (bon.openingCounted === false) zeilen.push(text(labelText('shift_receipt.opening_not_counted')));
   if (bon.cashSalesCents !== null) zeilen.push(betrag(labelText('shift_receipt.cash_sales'), bon.cashSalesCents));
+  // Kartentrinkgeld bar aus der Lade genommen (Spec keck 2026-11-11-kartentrinkgeld, § 4.3): verlaesst die Lade ohne
+  // Bewegung; ohne diese Zeile ginge Start + Bar + Bewegungen nicht im Soll auf. Steht wie die Bewegungen auch blind.
+  // Fehlt ohne Karten-direkt (Feld fehlt oder 0) -- der Bon bleibt dann Byte fuer Byte wie bisher.
+  if (bon.cardTipsTakenCents !== undefined && bon.cardTipsTakenCents !== 0) zeilen.push(betrag(labelText('shift.part_card_tips_taken'), -bon.cardTipsTakenCents));
   if (bon.cashCancellationsCents !== null) zeilen.push(betrag(labelText('shift_receipt.cash_cancellations'), bon.cashCancellationsCents));
   // Summe der Zwischenzaehlungs-Differenzen: damit Start + Bar + Bewegungen + diese = Soll aufgeht.
   if (bon.interimDifferenceCents !== undefined && bon.interimDifferenceCents !== 0) {
@@ -217,7 +221,7 @@ export function shiftReceiptLayout(receipt: ShiftSummaryReceipt, options: ShiftR
   zeilen.push(anzahl(labelText('shift_receipt.cancellations'), bon.cancellationCount));
   zeilen.push(anzahl(labelText('shift_receipt.openings_without_sale'), bon.openingsWithoutSale));
 
-  // Trinkgeld je Mitarbeiter (shiftTipLines): verdient immer, ueber Lohn, schon genommen und offen
+  // Trinkgeld je Mitarbeiter (shiftTipLines): verdient immer, ueber Lohn, genommen und offen
   // nur ungleich 0; wer ueberall 0 hat, entfaellt, ohne Mitarbeiter auch die Ueberschrift.
   const trinkgeld = bon.tips.map((t) => ({ t, z: shiftTipLines(t) })).filter(({ z }) => z.length > 0);
   if (trinkgeld.length > 0) {

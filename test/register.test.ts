@@ -385,6 +385,17 @@ test('listRegisterUsersForDevice: Pfand-Angaben der Kasse kommen durch; ohne Blo
   assert.equal('deposit' in kaputt.cashregister!, false);
 });
 
+test('listRegisterUsersForDevice: cardTips nur bei true; ohne Feld, mit false oder Muell fehlt es (Kasse wie bisher)', async () => {
+  const { holen } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: true, cardTips: true } }));
+  const stand = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });
+  assert.equal(stand.cashregister?.cardTips, true);
+  for (const wert of [undefined, false, 'true', 1, null]) {
+    const { holen: anders } = fetchFake(erfolg({ ...BENUTZER_ANTWORT, cashregister: { ready: true, ...(wert === undefined ? {} : { cardTips: wert }) } }));
+    const s = await listRegisterUsersForDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: anders });
+    assert.equal('cardTips' in s.cashregister!, false, String(wert));
+  }
+});
+
 test('unpairRegisterDevice: Endpunktname, die drei Geraeteangaben, ohne Authorization', async () => {
   const { holen, aufrufe } = fetchFake(erfolg({ id: GERAET_ID }));
   await unpairRegisterDevice({ ownerUid: OWNER_UID, deviceId: GERAET_ID, deviceSecret: GERAETE_GEHEIMNIS, fetch: holen });

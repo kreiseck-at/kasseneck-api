@@ -18,11 +18,11 @@ export {
   type PosDiscount, type PosWatermarkSide, type PosWatermarkStrength, type PosLogoScale,
   type PosWatermarkScale, type PosDoneScreenSeconds,
   type PosToggleMap, type PosBusinessSettings, type PosDeviceSettings, type PosSettings,
-  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posCustomDiscountAllowed, posTipKeptMode, tipKeptFor, type TipKeptDecision, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
+  POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_DEVICE_OPTIONAL_CHOICES, posTipKeptByDefault, posCustomDiscountAllowed, posTipKeptMode, posTipCardKeptByDefault, posTipCardKeptMode, posTipSelfPayout, tipKeptFor, type TipKeptDecision, type TipPaymentKind, DISCOUNT_PRESET_KIND, type PosDiscountPreset, type PosDiscountPresetKind, POS_BUSINESS_OPTIONAL_LISTS, posTipKinds, posTipStart, posCartWidth, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, mergePosSettings,
   sanitizePosSettings, unknownPosSettingValues, posSettingsChanges, type PosOpen,
   POS_SHORTCUT_SHARED_PAIRS, posShortcutConflict,
   // Die Enums als Laufzeitlisten, benannt nach ihrem Feld.
-  THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, TIP_KINDS, TIP_START, TIP_KEPT_MODE, type PosTipKeptMode, CART_WIDTH, type PosTipKind, type PosCartWidth, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
+  THEME, FONT_SIZE, WATERMARK, QUANTITY, TIP_MODE, TIP_KINDS, TIP_START, TIP_KEPT_MODE, TIP_CARD_KEPT_MODE, type PosTipKeptMode, CART_WIDTH, type PosTipKind, type PosCartWidth, CHECKOUT_MODE, CARD_PROVIDER, RECEIPT_OUTPUT,
   LAYOUT, CATEGORY_POSITION, TILE_HEIGHT, PRINTER_TYPE, TERMINAL_VIA, TERMINAL_TYPE, PAPER_SIZE,
   CODE_PAGE, CUT, DRAWER_AUTO_OPEN, QR_MODE,
   LOGO_SIZE, SETTINGS_FONT_SIZE, TILE_STYLE, AUTO_LOGOUT_MINUTES, DISCOUNT, WATERMARK_SIDE,
@@ -83,7 +83,7 @@ export {
   type PrinterDeviceTest, type PrinterCatalogSettings, type PrinterCatalogDeviceSettings, type PrinterCatalogCut,
   type PrinterCatalogQrMode, printerCatalogEntry, printerCatalogSettings,
 } from './drucker-katalog.js';
-export { listMyTipRecipients } from './trinkgeld.js';
+export { listMyTipRecipients, getMyTipBalance, tipStatus, type GetMyTipBalanceOptions, type TipStatus, type TipStatusKind } from './trinkgeld.js';
 export {
   posDiscountPresets, discountPresetChipText, discountChipsFromPresets, checkDiscountPresets, discountBlockLines,
   INVALID_DISCOUNT_PRESET, DISCOUNT_PRESETS_MAX, DISCOUNT_PRESET_NAME_MAX, DISCOUNT_PRESET_PERCENT_BP, DISCOUNT_PRESET_AMOUNT_CENTS, DISCOUNT_PRESET_MESSAGES,
@@ -146,6 +146,7 @@ export {
   type ShiftReceiptKind, type ShiftStatus, type ShiftActorRole, type Denominations, type ShiftActor, type DrawerInfo, type DrawerRights,
   type NonCashAmount, type ShiftTipTotals, type ShiftTip, type ShiftOwnerTip, type ShiftDiscount, type ShiftRunningTotals, type ShiftReconciliation, type Shift, type TipClaim,
   type DrawerOpening, type DrawerState, type CashMovement, type ShiftReceiptHeader, type ShiftReceiptMovement, type ShiftReceiptTip,
+  TIP_CLAIM_SCOPES, type TipClaimScope, type TipBalance, type TipBalanceOtherDrawer,
   type ShiftSummaryReceipt, type CashMovementReceipt, type ShiftReceipt, type OpenShiftResult, type CashMovementResult,
   type DrawerOpeningsResult, type ShiftReport, type CloseShiftResult,
 } from './schicht-typen.js';
@@ -162,7 +163,7 @@ export {
   MESSAGES, ERROR_RULES, ERROR_CODE_RULES, ERROR_OUTCOME_RULES, CALLS_WITH_EFFECT, findErrorRule, messageOutcome, messageText, messageAppliesTo,
   RECEIPT_EMAIL_ERROR_MESSAGES, receiptEmailErrorMessage,
   CANCELLATION_PAYMENT_ERROR_MESSAGES, cancellationPaymentErrorMessage, CANCELLATION_VOUCHER_ERROR_MESSAGES, cancellationErrorMessage, VOUCHER_ERROR_MESSAGES, voucherErrorMessage, DEPOSIT_ERROR_MESSAGES, depositErrorMessage,
-  EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS,
+  EXTERNAL_VOUCHER_TILE_MESSAGES, EXTERNAL_VOUCHER_ARTICLE_MESSAGES, externalVoucherArticleErrorMessage, EXTERNAL_VOUCHERS_LABELS, EXTERNAL_VOUCHER_KIND_LABELS, TIP_KEPT_MODE_LABELS, TIP_CLAIM_SCOPE_LABELS,
   LABELS, labelText, RETURN_DISPOSITION_LABELS, receiptOutputLabel,
   type TextEntry, type MessageKey, type ErrorKind, type ErrorRule, type ErrorRuleDetail, type Surface,
   type ReceiptEmailMessageCode, type CancellationPaymentMessageCode, type LabelKey,

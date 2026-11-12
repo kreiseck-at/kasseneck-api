@@ -134,14 +134,20 @@ export interface ShiftTipTotals {
   receivedImmediatelyCents: number;
   /** Behaelt der Betrieb und zahlt es ueber den Lohn („über Lohn“). */
   retainedCents: number;
-  /** In dieser Schicht aus der Lade ausgezahlt („schon genommen“). */
+  /** In dieser Schicht aus der Lade ausgezahlt („genommen“). */
   paidOutCents: number;
   /**
    * Beim Storno selbst zurueckgegeben („Gibt die Mitarbeiterin direkt“, „selbst zurückgegeben“).
-   * Eigene Zahl, damit „schon genommen“ nie negativ wird: offen = verdient − genommen + selbst
+   * Eigene Zahl, damit „genommen“ nie negativ wird: offen = verdient − genommen + selbst
    * zurueckgegeben. Fehlt es in der Antwort (Backend vor dieser Regel), gilt 0.
    */
   refundedByEmployeeCents: number;
+  /**
+   * Kartentrinkgeld, das die Mitarbeiterin beim Verkauf bar aus der Lade genommen hat (Spec
+   * 2026-11-11-kartentrinkgeld, § 4.3; Teil von `paidOutCents`). Der Server sendet es nur, wenn es eines gibt;
+   * fehlt = 0. Auf Bon und Kassenstand die Zeile „davon Kartentrinkgeld“ ([shiftTipLines]).
+   */
+  cardTipsTakenCents?: number;
 }
 
 /**
@@ -153,7 +159,7 @@ export interface ShiftTip extends ShiftTipTotals {
   /**
    * Offene Forderung an die Lade beim Oeffnen der Schicht („aus früheren Schichten“, Fix-Runde 2,
    * R64); ohne offene Schicht der ganze Anspruch. Fehlt es (Backend bzw. Schicht vor dieser Regel), 0.
-   * Fuer den Leser geht auf: offen = aus früheren Schichten + verdient − über Lohn − schon genommen
+   * Fuer den Leser geht auf: offen = aus früheren Schichten + verdient − über Lohn − genommen
    * + selbst zurückgegeben.
    */
   carriedOverCents: number;
@@ -219,7 +225,7 @@ export interface ShiftReconciliation {
  * Summe der Zwischenzaehlungs-Differenzen. Die Summe der Teile ist das Soll.
  */
 export const EXPECTED_PART_KEYS = Object.freeze([
-  'opening', 'cash_sales', 'cash_tips', 'cancellations', 'cash_in', 'cash_out', 'interim_difference',
+  'opening', 'cash_sales', 'cash_tips', 'card_tips_taken', 'cancellations', 'cash_in', 'cash_out', 'interim_difference',
 ] as const);
 export type ExpectedPartKey = (typeof EXPECTED_PART_KEYS)[number];
 
@@ -311,6 +317,36 @@ export interface TipClaim {
   registerUserId: string;
   name: string | null;
   cents: number;
+}
+
+/**
+ * Wo der offene Trinkgeld-Anspruch gefuehrt wird (Spec 2026-11-11-kartentrinkgeld, F2; Katalog
+ * `TRINKGELD_ANSPRUCH`): `per_drawer` = je Lade (Vorgabe), `per_person` = ein Stand je Person ueber alle Laden.
+ */
+export const TIP_CLAIM_SCOPES = Object.freeze(['per_drawer', 'per_person'] as const);
+export type TipClaimScope = (typeof TIP_CLAIM_SCOPES)[number];
+
+/** Eine andere Lade des Kontos mit offenem Betrag der Person (nur bei `per_drawer`). */
+export interface TipBalanceOtherDrawer {
+  drawerId: string;
+  name: string | null;
+  openCents: number;
+}
+
+/**
+ * „Mein Trinkgeld“ ([getMyTipBalance]): der Stand der angemeldeten Person. `openCents` kann negativ sein (zu viel
+ * ausgezahlt, wird mit dem naechsten Trinkgeld verrechnet); `keptTodayCents` = heute genommen (ausgezahlt,
+ * bar gleich behalten, Kartentrinkgeld bar). Bei `per_person` die Summe ueber alle Laden, `otherDrawers` leer.
+ * Ohne Schichtbetrieb der Lade immer 0 (kein Anspruch).
+ */
+export interface TipBalance {
+  drawerId: string;
+  /** Ein Wert aus [TIP_CLAIM_SCOPES] oder ein kuenftiger. */
+  claimScope: TipClaimScope | (string & {});
+  openCents: number;
+  keptTodayCents: number;
+  currency: string;
+  otherDrawers: TipBalanceOtherDrawer[];
 }
 
 /** Eine gemeldete Oeffnung der Lade (nur mit `cashView`). */
@@ -432,6 +468,8 @@ export interface ShiftSummaryReceipt extends ShiftReceiptHeader {
   openingsWithoutSale: number;
   /** Gewaehrte Rabatte je Name; fehlt, wenn es keine gab (der Bon bleibt dann wie bisher). */
   discounts?: ShiftDiscount[];
+  /** Kartentrinkgeld bar aus der Lade genommen, Summe (Soll − Betrag); fehlt ohne Karten-direkt. */
+  cardTipsTakenCents?: number;
   /** Entnommen bzw. eingelegt nach dem Zaehlen; fehlt, wenn kein Geld bewegt wurde. */
   afterCount?: AfterCount;
   /**

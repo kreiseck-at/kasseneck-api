@@ -26,6 +26,7 @@ import type { ReturnDisposition } from '../models/cancellation.js';
 import type { ReceiptOutput, ReceiptOutputKind } from '../models/receipt-output.js';
 import type { PosExternalVouchers } from './gutschein.js';
 import type { PosTipKeptMode } from './settings.js';
+import type { TipClaimScope } from './schicht-typen.js';
 import { ARTICLE_EXTERNAL_VOUCHER_INVALID, type ArticleExternalVoucher, type ExternalVoucherArticleReason, type ExternalVoucherTileBlock } from './fremdgutschein-artikel.js';
 import { isOutcomeUnknown, KasseneckApiError, KasseneckHttpError, KasseneckNetworkError, type ErrorOutcome } from '../client/errors.js';
 
@@ -118,10 +119,18 @@ const MELDUNGEN_ROH = {
   // Trinkgeld (§ 3 Abs 1 Z 16a EStG). Eine Warnung, keine Sperre.
   'tip.over_half': { text: 'Über 50 % Trinkgeld – wirklich? Steuerfrei ist nur ortsübliches Trinkgeld.' },
   // Bar-Trinkgeld „gleich behalten“ (Hinweis zur Einstellung, Beschriftungen unten).
-  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als schon genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
+  'tip.kept_setting_hint': { text: 'Der Mitarbeiter steckt das Bar-Trinkgeld beim Verkauf gleich ein: es zählt nicht ins Soll der Lade und gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen.' },
   // Hinweis unter dem Trinkgeld beim Kassieren je nach Wahl (tipKeptFor): gleich behalten bzw. offen fuer den Benutzer.
   'tip.kept_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg; der angemeldete Benutzer nimmt es gleich bar aus der Lade.' },
   'tip.open_hint': { text: 'Trinkgeld kommt als eigene Position auf den Beleg und bleibt für den angemeldeten Benutzer offen, bis es ausgezahlt wird.' },
+  // Kartentrinkgeld (Spec 2026-11-11-kartentrinkgeld, 1.37.0): Hinweise zur Karten-Stufe und zum Not-Aus Selbst-Auszahlen.
+  'tip.card_kept_setting_hint': { text: 'Der Mitarbeiter nimmt das Kartentrinkgeld beim Verkauf bar aus der Lade: das Soll der Lade sinkt, es gilt als genommen. An der Kasse lässt es sich je Verkauf umstellen. Das geht nur bei offener Schicht, mit genug Bargeld in der Lade und für Mitarbeiter, die den Kassenstand sehen – sonst bleibt es offen.' },
+  'tip.self_payout_hint': { text: 'Jeder persönlich angemeldete Mitarbeiter sieht sein Trinkgeld und zahlt es sich selbst aus. Aus: nur mit dem Recht „Schicht“.' },
+  'tip.overpaid_hint': { text: 'Es wurde mehr ausgezahlt, als offen war. Das nächste Trinkgeld gleicht das aus.' },
+  'tip.terminal_hint': { text: 'Trinkgeld wird an der Kasse eingetragen, nicht am Terminal – ein am Terminal getipptes Trinkgeld kennt die Kasse nicht.' },
+  // Kartentrinkgeld Stufe 3 (1.37.0): Anspruchs-Modus im Kundenbereich (F2) und „Mein Trinkgeld“ ohne Auszahl-Recht.
+  'tip_claim_scope.hint': { text: 'Je Kassenlade: das Trinkgeld steht an der Kassenlade, an der es entstand, und wird dort ausgezahlt. Je Person: ein Stand über alle Kassenladen, an jeder auszahlbar.' },
+  'my_tips.payout_not_allowed': { text: 'Auszahlen nur mit dem Recht „Schicht“.' },
 
   // --- Abschluss -----------------------------------------------------------
   'completion.failed': { text: 'Der Abschluss ist fehlgeschlagen.' },
@@ -1250,8 +1259,9 @@ const BESCHRIFTUNGEN_ROH = {
   'shift_receipt.tips': { text: 'Trinkgeld' },
   'shift_receipt.tip_earned': { text: 'verdient' },
   'shift_receipt.tip_retained': { text: 'über Lohn' },
-  'shift_receipt.tip_paid_out': { text: 'schon genommen' },
-  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „schon genommen“.
+  // „genommen“ statt „genommen“ (Inhaber, 12.11.2026): kuerzer, gleich auf Bon, Kassenstand, Panel und PDF.
+  'shift_receipt.tip_paid_out': { text: 'genommen' },
+  // Beim Storno von der Mitarbeiterin selbst zurueckgegeben (Fix-Runde 1, R62) – nie ein negatives „genommen“.
   'shift_receipt.tip_refunded_by_employee': { text: 'selbst zurückgegeben' },
   // Offene Forderung beim Oeffnen der Schicht (Fix-Runde 2, R64).
   'shift_receipt.tip_carried_over': { text: 'aus früheren Schichten' },
@@ -1407,6 +1417,8 @@ const BESCHRIFTUNGEN_ROH = {
   // Trinkgeld auszahlen (eine Liste mit Kurzwahlen) und Trinkgeld-Karte im Kassenstand.
   'tip_payout.open_amount': { text: 'offen {amount}', placeholders: ['amount'] },
   'tip_payout.done': { text: 'erledigt' },
+  // Kartentrinkgeld ueber die Kasse (1.37.0, Spec keck 2026-11-11 § 4.3): statt „erledigt“ bei 0 offen.
+  'tip_payout.nothing_open': { text: 'nichts offen' },
   'tip_payout.for_all': { text: 'Für alle' },
   'tip_payout.nothing': { text: 'Nichts' },
   'tip_payout.all_open': { text: 'Alles Offene' },
@@ -1643,6 +1655,44 @@ const BESCHRIFTUNGEN_ROH = {
   // --- Nur Browser-Kasse: neue Fassung (1.37.0) ---
   // Der Knopf an `version.new_available`.
   'version.reload': { text: 'Neu laden', only: ['web'] },
+
+  // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
+  // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
+  'tip.line_cash_kept': { text: '{amount} gleich einstecken', placeholders: ['amount'] },
+  'tip.line_cash_open': { text: '{amount} in der Lade lassen', placeholders: ['amount'] },
+  'tip.line_card_kept': { text: '{amount} aus der Lade nehmen', placeholders: ['amount'] },
+  'tip.line_card_open': { text: '{amount} später auszahlen', placeholders: ['amount'] },
+  // Fertig-Seite unter „Bezahlt“ (§ 4.5): Titel mit Name, dann der Betrag und was geschieht.
+  'done.tip_title': { text: 'Trinkgeld {name}', placeholders: ['name'] },
+  'done.tip_open': { text: '{amount} · offen {open}', placeholders: ['amount', 'open'] },
+  'done.tip_open_loading': { text: '{amount}', placeholders: ['amount'] },
+  'done.tip_kept_card': { text: '{amount} · jetzt aus der Lade nehmen', placeholders: ['amount'] },
+  'done.tip_kept_cash': { text: '{amount} · gleich einstecken', placeholders: ['amount'] },
+  'done.tip_pay_out': { text: 'Auszahlen' },
+  // „Mein Trinkgeld“ im Namen-Menü (§ 4.6).
+  'my_tips.title': { text: 'Mein Trinkgeld' },
+  'my_tips.open_here': { text: 'Offen an dieser Lade' },
+  'my_tips.open_total': { text: 'Offen (alle Laden)' },
+  'my_tips.kept_today': { text: 'Heute genommen' },
+  'my_tips.other_drawer': { text: '{drawer}: {amount} offen', placeholders: ['drawer', 'amount'] },
+  'my_tips.nothing_open': { text: 'Nichts offen' },
+  'my_tips.overpaid': { text: 'Zu viel ausgezahlt: {amount}, wird verrechnet', placeholders: ['amount'] },
+  'my_tips.pay_out': { text: 'Auszahlen' },
+  'my_tips.pay_out_amount': { text: 'Betrag' },
+  // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
+  'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
+  // Z-/X-Bon und Kassenstand: Teil von „genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
+  // Kurz, damit die Zeile unter „genommen“ auf 80 mm in eine Zeile passt (eingerueckt, mit Betrag).
+  'shift_receipt.tip_card_taken': { text: 'davon Kartentrinkgeld' },
+  'shift.part_card_tips_taken': { text: 'Kartentrinkgeld bar genommen' },
+  // Einstellungen (Kasse und Kundenbereich): Karten-Stufe (Werte wie TIP_KEPT_MODE_LABELS), Vorbelegung, Not-Aus.
+  'tip_card_kept_mode.title': { text: 'Kartentrinkgeld gleich behalten' },
+  'tip.card_kept_setting': { text: 'Kartentrinkgeld nimmt der Mitarbeiter gleich bar aus der Lade' },
+  'tip_self_payout.title': { text: 'Mitarbeiter zahlen sich ihr Trinkgeld selbst aus' },
+  // Anspruchs-Modus (F2, Kundenbereich; Werte TIP_CLAIM_SCOPES, Zuordnung TIP_CLAIM_SCOPE_LABELS).
+  'tip_claim_scope.title': { text: 'Offenes Trinkgeld zählt' },
+  'tip_claim_scope.per_drawer': { text: 'Je Kassenlade' },
+  'tip_claim_scope.per_person': { text: 'Je Person (alle Kassenladen)' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
@@ -1666,6 +1716,15 @@ export const TIP_KEPT_MODE_LABELS = {
   always: 'tip_kept_mode.always',
   never: 'tip_kept_mode.never',
 } as const satisfies Record<PosTipKeptMode, LabelKey>;
+
+/**
+ * Wo der offene Trinkgeld-Anspruch gefuehrt wird (`TIP_CLAIM_SCOPES`, Spec 2026-11-11-kartentrinkgeld F2) ->
+ * Beschriftung im Kundenbereich.
+ */
+export const TIP_CLAIM_SCOPE_LABELS = {
+  per_drawer: 'tip_claim_scope.per_drawer',
+  per_person: 'tip_claim_scope.per_person',
+} as const satisfies Record<TipClaimScope, LabelKey>;
 
 /** Freigabe fuer Fremdgutscheine (`externalVouchers`) -> Beschriftung der Stufe im Kundenbereich. */
 export const EXTERNAL_VOUCHERS_LABELS = {

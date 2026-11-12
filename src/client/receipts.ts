@@ -186,7 +186,7 @@ export interface TipOptions {
    * Bar-Trinkgeld „gleich behalten“: die Mitarbeiterin steckt das Trinkgeld
    * beim Verkauf gleich ein. Der Beleg bleibt, wie er ist (signiert, im DEP);
    * nur im Kassenstand zaehlt der Betrag nicht ins Bar-Soll und gilt sofort als
-   * „schon genommen“. Nur `true` geht hinaus. Der Server nimmt es nur bei
+   * „genommen“. Nur `true` geht hinaus. Der Server nimmt es nur bei
    * Mitarbeiter-Trinkgeld, bar und sofort erhalten; sonst faellt es still weg.
    * Vorbelegung des Schalters: [posTipKeptByDefault] der Kassen-Einstellungen.
    */

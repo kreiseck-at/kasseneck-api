@@ -3,7 +3,7 @@
     {
       "datei": "functions-kasse/kasse-settings-core.js",
       "marke": null,
-      "sha256": "aff78fb701a52fa8e92e025bcb0b02d5423b5b4f3ca594f8302df7ee7b414465"
+      "sha256": "89a31417700dea8db4758b0e4a86324c969152c1218d458ef69a5b844da7e3a1"
     },
     {
       "datei": "functions-kasse/rabatt-vorlagen-core.js",
@@ -53,7 +53,7 @@
     {
       "datei": "functions/gemeinsam/storno-core.js",
       "marke": "const INTERNE_BELEG_FELDER = ",
-      "sha256": "fddb7a4f4d8c2b28be57072d69229031da5ab9beaf9385d3ff5a382608d41e45"
+      "sha256": "80aa896a2e86aba35a1f18842fc531e9ca050098ce930a5ad59e56cb10c3b93f"
     },
     {
       "datei": "functions/gemeinsam/api-vokabular-v3.js",

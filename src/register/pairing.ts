@@ -193,8 +193,11 @@ export interface RegisterDeviceUsers {
    * statt an createReceipt zu scheitern. Fehlt das Feld, gilt bereit.
    * `stockLocationId`: Lager-Standort der Kasse, fehlt = Standard-Standort.
    * `deposit`: Pfand & Leergut der Kasse (Ruecknahme, Vorgaben); fehlt, solange der Betrieb kein Pfand eingeschaltet hat.
+   * `cardTips`: Kartentrinkgeld laeuft an diesem Konto ueber die Kasse (Spec 2026-11-11-kartentrinkgeld, § 7): die
+   * Kasse zeigt die Karten-Stufe, die Trinkgeld-Zeile nach dem Kassieren und „Mein Trinkgeld“. Nur `true`, sonst fehlt
+   * es -- ohne bleibt die Kasse genau wie bisher.
    */
-  cashregister?: { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit };
+  cashregister?: { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit; cardTips?: true };
   /** Das Geraet haengt an der Test-Umgebung des Betriebs. */
   testEnvironment: boolean;
 }
@@ -642,7 +645,7 @@ export async function listRegisterUsersForDevice(
   };
 }
 
-function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit } | undefined {
+function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; stockLocationId?: string; deposit?: CashRegisterDeposit; cardTips?: true } | undefined {
   if (typeof wert !== 'object' || wert === null || Array.isArray(wert)) return undefined;
   const roh = wert as Record<string, unknown>;
   if (typeof roh['ready'] !== 'boolean') return undefined;
@@ -652,6 +655,8 @@ function kasseBereit(wert: unknown): { ready: boolean; reason?: string | null; s
     reason: typeof roh['reason'] === 'string' ? roh['reason'] : null,
     ...(typeof standort === 'string' && standort !== '' ? { stockLocationId: standort } : {}),
     ...(cashRegisterDepositFromWire(roh['deposit']) ? { deposit: cashRegisterDepositFromWire(roh['deposit'])! } : {}),
+    // Nur ein echtes `true` schaltet die Oberflaeche um; alles andere (fehlt, false, Muell) laesst sie wie bisher.
+    ...(roh['cardTips'] === true ? { cardTips: true as const } : {}),
   };
 }
 

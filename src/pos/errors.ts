@@ -75,6 +75,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'method_not_allowed',
   'mfa_required',
   'module_inactive',
+  'not_a_person_login',
   'not_found',
   'not_permitted',
   'note_required',
