@@ -242,6 +242,28 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
 }
 
 /**
+ * Steuerhinweis der Zahlung auf Rechnung: innen `steuerhinweis` (`inkl_ust` | `null_prozent` | `siehe_rechnung`),
+ * aussen `taxNote` (`incl_vat` | `zero_percent` | `see_invoice`). Der Vertrags-Export kennt das Feld noch nicht
+ * (er nennt `inklUst`/`includesVat`); bis er nachgezogen ist, uebersetzt diese Zeile es von Hand. Ein anderer
+ * oder fehlender Wert ergibt keinen Hinweis; das alte Feld `includesVat` faellt weg.
+ */
+const STEUERHINWEIS_AUSSEN: Readonly<Record<string, string>> = {
+  inkl_ust: 'incl_vat', null_prozent: 'zero_percent', siehe_rechnung: 'see_invoice',
+  incl_vat: 'incl_vat', zero_percent: 'zero_percent', see_invoice: 'see_invoice',
+};
+function rechnungszahlungNachAussen(beleg: Objekt): Objekt {
+  if (!Array.isArray(beleg.invoicePayments)) return beleg;
+  const invoicePayments = beleg.invoicePayments.map((e) => {
+    if (!istObjekt(e)) return e;
+    const { steuerhinweis, taxNote, includesVat: _alt, ...rest } = e;
+    const roh = steuerhinweis ?? taxNote;
+    const aussen = typeof roh === 'string' && hat(STEUERHINWEIS_AUSSEN, roh) ? STEUERHINWEIS_AUSSEN[roh] : undefined;
+    return aussen === undefined ? rest : { ...rest, taxNote: aussen };
+  });
+  return { ...beleg, invoicePayments };
+}
+
+/**
  * Eine Beleg-Huelle der inneren Form (`receipt`, Betriebsfelder, `kopfId`,
  * `pruefangaben`, `testKasse` ...) in die Drahtform von `getReceipt` unter
  * `/api/v3` (Kanal `app`: Anbieterdaten bleiben).
@@ -249,7 +271,7 @@ export function pruefangabenDerHuelle(p: Objekt): Objekt {
 export function _receiptEnvelopeToWire(huelle: Objekt): Objekt {
   const schema = SCHEMAS.getReceipt;
   const draht = werteNachAussen(schluesselNachAussen(huelle, schema.data), schema.werte) as Objekt;
-  return istObjekt(draht.receipt) ? { ...draht, receipt: belegGutscheineNachAussen(belegRueckgabeNachAussen(draht.receipt)) } : draht;
+  return istObjekt(draht.receipt) ? { ...draht, receipt: rechnungszahlungNachAussen(belegGutscheineNachAussen(belegRueckgabeNachAussen(draht.receipt))) } : draht;
 }
 
 /**

@@ -127,7 +127,7 @@ export {
   type ManualReceipt, type ManualReceiptReason, MANUAL_RECEIPT_REASONS, readManualReceipt,
   type ManualReceiptErrorCode, MANUAL_RECEIPT_ERROR_CODES, isManualReceiptErrorCode,
 } from './manual-receipt.js';
-export { type InvoicePaymentRef, readInvoicePaymentRefs } from './invoice-payment-ref.js';
+export { type InvoicePaymentRef, type InvoicePaymentTaxNote, readInvoicePaymentRefs } from './invoice-payment-ref.js';
 export {
   type ReportMonth,
   reportMonthFromDate,

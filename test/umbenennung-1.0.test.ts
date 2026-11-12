@@ -234,6 +234,7 @@ const NACH_1_0 = {
   invoiceTexts: ['pdf.totals.single_use_deposit', 'pdf.totals.head_rate', 'pdf.totals.head_net', 'pdf.totals.head_vat', 'einvoice.exemption.single_use_deposit',
     // Kassenteil und Zahlungsbestaetigung (1.38.0, Zahlung auf Rechnung)
     'pdf.title.payment_confirmation', 'pdf.title.refund_confirmation', 'pdf.cash_register.header', 'pdf.cash_register.receipt_number', 'pdf.cash_register.date',
+    'pdf.cash_register.tax.incl_vat', 'pdf.cash_register.tax.zero_percent', 'pdf.cash_register.tax.see_invoice',
     'pdf.confirmation.intro', 'pdf.confirmation.not_invoice', 'pdf.confirmation.table.invoice', 'pdf.confirmation.table.amount',
     'pdf.confirmation.table.paid_so_far', 'pdf.confirmation.table.received_today', 'pdf.confirmation.table.still_open',
     // Kurztexte bezahlt vor Ort (1.38.0)
@@ -503,7 +504,7 @@ const NEU_SEIT_1_0 = ['cancellation-tip-cases.json', 'code-table-preview.json', 
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Zahlung auf Rechnung (1.38.0): Zahlungsbelege mit Positionsart invoice_payment.
   ...['invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial',
-    'invoice-payment-refund', 'invoice-payment-training', 'invoice-payment-without-vat']
+    'invoice-payment-refund', 'invoice-payment-see-invoice', 'invoice-payment-training', 'invoice-payment-without-vat', 'invoice-payment-zero-percent']
     .flatMap((n) => [`receipts/${n}.json`, `expected/${n}.lines.json`, `expected/${n}.grid32.txt`, `expected/${n}.grid48.txt`, `expected/${n}.sheet32.json`, `expected/${n}.sheet48.json`]),
   // Belegduplikat (1.14.0): Prueffaelle und Bytes der Nachdrucke.
   'duplicate-cases.json', ...DUPLIKAT_FAELLE.cases.filter((c) => c.print).map((c) => `expected/duplicate.${c.name}.hex`),

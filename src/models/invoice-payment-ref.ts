@@ -24,9 +24,17 @@ export interface InvoicePaymentRef {
   partial: boolean;
   /** Zahlungstag `YYYY-MM-DD` (Wiener Tag), `null` wenn unbekannt. */
   paidOn: string | null;
-  /** Weist die Rechnung Umsatzsteuer aus? Nur dann steht „inkl. USt“ am Beleg. */
-  includesVat: boolean;
+  /**
+   * Steuerhinweis unter der Position: `incl_vat` (die Rechnung weist Umsatzsteuer aus), `zero_percent`
+   * (steuerfrei oder nicht steuerbar) oder `see_invoice` (Reverse Charge). Fehlt er, steht kein Hinweis.
+   */
+  taxNote?: InvoicePaymentTaxNote;
 }
+
+/** Werte von [InvoicePaymentRef.taxNote] (gespeichert `inkl_ust` | `null_prozent` | `siehe_rechnung`). */
+export type InvoicePaymentTaxNote = 'incl_vat' | 'zero_percent' | 'see_invoice';
+
+const STEUERHINWEISE: readonly string[] = ['incl_vat', 'zero_percent', 'see_invoice'];
 
 const istText = (w: unknown): w is string => typeof w === 'string' && w !== '';
 
@@ -34,8 +42,8 @@ const istText = (w: unknown): w is string => typeof w === 'string' && w !== '';
  * Liest `invoicePayments` vom Draht. Ein Eintrag ohne Rechnungs-ID, Nummer,
  * Zahlungs-ID oder ganzzahligen Betrag faellt weg (lesen tolerant, der Beleg
  * bleibt anzeigbar); ohne brauchbaren Eintrag gibt es keinen Bezug
- * (`undefined`). `includesVat` gilt nur bei ausdruecklichem `true`: ein Beleg
- * behauptet nie eine Steuer, die er nicht kennt.
+ * (`undefined`). Ein unbekannter oder fehlender `taxNote` ergibt keinen
+ * Hinweis: ein Beleg behauptet nie eine Steuer, die er nicht kennt.
  */
 export function readInvoicePaymentRefs(roh: unknown): InvoicePaymentRef[] | undefined {
   if (!Array.isArray(roh)) return undefined;
@@ -45,6 +53,7 @@ export function readInvoicePaymentRefs(roh: unknown): InvoicePaymentRef[] | unde
     const o = e as Record<string, unknown>;
     if (!istText(o['invoiceId']) || !istText(o['invoiceNumber']) || !istText(o['paymentId'])) continue;
     if (!Number.isSafeInteger(o['amountCents'])) continue;
+    const hinweis = o['taxNote'];
     raus.push({
       invoiceId: o['invoiceId'],
       invoiceNumber: o['invoiceNumber'],
@@ -53,7 +62,7 @@ export function readInvoicePaymentRefs(roh: unknown): InvoicePaymentRef[] | unde
       amountCents: o['amountCents'] as number,
       partial: o['partial'] === true,
       paidOn: istText(o['paidOn']) ? o['paidOn'] : null,
-      includesVat: o['includesVat'] === true,
+      ...(typeof hinweis === 'string' && STEUERHINWEISE.includes(hinweis) ? { taxNote: hinweis as InvoicePaymentTaxNote } : {}),
     });
   }
   return raus.length > 0 ? raus : undefined;

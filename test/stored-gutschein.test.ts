@@ -117,20 +117,27 @@ test('stored: Zahlung auf Rechnung - rechnungszahlung wird zu invoicePayments mi
   const doc = {
     ...BASIS,
     rechnungszahlung: [
-      { invoiceId: 'rg-erfunden-1', nummer: '2026-0042', paymentId: 'zahlung-erfunden-1', kundeId: 'kunde-erfunden-1', betragCents: 156960, teil: false, zahlungVom: '2026-11-11', inklUst: true },
-      { invoiceId: 'rg-erfunden-2', nummer: '2026-0043', paymentId: 'zahlung-erfunden-2', kundeId: 'kunde-erfunden-1', betragCents: 5000, teil: true, zahlungVom: '2026-11-11', inklUst: false },
+      { invoiceId: 'rg-erfunden-1', nummer: '2026-0042', paymentId: 'zahlung-erfunden-1', kundeId: 'kunde-erfunden-1', betragCents: 156960, teil: false, zahlungVom: '2026-11-11', steuerhinweis: 'inkl_ust' },
+      { invoiceId: 'rg-erfunden-2', nummer: '2026-0043', paymentId: 'zahlung-erfunden-2', kundeId: 'kunde-erfunden-1', betragCents: 5000, teil: true, zahlungVom: '2026-11-11', steuerhinweis: 'null_prozent' },
     ],
   };
   const zahlungen = stored.fromStoredReceipt(doc).invoicePayments!;
   assert.equal(zahlungen.length, 2);
   assert.deepEqual(zahlungen[0], {
     invoiceId: 'rg-erfunden-1', invoiceNumber: '2026-0042', paymentId: 'zahlung-erfunden-1', customerId: 'kunde-erfunden-1',
-    amountCents: 156960, partial: false, paidOn: '2026-11-11', includesVat: true,
+    amountCents: 156960, partial: false, paidOn: '2026-11-11', taxNote: 'incl_vat',
   });
   assert.deepEqual(Object.keys(zahlungen[1]!).sort(),
-    ['amountCents', 'customerId', 'includesVat', 'invoiceId', 'invoiceNumber', 'paidOn', 'partial', 'paymentId']);
+    ['amountCents', 'customerId', 'invoiceId', 'invoiceNumber', 'paidOn', 'partial', 'paymentId', 'taxNote']);
   assert.equal(zahlungen[1]!.partial, true);
-  assert.equal(zahlungen[1]!.includesVat, false);
+  assert.equal(zahlungen[1]!.taxNote, 'zero_percent');
+  // siehe_rechnung wird zu see_invoice; unbekannter, fehlender oder alter Wert (inklUst) ergibt keinen Hinweis
+  const w = (e: Record<string, unknown>) => stored.fromStoredReceipt({ ...BASIS, rechnungszahlung: [
+    { invoiceId: 'rg-erfunden-3', nummer: '2026-0044', paymentId: 'zahlung-erfunden-3', kundeId: null, betragCents: 100, teil: false, zahlungVom: null, ...e }] }).invoicePayments![0]!;
+  assert.equal(w({ steuerhinweis: 'siehe_rechnung' }).taxNote, 'see_invoice');
+  assert.equal(w({ steuerhinweis: 'unbekannt' }).taxNote, undefined);
+  assert.equal(w({ inklUst: true }).taxNote, undefined);
+  assert.equal(w({}).taxNote, undefined);
   // ohne rechnungszahlung bleibt die Liste leer
   assert.deepEqual(stored.fromStoredReceipt(BASIS).invoicePayments ?? [], []);
 });

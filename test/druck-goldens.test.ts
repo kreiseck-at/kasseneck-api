@@ -60,6 +60,11 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * `invoice_payment` ohne Satzkennzeichen und ohne Steuertabelle, „inkl. USt“) sind neu aufgenommen. Alle
  * vorhandenen Digests blieben (reine Ergaenzung).
  *
+ * Steuerhinweis dreiwertig (12.11.2026, Spec Abschnitt 16): `taxNote` statt `includesVat`; neu aufgenommen
+ * `invoice-payment-zero-percent` („0 % USt“) und `invoice-payment-see-invoice` („Steuerangaben siehe Rechnung“);
+ * der Digest von `invoice-payment-without-vat` (Kleinunternehmer) ist absichtlich neu gezogen, er traegt jetzt „0 % USt“.
+ * Alle anderen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

@@ -104,6 +104,10 @@ const DE = {
   'pdf.cash_register.header': 'REGISTRIERKASSE',
   'pdf.cash_register.receipt_number': 'Beleg-Nr.',
   'pdf.cash_register.date': 'Datum',
+  // Steuerhinweis unter der Zahlung (Spec 2026-11-11, Abschnitt 16): Umsatzsteuer ausgewiesen, steuerfrei/nicht steuerbar, Reverse Charge.
+  'pdf.cash_register.tax.incl_vat': 'inkl. USt',
+  'pdf.cash_register.tax.zero_percent': '0 % USt',
+  'pdf.cash_register.tax.see_invoice': 'Steuerangaben siehe Rechnung',
   // Zahlungsbestaetigung (1.38.0): Einleitung, Hinweis und die Spalten der Tabelle je Rechnung.
   'pdf.confirmation.intro': 'Wir bestätigen den Erhalt Ihrer Zahlung.',
   'pdf.confirmation.not_invoice': 'Diese Bestätigung ist keine Rechnung.',
@@ -331,6 +335,9 @@ const EN: Readonly<Record<InvoiceTextKey, string>> = {
   'pdf.cash_register.header': 'CASH REGISTER',
   'pdf.cash_register.receipt_number': 'Receipt no.',
   'pdf.cash_register.date': 'Date',
+  'pdf.cash_register.tax.incl_vat': 'incl. VAT',
+  'pdf.cash_register.tax.zero_percent': '0 % VAT',
+  'pdf.cash_register.tax.see_invoice': 'Tax details see invoice',
   'pdf.confirmation.intro': 'We confirm receipt of your payment.',
   'pdf.confirmation.not_invoice': 'This confirmation is not an invoice.',
   'pdf.confirmation.table.invoice': 'Invoice',

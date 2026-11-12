@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['add-ons', 'cancellation-discount', 'cancellation-full', 'cancellation-partial', 'cancellation-split-full', 'cancellation-split-partial', 'card-custom', 'card-gptom', 'card-gptom-ios', 'card-hobex-cloud', 'card-hobex-hps', 'card-mypos', 'card-stripe', 'card-stripe-eps', 'card-sumup', 'deposit', 'deposit-return', 'discount-lines', 'discount-owner-tip', 'discount-simple', 'discount-tip', 'discount-value-voucher', 'invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-training', 'invoice-payment-without-vat', 'long-item-name', 'manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time', 'sale-card', 'sale-cash', 'sale-small-business', 'signature-outage-sale', 'split-card-card-cash', 'split-cash-change', 'split-long-amount', 'split-one-card-tip', 'split-table-round-tip', 'split-tip-card', 'split-two-cards-same-provider', 'test-cashregister-sale', 'test-signature-sale', 'training', 'voucher-cancellation', 'voucher-external-redeem', 'voucher-external-sale', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-return', 'voucher-return-tip', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale', 'zero-annual', 'zero-final', 'zero-manual', 'zero-monthly', 'zero-outage-end', 'zero-outage-end-period', 'zero-start']);
+  assert.deepEqual(namen, ['add-ons', 'cancellation-discount', 'cancellation-full', 'cancellation-partial', 'cancellation-split-full', 'cancellation-split-partial', 'card-custom', 'card-gptom', 'card-gptom-ios', 'card-hobex-cloud', 'card-hobex-hps', 'card-mypos', 'card-stripe', 'card-stripe-eps', 'card-sumup', 'deposit', 'deposit-return', 'discount-lines', 'discount-owner-tip', 'discount-simple', 'discount-tip', 'discount-value-voucher', 'invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-see-invoice', 'invoice-payment-training', 'invoice-payment-without-vat', 'invoice-payment-zero-percent', 'long-item-name', 'manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time', 'sale-card', 'sale-cash', 'sale-small-business', 'signature-outage-sale', 'split-card-card-cash', 'split-cash-change', 'split-long-amount', 'split-one-card-tip', 'split-table-round-tip', 'split-tip-card', 'split-two-cards-same-provider', 'test-cashregister-sale', 'test-signature-sale', 'training', 'voucher-cancellation', 'voucher-external-redeem', 'voucher-external-sale', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-return', 'voucher-return-tip', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale', 'zero-annual', 'zero-final', 'zero-manual', 'zero-monthly', 'zero-outage-end', 'zero-outage-end-period', 'zero-start']);
 });
 
 /**
@@ -204,12 +204,12 @@ const texteVon = (zeilen: LayoutLine[]): string[] => zeilen.flatMap((z) => {
   if (z.kind === 'columns') return z.columns.map((c) => c.text);
   return [];
 });
-interface Bezug { invoiceNumber: string; includesVat: boolean }
+interface Bezug { invoiceNumber: string; taxNote?: string }
 const bezuege = (name: string): Bezug[] => (lade(name).receipt.invoicePayments as Bezug[] | undefined) ?? [];
 
 test('Zahlung auf Rechnung: die Faelle aus der Spec liegen als Golden vor', () => {
   assert.deepEqual(RZ, ['invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage',
-    'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-training', 'invoice-payment-without-vat']);
+    'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-see-invoice', 'invoice-payment-training', 'invoice-payment-without-vat', 'invoice-payment-zero-percent']);
   for (const name of RZ) {
     const items = lade(name).receipt.items as Array<{ kind?: string }>;
     assert.ok(items.length > 0 && items.every((it) => it.kind === 'invoice_payment'), name);
@@ -217,11 +217,13 @@ test('Zahlung auf Rechnung: die Faelle aus der Spec liegen als Golden vor', () =
   }
 });
 
-test('Zahlung auf Rechnung: nie „0%“, kein Satzkennzeichen an der Position und keine Steuertabelle', () => {
+test('Zahlung auf Rechnung: „0 %“ nur bei zero_percent, kein Satzkennzeichen an der Position und keine Steuertabelle', () => {
   for (const name of RZ) {
     const l = erwartet(name);
     const texte = texteVon(l.lines);
-    assert.ok(!texte.some((t) => /0 ?%/.test(t)), `${name}: „0%“ am Bon`);
+    const nullProzent = bezuege(name).filter((b) => b.taxNote === 'zero_percent').length;
+    assert.equal(texte.filter((t) => /0 ?%/.test(t)).length, nullProzent, `${name}: „0 %“ am Bon`);
+    assert.ok(!texte.some((t) => /0 ?%/.test(t) && t.trim() !== '0 % USt'), `${name}: „0 %“ an falscher Stelle`);
     assert.ok(!texte.some((t) => /MwSt/.test(t)), `${name}: Steuertabelle am Bon`);
     for (const it of lade(name).receipt.items as Array<{ name: string }>) {
       const zeile = l.lines.find((z): z is Extract<LayoutLine, { kind: 'columns' }> => z.kind === 'columns' && z.columns[0]!.text === it.name);
@@ -232,34 +234,38 @@ test('Zahlung auf Rechnung: nie „0%“, kein Satzkennzeichen an der Position u
   }
 });
 
-test('Zahlung auf Rechnung: „inkl. USt“ genau dann, wenn die Rechnung Umsatzsteuer ausweist (includesVat)', () => {
-  let mit = 0;
-  let ohne = 0;
+const HINWEIS_TEXT: Record<string, string> = { incl_vat: 'inkl. USt', zero_percent: '0 % USt', see_invoice: 'Steuerangaben siehe Rechnung' };
+
+test('Zahlung auf Rechnung: der Steuerhinweis folgt dem Wert taxNote, deutsch am Bon (alle drei Werte kommen vor)', () => {
+  const gesehen = new Set<string>();
   for (const name of RZ) {
-    const soll = bezuege(name).filter((b) => b.includesVat).length;
-    const ist = texteVon(erwartet(name).lines).filter((t) => t.trim() === 'inkl. USt').length;
-    assert.equal(ist, soll, name);
-    if (soll > 0) mit += 1; else ohne += 1;
+    const texte = texteVon(erwartet(name).lines).map((t) => t.trim());
+    for (const [wert, text] of Object.entries(HINWEIS_TEXT)) {
+      const soll = bezuege(name).filter((b) => b.taxNote === wert).length;
+      assert.equal(texte.filter((t) => t === text).length, soll, `${name}: ${text}`);
+      if (soll > 0) gesehen.add(wert);
+    }
   }
-  assert.ok(mit > 0 && ohne > 0, 'beide Faelle muessen vorkommen');
+  assert.deepEqual([...gesehen].sort(), ['incl_vat', 'see_invoice', 'zero_percent']);
 });
 
-test('Zahlung auf Rechnung beim Kleinunternehmer: weder „inkl. USt“ noch ein USt-Hinweis', () => {
+test('Zahlung auf Rechnung beim Kleinunternehmer: „0 % USt“, kein „inkl. USt“ und kein Kleinunternehmer-Hinweis', () => {
   const texte = texteVon(erwartet('invoice-payment-without-vat').lines);
   assert.ok(lade('invoice-payment-without-vat').company.isSmallBusiness);
   assert.ok(!texte.includes(SMALL_BUSINESS_NOTICE));
-  assert.ok(!texte.some((t) => /USt/.test(t)), texte.join(' | '));
+  assert.ok(!texte.some((t) => t.trim() === 'inkl. USt'), texte.join(' | '));
+  assert.equal(texte.filter((t) => t.trim() === '0 % USt').length, 1);
 });
 
-test('Zahlung auf Rechnung: mehrere Rechnungen, „inkl. USt“ steht unter der Position, deren Rechnung USt ausweist', () => {
+test('Zahlung auf Rechnung: mehrere Rechnungen, jeder Steuerhinweis steht unter seiner Position', () => {
   const f = lade('invoice-payment-normal');
   const items = [
     { name: 'Zahlung auf Rechnung 2026-0042', quantity: 1, unitPriceCents: 156960, vatRate: 0, kind: 'invoice_payment' },
     { name: 'Zahlung auf Rechnung 2026-0050', quantity: 1, unitPriceCents: 8500, vatRate: 0, kind: 'invoice_payment' },
   ];
   const invoicePayments = [
-    { ...bezuege('invoice-payment-normal')[0]!, includesVat: false },
-    { invoiceId: 'inv_4Ab1', invoiceNumber: '2026-0050', paymentId: 'pay_8', customerId: null, amountCents: 8500, partial: false, paidOn: '2026-11-11', includesVat: true },
+    { ...bezuege('invoice-payment-normal')[0]!, taxNote: 'see_invoice' },
+    { invoiceId: 'inv_4Ab1', invoiceNumber: '2026-0050', paymentId: 'pay_8', customerId: null, amountCents: 8500, partial: false, paidOn: '2026-11-11', taxNote: 'incl_vat' },
   ];
   const l = layoutVon({ ...f, receipt: { ...f.receipt, items, invoicePayments, payments: [{ id: 'p1', method: 'cash', amountCents: 165460 }] } });
   const texte = texteVon(l.lines);
@@ -267,10 +273,14 @@ test('Zahlung auf Rechnung: mehrere Rechnungen, „inkl. USt“ steht unter der 
   const zweite = texte.indexOf('Zahlung auf Rechnung 2026-0050');
   assert.ok(erste >= 0 && zweite > erste);
   assert.equal(texte.filter((t) => t.trim() === 'inkl. USt').length, 1);
+  assert.equal(texte[erste + 2]?.trim(), 'Steuerangaben siehe Rechnung', texte.slice(erste).join(' | '));
   assert.equal(texte[zweite + 2]?.trim(), 'inkl. USt', texte.slice(zweite).join(' | '));
   // Ohne Bezug (fremder Beleg, Altbestand) nie „inkl. USt“: der Beleg behauptet keine Steuer, die er nicht kennt.
   const ohneBezug = layoutVon({ ...f, receipt: { ...f.receipt, invoicePayments: undefined } });
-  assert.ok(!texteVon(ohneBezug.lines).some((t) => t.trim() === 'inkl. USt'));
+  assert.ok(!texteVon(ohneBezug.lines).some((t) => Object.values(HINWEIS_TEXT).includes(t.trim())));
+  // Unbekannter Wert vom Draht (neuere Server) ergibt keinen Hinweis; die Zeile selbst bleibt.
+  const fremd = layoutVon({ ...f, receipt: { ...f.receipt, invoicePayments: [{ ...bezuege('invoice-payment-normal')[0]!, taxNote: 'irgendwas' }] } });
+  assert.ok(!texteVon(fremd.lines).some((t) => Object.values(HINWEIS_TEXT).includes(t.trim())));
 });
 
 test('Rot-Probe: dieselbe Zeile ohne Positionsart steht als „D 0%“ in der Steuertabelle, die Pruefung oben schluege an', () => {

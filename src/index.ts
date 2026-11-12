@@ -56,6 +56,7 @@ export {
   type Receipt,
   type RegistrationInfo,
   type InvoicePaymentRef,
+  type InvoicePaymentTaxNote,
   type ReceiptPayload,
   type ReceiptPayloadRead,
   toReceiptPayload,

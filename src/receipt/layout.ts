@@ -13,6 +13,7 @@ import {
   voucherIsValid,
   isExternalVoucher,
   type InvoicePaymentRef,
+  type InvoicePaymentTaxNote,
   type Receipt,
   type ReceiptCompany,
   type ReceiptItem,
@@ -1155,8 +1156,12 @@ function einwegPfandCents(receipt: Receipt): number | null {
 
 // ---------------------------------------------------------- Zahlung auf Rechnung
 
-/** Steuerhinweis unter einer Zahlung auf eine Rechnung, die Umsatzsteuer ausweist (eingerueckt wie „  USt bei Einlösung“). */
-const INKL_UST_TEXT = '  inkl. USt';
+/** Steuerhinweise unter einer Zahlung auf Rechnung, je Wert (eingerueckt wie „  USt bei Einlösung“); am Bon deutsch. */
+const STEUERHINWEIS_TEXTE: Record<InvoicePaymentTaxNote, string> = {
+  incl_vat: '  inkl. USt',
+  zero_percent: '  0 % USt',
+  see_invoice: '  Steuerangaben siehe Rechnung',
+};
 
 /**
  * Zahlungsbeleg: jede Position ist eine Zahlung auf Rechnung (ein Beleg mit einer solchen Position
@@ -1187,8 +1192,8 @@ function rechnungszahlungBezuege(receipt: Receipt): Map<number, InvoicePaymentRe
 /**
  * Zeilen einer Zahlung auf Rechnung: Text der Position (er nennt die Rechnung) und Betrag, ohne Menge
  * und ohne Satzkennzeichen -- der Betrag zaehlt im RKSV-Feld „Null“, ist aber kein steuerfreier Umsatz,
- * „0 %“ waere falsch. Darunter „inkl. USt“, wenn die Rechnung Umsatzsteuer ausweist (Spec 2026-11-11,
- * Entscheidung 6). Breite 8:4 wie die Gutscheinzeilen.
+ * kein Satz der Steuertabelle. Darunter der Steuerhinweis der Rechnung (Spec 2026-11-11, Abschnitt 16):
+ * „inkl. USt“, „0 % USt“ (steuerfrei, nicht steuerbar) oder „Steuerangaben siehe Rechnung“ (Reverse Charge). Breite 8:4 wie die Gutscheinzeilen.
  */
 function rechnungszahlungZeilen(item: ReceiptItem, bezug: InvoicePaymentRef | undefined): LayoutLine[] {
   const zeilen: LayoutLine[] = [{
@@ -1199,7 +1204,7 @@ function rechnungszahlungZeilen(item: ReceiptItem, bezug: InvoicePaymentRef | un
       { text: `${formatCents(receiptItemTotalCents(item))}  `, width: 4, align: 'right' },
     ],
   }];
-  if (bezug?.includesVat === true) zeilen.push(textZeile(INKL_UST_TEXT));
+  if (bezug?.taxNote !== undefined) zeilen.push(textZeile(STEUERHINWEIS_TEXTE[bezug.taxNote]));
   return zeilen;
 }
 
