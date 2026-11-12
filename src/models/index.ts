@@ -8,7 +8,7 @@ export {
   receiptItemIsValid,
   negateReceiptItem,
   type TipRecipient,
-  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem,
+  isTipItem, isDiscountItem, isVoucherItem, isVoucherFloatItem, isDepositItem, isDepositReturnItem, isInvoicePaymentItem,
 } from './receipt-item.js';
 export { type Voucher, type VoucherArticle, type VoucherPayload, type VoucherSource, toVoucherPayload, fromVoucherPayload, voucherIsValid, isNewFormVoucher, isExternalVoucher, voucherServerFields } from './voucher.js';
 export {
@@ -85,3 +85,4 @@ export {
   hobexReceiptNeedsSignature,
 } from './hobex-receipt.js';
 export { type Handbeleg, type HandbelegGrund, HANDBELEG_GRUENDE, leseHandbeleg } from './handbeleg.js';
+export { type Rechnungszahlung, type Steuerhinweis, leseRechnungszahlung } from './rechnungszahlung.js';

@@ -97,3 +97,38 @@ test('Katalog: jede Einheit hat Kuerzel und Namen in jeder Sprache', () => {
   assert.equal(RECHNUNG_TEXTE.de['einheit.piece'], 'Stk');
   assert.equal(RECHNUNG_TEXTE.en['einheit.piece'], 'pcs');
 });
+
+test('Bezahlt-Vermerk ist kurz: ohne „Es ist nichts weiter zu tun.“, in jeder Sprache', () => {
+  assert.equal(RECHNUNG_TEXTE.de['pdf.bezahlt.text'], 'Diese Rechnung ist beglichen.');
+  assert.equal(RECHNUNG_TEXTE.en['pdf.bezahlt.text'], 'This invoice has been paid.');
+});
+
+test('Bezahlt-Kurzvermerke: bar und mit Karte, mit Datum', () => {
+  assert.equal(rechnungText('de', 'pdf.bezahlt.bar', { datum: '11.11.2026' }), 'Bar bezahlt am 11.11.2026.');
+  assert.equal(rechnungText('en', 'pdf.bezahlt.bar', { datum: '11.11.2026' }), 'Paid in cash on 11.11.2026.');
+  assert.equal(rechnungText('de', 'pdf.bezahlt.karte', { datum: '11.11.2026' }), 'Mit Karte bezahlt am 11.11.2026.');
+  assert.equal(rechnungText('en', 'pdf.bezahlt.karte', { datum: '11.11.2026' }), 'Paid by card on 11.11.2026.');
+});
+
+test('Kassenteil und Zahlungsbestaetigung: Beschriftungen de/en ohne Platzhalter', () => {
+  const erwartet: Record<string, { de: string; en: string }> = {
+    'kassenteil.kopf': { de: 'REGISTRIERKASSE', en: 'CASH REGISTER' },
+    'kassenteil.belegnr': { de: 'Beleg-Nr.', en: 'Receipt no.' },
+    'kassenteil.datum': { de: 'Datum', en: 'Date' },
+    'bestaetigung.titel': { de: 'ZAHLUNGSBESTÄTIGUNG', en: 'PAYMENT CONFIRMATION' },
+    'bestaetigung.titel_rueckzahlung': { de: 'RÜCKZAHLUNGSBESTÄTIGUNG', en: 'REFUND CONFIRMATION' },
+    'bestaetigung.einleitung': { de: 'Wir bestätigen den Erhalt Ihrer Zahlung.', en: 'We confirm receipt of your payment.' },
+    'bestaetigung.keine_rechnung': { de: 'Diese Bestätigung ist keine Rechnung.', en: 'This confirmation is not an invoice.' },
+    'bestaetigung.spalten.rechnung': { de: 'Rechnung', en: 'Invoice' },
+    'bestaetigung.spalten.betrag': { de: 'Betrag', en: 'Amount' },
+    'bestaetigung.spalten.bisher_bezahlt': { de: 'Bisher bezahlt', en: 'Paid so far' },
+    'bestaetigung.spalten.heute_erhalten': { de: 'Heute erhalten', en: 'Received today' },
+    'bestaetigung.spalten.noch_offen': { de: 'Noch offen', en: 'Still open' },
+  };
+  for (const [name, texte] of Object.entries(erwartet)) {
+    const key = name as RechnungTextSchluessel;
+    assert.equal(RECHNUNG_TEXTE.de[key], texte.de, `de.${name}`);
+    assert.equal(RECHNUNG_TEXTE.en[key], texte.en, `en.${name}`);
+    assert.deepEqual(platzhalter(RECHNUNG_TEXTE.de[key]), [], `${name} hat keine Platzhalter`);
+  }
+});

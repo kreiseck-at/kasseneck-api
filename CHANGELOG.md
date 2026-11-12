@@ -4,6 +4,28 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.40.0 (unveröffentlicht)
+
+Zahlung auf Rechnung im Beleg, Zwilling der Bonzeilen und Vermerke von 1.38.0 (nur Lesen, Bon und Texte). Das Backend vendort die
+0.x-Linie und setzt damit Bon, PDF und Rechnungsseite; es legt den Zahlungsbeleg an, 1.x liest ihn nur.
+
+- **Lesen (innere Form, wie das Backend sie speichert):** Positionen mit `kind` `invoice_payment` (neu `isInvoicePaymentItem`) und
+  am Beleg `rechnungszahlung`, je Rechnung ein Bezug `{ invoiceId, nummer, paymentId, kundeId, betragCents, teil, zahlungVom,
+  steuerhinweis }` in der Reihenfolge der Positionen (neu `Receipt.rechnungszahlung`, Typ `Rechnungszahlung`). Ein unbrauchbarer Eintrag
+  fällt beim Lesen weg. `steuerhinweis` ist dreiwertig: `inkl_ust` (die Rechnung weist USt aus), `null_prozent` (steuerfrei oder nicht
+  steuerbar, auch Kleinunternehmer; Erlass 4.6.6: als 0 % ausweisen) und `siehe_rechnung` (Reverse Charge); unbekannt oder fehlend
+  heißt kein Hinweis.
+- **Bon:** Zahlung auf Rechnung ohne Satzkennzeichen und nie „0 %“, nicht in der Steuertabelle (ein reiner Zahlungsbeleg hat keine),
+  darunter der Steuerhinweis: `inkl. USt` | `0 % USt` | `Steuerangaben siehe Rechnung`. „0 %“ steht nur bei `null_prozent`. Ein
+  nacherfasster Zahlungsbeleg ohne „USt: Duplikat …“ (die Steuer steht auf der Rechnung). Zehn neue Goldens `rechnungszahlung-*`, alle
+  bestehenden byte-gleich.
+- **Vermerke:** neu `belegVermerke(beleg, { testKasse, testSignatur })` liefert `[{ art, titel, zeilen }]` (Testkasse, Testsignatur,
+  Training, Storno, Nacherfassung, Signaturausfall, feste Reihenfolge). Der Bon setzt seine Blöcke aus denselben Bausteinen
+  (`receipt/vermerke.ts`), damit Kassenteil und Zahlungsbestätigung der A4-Rechnung dieselben Worte tragen. Eine unbekannte Option wirft.
+- **Rechnungstexte (de/en):** `pdf.bezahlt.text` jetzt „Diese Rechnung ist beglichen.“ (ohne „Es ist nichts weiter zu tun.“), neu
+  `pdf.bezahlt.bar` / `pdf.bezahlt.karte` (`{datum}`), `kassenteil.*` (dazu `kassenteil.steuer.inkl_ust|null_prozent|siehe_rechnung`
+  in der Rechnungssprache) und `bestaetigung.*` (Titel, Einleitung, Hinweis, Spalten).
+
 ## 0.39.0
 
 Pfand und Leergut im Bon, Zwilling der Bonzeilen von 1.32.0 (nur Lesen und Bon). Das Backend vendort die 0.x-Linie und setzt

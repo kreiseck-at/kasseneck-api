@@ -30,6 +30,7 @@ export {
   isVoucherFloatItem,
   isDepositItem,
   isDepositReturnItem,
+  isInvoicePaymentItem,
   type Voucher,
   type VoucherArticle,
   type VoucherPayload,
