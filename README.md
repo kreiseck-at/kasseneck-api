@@ -302,7 +302,7 @@ const register = registerUserAuth({
 
 ### Calls without any authentication
 
-Six calls run **without any identity**, because they are how an identity comes
+Seven calls run **without any identity**, because they are how an identity comes
 into being or how a device manages itself. They live in `…/register` and take
 **no authentication**, only the connection settings (`posBaseUrl`, timeout,
 `fetch`); they always go to the register path:
