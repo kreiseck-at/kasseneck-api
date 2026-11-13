@@ -884,7 +884,7 @@ test('die Fassade traegt die drei anmeldungsfreien Aufrufe NICHT', () => {
 
 // --- Kein anmeldungsfreier Transport nach draussen ---------------------
 
-test('der Unterpfad ./register exportiert genau die neun Aufrufe, die Fehlerhelfer und die Rechte-Liste, und keine Anmeldung', () => {
+test('der Unterpfad ./register exportiert genau die zehn Aufrufe, die Fehlerhelfer und die Rechte-Liste, und keine Anmeldung', () => {
   // Die anmeldungsfreien Aufrufe bauen ihren Transport selbst, mit einer
   // Anmeldung ohne Zugangsdaten. Waere die exportiert, koennte damit jeder
   // Aufruf des Pakets ohne Anmeldung gebaut werden — auch createReceipt. Diese
@@ -906,6 +906,7 @@ test('der Unterpfad ./register exportiert genau die neun Aufrufe, die Fehlerhelf
       'registerPinLogin',
       'registerUserLogin',
       'renewRegisterSession',
+      'reportMyRegisterClient',
       'reportMyTerminalAddress',
       'unpairRegisterDevice',
     ],

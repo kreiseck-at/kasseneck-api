@@ -851,6 +851,14 @@ test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im K
   assert.deepEqual(LABELS['connect.code_prompt'].only, ['web']);
 });
 
+test('Fassung (1.39.0): leise Zeile in beiden Kassen, Meldung nach dem Neuladen nur im Browser', () => {
+  assert.equal(labelText('version.line', { version: '1.39.0', time: '13.11. 18:20' }), 'Fassung 1.39.0 · 13.11. 18:20');
+  assert.equal(LABELS['version.line'].only, undefined);
+  assert.throws(() => labelText('version.line', { version: '1.39.0' }), /time/);
+  assert.equal(messageText('version.updated', { version: '1.39.0' }), 'Kasse aktualisiert auf 1.39.0.');
+  assert.deepEqual(MESSAGES['version.updated'].only, ['web']);
+});
+
 test('Geraete-Einstellungen (1.39.0): kurze Beschriftungen, Koppeln-Knoepfe nur im Browser, tote Schluessel gestrichen', () => {
   const erwartet = {
     'devices.check': 'prüfen', 'devices.searching': 'Sucht …', 'devices.none': 'keiner', 'devices.search': 'Suchen',

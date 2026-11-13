@@ -558,6 +558,49 @@ export async function reportMyTerminalAddress(options: ReportMyTerminalAddressOp
   return { changed: daten.changed };
 }
 
+/** Eingabe von [reportMyRegisterClient]: Ausweis des Geraets plus die Bau-Kennung der laufenden Kasse. */
+export interface ReportMyRegisterClientOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+  /** Bau-Kennung der Kasse, z. B. `1.39.0/2026-11-13T18:20Z` (Browser) oder `kasse-app/1.0.3+34` (App). */
+  app: string;
+}
+
+/** Antwort von [reportMyRegisterClient]: ob der Server die Kennung geschrieben hat (`false` = unveraendert und jung genug). */
+export interface ReportedRegisterClient {
+  written: boolean;
+}
+
+/**
+ * Meldet still, welche Fassung der Kasse auf diesem Geraet laeuft (nur
+ * Kassenweg `/api/v3`, Ausweis des Geraets wie bei [listRegisterUsersForDevice];
+ * keine Sitzung einer Person noetig). Gedacht fuer den Start, nach der
+ * Anmeldung und einen Takt von etwa 15 Minuten.
+ *
+ * Der Server schreibt die kuerzbare Kennung nur, wenn sie sich geaendert hat
+ * oder die letzte Meldung mindestens 10 Minuten alt ist; sonst `written: false`.
+ * Wiederholen ist gefahrlos. Die Kasse zeigt dazu nichts an.
+ *
+ * Fehlercodes: `device_not_paired` (falsches Geheimnis, unbekanntes oder
+ * gesperrtes Geraet), `server_error`. Geprueft wird hier nur die Form.
+ */
+export async function reportMyRegisterClient(options: ReportMyRegisterClientOptions): Promise<ReportedRegisterClient> {
+  const { ownerUid, deviceId, deviceSecret, app, ...verbindung } = options;
+  const name = 'reportMyRegisterClient';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+  pflicht(name, 'app', app);
+  const daten = await transportFuer(verbindung)<{ written?: unknown }>(
+    name,
+    { ownerUid, deviceId, deviceSecret, app },
+    undefined,
+    [deviceSecret],
+  );
+  if (typeof daten?.written !== 'boolean') {
+    throw antwortfehler(name, 'Antwort enthaelt kein written');
+  }
+  return { written: daten.written };
+}
+
 /** Eine laufende Sitzung an einer Kasse -- Zeile in der Auswahl. */
 export interface RegisterSession {
   id: string;

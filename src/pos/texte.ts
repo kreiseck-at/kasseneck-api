@@ -613,6 +613,8 @@ const MELDUNGEN_ROH = {
   // Zeile steht nur, solange an der Kasse nichts laeuft, und laedt nie von
   // selbst neu (Knopf `version.reload`). Die App kommt ueber den Store.
   'version.new_available': { text: 'Neue Fassung verfügbar – bei Gelegenheit neu laden.', only: ['web'] },
+  // Einmal kurz nach dem Selbst-Neuladen (Spec 2026-11-13-fassung-aktuell).
+  'version.updated': { text: 'Kasse aktualisiert auf {version}.', placeholders: ['version'], only: ['web'] },
 
   // --- Schicht-Ablauf der Kasse (1.28.0) -----------------------------------
   'shift.started_taken_over': { text: 'Schicht {number} hat begonnen – mit {amount} in der Lade, übernommen von Schicht {from} ({time}).', placeholders: ['number', 'amount', 'from', 'time'] },
@@ -1706,6 +1708,9 @@ const BESCHRIFTUNGEN_ROH = {
   // --- Nur Browser-Kasse: neue Fassung (1.37.0) ---
   // Der Knopf an `version.new_available`.
   'version.reload': { text: 'Neu laden', only: ['web'] },
+
+  // --- Fassung der Kasse, leise Zeile in den Einstellungen und auf dem PIN-Schirm (beide Kassen) ---
+  'version.line': { text: 'Fassung {version} · {time}', placeholders: ['version', 'time'] },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.

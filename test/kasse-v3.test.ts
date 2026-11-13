@@ -16,7 +16,7 @@ import {
 import { voucherPermsOf } from '../src/register/pairing.js';
 import {
   pairRegisterDevice, listRegisterUsersForDevice, listRegisterSessionsForDevice, registerUserLogin,
-  registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice, reportMyTerminalAddress,
+  registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice, reportMyTerminalAddress, reportMyRegisterClient,
   REGISTER_ERROR_CODES, isRegisterError, registerErrorDetails, registerErrorCode,
 } from '../src/register/index.js';
 import { createTransport, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
@@ -579,6 +579,7 @@ const ANMELDE_AUFRUFE: Record<string, (holen: FetchLike) => Promise<unknown>> = 
   registerPinLogin: (holen) => registerPinLogin({ ...GERAET, pin: '0001', cashregisterId: 'KASSE1', fetch: holen }),
   unpairRegisterDevice: (holen) => unpairRegisterDevice({ ...GERAET, fetch: holen }),
   reportMyTerminalAddress: (holen) => reportMyTerminalAddress({ ...GERAET, tid: '0012345', host: '192.168.1.60', port: 8080, fetch: holen }),
+  reportMyRegisterClient: (holen) => reportMyRegisterClient({ ...GERAET, app: '1.39.0/2026-11-13T18:20Z', fetch: holen }),
   renewRegisterSession: (holen) => renewRegisterSession(createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ', getSessionId: () => 's', cashregisterId: 'KASSE1' }), fetch: holen })),
   endRegisterSession: (holen) => endRegisterSession(createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ', getSessionId: () => 's', cashregisterId: 'KASSE1' }), fetch: holen })),
 };
@@ -654,6 +655,42 @@ test('reportMyTerminalAddress: eine Antwort ohne changed ist ein Antwortfehler',
   const f = fall('reportMyTerminalAddress', 'success_changed');
   const leer = { ...f, response: { status: 'success', message: '', data: {} } } as Fall;
   const e = await wurf(reportMyTerminalAddress({ ...GERAET, tid: '0012345', host: '192.168.1.60', port: 8080, fetch: holenFuer(leer).holen }));
+  assert.ok(isKasseneckValidationError(e));
+});
+
+// --- Fassung melden (Ausweis des Geraets) -------------------------------------------
+
+test('reportMyRegisterClient: jeder Erfolgsfall sendet genau Ausweis und Kennung und liest written', async () => {
+  let gezaehlt = 0;
+  for (const f of erfolge('reportMyRegisterClient')) {
+    const { holen, aufrufe } = holenFuer(f);
+    const p = f.params;
+    const ergebnis = await reportMyRegisterClient({ ownerUid: p.ownerUid, deviceId: p.deviceId, deviceSecret: p.deviceSecret, app: p.app, fetch: holen });
+    assert.deepEqual(ergebnis, { written: f.response.data.written }, f.case);
+    assert.equal(aufrufe.length, 1, f.case);
+    assert.equal(aufrufe[0]!.url, `${POS_BASE_URL}/reportMyRegisterClient`, f.case);
+    assert.deepEqual(aufrufe[0]!.params, p, f.case);
+    gezaehlt += 1;
+  }
+  assert.ok(gezaehlt >= 1, `nur ${gezaehlt} Erfolgsfaelle`);
+});
+
+test('reportMyRegisterClient: Unbrauchbares wird vor dem Senden abgewiesen, ohne Wert in der Meldung', async () => {
+  const gut = { ...GERAET, app: '1.39.0/2026-11-13T18:20Z' };
+  for (const kaputt of [{ ...gut, ownerUid: '' }, { ...gut, deviceId: ' ' }, { ...gut, deviceSecret: '' }, { ...gut, app: '' }, { ...gut, app: '  ' }]) {
+    let gesendet = 0;
+    const holen: FetchLike = async () => { gesendet += 1; throw new Error('darf nicht senden'); };
+    const e = await wurf(reportMyRegisterClient({ ...kaputt, fetch: holen }));
+    assert.ok(isKasseneckValidationError(e));
+    assert.equal(gesendet, 0);
+    assert.ok(!String((e as Error).message).includes(GERAET.deviceSecret));
+  }
+});
+
+test('reportMyRegisterClient: eine Antwort ohne written ist ein Antwortfehler', async () => {
+  const f = erfolge('reportMyRegisterClient')[0]!;
+  const leer = { ...f, response: { status: 'success', message: '', data: {} } } as Fall;
+  const e = await wurf(reportMyRegisterClient({ ...GERAET, app: '1.39.0/2026-11-13T18:20Z', fetch: holenFuer(leer).holen }));
   assert.ok(isKasseneckValidationError(e));
 });
 

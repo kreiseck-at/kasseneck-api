@@ -302,7 +302,7 @@ const register = registerUserAuth({
 
 ### Calls without any authentication
 
-Seven calls run **without any identity**, because they are how an identity comes
+Eight calls run **without any identity**, because they are how an identity comes
 into being or how a device manages itself. They live in `…/register` and take
 **no authentication**, only the connection settings (`posBaseUrl`, timeout,
 `fetch`); they always go to the register path:
@@ -312,6 +312,7 @@ into being or how a device manages itself. They live in `…/register` and take
 | `pairRegisterDevice` | the pairing code from the panel |
 | `listRegisterUsersForDevice`, `listRegisterSessionsForDevice` | the device credentials from pairing |
 | `reportMyTerminalAddress` | the device credentials from pairing (no session; register path only) |
+| `reportMyRegisterClient` | the device credentials from pairing (no session; register path only) |
 | `unpairRegisterDevice` | the device credentials; locks the device in the backend |
 | `registerUserLogin` | device credentials, user and PIN |
 | `registerPinLogin` | device credentials and PIN, without choosing a user |
