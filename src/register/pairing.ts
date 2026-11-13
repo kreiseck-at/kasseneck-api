@@ -506,6 +506,58 @@ export async function unpairRegisterDevice(options: ListRegisterUsersForDeviceOp
   await transportFuer(verbindung)<Record<string, unknown>>(name, { ownerUid, deviceId, deviceSecret }, undefined, [deviceSecret]);
 }
 
+/** Eingabe von [reportMyTerminalAddress]: Ausweis des Geraets plus die Adresse, unter der das Terminal geantwortet hat. */
+export interface ReportMyTerminalAddressOptions extends RegisterDeviceConnection, RegisterDeviceCredentials {
+  /** Terminal-ID (TID) der Kasse; der Server schreibt nur, wenn sie zur Einrichtung dieses Geraets passt. */
+  tid: string;
+  /** IPv4-Adresse, unter der das Terminal antwortet. */
+  host: string;
+  /** Port, 1 bis 65535. */
+  port: number;
+}
+
+/** Antwort von [reportMyTerminalAddress]: ob der Server die Adresse geaendert hat (`false` = war schon so). */
+export interface ReportedTerminalAddress {
+  changed: boolean;
+}
+
+/**
+ * Meldet still, dass das Kartenterminal der Kasse unter einer neuen Adresse
+ * antwortet (nur Kassenweg `/api/v3`, Ausweis des Geraets wie bei
+ * [listRegisterUsersForDevice]; keine Sitzung einer Person noetig).
+ *
+ * Der Server schreibt genau zwei Felder (IP und Port des Terminals) und nur,
+ * wenn die TID zur Einrichtung dieses Geraets passt; jede Aenderung steht im
+ * Kassen-Protokoll. Antwort `{ changed }`. Wiederholen ist gefahrlos: dieselbe
+ * Adresse noch einmal meldet `changed: false`. Die Kasse zeigt dazu nichts an.
+ *
+ * Fehlercodes: `terminal_id_mismatch`, `invalid_terminal_address`,
+ * `too_many_changes` (heute zu oft geaendert), dazu `device_not_paired`.
+ * Geprueft wird hier nur die Form; die Adresse beurteilt der Server.
+ */
+export async function reportMyTerminalAddress(options: ReportMyTerminalAddressOptions): Promise<ReportedTerminalAddress> {
+  const { ownerUid, deviceId, deviceSecret, tid, host, port, ...verbindung } = options;
+  const name = 'reportMyTerminalAddress';
+  pflicht(name, 'ownerUid', ownerUid);
+  pflicht(name, 'deviceId', deviceId);
+  pflicht(name, 'deviceSecret', deviceSecret);
+  pflicht(name, 'tid', tid);
+  pflicht(name, 'host', host);
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new KasseneckValidationError(name, 'port muss eine ganze Zahl von 1 bis 65535 sein', 'request');
+  }
+  const daten = await transportFuer(verbindung)<{ changed?: unknown }>(
+    name,
+    { ownerUid, deviceId, deviceSecret, tid, host, port },
+    undefined,
+    [deviceSecret],
+  );
+  if (typeof daten?.changed !== 'boolean') {
+    throw antwortfehler(name, 'Antwort enthaelt kein changed');
+  }
+  return { changed: daten.changed };
+}
+
 /** Eine laufende Sitzung an einer Kasse -- Zeile in der Auswahl. */
 export interface RegisterSession {
   id: string;

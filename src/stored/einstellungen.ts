@@ -1,5 +1,5 @@
 import {
-  POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS,
+  POS_BUSINESS_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_OPTIONAL_SWITCHES, POS_DEVICE_VALUES, POS_SHORTCUT_DEFAULTS,
   POS_SHORTCUT_SHARED_PAIRS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, _optionalerWert,
 } from '../pos/settings.js';
 import { hat, innereNamen, istObjekt, regel, type Objekt } from './draht.js';
@@ -82,7 +82,10 @@ const PRUEFER: Readonly<Record<Teil, Readonly<Record<string, Pruefer>>>> = {
  * `weggelassen` (der Server meldet sie dann auch nicht).
  */
 const GERAET_OPTIONAL: Readonly<Record<string, Pruefer>> = Object.fromEntries(
-  POS_DEVICE_OPTIONAL_FIELDS.map((feld) => [feld, (v: unknown) => _optionalerWert(v, false)]),
+  [
+    ...POS_DEVICE_OPTIONAL_FIELDS.map((feld) => [feld, (v: unknown) => _optionalerWert(v, false)] as const),
+    ...POS_DEVICE_OPTIONAL_SWITCHES.map((feld) => [feld, (v: unknown) => typeof v === 'boolean'] as const),
+  ],
 );
 
 /**
@@ -305,6 +308,6 @@ export const _PRUEFER_FELDER = Object.freeze({
   device: [...new Set([...Object.keys(PRUEFER.device), ...Object.keys(POS_DEVICE_VALUES), ...Object.keys(GERAET_OPTIONAL), 'shortcuts'])],
   standard: {
     business: [...Object.keys(POS_BUSINESS_DEFAULTS), ...POS_BUSINESS_OPTIONAL_FIELDS, ...POS_BUSINESS_OPTIONAL_CHOICES, ...POS_BUSINESS_OPTIONAL_LISTS],
-    device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS, ...POS_DEVICE_OPTIONAL_CHOICES],
+    device: [...Object.keys(POS_DEVICE_DEFAULTS), ...POS_DEVICE_OPTIONAL_FIELDS, ...POS_DEVICE_OPTIONAL_SWITCHES, ...POS_DEVICE_OPTIONAL_CHOICES],
   },
 });

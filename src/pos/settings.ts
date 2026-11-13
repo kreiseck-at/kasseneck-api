@@ -371,6 +371,11 @@ export interface PosDeviceSettings {
   drawerId?: string | null;
   /** Breite der rechten Spalte; optional, fehlt sie, gilt `narrow`. Lesen ueber [posCartWidth]. */
   cartWidth?: PosOpen<PosCartWidth>;
+  /**
+   * Hinweis an den Druckknoepfen, wenn der Drucker auf die Statusabfrage nicht antwortet. Optional: der Server sendet
+   * das Feld nur, wenn es gespeichert ist; fehlt es, gilt an. Lesen ueber [posPrinterHint]. Siehe [POS_DEVICE_OPTIONAL_SWITCHES].
+   */
+  printerHint?: boolean;
   terminalIp: string; terminalPort: number; terminalVia: PosOpen<PosTerminalVia>;
   /** Art des Terminals ('none' = Kartenzahlung ohne Terminal-Anbindung gesperrt, sofern payCard an). */
   terminalType: PosOpen<PosTerminalType>;
@@ -436,6 +441,15 @@ export function _optionalerWert(wert: unknown, schreiben: boolean): boolean {
 }
 
 const OPTIONALE: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_FIELDS);
+
+/**
+ * Optionale Geraete-Schalter: ohne Standardwert, der Server sendet sie nur, wenn sie gespeichert sind (Backend
+ * `GERAET_OPTIONAL`, Wahrheitswert). [mergePosSettings] uebernimmt sie nur als Wahrheitswert; der Schreibweg nimmt nur
+ * `true`/`false`.
+ */
+export const POS_DEVICE_OPTIONAL_SWITCHES = Object.freeze(['printerHint'] as const);
+
+const OPTIONALE_GERAETE_SCHALTER: ReadonlySet<string> = new Set(POS_DEVICE_OPTIONAL_SWITCHES);
 
 /**
  * Optionale Betriebs-Einstellungen (Schalter): ohne Standardwert, der Server
@@ -507,6 +521,11 @@ export function posTipStart(business: Readonly<Partial<PosBusinessSettings>> | n
 export function posCartWidth(device: Readonly<Partial<PosDeviceSettings>> | null | undefined): PosOpen<PosCartWidth> {
   const w = device?.cartWidth;
   return typeof w === 'string' && w !== '' ? w : 'narrow';
+}
+
+/** Hinweis „Drucker antwortet nicht“ an den Druckknoepfen an? Fehlt die Einstellung, gilt ja. */
+export function posPrinterHint(device: Readonly<Partial<PosDeviceSettings>> | null | undefined): boolean {
+  return device?.printerHint !== false;
 }
 
 /** Bar-Trinkgeld „gleich behalten“ vorbelegt? Fehlt die Einstellung, gilt aus. */
@@ -644,7 +663,7 @@ export const _ALTFORM_0X = Object.freeze({ werte: ALTWERTE_0X, aktionen: [...ALT
  * Schluessel, die der Standard nicht fuehrt, bleiben draussen, ausser einer
  * optionalen Geraete-Einstellung ([POS_DEVICE_OPTIONAL_FIELDS]) mit gueltiger
  * Kennung und einem optionalen Betriebs-Schalter
- * ([POS_BUSINESS_OPTIONAL_FIELDS]) als Wahrheitswert.
+ * ([POS_BUSINESS_OPTIONAL_FIELDS]) oder Geraete-Schalter ([POS_DEVICE_OPTIONAL_SWITCHES]) als Wahrheitswert.
  *
  * **Immer** (unabhaengig davon, welches Standard-Objekt uebergeben wird, auch
  * eine Kopie oder das einer zweiten Paketkopie) faellt ein Wert der inneren
@@ -663,6 +682,7 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
         const wert = (stored as Record<string, unknown>)[key];
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
         if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
+        if (OPTIONALE_GERAETE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
         if (OPTIONALE_WAHL.has(key) && _optionalerWahlwert(key, wert)) out[key] = Array.isArray(wert) ? [...wert] : wert;
         if (key === 'discountPresets') {
           const liste = _vorlagenLesen(wert);

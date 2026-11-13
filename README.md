@@ -311,6 +311,7 @@ into being or how a device manages itself. They live in `…/register` and take
 |---|---|
 | `pairRegisterDevice` | the pairing code from the panel |
 | `listRegisterUsersForDevice`, `listRegisterSessionsForDevice` | the device credentials from pairing |
+| `reportMyTerminalAddress` | the device credentials from pairing (no session; register path only) |
 | `unpairRegisterDevice` | the device credentials; locks the device in the backend |
 | `registerUserLogin` | device credentials, user and PIN |
 | `registerPinLogin` | device credentials and PIN, without choosing a user |
