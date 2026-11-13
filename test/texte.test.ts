@@ -789,3 +789,69 @@ test('Pfand: acht Fehlercodes mit Satz, Beschriftungen und Meldung wie festgeleg
   };
   for (const [k, t] of Object.entries(beschriftungen)) assert.equal(labelText(k as never), t, k);
 });
+
+test('Geraete im Betrieb (1.39.0): Wortlaut der Drucker-, Terminal- und Sperrbild-Saetze, Connect nur im Browser', () => {
+  const wortlaut: Record<string, string> = {
+    'printer.paper_out': 'Drucker: Papier leer – neue Rolle einlegen.',
+    'printer.cover_open': 'Drucker: Deckel offen – bitte schließen.',
+    'printer.not_ready': 'Drucker nicht bereit – Deckel schließen und Papier prüfen.',
+    'printer.paper_near_end': 'Drucker: Papier fast leer.',
+    'printer.unreachable': 'Drucker nicht erreichbar – eingeschaltet und im Netz?',
+    'printer.none': 'Kein Drucker eingerichtet.',
+    'printer.no_status_answer': 'Drucker antwortet nicht – Deckel und Papier prüfen.',
+    'manager.ask': 'Chef fragen.',
+    'terminal.unreachable': 'Terminal nicht erreichbar – eingeschaltet?',
+    'terminal.tid_mismatch': 'Die TID passt nicht zum Terminal.',
+    'terminal.tid_hint': 'Die TID steht auf jedem Terminal-Beleg.',
+    'lock_screen.card_payment_unclear': 'Eine Kartenzahlung ist unklar – bitte anmelden und prüfen.',
+    'lock_screen.receipt_unclear': 'Ein Beleg ist unklar – bitte anmelden und prüfen.',
+    'lock_screen.payout_unclear': 'Eine Auszahlung ist unklar – bitte anmelden und prüfen.',
+    'lock_screen.reversal_unclear': 'Eine Rückbuchung ist unklar – bitte anmelden und prüfen.',
+    'lock_screen.split_open': 'Eine getrennte Zahlung ist offen – bitte anmelden und prüfen.',
+    'print.test_ruler_hint': 'Linie in einer Zeile? Sonst 58 mm wählen.',
+  };
+  for (const [k, text] of Object.entries(wortlaut)) {
+    assert.equal(MESSAGES[k as MessageKey].text, text, k);
+    assert.equal(MESSAGES[k as MessageKey].only, undefined, `${k} gilt auf beiden Seiten`);
+  }
+  // Die Warnzeilen vom Anfang bleiben, wie sie waren.
+  assert.equal(LABELS['printer.warn_unreachable'].text, 'Drucker nicht erreichbar');
+  assert.equal(LABELS['printer.warn_none'].text, 'Kein Drucker eingerichtet');
+  for (const k of ['connect.not_responding', 'connect.browser_blocks', 'connect.updating', 'connect.other_installation', 'connect.other_installation_hint'] as const) {
+    assert.deepEqual(MESSAGES[k].only, ['web'], k);
+  }
+  assert.equal(messageText('connect.updating'), 'Kasseneck Connect wird aktualisiert …');
+  assert.equal(messageText('connect.other_installation'), 'Ein anderes Kasseneck Connect antwortet.');
+  assert.equal(messageText('connect.browser_blocks'), 'Der Browser sperrt Kasseneck Connect.');
+  assert.equal(messageText('connect.other_installation_hint'), 'Anderer Benutzer am Rechner?');
+});
+
+test('Geraete im Betrieb (1.39.0): Beschriftungen, Platzhalter und der Schalter fuer den Hinweis', () => {
+  assert.equal(labelText('printer.hint_setting'), 'Warnen, wenn der Drucker nicht antwortet');
+  assert.equal(LABELS['printer.hint_setting'].only, undefined);
+  assert.equal(labelText('devices.printer_ready'), 'Bondrucker bereit');
+  assert.equal(labelText('devices.terminals_found', { n: 2 }), '2 Terminals gefunden');
+  assert.equal(labelText('devices.printers_found', { n: 3 }), '3 Drucker gefunden');
+  assert.equal(labelText('devices.settings_applied', { width: '80 mm' }), '80 mm – Einstellungen übernommen');
+  assert.equal(labelText('devices.tid_value', { tid: '03600335' }), 'TID 03600335');
+  assert.equal(labelText('devices.address_port', { ip: '192.168.1.50', port: 8080 }), '192.168.1.50 · Port 8080');
+  assert.equal(labelText('devices.how_it_works'), 'So geht’s');
+  assert.throws(() => labelText('devices.tid_value'), /tid/);
+  // Vorhandene Knoepfe werden nicht doppelt angelegt.
+  for (const text of ['Abbrechen', 'Einstellungen', 'Einrichten', 'Öffnen', 'Nochmal drucken']) {
+    const treffer = Object.entries(LABELS).filter(([, e]) => e.text === text).map(([k]) => k);
+    assert.equal(treffer.length, 1, `${text}: ${treffer.join(', ')}`);
+  }
+});
+
+test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im Katalog und gelten nur im Browser', () => {
+  const web = ['connect.pair_invalid', 'connect.pair_request_throttled', 'connect.print_in_progress', 'connect.printer_timeout', 'connect.printer_refused', 'connect.bad_request',
+    'connect.unreadable_answer', 'connect.error_generic', 'connect.paired_then', 'connect.unpaired_done', 'connect.switched_over', 'connect.too_old_terminal_search',
+    'connect.too_old_terminal', 'connect.status_hint', 'connect.install_hint', 'printer.old_way_hint', 'printer.switch_hint', 'printer.connect_missing_hint',
+    'printer.pick_hint', 'printer.found_one', 'printer.found_one_taken', 'printer.found_several', 'printer.found_several_taken', 'terminal.panel_missing_hint',
+    'terminal.connect_missing_hint', 'terminal.ip_missing'] as const;
+  for (const k of web) assert.deepEqual(MESSAGES[k].only, ['web'], k);
+  assert.equal(messageText('connect.paired_then', { text: 'Gefunden: „Bon“ – übernommen.' }), 'Gekoppelt ✓ – Gefunden: „Bon“ – übernommen.');
+  assert.equal(messageText('printer.found_several_taken', { count: 2, names: '„A“, „B“', first: 'A' }), '2 Drucker gefunden („A“, „B“) – „A“ übernommen, unten umwählbar.');
+  assert.deepEqual(LABELS['connect.code_prompt'].only, ['web']);
+});
