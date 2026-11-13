@@ -64,6 +64,7 @@ export {
   type HpsConnectClient,
   type HpsConnectCancelOptions,
   type HpsConnectClientOptions,
+  type HpsConnectEndpoint,
   type HpsConnectFetch,
   type HpsConnectFetchResponse,
   type HpsConnectPaymentOptions,

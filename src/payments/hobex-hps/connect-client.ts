@@ -139,6 +139,17 @@ export type HpsConnectFetch = (
   init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal },
 ) => Promise<HpsConnectFetchResponse>;
 
+/**
+ * Die Adresse, unter der Connect das Terminal tatsaechlich erreicht hat
+ * (Feld `endpoint` der Antwort ab Connect 1.5.0). `relocated: true` heisst:
+ * nicht die mitgegebene, sondern eine wiedergefundene Adresse.
+ */
+export interface HpsConnectEndpoint {
+  host: string;
+  port: number;
+  relocated: boolean;
+}
+
 export interface HpsConnectClientOptions {
   /** Basisadresse des Agenten. Vorgabe `http://127.0.0.1:27182` (README `kasseneck-connect`). */
   baseUrl?: string;
@@ -158,6 +169,13 @@ export interface HpsConnectClientOptions {
   paymentTimeoutMs?: number;
   /** Eigene `fetch`-Umsetzung (Tests). Vorgabe: globales `fetch`. */
   fetch?: HpsConnectFetch;
+  /**
+   * Wird mit der benutzten Adresse des Terminals aufgerufen, wenn Connect sie
+   * in einer ERFOLGREICHEN Antwort (`ok: true`) mitschickt (ab Connect 1.5.0).
+   * Bei einer Fehlerhuelle und bei Antworten ohne `endpoint` (Connect 1.4.2)
+   * nie. Ein Wurf des Aufrufers bleibt ohne Wirkung auf die Zahlung.
+   */
+  onEndpoint?: (endpoint: HpsConnectEndpoint) => void;
 }
 
 export interface HpsConnectClient {
@@ -189,6 +207,20 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
   const shortTimeoutMs = options.shortTimeoutMs ?? DEFAULT_SHORT_TIMEOUT_MS;
   const paymentTimeoutMs = options.paymentTimeoutMs ?? DEFAULT_PAYMENT_TIMEOUT_MS;
   const holen = options.fetch ?? globalHpsConnectFetch();
+
+  // Nur aus einer Antwort mit `ok: true` und einer vollstaendigen Adresse;
+  // alles andere bleibt unbeachtet. Die Zahlung haengt nie am Aufrufer.
+  function meldeAdresse(huelle: Record<string, unknown>): void {
+    const e = huelle['endpoint'];
+    if (options.onEndpoint === undefined || e === null || typeof e !== 'object') return;
+    const { host, port, relocated } = e as { host?: unknown; port?: unknown; relocated?: unknown };
+    if (typeof host !== 'string' || host === '' || typeof port !== 'number' || !Number.isInteger(port)) return;
+    try {
+      options.onEndpoint({ host, port, relocated: relocated === true });
+    } catch {
+      // Der Aufrufer darf die Antwort nicht kippen.
+    }
+  }
 
   async function rufen(path: string, body: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>> {
     const abbruch = new AbortController();
@@ -236,6 +268,7 @@ export function createHpsConnectClient(options: HpsConnectClientOptions): HpsCon
       error?: { code?: unknown; message?: unknown; detail?: unknown };
     };
     if (h.ok === true) {
+      meldeAdresse(h as Record<string, unknown>);
       return (h as Record<string, unknown>);
     }
 
