@@ -855,3 +855,14 @@ test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im K
   assert.equal(messageText('printer.found_several_taken', { count: 2, names: '„A“, „B“', first: 'A' }), '2 Drucker gefunden („A“, „B“) – „A“ übernommen, unten umwählbar.');
   assert.deepEqual(LABELS['connect.code_prompt'].only, ['web']);
 });
+
+test('Geraete-Einstellungen (1.39.0): Hinweise der Browser-Kasse wortgleich als Beschriftungen, auf beiden Seiten', () => {
+  assert.equal(labelText('terminal.tid_source_hint'), 'kommt aus dem Hobex-Vertrag und wird im Panel je Gerät gepflegt; ohne TID keine Kartenzahlung über das Terminal.');
+  assert.equal(labelText('terminal.search_hint'), 'sucht das Hobex-Terminal im Kassen-Netz und übernimmt Adresse und Port – kein Ablesen am Gerät nötig');
+  assert.equal(labelText('terminal.test_hint'), 'fragt das Terminal über Kasseneck Connect (keine Zahlung); mit TID kommt der volle Gerätestatus');
+  assert.equal(labelText('terminal.port_hint'), '8080 = Hobex-HPS-Standard');
+  assert.equal(labelText('terminal.ip_title'), 'IP-Adresse');
+  for (const k of ['terminal.tid_source_hint', 'terminal.search_hint', 'terminal.test_hint', 'printer.drawer_hint', 'printer.cut_hint', 'connect.status_title'] as const) {
+    assert.equal(LABELS[k].only, undefined, k);
+  }
+});
