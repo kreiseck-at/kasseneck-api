@@ -846,13 +846,27 @@ test('Geraete im Betrieb (1.39.0): Beschriftungen, Platzhalter und der Schalter 
 
 test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im Katalog und gelten nur im Browser', () => {
   const web = ['connect.pair_invalid', 'connect.pair_request_throttled', 'connect.print_in_progress', 'connect.printer_timeout', 'connect.printer_refused', 'connect.bad_request',
-    'connect.unreadable_answer', 'connect.error_generic', 'connect.paired_then', 'connect.unpaired_done', 'connect.switched_over', 'connect.too_old_terminal_search',
-    'connect.too_old_terminal',
-    'printer.found_one', 'printer.found_one_taken', 'printer.found_several', 'printer.found_several_taken', 'terminal.ip_missing'] as const;
+    'connect.unreadable_answer', 'connect.error_generic', 'connect.unpaired_done', 'connect.switched_over'] as const;
   for (const k of web) assert.deepEqual(MESSAGES[k].only, ['web'], k);
-  assert.equal(messageText('connect.paired_then', { text: 'Gefunden: „Bon“ – übernommen.' }), 'Gekoppelt ✓ – Gefunden: „Bon“ – übernommen.');
-  assert.equal(messageText('printer.found_several_taken', { count: 2, names: '„A“, „B“', first: 'A' }), '2 Drucker gefunden („A“, „B“) – „A“ übernommen, unten umwählbar.');
   assert.deepEqual(LABELS['connect.code_prompt'].only, ['web']);
+});
+
+test('Geraete-Einstellungen (1.39.0): kurze Beschriftungen, Koppeln-Knoepfe nur im Browser, tote Schluessel gestrichen', () => {
+  const erwartet = {
+    'devices.check': 'prüfen', 'devices.searching': 'Sucht …',
+    'devices.yes': 'ja', 'devices.no': 'nein', 'terminal.change_in_panel': 'Im Panel ändern',
+    'connect.pair': 'Koppeln', 'connect.unpair': 'Entkoppeln', 'connect.unpair_yes': 'Ja, entkoppeln',
+  } as const;
+  for (const [k, v] of Object.entries(erwartet)) assert.equal(labelText(k as LabelKey), v, k);
+  for (const k of ['connect.pair', 'connect.unpair', 'connect.unpair_yes'] as const) assert.deepEqual(LABELS[k].only, ['web'], k);
+  for (const k of ['devices.check', 'devices.searching', 'devices.yes', 'devices.no', 'terminal.change_in_panel'] as const) {
+    assert.equal(LABELS[k].only, undefined, k);
+  }
+  // Nur in 1.39.0 neu gewesen und vom Kassentext-Entwurf ueberholt: nicht im Katalog.
+  for (const weg of ['connect.paired_then', 'printer.found_one', 'printer.found_one_taken', 'printer.found_several', 'printer.found_several_taken',
+    'terminal.ip_missing', 'connect.too_old_terminal', 'connect.too_old_terminal_search', 'terminal.none_assigned', 'terminal.tid_missing', 'terminal.test_title']) {
+    assert.ok(!(weg in LABELS) && !(weg in MESSAGES), weg);
+  }
 });
 
 test('Geraete-Einstellungen (1.39.0): Titel als Beschriftungen auf beiden Seiten, keine Erklaersaetze dazu', () => {

@@ -512,16 +512,8 @@ const MELDUNGEN_ROH = {
   'connect.bad_request': { text: 'Kasseneck Connect konnte mit dieser Anfrage nichts anfangen.', only: ['web'] },
   'connect.unreadable_answer': { text: 'Kasseneck Connect antwortet unverständlich – bitte neu starten.', only: ['web'] },
   'connect.error_generic': { text: 'Kasseneck Connect meldet einen Fehler.', only: ['web'] },
-  'connect.paired_then': { text: 'Gekoppelt ✓ – {text}', placeholders: ['text'], only: ['web'] },
   'connect.unpaired_done': { text: 'Entkoppelt – dieser Browser hat keinen Zugriff mehr. Neu koppeln geht jederzeit.', only: ['web'] },
   'connect.switched_over': { text: 'Umgestellt – jetzt unten koppeln und den Drucker wählen.', only: ['web'] },
-  'connect.too_old_terminal_search': { text: 'Kasseneck Connect ist zu alt für die Terminal-Suche – bitte die neueste Fassung installieren (Abschnitt Kasseneck Connect).', only: ['web'] },
-  'connect.too_old_terminal': { text: 'Kasseneck Connect ist zu alt für das Terminal – bitte die neueste Fassung installieren (Download unter Drucker & Lade).', only: ['web'] },
-  'printer.found_one': { text: 'Gefunden: {names}.', placeholders: ['names'], only: ['web'] },
-  'printer.found_one_taken': { text: 'Gefunden: {names} – übernommen.', placeholders: ['names'], only: ['web'] },
-  'printer.found_several': { text: '{count} Drucker gefunden: {names} – bitte oben wählen.', placeholders: ['count', 'names'], only: ['web'] },
-  'printer.found_several_taken': { text: '{count} Drucker gefunden ({names}) – „{first}“ übernommen, unten umwählbar.', placeholders: ['count', 'names', 'first'], only: ['web'] },
-  'terminal.ip_missing': { text: 'Zuerst die IP-Adresse des Terminals eintragen.', only: ['web'] },
 
   // --- Einstellungen -------------------------------------------------------
   'settings.load_failed': { text: 'Die Einstellungen konnten nicht geladen werden.' },
@@ -1811,6 +1803,14 @@ const BESCHRIFTUNGEN_ROH = {
   'devices.update_after_payment': { text: 'Nach der Zahlung aktualisieren' },
   'devices.print': { text: 'Drucken' },
   'devices.save': { text: 'Speichern' },
+  'devices.check': { text: 'prüfen' },
+  'devices.searching': { text: 'Sucht …' },
+  'devices.yes': { text: 'ja' },
+  'devices.no': { text: 'nein' },
+  'terminal.change_in_panel': { text: 'Im Panel ändern' },
+  'connect.pair': { text: 'Koppeln', only: ['web'] },
+  'connect.unpair': { text: 'Entkoppeln', only: ['web'] },
+  'connect.unpair_yes': { text: 'Ja, entkoppeln', only: ['web'] },
   // Schalter in den Geraete-Einstellungen: der Hinweis „Drucker antwortet nicht“ (`printer.no_status_answer`) an den Druckknoepfen.
   'printer.hint_setting': { text: 'Warnen, wenn der Drucker nicht antwortet' },
   'connect.code_prompt': { text: 'Kopplungs-Code aus Kasseneck Connect (6 Ziffern):', only: ['web'] },
@@ -1831,13 +1831,10 @@ const BESCHRIFTUNGEN_ROH = {
   'printer.drawer_auto_title': { text: 'Lade öffnet von selbst' },
   'printer.drawer_open_now': { text: 'Lade jetzt öffnen' },
   'terminal.card_terminal': { text: 'Kartenterminal' },
-  'terminal.none_assigned': { text: 'kein Terminal zugewiesen' },
   'terminal.tid_title': { text: 'Terminal-ID (TID)' },
-  'terminal.tid_missing': { text: 'noch keine TID zugewiesen – im Panel eintragen' },
   'terminal.search_title': { text: 'Terminal suchen' },
   'terminal.ip_title': { text: 'IP-Adresse' },
   'terminal.port_title': { text: 'Port' },
-  'terminal.test_title': { text: 'Verbindung testen' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;
