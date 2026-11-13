@@ -853,13 +853,15 @@ test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im K
 
 test('Geraete-Einstellungen (1.39.0): kurze Beschriftungen, Koppeln-Knoepfe nur im Browser, tote Schluessel gestrichen', () => {
   const erwartet = {
-    'devices.check': 'prüfen', 'devices.searching': 'Sucht …',
+    'devices.check': 'prüfen', 'devices.searching': 'Sucht …', 'devices.none': 'keiner', 'devices.search': 'Suchen',
     'devices.yes': 'ja', 'devices.no': 'nein', 'terminal.change_in_panel': 'Im Panel ändern',
     'connect.pair': 'Koppeln', 'connect.unpair': 'Entkoppeln', 'connect.unpair_yes': 'Ja, entkoppeln',
   } as const;
   for (const [k, v] of Object.entries(erwartet)) assert.equal(labelText(k as LabelKey), v, k);
   for (const k of ['connect.pair', 'connect.unpair', 'connect.unpair_yes'] as const) assert.deepEqual(LABELS[k].only, ['web'], k);
-  for (const k of ['devices.check', 'devices.searching', 'devices.yes', 'devices.no', 'terminal.change_in_panel'] as const) {
+  assert.equal(labelText('devices.test_print_paper', { width: '80 mm', count: 48 }), 'Testdruck auf Papier (80 mm, 48 Zeichen)');
+  assert.throws(() => labelText('devices.test_print_paper', { width: '80 mm' }), /count/);
+  for (const k of ['devices.check', 'devices.none', 'devices.search', 'devices.searching', 'devices.yes', 'devices.no', 'terminal.change_in_panel'] as const) {
     assert.equal(LABELS[k].only, undefined, k);
   }
   // Nur in 1.39.0 neu gewesen und vom Kassentext-Entwurf ueberholt: nicht im Katalog.
