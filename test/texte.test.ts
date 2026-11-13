@@ -847,9 +847,8 @@ test('Geraete im Betrieb (1.39.0): Beschriftungen, Platzhalter und der Schalter 
 test('Browser-Kasse (1.39.0): bisher im Code stehende Connect-Saetze liegen im Katalog und gelten nur im Browser', () => {
   const web = ['connect.pair_invalid', 'connect.pair_request_throttled', 'connect.print_in_progress', 'connect.printer_timeout', 'connect.printer_refused', 'connect.bad_request',
     'connect.unreadable_answer', 'connect.error_generic', 'connect.paired_then', 'connect.unpaired_done', 'connect.switched_over', 'connect.too_old_terminal_search',
-    'connect.too_old_terminal', 'connect.status_hint', 'connect.install_hint', 'printer.old_way_hint', 'printer.switch_hint', 'printer.connect_missing_hint',
-    'printer.pick_hint', 'printer.found_one', 'printer.found_one_taken', 'printer.found_several', 'printer.found_several_taken', 'terminal.panel_missing_hint',
-    'terminal.connect_missing_hint', 'terminal.ip_missing'] as const;
+    'connect.too_old_terminal',
+    'printer.found_one', 'printer.found_one_taken', 'printer.found_several', 'printer.found_several_taken', 'terminal.ip_missing'] as const;
   for (const k of web) assert.deepEqual(MESSAGES[k].only, ['web'], k);
   assert.equal(messageText('connect.paired_then', { text: 'Gefunden: „Bon“ – übernommen.' }), 'Gekoppelt ✓ – Gefunden: „Bon“ – übernommen.');
   assert.equal(messageText('printer.found_several_taken', { count: 2, names: '„A“, „B“', first: 'A' }), '2 Drucker gefunden („A“, „B“) – „A“ übernommen, unten umwählbar.');
@@ -864,7 +863,7 @@ test('Geraete-Einstellungen (1.39.0): Titel als Beschriftungen auf beiden Seiten
     assert.equal(LABELS[k].only, undefined, k);
   }
   // Spec 2.1: ausser terminal.tid_hint steht in diesen Bereichen kein Erklaersatz im Katalog.
-  for (const weg of ['terminal.tid_source_hint', 'terminal.search_hint', 'terminal.test_hint', 'terminal.port_hint', 'printer.use_hint', 'printer.bluetooth_hint', 'printer.code_page_hint', 'printer.cut_hint', 'printer.bon_texts_hint', 'printer.drawer_hint', 'printer.drawer_auto_hint']) {
+  for (const weg of ['terminal.tid_source_hint', 'terminal.search_hint', 'terminal.test_hint', 'terminal.port_hint', 'printer.use_hint', 'printer.bluetooth_hint', 'printer.code_page_hint', 'printer.cut_hint', 'printer.bon_texts_hint', 'printer.drawer_hint', 'printer.drawer_auto_hint', 'connect.status_hint', 'connect.install_hint', 'printer.old_way_hint', 'printer.switch_hint', 'printer.connect_missing_hint', 'printer.pick_hint', 'terminal.panel_missing_hint', 'terminal.connect_missing_hint']) {
     assert.ok(!(weg in LABELS) && !(weg in MESSAGES), weg);
   }
 });
