@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.39.0 - unveröffentlicht
+## 1.39.0 - 2026-11-14
 
 Texts for the device operation of both registers (printer, paper, terminal, lock screen), an address callback in the HPS Connect client, a call to report a new terminal address, a call to report the running register version and the device switch `printerHint` (backend spec 2026-11-09-connect-betrieb, stage 2). Additive; every existing call, golden and text behaves as before.
 
@@ -21,7 +21,7 @@ Texts for the device operation of both registers (printer, paper, terminal, lock
 - **Device setting `printerHint`** (optional switch, `PosDeviceSettings.printerHint?`, `POS_DEVICE_OPTIONAL_SWITCHES`, `posPrinterHint(device)`): shows or hides the "printer does not answer" hint at the print buttons. No default value, the server sends it only when stored; absent means on. Written with `true`/`false` through `setMyRegisterDeviceSettings`, read through `posSettingsFromWire`/`./stored`.
 - `fixtures/pos-texts.json`, `surface.json`, `invoice-texts.json`, `invoice-api.schema.json` and `hobex-hps-codes.json` regenerated for the version.
 
-## 1.38.0 - unveröffentlicht
+## 1.38.0 - 2026-11-12
 
 Payment on invoices: when an invoice is paid in cash or by card on site, the server writes a payment receipt ("Zahlung auf Rechnung") into the cash register the money goes into. This version reads, prints and explains such receipts. Additive; every existing call, receipt and golden behaves as before (all existing goldens are byte-identical, eight new ones are added).
 
@@ -42,7 +42,7 @@ Payment on invoices: when an invoice is paid in cash or by card on site, the ser
 - `fixtures/surface.json`, `pos-texts.json`, `invoice-texts.json`, `hobex-hps-codes.json` and `invoice-api.schema.json` regenerated for the version.
 
 
-## 1.37.0 - unveröffentlicht
+## 1.37.0 - 2026-11-12
 
 Late terminal query for a card payment with an open outcome (`HpsPayments.clarifyPayment` in `./payments`). Additive; `pay`, `refund` and `cancel` behave as before. Card tips at the register (backend spec 2026-11-11-kartentrinkgeld, stages 1 and 2). Additive; every existing call, golden and text behaves as before, except the wording changes named below.
 
