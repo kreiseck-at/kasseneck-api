@@ -219,9 +219,12 @@ const MELDUNGEN_ROH = {
   'sumup.ios_external': { text: 'SumUp ist auf diesem Gerät nicht angebunden: den Betrag am SumUp-Gerät eintippen, die Kasse bucht Karte.', only: ['app'] },
   'sumup.status_logged_in': { text: 'Bei SumUp angemeldet als {merchant}.', placeholders: ['merchant'], only: ['app'] },
   'sumup.status_logged_out': { text: 'Nicht bei SumUp angemeldet.', only: ['app'] },
-  'sumup.location_question': { text: 'SumUp braucht für Kartenzahlungen den Standort dieses Geräts. Gleich fragt Android danach: bitte erlauben. Weiter?', only: ['app'] },
-  'sumup.location_denied': { text: 'Der Standort ist für die Kasse gesperrt, ohne ihn meldet SumUp nicht an. Einstellungen der App öffnen und unter Berechtigungen den Standort erlauben?', only: ['app'] },
-  'sumup.location_off': { text: 'Der Standort ist an diesem Gerät ausgeschaltet, SumUp braucht ihn für Kartenzahlungen. Standort-Einstellungen öffnen?', only: ['app'] },
+  // Die Blätter vor der SumUp-Anmeldung: Titel und Knöpfe stehen bei den Beschriftungen (sumup.location_title …).
+  'sumup.location_question': { text: 'SumUp verlangt für Kartenzahlungen den Standort dieses Geräts. Gleich fragt Android danach.', only: ['app'] },
+  'sumup.location_hint': { text: 'Bitte „Bei Nutzung der App“ wählen.', only: ['app'] },
+  'sumup.location_denied': { text: 'Der Standort ist für die Kasse gesperrt. Ohne ihn meldet SumUp nicht an.', only: ['app'] },
+  'sumup.location_denied_hint': { text: 'In den Einstellungen der App unter „Berechtigungen“ den Standort erlauben.', only: ['app'] },
+  'sumup.location_off': { text: 'Der Standort ist an diesem Gerät ausgeschaltet. SumUp braucht ihn für Kartenzahlungen.', only: ['app'] },
   'sumup.location_missing': { text: 'Ohne Standort keine Anmeldung bei SumUp. Bitte den Standort erlauben und erneut anmelden.', only: ['app'] },
 
   // --- Terminal-Protokoll --------------------------------------------------
@@ -1738,6 +1741,19 @@ const BESCHRIFTUNGEN_ROH = {
 
   // --- Fassung der Kasse, leise Zeile in den Einstellungen und auf dem PIN-Schirm (beide Kassen) ---
   'version.line': { text: 'Fassung {version} · {time}', placeholders: ['version', 'time'] },
+
+  // --- SumUp in der Kassen-App: Titel und Knöpfe der Blätter für Standort und Bindung (1.40.0) ---
+  // Zweiter Knopf: devices.not_now (Standort) bzw. common.cancel (Bindung).
+  'sumup.location_title': { text: 'Standort für SumUp', only: ['app'] },
+  'sumup.location_allow': { text: 'Standort erlauben', only: ['app'] },
+  'sumup.location_denied_title': { text: 'Standort gesperrt', only: ['app'] },
+  'sumup.open_app_settings': { text: 'Einstellungen öffnen', only: ['app'] },
+  'sumup.location_off_title': { text: 'Standort ist aus', only: ['app'] },
+  'sumup.location_turn_on': { text: 'Standort einschalten', only: ['app'] },
+  'sumup.bind_title': { text: 'Mit SumUp verbinden', only: ['app'] },
+  'sumup.bind': { text: 'Verbinden', only: ['app'] },
+  'sumup.unbind_title': { text: 'Verbindung lösen', only: ['app'] },
+  'sumup.unbind': { text: 'Lösen', only: ['app'] },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
