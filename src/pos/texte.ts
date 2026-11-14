@@ -206,8 +206,10 @@ const MELDUNGEN_ROH = {
   'sumup.unbind_question': { text: 'Die Verbindung zum SumUp-Konto lösen? Danach kann sich ein anderes Konto verbinden.', only: ['app'] },
   'sumup.wrong_currency': { text: 'Das SumUp-Konto rechnet in {currency}, die Kasse in Euro. Bitte ein Konto in Euro verwenden.', placeholders: ['currency'], only: ['app'] },
   'sumup.login_failed': { text: 'Die Anmeldung bei SumUp hat nicht geklappt. Bitte erneut versuchen.', only: ['app'] },
-  // Nicht durchgeführt heißt: SumUp hat entschieden, es ist sicher nichts gebucht.
-  'sumup.declined': { text: 'SumUp hat die Zahlung nicht durchgeführt: {reason}', placeholders: ['reason'], only: ['app'] },
+  // Nicht durchgeführt heißt: SumUp hat entschieden, es ist sicher nichts gebucht. Den Grund zeigt SumUp selbst auf
+  // seinem Fehlerschirm; die Kasse gibt keinen rohen (oft englischen) SDK-Text weiter.
+  'sumup.declined': { text: 'SumUp hat die Zahlung nicht durchgeführt, es wurde nichts abgebucht.', only: ['app'] },
+  'sumup.not_bound': { text: 'Die Kasse ist noch mit keinem SumUp-Konto verbunden. Bitte in den Einstellungen unter Kartenterminal verbinden.', only: ['app'] },
   // Weicht der Betrag ab, kann trotzdem gebucht sein: derselbe Ton wie card_payment.unknown.
   'sumup.amount_mismatch': { text: 'SumUp meldet einen anderen Betrag als die Kasse. Bitte in der SumUp-App nachsehen, BEVOR neu kassiert wird.', only: ['app'] },
   'sumup.below_minimum': { text: 'Mit SumUp geht Karte erst ab 1,00 €.', only: ['app'] },
