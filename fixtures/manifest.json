@@ -162,7 +162,7 @@
       "blatt48": "548e67263d586cafd0116487bb28fd23948540a283068acfdd661f192ef8c849"
     },
     "karte-sumup": {
-      "eingabe": "1c4d28f78946a1bbeca1af40df6fa81a256461478511d00fb25e8a04859c9343",
+      "eingabe": "768ecd4da5b609d1b139fdcb0b283c29e25c17241c7cd9241dfbec1c341ce42d",
       "erwartet": "aa80e57e677bb051a8f26548474966cabbb8cec20dee18eaa39ec537131235ed",
       "grid32": "66ea91d4363bea96a28ca88020780d25f7bd2e42a42289f325d59116f6b960f7",
       "grid48": "043e2aa367473ae8ecbaf7b92d886380d1e0d0dc461140c69771cfd18b7a1a39",
@@ -554,7 +554,7 @@
       "blatt48": "8ae20b5daf0be1746732990cac1e699ae1278c7ff70302112e91f44c40d569f9"
     },
     "split-eine-karte-trinkgeld": {
-      "eingabe": "86cbc18fa34530baf814b455f6e79928f63aacb83d4174df2909b09b135df76d",
+      "eingabe": "e4d1eac475aea898ea2e1c3f3950acbe1b0f11a02a68faed8c0813beded386a5",
       "erwartet": "77ac91ef044f94688f0753574add4a6bbef64afc698d9868e84ce0e2bef06a2f",
       "grid32": "8717df55a7a829ae89f52623d015d3b44a15a20e76633ddb5e419468c888b6ac",
       "grid48": "661d67c760b39090888cc2b9ab3811081e763b98860f98cc07a8ca09afc36ae8",
@@ -562,7 +562,7 @@
       "blatt48": "0aa6a70b290f8f0176e21910292ff8d0beccdce2cd6e9dec6b7736830ffe743e"
     },
     "split-karte-karte-bar": {
-      "eingabe": "3a0531fd3bf7ffbeb63bd31a414477a6fcdabf8b1af09fb004ee1c37ba5817ed",
+      "eingabe": "32f192e04ab35b4271b25eeecefe97b7c466f32cbfae758fee967078bfc5a7fa",
       "erwartet": "30cb014e84c4c590c672d3e319f6c60846797ed1f55e1db5801cae0ea9bdb0fd",
       "grid32": "a51255ebc313dbeb834e720d1752cf2908579115a1c7b16d7f70fe7cecb196e0",
       "grid48": "49180dc43f4c2f69164e4a3c8841fad2dad64328fb5a97a5f5d0726be34799d5",
@@ -578,7 +578,7 @@
       "blatt48": "66be63435e6745e9460c662dfe971db061c6a50e137fff42691c211f8605f2d3"
     },
     "split-tischrunde-trinkgeld": {
-      "eingabe": "e41ec94c6617bd8f854d821c3fdf6e8b0c25bca14d02d06606afb84ba9a4cf7d",
+      "eingabe": "39a1ed85398f7e0cde1faf3f742e4f2809f89009ab54ff0d5875f12ee6308576",
       "erwartet": "cde6b09e95fd5c8d7d3260c7151286de0cb3aa0d106ba6d9cd8b5987ac52f978",
       "grid32": "1be9b5f616b72e01f02f5099724c5383885ba3bc6d4d462810a6c657f226c331",
       "grid48": "64ca8d9424c51ebf9a46e64610d5a5a01928eb3946b0d625f3dfbb38f9d295a4",
@@ -586,7 +586,7 @@
       "blatt48": "fff9b315dd909e77fa27dc7e219798a3ab65a0b68c0d940564f1d85408cd8bdf"
     },
     "split-trinkgeld-karte": {
-      "eingabe": "36694a33ca4fbdb9f7c8544636891552107fcbf92ea34d9f4c39610ad8c0d066",
+      "eingabe": "689cae6c3e8b4e096fb312381a26c598beae0fe7f32332a2bc431e9d7f038b4a",
       "erwartet": "baf939d135be5367ca41d1e17e0b32cc22ae9bded09f2c2c028a6ea1b9f8836f",
       "grid32": "841d6a935531b43646f8e549cae4f2cb9047144cfa6fdae04a4ed2485da8ff63",
       "grid48": "12278d2c9b2c59b2e9898daad119498d3ceec04dd761870f0c118d872946dbcc",
@@ -594,7 +594,7 @@
       "blatt48": "929484055ea6d3c0e885d7d7470807f5cb0efd6f7e04ca2a7f5d83a4020abc2b"
     },
     "split-zwei-karten-gleicher-anbieter": {
-      "eingabe": "8c7d810bf02026e17be4391b295361ad60e241d7b0e7dd7af219bed4faaae4a9",
+      "eingabe": "07d9df883fe7ee29bf5648947048d0d9e277b173d09f98e26d4250ab753e4677",
       "erwartet": "62429a1a54725001d95ac984a19f66689b6571944cd69145a29a4586afdd9afc",
       "grid32": "cfb1e8e1e621b09a53026113161551978febc9a667f5ea6a044cd958ad9c499c",
       "grid48": "62cf28cbd34afb9d4cb9f5424cea9ac83154afab4b60eba87170ee89eb0f940a",

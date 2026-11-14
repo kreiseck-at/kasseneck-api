@@ -27,8 +27,11 @@ export const TG_MODUS = ['betrag', 'gesamt', 'beides'] as const;
 export type KasseTgModus = typeof TG_MODUS[number];
 export const KASSIEREN_MODUS = ['seite', 'panel'] as const;
 export type KasseKassierenModus = typeof KASSIEREN_MODUS[number];
-/** Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'extern' = eigenes Terminal ohne Anbindung. */
-export const KARTENANBIETER = ['keiner', 'extern', 'gptom', 'hobex', 'mypos', 'stripe'] as const;
+/**
+ * Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'extern' = eigenes Terminal ohne Anbindung.
+ * 'sumup' bindet nur die Kassen-App auf Android an (SumUp-SDK); Browser-Kasse und iOS kassieren damit wie 'extern'.
+ */
+export const KARTENANBIETER = ['keiner', 'extern', 'gptom', 'hobex', 'mypos', 'stripe', 'sumup'] as const;
 export type KasseKartenanbieter = typeof KARTENANBIETER[number];
 export const BELEG_AUSGABE = ['qr', 'druck', 'mail', 'sms', 'fragen'] as const;
 export type KasseBelegAusgabe = typeof BELEG_AUSGABE[number];

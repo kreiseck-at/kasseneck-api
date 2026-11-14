@@ -1,5 +1,5 @@
 {
-  "version": "0.40.0",
+  "version": "0.41.0",
   "aufrufe": [
     "activateCashregister",
     "cancelInvoice",
@@ -113,7 +113,8 @@
       "gptom",
       "hobex",
       "mypos",
-      "stripe"
+      "stripe",
+      "sumup"
     ],
     "kassierenModus": [
       "seite",
