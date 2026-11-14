@@ -172,6 +172,10 @@ export const ALL_CALLS = [
   'listMyLeergutCodes',
   // „Mein Trinkgeld“ (./pos): Stand der angemeldeten Person; nur ueber den Kassenweg.
   'getMyTipBalance',
+  // Neue Adresse des Kartenterminals still melden (./register, Ausweis des Geraets); nur ueber den Kassenweg.
+  'reportMyTerminalAddress',
+  // Laufende Fassung der Kasse still melden (./register, Ausweis des Geraets); nur ueber den Kassenweg.
+  'reportMyRegisterClient',
   // Kartenterminal am Handy: Geraet, Zugang, TID und Code (nur /v3).
   'registerTerminalDevice',
   'getTerminalAccess',
@@ -408,6 +412,10 @@ export const POS_CALLS = [
   'listMyLeergutCodes',
   // „Mein Trinkgeld“: nur ueber den Kassenweg, nur persoenliche Anmeldung.
   'getMyTipBalance',
+  // Neue Adresse des Kartenterminals melden: nur ueber den Kassenweg, Ausweis des Geraets (keine Sitzung).
+  'reportMyTerminalAddress',
+  // Laufende Fassung melden: nur ueber den Kassenweg, Ausweis des Geraets (keine Sitzung).
+  'reportMyRegisterClient',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -632,6 +640,10 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   registerUserLogin: 'repeatable',
   renewRegisterSession: 'repeatable',
   // Kartenterminal: Anmeldung und Einrichtung melden schreiben denselben Stand noch einmal.
+  // Dieselbe Adresse noch einmal gemeldet aendert nichts (`changed: false`); der Tageszaehler zaehlt nur echte Aenderungen.
+  reportMyTerminalAddress: 'repeatable',
+  // Dieselbe Kennung noch einmal gemeldet schreibt nichts (`written: false`).
+  reportMyRegisterClient: 'repeatable',
   reportTerminalLogin: 'repeatable',
   reportTerminalReady: 'repeatable',
   // Kartenterminal: die feste Bindung noch einmal loesen aendert nichts am Server.

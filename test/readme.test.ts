@@ -135,6 +135,17 @@ test('README: die genannten Endpunkte und Waechter gibt es', () => {
   assert.ok(README.includes('sellReceiptWithCompany'));
 });
 
+test('README: die Zahl der Aufrufe ohne Anmeldung stimmt mit ihrer Tabelle, und jeden gibt es in /register', () => {
+  const ZAHLEN: Record<string, number> = { Five: 5, Six: 6, Seven: 7, Eight: 8, Nine: 9, Ten: 10 };
+  const abschnitt = (README.split('### Calls without any authentication')[1] ?? '').split('```')[0] ?? '';
+  const wort = /^(\w+) calls run \*\*without any identity\*\*/m.exec(abschnitt)?.[1] ?? '';
+  const aufrufe = [...abschnitt.matchAll(/^\| (`[A-Za-z]+`(?:, `[A-Za-z]+`)*) \|/gm)]
+    .flatMap((zeile) => [...(zeile[1] ?? '').matchAll(/`([A-Za-z]+)`/g)].map((name) => name[1] ?? ''));
+  assert.ok(aufrufe.length > 0, 'Tabelle der Aufrufe ohne Anmeldung nicht gefunden');
+  assert.equal(ZAHLEN[wort], aufrufe.length, `README sagt "${wort} calls", die Tabelle nennt ${aufrufe.length}: ${aufrufe.join(', ')}`);
+  for (const name of aufrufe) assert.ok(name in register, `README nennt ${name} ohne Anmeldung, /register exportiert es nicht`);
+});
+
 test('README: die Unterpfad-Tabelle nennt genau die deklarierten Unterpfade', () => {
   const deklariert = Object.keys(PAKET.exports)
     .filter((eintrag) => eintrag !== '.')

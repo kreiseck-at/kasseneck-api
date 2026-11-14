@@ -5,7 +5,7 @@ import { posDepositSettingsFromWire } from './pfand.js';
 import { checkDiscountPresets, INVALID_DISCOUNT_PRESET } from './rabatt-vorlagen.js';
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
-  POS_DEVICE_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
+  POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_OPTIONAL_SWITCHES, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -160,7 +160,8 @@ function pruefeTeil(
       if (!_optionalerWert(wert, true)) throw new KasseneckValidationError(name, `${teil}.${schluessel}: Kennung oder null erwartet`, 'request');
       continue;
     }
-    if (teil === 'business' && (POS_BUSINESS_OPTIONAL_FIELDS as readonly string[]).includes(schluessel)) {
+    const schalter: readonly string[] = teil === 'business' ? POS_BUSINESS_OPTIONAL_FIELDS : POS_DEVICE_OPTIONAL_SWITCHES;
+    if (schalter.includes(schluessel)) {
       if (typeof wert !== 'boolean') throw new KasseneckValidationError(name, `${teil}.${schluessel}: true oder false erwartet`, 'request');
       continue;
     }

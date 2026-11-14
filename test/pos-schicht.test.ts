@@ -8,7 +8,7 @@ import {
   EUR_DENOMINATIONS, MOVEMENT_TYPES, MANUAL_MOVEMENT_TYPES, OPENING_REASONS, MANUAL_OPENING_REASONS, CASH_LOCATIONS,
   SHIFT_RECEIPT_KINDS, newIdempotencyKey,
   isPosError, POS_ERROR_CODES, MESSAGES, LABELS, messageText, labelText, findErrorRule,
-  POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, posSettingsFromWire, setMyRegisterDeviceSettings,
+  POS_DEVICE_DEFAULTS, POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_OPTIONAL_SWITCHES, posPrinterHint, posSettingsFromWire, setMyRegisterDeviceSettings,
   type LabelKey, type MessageKey,
 } from '../src/pos/index.js';
 import { shiftTipLines } from '../src/pos/index.js';
@@ -500,4 +500,30 @@ test('Laufstand: Inhaber-Trinkgeld und Trinkgeld ohne Empfänger werden gelesen 
   // Ein Betrag, der keine ganze Zahl ist, wird abgewiesen.
   lauf.ownerTips = [{ registerUserId: 'ru_mirela', name: null, cents: 1.5 }];
   assert.throws(() => ladeStand({ pfad: 'data' } as never, daten));
+});
+
+test('Geraete-Einstellung printerHint: optionaler Schalter ohne Standardwert, fehlt er, gilt an', async () => {
+  assert.deepEqual([...POS_DEVICE_OPTIONAL_SWITCHES], ['printerHint']);
+  assert.equal('printerHint' in POS_DEVICE_DEFAULTS, false);
+  assert.equal('printerHint' in posSettingsFromWire({ device: {} }).device, false);
+  assert.equal(posPrinterHint(posSettingsFromWire({ device: {} }).device), true);
+  assert.equal(posSettingsFromWire({ device: { printerHint: false } }).device.printerHint, false);
+  assert.equal(posPrinterHint(posSettingsFromWire({ device: { printerHint: false } }).device), false);
+  assert.equal(posSettingsFromWire({ device: { printerHint: true } }).device.printerHint, true);
+  // Was kein Wahrheitswert ist, kommt nicht ins Modell.
+  for (const fremd of [null, 'nein', 0, 'false']) assert.equal('printerHint' in posSettingsFromWire({ device: { printerHint: fremd } }).device, false, String(fremd));
+  // Das Vokabular kennt das Feld, schreiben geht nur mit true/false.
+  assert.equal((VOKABULAR.schemas.getKasseSettings.data.device as Json).printerHint, 'druckerHinweis');
+  const gesendet: Json[] = [];
+  const holen: FetchLike = async (_url, init) => {
+    gesendet.push((JSON.parse(init.body) as { params: Json }).params);
+    return antwortAus({ httpStatus: 200, headers: { 'Kasseneck-Api-Version': 'v3' }, response: { status: 'success', message: '', data: { device: { printerHint: false } } } });
+  };
+  const r = kassenweg(holen);
+  assert.equal((await setMyRegisterDeviceSettings(r, 'dev_pin', { printerHint: false })).printerHint, false);
+  assert.deepEqual(gesendet.map((p) => p.device), [{ printerHint: false }]);
+  for (const falsch of [null, 'nein', 0]) {
+    await assert.rejects(setMyRegisterDeviceSettings(r, 'dev_pin', { printerHint: falsch as never }), (e) => isKasseneckValidationError(e) && /device\.printerHint/.test(e.message));
+  }
+  assert.equal(gesendet.length, 1);
 });

@@ -477,6 +477,44 @@ const MELDUNGEN_ROH = {
   'connect.local_network_blocked': { text: 'Der Browser sperrt den Zugang zu Kasseneck Connect. Freigeben: Schloss neben der Adresse (installierte App: Menü ⋮ → App-Info) → Website-Einstellungen → „Lokales Netzwerk“ → „Zulassen“.', only: ['web'] },
   'connect.unpair_question': { text: 'Diesen Browser wirklich von Connect trennen? Der Bondruck geht dann nicht mehr.', only: ['web'] },
 
+  // --- Geraete im Betrieb (1.39.0, Connect-Betrieb Stufe 2) ----------------------
+  // Drucker-, Papier-, Terminal- und Sperrbild-Saetze gelten fuer beide Kassen; die Connect-Saetze nur im Browser.
+  // `printer.` und `terminal.` statt `device.`: dieser Namensraum meint das Kassengeraet.
+  'printer.paper_out': { text: 'Drucker: Papier leer – neue Rolle einlegen.' },
+  'printer.cover_open': { text: 'Drucker: Deckel offen – bitte schließen.' },
+  'printer.not_ready': { text: 'Drucker nicht bereit – Deckel schließen und Papier prüfen.' },
+  'printer.paper_near_end': { text: 'Drucker: Papier fast leer.' },
+  'printer.unreachable': { text: 'Drucker nicht erreichbar – eingeschaltet und im Netz?' },
+  'printer.none': { text: 'Kein Drucker eingerichtet.' },
+  // Der Drucker schweigt auf die Statusfrage (z. B. TM-T20III bei offenem Deckel): nur ein Hinweis, der Bon wird gedruckt.
+  'printer.no_status_answer': { text: 'Drucker antwortet nicht – Deckel und Papier prüfen.' },
+  'manager.ask': { text: 'Chef fragen.' },
+  'terminal.unreachable': { text: 'Terminal nicht erreichbar – eingeschaltet?' },
+  'terminal.tid_mismatch': { text: 'Die TID passt nicht zum Terminal.' },
+  'terminal.tid_hint': { text: 'Die TID steht auf jedem Terminal-Beleg.' },
+  'lock_screen.card_payment_unclear': { text: 'Eine Kartenzahlung ist unklar – bitte anmelden und prüfen.' },
+  'lock_screen.receipt_unclear': { text: 'Ein Beleg ist unklar – bitte anmelden und prüfen.' },
+  'lock_screen.payout_unclear': { text: 'Eine Auszahlung ist unklar – bitte anmelden und prüfen.' },
+  'lock_screen.reversal_unclear': { text: 'Eine Rückbuchung ist unklar – bitte anmelden und prüfen.' },
+  'lock_screen.split_open': { text: 'Eine getrennte Zahlung ist offen – bitte anmelden und prüfen.' },
+  // Auf dem Testdruck, unter der Linie fuer die Papierbreite.
+  'print.test_ruler_hint': { text: 'Linie in einer Zeile? Sonst 58 mm wählen.' },
+  'connect.browser_blocks': { text: 'Der Browser sperrt Kasseneck Connect.', only: ['web'] },
+  'connect.updating': { text: 'Kasseneck Connect wird aktualisiert …', only: ['web'] },
+  'connect.other_installation': { text: 'Ein anderes Kasseneck Connect antwortet.', only: ['web'] },
+  'connect.other_installation_hint': { text: 'Anderer Benutzer am Rechner?', only: ['web'] },
+  // Sprueche der Browser-Kasse, die bisher im Code standen (lib/connect.ts, App.tsx, einstellungen-schema.ts).
+  'connect.pair_invalid': { text: 'Der Kopplungs-Code stimmt nicht.', only: ['web'] },
+  'connect.pair_request_throttled': { text: 'Die Kopplung wurde gerade eben schon angefordert – der Tab sollte offen sein. Sonst kurz warten oder den Code eintippen.', only: ['web'] },
+  'connect.print_in_progress': { text: 'Der Auftrag wird gerade gedruckt.', only: ['web'] },
+  'connect.printer_timeout': { text: 'Der Drucker hat nicht rechtzeitig geantwortet.', only: ['web'] },
+  'connect.printer_refused': { text: 'Der Drucker hat den Druck abgelehnt – Papier und Deckel prüfen.', only: ['web'] },
+  'connect.bad_request': { text: 'Kasseneck Connect konnte mit dieser Anfrage nichts anfangen.', only: ['web'] },
+  'connect.unreadable_answer': { text: 'Kasseneck Connect antwortet unverständlich – bitte neu starten.', only: ['web'] },
+  'connect.error_generic': { text: 'Kasseneck Connect meldet einen Fehler.', only: ['web'] },
+  'connect.unpaired_done': { text: 'Entkoppelt – dieser Browser hat keinen Zugriff mehr. Neu koppeln geht jederzeit.', only: ['web'] },
+  'connect.switched_over': { text: 'Umgestellt – jetzt unten koppeln und den Drucker wählen.', only: ['web'] },
+
   // --- Einstellungen -------------------------------------------------------
   'settings.load_failed': { text: 'Die Einstellungen konnten nicht geladen werden.' },
   'settings.save_failed': { text: 'Die Einstellung konnte nicht gespeichert werden.' },
@@ -575,6 +613,8 @@ const MELDUNGEN_ROH = {
   // Zeile steht nur, solange an der Kasse nichts laeuft, und laedt nie von
   // selbst neu (Knopf `version.reload`). Die App kommt ueber den Store.
   'version.new_available': { text: 'Neue Fassung verfügbar – bei Gelegenheit neu laden.', only: ['web'] },
+  // Einmal kurz nach dem Selbst-Neuladen (Spec 2026-11-13-fassung-aktuell).
+  'version.updated': { text: 'Kasse aktualisiert auf {version}.', placeholders: ['version'], only: ['web'] },
 
   // --- Schicht-Ablauf der Kasse (1.28.0) -----------------------------------
   'shift.started_taken_over': { text: 'Schicht {number} hat begonnen – mit {amount} in der Lade, übernommen von Schicht {from} ({time}).', placeholders: ['number', 'amount', 'from', 'time'] },
@@ -1669,6 +1709,9 @@ const BESCHRIFTUNGEN_ROH = {
   // Der Knopf an `version.new_available`.
   'version.reload': { text: 'Neu laden', only: ['web'] },
 
+  // --- Fassung der Kasse, leise Zeile in den Einstellungen und auf dem PIN-Schirm (beide Kassen) ---
+  'version.line': { text: 'Fassung {version} · {time}', placeholders: ['version', 'time'] },
+
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
   'tip.line_cash_kept': { text: '{amount} gleich einstecken', placeholders: ['amount'] },
@@ -1706,6 +1749,100 @@ const BESCHRIFTUNGEN_ROH = {
   'tip_claim_scope.title': { text: 'Offenes Trinkgeld zählt' },
   'tip_claim_scope.per_drawer': { text: 'Je Kassenlade' },
   'tip_claim_scope.per_person': { text: 'Je Person (alle Kassenladen)' },
+
+  // --- Geraete im Betrieb (1.39.0): Beschriftungen und Knoepfe ---------------------
+  // Gelten fuer beide Kassen. Vorhandene Knoepfe werden wiederverwendet: `common.cancel` (Abbrechen), `nav.settings`
+  // (Einstellungen), `printer.set_up` (Einrichten), `receipts.open` (Öffnen), `codetable.print_again` (Nochmal drucken),
+  // `codetable.apply` (Übernehmen).
+  'devices.title': { text: 'Geräte' },
+  'devices.connect': { text: 'Connect' },
+  'devices.printer': { text: 'Drucker' },
+  'devices.terminal': { text: 'Terminal' },
+  'devices.computer': { text: 'Rechner' },
+  'devices.pairing': { text: 'Kopplung' },
+  'devices.environment': { text: 'Umgebung' },
+  'devices.live': { text: 'Live' },
+  'devices.test_environment': { text: 'Testumgebung' },
+  'devices.printer_ready': { text: 'Bondrucker bereit' },
+  'devices.printer_missing': { text: 'Noch kein Bondrucker' },
+  'devices.checking': { text: 'Wird geprüft …' },
+  'devices.test_print_sent': { text: 'Testdruck gesendet' },
+  'devices.terminal_ready': { text: 'Kartenterminal bereit' },
+  'devices.terminal_found': { text: 'Terminal gefunden' },
+  'devices.terminals_found': { text: '{n} Terminals gefunden', placeholders: ['n'] },
+  'devices.printer_found': { text: 'Drucker gefunden' },
+  'devices.printers_found': { text: '{n} Drucker gefunden', placeholders: ['n'] },
+  'devices.no_printer_found': { text: 'Kein Drucker gefunden' },
+  'devices.no_terminal_found': { text: 'Kein Terminal gefunden' },
+  'devices.no_terminal_assigned': { text: 'Kein Terminal zugewiesen' },
+  'devices.connected': { text: 'Verbunden' },
+  'devices.connecting': { text: 'Wird verbunden …' },
+  'devices.not_connected': { text: 'Nicht verbunden' },
+  'devices.connect_missing': { text: 'Kasseneck Connect fehlt' },
+  'devices.settings_applied': { text: '{width} – Einstellungen übernommen', placeholders: ['width'] },
+  'devices.model_unknown': { text: 'Modell unbekannt' },
+  'devices.paper_width_question': { text: 'Wie breit ist das Papier?' },
+  'devices.line_wrapped': { text: 'Linie umgebrochen' },
+  'devices.tid_of_this_register': { text: 'TID dieser Kasse' },
+  'devices.tid_example': { text: 'z. B. 12345678' },
+  'devices.hobex_terminal': { text: 'Hobex-Terminal' },
+  'devices.tid_value': { text: 'TID {tid}', placeholders: ['tid'] },
+  'devices.address_port': { text: '{ip} · Port {port}', placeholders: ['ip', 'port'] },
+  'devices.paper_width': { text: 'Papierbreite' },
+  'devices.cut': { text: 'Abschneiden' },
+  'devices.code_page': { text: 'Zeichensatz' },
+  'devices.qr_code': { text: 'QR-Code' },
+  'devices.from_printer': { text: 'vom Drucker' },
+  'devices.address': { text: 'Adresse' },
+  'devices.test_page': { text: 'Testseite' },
+  'devices.drawer': { text: 'Kassenlade' },
+  'devices.drawer_opens_on_cash': { text: 'öffnet bei Barzahlung' },
+  'devices.check_again': { text: 'Nochmal prüfen' },
+  'devices.not_now': { text: 'Nicht jetzt' },
+  'devices.change': { text: 'ändern' },
+  'devices.advanced': { text: 'Erweitert' },
+  'devices.search_again': { text: 'Neu suchen' },
+  'devices.view': { text: 'Ansehen' },
+  'devices.use_this': { text: 'Dieses verwenden' },
+  'devices.how_it_works': { text: 'So geht’s' },
+  'devices.update_after_payment': { text: 'Nach der Zahlung aktualisieren' },
+  'devices.print': { text: 'Drucken' },
+  'devices.save': { text: 'Speichern' },
+  'devices.check': { text: 'prüfen' },
+  'devices.none': { text: 'keiner' },
+  'devices.search': { text: 'Suchen' },
+  'devices.test_print_paper': { text: 'Testdruck auf Papier ({width}, {count} Zeichen)', placeholders: ['width', 'count'] },
+  'devices.searching': { text: 'Sucht …' },
+  'devices.yes': { text: 'ja' },
+  'devices.no': { text: 'nein' },
+  'terminal.change_in_panel': { text: 'Im Panel ändern' },
+  'connect.pair': { text: 'Koppeln', only: ['web'] },
+  'connect.unpair': { text: 'Entkoppeln', only: ['web'] },
+  'connect.unpair_yes': { text: 'Ja, entkoppeln', only: ['web'] },
+  // Schalter in den Geraete-Einstellungen: der Hinweis „Drucker antwortet nicht“ (`printer.no_status_answer`) an den Druckknoepfen.
+  'printer.hint_setting': { text: 'Warnen, wenn der Drucker nicht antwortet' },
+  'connect.code_prompt': { text: 'Kopplungs-Code aus Kasseneck Connect (6 Ziffern):', only: ['web'] },
+  // Titel der Geraete-Einstellungen (Drucker, Terminal, Connect). Keine Erklaersaetze dazu (Spec Connect-Betrieb 2.1).
+  'printer.section_title': { text: 'Drucker & Lade' },
+  'connect.status_title': { text: 'Verbindung' },
+  'connect.install_title': { text: 'Connect installieren' },
+  'connect.name': { text: 'Kasseneck Connect' },
+  'connect.switch_title': { text: 'Auf Kasseneck Connect umstellen' },
+  'printer.use': { text: 'Bondrucker verwenden' },
+  'printer.bluetooth_title': { text: 'Bluetooth-Drucker' },
+  'printer.print_qr': { text: 'QR-Code drucken' },
+  'printer.old_way_title': { text: 'Bisheriger Druckweg' },
+  'printer.cut_title': { text: 'Papier abschneiden' },
+  'printer.bon_texts_title': { text: 'Bon-Texte' },
+  'printer.test_page_print': { text: 'Testseite drucken' },
+  'printer.drawer_title': { text: 'Kassenlade am Drucker' },
+  'printer.drawer_auto_title': { text: 'Lade öffnet von selbst' },
+  'printer.drawer_open_now': { text: 'Lade jetzt öffnen' },
+  'terminal.card_terminal': { text: 'Kartenterminal' },
+  'terminal.tid_title': { text: 'Terminal-ID (TID)' },
+  'terminal.search_title': { text: 'Terminal suchen' },
+  'terminal.ip_title': { text: 'IP-Adresse' },
+  'terminal.port_title': { text: 'Port' },
 } as const satisfies Record<string, TextEntry>;
 
 export type LabelKey = keyof typeof BESCHRIFTUNGEN_ROH;

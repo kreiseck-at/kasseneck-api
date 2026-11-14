@@ -16,7 +16,7 @@ import {
 import { voucherPermsOf } from '../src/register/pairing.js';
 import {
   pairRegisterDevice, listRegisterUsersForDevice, listRegisterSessionsForDevice, registerUserLogin,
-  registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice,
+  registerPinLogin, renewRegisterSession, endRegisterSession, unpairRegisterDevice, reportMyTerminalAddress, reportMyRegisterClient,
   REGISTER_ERROR_CODES, isRegisterError, registerErrorDetails, registerErrorCode,
 } from '../src/register/index.js';
 import { createTransport, POS_BASE_URL, type FetchLike, type HttpRequestInit, type HttpResponseLike } from '../src/client/transport.js';
@@ -185,7 +185,7 @@ test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide
   // Optionale Betriebs-Einstellungen (tipKeptByDefault; Wahlfelder tipKinds, tipStart) ebenso.
   assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES, ...kasse.POS_BUSINESS_OPTIONAL_LISTS].sort(), aussen(schema.business));
   // Optionale Geraete-Einstellungen (drawerId; Wahlfeld cartWidth) haben keinen Standardwert, stehen aber im Schema.
-  assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS, ...kasse.POS_DEVICE_OPTIONAL_CHOICES].sort(), aussen(schema.device));
+  assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS, ...kasse.POS_DEVICE_OPTIONAL_SWITCHES, ...kasse.POS_DEVICE_OPTIONAL_CHOICES].sort(), aussen(schema.device));
   assert.deepEqual([...POS_SHORTCUT_ACTIONS], Object.keys(schema.device.shortcuts).filter((k) => k !== '__'));
 });
 
@@ -578,6 +578,8 @@ const ANMELDE_AUFRUFE: Record<string, (holen: FetchLike) => Promise<unknown>> = 
   registerUserLogin: (holen) => registerUserLogin({ ...GERAET, userId: 'ru_chef', pin: '0001', cashregisterId: 'KASSE1', fetch: holen }),
   registerPinLogin: (holen) => registerPinLogin({ ...GERAET, pin: '0001', cashregisterId: 'KASSE1', fetch: holen }),
   unpairRegisterDevice: (holen) => unpairRegisterDevice({ ...GERAET, fetch: holen }),
+  reportMyTerminalAddress: (holen) => reportMyTerminalAddress({ ...GERAET, tid: '0012345', host: '192.168.1.60', port: 8080, fetch: holen }),
+  reportMyRegisterClient: (holen) => reportMyRegisterClient({ ...GERAET, app: '1.39.0/2026-11-13T18:20Z', fetch: holen }),
   renewRegisterSession: (holen) => renewRegisterSession(createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ', getSessionId: () => 's', cashregisterId: 'KASSE1' }), fetch: holen })),
   endRegisterSession: (holen) => endRegisterSession(createTransport({ auth: registerUserAuth({ getIdToken: () => 'eyJ', getSessionId: () => 's', cashregisterId: 'KASSE1' }), fetch: holen })),
 };
@@ -602,6 +604,94 @@ test('Anmeldung: jeder Fehlerfall des Vertrags wird am Code erkannt, samt seinen
     }
   }
   assert.ok(gezaehlt > 60, `nur ${gezaehlt} Fehlerfaelle`);
+});
+
+// --- Terminal-Adresse melden (Ausweis des Geraets) ---------------------------------
+
+test('reportMyTerminalAddress: jeder Erfolgsfall sendet genau Ausweis, TID und Adresse und liest changed', async () => {
+  let gezaehlt = 0;
+  for (const f of erfolge('reportMyTerminalAddress')) {
+    const { holen, aufrufe } = holenFuer(f);
+    const p = f.params;
+    const ergebnis = await reportMyTerminalAddress({
+      ownerUid: p.ownerUid, deviceId: p.deviceId, deviceSecret: p.deviceSecret, tid: p.tid, host: p.host, port: p.port, fetch: holen,
+    });
+    assert.deepEqual(ergebnis, { changed: f.response.data.changed }, f.case);
+    assert.equal(aufrufe.length, 1, f.case);
+    assert.equal(aufrufe[0]!.url, `${POS_BASE_URL}/reportMyTerminalAddress`, f.case);
+    assert.deepEqual(aufrufe[0]!.params, p, f.case);
+    gezaehlt += 1;
+  }
+  assert.ok(gezaehlt >= 3, `nur ${gezaehlt} Erfolgsfaelle`);
+});
+
+test('reportMyTerminalAddress: die drei Fachfehler kommen am Code an', async () => {
+  for (const [fallName, code] of [
+    ['terminal_id_matches_not', 'terminal_id_mismatch'], ['address_invalid', 'invalid_terminal_address'], ['too_many_changes', 'too_many_changes'],
+  ] as const) {
+    const f = fall('reportMyTerminalAddress', fallName);
+    const e = await wurf(ANMELDE_AUFRUFE.reportMyTerminalAddress!(holenFuer(f).holen));
+    assert.ok(isRegisterError(e, code), fallName);
+    assert.equal(registerErrorCode(e), code, fallName);
+  }
+});
+
+test('reportMyTerminalAddress: Unbrauchbares wird vor dem Senden abgewiesen, ohne Wert in der Meldung', async () => {
+  const gut = { ...GERAET, tid: '0012345', host: '192.168.1.60', port: 8080 };
+  for (const kaputt of [
+    { ...gut, ownerUid: '' }, { ...gut, deviceId: ' ' }, { ...gut, deviceSecret: '' }, { ...gut, tid: '' }, { ...gut, host: '' },
+    { ...gut, port: 0 }, { ...gut, port: 65536 }, { ...gut, port: 80.5 }, { ...gut, port: '8080' as unknown as number },
+  ]) {
+    let gesendet = 0;
+    const holen: FetchLike = async () => { gesendet += 1; throw new Error('darf nicht senden'); };
+    const e = await wurf(reportMyTerminalAddress({ ...kaputt, fetch: holen }));
+    assert.ok(isKasseneckValidationError(e));
+    assert.equal(gesendet, 0);
+    assert.ok(!String((e as Error).message).includes(GERAET.deviceSecret));
+  }
+});
+
+test('reportMyTerminalAddress: eine Antwort ohne changed ist ein Antwortfehler', async () => {
+  const f = fall('reportMyTerminalAddress', 'success_changed');
+  const leer = { ...f, response: { status: 'success', message: '', data: {} } } as Fall;
+  const e = await wurf(reportMyTerminalAddress({ ...GERAET, tid: '0012345', host: '192.168.1.60', port: 8080, fetch: holenFuer(leer).holen }));
+  assert.ok(isKasseneckValidationError(e));
+});
+
+// --- Fassung melden (Ausweis des Geraets) -------------------------------------------
+
+test('reportMyRegisterClient: jeder Erfolgsfall sendet genau Ausweis und Kennung und liest written', async () => {
+  let gezaehlt = 0;
+  for (const f of erfolge('reportMyRegisterClient')) {
+    const { holen, aufrufe } = holenFuer(f);
+    const p = f.params;
+    const ergebnis = await reportMyRegisterClient({ ownerUid: p.ownerUid, deviceId: p.deviceId, deviceSecret: p.deviceSecret, app: p.app, fetch: holen });
+    assert.deepEqual(ergebnis, { written: f.response.data.written }, f.case);
+    assert.equal(aufrufe.length, 1, f.case);
+    assert.equal(aufrufe[0]!.url, `${POS_BASE_URL}/reportMyRegisterClient`, f.case);
+    assert.deepEqual(aufrufe[0]!.params, p, f.case);
+    gezaehlt += 1;
+  }
+  assert.ok(gezaehlt >= 1, `nur ${gezaehlt} Erfolgsfaelle`);
+});
+
+test('reportMyRegisterClient: Unbrauchbares wird vor dem Senden abgewiesen, ohne Wert in der Meldung', async () => {
+  const gut = { ...GERAET, app: '1.39.0/2026-11-13T18:20Z' };
+  for (const kaputt of [{ ...gut, ownerUid: '' }, { ...gut, deviceId: ' ' }, { ...gut, deviceSecret: '' }, { ...gut, app: '' }, { ...gut, app: '  ' }]) {
+    let gesendet = 0;
+    const holen: FetchLike = async () => { gesendet += 1; throw new Error('darf nicht senden'); };
+    const e = await wurf(reportMyRegisterClient({ ...kaputt, fetch: holen }));
+    assert.ok(isKasseneckValidationError(e));
+    assert.equal(gesendet, 0);
+    assert.ok(!String((e as Error).message).includes(GERAET.deviceSecret));
+  }
+});
+
+test('reportMyRegisterClient: eine Antwort ohne written ist ein Antwortfehler', async () => {
+  const f = erfolge('reportMyRegisterClient')[0]!;
+  const leer = { ...f, response: { status: 'success', message: '', data: {} } } as Fall;
+  const e = await wurf(reportMyRegisterClient({ ...GERAET, app: '1.39.0/2026-11-13T18:20Z', fetch: holenFuer(leer).holen }));
+  assert.ok(isKasseneckValidationError(e));
 });
 
 test('Anmeldung: die Kernfaelle der Kasse, am Code und ohne Text', async () => {
