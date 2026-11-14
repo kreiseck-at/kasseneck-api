@@ -74,7 +74,7 @@ test('Saetze sumup.* gibt es nur in der App', () => {
     'sumup.amount_mismatch', 'sumup.below_minimum', 'sumup.bind_question', 'sumup.check_in_app', 'sumup.code_optional_label',
     'sumup.declined', 'sumup.ios_external', 'sumup.key_missing', 'sumup.location_denied', 'sumup.location_denied_hint', 'sumup.location_hint', 'sumup.location_missing',
     'sumup.location_off', 'sumup.location_question', 'sumup.login_failed', 'sumup.not_bound', 'sumup.not_logged_in',
-    'sumup.other_account', 'sumup.refund_hint', 'sumup.status_logged_in', 'sumup.status_logged_out', 'sumup.unbind_question',
+    'sumup.other_account', 'sumup.reader_ready', 'sumup.refund_hint', 'sumup.status_logged_in', 'sumup.status_logged_out', 'sumup.unbind_question',
     'sumup.wrong_currency',
   ]);
   for (const [k, m] of sumup) assert.deepEqual((m as { only?: string[] }).only, ['app'], k);

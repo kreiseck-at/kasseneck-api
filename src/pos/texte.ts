@@ -225,6 +225,8 @@ const MELDUNGEN_ROH = {
   'sumup.location_denied': { text: 'Der Standort ist für die Kasse gesperrt. Ohne ihn meldet SumUp nicht an.', only: ['app'] },
   'sumup.location_denied_hint': { text: 'In den Einstellungen der App unter „Berechtigungen“ den Standort erlauben.', only: ['app'] },
   'sumup.location_off': { text: 'Der Standort ist an diesem Gerät ausgeschaltet. SumUp braucht ihn für Kartenzahlungen.', only: ['app'] },
+  // Statuszeile „Kartenleser“, sobald SumUp einen Leser eingerichtet hat ({name}: Name des Lesers, etwa „UL924“).
+  'sumup.reader_ready': { text: 'Leser {name} ist eingerichtet.', placeholders: ['name'], only: ['app'] },
   'sumup.location_missing': { text: 'Ohne Standort keine Anmeldung bei SumUp. Bitte den Standort erlauben und erneut anmelden.', only: ['app'] },
 
   // --- Terminal-Protokoll --------------------------------------------------
@@ -1754,6 +1756,7 @@ const BESCHRIFTUNGEN_ROH = {
   'sumup.bind': { text: 'Verbinden', only: ['app'] },
   'sumup.unbind_title': { text: 'Verbindung lösen', only: ['app'] },
   'sumup.unbind': { text: 'Lösen', only: ['app'] },
+  'sumup.reader_change': { text: 'Leser ändern', only: ['app'] },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.

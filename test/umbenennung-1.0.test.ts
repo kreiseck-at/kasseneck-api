@@ -124,7 +124,7 @@ const NACH_1_0 = {
     'sumup.login_failed', 'sumup.declined', 'sumup.amount_mismatch', 'sumup.below_minimum', 'sumup.check_in_app', 'sumup.code_optional_label',
     'sumup.refund_hint', 'sumup.ios_external', 'sumup.status_logged_in', 'sumup.status_logged_out',
     'sumup.location_question', 'sumup.location_denied', 'sumup.location_off', 'sumup.location_missing',
-    'sumup.location_hint', 'sumup.location_denied_hint'],
+    'sumup.location_hint', 'sumup.location_denied_hint', 'sumup.reader_ready'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -243,7 +243,8 @@ const NACH_1_0 = {
     'version.line',
     // SumUp in der Kassen-App: Blätter für Standort und Bindung (1.40.0)
     'sumup.location_title', 'sumup.location_allow', 'sumup.location_denied_title', 'sumup.open_app_settings',
-    'sumup.location_off_title', 'sumup.location_turn_on', 'sumup.bind_title', 'sumup.bind', 'sumup.unbind_title', 'sumup.unbind'],
+    'sumup.location_off_title', 'sumup.location_turn_on', 'sumup.bind_title', 'sumup.bind', 'sumup.unbind_title', 'sumup.unbind',
+    'sumup.reader_change'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
