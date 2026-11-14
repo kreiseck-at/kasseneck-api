@@ -183,7 +183,7 @@ test('Einstellungen: jedes Feld und jede Tasten-Aktion steht im Schema, in beide
   const schema = VOKABULAR.schemas.getKasseSettings.data;
   const aussen = (teil: Json) => Object.keys(teil).filter((k) => k !== '__').sort();
   // Optionale Betriebs-Einstellungen (tipKeptByDefault; Wahlfelder tipKinds, tipStart) ebenso.
-  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES, ...kasse.POS_BUSINESS_OPTIONAL_LISTS].sort(), aussen(schema.business));
+  assert.deepEqual([...Object.keys(POS_BUSINESS_DEFAULTS), ...kasse.POS_BUSINESS_OPTIONAL_FIELDS, ...kasse.POS_BUSINESS_OPTIONAL_CHOICES, ...kasse.POS_BUSINESS_OPTIONAL_LISTS, ...kasse.POS_BUSINESS_OPTIONAL_IDS].sort(), aussen(schema.business));
   // Optionale Geraete-Einstellungen (drawerId; Wahlfeld cartWidth) haben keinen Standardwert, stehen aber im Schema.
   assert.deepEqual([...Object.keys(POS_DEVICE_DEFAULTS), ...kasse.POS_DEVICE_OPTIONAL_FIELDS, ...kasse.POS_DEVICE_OPTIONAL_SWITCHES, ...kasse.POS_DEVICE_OPTIONAL_CHOICES].sort(), aussen(schema.device));
   assert.deepEqual([...POS_SHORTCUT_ACTIONS], Object.keys(schema.device.shortcuts).filter((k) => k !== '__'));

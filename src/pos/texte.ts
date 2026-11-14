@@ -197,6 +197,27 @@ const MELDUNGEN_ROH = {
   'gptom.timeout': { text: 'Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird.', only: ['app'] },
   'gptom.timeout_with_id': { text: 'Das Terminal hat in der Frist nicht geantwortet – die Karte kann belastet sein. Bitte am Terminal-Beleg nachsehen, BEVOR neu kassiert wird. Kennung der Zahlung: {reference}.', placeholders: ['reference'], only: ['app'] },
 
+  // --- SumUp (Kassen-App, Android; Spec 2026-11-14-sumup-kasse) -------------
+  // Angemeldet wird nur in den Einstellungen, nie mitten in einer Zahlung. Die Kasse ist an ein SumUp-Konto gebunden.
+  'sumup.key_missing': { text: 'SumUp ist für diese Kasse noch nicht eingerichtet – bitte Kasseneck kontaktieren.', only: ['app'] },
+  'sumup.not_logged_in': { text: 'Nicht bei SumUp angemeldet. Bitte in den Einstellungen unter Kartenterminal anmelden.', only: ['app'] },
+  'sumup.other_account': { text: 'Hier ist ein anderes SumUp-Konto angemeldet ({current}) als das der Kasse ({bound}). Bitte abmelden und mit dem richtigen Konto anmelden.', placeholders: ['current', 'bound'], only: ['app'] },
+  'sumup.bind_question': { text: 'Diese Kasse mit dem SumUp-Konto {merchant} verbinden? Danach kassieren alle Geräte nur noch auf dieses Konto.', placeholders: ['merchant'], only: ['app'] },
+  'sumup.unbind_question': { text: 'Die Verbindung zum SumUp-Konto lösen? Danach kann sich ein anderes Konto verbinden.', only: ['app'] },
+  'sumup.wrong_currency': { text: 'Das SumUp-Konto rechnet in {currency}, die Kasse in Euro. Bitte ein Konto in Euro verwenden.', placeholders: ['currency'], only: ['app'] },
+  'sumup.login_failed': { text: 'Die Anmeldung bei SumUp hat nicht geklappt. Bitte erneut versuchen.', only: ['app'] },
+  // Nicht durchgeführt heißt: SumUp hat entschieden, es ist sicher nichts gebucht.
+  'sumup.declined': { text: 'SumUp hat die Zahlung nicht durchgeführt: {reason}', placeholders: ['reason'], only: ['app'] },
+  // Weicht der Betrag ab, kann trotzdem gebucht sein: derselbe Ton wie card_payment.unknown.
+  'sumup.amount_mismatch': { text: 'SumUp meldet einen anderen Betrag als die Kasse. Bitte in der SumUp-App nachsehen, BEVOR neu kassiert wird.', only: ['app'] },
+  'sumup.below_minimum': { text: 'Mit SumUp geht Karte erst ab 1,00 €.', only: ['app'] },
+  'sumup.check_in_app': { text: 'In der SumUp-App unter Transaktionen nachsehen: {amount}, {time}.', placeholders: ['amount', 'time'], only: ['app'] },
+  'sumup.code_optional_label': { text: 'SumUp-Transaktionscode (aus der SumUp-App, freiwillig)', only: ['app'] },
+  'sumup.refund_hint': { text: 'Die Kartenzahlung bitte in der SumUp-App zurückbuchen (Transaktion {code}, Karte endet auf {digits}).', placeholders: ['code', 'digits'], only: ['app'] },
+  'sumup.ios_external': { text: 'SumUp ist auf diesem Gerät nicht angebunden: den Betrag am SumUp-Gerät eintippen, die Kasse bucht Karte.', only: ['app'] },
+  'sumup.status_logged_in': { text: 'Bei SumUp angemeldet als {merchant}.', placeholders: ['merchant'], only: ['app'] },
+  'sumup.status_logged_out': { text: 'Nicht bei SumUp angemeldet.', only: ['app'] },
+
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },
   'log.copied': { text: 'Das Protokoll liegt in der Zwischenablage.' },
