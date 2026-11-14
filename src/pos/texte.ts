@@ -219,6 +219,10 @@ const MELDUNGEN_ROH = {
   'sumup.ios_external': { text: 'SumUp ist auf diesem Gerät nicht angebunden: den Betrag am SumUp-Gerät eintippen, die Kasse bucht Karte.', only: ['app'] },
   'sumup.status_logged_in': { text: 'Bei SumUp angemeldet als {merchant}.', placeholders: ['merchant'], only: ['app'] },
   'sumup.status_logged_out': { text: 'Nicht bei SumUp angemeldet.', only: ['app'] },
+  'sumup.location_question': { text: 'SumUp braucht für Kartenzahlungen den Standort dieses Geräts. Gleich fragt Android danach: bitte erlauben. Weiter?', only: ['app'] },
+  'sumup.location_denied': { text: 'Der Standort ist für die Kasse gesperrt, ohne ihn meldet SumUp nicht an. Einstellungen der App öffnen und unter Berechtigungen den Standort erlauben?', only: ['app'] },
+  'sumup.location_off': { text: 'Der Standort ist an diesem Gerät ausgeschaltet, SumUp braucht ihn für Kartenzahlungen. Standort-Einstellungen öffnen?', only: ['app'] },
+  'sumup.location_missing': { text: 'Ohne Standort keine Anmeldung bei SumUp. Bitte den Standort erlauben und erneut anmelden.', only: ['app'] },
 
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },

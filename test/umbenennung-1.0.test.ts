@@ -122,7 +122,8 @@ const NACH_1_0 = {
     // SumUp in der Kassen-App (1.40.0)
     'sumup.key_missing', 'sumup.not_bound', 'sumup.not_logged_in', 'sumup.other_account', 'sumup.bind_question', 'sumup.unbind_question', 'sumup.wrong_currency',
     'sumup.login_failed', 'sumup.declined', 'sumup.amount_mismatch', 'sumup.below_minimum', 'sumup.check_in_app', 'sumup.code_optional_label',
-    'sumup.refund_hint', 'sumup.ios_external', 'sumup.status_logged_in', 'sumup.status_logged_out'],
+    'sumup.refund_hint', 'sumup.ios_external', 'sumup.status_logged_in', 'sumup.status_logged_out',
+    'sumup.location_question', 'sumup.location_denied', 'sumup.location_off', 'sumup.location_missing'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
