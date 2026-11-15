@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.41.0 (unveröffentlicht)
+
+SumUp in der Kassen-App (Stufe 1) und ein Fehler im SumUp-Block des Bons.
+
+- **Kartenanbieter `sumup`** in `KARTENANBIETER` und im Vertrag (`oberflaeche.json`). Angebunden nur in der Kassen-App auf Android;
+  Browser-Kasse und iOS kassieren damit wie `extern`.
+- **Fix SumUp-Betrag:** `amount` im SumUp-Block ist Euro, wie SumUp ihn liefert und wie er am Beleg steht (`25`, `14.09`). Eine ganze
+  Zahl wurde bisher als Cent gelesen (25 € → „0,25 EUR“). Zeichenketten mit Punkt (`"25.00"`) werden gelesen, sonst „-“. Die
+  Testbelege mit SumUp tragen jetzt Euro, die Goldens bleiben byte-gleich.
+
 ## 0.40.0 (unveröffentlicht)
 
 Zahlung auf Rechnung im Beleg, Zwilling der Bonzeilen und Vermerke von 1.38.0 (nur Lesen, Bon und Texte). Das Backend vendort die

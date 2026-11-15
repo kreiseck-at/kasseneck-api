@@ -335,11 +335,20 @@ function gpTomBlock(daten: Record<string, unknown>): LayoutLine[] {
   return zeilen;
 }
 
+/**
+ * SumUp liefert `amount` in Euro (SDK-Antwort, so am Beleg gespeichert: 25, 14.09).
+ * Auch eine ganze Zahl ist Euro, nie Cent. Zeichenkette mit Punkt wird gelesen,
+ * alles andere ergibt einen Strich.
+ */
+function sumupBetrag(roh: unknown): string {
+  const zahl = typeof roh === 'number' ? roh
+    : (typeof roh === 'string' && /^-?\d+(\.\d+)?$/.test(roh.trim()) ? Number(roh.trim()) : NaN);
+  return Number.isFinite(zahl) ? zahl.toFixed(2).replace('.', ',') : '-';
+}
+
 function sumupBlock(daten: Record<string, unknown>): LayoutLine[] {
   const feld = (k: string) => kartenFeld(daten, k);
-  const betrag = typeof daten.amount === 'number'
-    ? (Number.isInteger(daten.amount) ? formatCents(daten.amount) : daten.amount.toFixed(2).replace('.', ','))
-    : '-';
+  const betrag = sumupBetrag(daten.amount);
   return [
     textZeile('Sumup Beleg', 'center', true),
     paarZeile('Kartentyp:', feld('cardType') || 'n/a'),
