@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 1.40.0 - unveröffentlicht
+
+SumUp in the register app (backend spec 2026-11-14-sumup-kasse, stage 1: Android only) and a fix in the SumUp block of the receipt. Additive; every existing call and text behaves as before.
+
+- **Card provider `sumup`** in `CARD_PROVIDER` and the contract. Only the register app on Android connects it (SumUp SDK); the browser register and iOS take it like `external`.
+- **`business.sumupMerchantCode`** (optional, `POS_BUSINESS_OPTIONAL_IDS`): the SumUp merchant code the business is bound to. Missing until one is bound. `setMyPosSettings` takes 4 to 20 letters or digits or `null` (release the binding) and rejects anything else before sending; the server rejects a different code while one is bound (`sumup_merchant_already_bound`). Reason: a device logged in to another SumUp account must never take payments for this business.
+- **Block `cardTerminal`** in the register settings (`PosSettings.cardTerminal`, `posCardTerminalFromWire`): `{ sumup: { affiliateKey } }`, only for a device whose card provider is `sumup`; missing otherwise.
+- **Sentences `sumup.*`** (app only): not set up, not logged in, not bound, other account, bind and release questions, currency, login failed, not carried out (without the raw SDK reason; SumUp shows it on its own screen), amount differs, below 1,00 €, look in the SumUp app, optional transaction code, refund hint, iOS takes it like external, login status, and six location sentences (`sumup.location_question`, `.location_hint`, `.location_denied`, `.location_denied_hint`, `.location_off`, `.location_missing`): the register asks for the location itself before the SumUp login, because the SumUp SDK refuses to log in without it on Android 12 and later. Labels for the sheets of these questions and of the binding (`sumup.location_title`, `.location_allow`, `.location_denied_title`, `.open_app_settings`, `.location_off_title`, `.location_turn_on`, `.bind_title`, `.bind`, `.unbind_title`, `.unbind`, `.reader_change`; app only) and the status line `sumup.reader_ready` („Leser {name} ist eingerichtet.“) once SumUp has set up a reader.
+- **Fix SumUp amount:** `amount` in the SumUp block is euros, as SumUp returns it and as it is stored on the receipt (`25`, `14.09`). A whole number used to be read as cents (25 € → „0,25 EUR“). Strings with a dot (`"25.00"`) are read, anything else gives „-“. The SumUp test receipts now carry euros, the goldens stay byte-identical.
+
 ## 1.39.0 - 2026-11-14
 
 Texts for the device operation of both registers (printer, paper, terminal, lock screen), an address callback in the HPS Connect client, a call to report a new terminal address, a call to report the running register version and the device switch `printerHint` (backend spec 2026-11-09-connect-betrieb, stage 2). Additive; every existing call, golden and text behaves as before.

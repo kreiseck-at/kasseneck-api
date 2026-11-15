@@ -6,6 +6,7 @@ import { checkDiscountPresets, INVALID_DISCOUNT_PRESET } from './rabatt-vorlagen
 import {
   POS_BUSINESS_DEFAULTS, POS_DEVICE_DEFAULTS, POS_BUSINESS_VALUES, POS_DEVICE_VALUES, POS_SHORTCUT_ACTIONS,
   POS_DEVICE_OPTIONAL_FIELDS, POS_DEVICE_OPTIONAL_SWITCHES, POS_BUSINESS_OPTIONAL_FIELDS, POS_BUSINESS_OPTIONAL_CHOICES, POS_BUSINESS_OPTIONAL_LISTS, POS_DEVICE_OPTIONAL_CHOICES, mergePosSettings, posShortcutConflict, _istAltwert0x, _optionalerWert,
+  POS_BUSINESS_OPTIONAL_IDS, _optionaleBetriebsKennung, posCardTerminalFromWire,
   type PosSettings, type PosBusinessSettings, type PosDeviceSettings,
 } from './settings.js';
 
@@ -33,18 +34,20 @@ import {
 export async function getPosSettings(transport: InternerTransport, options: { deviceId?: string } = {}): Promise<PosSettings> {
   const params: Record<string, unknown> = {};
   if (options.deviceId) params.deviceId = options.deviceId;
-  const daten = await transport<{ business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown }>('getKasseSettings', params);
+  const daten = await transport<{ business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown; cardTerminal?: unknown }>('getKasseSettings', params);
   return posSettingsFromWire(daten);
 }
 
 /** `{business, device, vouchers}` einer Antwort, gemischt mit den Standardwerten. */
-export function posSettingsFromWire(data: { business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown } | null | undefined): PosSettings {
+export function posSettingsFromWire(data: { business?: unknown; device?: unknown; vouchers?: unknown; deposit?: unknown; cardTerminal?: unknown } | null | undefined): PosSettings {
   const deposit = posDepositSettingsFromWire(data?.deposit);
+  const cardTerminal = posCardTerminalFromWire(data?.cardTerminal);
   return {
     vouchers: posVoucherSettingsFromWire(data?.vouchers),
     business: mergePosSettings(POS_BUSINESS_DEFAULTS, objekt(data?.business) as Partial<PosBusinessSettings> | null),
     device: mergePosSettings(POS_DEVICE_DEFAULTS, objekt(data?.device) as Partial<PosDeviceSettings> | null),
     ...(deposit ? { deposit } : {}),
+    ...(cardTerminal ? { cardTerminal } : {}),
   };
 }
 
@@ -158,6 +161,10 @@ function pruefeTeil(
   for (const [schluessel, wert] of gesendet) {
     if (teil === 'device' && (POS_DEVICE_OPTIONAL_FIELDS as readonly string[]).includes(schluessel)) {
       if (!_optionalerWert(wert, true)) throw new KasseneckValidationError(name, `${teil}.${schluessel}: Kennung oder null erwartet`, 'request');
+      continue;
+    }
+    if (teil === 'business' && (POS_BUSINESS_OPTIONAL_IDS as readonly string[]).includes(schluessel)) {
+      if (!_optionaleBetriebsKennung(wert, true)) throw new KasseneckValidationError(name, `${teil}.${schluessel}: Nummer (4 bis 20 Buchstaben oder Ziffern) oder null erwartet`, 'request');
       continue;
     }
     const schalter: readonly string[] = teil === 'business' ? POS_BUSINESS_OPTIONAL_FIELDS : POS_DEVICE_OPTIONAL_SWITCHES;

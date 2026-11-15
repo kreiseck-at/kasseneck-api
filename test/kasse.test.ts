@@ -229,7 +229,7 @@ test('Kassieren: Vorgabe im Korb-Panel -- die Kacheln bleiben stehen (seit 0.31.
 test('Kartenanbieter: Vorgabe keiner, Karte aus -- Karte gibt es erst mit Anbieter', () => {
   assert.equal(POS_BUSINESS_DEFAULTS.cardProvider, 'none');
   assert.equal(POS_BUSINESS_DEFAULTS.payCard, false);
-  assert.deepEqual([...CARD_PROVIDER], ['none', 'external', 'gptom', 'hobex', 'mypos', 'stripe']);
+  assert.deepEqual([...CARD_PROVIDER], ['none', 'external', 'gptom', 'hobex', 'mypos', 'stripe', 'sumup']);
 });
 
 test('Tastenkarte je Geraet: Vorgabe ohne F-Tasten, Merge je Aktion', () => {

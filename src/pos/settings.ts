@@ -75,8 +75,11 @@ export const CART_WIDTH = ['narrow', 'medium', 'wide'] as const;
 export type PosCartWidth = typeof CART_WIDTH[number];
 export const CHECKOUT_MODE = ['page', 'panel'] as const;
 export type PosCheckoutMode = typeof CHECKOUT_MODE[number];
-/** Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'external' = eigenes Terminal ohne Anbindung. */
-export const CARD_PROVIDER = ['none', 'external', 'gptom', 'hobex', 'mypos', 'stripe'] as const;
+/**
+ * Kartenanbieter: Karte gibt es erst mit eingerichtetem Anbieter; 'external' = eigenes Terminal ohne Anbindung.
+ * 'sumup' bindet nur die Kassen-App auf Android an (SumUp-SDK); Browser-Kasse und iOS kassieren damit wie 'external'.
+ */
+export const CARD_PROVIDER = ['none', 'external', 'gptom', 'hobex', 'mypos', 'stripe', 'sumup'] as const;
 export type PosCardProvider = typeof CARD_PROVIDER[number];
 export const RECEIPT_OUTPUT = ['qr', 'print', 'email', 'sms', 'ask'] as const;
 export type PosReceiptOutput = typeof RECEIPT_OUTPUT[number];
@@ -253,6 +256,12 @@ export interface PosBusinessSettings {
    */
   tipSelfPayout?: boolean;
   /**
+   * SumUp-Haendlernummer, an die der Betrieb gebunden ist (Spec 2026-11-14-sumup-kasse). Optional: fehlt, solange keine
+   * gebunden ist. Schreiben nimmt die Nummer oder `null` (Bindung loesen); eine andere Nummer bei bestehender Bindung
+   * weist der Server mit `sumup_merchant_already_bound` ab. Siehe [POS_BUSINESS_OPTIONAL_IDS].
+   */
+  sumupMerchantCode?: string;
+  /**
    * Benannte Rabatt-Chips (Prozent oder Betrag, hoechstens 5). Optional: der Server sendet das Feld nur, wenn es
    * gespeichert ist; dann sind die Vorlagen die Quelle der Chips und `discountChips` spiegelt ihre Prozentwerte fuer
    * aeltere Kassen. Fehlt es, gilt `discountChips`. Lesen ueber [posDiscountPresets]; eine Vorlage mit unbekannter
@@ -392,6 +401,24 @@ export interface PosSettings {
   vouchers: PosVoucherSettings;
   /** Pfand & Leergut (Block `deposit`); fehlt, solange der Betrieb kein Pfand eingeschaltet hat. */
   deposit?: DepositSettings;
+  /** Kartenterminal-Zugang (Block `cardTerminal`); fehlt, solange an diesem Geraet kein angebundenes Terminal gilt. */
+  cardTerminal?: PosCardTerminal;
+}
+
+/**
+ * Zugang zu einem angebundenen Kartenterminal (Spec 2026-11-14-sumup-kasse). Der Server liefert den SumUp-Affiliate-Key
+ * nur an ein Geraet, an dem der Kartenanbieter `sumup` gilt.
+ */
+export interface PosCardTerminal {
+  sumup?: { affiliateKey: string };
+}
+
+/** `cardTerminal` aus einer Antwort lesen; unbrauchbar oder ohne Inhalt → `null`. */
+export function posCardTerminalFromWire(value: unknown): PosCardTerminal | null {
+  const block = value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  const sumup = block && block.sumup !== null && typeof block.sumup === 'object' ? (block.sumup as Record<string, unknown>) : null;
+  const key = sumup && typeof sumup.affiliateKey === 'string' ? sumup.affiliateKey : '';
+  return key ? { sumup: { affiliateKey: key } } : null;
 }
 
 export const POS_BUSINESS_DEFAULTS: Readonly<PosBusinessSettings> = Object.freeze({
@@ -460,6 +487,23 @@ const OPTIONALE_GERAETE_SCHALTER: ReadonlySet<string> = new Set(POS_DEVICE_OPTIO
 export const POS_BUSINESS_OPTIONAL_FIELDS = Object.freeze(['tipKeptByDefault', 'customDiscountAllowed', 'tipCardKeptByDefault', 'tipSelfPayout'] as const);
 
 const OPTIONALE_SCHALTER: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_FIELDS);
+
+/**
+ * Optionale Betriebs-Kennungen (Backend `BETRIEB_OPTIONAL`, z. B. `sumupHaendler`): ohne Standardwert, der Server sendet
+ * sie nur, wenn sie gesetzt sind. [mergePosSettings] uebernimmt eine gueltige Nummer; der Schreibweg nimmt sie oder
+ * `null` (loesen).
+ */
+export const POS_BUSINESS_OPTIONAL_IDS = Object.freeze(['sumupMerchantCode'] as const);
+
+/** Form der SumUp-Haendlernummer (Backend `sumup-kasse-core.HAENDLER_MUSTER`, dort gross geschrieben). */
+const SUMUP_HAENDLER = /^[A-Za-z0-9]{4,20}$/;
+
+/** Gilt dieser Wert fuer eine optionale Betriebs-Kennung? Lesen: nur eine Nummer; Schreiben: auch `null`. */
+export function _optionaleBetriebsKennung(wert: unknown, schreiben: boolean): boolean {
+  return (schreiben && wert === null) || (typeof wert === 'string' && SUMUP_HAENDLER.test(wert));
+}
+
+const OPTIONALE_BETRIEBS_KENNUNGEN: ReadonlySet<string> = new Set(POS_BUSINESS_OPTIONAL_IDS);
 
 /**
  * Optionale Betriebs-Einstellungen mit Wertemenge (Backend `BETRIEB_OPTIONAL`, Katalog
@@ -682,6 +726,7 @@ export function mergePosSettings<T extends object>(standard: Readonly<T>, stored
         const wert = (stored as Record<string, unknown>)[key];
         if (OPTIONALE.has(key) && _optionalerWert(wert, false)) out[key] = wert;
         if (OPTIONALE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
+        if (OPTIONALE_BETRIEBS_KENNUNGEN.has(key) && _optionaleBetriebsKennung(wert, false)) out[key] = wert;
         if (OPTIONALE_GERAETE_SCHALTER.has(key) && typeof wert === 'boolean') out[key] = wert;
         if (OPTIONALE_WAHL.has(key) && _optionalerWahlwert(key, wert)) out[key] = Array.isArray(wert) ? [...wert] : wert;
         if (key === 'discountPresets') {
@@ -734,7 +779,14 @@ export function sanitizePosSettings(stored: unknown): PosSettings {
     device: mergePosSettings(POS_DEVICE_DEFAULTS, teil('device') as Partial<PosDeviceSettings> | null),
     vouchers: posVoucherSettingsFromWire(eigen(roh, 'vouchers') ? roh['vouchers'] : undefined),
     ...pfandBlock(eigen(roh, 'deposit') ? roh['deposit'] : undefined),
+    ...kartenterminalBlock(eigen(roh, 'cardTerminal') ? roh['cardTerminal'] : undefined),
   };
+}
+
+/** `{ cardTerminal }`, wenn der Block lesbar ist, sonst nichts. */
+function kartenterminalBlock(wert: unknown): { cardTerminal?: PosCardTerminal } {
+  const cardTerminal = posCardTerminalFromWire(wert);
+  return cardTerminal ? { cardTerminal } : {};
 }
 
 /**

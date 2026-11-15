@@ -118,7 +118,13 @@ const NACH_1_0 = {
     // Zahlung auf Rechnung (1.38.0)
     'cancellation.invoice_payment_not_cancellable',
     // Geraete im Betrieb (1.39.0)
-    'printer.paper_out', 'printer.cover_open', 'printer.not_ready', 'printer.paper_near_end', 'printer.unreachable', 'printer.none', 'printer.no_status_answer', 'manager.ask', 'terminal.unreachable', 'terminal.tid_mismatch', 'terminal.tid_hint', 'lock_screen.card_payment_unclear', 'lock_screen.receipt_unclear', 'lock_screen.payout_unclear', 'lock_screen.reversal_unclear', 'lock_screen.split_open', 'print.test_ruler_hint', 'connect.browser_blocks', 'connect.updating', 'connect.other_installation', 'connect.other_installation_hint', 'connect.pair_invalid', 'connect.pair_request_throttled', 'connect.print_in_progress', 'connect.printer_timeout', 'connect.printer_refused', 'connect.bad_request', 'connect.unreadable_answer', 'connect.error_generic', 'connect.unpaired_done', 'connect.switched_over'],
+    'printer.paper_out', 'printer.cover_open', 'printer.not_ready', 'printer.paper_near_end', 'printer.unreachable', 'printer.none', 'printer.no_status_answer', 'manager.ask', 'terminal.unreachable', 'terminal.tid_mismatch', 'terminal.tid_hint', 'lock_screen.card_payment_unclear', 'lock_screen.receipt_unclear', 'lock_screen.payout_unclear', 'lock_screen.reversal_unclear', 'lock_screen.split_open', 'print.test_ruler_hint', 'connect.browser_blocks', 'connect.updating', 'connect.other_installation', 'connect.other_installation_hint', 'connect.pair_invalid', 'connect.pair_request_throttled', 'connect.print_in_progress', 'connect.printer_timeout', 'connect.printer_refused', 'connect.bad_request', 'connect.unreadable_answer', 'connect.error_generic', 'connect.unpaired_done', 'connect.switched_over',
+    // SumUp in der Kassen-App (1.40.0)
+    'sumup.key_missing', 'sumup.not_bound', 'sumup.not_logged_in', 'sumup.other_account', 'sumup.bind_question', 'sumup.unbind_question', 'sumup.wrong_currency',
+    'sumup.login_failed', 'sumup.declined', 'sumup.amount_mismatch', 'sumup.below_minimum', 'sumup.check_in_app', 'sumup.code_optional_label',
+    'sumup.refund_hint', 'sumup.ios_external', 'sumup.status_logged_in', 'sumup.status_logged_out',
+    'sumup.location_question', 'sumup.location_denied', 'sumup.location_off', 'sumup.location_missing',
+    'sumup.location_hint', 'sumup.location_denied_hint', 'sumup.reader_ready'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -234,7 +240,11 @@ const NACH_1_0 = {
     'connect.status_title', 'connect.install_title', 'connect.name', 'connect.switch_title', 'printer.use', 'printer.bluetooth_title', 'printer.print_qr', 'printer.old_way_title', 'printer.cut_title', 'printer.bon_texts_title', 'printer.test_page_print', 'printer.drawer_title', 'printer.drawer_auto_title', 'printer.drawer_open_now', 'terminal.card_terminal', 'terminal.tid_title', 'terminal.search_title', 'terminal.ip_title', 'terminal.port_title', 'printer.section_title',
     'devices.check', 'devices.none', 'devices.search', 'devices.test_print_paper', 'devices.searching', 'devices.yes', 'devices.no', 'terminal.change_in_panel', 'connect.pair', 'connect.unpair', 'connect.unpair_yes',
     // Fassung der Kasse (1.39.0)
-    'version.line'],
+    'version.line',
+    // SumUp in der Kassen-App: Blätter für Standort und Bindung (1.40.0)
+    'sumup.location_title', 'sumup.location_allow', 'sumup.location_denied_title', 'sumup.open_app_settings',
+    'sumup.location_off_title', 'sumup.location_turn_on', 'sumup.bind_title', 'sumup.bind', 'sumup.unbind_title', 'sumup.unbind',
+    'sumup.reader_change'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
