@@ -1781,6 +1781,13 @@ const BESCHRIFTUNGEN_ROH = {
   'my_tips.overpaid': { text: 'Zu viel ausgezahlt: {amount}, wird verrechnet', placeholders: ['amount'] },
   'my_tips.pay_out': { text: 'Auszahlen' },
   'my_tips.pay_out_amount': { text: 'Betrag' },
+  // „Mein Trinkgeld“ gross (1.41.0, Inhaber 16.11.2026): der offene Betrag gross, darunter wofuer er steht; was heute
+  // schon bekommen wurde nur klein und nur ueber 0 – „Heute genommen 0,00 €“ verwirrte. open_here/open_total/kept_today
+  // oben bleiben fuer aeltere Kassen.
+  'my_tips.open_for_you': { text: 'für dich offen' },
+  'my_tips.open_for_you_here': { text: 'für dich offen an dieser Lade' },
+  'my_tips.open_for_you_total': { text: 'für dich offen, alle Laden' },
+  'my_tips.received_today': { text: 'heute schon bekommen: {amount}', placeholders: ['amount'] },
   // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
   'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
   // Z-/X-Bon und Kassenstand: Teil von „genommen“ (shiftTipLines) und Soll-Teil (expectedParts).

@@ -191,6 +191,8 @@ const NACH_1_0 = {
     'my_tips.title', 'my_tips.open_here', 'my_tips.open_total', 'my_tips.kept_today', 'my_tips.other_drawer', 'my_tips.nothing_open', 'my_tips.overpaid', 'my_tips.pay_out', 'my_tips.pay_out_amount',
     'cancellation.tip_deducted', 'shift_receipt.tip_card_taken', 'shift.part_card_tips_taken', 'tip_card_kept_mode.title', 'tip.card_kept_setting', 'tip_self_payout.title',
     'tip_claim_scope.title', 'tip_claim_scope.per_drawer', 'tip_claim_scope.per_person', 'tip_payout.nothing_open',
+    // „Mein Trinkgeld“ gross (1.41.0)
+    'my_tips.open_for_you', 'my_tips.open_for_you_here', 'my_tips.open_for_you_total', 'my_tips.received_today',
     // Rabatt-Vorlagen (1.31.0)
     'discount_presets.title', 'discount_presets.name', 'discount_presets.percent', 'discount_presets.amount', 'discount_presets.add', 'discount_presets.remove', 'discount_presets.limit',
     'shift_receipt.discounts', 'shift_receipt.discounts_total', 'shift_receipt.discount_line', 'shift_receipt.discount_unnamed',

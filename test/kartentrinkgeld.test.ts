@@ -192,3 +192,18 @@ test('Stufe 3: Anspruchs-Modus je Lade / je Person mit Beschriftung je Wert (Kun
   // Die Karten-Stufe nimmt dieselben Woerter wie Bar (eine Zuordnung, keine zweite Liste).
   assert.deepEqual(TIP_KEPT_MODE.map((m) => labelText(TIP_KEPT_MODE_LABELS[m])), ['Jedes Mal fragen', 'Immer gleich behalten', 'Immer offen lassen']);
 });
+
+test('„Mein Trinkgeld“ gross (1.41.0): Unterzeile zum Betrag je Fall, „heute schon bekommen“ mit Betrag; einzeilig', () => {
+  assert.equal(labelText('my_tips.open_for_you'), 'für dich offen');
+  assert.equal(labelText('my_tips.open_for_you_here'), 'für dich offen an dieser Lade');
+  assert.equal(labelText('my_tips.open_for_you_total'), 'für dich offen, alle Laden');
+  assert.equal(labelText('my_tips.received_today', { amount: '5,00 €' }), 'heute schon bekommen: 5,00 €');
+  for (const k of ['my_tips.open_for_you', 'my_tips.open_for_you_here', 'my_tips.open_for_you_total', 'my_tips.received_today'] as const) {
+    assert.equal(labelText(k, { amount: '1' }).includes('\n'), false, k);
+  }
+  // Der Knopf mit Betrag ist derselbe wie beim Auszahlen im Kassenstand.
+  assert.equal(labelText('tip_payout.pay_amount', { amount: '29,00 €' }), '29,00 € auszahlen');
+  // Die bisherigen Zeilen bleiben fuer aeltere Kassen im Katalog.
+  assert.equal(labelText('my_tips.kept_today'), 'Heute genommen');
+  assert.equal(labelText('my_tips.open_here'), 'Offen an dieser Lade');
+});

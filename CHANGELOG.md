@@ -4,7 +4,13 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.40.0 - unveröffentlicht
+## 1.41.0 - unveröffentlicht
+
+"Mein Trinkgeld" with the open amount large (owner 16.11.2026). Additive; every existing text stays.
+
+- **Labels `my_tips.open_for_you`** („für dich offen“), **`my_tips.open_for_you_here`** („für dich offen an dieser Lade“, only when another drawer also holds an open amount), **`my_tips.open_for_you_total`** („für dich offen, alle Laden“, claim per person) under the large amount, and **`my_tips.received_today`** („heute schon bekommen: {amount}“), shown small and only above 0. The pay-out button takes the existing `tip_payout.pay_amount` („{amount} auszahlen“). Reason: with "always leave open" the line „Heute genommen 0,00 €“ stood there all day and read like money already taken; the employee wants to see one number. `my_tips.open_here`, `my_tips.open_total` and `my_tips.kept_today` stay for older registers.
+
+## 1.40.0 - 2026-11-15
 
 SumUp in the register app (backend spec 2026-11-14-sumup-kasse, stage 1: Android only) and a fix in the SumUp block of the receipt. Additive; every existing call and text behaves as before.
 
