@@ -201,6 +201,9 @@ test('„Mein Trinkgeld“ gross (1.41.0): Unterzeile zum Betrag je Fall, „heu
   for (const k of ['my_tips.open_for_you', 'my_tips.open_for_you_here', 'my_tips.open_for_you_total', 'my_tips.received_today'] as const) {
     assert.equal(labelText(k, { amount: '1' }).includes('\n'), false, k);
   }
+  // Andere Lade: „Lade“ steht immer dabei – eine Lade namens „Bar“ las sich sonst wie Bargeld.
+  assert.equal(labelText('my_tips.other_drawer_extra', { amount: '1,50 €', drawer: 'Bar' }), 'dazu 1,50 € an der Lade „Bar“');
+  assert.equal(labelText('my_tips.other_drawer_extra', { amount: '1', drawer: 'Kassenlade 2' }).includes('\n'), false);
   // Der Knopf mit Betrag ist derselbe wie beim Auszahlen im Kassenstand.
   assert.equal(labelText('tip_payout.pay_amount', { amount: '29,00 €' }), '29,00 € auszahlen');
   // Die bisherigen Zeilen bleiben fuer aeltere Kassen im Katalog.

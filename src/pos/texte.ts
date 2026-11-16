@@ -1788,6 +1788,9 @@ const BESCHRIFTUNGEN_ROH = {
   'my_tips.open_for_you_here': { text: 'für dich offen an dieser Lade' },
   'my_tips.open_for_you_total': { text: 'für dich offen, alle Laden' },
   'my_tips.received_today': { text: 'heute schon bekommen: {amount}', placeholders: ['amount'] },
+  // Offener Betrag an einer anderen Lade (nur Anspruch je Lade), unter dem grossen Betrag. „Lade“ steht immer dabei:
+  // „Bar: 1,50 € offen“ (my_tips.other_drawer) las sich bei einer Lade namens „Bar“ wie Bargeld.
+  'my_tips.other_drawer_extra': { text: 'dazu {amount} an der Lade „{drawer}“', placeholders: ['amount', 'drawer'] },
   // Storno-Blatt: eine Zeile je Mitarbeiter-Trinkgeld, in jedem Fall (§ 4.4).
   'cancellation.tip_deducted': { text: '{amount} Trinkgeld werden vom Guthaben von {name} abgezogen', placeholders: ['amount', 'name'] },
   // Z-/X-Bon und Kassenstand: Teil von „genommen“ (shiftTipLines) und Soll-Teil (expectedParts).
