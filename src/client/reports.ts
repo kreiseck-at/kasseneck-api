@@ -10,6 +10,9 @@ import {
 import { toViennaWallClock } from '../vienna-time.js';
 import { KasseneckValidationError } from './errors.js';
 import type { InternerBinaerTransport, InternerTransport } from './aufrufe.js';
+import type { ReceiptLayout } from '../receipt/layout.js';
+import type { PosPaperSize } from '../printing/escpos.js';
+import { fromStoredLayout } from '../stored/layout.js';
 
 /**
  * Bericht-Downloads — Zwilling von `getCashregisterReport`,
@@ -135,6 +138,57 @@ export async function getCashregisterReport(
     return transport('getCashregisterReport', { year, month, day });
   }
   return transport('getCashregisterReport', { year, month });
+}
+
+/** Monat und Papierbreite fuer [getCashregisterReportReceipt]. */
+export interface CashregisterReportReceiptOptions {
+  year: number;
+  month: number;
+  /** Breite des Druckers, fuer den der Bon gebaut wird; ohne Angabe `mm58`. */
+  paperSize?: PosPaperSize;
+}
+
+/** Monatsbericht als Bon: fertiges Zeilenmodell zum Drucken. */
+export interface CashregisterReportReceipt {
+  layout: ReceiptLayout;
+  /**
+   * Pruefnummer des gespeicherten Monats-PDFs (erste acht Zeichen seines SHA-256), wie sie auf dem Bon steht;
+   * `null`, wenn der Bon neu berechnet wurde und vom gespeicherten PDF abweicht (der Bon sagt das selbst).
+   */
+  reportNumber: string | null;
+  /** Fuer einen Monat vor dem Bon neu aus den Belegen berechnet. */
+  recalculated: boolean;
+}
+
+/**
+ * Monatsbericht eines abgeschlossenen Monats als Bon (`getCashregisterReport` mit `format: 'receipt'`): eine kurze
+ * Zusammenfassung fuer die Buchhaltung, Zeilen und Wortlaut vom Server, gedruckt wird sie wie ein Beleg-Layout.
+ * Kein Registrierkassenbeleg. Laufender Monat: `period_not_closed`.
+ */
+export async function getCashregisterReportReceipt(
+  transport: InternerTransport,
+  options: CashregisterReportReceiptOptions,
+): Promise<CashregisterReportReceipt> {
+  const { year, month, paperSize } = options;
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw eingabefehler('getCashregisterReportReceipt', `month muss 1-12 sein, war "${month}"`);
+  }
+  if (!Number.isInteger(year)) {
+    throw eingabefehler('getCashregisterReportReceipt', `year muss eine ganze Zahl sein, war "${year}"`);
+  }
+  if (paperSize !== undefined && paperSize !== 'mm58' && paperSize !== 'mm80') {
+    throw eingabefehler('getCashregisterReportReceipt', `paperSize ist mm58 oder mm80, war "${String(paperSize)}"`);
+  }
+  const daten = await transport<{ layout?: unknown; reportNumber?: unknown; recalculated?: unknown }>('getCashregisterReport', {
+    year, month, format: 'receipt', ...(paperSize !== undefined ? { paperSize } : {}),
+  });
+  const layout = fromStoredLayout(daten && daten.layout);
+  if (!layout) throw new KasseneckValidationError('getCashregisterReportReceipt', 'Antwort ohne gueltiges layout', 'response');
+  return {
+    layout,
+    reportNumber: typeof daten.reportNumber === 'string' ? daten.reportNumber : null,
+    recalculated: daten.recalculated === true,
+  };
 }
 
 /** Zeitfenster von [getReportV2]: Wiener Wanduhr, `YYYY-MM-DD` oder voller Zeitstempel, `end` ausschliesslich. */
