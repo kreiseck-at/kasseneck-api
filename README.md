@@ -1172,6 +1172,34 @@ which stays in `error.message` for the log: `route_missing`, `not_found` and
 register and check whether the last operation was booked, and never
 suggests a retry.
 
+**Card readers (SumUp Solo).** A payment is a process with a reference you
+create yourself (8 to 64 characters of `A-Z a-z 0-9 _ -`), not a single call.
+Start it, then ask again with the same reference until `isCardReaderFinal`;
+a network error while asking never means "not paid". Amounts are whole cents
+(100 to 1,000,000). A successful payment carries `receiptPayment`, which goes
+unchanged into `payments[]` of `createReceipt`:
+
+```ts
+import {
+  startCardReaderPayment, getCardReaderPayment, isCardReaderFinal, cardReaderChoices, isPosError,
+} from '@kreiseck/kasseneck-api/pos';
+
+const reference = `pay-${crypto.randomUUID()}`;
+try {
+  await startCardReaderPayment(transport, { deviceId, reference, amountCents: 1090 });
+} catch (error) {
+  // several readers and none assigned: let the cashier choose, then repeat with readerId
+  if (isPosError(error, 'card_reader_choice_needed')) askWhich(cardReaderChoices(error));
+  else throw error;
+}
+let payment = await getCardReaderPayment(transport, { deviceId, reference });
+while (!isCardReaderFinal(payment.status)) {
+  await sleep(2000); // 'unclear' also keeps asking; resolveCardReaderPayment decides it by hand
+  payment = await getCardReaderPayment(transport, { deviceId, reference });
+}
+if (payment.status === 'successful') payments.push(payment.receiptPayment!);
+```
+
 ## Stored documents (`./stored`)
 
 For clients that read Firestore directly, such as the admin panel. Stored
