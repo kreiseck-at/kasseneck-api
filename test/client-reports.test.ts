@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inspect } from 'node:util';
-import { downloadDailyReport, downloadMonthlyReport, getCashregisterReport } from '../src/client/reports.js';
+import { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getCashregisterReportReceipt } from '../src/client/reports.js';
 import { getCashboxStatus, getSignatureStatus } from '../src/client/status.js';
 import { createKasseneckApi } from '../src/client/api.js';
 import {
@@ -595,4 +595,59 @@ test('getCashregisterReport: Misch- und Teilformen werfen vor dem Transport', as
     await assert.rejects(getCashregisterReport(transport, f as never), /genau eine Form/, JSON.stringify(f));
   }
   assert.equal(gerufen, 0);
+});
+
+// ---- Monatsbericht als Bon (format receipt) -------------------------------------------------------------------
+const BON_ANTWORT = {
+  layout: {
+    lines: [
+      { kind: 'banner', text: 'TESTUMGEBUNG', tone: 'warning' },
+      { kind: 'text', text: 'MONATSBERICHT', align: 'center', bold: true },
+    ],
+    paperSize: 'mm80',
+    ruleset: 2,
+  },
+  reportNumber: '7F3A 91C2',
+  recalculated: false,
+  period: { year: 2026, month: 10 },
+};
+
+test('getCashregisterReportReceipt: Monat mit format receipt und Papierbreite, Layout als ReceiptLayout', async () => {
+  const gerufen: [string, Record<string, unknown>][] = [];
+  const transport = (async (name: string, params: Record<string, unknown>) => {
+    gerufen.push([name, params]);
+    return BON_ANTWORT;
+  }) as never;
+  const r = await getCashregisterReportReceipt(transport, { year: 2026, month: 10, paperSize: 'mm80' });
+  await getCashregisterReportReceipt(transport, { year: 2026, month: 9 });
+  assert.deepEqual(gerufen, [
+    ['getCashregisterReport', { year: 2026, month: 10, format: 'receipt', paperSize: 'mm80' }],
+    ['getCashregisterReport', { year: 2026, month: 9, format: 'receipt' }],
+  ]);
+  assert.equal(r.reportNumber, '7F3A 91C2');
+  assert.equal(r.recalculated, false);
+  assert.equal(r.layout.paperSize, 'mm80');
+  assert.equal(r.layout.ruleset, 2);
+  assert.deepEqual(r.layout.lines[0], { kind: 'banner', text: 'TESTUMGEBUNG', tone: 'warning' });
+});
+
+test('getCashregisterReportReceipt: ohne Pruefnummer (neu berechnet, weicht ab) ist reportNumber null', async () => {
+  const transport = (async () => ({ ...BON_ANTWORT, reportNumber: null, recalculated: true })) as never;
+  const r = await getCashregisterReportReceipt(transport, { year: 2026, month: 10 });
+  assert.equal(r.reportNumber, null);
+  assert.equal(r.recalculated, true);
+});
+
+test('getCashregisterReportReceipt: ungueltige Eingabe vor dem Aufruf, kaputte Antwort danach', async () => {
+  const nie = (async () => { throw new Error('nicht rufen'); }) as never;
+  await assert.rejects(getCashregisterReportReceipt(nie, { year: 2026, month: 13 }), KasseneckValidationError);
+  await assert.rejects(getCashregisterReportReceipt(nie, { year: 2026, month: 10, paperSize: 'mm76' as never }), /paperSize/);
+  const kaputt = (async () => ({ layout: { lines: [] }, reportNumber: null, recalculated: false })) as never;
+  await assert.rejects(getCashregisterReportReceipt(kaputt, { year: 2026, month: 10 }), (e: unknown) =>
+    e instanceof KasseneckValidationError && e.scope === 'response');
+});
+
+test('createKasseneckApi: getCashregisterReportReceipt ist erreichbar', () => {
+  const api = createKasseneckApi({ auth: apiSchluesselWeg(), fetch: (async () => { throw new Error('x'); }) as never });
+  assert.equal(typeof api.getCashregisterReportReceipt, 'function');
 });

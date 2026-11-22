@@ -399,6 +399,14 @@
           "text": "Inbetriebnahme fehlgeschlagen"
         },
         {
+          "key": "cashregister.reported",
+          "text": "Kasse bei FinanzOnline gemeldet"
+        },
+        {
+          "key": "cashregister.report_failed",
+          "text": "Meldung an FinanzOnline fehlgeschlagen"
+        },
+        {
           "key": "app.version.accepted",
           "text": "App-Version abgenommen"
         },

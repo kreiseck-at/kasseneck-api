@@ -377,6 +377,8 @@ test('Webhook: der Ereignis-Katalog stimmt mit dem Backend ueberein', () => {
     'cashregister.created',
     'cashregister.live',
     'cashregister.failed',
+    'cashregister.reported',
+    'cashregister.report_failed',
     'app.version.accepted',
     'app.version.rejected',
     'webhook.test',

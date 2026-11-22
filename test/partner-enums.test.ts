@@ -74,7 +74,9 @@ const NACH_DEM_ABZUG: Record<string, readonly string[]> = {
   ],
   // Die Vertragsereignisse bietet das Backend seit dem Vollmachtsweg an; seit
   // 1.0 stehen sie hier in der Reihenfolge des Backend-Katalogs.
-  PARTNER_WEBHOOK_EVENTS: ['customer.avv_accepted', 'customer.terms_accepted'],
+  // Die FinanzOnline-Meldung nach dem Startbeleg (`cashregister.reported`,
+  // `cashregister.report_failed`) bietet das Backend seit 14.11.2026 an.
+  PARTNER_WEBHOOK_EVENTS: ['customer.avv_accepted', 'customer.terms_accepted', 'cashregister.reported', 'cashregister.report_failed'],
 };
 
 /**

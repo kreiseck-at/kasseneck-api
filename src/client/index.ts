@@ -212,7 +212,7 @@ export {
   type EwpReportFile,
 } from './ewp.js';
 
-export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
+export { downloadDailyReport, downloadMonthlyReport, getCashregisterReport, getCashregisterReportReceipt, type CashregisterReportReceipt, type CashregisterReportReceiptOptions, getReportV2, type CashregisterReportPeriod, type ReportV2, type ReportV2Metadata, type ReportV2Options } from './reports.js';
 
 export {
   type CashboxStatus,
