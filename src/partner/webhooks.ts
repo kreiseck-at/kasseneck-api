@@ -31,7 +31,8 @@ import {
  *
  * Die Nutzlasten der Ereignisse, die `/v3` uebersetzt, beschreiben
  * [ContractAcceptedEventData], [SignatureFailedEventData] und
- * [CashregisterFailedEventData].
+ * [CashregisterFailedEventData] (auch `cashregister.report_failed`, die
+ * spaetere Meldung an FinanzOnline).
  */
 export const PARTNER_WEBHOOK_EVENTS = [
   'customer.created',
@@ -47,6 +48,8 @@ export const PARTNER_WEBHOOK_EVENTS = [
   'cashregister.created',
   'cashregister.live',
   'cashregister.failed',
+  'cashregister.reported',
+  'cashregister.report_failed',
   'app.version.accepted',
   'app.version.rejected',
   'webhook.test',

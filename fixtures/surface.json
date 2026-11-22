@@ -1248,6 +1248,8 @@
       "cashregister.created",
       "cashregister.live",
       "cashregister.failed",
+      "cashregister.reported",
+      "cashregister.report_failed",
       "app.version.accepted",
       "app.version.rejected",
       "webhook.test"

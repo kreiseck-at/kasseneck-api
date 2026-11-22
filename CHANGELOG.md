@@ -12,6 +12,7 @@ nur der Grund überlebt den nächsten Umbau.
 - **Label `my_tips.other_drawer_extra`** („dazu {amount} an der Lade „{drawer}““) for an open amount at another drawer (claim per drawer). Reason: „Bar: 1,50 € offen“ (`my_tips.other_drawer`) read like cash when a drawer is called „Bar“; the word „Lade“ now always stands with the name. `my_tips.other_drawer` stays for older registers.
 
 - **`getCashregisterReportReceipt({ year, month, paperSize? })`**: the monthly report of a closed month as a receipt (`getCashregisterReport` with `format: 'receipt'`, backend spec 2026-11-21-monatsbericht-bon). Returns `{ layout, reportNumber, recalculated }`; `layout` prints like any receipt layout. `reportNumber` is the check number of the stored PDF (first eight characters of its SHA-256) or `null` when a month from before the receipt was recalculated and differs from its PDF (the receipt says so itself). Reason: taxi businesses that only have the card terminal want the short summary for their accountant on paper. Not a cash register receipt.
+- **Partner webhook events `cashregister.reported` and `cashregister.report_failed`** in `PARTNER_WEBHOOK_EVENTS`, in the order of the backend catalog. The backend sends them since 14.11.2026, when a register goes live before FinanzOnline is reported and the report follows later (`report_failed` carries the `CashregisterFailedEventData` payload). Reason: the contract (`fixtures/v3`) is now pulled from the deployed backend; a receiver should not need `(string & {})` for events the backend already offers.
 
 ## 1.40.0 - 2026-11-15
 
