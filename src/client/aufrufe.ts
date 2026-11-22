@@ -191,6 +191,20 @@ export const ALL_CALLS = [
   // EWP-Meldung (Einwegpfand) lesen und Zusatzmengen setzen, nur unter /v3.
   'getEwpReport',
   'setEwpExtraQuantities',
+  // SumUp Solo (Kartenleser): nur ueber den Kassenweg, in der Reihenfolge von `endpoints.register`.
+  'getCardReaderSetup',
+  'startCardAccountConnection',
+  'disconnectCardAccount',
+  'pairCardReader',
+  'renameCardReader',
+  'removeCardReader',
+  'setDeviceCardReader',
+  'startCardReaderPayment',
+  'getCardReaderPayment',
+  'cancelCardReaderPayment',
+  'resolveCardReaderPayment',
+  'refundCardReaderPayment',
+  'getCardReaderRefund',
 ] as const;
 
 export type ApiCall = typeof ALL_CALLS[number];
@@ -416,6 +430,20 @@ export const POS_CALLS = [
   'reportMyTerminalAddress',
   // Laufende Fassung melden: nur ueber den Kassenweg, Ausweis des Geraets (keine Sitzung).
   'reportMyRegisterClient',
+  // SumUp Solo (Kartenleser): nur ueber den Kassenweg, in der Reihenfolge von `endpoints.register`.
+  'getCardReaderSetup',
+  'startCardAccountConnection',
+  'disconnectCardAccount',
+  'pairCardReader',
+  'renameCardReader',
+  'removeCardReader',
+  'setDeviceCardReader',
+  'startCardReaderPayment',
+  'getCardReaderPayment',
+  'cancelCardReaderPayment',
+  'resolveCardReaderPayment',
+  'refundCardReaderPayment',
+  'getCardReaderRefund',
 ] as const;
 
 export type PublicCall = typeof PUBLIC_CALLS[number];
@@ -440,8 +468,12 @@ export type PosCall = typeof POS_CALLS[number];
  * [CALLS_WITHOUT_EFFECT] (Waechter `test/ausgang-einordnung.test.ts`).
  */
 export const UNKNOWN_OUTCOME_CALLS = [
+  // SumUp Solo (Kartenleser): die Handler antworten immer mit Code, auch `server_error`; ob nach einem Fehler beim Start
+  // oder bei der Rueckbuchung etwas lief, beantwortet allein `getCardReaderPayment` bzw. `getCardReaderRefund` (Eintrag
+  // fehlt = `card_payment_not_found` = nichts gesendet). Die Kassen fragen dort nach, statt aus dem Code zu schliessen.
   'activateCashregister',
   'addVariant',
+  'cancelCardReaderPayment',
   'cancelInvoice',
   'cancelReceipt',
   'cancelStocktake',
@@ -464,6 +496,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'deactivateArticle',
   'deletePartnerWebhook',
   'deleteWebhook',
+  'disconnectCardAccount',
   'extendReservation',
   'financeWebService',
   // Auf Android verbraucht die Antwort den Code: nach einem Zeitlimit kann er zugestellt und weg sein.
@@ -476,6 +509,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'logReceiptOutputs',
   'openMyShift',
   'orderSignatureCard',
+  'pairCardReader',
   'pairRegisterDevice',
   'receiveGoods',
   'recordInvoicePayment',
@@ -485,11 +519,15 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'recordStockLoss',
   'recordStocktakeCount',
   'recountStocktake',
+  'refundCardReaderPayment',
   'registerTerminalDevice',
   'releaseReservation',
+  'removeCardReader',
+  'renameCardReader',
   'reportConnectState',
   'reportCustomerContract',
   'requestCustomerSignature',
+  'resolveCardReaderPayment',
   'reverseStockMovement',
   'reviewStocktake',
   'revokeCustomerMandate',
@@ -504,6 +542,7 @@ export const UNKNOWN_OUTCOME_CALLS = [
   'setMyKasseLogo',
   'setMyKasseSettings',
   'setMyRegisterDeviceSettings',
+  'startCardReaderPayment',
   'stripeCaptureIntent',
   'transferStock',
   'unpairRegisterDevice',
@@ -550,6 +589,13 @@ export const CALLS_WITHOUT_EFFECT: Readonly<Record<string, CallWithoutEffectReas
   checkVoucher: 'read',
   // Kartenterminal: dieselbe TID noch einmal uebernehmen aendert nichts am Server.
   claimTerminal: 'repeatable',
+  // SumUp Solo: Lesen bzw. Nachfrage; am Server stoesst sie hoechstens eine Klaerung an, die selbst idempotent ist.
+  getCardReaderSetup: 'read',
+  getCardReaderPayment: 'read',
+  getCardReaderRefund: 'read',
+  // SumUp Solo: legt nur einen Anmeldelink an (verfaellt nach 15 min); dieselbe Zuweisung noch einmal aendert nichts.
+  startCardAccountConnection: 'repeatable',
+  setDeviceCardReader: 'repeatable',
   downloadDailyReport: 'read',
   downloadReceipt: 'read',
   downloadReport: 'read',
@@ -671,13 +717,13 @@ const OEFFENTLICH: ReadonlySet<string> = new Set(PUBLIC_CALLS);
 const KASSENWEG: ReadonlySet<string> = new Set(POS_CALLS);
 const NUR_KASSE: ReadonlySet<string> = new Set(POS_CALLS.filter((name) => !OEFFENTLICH.has(name)));
 
-/** Einer der 48 Aufrufe des Kassenwegs. */
+/** Einer der 68 Aufrufe des Kassenwegs. */
 export function isPosCall(name: string): boolean {
   return KASSENWEG.has(name);
 }
 
 /**
- * Nur ueber den Kassenweg erreichbar (37 Namen): unter `api.kasseneck.at/v3`
+ * Nur ueber den Kassenweg erreichbar (57 Namen): unter `api.kasseneck.at/v3`
  * gibt es sie nicht. Der Transport schickt sie darum ohne eigene Basis an
  * [POS_BASE_URL] statt an die oeffentliche Basis.
  */
