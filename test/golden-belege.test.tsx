@@ -297,5 +297,5 @@ test('SumUp Solo: Cloud-Zahlung druckt wie SDK-Zahlung ohne Zahlungstyp-Zeile', 
   assert.ok(texte.includes('10,90 EUR'));
   assert.ok(texte.includes('TCMENT0001'));
   assert.ok(!texte.includes('Zahlungstyp'));
-  for (const geheim of ['MZK4711X', 'rdr_01', 'txn_payment']) assert.ok(!texte.includes(geheim), geheim);
+  for (const geheim of ['Q7X2K9', 'MZK4711X', 'rdr_01', 'txn_payment']) assert.ok(!texte.includes(geheim), geheim);
 });
