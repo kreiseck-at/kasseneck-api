@@ -4,11 +4,15 @@ import {
   getCardReaderSetup, startCardAccountConnection, disconnectCardAccount, pairCardReader, renameCardReader,
   removeCardReader, setDeviceCardReader, startCardReaderPayment, getCardReaderPayment, cancelCardReaderPayment,
   resolveCardReaderPayment, refundCardReaderPayment, getCardReaderRefund,
-  isCardReaderFinal, cardReaderChoices, cardReaderBusyDevice,
+  isCardReaderFinal, cardReaderChoices, cardReaderBusyDevice, newCardReaderReference,
   CARD_READER_PAYMENT_STATUSES, CARD_READER_DECISIONS, CARD_READER_MIN_CENTS, CARD_READER_MAX_CENTS,
 } from '../src/pos/index.js';
-import { KasseneckApiError } from '../src/client/errors.js';
-import { isKasseneckValidationError } from '../src/client/errors.js';
+import { KasseneckApiError, isKasseneckValidationError } from '../src/client/errors.js';
+import { sellReceipt } from '../src/client/receipts.js';
+import { createTransport, type FetchLike } from '../src/client/transport.js';
+import { apiKeyAuth } from '../src/client/auth.js';
+import { VatRate } from '../src/enums/index.js';
+import type { ReceiptPaymentInput } from '../src/models/index.js';
 
 type Aufruf = [string, Record<string, unknown> | undefined];
 function attrappe(daten: unknown): { rufen: never; aufrufe: Aufruf[] } {
@@ -179,7 +183,7 @@ test('unbekannter Stand wird unclear, unbekannter Grund null, optionale Felder n
 test('receiptPayment nur bei successful, mit Zahlungskennung und channel cloud', async () => {
   const lesen = (d: unknown) => getCardReaderPayment(attrappe(d).rufen, { deviceId: D, reference: REF });
   const ok = await lesen(ERFOLG);
-  assert.deepEqual(ok.receiptPayment, ERFOLG.receiptPayment);
+  assert.deepEqual(ok.receiptPayment, { method: 'creditCard', amountCents: 1090, ...ERFOLG.receiptPayment });
   assert.equal(ok.transaction?.cardLastDigits, '4242');
   assert.equal((await lesen({ ...ERFOLG, status: 'failed' })).receiptPayment, null);
   assert.equal((await lesen({ ...ERFOLG, status: 'unclear' })).receiptPayment, null);
@@ -199,7 +203,9 @@ test('cardReaderChoices und cardReaderBusyDevice lesen details nach Code', () =>
     readers: [{ readerId: 'rdr_01', name: 'Theke' }, { readerId: 'rdr_02', name: 'Terrasse' }],
   });
   const r = cardReaderChoices(auswahl);
-  assert.deepEqual(r.map((x) => [x.readerId, x.name, x.status, x.busy]), [['rdr_01', 'Theke', null, false], ['rdr_02', 'Terrasse', null, false]]);
+  // Der Server schickt nur Kennung und Name: das Paket erfindet keine weiteren Leserfelder.
+  assert.deepEqual(r, [{ readerId: 'rdr_01', name: 'Theke' }, { readerId: 'rdr_02', name: 'Terrasse' }]);
+  assert.deepEqual(cardReaderChoices(new KasseneckApiError('x', 'm', { code: 'card_reader_choice_needed', readers: [{ readerId: 'a' }, { name: 'ohne' }, 7] })), [{ readerId: 'a', name: '' }]);
   assert.deepEqual(cardReaderChoices(new KasseneckApiError('x', 'm', { code: 'card_reader_choice_needed', readers: 'kaputt' })), []);
   assert.deepEqual(cardReaderChoices(new KasseneckApiError('x', 'm', { code: 'card_reader_choice_needed' })), []);
   assert.deepEqual(cardReaderChoices(new KasseneckApiError('x', 'm', { code: 'validation', readers: [{ readerId: 'a', name: 'b' }] })), []);
@@ -209,4 +215,86 @@ test('cardReaderChoices und cardReaderBusyDevice lesen details nach Code', () =>
   assert.equal(cardReaderBusyDevice(new KasseneckApiError('x', 'm', { code: 'validation', busyDevice: 'Tablet' })), null);
   assert.equal(cardReaderBusyDevice(new KasseneckApiError('x', 'm', { code: 'card_reader_busy' })), null);
   assert.equal(cardReaderBusyDevice(undefined), null);
+});
+
+// ---- Antwort lesen: unlesbarer Erfolg und Echo der Kennung -------------------------------
+
+const REFUND = 'refund-0001';
+const ERSTATTUNG = { reference: REFUND, paymentReference: REF, status: 'pending', amountCents: 590 };
+
+async function unlesbar(p: Promise<unknown>): Promise<void> {
+  try {
+    await p;
+  } catch (e) {
+    assert.ok(e instanceof KasseneckApiError, String(e));
+    assert.equal(e.code, 'response_unreadable');
+    assert.equal(e.outcome, 'unknown');
+    return;
+  }
+  assert.fail('response_unreadable erwartet');
+}
+
+test('Geldbewegende Aufrufe: unlesbarer Erfolg ist response_unreadable mit unklarem Ausgang', async () => {
+  await unlesbar(startCardReaderPayment(attrappe({ ...ZAHLUNG, reference: undefined }).rufen, { deviceId: D, reference: REF, amountCents: 1090 }));
+  await unlesbar(startCardReaderPayment(attrappe(null).rufen, { deviceId: D, reference: REF, amountCents: 1090 }));
+  await unlesbar(startCardReaderPayment(attrappe({ ...ZAHLUNG, amountCents: 10.9 }).rufen, { deviceId: D, reference: REF, amountCents: 1090 }));
+  await unlesbar(cancelCardReaderPayment(attrappe({ ...ZAHLUNG, reference: undefined }).rufen, { deviceId: D, reference: REF }));
+  await unlesbar(resolveCardReaderPayment(attrappe({ ...ZAHLUNG, reference: undefined }).rufen, { deviceId: D, reference: REF, decision: 'discard' }));
+  await unlesbar(refundCardReaderPayment(attrappe({ ...ERSTATTUNG, reference: undefined }).rufen, { deviceId: D, reference: REFUND, paymentReference: REF, amountCents: 590 }));
+  await unlesbar(refundCardReaderPayment(attrappe(null).rufen, { deviceId: D, reference: REFUND, paymentReference: REF, amountCents: 590 }));
+});
+
+test('Geldbewegende Aufrufe: fremde Kennung in der Antwort ist unlesbar (Echo-Pruefung)', async () => {
+  const fremd = { ...ZAHLUNG, reference: 'payment-9999' };
+  await unlesbar(startCardReaderPayment(attrappe(fremd).rufen, { deviceId: D, reference: REF, amountCents: 1090 }));
+  await unlesbar(cancelCardReaderPayment(attrappe(fremd).rufen, { deviceId: D, reference: REF }));
+  await unlesbar(resolveCardReaderPayment(attrappe(fremd).rufen, { deviceId: D, reference: REF, decision: 'receipt' }));
+  await unlesbar(refundCardReaderPayment(attrappe({ ...ERSTATTUNG, reference: 'refund-9999' }).rufen, { deviceId: D, reference: REFUND, paymentReference: REF, amountCents: 590 }));
+  await unlesbar(refundCardReaderPayment(attrappe({ ...ERSTATTUNG, paymentReference: 'payment-9999' }).rufen, { deviceId: D, reference: REFUND, paymentReference: REF, amountCents: 590 }));
+  // Zahlungsblock mit fremder foreignTransactionId
+  const fremdBeleg = { ...ERFOLG, receiptPayment: { ...ERFOLG.receiptPayment, providerData: { ...ERFOLG.receiptPayment.providerData, foreignTransactionId: 'payment-9999' } } };
+  await unlesbar(startCardReaderPayment(attrappe(fremdBeleg).rufen, { deviceId: D, reference: REF, amountCents: 1090 }));
+  await unlesbar(resolveCardReaderPayment(attrappe(fremdBeleg).rufen, { deviceId: D, reference: REF, decision: 'receipt' }));
+});
+
+test('getCardReaderPayment/-Refund: fremde Kennung ist ein Antwortfehler', async () => {
+  await wirft(getCardReaderPayment(attrappe({ ...ZAHLUNG, reference: 'payment-9999' }).rufen, { deviceId: D, reference: REF }), 'response');
+  await wirft(getCardReaderRefund(attrappe({ ...ERSTATTUNG, reference: 'refund-9999' }).rufen, { deviceId: D, reference: REFUND }), 'response');
+});
+
+// ---- receiptPayment ist eine gueltige Zahlung fuer createReceipt -------------------------
+
+test('receiptPayment: traegt method und amountCents und besteht die Zahlungspruefung von createReceipt', async () => {
+  const p = await getCardReaderPayment(attrappe(ERFOLG).rufen, { deviceId: D, reference: REF });
+  const z = p.receiptPayment;
+  assert.ok(z);
+  assert.equal(z.method, 'creditCard');
+  assert.equal(z.amountCents, 1090);
+  assert.equal(z.provider, 'sumup');
+  assert.equal(z.providerPaymentId, 'TC1');
+  // Typpruefung beim Uebersetzen: unveraendert in eine Zahlungsliste legbar.
+  const payments: ReceiptPaymentInput[] = [];
+  payments.push(z);
+  const gesendet: string[] = [];
+  const holen: FetchLike = async (_url, init) => {
+    gesendet.push(init.body as string);
+    throw new Error('Netz aus');
+  };
+  const rufen = createTransport({ auth: apiKeyAuth({ apiKey: 'kr_test_Beispielschluessel0123456789', cashregisterToken: 'cb_test_x' }), fetch: holen });
+  await assert.rejects(sellReceipt(rufen, { items: [{ name: 'Kaffee', quantity: 1, vat: VatRate.vat20, priceCents: 1090 }], payments }), (e: unknown) => !isKasseneckValidationError(e));
+  assert.equal(gesendet.length, 1, 'die Pruefung der Zahlung hat nichts abgewiesen');
+  const params = (JSON.parse(gesendet[0]!) as { params: { payments: Record<string, unknown>[] } }).params;
+  assert.deepEqual(params.payments[0], { method: 'creditCard', amountCents: 1090, provider: 'sumup', providerPaymentId: 'TC1', providerData: ERFOLG.receiptPayment.providerData });
+});
+
+// ---- newCardReaderReference prueft ihre Optionen -----------------------------------------
+
+test('newCardReaderReference: ungueltige Optionen sind ein Eingabefehler', () => {
+  for (const random of ['', 'ABCDEF', 'abc12', 'abc1234', 'ab-123']) {
+    assert.throws(() => newCardReaderReference('K1', { nowMs: 1, random }), (e: unknown) => isKasseneckValidationError(e) && (e as { scope: string }).scope === 'request', random);
+  }
+  for (const nowMs of [-1, 1.5, Number.NaN, Infinity]) {
+    assert.throws(() => newCardReaderReference('K1', { nowMs, random: 'a1b2c3' }), (e: unknown) => isKasseneckValidationError(e), String(nowMs));
+  }
+  assert.equal(newCardReaderReference('K1', { nowMs: 0, random: 'a1b2c3' }), 'kk-K1-0-a1b2c3');
 });

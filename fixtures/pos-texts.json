@@ -561,7 +561,7 @@
       "text": "Mit SumUp verbinden geht noch nicht. Bitte Kasseneck kontaktieren."
     },
     "solo.connect_waiting": {
-      "text": "Im neuen Fenster bei SumUp anmelden und den Zugriff erlauben. Die Kasse merkt die Verbindung von selbst."
+      "text": "Im Browser bei SumUp anmelden und den Zugriff erlauben. Die Kasse merkt die Verbindung von selbst."
     },
     "solo.connected_as": {
       "text": "Verbunden mit SumUp, Händlernummer {merchant}.",
@@ -639,10 +639,10 @@
       "text": "Das Kassenmodul des Betriebs ist nicht aktiv."
     },
     "solo.below_minimum": {
-      "text": "Mit dem Solo geht Karte erst ab 1,00 €."
+      "text": "Mit dem Solo geht Karte nur von 1,00 € bis 10.000,00 €."
     },
     "solo.unavailable": {
-      "text": "SumUp ist gerade nicht erreichbar. Es wurde nichts abgebucht."
+      "text": "SumUp ist gerade nicht erreichbar. Es wurde nichts gebucht."
     },
     "solo.refund_running": {
       "text": "Die Rückbuchung auf die Karte läuft."
@@ -661,6 +661,9 @@
     },
     "solo.refund_too_high": {
       "text": "So viel kann auf diese Karte nicht mehr zurückgebucht werden."
+    },
+    "solo.refund_not_sent": {
+      "text": "Die Rückbuchung ging nicht an SumUp hinaus. Es wurde nichts zurückgebucht."
     },
     "log.empty": {
       "text": "Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung."

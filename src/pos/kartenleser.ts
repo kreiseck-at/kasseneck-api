@@ -1,5 +1,5 @@
 import type { InternerTransport } from '../client/aufrufe.js';
-import { KasseneckApiError, KasseneckValidationError } from '../client/errors.js';
+import { KasseneckApiError, KasseneckValidationError, signiertGelesen } from '../client/errors.js';
 
 /**
  * Kartenleser (SumUp Solo ueber die Cloud) an der Kasse: das Konto verbinden,
@@ -82,7 +82,8 @@ export interface CardReaderTransaction {
   timeMs: number | null;
 }
 
-export interface SumupCloudProviderData {
+// Als Typalias (nicht `interface`): so passt der Block in `ReceiptPaymentInput.providerData` (`Record<string, unknown>`).
+export type SumupCloudProviderData = {
   channel: 'cloud';
   transactionCode: string | null;
   transactionId: string | null;
@@ -96,10 +97,18 @@ export interface SumupCloudProviderData {
   merchantCode: string | null;
   foreignTransactionId: string;
   readerId: string | null;
-}
+};
 
-/** Die Zahlung, wie sie in `createReceipt` (`payments[]`) gehoert: 1:1 uebernehmen. */
+/**
+ * Die Zahlung, wie sie in `createReceipt` (`payments[]`) gehoert: gueltig als
+ * `ReceiptPaymentInput`, 1:1 in die Zahlungsliste zu legen
+ * (`payments.push(payment.receiptPayment)`). `method` und `amountCents` setzt
+ * das Paket (Kartenzahlung, Betrag der Zahlung in Cent); der Server liefert
+ * `provider`, `providerPaymentId` und `providerData`.
+ */
 export interface CardReaderReceiptPayment {
+  method: 'creditCard';
+  amountCents: number;
   provider: 'sumup';
   providerPaymentId: string;
   providerData: SumupCloudProviderData;
@@ -242,14 +251,24 @@ function buchung(w: unknown): CardReaderTransaction | null {
   };
 }
 
-function belegZahlung(status: CardReaderPaymentStatus, w: unknown): CardReaderReceiptPayment | null {
+function belegZahlung(name: string, status: CardReaderPaymentStatus, w: unknown, referenz: string, betragCents: number): CardReaderReceiptPayment | null {
   if (status !== 'successful') return null;
   const r = objekt(w);
   const daten = objekt(r?.providerData);
   if (!r || !daten || daten.channel !== 'cloud') return null;
   if (typeof r.providerPaymentId !== 'string' || r.providerPaymentId === '') return null;
-  // Wie gesendet durchgereicht: die Kasse schreibt es 1:1 in createReceipt.
-  return { provider: 'sumup', providerPaymentId: r.providerPaymentId, providerData: daten as unknown as SumupCloudProviderData };
+  // Echo: der Zahlungsblock gehoert zu genau dieser Kennung, sonst landet eine fremde Zahlung auf dem Beleg.
+  if (daten.foreignTransactionId !== referenz) {
+    throw antwortfehler(name, 'Zahlungsblock gehoert zu einer anderen Kennung (providerData.foreignTransactionId)');
+  }
+  // Providerdaten wie gesendet durchgereicht; Zahlart und Betrag setzt das Paket, damit die Zahlung ohne Umbau in createReceipt passt.
+  return {
+    method: 'creditCard',
+    amountCents: betragCents,
+    provider: 'sumup',
+    providerPaymentId: r.providerPaymentId,
+    providerData: daten as unknown as SumupCloudProviderData,
+  };
 }
 
 function zahlungsstand(w: unknown): CardReaderPaymentStatus {
@@ -257,11 +276,12 @@ function zahlungsstand(w: unknown): CardReaderPaymentStatus {
   return inKatalog(CARD_READER_PAYMENT_STATUSES, w) ?? 'unclear';
 }
 
-function zahlung(name: string, w: unknown): CardReaderPayment {
+function zahlung(name: string, w: unknown, erwartet: string): CardReaderPayment {
   const d = objekt(w);
   if (!d || typeof d.reference !== 'string' || d.reference === '') {
     throw antwortfehler(name, 'Antwort enthaelt keine Kennung (data.reference fehlt)');
   }
+  if (d.reference !== erwartet) throw antwortfehler(name, 'Antwort gehoert zu einer anderen Kennung (data.reference)');
   if (typeof d.amountCents !== 'number' || !Number.isInteger(d.amountCents)) {
     throw antwortfehler(name, 'Antwort enthaelt keine ganze Zahl (data.amountCents)');
   }
@@ -274,17 +294,21 @@ function zahlung(name: string, w: unknown): CardReaderPayment {
     readerId: textOderNull(d.readerId),
     readerName: textOderNull(d.readerName),
     transaction: buchung(d.transaction),
-    receiptPayment: belegZahlung(status, d.receiptPayment),
+    receiptPayment: belegZahlung(name, status, d.receiptPayment, erwartet, d.amountCents),
   };
 }
 
-function erstattung(name: string, w: unknown): CardReaderRefund {
+function erstattung(name: string, w: unknown, erwartet: string, erwartetZahlung?: string): CardReaderRefund {
   const d = objekt(w);
   if (!d || typeof d.reference !== 'string' || d.reference === '') {
     throw antwortfehler(name, 'Antwort enthaelt keine Kennung (data.reference fehlt)');
   }
+  if (d.reference !== erwartet) throw antwortfehler(name, 'Antwort gehoert zu einer anderen Kennung (data.reference)');
   if (typeof d.paymentReference !== 'string' || d.paymentReference === '') {
     throw antwortfehler(name, 'Antwort enthaelt keine Zahlung (data.paymentReference fehlt)');
+  }
+  if (erwartetZahlung !== undefined && d.paymentReference !== erwartetZahlung) {
+    throw antwortfehler(name, 'Antwort gehoert zu einer anderen Zahlung (data.paymentReference)');
   }
   if (typeof d.amountCents !== 'number' || !Number.isInteger(d.amountCents)) {
     throw antwortfehler(name, 'Antwort enthaelt keine ganze Zahl (data.amountCents)');
@@ -389,22 +413,30 @@ export async function startCardReaderPayment(transport: InternerTransport, optio
     amountCents: betrag(name, options.amountCents),
   };
   if (options.readerId !== undefined) params.readerId = leserKennung(name, options.readerId);
-  return zahlung(name, await transport(name, params));
+  const antwort = await transport(name, params);
+  return signiertGelesen(name, () => zahlung(name, antwort, params.reference as string));
 }
 
 export async function getCardReaderPayment(transport: InternerTransport, options: CardReaderReferenceOptions): Promise<CardReaderPayment> {
   const name = 'getCardReaderPayment';
   const params = { deviceId: geraet(name, options), reference: kennung(name, 'reference', options.reference) };
-  return zahlung(name, await transport(name, params));
+  return zahlung(name, await transport(name, params), params.reference);
 }
 
 export async function cancelCardReaderPayment(transport: InternerTransport, options: CardReaderReferenceOptions): Promise<CardReaderPayment> {
   const name = 'cancelCardReaderPayment';
   const params = { deviceId: geraet(name, options), reference: kennung(name, 'reference', options.reference) };
-  return zahlung(name, await transport(name, params));
+  const antwort = await transport(name, params);
+  return signiertGelesen(name, () => zahlung(name, antwort, params.reference));
 }
 
-/** Entscheidung bei unklarer Zahlung: `receipt` (gilt als bezahlt) oder `discard` (verwerfen). */
+/**
+ * Entscheidung der Kasse bei unklarer Zahlung: `receipt` (die Kasse behandelt
+ * sie als bezahlt) oder `discard` (verwerfen). Der Stand am Server aendert sich
+ * dadurch NICHT: `receipt` markiert nichts als bezahlt. Die Kasse richtet sich
+ * nach dem zurueckgegebenen Stand, auch nach `discard` kann er `successful`
+ * sein (die Zahlung kam doch an): dann gilt sie als bezahlt.
+ */
 export async function resolveCardReaderPayment(transport: InternerTransport, options: ResolveCardReaderPaymentOptions): Promise<CardReaderPayment> {
   const name = 'resolveCardReaderPayment';
   const deviceId = geraet(name, options);
@@ -412,7 +444,8 @@ export async function resolveCardReaderPayment(transport: InternerTransport, opt
   if (!(CARD_READER_DECISIONS as readonly unknown[]).includes(options.decision)) {
     throw anfragefehler(name, 'decision ist weder receipt noch discard');
   }
-  return zahlung(name, await transport(name, { deviceId, reference, decision: options.decision }));
+  const antwort = await transport(name, { deviceId, reference, decision: options.decision });
+  return signiertGelesen(name, () => zahlung(name, antwort, reference));
 }
 
 /** Erstattet einen Teil oder die ganze Kartenzahlung zurueck; `reference` ist die Kennung der Erstattung. */
@@ -424,29 +457,49 @@ export async function refundCardReaderPayment(transport: InternerTransport, opti
     paymentReference: kennung(name, 'paymentReference', options.paymentReference),
     amountCents: erstattungsBetrag(name, options.amountCents),
   };
-  return erstattung(name, await transport(name, params));
+  const antwort = await transport(name, params);
+  return signiertGelesen(name, () => erstattung(name, antwort, params.reference, params.paymentReference));
 }
 
 export async function getCardReaderRefund(transport: InternerTransport, options: CardReaderReferenceOptions): Promise<CardReaderRefund> {
   const name = 'getCardReaderRefund';
   const params = { deviceId: geraet(name, options), reference: kennung(name, 'reference', options.reference) };
-  return erstattung(name, await transport(name, params));
+  return erstattung(name, await transport(name, params), params.reference);
 }
 
-/** Endstand: es kommt nichts mehr nach. `pending` und `unclear` gelten nicht als Ende. */
+/**
+ * Endstand dieses Abfragens: die Kasse fragt nicht weiter. `pending` und
+ * `unclear` gelten nicht als Ende. Aber: auch `failed` und `cancelled` koennen
+ * spaeter noch `successful` werden (verspaetete Zahlung per Webhook oder nach
+ * Klaerung bei SumUp); die Kasse behandelt sie als nicht bezahlt, bis ein
+ * spaeteres Nachfragen etwas anderes meldet. Bei einer Rueckbuchung heisst
+ * `declined` mit Grund `no_response` NICHT, dass nichts zurueckging.
+ */
 export function isCardReaderFinal(status: CardReaderPaymentStatus): boolean {
   return status === 'successful' || status === 'failed' || status === 'cancelled' || status === 'declined';
 }
 
-/** Die Leser zur Auswahl bei `card_reader_choice_needed` (`details.readers`); sonst `[]`. */
-export function cardReaderChoices(error: unknown): CardReader[] {
+/** Ein Leser zur Auswahl: der Server schickt bei `card_reader_choice_needed` nur Kennung und Name. */
+export interface CardReaderChoiceOption {
+  readerId: string;
+  name: string;
+}
+
+/**
+ * Die Leser aus `card_reader_choice_needed` (`details.readers`); sonst `[]`.
+ * Nur eine Notliste: die Kasse laedt bei diesem Fehler `getCardReaderSetup`
+ * neu und waehlt mit `cardReaderFor(...)` (gekoppelte Leser, Belegung); die
+ * Zahlung startet sie dann mit der gewaehlten `readerId` erneut.
+ */
+export function cardReaderChoices(error: unknown): CardReaderChoiceOption[] {
   if (!(error instanceof KasseneckApiError) || error.code !== 'card_reader_choice_needed') return [];
   const roh = error.details['readers'];
   if (!Array.isArray(roh)) return [];
-  const raus: CardReader[] = [];
+  const raus: CardReaderChoiceOption[] = [];
   for (const e of roh) {
-    const l = leser(e);
-    if (l) raus.push(l);
+    const r = objekt(e);
+    if (!r || typeof r.readerId !== 'string' || r.readerId === '') continue;
+    raus.push({ readerId: r.readerId, name: typeof r.name === 'string' ? r.name : '' });
   }
   return raus;
 }
@@ -472,8 +525,13 @@ const KENNUNG_MAX = 64;
  * es zu lang, kuerzt die Kassen-ID, nie Zeit oder Zufall.
  */
 export function newCardReaderReference(cashregisterId: string, o: NewCardReaderReferenceOptions = {}): string {
+  const name = 'newCardReaderReference';
   const jetzt = o.nowMs ?? Date.now();
+  if (typeof jetzt !== 'number' || !Number.isInteger(jetzt) || jetzt < 0) throw anfragefehler(name, 'nowMs ist keine ganze Zahl ab 0');
   let zufall = o.random;
+  if (zufall !== undefined && (typeof zufall !== 'string' || !/^[a-z0-9]{6}$/.test(zufall))) {
+    throw anfragefehler(name, 'random besteht nicht aus genau sechs Zeichen a-z0-9');
+  }
   if (zufall === undefined) {
     const bytes = globalThis.crypto.getRandomValues(new Uint8Array(6));
     const zeichen = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -493,20 +551,64 @@ export type CardReaderChoice =
 
 /**
  * Welchen Leser die Kasse nimmt (gleiche Regel in Browser-Kasse und App).
- * Es zaehlen nur gekoppelte Solos (`status === 'paired'`). Reihenfolge: Konto
- * nicht verbunden oder abgelaufen, Bluetooth am Geraet, der zugewiesene
- * gekoppelte Solo, genau ein gekoppelter, mehrere zur Auswahl (besetzte
- * bleiben drin, die Kasse graut sie aus), sonst kein Leser.
+ * Es zaehlen nur gekoppelte Solos (`status === 'paired'`). Reihenfolge:
+ * Bluetooth am Geraet (der Air-Leser haengt nicht an der Cloud-Verbindung,
+ * gilt also auch bei nicht verbundenem oder abgelaufenem Konto), dann Konto
+ * nicht verbunden oder abgelaufen, der zugewiesene gekoppelte Solo, genau ein
+ * gekoppelter, mehrere zur Auswahl (besetzte bleiben drin, die Kasse graut sie
+ * aus), sonst kein Leser.
  */
 export function cardReaderFor(input: CardReaderSetup): CardReaderChoice {
+  if (input.deviceReader === CARD_READER_BLUETOOTH) return { kind: 'bluetooth' };
   const stand = input.connection.state;
   if (stand === 'none') return { kind: 'none', why: 'not_connected' };
   if (stand === 'expired') return { kind: 'none', why: 'expired' };
-  if (input.deviceReader === CARD_READER_BLUETOOTH) return { kind: 'bluetooth' };
   const gekoppelt = input.readers.filter((l) => l.status === 'paired');
   const zugewiesen = gekoppelt.find((l) => l.readerId === input.deviceReader);
   if (zugewiesen) return { kind: 'reader', reader: zugewiesen };
   if (gekoppelt.length === 1) return { kind: 'reader', reader: gekoppelt[0]! };
   if (gekoppelt.length > 1) return { kind: 'choose', readers: gekoppelt };
   return { kind: 'none', why: 'no_reader' };
+}
+
+/**
+ * Schluessel des Kassentexts (`posMessage`/`POS_TEXTS`) zu einem Stand der
+ * Zahlung oder Rueckbuchung; `null`: kein Text noetig (bezahlt, oder die Kasse
+ * zeigt ihre eigene Warte-Zeile). Gleiche Zuordnung in Browser-Kasse und App
+ * (Pruefaelle `fixtures/card-reader-message-cases.json`). Platzhalter der Texte
+ * (`{name}`, `{device}`, ...) fuellt die Kasse.
+ */
+export function cardReaderMessageKey(
+  kind: 'payment' | 'refund',
+  p: { status: CardReaderPaymentStatus; reason: CardReaderReason | null },
+): string | null {
+  if (kind === 'payment') {
+    // Abweichender Betrag warnt in jedem Stand, vor allem anderen.
+    if (p.reason === 'amount_mismatch') return 'solo.amount_mismatch';
+    if (p.status === 'successful') return null;
+    switch (p.status) {
+      case 'pending': return null;
+      case 'unclear': return 'solo.checking';
+      case 'cancelled': return 'solo.cancelled';
+      case 'declined': return 'solo.declined';
+      case 'failed':
+        if (p.reason === 'busy') return 'solo.busy_short';
+        if (p.reason === 'offline') return 'solo.offline';
+        if (p.reason === 'setup') return 'solo.setup';
+        if (p.reason === 'expired') return 'solo.expired';
+        return 'solo.declined';
+    }
+  }
+  if (p.status === 'successful') return null;
+  switch (p.status) {
+    case 'pending': return 'solo.refund_running';
+    case 'unclear': return 'solo.refund_checking';
+    case 'declined':
+      if (p.reason === 'no_response') return 'solo.refund_unknown';
+      if (p.reason === 'amount_too_high') return 'solo.refund_too_high';
+      return 'solo.refund_declined';
+    case 'failed':
+    case 'cancelled':
+      return 'solo.refund_not_sent';
+  }
 }

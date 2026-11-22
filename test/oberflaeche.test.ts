@@ -169,7 +169,7 @@ test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (68, seit 1.39.0 mit reportMyTerminalAddress und reportMyRegisterClient)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (68, seit 1.43.0 mit den dreizehn Kartenleser-Aufrufen)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
   assert.equal(POS_CALLS.length, 68);
 });

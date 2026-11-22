@@ -497,6 +497,8 @@ test('Kartenleser: jeder Aufruf sendet wie der Fall und liest die Antwort wie im
           soll = {
             ...ZAHLUNG_VORGABE, ...daten,
             ...(daten.transaction ? { transaction: { ...TRANSAKTION_VORGABE, ...daten.transaction } } : {}),
+            // Das Paket ergaenzt Zahlart und Betrag, damit die Zahlung ohne Umbau in createReceipt passt.
+            ...(daten.receiptPayment ? { receiptPayment: { method: 'creditCard', amountCents: daten.amountCents, ...daten.receiptPayment } } : {}),
           };
       }
       assert.deepEqual(ist, soll, `${endpunkt}/${f.case}`);
@@ -505,7 +507,7 @@ test('Kartenleser: jeder Aufruf sendet wie der Fall und liest die Antwort wie im
   // Die erfolgreiche Zahlung traegt die Belegzahlung 1:1, wie sie createReceipt braucht.
   const bezahlt = fall('getCardReaderPayment', 'success_cashier');
   const z = await kasse.getCardReaderPayment(kassenweg(bezahlt).rufen, { deviceId: 'dev_pin', reference: 'payment-0001' });
-  assert.deepEqual(z.receiptPayment, bezahlt.response.data.receiptPayment);
+  assert.deepEqual(z.receiptPayment, { method: 'creditCard', amountCents: bezahlt.response.data.amountCents, ...bezahlt.response.data.receiptPayment });
   assert.equal(kasse.isCardReaderFinal(z.status), true);
   // Ausdrückliches null bei "automatisch" geht wirklich auf den Draht.
   const auto = fall('setDeviceCardReader', 'success_automatic');

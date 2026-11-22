@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { newCardReaderReference, cardReaderFor, type CardReaderSetup } from '../src/pos/index.js';
+import { newCardReaderReference, cardReaderFor, cardReaderMessageKey, MESSAGES, type CardReaderSetup, type CardReaderPaymentStatus, type CardReaderReason } from '../src/pos/index.js';
 
 interface Erwartet { kind: string; readerId?: string; readerIds?: string[]; why?: string }
 interface Faelle { version: number; cases: { name: string; setup: CardReaderSetup; expected: Erwartet }[] }
@@ -18,6 +18,23 @@ test('Pruefaelle: Wahl des Solos', () => {
     if (w.kind === 'choose') ist.readerIds = w.readers.map((l) => l.readerId);
     if (w.kind === 'none') ist.why = w.why;
     assert.deepEqual(ist, f.expected, f.name);
+  }
+});
+
+interface MeldungsFaelle { version: number; cases: { kind: 'payment' | 'refund'; status: CardReaderPaymentStatus; reason: CardReaderReason | null; key: string | null }[] }
+const meldungen = JSON.parse(readFileSync(new URL('../../fixtures/card-reader-message-cases.json', import.meta.url), 'utf8')) as MeldungsFaelle;
+
+test('Pruefaelle: Kassentext je Stand der Zahlung und Rueckbuchung', () => {
+  assert.equal(meldungen.version, 1);
+  for (const f of meldungen.cases) {
+    assert.equal(cardReaderMessageKey(f.kind, { status: f.status, reason: f.reason }), f.key, JSON.stringify(f));
+    if (f.key !== null) assert.ok(f.key in MESSAGES, `${f.key} fehlt im Textkatalog`);
+  }
+  // jeder Stand beider Arten kommt mindestens einmal vor
+  for (const kind of ['payment', 'refund']) {
+    for (const status of ['successful', 'pending', 'unclear', 'failed', 'cancelled', 'declined']) {
+      assert.ok(meldungen.cases.some((f) => f.kind === kind && f.status === status), `${kind}/${status}`);
+    }
   }
 });
 

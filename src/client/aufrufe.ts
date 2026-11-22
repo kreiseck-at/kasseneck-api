@@ -468,9 +468,10 @@ export type PosCall = typeof POS_CALLS[number];
  * [CALLS_WITHOUT_EFFECT] (Waechter `test/ausgang-einordnung.test.ts`).
  */
 export const UNKNOWN_OUTCOME_CALLS = [
-  // SumUp Solo (Kartenleser): die Handler antworten immer mit Code, auch `server_error`; ob nach einem Fehler beim Start
-  // oder bei der Rueckbuchung etwas lief, beantwortet allein `getCardReaderPayment` bzw. `getCardReaderRefund` (Eintrag
-  // fehlt = `card_payment_not_found` = nichts gesendet). Die Kassen fragen dort nach, statt aus dem Code zu schliessen.
+  // SumUp Solo (Kartenleser): `startCardReaderPayment` und `refundCardReaderPayment` melden bei `server_error` und ohne Code
+  // `outcome: 'unknown'` (der Handler kann nach dem Anbieteraufruf scheitern, siehe errors.ts). Bei unklarem Ausgang fragt die
+  // Kasse `getCardReaderPayment` bzw. `getCardReaderRefund` mit DERSELBEN Kennung, nie mit einer neuen (Eintrag fehlt =
+  // `card_payment_not_found` = nichts gesendet).
   'activateCashregister',
   'addVariant',
   'cancelCardReaderPayment',

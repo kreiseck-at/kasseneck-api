@@ -113,6 +113,42 @@
       }
     },
     {
+      "name": "Konto nicht verbunden, Bluetooth zugewiesen",
+      "setup": {
+        "connection": {
+          "state": "none",
+          "method": null,
+          "merchantCode": null,
+          "refundsEnabled": true,
+          "connectAvailable": true
+        },
+        "readers": [],
+        "deviceReader": "bluetooth",
+        "canManage": true
+      },
+      "expected": {
+        "kind": "bluetooth"
+      }
+    },
+    {
+      "name": "Konto abgelaufen, Bluetooth zugewiesen",
+      "setup": {
+        "connection": {
+          "state": "expired",
+          "method": null,
+          "merchantCode": null,
+          "refundsEnabled": true,
+          "connectAvailable": true
+        },
+        "readers": [],
+        "deviceReader": "bluetooth",
+        "canManage": true
+      },
+      "expected": {
+        "kind": "bluetooth"
+      }
+    },
+    {
       "name": "Bluetooth zugewiesen, ohne Solo",
       "setup": {
         "connection": {
