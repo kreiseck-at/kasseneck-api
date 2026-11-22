@@ -155,7 +155,8 @@ cardReaderBusyDevice(error: unknown): string | null                // details.bu
 
 Lese- und Schreibregeln (bestimmen die Tests):
 - Vor dem Senden prüfen (`KasseneckValidationError`, `scope: 'request'`, kein Aufruf): `deviceId` leer; `reference` nicht
-  im Kennungsformat; `amountCents` nicht ganzzahlig oder außerhalb 100…1.000.000; `decision` nicht im Katalog;
+  im Kennungsformat; `amountCents` nicht ganzzahlig oder außerhalb 100…1.000.000 (Zahlung) bzw. 1…1.000.000 (Rückbuchung:
+  das Backend erlaubt jeden Rest > 0); `decision` nicht im Katalog;
   `readerId` leer (bei `setDeviceCardReader` sind `null` und `'bluetooth'` erlaubt). `pairingCode` und `name` gehen
   unverändert hinaus; normiert und geprüft wird am Server (`validation` mit `posFieldErrors`).
 - Antwort lesen: fehlt `reference` oder ist `amountCents` keine Ganzzahl → `KasseneckValidationError` (`'response'`).
