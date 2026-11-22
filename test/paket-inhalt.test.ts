@@ -96,6 +96,7 @@ const ABNEHMER: Record<string, string> = {
   'reference-cases.json': 'Pruefaelle Kachel mit Betrag und Referenz (Muster, Eingabe, Ziffernfeld, Positionsname): Dart 11, Web-Kasse, Backend referenz-faelle.json',
   'external-voucher-article-cases.json': 'Pruefaelle Artikel als fremder Gutschein (Wert und Regeln am Artikel): Dart 11, Artikel-Editor im Kundenbereich, Backend fremdgutschein-artikel-faelle.json',
   'shift-ablauf-cases.json': 'Z-Bon der Schicht mit Zwischenzaehlung, Zaehlung vor Auszahlung und Differenz-Teilen (shiftReceiptLayout): Dart-Zwilling',
+  'card-reader-choice-cases.json': 'Pruefaelle Wahl des Solo-Lesers (cardReaderFor: Konto, Zuweisung, gekoppelte Leser): Dart-Zwilling kasseneck_api; Web-Kasse und Kassen-App nutzen die Funktion',
   'tip-round-up-cases.json': 'Pruefaelle Aufrunden-Vorschlaege fuer Trinkgeld (roundUpSuggestions): Dart-Zwilling, Web-Kasse',
   'renames-1.0.json': 'Umstiegstabelle 0.x -> 1.0 (Pfade, Textschluessel, Platzhalter, Strukturschluessel): Dart 10, Web-Kasse',
   'v3': 'Vertrags-Export /v3 des Backends: Dart 10 prueft Modelle und Zahlbetrag daran',

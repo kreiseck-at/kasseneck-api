@@ -456,3 +456,57 @@ export function cardReaderBusyDevice(error: unknown): string | null {
   if (!(error instanceof KasseneckApiError) || error.code !== 'card_reader_busy') return null;
   return textOderNull(error.details['busyDevice']);
 }
+
+export interface NewCardReaderReferenceOptions {
+  /** Zeitpunkt in Millisekunden; Vorgabe ist die Uhr des Geraets (fuer Tests). */
+  nowMs?: number;
+  /** Zufallsteil; Vorgabe sind sechs Zeichen `[a-z0-9]` aus `crypto.getRandomValues` (fuer Tests). */
+  random?: string;
+}
+
+const KENNUNG_MAX = 64;
+
+/**
+ * Neue Kennung einer Kartenzahlung: `kk-<kasse>-<epochMs>-<zufall>`, hoechstens
+ * 64 Zeichen. Von der Kassen-ID bleiben nur `[A-Za-z0-9_-]` (leer: `x`); wird
+ * es zu lang, kuerzt die Kassen-ID, nie Zeit oder Zufall.
+ */
+export function newCardReaderReference(cashregisterId: string, o: NewCardReaderReferenceOptions = {}): string {
+  const jetzt = o.nowMs ?? Date.now();
+  let zufall = o.random;
+  if (zufall === undefined) {
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(6));
+    const zeichen = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    zufall = Array.from(bytes, (b) => zeichen[b % zeichen.length]).join('');
+  }
+  const ende = `-${jetzt}-${zufall}`;
+  const platz = Math.max(1, KENNUNG_MAX - 'kk-'.length - ende.length);
+  const kasse = cashregisterId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, platz) || 'x';
+  return `kk-${kasse}${ende}`;
+}
+
+export type CardReaderChoice =
+  | { kind: 'reader'; reader: CardReader }
+  | { kind: 'choose'; readers: CardReader[] }
+  | { kind: 'bluetooth' }
+  | { kind: 'none'; why: 'not_connected' | 'expired' | 'no_reader' };
+
+/**
+ * Welchen Leser die Kasse nimmt (gleiche Regel in Browser-Kasse und App).
+ * Es zaehlen nur gekoppelte Solos (`status === 'paired'`). Reihenfolge: Konto
+ * nicht verbunden oder abgelaufen, Bluetooth am Geraet, der zugewiesene
+ * gekoppelte Solo, genau ein gekoppelter, mehrere zur Auswahl (besetzte
+ * bleiben drin, die Kasse graut sie aus), sonst kein Leser.
+ */
+export function cardReaderFor(input: CardReaderSetup): CardReaderChoice {
+  const stand = input.connection.state;
+  if (stand === 'none') return { kind: 'none', why: 'not_connected' };
+  if (stand === 'expired') return { kind: 'none', why: 'expired' };
+  if (input.deviceReader === CARD_READER_BLUETOOTH) return { kind: 'bluetooth' };
+  const gekoppelt = input.readers.filter((l) => l.status === 'paired');
+  const zugewiesen = gekoppelt.find((l) => l.readerId === input.deviceReader);
+  if (zugewiesen) return { kind: 'reader', reader: zugewiesen };
+  if (gekoppelt.length === 1) return { kind: 'reader', reader: gekoppelt[0]! };
+  if (gekoppelt.length > 1) return { kind: 'choose', readers: gekoppelt };
+  return { kind: 'none', why: 'no_reader' };
+}

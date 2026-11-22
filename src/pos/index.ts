@@ -123,6 +123,7 @@ export {
   removeCardReader, setDeviceCardReader, startCardReaderPayment, getCardReaderPayment, cancelCardReaderPayment,
   resolveCardReaderPayment, refundCardReaderPayment, getCardReaderRefund,
   isCardReaderFinal, cardReaderChoices, cardReaderBusyDevice,
+  newCardReaderReference, cardReaderFor, type CardReaderChoice, type NewCardReaderReferenceOptions,
 } from './kartenleser.js';
 export {
   type ListMyStocktakesOptions, type ListMyStocktakeItemsOptions, type ListMyStocktakeCountsOptions,
