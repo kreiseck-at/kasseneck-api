@@ -139,7 +139,9 @@ test('Pruefung vor dem Senden: kein Aufruf', async () => {
   }
   await wirft(startCardReaderPayment(t, { deviceId: D, reference: REF, amountCents: 1090, readerId: '' }), 'request');
   await wirft(resolveCardReaderPayment(t, { deviceId: D, reference: REF, decision: 'vielleicht' as never }), 'request');
-  await wirft(refundCardReaderPayment(t, { deviceId: D, reference: 'refund-0001', paymentReference: REF, amountCents: 50 }), 'request');
+  for (const amountCents of [0, -1, 1.5, 1_000_001]) {
+    await wirft(refundCardReaderPayment(t, { deviceId: D, reference: 'refund-0001', paymentReference: REF, amountCents }), 'request');
+  }
   await wirft(refundCardReaderPayment(t, { deviceId: D, reference: 'refund-0001', paymentReference: 'zu', amountCents: 500 }), 'request');
   await wirft(getCardReaderPayment(t, { deviceId: D, reference: 'a b' }), 'request');
   await wirft(renameCardReader(t, { deviceId: D, readerId: '', name: 'x' }), 'request');
@@ -150,6 +152,12 @@ test('Pruefung vor dem Senden: kein Aufruf', async () => {
   await startCardReaderPayment(t, { deviceId: D, reference: REF, amountCents: 100 });
   await startCardReaderPayment(t, { deviceId: D, reference: REF, amountCents: 1_000_000 });
   assert.equal(a.aufrufe.length, 2);
+  // Erstattung: auch 50 Cent und 1 Cent gehen hinaus
+  const r = attrappe({ reference: 'refund-0001', paymentReference: REF, status: 'pending', amountCents: 50 });
+  for (const amountCents of [50, 1]) {
+    await refundCardReaderPayment(r.rufen, { deviceId: D, reference: 'refund-0001', paymentReference: REF, amountCents });
+  }
+  assert.deepEqual(r.aufrufe.map((x) => x[1]!.amountCents), [50, 1]);
 });
 
 test('Antwort lesen: fehlende Kennung und krumme Betraege sind Antwortfehler', async () => {

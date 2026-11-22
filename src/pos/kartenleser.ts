@@ -182,6 +182,13 @@ function betrag(name: string, w: unknown): number {
   }
   return w;
 }
+/** Erstattung: jede ganze Zahl ab 1 Cent; die Obergrenze (Rest der Zahlung) prueft der Server. */
+function erstattungsBetrag(name: string, w: unknown): number {
+  if (typeof w !== 'number' || !Number.isInteger(w) || w < 1 || w > CARD_READER_MAX_CENTS) {
+    throw anfragefehler(name, `amountCents ist keine ganze Zahl von 1 bis ${CARD_READER_MAX_CENTS} Cent`);
+  }
+  return w;
+}
 function leserKennung(name: string, w: unknown): string {
   if (typeof w !== 'string' || w.trim() === '') throw anfragefehler(name, 'readerId ist leer');
   return w;
@@ -415,7 +422,7 @@ export async function refundCardReaderPayment(transport: InternerTransport, opti
     deviceId: geraet(name, options),
     reference: kennung(name, 'reference', options.reference),
     paymentReference: kennung(name, 'paymentReference', options.paymentReference),
-    amountCents: betrag(name, options.amountCents),
+    amountCents: erstattungsBetrag(name, options.amountCents),
   };
   return erstattung(name, await transport(name, params));
 }
