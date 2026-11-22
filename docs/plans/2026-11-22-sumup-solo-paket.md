@@ -149,7 +149,8 @@ refundCardReaderPayment(transport, o: { deviceId: string; reference: string; pay
 getCardReaderRefund(transport, o: { deviceId: string; reference: string }): Promise<CardReaderRefund>
 
 isCardReaderFinal(status: CardReaderPaymentStatus): boolean        // successful|failed|cancelled|declined
-cardReaderChoices(error: unknown): CardReader[]                    // details.readers bei card_reader_choice_needed, sonst []
+cardReaderChoices(error: unknown): CardReaderChoiceOption[]       // { readerId, name } aus details.readers bei card_reader_choice_needed, sonst []
+cardReaderMessageKey(kind: 'payment' | 'refund', p: { status; reason }): string | null   // solo.*-Schlüssel je Ausgang, Prüffälle als JSON (Nachtrag Gesamtprüfung)
 cardReaderBusyDevice(error: unknown): string | null                // details.busyDevice bei card_reader_busy, sonst null
 ```
 
@@ -208,8 +209,8 @@ cardReaderFor(setup: CardReaderSetup): CardReaderChoice
   `[A-Za-z0-9_-]` behalten, auf so viele Zeichen kürzen, dass das Ganze ≤ 64 bleibt; leer → `x`. `<zufall>`: 6 Zeichen
   `[a-z0-9]` aus `crypto.getRandomValues` (Vorgabe), `random` überschreibt das für Tests.
 - `cardReaderFor` in dieser Reihenfolge (zählt nur Solos mit `status === 'paired'`):
-  1. `connection.state === 'none'` → `none/not_connected`; `'expired'` → `none/expired`.
-  2. `deviceReader === 'bluetooth'` → `bluetooth`.
+  1. `deviceReader === 'bluetooth'` → `bluetooth` (der Air hängt nicht an der Cloud-Verbindung; Nachtrag Gesamtprüfung).
+  2. `connection.state === 'none'` → `none/not_connected`; `'expired'` → `none/expired`.
   3. `deviceReader` ist ein gekoppelter Solo → `reader` (dieser).
   4. genau ein gekoppelter Solo → `reader`.
   5. mehrere gekoppelte → `choose` (alle gekoppelten, Reihenfolge wie geliefert; besetzte bleiben drin, die Kasse graut
@@ -382,6 +383,18 @@ das Feld trotzdem als JSON-`null` senden (eigener Weg im Transport oder Option, 
   `@kreiseck/kasseneck-api` `1.43.0`: …“ mit „Contract pulled from the published npm 1.43.0“.
 - [ ] **Step 5:** Push, PR gegen `mhmmdlkts/kasseneck_flutter_api`, CI abwarten, mergen. Aus frischer Worktree von `main`:
   `dart pub publish --dry-run`, Dateiliste ansehen, `dart pub publish --force`.
+
+## Nachtrag nach der Gesamtprüfung von Stufe 1 (23.11.2026)
+
+- `startCardReaderPayment`/`refundCardReaderPayment`: `server_error` und eine Fehlerhülle ohne Code ergeben `outcome: 'unknown'`;
+  eine unlesbare Erfolgsantwort ist `response_unreadable` (unknown) wie bei den übrigen Geldwegen; `reference` und
+  `providerData.foreignTransactionId` müssen der Anfrage entsprechen.
+- `receiptPayment` trägt zusätzlich `method` und `amountCents` und ist damit eine gültige Belegzahlung.
+- `cardReaderChoices` liefert nur `{ readerId, name }` (mehr schickt das Backend nicht); die Kasse lädt bei
+  `card_reader_choice_needed` die Einrichtung neu und nimmt `cardReaderFor(...)`.
+- `cardReaderMessageKey` mit Prüffällen `fixtures/card-reader-message-cases.json` (Dart wiederholt sie).
+- Druck einer Cloud-Zahlung: fehlende Werte fallen weg statt „n/a“; ohne Transaktionscode und ohne Endziffern (Beleg von
+  Hand, Rückbuchungszeile) kein SumUp-Block.
 
 ## Später (nicht in diesem Plan)
 
