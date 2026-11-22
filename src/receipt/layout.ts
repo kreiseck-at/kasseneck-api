@@ -391,11 +391,15 @@ function sumupBetrag(roh: unknown): string {
 function sumupBlock(daten: Record<string, unknown>): LayoutLine[] {
   const feld = (k: string) => kartenFeld(daten, k);
   const betrag = sumupBetrag(daten.amount);
+  // Der Cloud-Weg (SumUp Solo) kennt den Zahlungstyp nicht: die Zeile entfaellt,
+  // ein "n/a" waere falsch. Ohne `channel` bleibt alles wie beim SDK.
+  const zahlungstyp = feld('paymentType');
+  const ohneZahlungstyp = daten.channel === 'cloud' && zahlungstyp === '';
   return [
     textZeile('Sumup Beleg', 'center', true),
     paarZeile('Kartentyp:', feld('cardType') || 'n/a'),
     paarZeile('Kartennummer:', `**** **** **** ${feld('cardLastDigits')}`),
-    paarZeile('Zahlungstyp:', feld('paymentType') || 'n/a'),
+    ...(ohneZahlungstyp ? [] : [paarZeile('Zahlungstyp:', zahlungstyp || 'n/a')]),
     paarZeile('Gesamtbetrag:', `${betrag} ${feld('currency')}`.trim()),
     paarZeile('Transaktionscode:', feld('transactionCode') || '-'),
     paarZeile('Modus:', feld('entryMode').toUpperCase()),

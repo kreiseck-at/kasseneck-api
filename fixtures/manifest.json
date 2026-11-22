@@ -121,6 +121,14 @@
       "sheet32": "977ffdca4aadec64e6775a71462c1f477a15edc68ae5397f93db8a43b4987733",
       "sheet48": "30502dc11ab7350bf340631671176ca9da3e1ec1e26fd8800c06c94b6ff7ce7a"
     },
+    "card-sumup-cloud": {
+      "input": "1fa210ac818bc53c2453ce2c1099030e0a88aecbec2aba236dccd04620b092f3",
+      "expected": "98b780ef0a73301d7ab0a5c1053fbca8a980151a4d6c591cdd904a2526a399af",
+      "grid32": "7ce956ae070f280ddecf7b56dd35a61855457fd366157675f0d384a80b6a2bff",
+      "grid48": "bd5d8c62250157ba0fb594e4874d5f68deb70ad983cccc067d3539f0342e07ea",
+      "sheet32": "797ec60efb0f0edd6051d0a1bcbcc2c0ace869fd5ea0ab033a246c4f74b5ce6f",
+      "sheet48": "d4354927bdf2577ebdcee30aa20cb1ba40b777a28779fdaaf50cf828e75d46ed"
+    },
     "deposit": {
       "input": "72b61777566f5ecc0b97c570797fc132fb4286c77b6a0459cd2f284c09ff6dfb",
       "expected": "6f3af328000594da75af0d07f7c6b95ed5ecd455d17c7422e4fa35d80f9fc333",
