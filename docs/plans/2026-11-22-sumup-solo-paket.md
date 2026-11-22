@@ -164,6 +164,8 @@ Lese- und Schreibregeln (bestimmen die Tests):
   `receiptPayment` nur, wenn `status === 'successful'` und `providerPaymentId` ein nicht leerer Text ist; `providerData`
   wird wie gesendet durchgereicht (die Kasse schreibt es 1:1 in `createReceipt`), nur `channel` muss `'cloud'` sein,
   sonst `null`.
+- `setDeviceCardReader` sendet `readerId` immer, auch als ausdrückliches `null` (das Backend wertet ein fehlendes Feld als
+  Eingabefehler, nur `null` heißt „keine Zuweisung“). Der Test prüft, dass der Schlüssel mit `null` im Aufruf steht.
 - `disconnectCardAccount`/`removeCardReader` lesen die Antwort (`{ disconnected: true }`, `{ readerId, removed: true }`)
   nicht aus; ein Erfolg ohne diese Felder ist trotzdem Erfolg.
 
@@ -361,7 +363,8 @@ Task 2 als benannte Parameter, Rückgaben `CardReaderSetup`, `CardReader`, `Card
 (je mit `static const Set<String> fields`), `Future<void>` für Trennen/Entfernen, `Future<String?>` für
 `setDeviceCardReader`. Freie Funktionen `newCardReaderReference(String cashregisterId, {int? nowMs, String? random})`,
 `cardReaderFor(CardReaderSetup)` mit `sealed class CardReaderChoice`, `cardReaderChoices(Object error)`,
-`cardReaderBusyDevice(Object error)`, `isCardReaderFinal(String status)`. Lese- und Prüfregeln wie Task 2/3.
+`cardReaderBusyDevice(Object error)`, `isCardReaderFinal(String status)`. Lese- und Prüfregeln wie Task 2/3. Achtung: `RegisterTransport.call` lässt `null`-Werte weg; `setDeviceCardReader(null)` muss
+das Feld trotzdem als JSON-`null` senden (eigener Weg im Transport oder Option, mit Test am gesendeten Rumpf).
 
 - [ ] **Step 1:** `tool/zwillinge.sh ziehen` (aus dem veröffentlichten 1.43.0), `tool/zeichensatz_layout.sh`,
   `dart run tool/texte_erzeugen.dart`. `flutter test` → rot an den Zwillingstests (Aufrufe, Codes, Texte, Prüffälle).
