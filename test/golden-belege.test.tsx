@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['add-ons', 'cancellation-discount', 'cancellation-full', 'cancellation-partial', 'cancellation-split-full', 'cancellation-split-partial', 'card-custom', 'card-gptom', 'card-gptom-ios', 'card-hobex-cloud', 'card-hobex-hps', 'card-mypos', 'card-stripe', 'card-stripe-eps', 'card-sumup', 'card-sumup-cloud', 'deposit', 'deposit-return', 'discount-lines', 'discount-owner-tip', 'discount-simple', 'discount-tip', 'discount-value-voucher', 'invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-see-invoice', 'invoice-payment-training', 'invoice-payment-without-vat', 'invoice-payment-zero-percent', 'long-item-name', 'manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time', 'sale-card', 'sale-cash', 'sale-small-business', 'signature-outage-sale', 'split-card-card-cash', 'split-cash-change', 'split-long-amount', 'split-one-card-tip', 'split-table-round-tip', 'split-tip-card', 'split-two-cards-same-provider', 'test-cashregister-sale', 'test-signature-sale', 'training', 'voucher-cancellation', 'voucher-external-redeem', 'voucher-external-sale', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-return', 'voucher-return-tip', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale', 'zero-annual', 'zero-final', 'zero-manual', 'zero-monthly', 'zero-outage-end', 'zero-outage-end-period', 'zero-start']);
+  assert.deepEqual(namen, ['add-ons', 'cancellation-discount', 'cancellation-full', 'cancellation-partial', 'cancellation-split-full', 'cancellation-split-partial', 'cancellation-sumup-cloud', 'card-custom', 'card-gptom', 'card-gptom-ios', 'card-hobex-cloud', 'card-hobex-hps', 'card-mypos', 'card-stripe', 'card-stripe-eps', 'card-sumup', 'card-sumup-cloud', 'card-sumup-cloud-hand', 'deposit', 'deposit-return', 'discount-lines', 'discount-owner-tip', 'discount-simple', 'discount-tip', 'discount-value-voucher', 'invoice-payment-cancellation', 'invoice-payment-manual-receipt', 'invoice-payment-normal', 'invoice-payment-outage', 'invoice-payment-partial', 'invoice-payment-refund', 'invoice-payment-see-invoice', 'invoice-payment-training', 'invoice-payment-without-vat', 'invoice-payment-zero-percent', 'long-item-name', 'manual-receipt-range-device-failure-count', 'manual-receipt-range-device-failure-no-count', 'manual-receipt-range-network-outage-count', 'manual-receipt-range-network-outage-no-count', 'manual-receipt-range-other-count', 'manual-receipt-range-other-no-count', 'manual-receipt-range-power-outage-count', 'manual-receipt-range-power-outage-no-count', 'manual-receipt-range-system-outage-count', 'manual-receipt-range-system-outage-no-count', 'manual-receipt-single-device-failure-no-time', 'manual-receipt-single-device-failure-time', 'manual-receipt-single-network-outage-no-time', 'manual-receipt-single-network-outage-time', 'manual-receipt-single-other-no-time', 'manual-receipt-single-other-time', 'manual-receipt-single-outside-premises-no-time', 'manual-receipt-single-outside-premises-time', 'manual-receipt-single-power-outage-no-time', 'manual-receipt-single-power-outage-time', 'manual-receipt-single-small-business', 'manual-receipt-single-system-outage-no-time', 'manual-receipt-single-system-outage-time', 'sale-card', 'sale-cash', 'sale-small-business', 'signature-outage-sale', 'split-card-card-cash', 'split-cash-change', 'split-long-amount', 'split-one-card-tip', 'split-table-round-tip', 'split-tip-card', 'split-two-cards-same-provider', 'test-cashregister-sale', 'test-signature-sale', 'training', 'voucher-cancellation', 'voucher-external-redeem', 'voucher-external-sale', 'voucher-multi-purpose-redeem', 'voucher-multi-purpose-sale', 'voucher-payout', 'voucher-return', 'voucher-return-tip', 'voucher-service-redeem', 'voucher-single-purpose-redeem', 'voucher-single-purpose-redeem-exempt', 'voucher-single-purpose-sale', 'zero-annual', 'zero-final', 'zero-manual', 'zero-monthly', 'zero-outage-end', 'zero-outage-end-period', 'zero-start']);
 });
 
 /**
@@ -81,9 +81,11 @@ test('Kartenanbieter: wer Terminaldaten mitbringt, bekommt einen Block', () => {
 test('Kartenanbieter: mit Zahlungsliste hat jede Zahlung mit Terminaldaten einen eigenen Block', () => {
   let geprueft = 0;
   for (const name of namen) {
-    const zahlungen = lade(name).receipt.payments as { provider?: string; providerData?: unknown }[] | undefined;
+    const zahlungen = lade(name).receipt.payments as { provider?: string; providerData?: Record<string, unknown> }[] | undefined;
     if (zahlungen == null) continue;
-    const mitDaten = zahlungen.filter((z) => z.provider != null && z.provider !== 'custom' && z.providerData != null).length;
+    // Eine Cloud-Zahlung ohne Transaktionscode und ohne Kartenziffern (Handbeleg, Rueckbuchungszeile) druckt bewusst keinen Block.
+    const duenneCloud = (d: Record<string, unknown>): boolean => d['channel'] === 'cloud' && !d['transactionCode'] && !d['cardLastDigits'];
+    const mitDaten = zahlungen.filter((z) => z.provider != null && z.provider !== 'custom' && z.providerData != null && !duenneCloud(z.providerData)).length;
     const bloecke = erwartet(name).lines.filter(
       (z) => z.kind === 'text' && z.bold && z.align === 'center' && /Beleg$|Stripe/.test(z.text),
     ).length;
@@ -298,4 +300,43 @@ test('SumUp Solo: Cloud-Zahlung druckt wie SDK-Zahlung ohne Zahlungstyp-Zeile', 
   assert.ok(texte.includes('TCMENT0001'));
   assert.ok(!texte.includes('Zahlungstyp'));
   for (const geheim of ['Q7X2K9', 'MZK4711X', 'rdr_01', 'txn_payment']) assert.ok(!texte.includes(geheim), geheim);
+});
+
+// ---- SumUp: Block je Kanal (SDK unveraendert, Cloud ohne fehlende Werte) -----------------
+
+/** Der Kartenblock des Falls `card-sumup-cloud` mit anderen Terminaldaten der einen Zahlung. */
+function sumupTexte(providerData: Record<string, unknown>, extra: Record<string, unknown> = {}): string {
+  const f = lade('card-sumup-cloud');
+  const zahlungen = (f.receipt['payments'] as Record<string, unknown>[]).map((z) => ({ ...z, providerData, ...extra }));
+  return JSON.stringify(layoutVon({ ...f, receipt: { ...f.receipt, payments: zahlungen } }).lines);
+}
+
+test('SumUp Solo: SDK-Zahlung ohne Zahlungstyp und ohne channel druckt weiter "Zahlungstyp: n/a"', () => {
+  const t = sumupTexte({ transactionCode: 'TCSDK0001', amount: 10.9, currency: 'EUR', cardType: 'VISA', cardLastDigits: '4242', entryMode: 'contactless' });
+  assert.ok(t.includes('Zahlungstyp:'), t);
+  assert.ok(t.includes('n/a'), t);
+});
+
+test('SumUp Solo: Cloud-Zahlung mit Zahlungstyp druckt ihn', () => {
+  const t = sumupTexte({ channel: 'cloud', paymentType: 'ECOM', transactionCode: 'TCMENT0001', amount: 10.9, currency: 'EUR', cardType: 'VISA', cardLastDigits: '4242', entryMode: 'contactless' });
+  assert.ok(t.includes('Zahlungstyp:'), t);
+  assert.ok(t.includes('ECOM'), t);
+});
+
+test('SumUp Solo: Cloud-Zahlung ohne Kartentyp und Modus druckt keine Zeile mit "n/a" oder leerem Wert', () => {
+  const t = sumupTexte({ channel: 'cloud', transactionCode: 'TCMENT0001', amount: 10.9, currency: 'EUR' });
+  assert.ok(t.includes('Sumup Beleg'), t);
+  assert.ok(t.includes('TCMENT0001'), t);
+  for (const weg of ['n/a', 'Kartentyp', 'Kartennummer', 'Modus', 'Zahlungstyp']) assert.ok(!t.includes(weg), weg);
+});
+
+test('SumUp Solo: Cloud-Zahlung ohne Transaktionscode und ohne Kartenziffern (Handbeleg einer ungeklaerten Zahlung) druckt keinen SumUp-Block', () => {
+  const t = sumupTexte({ channel: 'cloud', foreignTransactionId: 'payment-0001', amount: 10.9, currency: 'EUR' });
+  assert.ok(!t.includes('Sumup'), t);
+  assert.ok(!t.includes('n/a'), t);
+});
+
+test('SumUp Solo: Rueckbuchungszeile einer Cloud-Zahlung druckt keinen SumUp-Block', () => {
+  const t = sumupTexte({ channel: 'cloud', refund: true, transactionId: 'txn_refund-0001' });
+  assert.ok(!t.includes('Sumup'), t);
 });
