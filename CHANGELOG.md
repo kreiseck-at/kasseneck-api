@@ -4,7 +4,19 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.42.0 - unveröffentlicht
+## 1.43.0 - unveröffentlicht
+
+SumUp Solo: the 13 card reader calls of the register (backend spec 2026-11-22-sumup-solo-cloud, keck#1010) with types, the choice of the reader, sentences and printing. Additive; every existing call, golden and text behaves as before. Contract pulled from backend branch feature/sumup-solo-cloud (keck#1010); re-pulled from main before publishing.
+
+- **13 card reader calls in `./pos`** (`src/pos/kartenleser.ts`) with request and answer types, each classified as read, repeatable or unknown outcome in the contract (money routes `GELDWEGE` unchanged, with the reason). New POS error codes for the card reader. Reason: the register must never guess whether a payment or refund went through; a call with an unknown outcome is not repeated blindly.
+- **`cardReaderChoices`, `cardReaderBusyDevice`, `isCardReaderFinal`**: helpers to show the readers of a business, to name the device that holds a reader, and to tell a final state from an open one. Reason: app and browser register decide the same way instead of each reading the status strings themselves.
+- **Amount limits**: payment 100 to 1,000,000 cents, refund 1 to 1,000,000 cents (a refund from 1 cent, the server checks the upper limit). Reason: SumUp takes payments from 1,00 €, but a partial refund can be any amount.
+- **`setDeviceCardReader` sends an explicit `null`** to release the reader. Reason: leaving the field out means "no change" for the server, so a release would never arrive.
+- **`newCardReaderReference` and `cardReaderFor`** with test cases in `fixtures/card-reader-choice-cases.json`: the reference of a payment (one per attempt) and the choice of the reader for a device. Reason: both sides (Dart and TypeScript) must choose the same reader; the cases are the contract between them.
+- **Sentences `solo.*`** (app and browser register) and 12 error-code rules for the card reader. Reason: short action sentences without legal language, the same words on every device.
+- **Printing of cloud payments**: a payment through the cloud API prints like a payment through the SDK, without the line "Zahlungstyp". Reason: the customer sees the same receipt whichever reader took the payment.
+
+## 1.42.0 - 2026-11-22
 
 Monthly report as a receipt (backend spec 2026-11-21-monatsbericht-bon) and the contract pulled from the deployed backend. Additive; every existing call behaves as before.
 
