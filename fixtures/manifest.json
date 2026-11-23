@@ -169,6 +169,22 @@
       "blatt32": "868d901c764f3e9a24080e4f5febdd011bfdab16fffa6507f43fc40369d12f0a",
       "blatt48": "f91d224d56a50500cecea63ee2d8002c8509aaafcddf9b8ddb9d3777d20e2356"
     },
+    "karte-sumup-cloud": {
+      "eingabe": "fe62c4a3c372c74840fc8ecfa1020a41870a5176901db7aefde2631d997fed4a",
+      "erwartet": "fd005e93b451b47e57500bc64a67d032e946f4e0a817b20aa16f197078e9fe96",
+      "grid32": "a6440e692bcac68de58bf0967b2448b1deae551051e2fa1536541dabd77aa6c0",
+      "grid48": "82d58f1d59a41198846cc8f266e3c5376a53048b87ba0a09f7dce388988b7407",
+      "blatt32": "792d0394e02ec2c42a1333cdd818a42658f506b8fc821e66ed64ad7b37b796b1",
+      "blatt48": "0317f276716efbd1b1c76f0f81316773bf71b93bfaf45a25247f21dcfbc12716"
+    },
+    "karte-sumup-cloud-hand": {
+      "eingabe": "d458620a0db1e754d3850f172de40db260fc0dadbc5f164c5fd6554fd489d2ce",
+      "erwartet": "13beb892e533a6540030940233f1334055904090a61d48fe21a11a1ef9fad258",
+      "grid32": "b2291e33cfebaef27db5cbdd45d31f82bcd29a4f44d36129e115af3462b0ab82",
+      "grid48": "93404b4f1f3698e270afb83f940a61c0c72920723487981e0fde751a96db0b91",
+      "blatt32": "a979545b2de477a20d28de64b1ab33f7f6e8d3906a88c455bbd02bd3589e81a6",
+      "blatt48": "1d5b867435bad788c7be0b7daff7b3af5aa47d63935eafed7603544c2322c747"
+    },
     "langer-artikelname": {
       "eingabe": "a0403636033fdf1d03c8311b9dfe1dc2f9fea37b00ebb32b85c586ec090bf009",
       "erwartet": "aa29486082b8b6db8af82a82a0550d2c97f5cd8455d6c8e66849024059dfbfaa",
@@ -624,6 +640,14 @@
       "grid48": "4de3a192f6bb1fe9bc0ebf28476e6f631b2de2ac85cdc2032b550207fc93a321",
       "blatt32": "3cce750fc3fd02a13cdf3b5432c2b46280afb9b56415770bea21d906ed538c8a",
       "blatt48": "1852e32bfa45a77d98231d9e71b2fa9d3e35832fe7e32a3a8caf00297dd377fc"
+    },
+    "storno-sumup-cloud": {
+      "eingabe": "93a6d75c2d57fd4c737d5e025aa5495b16584b41721e677953b09ce38f6cab7e",
+      "erwartet": "8638ceda89423224481cc7334f5f87d2419c2f00e7dcba622146eb11801e72a2",
+      "grid32": "c8f845446fa8389214611824d38398ab35cdea1e522d2b4671db6bcef6cee3fd",
+      "grid48": "5643a11a10c8090c16e9a380638c6703f348ca5d4f6e9dc26f8e84f71c49ed71",
+      "blatt32": "b88f8dec55fb38c56b641bcc91287f369758c7c9b46d2be16e163efbed7591ff",
+      "blatt48": "c7e742e593e6c28ea81033ba8f8a004e86a75d79f62d0f6eeb6b94caf3052363"
     },
     "storno-teil": {
       "eingabe": "0a91d00060b752ba390c9dc0c0c81f670bfdc83399695a350efc1dbada461c77",

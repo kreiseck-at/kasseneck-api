@@ -27,7 +27,7 @@ const layoutVon = (f: Fixture): ReceiptLayout =>
   buildReceiptLayout(fromReceiptPayload({ ...f.receipt, customerDetails: f.receipt.customerDetails.join('\n'), legalMessage: f.receipt.legalMessage.join('\n') } as never), f.company, f.options ?? {});
 
 test('Golden-Belege: alle Faelle aus der Spec liegen vor', () => {
-  assert.deepEqual(namen, ['deposit', 'deposit-return', 'gutschein-auszahlung', 'gutschein-einzweck-einloesung', 'gutschein-einzweck-einloesung-befreit', 'gutschein-einzweck-leistung-verkauf', 'gutschein-fremd-einloesung', 'gutschein-fremd-verkauf', 'gutschein-leistung-einloesung', 'gutschein-mehrzweck-einloesung', 'gutschein-mehrzweck-verkauf', 'gutschein-storno-einzweck', 'karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'langer-artikelname', 'nacherfassung-einzel-ausser-haus-ohne-zeit', 'nacherfassung-einzel-ausser-haus-zeit', 'nacherfassung-einzel-geraet-ohne-zeit', 'nacherfassung-einzel-geraet-zeit', 'nacherfassung-einzel-internet-ohne-zeit', 'nacherfassung-einzel-internet-zeit', 'nacherfassung-einzel-sonstiges-ohne-zeit', 'nacherfassung-einzel-sonstiges-zeit', 'nacherfassung-einzel-stoerung-ohne-zeit', 'nacherfassung-einzel-stoerung-zeit', 'nacherfassung-einzel-strom-ohne-zeit', 'nacherfassung-einzel-strom-zeit', 'nacherfassung-kleinunternehmer', 'nacherfassung-sammel-geraet-anzahl', 'nacherfassung-sammel-geraet-ohne-anzahl', 'nacherfassung-sammel-internet-anzahl', 'nacherfassung-sammel-internet-ohne-anzahl', 'nacherfassung-sammel-sonstiges-anzahl', 'nacherfassung-sammel-sonstiges-ohne-anzahl', 'nacherfassung-sammel-stoerung-anzahl', 'nacherfassung-sammel-stoerung-ohne-anzahl', 'nacherfassung-sammel-strom-anzahl', 'nacherfassung-sammel-strom-ohne-anzahl', 'null-ausfall', 'null-ausfall-zeitraum', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'rechnungszahlung-ausfall', 'rechnungszahlung-kleinunternehmer', 'rechnungszahlung-nacherfassung', 'rechnungszahlung-normal', 'rechnungszahlung-reverse-charge', 'rechnungszahlung-rueckzahlung', 'rechnungszahlung-steuerfrei', 'rechnungszahlung-storno', 'rechnungszahlung-teilzahlung', 'rechnungszahlung-training', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer', 'zusaetze']);
+  assert.deepEqual(namen, ['deposit', 'deposit-return', 'gutschein-auszahlung', 'gutschein-einzweck-einloesung', 'gutschein-einzweck-einloesung-befreit', 'gutschein-einzweck-leistung-verkauf', 'gutschein-fremd-einloesung', 'gutschein-fremd-verkauf', 'gutschein-leistung-einloesung', 'gutschein-mehrzweck-einloesung', 'gutschein-mehrzweck-verkauf', 'gutschein-storno-einzweck', 'karte-eigener', 'karte-gptom', 'karte-gptom-ios', 'karte-hobex-cloud', 'karte-hobex-hps', 'karte-mypos', 'karte-stripe', 'karte-stripe-eps', 'karte-sumup', 'karte-sumup-cloud', 'karte-sumup-cloud-hand', 'langer-artikelname', 'nacherfassung-einzel-ausser-haus-ohne-zeit', 'nacherfassung-einzel-ausser-haus-zeit', 'nacherfassung-einzel-geraet-ohne-zeit', 'nacherfassung-einzel-geraet-zeit', 'nacherfassung-einzel-internet-ohne-zeit', 'nacherfassung-einzel-internet-zeit', 'nacherfassung-einzel-sonstiges-ohne-zeit', 'nacherfassung-einzel-sonstiges-zeit', 'nacherfassung-einzel-stoerung-ohne-zeit', 'nacherfassung-einzel-stoerung-zeit', 'nacherfassung-einzel-strom-ohne-zeit', 'nacherfassung-einzel-strom-zeit', 'nacherfassung-kleinunternehmer', 'nacherfassung-sammel-geraet-anzahl', 'nacherfassung-sammel-geraet-ohne-anzahl', 'nacherfassung-sammel-internet-anzahl', 'nacherfassung-sammel-internet-ohne-anzahl', 'nacherfassung-sammel-sonstiges-anzahl', 'nacherfassung-sammel-sonstiges-ohne-anzahl', 'nacherfassung-sammel-stoerung-anzahl', 'nacherfassung-sammel-stoerung-ohne-anzahl', 'nacherfassung-sammel-strom-anzahl', 'nacherfassung-sammel-strom-ohne-anzahl', 'null-ausfall', 'null-ausfall-zeitraum', 'null-jahr', 'null-monat', 'null-pruef', 'null-schluss', 'null-start', 'rabatt-chef-trinkgeld', 'rabatt-einfach', 'rabatt-trinkgeld', 'rabatt-wertgutschein', 'rabattzeilen', 'rechnungszahlung-ausfall', 'rechnungszahlung-kleinunternehmer', 'rechnungszahlung-nacherfassung', 'rechnungszahlung-normal', 'rechnungszahlung-reverse-charge', 'rechnungszahlung-rueckzahlung', 'rechnungszahlung-steuerfrei', 'rechnungszahlung-storno', 'rechnungszahlung-teilzahlung', 'rechnungszahlung-training', 'signaturausfall-verkauf', 'split-bar-rueckgeld', 'split-eine-karte-trinkgeld', 'split-karte-karte-bar', 'split-langer-betrag', 'split-tischrunde-trinkgeld', 'split-trinkgeld-karte', 'split-zwei-karten-gleicher-anbieter', 'storno-rabatt', 'storno-split-teil', 'storno-split-voll', 'storno-sumup-cloud', 'storno-teil', 'storno-voll', 'testkasse-verkauf', 'testsignatur-verkauf', 'training', 'verkauf-bar', 'verkauf-karte', 'verkauf-kleinunternehmer', 'zusaetze']);
 });
 
 /**
@@ -81,9 +81,12 @@ test('Kartenanbieter: wer Terminaldaten mitbringt, bekommt einen Block', () => {
 test('Kartenanbieter: mit Zahlungsliste hat jede Zahlung mit Terminaldaten einen eigenen Block', () => {
   let geprueft = 0;
   for (const name of namen) {
-    const zahlungen = lade(name).receipt.payments as { provider?: string; providerData?: unknown }[] | undefined;
+    const zahlungen = lade(name).receipt.payments as { provider?: string; providerData?: Record<string, unknown> }[] | undefined;
     if (zahlungen == null) continue;
-    const mitDaten = zahlungen.filter((z) => z.provider != null && z.provider !== 'custom' && z.providerData != null).length;
+    // SumUp Solo (Cloud) ohne Transaktionscode und ohne Kartenziffern (Handbeleg, Rueckbuchung) druckt bewusst keinen Block.
+    const duenneCloud = (z: { providerData?: Record<string, unknown> }) =>
+      z.providerData?.['channel'] === 'cloud' && !z.providerData['transactionCode'] && !z.providerData['cardLastDigits'];
+    const mitDaten = zahlungen.filter((z) => z.provider != null && z.provider !== 'custom' && z.providerData != null && !duenneCloud(z)).length;
     const bloecke = erwartet(name).lines.filter(
       (z) => z.kind === 'text' && z.bold && z.align === 'center' && /Beleg$|Stripe/.test(z.text),
     ).length;
@@ -286,4 +289,50 @@ test('Rot-Probe: dieselbe Zeile ohne Positionsart steht als „D 0%“ in der St
   const items = (f.receipt.items as Array<Record<string, unknown>>).map(({ kind: _kind, ...rest }) => rest);
   const texte = texteVon(layoutVon({ ...f, receipt: { ...f.receipt, items } }).lines);
   assert.ok(texte.some((t) => /0%/.test(t)), texte.join(' | '));
+});
+
+// ---- SumUp Solo (Cloud): Block je Kanal, SDK unveraendert ---------------------------------
+
+/** Der Fall `karte-sumup-cloud` mit anderen Terminaldaten der einen Zahlung. */
+function sumupTexte(providerData: Record<string, unknown>): string {
+  const f = lade('karte-sumup-cloud');
+  const zahlungen = (f.receipt['payments'] as Record<string, unknown>[]).map((z) => ({ ...z, providerData }));
+  return JSON.stringify(layoutVon({ ...f, receipt: { ...f.receipt, payments: zahlungen } }).lines);
+}
+
+test('SumUp Solo: Cloud-Zahlung druckt nur vorhandene Werte, ohne "Zahlungstyp" und ohne authCode', () => {
+  const t = JSON.stringify(layoutVon(lade('karte-sumup-cloud')).lines);
+  for (const da of ['Sumup Beleg', 'Kartentyp', 'VISA', '**** **** **** 4242', 'Gesamtbetrag', '10,90 EUR', 'TCMENT0001', 'CONTACTLESS']) {
+    assert.ok(t.includes(da) || da === 'CONTACTLESS', da);
+  }
+  for (const weg of ['Zahlungstyp', 'n/a', 'Q7X2K9']) assert.ok(!t.includes(weg), weg);
+  assert.ok(JSON.stringify(lade('karte-sumup-cloud')).includes('Q7X2K9'), 'authCode liegt im Datensatz');
+});
+
+test('SumUp Solo: Cloud-Handbeleg ohne Transaktionscode und Endziffern druckt keinen SumUp-Block', () => {
+  const t = JSON.stringify(layoutVon(lade('karte-sumup-cloud-hand')).lines);
+  assert.ok(!t.includes('Sumup'), t);
+  assert.ok(!t.includes('n/a'), t);
+  assert.ok(!t.includes('Q7X2K9'), t);
+});
+
+test('SumUp Solo: Rueckbuchungszeile am Storno druckt keinen SumUp-Block', () => {
+  const t = JSON.stringify(layoutVon(lade('storno-sumup-cloud')).lines);
+  assert.ok(!t.includes('Sumup'), t);
+});
+
+test('SumUp Solo: SDK-Zahlung ohne channel druckt weiter "Zahlungstyp: n/a"', () => {
+  const t = sumupTexte({ transactionCode: 'TCSDK0001', amount: 10.9, currency: 'EUR', cardType: 'VISA', cardLastDigits: '4242', entryMode: 'contactless' });
+  assert.ok(t.includes('Zahlungstyp:') && t.includes('n/a'), t);
+});
+
+test('SumUp Solo: Cloud-Zahlung mit Zahlungstyp druckt ihn', () => {
+  const t = sumupTexte({ channel: 'cloud', paymentType: 'ECOM', transactionCode: 'TCMENT0001', amount: 10.9, currency: 'EUR', cardType: 'VISA', cardLastDigits: '4242', entryMode: 'contactless' });
+  assert.ok(t.includes('Zahlungstyp:') && t.includes('ECOM'), t);
+});
+
+test('SumUp Solo: Cloud-Zahlung ohne Kartentyp und Modus druckt keine Zeile mit "n/a" oder leerem Wert', () => {
+  const t = sumupTexte({ channel: 'cloud', transactionCode: 'TCMENT0001', amount: 10.9, currency: 'EUR' });
+  assert.ok(t.includes('Sumup Beleg') && t.includes('TCMENT0001'), t);
+  for (const weg of ['n/a', 'Kartentyp', 'Kartennummer', 'Modus', 'Zahlungstyp']) assert.ok(!t.includes(weg), weg);
 });
