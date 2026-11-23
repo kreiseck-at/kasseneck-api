@@ -4,7 +4,7 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
-## 1.43.0 - unveröffentlicht
+## 1.43.0 - 2026-11-23
 
 SumUp Solo: the 13 card reader calls of the register (backend spec 2026-11-18-sumup-solo-cloud-design, keck#1010) with types, the choice of the reader, sentences and printing. Additive; every existing call, golden and text behaves as before. Contract pulled from the deployed backend (keck#1010).
 
