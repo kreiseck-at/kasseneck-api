@@ -264,6 +264,12 @@ const MELDUNGEN_ROH = {
   'solo.refund_unknown': { text: 'SumUp hat nicht gemeldet, ob die Rückbuchung durchging. Bar nur zurückgeben, wenn sicher ist, dass sie nicht durchging.' },
   'solo.refund_too_high': { text: 'So viel kann auf diese Karte nicht mehr zurückgebucht werden.' },
   'solo.refund_not_sent': { text: 'Die Rückbuchung ging nicht an SumUp hinaus. Es wurde nichts zurückgebucht.' },
+  // Solo-Fassungen der Saetze, die sonst das Terminal nennen: Abbruch der Zahlung (statt card_payment.terminal_cancelling),
+  // SumUp hat eine offene Zahlung bestaetigt (statt split.clarify_charged) und die unklare Karte in der Ecke mit Solo
+  // und Uhrzeit (Wien) statt der Kennung der Kasse (statt card_payment.unclear_short; die Kennung steht im Klaeren-Fenster).
+  'solo.cancelling': { text: 'Die Zahlung am Solo wird abgebrochen …' },
+  'solo.clarify_charged': { text: 'SumUp meldet: bezahlt. Die Zahlung wurde übernommen.' },
+  'solo.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Solo „{name}“ · {time}.', placeholders: ['amount', 'name', 'time'] },
 
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },
@@ -1831,6 +1837,11 @@ const BESCHRIFTUNGEN_ROH = {
   'solo.refund_to_card': { text: 'Auf die Karte zurückbuchen' },
   'solo.refund_cash': { text: 'Bar zurückgeben' },
   'solo.real_payment': { text: 'Echt kassieren' },
+  // Titelzeile der Warte-Karte am Solo (statt card_payment.amount_on_terminal), die unklare Karte in der Liste
+  // (Solo und Uhrzeit in Wien statt der Kennung) und die leise Zeile, solange die Einstellungen „Solo“ laden.
+  'solo.amount_on_reader': { text: 'Betrag steht am Solo' },
+  'solo.payment_label': { text: 'Solo „{name}“ · {time}', placeholders: ['name', 'time'] },
+  'solo.loading': { text: 'Wird geladen …' },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.

@@ -665,6 +665,20 @@
     "solo.refund_not_sent": {
       "text": "Die Rückbuchung ging nicht an SumUp hinaus. Es wurde nichts zurückgebucht."
     },
+    "solo.cancelling": {
+      "text": "Die Zahlung am Solo wird abgebrochen …"
+    },
+    "solo.clarify_charged": {
+      "text": "SumUp meldet: bezahlt. Die Zahlung wurde übernommen."
+    },
+    "solo.unclear_short": {
+      "text": "Kartenzahlung {amount} unklar – bitte klären. Solo „{name}“ · {time}.",
+      "placeholders": [
+        "amount",
+        "name",
+        "time"
+      ]
+    },
     "log.empty": {
       "text": "Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung."
     },
@@ -4232,6 +4246,19 @@
     },
     "solo.real_payment": {
       "text": "Echt kassieren"
+    },
+    "solo.amount_on_reader": {
+      "text": "Betrag steht am Solo"
+    },
+    "solo.payment_label": {
+      "text": "Solo „{name}“ · {time}",
+      "placeholders": [
+        "name",
+        "time"
+      ]
+    },
+    "solo.loading": {
+      "text": "Wird geladen …"
     },
     "tip.line_cash_kept": {
       "text": "{amount} gleich einstecken",

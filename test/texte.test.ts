@@ -891,3 +891,29 @@ test('Geraete-Einstellungen (1.39.0): Titel als Beschriftungen auf beiden Seiten
     assert.ok(!(weg in LABELS) && !(weg in MESSAGES), weg);
   }
 });
+
+// --- SumUp Solo: eigene Fassung der Saetze, die sonst das Terminal nennen ---
+// Laeuft die Karte am Solo, sagt die Kasse „Solo“ bzw. „SumUp“ (Ergebnis des lokalen Tests, 23.11.2026):
+// Warte-Karte, Abbruch, Klaeren, unklare Karte in Ecke und Liste. Die Kennung der Kasse (`kk-…`) steht nur
+// noch im Klaeren-Fenster; Ecke und Liste nennen den Solo und die Uhrzeit. Die Terminal-Saetze bleiben.
+test('SumUp Solo: Warte-Karte, Abbruch, Klaeren und unklare Karte nennen den Solo, nie das Terminal', () => {
+  assert.equal(labelText('solo.amount_on_reader'), 'Betrag steht am Solo');
+  assert.equal(messageText('solo.cancelling'), 'Die Zahlung am Solo wird abgebrochen …');
+  assert.equal(messageText('solo.clarify_charged'), 'SumUp meldet: bezahlt. Die Zahlung wurde übernommen.');
+  assert.equal(
+    messageText('solo.unclear_short', { amount: '1,00 €', name: 'Theke', time: '14:05' }),
+    'Kartenzahlung 1,00 € unklar – bitte klären. Solo „Theke“ · 14:05.',
+  );
+  assert.equal(labelText('solo.payment_label', { name: 'Theke', time: '14:05' }), 'Solo „Theke“ · 14:05');
+  assert.equal(labelText('solo.loading'), 'Wird geladen …');
+  assert.throws(() => messageText('solo.unclear_short', { amount: '1,00 €', name: 'Theke' }), /time/);
+  for (const k of ['solo.cancelling', 'solo.clarify_charged', 'solo.unclear_short'] as const) {
+    assert.equal(MESSAGES[k].only, undefined, k);
+    assert.doesNotMatch(MESSAGES[k].text, /Terminal|Kennung/, k);
+  }
+  for (const k of ['solo.amount_on_reader', 'solo.payment_label', 'solo.loading'] as const) assert.equal(LABELS[k].only, undefined, k);
+  // Die Fassungen fuer Terminal und Hobex bleiben, wie sie waren.
+  assert.equal(labelText('card_payment.amount_on_terminal'), 'Betrag steht am Terminal');
+  assert.equal(messageText('card_payment.terminal_cancelling'), 'Das Terminal bricht gleich von selbst ab …');
+  assert.equal(messageText('split.clarify_charged'), 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.');
+});

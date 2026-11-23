@@ -126,7 +126,8 @@ const NACH_1_0 = {
     'sumup.location_question', 'sumup.location_denied', 'sumup.location_off', 'sumup.location_missing',
     'sumup.location_hint', 'sumup.location_denied_hint', 'sumup.reader_ready',
     // SumUp Solo (Cloud-API)
-    'solo.not_connected', 'solo.connection_expired', 'solo.connect_unavailable', 'solo.connect_waiting', 'solo.connected_as', 'solo.disconnect_question', 'solo.pair_hint', 'solo.code_invalid', 'solo.not_waiting', 'solo.too_many', 'solo.not_found', 'solo.no_reader', 'solo.busy', 'solo.busy_short', 'solo.waiting', 'solo.checking', 'solo.check_hint', 'solo.offline', 'solo.declined', 'solo.cancelled', 'solo.expired', 'solo.setup', 'solo.amount_mismatch', 'solo.module_inactive', 'solo.below_minimum', 'solo.unavailable', 'solo.refund_running', 'solo.refund_checking', 'solo.refund_declined', 'solo.refund_not_enabled', 'solo.refund_unknown', 'solo.refund_too_high', 'solo.refund_not_sent'],
+    'solo.not_connected', 'solo.connection_expired', 'solo.connect_unavailable', 'solo.connect_waiting', 'solo.connected_as', 'solo.disconnect_question', 'solo.pair_hint', 'solo.code_invalid', 'solo.not_waiting', 'solo.too_many', 'solo.not_found', 'solo.no_reader', 'solo.busy', 'solo.busy_short', 'solo.waiting', 'solo.checking', 'solo.check_hint', 'solo.offline', 'solo.declined', 'solo.cancelled', 'solo.expired', 'solo.setup', 'solo.amount_mismatch', 'solo.module_inactive', 'solo.below_minimum', 'solo.unavailable', 'solo.refund_running', 'solo.refund_checking', 'solo.refund_declined', 'solo.refund_not_enabled', 'solo.refund_unknown', 'solo.refund_too_high', 'solo.refund_not_sent',
+    'solo.cancelling', 'solo.clarify_charged', 'solo.unclear_short'],
   labels: ['register.device_unnamed', 'login.locked_seconds', 'split.remaining_with_rounding', 'codetable.title', 'codetable.reference', 'codetable.replacement_note', 'codetable.missing', 'codetable.print_again', 'codetable.not_checked', 'codetable.check', 'codetable.current', 'codetable.instruction_title', 'codetable.preview_title', 'codetable.apply', 'codetable.other_row',
     'stock.all_articles', 'stock.location', 'stock.default_location', 'stock.resolved', 'stock.where_to', 'stock.available',
     'stock.return_restock', 'stock.return_defective', 'stock.return_disposed',
@@ -250,7 +251,8 @@ const NACH_1_0 = {
     'sumup.location_off_title', 'sumup.location_turn_on', 'sumup.bind_title', 'sumup.bind', 'sumup.unbind_title', 'sumup.unbind',
     'sumup.reader_change',
     // SumUp Solo (Cloud-API)
-    'solo.section_title', 'solo.connect', 'solo.disconnect', 'solo.pair', 'solo.code_label', 'solo.name_label', 'solo.rename', 'solo.remove', 'solo.assign', 'solo.assigned', 'solo.use_bluetooth', 'solo.status_paired', 'solo.status_pairing', 'solo.status_expired', 'solo.online', 'solo.offline_label', 'solo.battery', 'solo.choose_title', 'solo.remember', 'solo.other_reader', 'solo.refund_to_card', 'solo.refund_cash', 'solo.real_payment'],
+    'solo.section_title', 'solo.connect', 'solo.disconnect', 'solo.pair', 'solo.code_label', 'solo.name_label', 'solo.rename', 'solo.remove', 'solo.assign', 'solo.assigned', 'solo.use_bluetooth', 'solo.status_paired', 'solo.status_pairing', 'solo.status_expired', 'solo.online', 'solo.offline_label', 'solo.battery', 'solo.choose_title', 'solo.remember', 'solo.other_reader', 'solo.refund_to_card', 'solo.refund_cash', 'solo.real_payment',
+    'solo.amount_on_reader', 'solo.payment_label', 'solo.loading'],
   // Faelle mit `code` oder `outcome` (seit Version 2 der Datei): die Verfeinerungen.
   caseVersion: 2,
   // Dateischluessel von pos-texts.json: die Verfeinerungen neben errorRules,
