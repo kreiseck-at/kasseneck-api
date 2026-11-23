@@ -270,6 +270,20 @@ const MELDUNGEN_ROH = {
   'solo.cancelling': { text: 'Die Zahlung am Solo wird abgebrochen …' },
   'solo.clarify_charged': { text: 'SumUp meldet: bezahlt. Die Zahlung wurde übernommen.' },
   'solo.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Solo „{name}“ · {time}.', placeholders: ['amount', 'name', 'time'] },
+  // Solo belegt das Geraet (Zahlung oder Rueckbuchung am Solo; statt card_payment.waiting_for_terminal).
+  'solo.waiting_for_reader': { text: 'Bitte am Solo fortfahren …' },
+  // Rueckbuchung eines Solo-Kartenteils vor dem Beleg: sie laeuft ueber SumUp, nicht am Geraet -- darum „auf die Karte“
+  // (statt split.card_reverse_running, split.card_reversed, split.external_reverse).
+  'solo.card_reverse_running': { text: 'Die Kartenzahlung über {amount} wird auf die Karte zurückgebucht …', placeholders: ['amount'] },
+  'solo.card_reversed': { text: 'Die Kartenzahlung über {amount} ist auf die Karte zurückgebucht.', placeholders: ['amount'] },
+  'solo.external_reverse': { text: 'Bitte {amount} jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.', placeholders: ['amount'] },
+  // Storno mit Solo-Karten, die von Hand zurueckgehen (statt cancellation.refund_cards, .cards_not_checked, .outcome_unknown_cards).
+  'solo.refund_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten gutschreiben und abhaken.' },
+  'solo.cards_not_checked': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
+  'solo.outcome_unknown_cards': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg gutschreiben.' },
+  // Neu koppeln mit belasteten Solo-Karten (statt card_payment.unpair_card_charged, split.unpair_open_cards).
+  'solo.unpair_card_charged': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Solo zurückerstattet werden (Betrag siehe unten).' },
+  'solo.unpair_open_cards': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Solo zurückgebucht werden (Beträge siehe unten).' },
 
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },
@@ -1842,6 +1856,8 @@ const BESCHRIFTUNGEN_ROH = {
   'solo.amount_on_reader': { text: 'Betrag steht am Solo' },
   'solo.payment_label': { text: 'Solo „{name}“ · {time}', placeholders: ['name', 'time'] },
   'solo.loading': { text: 'Wird geladen …' },
+  // Bestaetigung einer Rueckbuchung am Solo von Hand (statt split.reversed_on_terminal): ueber SumUp, kein Geraet.
+  'solo.reversed_on_card': { text: 'Auf die Karte zurückgebucht' },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.

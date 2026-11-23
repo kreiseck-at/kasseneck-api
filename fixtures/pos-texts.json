@@ -679,6 +679,42 @@
         "time"
       ]
     },
+    "solo.waiting_for_reader": {
+      "text": "Bitte am Solo fortfahren …"
+    },
+    "solo.card_reverse_running": {
+      "text": "Die Kartenzahlung über {amount} wird auf die Karte zurückgebucht …",
+      "placeholders": [
+        "amount"
+      ]
+    },
+    "solo.card_reversed": {
+      "text": "Die Kartenzahlung über {amount} ist auf die Karte zurückgebucht.",
+      "placeholders": [
+        "amount"
+      ]
+    },
+    "solo.external_reverse": {
+      "text": "Bitte {amount} jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.",
+      "placeholders": [
+        "amount"
+      ]
+    },
+    "solo.refund_cards": {
+      "text": "Das Storno ist gebucht – bitte jede Karte unten gutschreiben und abhaken."
+    },
+    "solo.cards_not_checked": {
+      "text": "Noch ist nicht jede Karte abgehakt – bitte jede gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken."
+    },
+    "solo.outcome_unknown_cards": {
+      "text": "Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg gutschreiben."
+    },
+    "solo.unpair_card_charged": {
+      "text": "Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Solo zurückerstattet werden (Betrag siehe unten)."
+    },
+    "solo.unpair_open_cards": {
+      "text": "Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Solo zurückgebucht werden (Beträge siehe unten)."
+    },
     "log.empty": {
       "text": "Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung."
     },
@@ -4259,6 +4295,9 @@
     },
     "solo.loading": {
       "text": "Wird geladen …"
+    },
+    "solo.reversed_on_card": {
+      "text": "Auf die Karte zurückgebucht"
     },
     "tip.line_cash_kept": {
       "text": "{amount} gleich einstecken",

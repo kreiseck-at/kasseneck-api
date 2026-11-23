@@ -917,3 +917,32 @@ test('SumUp Solo: Warte-Karte, Abbruch, Klaeren und unklare Karte nennen den Sol
   assert.equal(messageText('card_payment.terminal_cancelling'), 'Das Terminal bricht gleich von selbst ab …');
   assert.equal(messageText('split.clarify_charged'), 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.');
 });
+
+// --- SumUp Solo, zweite Runde: belegt, Rueckbuchung, Storno, Entkoppeln --------------------------
+// Eine Rueckbuchung am Solo laeuft ueber SumUp, nicht am Geraet: diese Saetze nennen kein Geraet
+// („auf die Karte“, „gutschreiben“). Belegt und Entkoppeln nennen den Solo statt des Terminals.
+test('SumUp Solo: belegt, Rueckbuchung, Storno und Entkoppeln ohne Terminal; die Terminal-Saetze bleiben', () => {
+  const erwartet: Record<string, string> = {
+    'solo.waiting_for_reader': 'Bitte am Solo fortfahren …',
+    'solo.card_reverse_running': 'Die Kartenzahlung über 10,00 € wird auf die Karte zurückgebucht …',
+    'solo.card_reversed': 'Die Kartenzahlung über 10,00 € ist auf die Karte zurückgebucht.',
+    'solo.external_reverse': 'Bitte 10,00 € jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.',
+    'solo.refund_cards': 'Das Storno ist gebucht – bitte jede Karte unten gutschreiben und abhaken.',
+    'solo.cards_not_checked': 'Noch ist nicht jede Karte abgehakt – bitte jede gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.',
+    'solo.outcome_unknown_cards': 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg gutschreiben.',
+    'solo.unpair_card_charged': 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Solo zurückerstattet werden (Betrag siehe unten).',
+    'solo.unpair_open_cards': 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Solo zurückgebucht werden (Beträge siehe unten).',
+  };
+  for (const [k, v] of Object.entries(erwartet)) {
+    assert.equal(messageText(k as MessageKey, { amount: '10,00 €' }), v, k);
+    assert.equal(MESSAGES[k as MessageKey].only, undefined, k);
+    assert.doesNotMatch(v, /Terminal/, k);
+  }
+  assert.equal(labelText('solo.reversed_on_card'), 'Auf die Karte zurückgebucht');
+  assert.equal(LABELS['solo.reversed_on_card'].only, undefined);
+  // Die Terminal-Fassungen bleiben wortgleich.
+  assert.equal(messageText('card_payment.waiting_for_terminal'), 'Bitte am Terminal fortfahren …');
+  assert.equal(messageText('split.card_reversed', { amount: '10,00 €' }), 'Die Kartenzahlung über 10,00 € ist am Terminal zurückgebucht.');
+  assert.equal(labelText('split.reversed_on_terminal'), 'Am Terminal zurückgebucht');
+  assert.equal(messageText('cancellation.refund_cards'), 'Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken.');
+});
