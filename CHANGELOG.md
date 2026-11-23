@@ -4,6 +4,16 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.41.1 (unveröffentlicht)
+
+SumUp Solo (Cloud-Zahlung) im Bon: Zwilling der Druckregel aus 1.x, damit das Backend (vendort 0.x) keine falschen Zeilen druckt.
+
+- **Fix SumUp-Block bei `providerData.channel === 'cloud'`:** gedruckt wird nur, was da ist. Die Zeile „Zahlungstyp“ steht nur mit
+  `paymentType` (statt „n/a“), „Gesamtbetrag“ nur bei lesbarem Betrag, keine Zeile mit „n/a“ oder leerem Wert. Ohne Transaktionscode
+  UND ohne Kartenendziffern (Handbeleg einer ungeklärten Zahlung, Rückbuchungszeile am Storno) steht gar kein SumUp-Block da.
+  `authCode` wird nie gedruckt. Zahlungen ohne `channel` (Bluetooth-SDK) bleiben byte-gleich.
+- Neue Golden-Belege `karte-sumup-cloud`, `karte-sumup-cloud-hand`, `storno-sumup-cloud`; alle vorhandenen Goldens bleiben unverändert.
+
 ## 0.41.0 (unveröffentlicht)
 
 SumUp in der Kassen-App (Stufe 1) und ein Fehler im SumUp-Block des Bons.
