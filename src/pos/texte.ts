@@ -248,7 +248,8 @@ const MELDUNGEN_ROH = {
   'solo.checking': { text: 'Die Zahlung wird bei SumUp geprüft.' },
   'solo.check_hint': { text: 'In der SumUp-App unter Transaktionen nachsehen: {amount}, {time}, Solo „{name}“.', placeholders: ['amount', 'time', 'name'] },
   'solo.offline': { text: 'Der Solo ist nicht erreichbar. Ist er eingeschaltet und mit dem Internet verbunden?' },
-  'solo.declined': { text: 'Die Karte wurde abgelehnt, es wurde nichts abgebucht.' },
+  // SumUp meldet eine abgelehnte Karte und einen Abbruch am Solo gleich (failed): darum ein Satz, der beides trifft.
+  'solo.declined': { text: 'Die Zahlung ging am Solo nicht durch, es wurde nichts abgebucht.' },
   'solo.cancelled': { text: 'Die Zahlung wurde abgebrochen, es wurde nichts abgebucht.' },
   'solo.expired': { text: 'Am Solo kam keine Karte, es wurde nichts abgebucht.' },
   'solo.setup': { text: 'Der Solo ist bei SumUp nicht richtig eingerichtet. Bitte in den Einstellungen neu koppeln.' },

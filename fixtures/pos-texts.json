@@ -621,7 +621,7 @@
       "text": "Der Solo ist nicht erreichbar. Ist er eingeschaltet und mit dem Internet verbunden?"
     },
     "solo.declined": {
-      "text": "Die Karte wurde abgelehnt, es wurde nichts abgebucht."
+      "text": "Die Zahlung ging am Solo nicht durch, es wurde nichts abgebucht."
     },
     "solo.cancelled": {
       "text": "Die Zahlung wurde abgebrochen, es wurde nichts abgebucht."
