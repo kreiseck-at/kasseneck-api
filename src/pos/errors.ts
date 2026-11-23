@@ -2,14 +2,14 @@ import { KasseneckApiError } from '../client/errors.js';
 
 /**
  * Fehler der Kassen-Aufrufe um den Verkauf herum (Einstellungen, Logo,
- * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen, Schicht,
+ * Artikel, Drucker, Trinkgeld-Empfaenger, Lager, Inventur zaehlen, Kartenleser, Schicht,
  * Kassenstand, Lade-Protokoll und Kasseninfo fuer die Pruefung) auswerten:
  * am `code`, nie am Text.
  * Belege, Storno und Belegmail haben eigene Listen (`RECEIPT_ERROR_CODES`,
  * `CANCELLATION_ERROR_CODES`, `RECEIPT_EMAIL_ERROR_CODES`), die Anmeldung
  * `REGISTER_ERROR_CODES` im Unterpfad `./register`.
  *
- * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser 25 Endpunkte in
+ * Abgeleitet aus dem Vertrags-Export (Fehlerfaelle dieser Endpunkte, auch der Kartenleser (SumUp Solo) in
  * `fixtures/v3/antworten/kasse.json` und ihre Handler-Codes); ein Test haelt
  * die Liste deckungsgleich. `validation` traegt `data.errors[]` mit dem
  * aeusseren Feldpfad (`business.theme`, `device.shortcuts.splitPayment`).
@@ -33,6 +33,21 @@ export const POS_ERROR_CODES = Object.freeze([
   'article_not_found',
   'article_not_in_scope',
   'article_not_tracked',
+  'card_account_connect_unavailable',
+  'card_account_expired',
+  'card_account_not_connected',
+  'card_payment_amount_invalid',
+  'card_payment_not_found',
+  'card_payment_reference_conflict',
+  'card_provider_unavailable',
+  'card_reader_busy',
+  'card_reader_choice_needed',
+  'card_reader_code_invalid',
+  'card_reader_not_found',
+  'card_reader_not_waiting',
+  'card_refund_amount_invalid',
+  'card_refund_not_enabled',
+  'card_refund_not_possible',
   'cash_movement_exceeds_balance',
   'cashregister_not_assigned',
   'cashregister_not_found',
@@ -105,6 +120,7 @@ export const POS_ERROR_CODES = Object.freeze([
   'stocktake_not_open',
   'sumup_merchant_already_bound',
   'tip_payout_exceeds_claim',
+  'too_many_card_readers',
   'too_many_counts',
   'too_many_deposit_types',
   'transfer_same_drawer',

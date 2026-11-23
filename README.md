@@ -1172,6 +1172,55 @@ which stays in `error.message` for the log: `route_missing`, `not_found` and
 register and check whether the last operation was booked, and never
 suggests a retry.
 
+**Card readers (SumUp Solo).** A payment is a process with a reference you
+create yourself (`newCardReaderReference`, 8 to 64 characters of
+`A-Z a-z 0-9 _ -`), not a single call. Start it, then ask again with the same
+reference until `isCardReaderFinal`; a network error while asking never means
+"not paid". Amounts are whole cents (100 to 1,000,000). A successful payment
+carries `receiptPayment`, a complete payment entry (`method`, `amountCents`,
+`provider`, `providerPaymentId`, `providerData`) that goes unchanged into
+`payments[]` of `createReceipt`.
+
+If `startCardReaderPayment` or `refundCardReaderPayment` fails with
+`server_error` (or without a code) the error says `outcome: 'unknown'`: the
+card may have been charged. Ask `getCardReaderPayment` / `getCardReaderRefund`
+with the SAME reference and never start again with a new one. On
+`card_reader_choice_needed` nothing was started: reload `getCardReaderSetup`,
+choose with `cardReaderFor`, and start again with the chosen `readerId`
+(`cardReaderChoices(error)` is only a fallback list of `{ readerId, name }`).
+`cardReaderMessageKey` names the sentence to show for a status.
+
+```ts
+import {
+  startCardReaderPayment, getCardReaderPayment, getCardReaderSetup, isCardReaderFinal,
+  cardReaderFor, newCardReaderReference, isPosError,
+} from '@kreiseck/kasseneck-api/pos';
+import { isOutcomeUnknown } from '@kreiseck/kasseneck-api';
+
+const reference = newCardReaderReference(cashregisterId);
+async function start(readerId?: string): Promise<void> {
+  try {
+    await startCardReaderPayment(transport, { deviceId, reference, amountCents: 1090, readerId });
+  } catch (error) {
+    if (isPosError(error, 'card_reader_choice_needed')) {
+      // several readers and none assigned: let the cashier choose, then start again
+      const choice = cardReaderFor(await getCardReaderSetup(transport, { deviceId }));
+      if (choice.kind !== 'choose') throw error;
+      return start(await askWhich(choice.readers));
+    }
+    // outcome unknown: do not start again, keep asking with the same reference below
+    if (!isOutcomeUnknown(error)) throw error;
+  }
+}
+await start();
+let payment = await getCardReaderPayment(transport, { deviceId, reference });
+while (!isCardReaderFinal(payment.status)) {
+  await sleep(2000); // 'unclear' also keeps asking; resolveCardReaderPayment decides it by hand
+  payment = await getCardReaderPayment(transport, { deviceId, reference });
+}
+if (payment.status === 'successful') payments.push(payment.receiptPayment!);
+```
+
 ## Stored documents (`./stored`)
 
 For clients that read Firestore directly, such as the admin panel. Stored

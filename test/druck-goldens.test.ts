@@ -65,6 +65,13 @@ import { blattWieAufgenommen, druckAusgaben, sha } from './druck-ausgaben.js';
  * der Digest von `invoice-payment-without-vat` (Kleinunternehmer) ist absichtlich neu gezogen, er traegt jetzt „0 % USt“.
  * Alle anderen Digests blieben.
  *
+ * SumUp Solo (22.11.2026): der neue Golden-Beleg `card-sumup-cloud` (Cloud-Zahlung ohne Zeile „Zahlungstyp“) ist neu
+ * aufgenommen. Alle vorhandenen Digests blieben (reine Ergaenzung).
+ *
+ * SumUp Solo, Gesamtpruefung (23.11.2026): `card-sumup-cloud-hand` (Handbeleg einer ungeklaerten Cloud-Zahlung, ohne
+ * SumUp-Block) und `cancellation-sumup-cloud` (Storno mit Rueckbuchungszeile, ohne SumUp-Block) sind neu aufgenommen.
+ * `card-sumup-cloud` und alle anderen vorhandenen Digests blieben.
+ *
  * Kartenseriennummer (1.2.2/0.32.2): die Fixtures tragen statt einer echten die erfundene
  * Seriennummer `5A1C3E07` (gleiche Laenge); die Digests sind darum neu gezogen.
  * Gegenprobe: das alte Layout mit ersetzter Seriennummer ergibt Byte fuer Byte die neuen

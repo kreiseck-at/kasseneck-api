@@ -169,16 +169,16 @@ test('v3: PUBLIC_CALLS ist deckungsgleich mit endpoints.public (aeussere Namen, 
   assert.deepEqual([...vokabular.endpoints['v3Routed']!].sort(), [...vokabular.endpoints['public']!].sort());
 });
 
-test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (55, seit 1.39.0 mit reportMyTerminalAddress und reportMyRegisterClient)', () => {
+test('v3: POS_CALLS ist deckungsgleich mit endpoints.register (68, seit 1.43.0 mit den dreizehn Kartenleser-Aufrufen)', () => {
   assert.deepEqual([...POS_CALLS], vokabular.endpoints['register']);
-  assert.equal(POS_CALLS.length, 55);
+  assert.equal(POS_CALLS.length, 68);
 });
 
-test('v3: nur ueber den Kassenweg gehen genau die 44 Namen aus endpoints.registerInternal', () => {
+test('v3: nur ueber den Kassenweg gehen genau die 57 Namen aus endpoints.registerInternal', () => {
   const alle = new Set<string>([...PUBLIC_CALLS, ...POS_CALLS, ...vokabular.endpoints['registerInternal']!]);
   const nurKasse = [...alle].filter((name) => isPosOnlyCall(name)).sort();
   assert.deepEqual(nurKasse, [...vokabular.endpoints['registerInternal']!].sort());
-  assert.equal(nurKasse.length, 44);
+  assert.equal(nurKasse.length, 57);
   // Die Terminal-Adresse melden (1.39.0) gibt es nur am Kassenweg.
   assert.ok(isPosOnlyCall('reportMyTerminalAddress'));
   assert.ok(isPosOnlyCall('reportMyRegisterClient'));

@@ -445,6 +445,114 @@ test('setMyCashregisterStockLocation: sendet wie der Fall, leerer Standort heiss
   assert.deepEqual(aufrufe[0]!.params, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' });
 });
 
+// --- Kartenleser (SumUp Solo) ---------------------------------------------------
+
+const KARTENLESER_ENDPUNKTE = [
+  'getCardReaderSetup', 'startCardAccountConnection', 'disconnectCardAccount', 'pairCardReader', 'renameCardReader',
+  'removeCardReader', 'setDeviceCardReader', 'startCardReaderPayment', 'getCardReaderPayment', 'cancelCardReaderPayment',
+  'resolveCardReaderPayment', 'refundCardReaderPayment', 'getCardReaderRefund',
+];
+const LESER_VORGABE = { serial: null, model: null, status: null, online: null, battery: null, busy: false, busyDevice: null };
+const leserErwartet = (r: Json): Json => ({ ...LESER_VORGABE, ...r });
+const ZAHLUNG_VORGABE = { reason: null, readerId: null, readerName: null, transaction: null, receiptPayment: null };
+const TRANSAKTION_VORGABE = { id: null, code: null, cardType: null, cardLastDigits: null, entryMode: null, authCode: null, amountCents: null, timeMs: null };
+
+test('Kartenleser: jeder Aufruf sendet wie der Fall und liest die Antwort wie im Vertrag', async () => {
+  const rufe: Record<string, (r: ReturnType<typeof kassenweg>['rufen'], p: Json) => Promise<unknown>> = {
+    getCardReaderSetup: (r, p) => kasse.getCardReaderSetup(r, p as never),
+    startCardAccountConnection: (r, p) => kasse.startCardAccountConnection(r, p as never),
+    disconnectCardAccount: (r, p) => kasse.disconnectCardAccount(r, p as never),
+    pairCardReader: (r, p) => kasse.pairCardReader(r, p as never),
+    renameCardReader: (r, p) => kasse.renameCardReader(r, p as never),
+    removeCardReader: (r, p) => kasse.removeCardReader(r, p as never),
+    setDeviceCardReader: (r, p) => kasse.setDeviceCardReader(r, p as never),
+    startCardReaderPayment: (r, p) => kasse.startCardReaderPayment(r, p as never),
+    getCardReaderPayment: (r, p) => kasse.getCardReaderPayment(r, p as never),
+    cancelCardReaderPayment: (r, p) => kasse.cancelCardReaderPayment(r, p as never),
+    resolveCardReaderPayment: (r, p) => kasse.resolveCardReaderPayment(r, p as never),
+    refundCardReaderPayment: (r, p) => kasse.refundCardReaderPayment(r, p as never),
+    getCardReaderRefund: (r, p) => kasse.getCardReaderRefund(r, p as never),
+  };
+  assert.deepEqual(Object.keys(rufe), KARTENLESER_ENDPUNKTE);
+  for (const endpunkt of KARTENLESER_ENDPUNKTE) {
+    for (const f of erfolge(endpunkt)) {
+      const { rufen, aufrufe } = kassenweg(f);
+      const ist = await rufe[endpunkt]!(rufen, f.params);
+      assert.deepEqual(gesendet(aufrufe, endpunkt, f), f.params, `${endpunkt}/${f.case}`);
+      const daten = f.response.data;
+      let soll: unknown;
+      switch (endpunkt) {
+        case 'getCardReaderSetup':
+          soll = {
+            connection: { method: null, merchantCode: null, ...daten.connection },
+            readers: daten.readers.map(leserErwartet), deviceReader: daten.deviceReader, canManage: daten.canManage,
+          };
+          break;
+        case 'startCardAccountConnection': soll = daten; break;
+        case 'disconnectCardAccount': case 'removeCardReader': soll = undefined; break;
+        case 'pairCardReader': case 'renameCardReader': soll = leserErwartet(daten); break;
+        case 'setDeviceCardReader': soll = daten.deviceReader; break;
+        case 'refundCardReaderPayment': case 'getCardReaderRefund': soll = { reason: null, ...daten }; break;
+        default:
+          soll = {
+            ...ZAHLUNG_VORGABE, ...daten,
+            ...(daten.transaction ? { transaction: { ...TRANSAKTION_VORGABE, ...daten.transaction } } : {}),
+            // Das Paket ergaenzt Zahlart und Betrag, damit die Zahlung ohne Umbau in createReceipt passt.
+            ...(daten.receiptPayment ? { receiptPayment: { method: 'creditCard', amountCents: daten.amountCents, ...daten.receiptPayment } } : {}),
+          };
+      }
+      assert.deepEqual(ist, soll, `${endpunkt}/${f.case}`);
+    }
+  }
+  // Die erfolgreiche Zahlung traegt die Belegzahlung 1:1, wie sie createReceipt braucht.
+  const bezahlt = fall('getCardReaderPayment', 'success_cashier');
+  const z = await kasse.getCardReaderPayment(kassenweg(bezahlt).rufen, { deviceId: 'dev_pin', reference: 'payment-0001' });
+  assert.deepEqual(z.receiptPayment, { method: 'creditCard', amountCents: bezahlt.response.data.amountCents, ...bezahlt.response.data.receiptPayment });
+  assert.equal(kasse.isCardReaderFinal(z.status), true);
+  // Ausdrückliches null bei "automatisch" geht wirklich auf den Draht.
+  const auto = fall('setDeviceCardReader', 'success_automatic');
+  const m = kassenweg(auto);
+  await kasse.setDeviceCardReader(m.rufen, { deviceId: 'dev_pin', readerId: null });
+  assert.equal(m.aufrufe[0]!.params.readerId, null);
+  assert.ok('readerId' in m.aufrufe[0]!.params);
+});
+
+test('Kartenleser: Katalog-Listen decken die Werte des Vertrags', () => {
+  const stati = new Set<string>();
+  for (const e of ['getCardReaderPayment', 'startCardReaderPayment', 'cancelCardReaderPayment', 'resolveCardReaderPayment', 'refundCardReaderPayment', 'getCardReaderRefund']) {
+    for (const f of erfolge(e)) stati.add(f.response.data.status);
+  }
+  for (const st of stati) assert.ok((kasse.CARD_READER_PAYMENT_STATUSES as readonly string[]).includes(st), st);
+  const readerStati = new Set<string>();
+  const methoden = new Set<string>();
+  const zustaende = new Set<string>();
+  for (const f of erfolge('getCardReaderSetup')) {
+    zustaende.add(f.response.data.connection.state);
+    if (f.response.data.connection.method) methoden.add(f.response.data.connection.method);
+    for (const r of f.response.data.readers) readerStati.add(r.status);
+  }
+  for (const st of readerStati) assert.ok((kasse.CARD_READER_STATUSES as readonly string[]).includes(st), st);
+  for (const st of methoden) assert.ok((kasse.CARD_ACCOUNT_METHODS as readonly string[]).includes(st), st);
+  for (const st of zustaende) assert.ok((kasse.CARD_ACCOUNT_STATES as readonly string[]).includes(st), st);
+  for (const f of erfolge('cancelCardReaderPayment')) assert.ok((kasse.CARD_READER_REASONS as readonly string[]).includes(f.response.data.reason));
+});
+
+test('Kartenleser: Auswahl und belegter Leser kommen aus den Fehlerdetails', async () => {
+  const wahl = fall('startCardReaderPayment', 'select_required');
+  const e1 = await wurf(kasse.startCardReaderPayment(kassenweg(wahl).rufen, { deviceId: 'dev_pin', reference: 'payment-0001', amountCents: 1090 }));
+  assert.deepEqual(kasse.cardReaderChoices(e1).map((r) => [r.readerId, r.name]), wahl.response.data.readers.map((r: Json) => [r.readerId, r.name]));
+  assert.equal(kasse.cardReaderBusyDevice(e1), null);
+  for (const [endpunkt, name, params] of [
+    ['startCardReaderPayment', 'in_use', { deviceId: 'dev_pin', reference: 'payment-0001', amountCents: 1090 }],
+    ['removeCardReader', 'in_use', { deviceId: 'dev_pin', readerId: 'rdr_01KORNBLUMTHEKE00000000000' }],
+  ] as const) {
+    const f = fall(endpunkt, name);
+    const e2 = await wurf(endpunkt === 'removeCardReader' ? kasse.removeCardReader(kassenweg(f).rufen, params as never) : kasse.startCardReaderPayment(kassenweg(f).rufen, params as never));
+    assert.equal(kasse.cardReaderBusyDevice(e2), f.response.data.busyDevice, endpunkt);
+    assert.deepEqual(kasse.cardReaderChoices(e2), []);
+  }
+});
+
 // --- Anmeldung ------------------------------------------------------------------
 
 test('pairRegisterDevice: sendet wie der Fall, liest companyName, cashregisterLabel, testEnvironment', async () => {
@@ -733,6 +841,19 @@ test('Kasse: jeder Fehlerfall der uebrigen Kassen-Aufrufe wird am Code erkannt',
     listMyStock: (r) => listMyStock(r),
     setMyCashregisterStockLocation: (r) => setMyCashregisterStockLocation(r, { cashregisterId: 'KASSE1', stockLocationId: 'auto1' }),
     getRegisterInspectionInfo: (r) => getRegisterInspectionInfo(r),
+    getCardReaderSetup: (r) => kasse.getCardReaderSetup(r, { deviceId: 'dev_pin' }),
+    startCardAccountConnection: (r) => kasse.startCardAccountConnection(r, { deviceId: 'dev_pin' }),
+    disconnectCardAccount: (r) => kasse.disconnectCardAccount(r, { deviceId: 'dev_pin' }),
+    pairCardReader: (r) => kasse.pairCardReader(r, { deviceId: 'dev_pin', pairingCode: 'K7P4M2Q9', name: 'Terrasse' }),
+    renameCardReader: (r) => kasse.renameCardReader(r, { deviceId: 'dev_pin', readerId: 'rdr_01', name: 'Neu' }),
+    removeCardReader: (r) => kasse.removeCardReader(r, { deviceId: 'dev_pin', readerId: 'rdr_01' }),
+    setDeviceCardReader: (r) => kasse.setDeviceCardReader(r, { deviceId: 'dev_pin', readerId: 'rdr_01' }),
+    startCardReaderPayment: (r) => kasse.startCardReaderPayment(r, { deviceId: 'dev_pin', reference: 'payment-0001', amountCents: 1090 }),
+    getCardReaderPayment: (r) => kasse.getCardReaderPayment(r, { deviceId: 'dev_pin', reference: 'payment-0001' }),
+    cancelCardReaderPayment: (r) => kasse.cancelCardReaderPayment(r, { deviceId: 'dev_pin', reference: 'payment-0001' }),
+    resolveCardReaderPayment: (r) => kasse.resolveCardReaderPayment(r, { deviceId: 'dev_pin', reference: 'payment-0001', decision: 'discard' }),
+    refundCardReaderPayment: (r) => kasse.refundCardReaderPayment(r, { deviceId: 'dev_pin', reference: 'refund-0001', paymentReference: 'payment-0001', amountCents: 590 }),
+    getCardReaderRefund: (r) => kasse.getCardReaderRefund(r, { deviceId: 'dev_pin', reference: 'refund-0001' }),
   };
   for (const [endpunkt, aufruf] of Object.entries(aufrufe)) {
     for (const f of fehler(endpunkt)) {
@@ -764,6 +885,7 @@ test('Fehlercode-Listen: deckungsgleich mit dem Vertrag (Faelle + Handler-Codes 
     'listMyStocktakes', 'listMyStocktakeItems', 'listMyStocktakeCounts', 'recordMyStocktakeCount', 'voidMyStocktakeCount',
     'getMyDrawerState', 'openMyShift', 'recordMyCashMovement', 'logMyDrawerOpenings', 'getMyShiftReport', 'closeMyShift',
     'getRegisterInspectionInfo', 'learnMyLeergutCode', 'listMyLeergutCodes', 'getMyTipBalance',
+    ...KARTENLESER_ENDPUNKTE,
   ]));
   for (const c of ['register_user_not_found', 'not_found', 'dialect_mismatch', 'response_translation_failed', 'validation', 'route_missing']) {
     assert.ok((REGISTER_ERROR_CODES as readonly string[]).includes(c) && (POS_ERROR_CODES as readonly string[]).includes(c), c);

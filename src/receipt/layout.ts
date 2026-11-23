@@ -391,6 +391,20 @@ function sumupBetrag(roh: unknown): string {
 function sumupBlock(daten: Record<string, unknown>): LayoutLine[] {
   const feld = (k: string) => kartenFeld(daten, k);
   const betrag = sumupBetrag(daten.amount);
+  if (daten.channel === 'cloud') {
+    // Der Cloud-Weg (SumUp Solo) kennt nicht jeden Wert: was fehlt, entfaellt als Zeile, ein "n/a" waere falsch.
+    // Ohne Transaktionscode und ohne Kartenziffern (Handbeleg einer ungeklaerten Zahlung, Rueckbuchungszeile am
+    // Storno) gibt es nichts, was ein Kartenbeleg zeigen koennte: dann steht gar kein SumUp-Block da.
+    if (feld('transactionCode') === '' && feld('cardLastDigits') === '') return [];
+    const zeilen: LayoutLine[] = [textZeile('Sumup Beleg', 'center', true)];
+    if (feld('cardType')) zeilen.push(paarZeile('Kartentyp:', feld('cardType')));
+    if (feld('cardLastDigits')) zeilen.push(paarZeile('Kartennummer:', `**** **** **** ${feld('cardLastDigits')}`));
+    if (feld('paymentType')) zeilen.push(paarZeile('Zahlungstyp:', feld('paymentType')));
+    if (betrag !== '-') zeilen.push(paarZeile('Gesamtbetrag:', `${betrag} ${feld('currency')}`.trim()));
+    if (feld('transactionCode')) zeilen.push(paarZeile('Transaktionscode:', feld('transactionCode')));
+    if (feld('entryMode')) zeilen.push(paarZeile('Modus:', feld('entryMode').toUpperCase()));
+    return zeilen;
+  }
   return [
     textZeile('Sumup Beleg', 'center', true),
     paarZeile('Kartentyp:', feld('cardType') || 'n/a'),

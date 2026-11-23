@@ -891,3 +891,61 @@ test('Geraete-Einstellungen (1.39.0): Titel als Beschriftungen auf beiden Seiten
     assert.ok(!(weg in LABELS) && !(weg in MESSAGES), weg);
   }
 });
+
+// --- SumUp Solo: eigene Fassung der Saetze, die sonst das Terminal nennen ---
+// Laeuft die Karte am Solo, sagt die Kasse „Solo“ bzw. „SumUp“ (Ergebnis des lokalen Tests, 23.11.2026):
+// Warte-Karte, Abbruch, Klaeren, unklare Karte in Ecke und Liste. Die Kennung der Kasse (`kk-…`) steht nur
+// noch im Klaeren-Fenster; Ecke und Liste nennen den Solo und die Uhrzeit. Die Terminal-Saetze bleiben.
+test('SumUp Solo: Warte-Karte, Abbruch, Klaeren und unklare Karte nennen den Solo, nie das Terminal', () => {
+  assert.equal(labelText('solo.amount_on_reader'), 'Betrag steht am Solo');
+  assert.equal(messageText('solo.cancelling'), 'Die Zahlung am Solo wird abgebrochen …');
+  assert.equal(messageText('solo.clarify_charged'), 'SumUp meldet: bezahlt. Die Zahlung wurde übernommen.');
+  assert.equal(
+    messageText('solo.unclear_short', { amount: '1,00 €', name: 'Theke', time: '14:05' }),
+    'Kartenzahlung 1,00 € unklar – bitte klären. Solo „Theke“ · 14:05.',
+  );
+  assert.equal(labelText('solo.payment_label', { name: 'Theke', time: '14:05' }), 'Solo „Theke“ · 14:05');
+  assert.equal(labelText('solo.loading'), 'Wird geladen …');
+  assert.throws(() => messageText('solo.unclear_short', { amount: '1,00 €', name: 'Theke' }), /time/);
+  for (const k of ['solo.cancelling', 'solo.clarify_charged', 'solo.unclear_short'] as const) {
+    assert.equal(MESSAGES[k].only, undefined, k);
+    assert.doesNotMatch(MESSAGES[k].text, /Terminal|Kennung/, k);
+  }
+  for (const k of ['solo.amount_on_reader', 'solo.payment_label', 'solo.loading'] as const) assert.equal(LABELS[k].only, undefined, k);
+  // Die Fassungen fuer Terminal und Hobex bleiben, wie sie waren.
+  assert.equal(labelText('card_payment.amount_on_terminal'), 'Betrag steht am Terminal');
+  assert.equal(messageText('card_payment.terminal_cancelling'), 'Das Terminal bricht gleich von selbst ab …');
+  assert.equal(messageText('split.clarify_charged'), 'Das Terminal meldet: belastet. Die Zahlung wurde übernommen.');
+});
+
+// --- SumUp Solo, zweite Runde: belegt, Rueckbuchung, Storno, Entkoppeln --------------------------
+// Eine Rueckbuchung am Solo laeuft ueber SumUp, nicht am Geraet: diese Saetze nennen kein Geraet
+// („auf die Karte“, „gutschreiben“). Belegt und Entkoppeln nennen den Solo statt des Terminals.
+test('SumUp Solo: belegt, Rueckbuchung, Storno und Entkoppeln ohne Terminal; die Terminal-Saetze bleiben', () => {
+  const erwartet: Record<string, string> = {
+    'solo.waiting_for_reader': 'Bitte am Solo fortfahren …',
+    'solo.card_reverse_running': 'Die Kartenzahlung über 10,00 € wird auf die Karte zurückgebucht …',
+    'solo.card_reversed': 'Die Kartenzahlung über 10,00 € ist auf die Karte zurückgebucht.',
+    'solo.external_reverse': 'Bitte 10,00 € jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.',
+    // Wo: bei SumUp -- der Solo selbst bucht nichts zurueck (Fix-Welle nach der Durchsicht).
+    'solo.refund_cards': 'Das Storno ist gebucht – bitte jede Karte unten bei SumUp zurückbuchen und abhaken.',
+    'solo.cards_not_checked': 'Noch ist nicht jede Karte abgehakt – bitte jede bei SumUp zurückbuchen. Ist das schon geschehen, zum Schließen noch einmal drücken.',
+    'solo.outcome_unknown_cards': 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg bei SumUp zurückbuchen.',
+    'solo.unpair_card_charged': 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand bei SumUp zurückerstattet werden (Betrag siehe unten).',
+    'solo.unpair_open_cards': 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand bei SumUp zurückgebucht werden (Beträge siehe unten).',
+    // Ungeklaerte Solo-Karten sind nicht sicher belastet: erst klaeren, nie gleich zurueckbuchen.
+    'solo.unpair_unclear_cards': 'Auf diesem Gerät sind noch ungeklärte Kartenzahlungen – erst in der SumUp-App klären, ob sie belastet wurden, und nur dann bei SumUp zurückbuchen (siehe unten).',
+  };
+  for (const [k, v] of Object.entries(erwartet)) {
+    assert.equal(messageText(k as MessageKey, { amount: '10,00 €' }), v, k);
+    assert.equal(MESSAGES[k as MessageKey].only, undefined, k);
+    assert.doesNotMatch(v, /Terminal|am Solo zurück/, k);
+  }
+  assert.equal(labelText('solo.reversed_on_card'), 'Auf die Karte zurückgebucht');
+  assert.equal(LABELS['solo.reversed_on_card'].only, undefined);
+  // Die Terminal-Fassungen bleiben wortgleich.
+  assert.equal(messageText('card_payment.waiting_for_terminal'), 'Bitte am Terminal fortfahren …');
+  assert.equal(messageText('split.card_reversed', { amount: '10,00 €' }), 'Die Kartenzahlung über 10,00 € ist am Terminal zurückgebucht.');
+  assert.equal(labelText('split.reversed_on_terminal'), 'Am Terminal zurückgebucht');
+  assert.equal(messageText('cancellation.refund_cards'), 'Das Storno ist gebucht – bitte jede Karte unten am Terminal gutschreiben und abhaken.');
+});

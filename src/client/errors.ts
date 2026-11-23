@@ -306,6 +306,19 @@ export const PAYMENT_CALL_REJECTED_CODES: readonly string[] = Object.freeze([
 ]);
 const GELDWEG_ABGELEHNT: ReadonlySet<string> = new Set(PAYMENT_CALL_REJECTED_CODES);
 
+/**
+ * Kartenleser (SumUp Solo): Start und Rueckbuchung. Ihre Handler antworten bei
+ * jeder unerwarteten Ausnahme mit `server_error`, auch NACH dem Anbieteraufruf
+ * (Start: der Uebergang nach dem Checkout; Rueckbuchung: nach dem Erstatten).
+ * Darum gilt dort `server_error` und eine Huelle ohne Code als Ausgang unklar;
+ * jeder andere Code bleibt `'rejected'` (`card_reader_busy`, `card_reader_choice_needed`
+ * usw. kommen vor dem Anbieteraufruf). Bei unklarem Ausgang fragt die Kasse
+ * `getCardReaderPayment` bzw. `getCardReaderRefund` mit DERSELBEN Kennung, nie
+ * mit einer neuen. Bewusst nicht in [GELDWEGE]: dort gilt „alles ausserhalb der
+ * Ablehnliste ist unklar“, das wuerde `card_reader_busy` falsch einordnen.
+ */
+const KARTENLESER_UNKLAR_BEI_SERVERFEHLER: ReadonlySet<string> = new Set(['startCardReaderPayment', 'refundCardReaderPayment']);
+
 function ausgangAusCode(
   functionName: string,
   code: string | undefined,
@@ -314,6 +327,9 @@ function ausgangAusCode(
   // `functionName` kann den Vorgang tragen (`financeWebService/<method>`).
   if (GELDWEGE.has(functionName.split('/')[0]!)) {
     return code !== undefined && GELDWEG_ABGELEHNT.has(code) ? 'rejected' : 'unknown';
+  }
+  if (KARTENLESER_UNKLAR_BEI_SERVERFEHLER.has(functionName) && (code === undefined || code === 'server_error')) {
+    return 'unknown';
   }
   if (code === undefined) return 'rejected';
   if (AUSGANG_UNKLAR_CODES.has(code)) return 'unknown';
@@ -361,7 +377,9 @@ export class KasseneckApiError extends Error {
    * sonst `'rejected'`. Auf den Geldwegen (`hobexPayApi`, `hobexRefundApi`,
    * `stripeCaptureIntent`) umgekehrt: `'rejected'` nur mit einem Code aus
    * [PAYMENT_CALL_REJECTED_CODES], ohne Code und mit jedem anderen Code
-   * `'unknown'`. Bei `'unknown'` nie wiederholen, sondern nachlesen.
+   * `'unknown'`. Bei `startCardReaderPayment` und `refundCardReaderPayment` ist
+   * `server_error` (und eine Huelle ohne Code) `'unknown'`, jeder andere Code
+   * `'rejected'`. Bei `'unknown'` nie wiederholen, sondern nachlesen.
    */
   readonly outcome: ErrorOutcome;
 

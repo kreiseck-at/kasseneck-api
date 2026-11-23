@@ -229,6 +229,65 @@ const MELDUNGEN_ROH = {
   'sumup.reader_ready': { text: 'Leser {name} ist eingerichtet.', placeholders: ['name'], only: ['app'] },
   'sumup.location_missing': { text: 'Ohne Standort keine Anmeldung bei SumUp. Bitte den Standort erlauben und erneut anmelden.', only: ['app'] },
 
+  // --- SumUp Solo über die Cloud-API (Kasse, Browser und App) ---
+  'solo.not_connected': { text: 'Die Kasse ist noch nicht mit SumUp verbunden. Der Chef verbindet sie in den Einstellungen unter Kartenterminal.' },
+  'solo.connection_expired': { text: 'Die Verbindung zu SumUp ist abgelaufen. Der Chef verbindet in den Einstellungen unter Kartenterminal neu.' },
+  'solo.connect_unavailable': { text: 'Mit SumUp verbinden geht noch nicht. Bitte Kasseneck kontaktieren.' },
+  'solo.connect_waiting': { text: 'Im Browser bei SumUp anmelden und den Zugriff erlauben. Die Kasse merkt die Verbindung von selbst.' },
+  'solo.connected_as': { text: 'Verbunden mit SumUp, Händlernummer {merchant}.', placeholders: ['merchant'] },
+  'solo.disconnect_question': { text: 'Die Verbindung zu SumUp trennen? Alle Solos werden entkoppelt.' },
+  'solo.pair_hint': { text: 'Am Solo abmelden, dann unter Verbindungen „API“ wählen und „Verbinden“ drücken. Den Code vom Solo hier eingeben.' },
+  'solo.code_invalid': { text: 'Diesen Code kennt SumUp nicht. Bitte den Code vom Solo genau abschreiben.' },
+  'solo.not_waiting': { text: 'Der Solo wartet nicht mehr auf die Kopplung. Bitte am Solo einen neuen Code holen.' },
+  'solo.too_many': { text: 'Es sind schon zu viele Solos gekoppelt. Bitte zuerst einen entfernen.' },
+  'solo.not_found': { text: 'Diesen Solo gibt es nicht mehr. Bitte die Liste aktualisieren.' },
+  'solo.no_reader': { text: 'Es ist noch kein Solo gekoppelt. Der Chef koppelt ihn in den Einstellungen unter Kartenterminal.' },
+  'solo.busy': { text: 'Solo „{name}“ ist gerade bei {device} besetzt.', placeholders: ['name', 'device'] },
+  'solo.busy_short': { text: 'Der Solo ist gerade besetzt.' },
+  'solo.waiting': { text: 'Karte an den Solo „{name}“ halten.', placeholders: ['name'] },
+  'solo.checking': { text: 'Die Zahlung wird bei SumUp geprüft.' },
+  'solo.check_hint': { text: 'In der SumUp-App unter Transaktionen nachsehen: {amount}, {time}, Solo „{name}“.', placeholders: ['amount', 'time', 'name'] },
+  'solo.offline': { text: 'Der Solo ist nicht erreichbar. Ist er eingeschaltet und mit dem Internet verbunden?' },
+  // SumUp meldet eine abgelehnte Karte und einen Abbruch am Solo gleich (failed): darum ein Satz, der beides trifft.
+  'solo.declined': { text: 'Die Zahlung ging am Solo nicht durch, es wurde nichts abgebucht.' },
+  'solo.cancelled': { text: 'Die Zahlung wurde abgebrochen, es wurde nichts abgebucht.' },
+  'solo.expired': { text: 'Am Solo kam keine Karte, es wurde nichts abgebucht.' },
+  'solo.setup': { text: 'Der Solo ist bei SumUp nicht richtig eingerichtet. Bitte in den Einstellungen neu koppeln.' },
+  'solo.amount_mismatch': { text: 'SumUp meldet einen anderen Betrag als die Kasse. Bitte in der SumUp-App nachsehen, bevor neu kassiert wird.' },
+  'solo.module_inactive': { text: 'Das Kassenmodul des Betriebs ist nicht aktiv.' },
+  'solo.below_minimum': { text: 'Mit dem Solo geht Karte nur von 1,00 € bis 10.000,00 €.' },
+  'solo.unavailable': { text: 'SumUp ist gerade nicht erreichbar. Es wurde nichts gebucht.' },
+  'solo.refund_running': { text: 'Die Rückbuchung auf die Karte läuft.' },
+  'solo.refund_checking': { text: 'Die Rückbuchung wird bei SumUp geprüft.' },
+  'solo.refund_declined': { text: 'SumUp hat die Rückbuchung abgelehnt.' },
+  'solo.refund_not_enabled': { text: 'Zurückbuchen ist für dieses SumUp-Konto nicht freigeschaltet. Bitte die Karte direkt bei SumUp zurückbuchen.' },
+  'solo.refund_unknown': { text: 'SumUp hat nicht gemeldet, ob die Rückbuchung durchging. Bar nur zurückgeben, wenn sicher ist, dass sie nicht durchging.' },
+  'solo.refund_too_high': { text: 'So viel kann auf diese Karte nicht mehr zurückgebucht werden.' },
+  'solo.refund_not_sent': { text: 'Die Rückbuchung ging nicht an SumUp hinaus. Es wurde nichts zurückgebucht.' },
+  // Solo-Fassungen der Saetze, die sonst das Terminal nennen: Abbruch der Zahlung (statt card_payment.terminal_cancelling),
+  // SumUp hat eine offene Zahlung bestaetigt (statt split.clarify_charged) und die unklare Karte in der Ecke mit Solo
+  // und Uhrzeit (Wien) statt der Kennung der Kasse (statt card_payment.unclear_short; die Kennung steht im Klaeren-Fenster).
+  'solo.cancelling': { text: 'Die Zahlung am Solo wird abgebrochen …' },
+  'solo.clarify_charged': { text: 'SumUp meldet: bezahlt. Die Zahlung wurde übernommen.' },
+  'solo.unclear_short': { text: 'Kartenzahlung {amount} unklar – bitte klären. Solo „{name}“ · {time}.', placeholders: ['amount', 'name', 'time'] },
+  // Solo belegt das Geraet (Zahlung oder Rueckbuchung am Solo; statt card_payment.waiting_for_terminal).
+  'solo.waiting_for_reader': { text: 'Bitte am Solo fortfahren …' },
+  // Rueckbuchung eines Solo-Kartenteils vor dem Beleg: sie laeuft ueber SumUp, nicht am Geraet -- darum „auf die Karte“
+  // (statt split.card_reverse_running, split.card_reversed, split.external_reverse).
+  'solo.card_reverse_running': { text: 'Die Kartenzahlung über {amount} wird auf die Karte zurückgebucht …', placeholders: ['amount'] },
+  'solo.card_reversed': { text: 'Die Kartenzahlung über {amount} ist auf die Karte zurückgebucht.', placeholders: ['amount'] },
+  'solo.external_reverse': { text: 'Bitte {amount} jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.', placeholders: ['amount'] },
+  // Storno mit Solo-Karten, die von Hand zurueckgehen (statt cancellation.refund_cards, .cards_not_checked, .outcome_unknown_cards):
+  // von Hand heisst am Solo „bei SumUp“ -- der Solo selbst bucht nichts zurueck.
+  'solo.refund_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten bei SumUp zurückbuchen und abhaken.' },
+  'solo.cards_not_checked': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede bei SumUp zurückbuchen. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
+  'solo.outcome_unknown_cards': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg bei SumUp zurückbuchen.' },
+  // Neu koppeln mit belasteten Solo-Karten (statt card_payment.unpair_card_charged, split.unpair_open_cards) -- von Hand bei
+  // SumUp. Ungeklaerte Solo-Karten sind nicht sicher belastet: erst klaeren (solo.unpair_unclear_cards), nie gleich zurueckbuchen.
+  'solo.unpair_card_charged': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand bei SumUp zurückerstattet werden (Betrag siehe unten).' },
+  'solo.unpair_open_cards': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand bei SumUp zurückgebucht werden (Beträge siehe unten).' },
+  'solo.unpair_unclear_cards': { text: 'Auf diesem Gerät sind noch ungeklärte Kartenzahlungen – erst in der SumUp-App klären, ob sie belastet wurden, und nur dann bei SumUp zurückbuchen (siehe unten).' },
+
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },
   'log.copied': { text: 'Das Protokoll liegt in der Zwischenablage.' },
@@ -752,6 +811,19 @@ export const ERROR_CODE_RULES = [
   // Storno eines Zahlungsbelegs (Zahlung auf Rechnung, 1.38.0): der Satz sagt, wo es geht. Der Server
   // hat nichts storniert. Gilt auch auf dem Storno-Weg ([cancellationErrorMessage]).
   { kind: 'api', codes: ['invoice_payment_not_cancellable'], key: 'cancellation.invoice_payment_not_cancellable' },
+  // SumUp Solo: der Server hat in diesen Fällen nichts gebucht; die Sätze raten nie zum Wiederholen einer Zahlung.
+  { kind: 'api', codes: ['card_account_not_connected'], key: 'solo.not_connected' },
+  { kind: 'api', codes: ['card_account_expired'], key: 'solo.connection_expired' },
+  { kind: 'api', codes: ['card_account_connect_unavailable'], key: 'solo.connect_unavailable' },
+  { kind: 'api', codes: ['card_reader_not_found'], key: 'solo.not_found' },
+  { kind: 'api', codes: ['card_reader_busy'], key: 'solo.busy_short' },
+  { kind: 'api', codes: ['card_reader_code_invalid'], key: 'solo.code_invalid' },
+  { kind: 'api', codes: ['card_reader_not_waiting'], key: 'solo.not_waiting' },
+  { kind: 'api', codes: ['too_many_card_readers'], key: 'solo.too_many' },
+  { kind: 'api', codes: ['card_payment_amount_invalid'], key: 'solo.below_minimum' },
+  { kind: 'api', codes: ['card_refund_not_enabled'], key: 'solo.refund_not_enabled' },
+  { kind: 'api', codes: ['card_refund_amount_invalid'], key: 'solo.refund_too_high' },
+  { kind: 'api', codes: ['card_provider_unavailable'], key: 'solo.unavailable' },
 ] as const;
 
 /**
@@ -1757,6 +1829,38 @@ const BESCHRIFTUNGEN_ROH = {
   'sumup.unbind_title': { text: 'Verbindung lösen', only: ['app'] },
   'sumup.unbind': { text: 'Lösen', only: ['app'] },
   'sumup.reader_change': { text: 'Leser ändern', only: ['app'] },
+
+  // SumUp Solo (Cloud-API), Browser-Kasse und App
+  'solo.section_title': { text: 'Solo' },
+  'solo.connect': { text: 'Mit SumUp verbinden' },
+  'solo.disconnect': { text: 'Trennen' },
+  'solo.pair': { text: 'Solo koppeln' },
+  'solo.code_label': { text: 'Code vom Solo' },
+  'solo.name_label': { text: 'Name' },
+  'solo.rename': { text: 'Umbenennen' },
+  'solo.remove': { text: 'Entfernen' },
+  'solo.assign': { text: 'Diesem Gerät zuweisen' },
+  'solo.assigned': { text: 'Diesem Gerät zugewiesen' },
+  'solo.use_bluetooth': { text: 'Bluetooth-Leser (Air) verwenden' },
+  'solo.status_paired': { text: 'Bereit' },
+  'solo.status_pairing': { text: 'Wird gekoppelt' },
+  'solo.status_expired': { text: 'Abgelaufen' },
+  'solo.online': { text: 'Online' },
+  'solo.offline_label': { text: 'Offline' },
+  'solo.battery': { text: 'Akku {percent} %', placeholders: ['percent'] },
+  'solo.choose_title': { text: 'Welcher Solo?' },
+  'solo.remember': { text: 'Für dieses Gerät merken' },
+  'solo.other_reader': { text: 'Anderen Solo nehmen' },
+  'solo.refund_to_card': { text: 'Auf die Karte zurückbuchen' },
+  'solo.refund_cash': { text: 'Bar zurückgeben' },
+  'solo.real_payment': { text: 'Echt kassieren' },
+  // Titelzeile der Warte-Karte am Solo (statt card_payment.amount_on_terminal), die unklare Karte in der Liste
+  // (Solo und Uhrzeit in Wien statt der Kennung) und die leise Zeile, solange die Einstellungen „Solo“ laden.
+  'solo.amount_on_reader': { text: 'Betrag steht am Solo' },
+  'solo.payment_label': { text: 'Solo „{name}“ · {time}', placeholders: ['name', 'time'] },
+  'solo.loading': { text: 'Wird geladen …' },
+  // Bestaetigung einer Rueckbuchung am Solo von Hand (statt split.reversed_on_terminal): ueber SumUp, kein Geraet.
+  'solo.reversed_on_card': { text: 'Auf die Karte zurückgebucht' },
 
   // --- Kartentrinkgeld an der Kasse (Spec 2026-11-11-kartentrinkgeld, 1.37.0) ---
   // Die eine Zeile beim Kassieren je Zahlart und Ergebnis (tipStatus), mit Betrag; einzeilig.
