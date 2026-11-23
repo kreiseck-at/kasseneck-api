@@ -277,13 +277,16 @@ const MELDUNGEN_ROH = {
   'solo.card_reverse_running': { text: 'Die Kartenzahlung über {amount} wird auf die Karte zurückgebucht …', placeholders: ['amount'] },
   'solo.card_reversed': { text: 'Die Kartenzahlung über {amount} ist auf die Karte zurückgebucht.', placeholders: ['amount'] },
   'solo.external_reverse': { text: 'Bitte {amount} jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.', placeholders: ['amount'] },
-  // Storno mit Solo-Karten, die von Hand zurueckgehen (statt cancellation.refund_cards, .cards_not_checked, .outcome_unknown_cards).
-  'solo.refund_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten gutschreiben und abhaken.' },
-  'solo.cards_not_checked': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
-  'solo.outcome_unknown_cards': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg gutschreiben.' },
-  // Neu koppeln mit belasteten Solo-Karten (statt card_payment.unpair_card_charged, split.unpair_open_cards).
-  'solo.unpair_card_charged': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Solo zurückerstattet werden (Betrag siehe unten).' },
-  'solo.unpair_open_cards': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Solo zurückgebucht werden (Beträge siehe unten).' },
+  // Storno mit Solo-Karten, die von Hand zurueckgehen (statt cancellation.refund_cards, .cards_not_checked, .outcome_unknown_cards):
+  // von Hand heisst am Solo „bei SumUp“ -- der Solo selbst bucht nichts zurueck.
+  'solo.refund_cards': { text: 'Das Storno ist gebucht – bitte jede Karte unten bei SumUp zurückbuchen und abhaken.' },
+  'solo.cards_not_checked': { text: 'Noch ist nicht jede Karte abgehakt – bitte jede bei SumUp zurückbuchen. Ist das schon geschehen, zum Schließen noch einmal drücken.' },
+  'solo.outcome_unknown_cards': { text: 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg bei SumUp zurückbuchen.' },
+  // Neu koppeln mit belasteten Solo-Karten (statt card_payment.unpair_card_charged, split.unpair_open_cards) -- von Hand bei
+  // SumUp. Ungeklaerte Solo-Karten sind nicht sicher belastet: erst klaeren (solo.unpair_unclear_cards), nie gleich zurueckbuchen.
+  'solo.unpair_card_charged': { text: 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand bei SumUp zurückerstattet werden (Betrag siehe unten).' },
+  'solo.unpair_open_cards': { text: 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand bei SumUp zurückgebucht werden (Beträge siehe unten).' },
+  'solo.unpair_unclear_cards': { text: 'Auf diesem Gerät sind noch ungeklärte Kartenzahlungen – erst in der SumUp-App klären, ob sie belastet wurden, und nur dann bei SumUp zurückbuchen (siehe unten).' },
 
   // --- Terminal-Protokoll --------------------------------------------------
   'log.empty': { text: 'Noch keine Einträge – das Protokoll füllt sich mit der ersten Kartenzahlung.' },

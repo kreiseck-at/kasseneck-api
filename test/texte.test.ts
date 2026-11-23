@@ -927,16 +927,19 @@ test('SumUp Solo: belegt, Rueckbuchung, Storno und Entkoppeln ohne Terminal; die
     'solo.card_reverse_running': 'Die Kartenzahlung über 10,00 € wird auf die Karte zurückgebucht …',
     'solo.card_reversed': 'Die Kartenzahlung über 10,00 € ist auf die Karte zurückgebucht.',
     'solo.external_reverse': 'Bitte 10,00 € jetzt bei SumUp auf die Karte zurückbuchen und danach bestätigen.',
-    'solo.refund_cards': 'Das Storno ist gebucht – bitte jede Karte unten gutschreiben und abhaken.',
-    'solo.cards_not_checked': 'Noch ist nicht jede Karte abgehakt – bitte jede gutschreiben. Ist das schon geschehen, zum Schließen noch einmal drücken.',
-    'solo.outcome_unknown_cards': 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg gutschreiben.',
-    'solo.unpair_card_charged': 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand am Solo zurückerstattet werden (Betrag siehe unten).',
-    'solo.unpair_open_cards': 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand am Solo zurückgebucht werden (Beträge siehe unten).',
+    // Wo: bei SumUp -- der Solo selbst bucht nichts zurueck (Fix-Welle nach der Durchsicht).
+    'solo.refund_cards': 'Das Storno ist gebucht – bitte jede Karte unten bei SumUp zurückbuchen und abhaken.',
+    'solo.cards_not_checked': 'Noch ist nicht jede Karte abgehakt – bitte jede bei SumUp zurückbuchen. Ist das schon geschehen, zum Schließen noch einmal drücken.',
+    'solo.outcome_unknown_cards': 'Unklar, ob das Storno entstanden ist – es kann bereits signiert sein. Bitte nicht erneut stornieren und noch keine Karte gutschreiben, sondern die Belegliste in ein paar Minuten neu laden. Steht das Storno dort, die Karten laut Storno-Beleg bei SumUp zurückbuchen.',
+    'solo.unpair_card_charged': 'Auf diesem Gerät liegt noch eine gebuchte Kartenzahlung ohne Beleg – sie muss von Hand bei SumUp zurückerstattet werden (Betrag siehe unten).',
+    'solo.unpair_open_cards': 'Auf diesem Gerät ist noch eine getrennte Zahlung mit belasteten Karten offen – sie müssen von Hand bei SumUp zurückgebucht werden (Beträge siehe unten).',
+    // Ungeklaerte Solo-Karten sind nicht sicher belastet: erst klaeren, nie gleich zurueckbuchen.
+    'solo.unpair_unclear_cards': 'Auf diesem Gerät sind noch ungeklärte Kartenzahlungen – erst in der SumUp-App klären, ob sie belastet wurden, und nur dann bei SumUp zurückbuchen (siehe unten).',
   };
   for (const [k, v] of Object.entries(erwartet)) {
     assert.equal(messageText(k as MessageKey, { amount: '10,00 €' }), v, k);
     assert.equal(MESSAGES[k as MessageKey].only, undefined, k);
-    assert.doesNotMatch(v, /Terminal/, k);
+    assert.doesNotMatch(v, /Terminal|am Solo zurück/, k);
   }
   assert.equal(labelText('solo.reversed_on_card'), 'Auf die Karte zurückgebucht');
   assert.equal(LABELS['solo.reversed_on_card'].only, undefined);
