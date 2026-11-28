@@ -4,8 +4,8 @@
  * Eine Zeile ist ein Bruch: Preis (µ€) × Menge (Tausendstel) × Rabattanteil
  * (Hundertstel-Prozent). Multipliziert man die Skalen, ist die kleinste Einheit
  * 10⁻¹⁷ Cent — das passt in keine Gleitkommazahl und in keine 53-Bit-Ganzzahl,
- * also rechnet der Kern mit BigInt. Gerundet wird genau EINMAL je USt-Satz, auf
- * dem Bruch, kaufmaennisch (halbe Einheit vom Nullpunkt weg).
+ * also rechnet der Kern mit BigInt. Gerundet wird genau EINMAL je (Land, Satz,
+ * Befreiung), auf dem Bruch, kaufmaennisch (halbe Einheit vom Nullpunkt weg).
  *
  * Warum das so streng ist: Vier Umsetzungen (Server, dieses Paket, Dart, Panel)
  * mussten bisher dieselbe Reihenfolge von Gleitkomma-Schritten nachbauen, damit
@@ -33,7 +33,11 @@ const E = 10n ** 17n;
 /** Hoechster Betrag je Zeile und je Rechnung: 999.999.999,99 €. */
 export const BETRAG_GRENZE_CENTS = 99_999_999_999;
 
-/** Steuerfaelle, in denen die Rechnung keine Steuer ausweist: jede Zeile zaehlt zu 0 %. */
+/**
+ * Steuerfaelle, in denen die Rechnung keine oesterreichische Steuer ausweist:
+ * jede AT-Zeile zaehlt zu 0 %. Eine Zeile mit fremder Steuer (`steuerLand`
+ * nicht AT) behaelt ihren Satz.
+ */
 export const STEUERFREIE_FAELLE: readonly TaxScheme[] = Object.freeze([
   'smallBusiness',
   'reverseCharge',

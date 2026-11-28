@@ -177,13 +177,25 @@ test('Eigenschaft: auch mit Laendern gehen Zeilen je Gruppe genau auf', () => {
       discountBp: Math.floor(r() * 10_001),
       ...varianten[Math.floor(r() * varianten.length)]!,
     }));
-    const s = rechnungRechnen(positionen, { priceMode: r() < 0.5 ? 'net' : 'gross' });
+    const steuerfrei = r() < 0.25;
+    const s = rechnungRechnen(positionen, {
+      priceMode: r() < 0.5 ? 'net' : 'gross',
+      ...(steuerfrei ? { taxScheme: 'smallBusiness' as const } : {}),
+    });
     assert.equal(new Set(s.byRate.map(schluessel)).size, s.byRate.length, 'Gruppe doppelt');
     for (const gruppe of s.byRate) {
       const zeilen = s.lines.filter((l) => schluessel(l) === schluessel(gruppe));
       assert.ok(zeilen.length > 0);
       assert.equal(zeilen.reduce((a, l) => a + l.netCents, 0), gruppe.netCents);
       assert.equal(zeilen.reduce((a, l) => a + l.grossCents, 0), gruppe.grossCents);
+      assert.equal(gruppe.grossCents - gruppe.netCents, gruppe.vatCents, 'Brutto minus Netto ist die USt');
+      // Steuerfrei gilt nur fuer AT: dort 0 %, fremde Gruppen behalten ihren Satz.
+      if (steuerfrei && gruppe.land === undefined) assert.equal(gruppe.rateBp, 0);
+    }
+    if (steuerfrei) {
+      for (const [i, p] of positionen.entries()) {
+        if (p.steuerLand) assert.equal(s.lines[i]!.rateBp, p.vatRateBp, 'fremde Zeile behaelt ihren Satz');
+      }
     }
     assert.equal(s.netCents + s.vatCents, s.grossCents);
   }
