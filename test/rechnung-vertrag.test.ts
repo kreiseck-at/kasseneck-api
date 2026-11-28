@@ -13,6 +13,8 @@ import {
   REVERSE_CHARGE_REASONS,
   TAX_SCHEMES,
   INVOICE_UNITS,
+  ITEM_KINDS,
+  VAT_RATES,
   PAYMENT_FELDER,
   KUNDE_FELDER,
   RECHNUNG_EINHEITEN_CODES,
@@ -245,12 +247,17 @@ test('Vertrag: neue Codes am Ende, bestehende Reihenfolge unveraendert', () => {
   // gespeichert hat, behaelt seine Zuordnung. Die sechs vor 0.23.0 stehen an
   // derselben Stelle wie zuvor, die beiden neuen (0.23.0) dahinter, die
   // beiden der UID-Pruefung (0.33.0) ganz hinten.
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-10, -4), [
+  // Die sieben der Umsatzsteuer anderer Laender (0.42.0) stehen hinter allen.
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-17, -11), [
     'tax_scheme_mismatch', 'vat_rate_not_in_country', 'reverse_charge_reason_required',
     'reverse_charge_threshold', 'mixed_supply_not_allowed', 'oss_not_enabled',
   ]);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-4, -2), ['einvoice_unavailable', 'amount_too_large']);
-  assert.deepEqual(INVOICE_ERROR_CODES.slice(-2), ['vat_id_invalid', 'vat_id_check_pending']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-11, -9), ['einvoice_unavailable', 'amount_too_large']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-9, -7), ['vat_id_invalid', 'vat_id_check_pending']);
+  assert.deepEqual(INVOICE_ERROR_CODES.slice(-7), [
+    'vat_country_not_supported', 'vat_country_not_registered', 'vat_rate_date_not_covered', 'vat_exemption_unknown',
+    'foreign_vat_kind_not_supported', 'mixed_tax_scheme', 'customer_address_required',
+  ]);
   assert.equal(INVOICE_ERROR_CODES[0], 'validation');
 });
 
@@ -332,4 +339,34 @@ test('Vertrag: Einheiten sind Schluessel mit UN/ECE-Code, die Position nimmt nur
   for (const [einheit, code] of Object.entries(RECHNUNG_EINHEITEN_CODES)) assert.match(code, /^[A-Z0-9]{2,3}$/, einheit);
   assert.equal(INVOICE_UNITS[0], 'piece');
   assert.deepEqual(POSITION_FELDER['unit'], { typ: 'enum', pflicht: false, werte: INVOICE_UNITS });
+});
+
+// ---- Umsatzsteuer anderer Laender (0.42.0) -----------------------------------
+
+test('Vertrag: Position mit Land und Befreiung, beides optional', () => {
+  // Ohne vatCountry gilt AT: bestehende Anfragen bleiben gueltig und unveraendert.
+  assert.deepEqual(POSITION_FELDER['vatCountry'], { typ: 'string', pflicht: false, min: 2, max: 2, muster: '^[A-Z]{2}$' });
+  assert.deepEqual(POSITION_FELDER['vatExemption'], { typ: 'string', pflicht: false, min: 1, max: 40 });
+  assert.equal(GUTSCHRIFT_POSITION_FELDER['vatCountry'], POSITION_FELDER['vatCountry']);
+  assert.equal(GUTSCHRIFT_POSITION_FELDER['vatExemption'], POSITION_FELDER['vatExemption']);
+});
+
+test('Vertrag: Saetze sind die Vereinigung der Laender, geprueft wird je Land am Server', () => {
+  assert.deepEqual([...VAT_RATES], [0, 4.9, 7, 10, 13, 19, 20]);
+  assert.deepEqual(POSITION_FELDER['vatRate'], { typ: 'enum', pflicht: true, werte: VAT_RATES });
+});
+
+test('Vertrag: Leistungsart Personenbefoerderung hinten angehaengt', () => {
+  assert.deepEqual([...ITEM_KINDS], ['goods', 'service', 'passenger_transport']);
+});
+
+test('Schema: vatCountry traegt das Muster, vatExemption keines', () => {
+  const s = JSON.parse(readFileSync(schemaDatei, 'utf8'));
+  const position = s.aufrufe.issueInvoice.anfrage.properties.items.items.properties;
+  assert.deepEqual(position.vatCountry, { type: 'string', minLength: 2, maxLength: 2, pattern: '^[A-Z]{2}$' }, veraltet);
+  assert.deepEqual(position.vatExemption, { type: 'string', minLength: 1, maxLength: 40 }, veraltet);
+  assert.deepEqual(position.vatRate, { enum: [0, 4.9, 7, 10, 13, 19, 20] }, veraltet);
+  assert.deepEqual(position.kind, { enum: ['goods', 'service', 'passenger_transport'] }, veraltet);
+  // Bestehende Felder ohne Muster bekommen keines dazu.
+  assert.equal('pattern' in position.description, false);
 });

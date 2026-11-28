@@ -75,6 +75,14 @@ export const INVOICE_ERROR_CODES = [
   // Hinten angehaengt (0.33.0): UID-Pruefung beim Ausstellen ohne Steuer.
   'vat_id_invalid', // UID des Kunden laut FinanzOnline/VIES ungueltig -- auch mit acceptVatIdRisk gesperrt
   'vat_id_check_pending', // noch kein Ergebnis der UID-Pruefung; `retryAfter` in Sekunden, oder acceptVatIdRisk
+  // Hinten angehaengt (0.42.0): Umsatzsteuer anderer Laender je Position (`vatCountry`).
+  'vat_country_not_supported', // Land unbekannt oder nicht freigeschaltet; `supported`
+  'vat_country_not_registered', // Konto fuer das Land nicht steuerlich erfasst; `country`
+  'vat_rate_date_not_covered', // fremdes Land, Leistungstag vor dem Beginn des Katalogs; `from`
+  'vat_exemption_unknown', // Befreiung im Land unbekannt oder Satz nicht 0; `allowed`
+  'foreign_vat_kind_not_supported', // Leistungsart fuer fremde Steuer nicht freigegeben; `allowed`
+  'mixed_tax_scheme', // fremde Steuer zusammen mit Reverse Charge, ig. Lieferung oder Ausfuhr; `scheme`
+  'customer_address_required', // fremde Steuer ueber der Kleinbetragsgrenze ohne Name und Anschrift; `thresholdCents`
 ] as const;
 export type InvoiceErrorCode = (typeof INVOICE_ERROR_CODES)[number];
 
@@ -140,14 +148,24 @@ export const REVERSE_CHARGE_REASONS = Object.freeze({
 });
 export type ReverseChargeReason = keyof typeof REVERSE_CHARGE_REASONS;
 
-/** Ware oder Leistung — ohne das laesst sich ig. Lieferung nicht von Reverse Charge trennen. */
-export const ITEM_KINDS = ['goods', 'service'] as const;
+/**
+ * Ware oder Leistung — ohne das laesst sich ig. Lieferung nicht von Reverse
+ * Charge trennen. `passenger_transport` (0.42.0) ist eine Leistung, deren
+ * Streckenanteil im Ausland dort steuerbar ist (§ 3a Abs. 10 UStG 1994); nur mit
+ * einer freigegebenen Art darf eine Position fremde Steuer tragen.
+ */
+export const ITEM_KINDS = ['goods', 'service', 'passenger_transport'] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 export const PRICE_MODES = ['net', 'gross'] as const;
 export type PriceMode = (typeof PRICE_MODES)[number];
 
-export const VAT_RATES = [0, 10, 13, 20] as const;
+/**
+ * Alle Saetze, die irgendein freigeschaltetes Land kennt (AT 0/4,9/10/13/20,
+ * DE 7/19). Welcher Satz im Land der Position am Leistungstag gilt, prueft der
+ * Server gegen seinen Katalog (`vat_rate_not_in_country`).
+ */
+export const VAT_RATES = [0, 4.9, 7, 10, 13, 19, 20] as const;
 export type VatRatePercent = (typeof VAT_RATES)[number];
 
 export const CUSTOMER_TYPES = ['private', 'company'] as const;
@@ -347,7 +365,8 @@ export type InvoiceSetupRequirement = (typeof INVOICE_SETUP_REQUIREMENTS)[number
 export type Format = 'email' | 'phone' | 'vatId' | 'country' | 'date' | 'shortCode';
 
 export type Feld =
-  | { typ: 'string'; pflicht: boolean; min?: number; max: number; format?: Format }
+  /** `muster`: regulaerer Ausdruck, im JSON Schema `pattern` (seit 0.42.0, nur `vatCountry`). */
+  | { typ: 'string'; pflicht: boolean; min?: number; max: number; format?: Format; muster?: string }
   | { typ: 'integer'; pflicht: boolean; min: number; max: number }
   | { typ: 'number'; pflicht: boolean; min: number; max: number; nachkomma: number; exklusivMin?: boolean }
   | { typ: 'boolean'; pflicht: boolean }
@@ -431,6 +450,14 @@ export const POSITION_FELDER: Readonly<Record<string, Feld>> = Object.freeze({
   /** Einzelpreis in Mikro-Euro (10⁻⁶ €). Alternative zu `unitPriceCents`. */
   unitPriceMicros: { typ: 'integer', pflicht: false, min: 0, max: 1_000_000_000_000 },
   vatRate: { typ: 'enum', pflicht: true, werte: VAT_RATES },
+  /**
+   * Land, dessen Umsatzsteuer die Position traegt (ISO-Code); ohne Angabe `AT`.
+   * Der Server nimmt nur freigeschaltete Laender an, fuer die das Konto
+   * steuerlich erfasst ist, und schreibt `GR` als `EL`.
+   */
+  vatCountry: { typ: 'string', pflicht: false, min: 2, max: 2, muster: '^[A-Z]{2}$' },
+  /** Befreiung im Land der Position (z. B. `small_business`), nur mit `vatRate: 0`. */
+  vatExemption: { typ: 'string', pflicht: false, min: 1, max: 40 },
   discountPct: { typ: 'number', pflicht: false, min: 0, max: 100, nachkomma: 2 },
   /**
    * Artikel aus dem Artikelstamm (Lager-Kern Stufe 2): ist er bestandsgefuehrt

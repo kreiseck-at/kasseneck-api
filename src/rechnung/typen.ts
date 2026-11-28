@@ -110,6 +110,10 @@ export interface InvoiceItemInput {
    */
   unitPriceMicros?: number;
   vatRate: VatRatePercent;
+  /** Land der Umsatzsteuer dieser Position (ISO-Code, z. B. `DE`); ohne Angabe `AT`. */
+  vatCountry?: string;
+  /** Befreiung im Land der Position (z. B. `small_business`), nur mit `vatRate: 0`. */
+  vatExemption?: string;
   /** Zeilenrabatt in Prozent, hoechstens zwei Nachkommastellen. */
   discountPct?: number;
   /** Artikel aus dem Artikelstamm; bestandsgefuehrt bucht das Ausstellen ihn vom Lager ab. */

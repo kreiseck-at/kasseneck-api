@@ -4,6 +4,26 @@ Was vor 0.7.0 geschah, steht in der Commit-Historie (`git log`); ab hier wird
 es hier geführt. Ein Eintrag nennt die Änderung **und ihren Grund** —
 nur der Grund überlebt den nächsten Umbau.
 
+## 0.42.0 (unveröffentlicht)
+
+Umsatzsteuer anderer Länder je Rechnungsposition (Stufe 1: Deutschland, Personenbeförderung). Das Backend vendort die 0.x-Linie;
+eine Taxifahrt über die Grenze trägt für den deutschen Streckenanteil deutsche Umsatzsteuer, und die Rechnung muss beide Länder
+getrennt ausweisen.
+
+- **Vertrag:** Position mit `vatCountry` (ISO-Code, `^[A-Z]{2}$`, ohne Angabe `AT`) und `vatExemption` (z. B. `small_business`, nur mit
+  `vatRate: 0`), beide optional. `VAT_RATES` ist die Vereinigung der Länder `[0, 4.9, 7, 10, 13, 19, 20]`; welcher Satz im Land am
+  Leistungstag gilt, prüft der Server. `ITEM_KINDS` + `passenger_transport`. Sieben Fehlercodes hinten angehängt:
+  `vat_country_not_supported`, `vat_country_not_registered`, `vat_rate_date_not_covered`, `vat_exemption_unknown`,
+  `foreign_vat_kind_not_supported`, `mixed_tax_scheme`, `customer_address_required`. Im Schema steht das Muster als `pattern`.
+- **Rechenkern:** `rechnungRechnen` gruppiert und rundet je (Land, Satz, Befreiung) statt nur je Satz. Positionen tragen dafür
+  optional `steuerLand` und `befreiung` (gespeicherte Form). `byRate`- und `lines`-Einträge tragen `land` (und ggf. `befreiung`)
+  nur bei einem anderen Land als AT; Reihenfolge: AT wie bisher absteigend, danach die anderen Länder nach Code, je Land absteigend.
+  Der steuerfreie Fall der Rechnung (z. B. Kleinunternehmer) stellt nur die AT-Zeilen auf 0 %. Neuer Fehlercode `ungueltig` für ein
+  Land, das kein Code aus zwei Großbuchstaben ist, oder eine leere Befreiung. Rechnungen nur mit AT rechnen byte-gleich wie bisher
+  (alle Prüffälle unverändert, eigener Test mit ausdrücklichem `steuerLand: 'AT'`).
+- **Texte:** Hinweise `steuer.ausland.DE.passenger_transport.{ort,registriert,oss,kleinunternehmer}`, `steuer.ausland.kasten` und
+  die Summenzeilen `pdf.summe.ustLand`, `pdf.summe.befreitLand` in Deutsch und Englisch.
+
 ## 0.41.1 (unveröffentlicht)
 
 SumUp Solo (Cloud-Zahlung) im Bon: Zwilling der Druckregel aus 1.x, damit das Backend (vendort 0.x) keine falschen Zeilen druckt.

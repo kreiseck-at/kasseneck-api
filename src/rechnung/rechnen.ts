@@ -12,6 +12,12 @@
  * Grenzfaelle gleich runden. Mit Ganzzahlen gibt es keine Reihenfolge mehr, an
  * der etwas auseinanderlaufen koennte.
  *
+ * Gruppiert und gerundet wird je (Land, Satz, Befreiung): eine deutsche Zeile
+ * zu 19 % und eine oesterreichische zu 10 % sind zwei Gruppen, ebenso AT 0 %
+ * neben DE 0 % Kleinunternehmer. Ohne Land gilt AT; eine Rechnung nur mit AT
+ * rechnet und antwortet genau wie vor dem Umbau (Spec
+ * 2026-11-27-ust-ausland-design.md § 7.2).
+ *
  * Dieser Unterpfad ist rein: kein Transport, kein Zugangsschluessel, keine
  * Abhaengigkeit ausser Typen. Er wird im Browser gebuendelt (Panel) und im
  * Server geladen.
@@ -47,6 +53,18 @@ export interface RechenPosition {
   discountBp?: number;
   /** USt-Satz in Hundertstel-Prozent, 0 … 10000 (ohne Angabe 0). */
   vatRateBp?: number;
+  /**
+   * Land, dessen Umsatzsteuer die Zeile traegt (ISO-Code, zwei Grossbuchstaben).
+   * Ohne Angabe `AT` -- so wie der Altbestand gespeichert ist. Ob Land und Satz
+   * zusammenpassen, prueft der Server, nicht der Kern.
+   */
+  steuerLand?: string | null;
+  /**
+   * Befreiung im Land der Zeile (z. B. `small_business`), sonst keine. Nur bei
+   * einem fremden Land wirksam; oesterreichische Befreiungen laufen ueber den
+   * Steuerfall der Rechnung.
+   */
+  befreiung?: string | null;
 }
 
 export interface RechenOptionen {
@@ -60,6 +78,10 @@ export interface SatzSumme {
   netCents: number;
   vatCents: number;
   grossCents: number;
+  /** Nur bei einem anderen Land als AT. */
+  land?: string;
+  /** Nur bei einem anderen Land als AT und einer Befreiung. */
+  befreiung?: string;
 }
 
 export interface ZeilenBetrag {
@@ -67,19 +89,27 @@ export interface ZeilenBetrag {
   grossCents: number;
   /** Der Satz, mit dem die Zeile gerechnet wurde (bei steuerfreiem Fall 0). */
   rateBp: number;
+  /** Nur bei einem anderen Land als AT. */
+  land?: string;
+  /** Nur bei einem anderen Land als AT und einer Befreiung. */
+  befreiung?: string;
 }
 
 export interface RechenErgebnis {
   netCents: number;
   vatCents: number;
   grossCents: number;
-  /** Absteigend nach `rateBp`. */
+  /**
+   * Je (Land, Satz, Befreiung): zuerst AT absteigend nach `rateBp`, danach die
+   * anderen Laender nach Code, je Land absteigend nach `rateBp`, ohne Befreiung
+   * vor der Befreiung.
+   */
   byRate: SatzSumme[];
   /** Je Position, in der Reihenfolge der Eingabe. */
   lines: ZeilenBetrag[];
 }
 
-export type RechenFehlerCode = 'amount_too_large' | 'kein_ganzzahlwert' | 'ausserhalb';
+export type RechenFehlerCode = 'amount_too_large' | 'kein_ganzzahlwert' | 'ausserhalb' | 'ungueltig';
 
 /** Fehler des Kerns — mit Code, Feld und Index, damit die API daraus einen Feldfehler machen kann. */
 export class RechenFehler extends Error {
@@ -129,9 +159,59 @@ function ganzzahl(wert: unknown, feld: GrenzFeld, index: number): number {
   return wert;
 }
 
+/** Land ohne Angabe. */
+const INLAND = 'AT';
+
+/** Land der Zeile; `null`/fehlend ist AT, alles andere muss ein ISO-Code sein. */
+function landDerZeile(wert: unknown, index: number): string {
+  if (wert === undefined || wert === null) return INLAND;
+  if (typeof wert !== 'string' || !/^[A-Z]{2}$/.test(wert)) {
+    throw new RechenFehler('ungueltig', `items[${index}].steuerLand muss ein Laendercode aus zwei Grossbuchstaben sein`, 'steuerLand', index);
+  }
+  return wert;
+}
+
+/** Befreiung der Zeile; `null`/fehlend ist keine, sonst ein nicht leerer Text. */
+function befreiungDerZeile(wert: unknown, index: number): string | null {
+  if (wert === undefined || wert === null) return null;
+  if (typeof wert !== 'string' || wert.length === 0) {
+    throw new RechenFehler('ungueltig', `items[${index}].befreiung muss ein nicht leerer Text sein`, 'befreiung', index);
+  }
+  return wert;
+}
+
+/**
+ * Reihenfolge der Gruppen: AT zuerst und dort wie bisher nur nach Satz
+ * absteigend, danach die anderen Laender nach Code, je Land nach Satz
+ * absteigend, bei gleichem Satz die Zeile ohne Befreiung vorn.
+ */
+function gruppenFolge(a: Gruppe, b: Gruppe): number {
+  if (a.land !== b.land) {
+    if (a.land === INLAND) return -1;
+    if (b.land === INLAND) return 1;
+    return a.land < b.land ? -1 : 1;
+  }
+  if (a.rateBp !== b.rateBp) return b.rateBp - a.rateBp;
+  if (a.befreiung === b.befreiung) return 0;
+  if (a.befreiung === null) return -1;
+  if (b.befreiung === null) return 1;
+  return a.befreiung < b.befreiung ? -1 : 1;
+}
+
+interface Gruppe {
+  land: string;
+  rateBp: number;
+  befreiung: string | null;
+  zeilen: Zeile[];
+  summe?: SatzSumme;
+}
+
 interface Zeile {
   index: number;
   rateBp: number;
+  land: string;
+  /** Bei AT immer `null`: dort gruppiert der Kern wie bisher nur nach Satz. */
+  befreiung: string | null;
   /** Zeilenbetrag als Zaehler ueber E, im Preismodus der Rechnung. */
   L: bigint;
   netCents: number;
@@ -177,12 +257,20 @@ function verteile(
   for (const w of werte) w.z[feld] = Number(w.wert);
 }
 
+/** `land`/`befreiung` fuer Ausgabe -- bei AT nichts, damit AT-Rechnungen byte-gleich bleiben. */
+function herkunft(g: { land: string; befreiung: string | null }): { land?: string; befreiung?: string } {
+  if (g.land === INLAND) return {};
+  return g.befreiung === null ? { land: g.land } : { land: g.land, befreiung: g.befreiung };
+}
+
 export function rechnungRechnen(
   positionen: readonly RechenPosition[],
   optionen: RechenOptionen,
 ): RechenErgebnis {
+  // Der steuerfreie Fall der Rechnung ist ein oesterreichischer: er stellt die
+  // AT-Zeilen auf 0 %, eine Zeile mit fremder Steuer behaelt ihren Satz.
   const steuerfrei = STEUERFREIE_FAELLE.includes(optionen.taxScheme ?? 'normal');
-  const bruttoPreise = optionen.priceMode === 'gross' && !steuerfrei;
+  const brutto = optionen.priceMode === 'gross';
 
   const grenze = BigInt(BETRAG_GRENZE_CENTS) * E;
   const zeilen: Zeile[] = positionen.map((p, index) => {
@@ -190,6 +278,8 @@ export function rechnungRechnen(
     const menge = BigInt(ganzzahl(p.quantityMilli, 'quantityMilli', index));
     const rabatt = BigInt(ganzzahl(p.discountBp ?? 0, 'discountBp', index));
     const satz = ganzzahl(p.vatRateBp ?? 0, 'vatRateBp', index);
+    const land = landDerZeile(p.steuerLand, index);
+    const befreiung = befreiungDerZeile(p.befreiung, index);
     const L = preis * menge * (10_000n - rabatt) * 1_000_000n;
     if ((L < 0n ? -L : L) > grenze) {
       throw new RechenFehler(
@@ -199,18 +289,33 @@ export function rechnungRechnen(
         index,
       );
     }
-    return { index, rateBp: steuerfrei ? 0 : satz, L, netCents: 0, grossCents: 0 };
+    const inland = land === INLAND;
+    return {
+      index,
+      rateBp: steuerfrei && inland ? 0 : satz,
+      land,
+      befreiung: inland ? null : befreiung,
+      L,
+      netCents: 0,
+      grossCents: 0,
+    };
   });
 
-  const jeSatz = new Map<number, Zeile[]>();
+  // Land und Befreiung sind vorab geprueft (Code ohne „|“ bzw. letzte Stelle),
+  // der Schluessel ist darum eindeutig.
+  const gruppen = new Map<string, Gruppe>();
   for (const z of zeilen) {
-    const gruppe = jeSatz.get(z.rateBp);
-    if (gruppe) gruppe.push(z);
-    else jeSatz.set(z.rateBp, [z]);
+    const schluessel = `${z.land}|${z.rateBp}|${z.befreiung ?? ''}`;
+    const gruppe = gruppen.get(schluessel);
+    if (gruppe) gruppe.zeilen.push(z);
+    else gruppen.set(schluessel, { land: z.land, rateBp: z.rateBp, befreiung: z.befreiung, zeilen: [z] });
   }
 
-  const byRate: SatzSumme[] = [];
-  for (const [rateBp, gruppe] of jeSatz) {
+  for (const eintrag of gruppen.values()) {
+    const { rateBp, zeilen: gruppe } = eintrag;
+    // Eine Gruppe zu 0 % rechnet brutto wie netto; bisher galt dort der
+    // Netto-Weg, und dabei bleibt es fuer die AT-Zeilen im steuerfreien Fall.
+    const bruttoPreise = brutto && !(steuerfrei && eintrag.land === INLAND);
     const r = BigInt(rateBp);
     const S = gruppe.reduce((s, z) => s + z.L, 0n);
     let netCents: bigint;
@@ -232,14 +337,15 @@ export function rechnungRechnen(
       verteile(gruppe, 'netCents', 1n, E, netCents);
       verteile(gruppe, 'grossCents', 10_000n + r, E * 10_000n, grossCents);
     }
-    byRate.push({
+    eintrag.summe = {
       rateBp,
       netCents: Number(netCents),
       vatCents: Number(vatCents),
       grossCents: Number(grossCents),
-    });
+      ...herkunft(eintrag),
+    };
   }
-  byRate.sort((a, b) => b.rateBp - a.rateBp);
+  const byRate: SatzSumme[] = [...gruppen.values()].sort(gruppenFolge).map((g) => g.summe!);
 
   const summe = (feld: 'netCents' | 'vatCents' | 'grossCents'): number =>
     byRate.reduce((s, r) => s + r[feld], 0);
@@ -249,7 +355,7 @@ export function rechnungRechnen(
     vatCents: summe('vatCents'),
     grossCents: summe('grossCents'),
     byRate,
-    lines: zeilen.map((z) => ({ netCents: z.netCents, grossCents: z.grossCents, rateBp: z.rateBp })),
+    lines: zeilen.map((z) => ({ netCents: z.netCents, grossCents: z.grossCents, rateBp: z.rateBp, ...herkunft(z) })),
   };
   for (const feld of ['netCents', 'vatCents', 'grossCents'] as const) {
     if (Math.abs(ergebnis[feld]) > BETRAG_GRENZE_CENTS) {

@@ -42,6 +42,9 @@ const DE = {
   'pdf.summe.zwischensumme': 'Zwischensumme netto',
   'pdf.summe.umsatzsteuer': 'Umsatzsteuer {satz}%',
   'pdf.summe.darinUst': 'darin {satz}% USt von {netto} netto',
+  // Steuertabelle einer Rechnung mit fremder Steuer (0.42.0): je Land und Satz eine Zeile.
+  'pdf.summe.ustLand': 'USt {land} {satz} %',
+  'pdf.summe.befreitLand': '{land} 0 % – steuerfrei, Kleinunternehmer',
   'pdf.summe.gesamt.rechnung': 'Gesamtbetrag',
   'pdf.summe.gesamt.gutschrift': 'Gutschriftsbetrag',
   'steuer.kleinunternehmer': 'Gemäß § 6 Abs. 1 Z 27 UStG wird keine Umsatzsteuer verrechnet (Kleinunternehmer).',
@@ -75,6 +78,16 @@ const DE = {
   'steuer.domestic.text': 'Die Umsatzsteuer schuldet und entrichtet der Leistungsempfänger. Die Leistung ist nicht steuerfrei.',
   'steuer.outsideScope.titel': 'Nicht steuerbarer Umsatz. ',
   'steuer.outsideScope.text': 'Der Leistungsort liegt gemäß § 3a Abs. 6 UStG im Ansässigkeitsstaat des Leistungsempfängers; in Österreich fällt keine Umsatzsteuer an.',
+  // Umsatzsteuer anderer Laender (0.42.0): je Land und Leistungsart, am Originaltext geprueft am 27.11.2026.
+  // „UStG 1994“ ist das oesterreichische, „UStG Deutschland“ das deutsche Gesetz.
+  'steuer.ausland.DE.passenger_transport.ort': 'Streckenanteil Deutschland: in Österreich nicht steuerbar (§ 3a Abs. 10 UStG 1994).',
+  'steuer.ausland.DE.passenger_transport.registriert':
+    'Die deutsche Umsatzsteuer schuldet der leistende Unternehmer (§ 13a Abs. 1 Nr. 1, § 13b Abs. 6 Nr. 2 UStG Deutschland).',
+  'steuer.ausland.DE.passenger_transport.oss': 'Die deutsche Umsatzsteuer wird über den One-Stop-Shop (OSS) erklärt.',
+  'steuer.ausland.DE.passenger_transport.kleinunternehmer':
+    'In Deutschland gilt die Steuerbefreiung für Kleinunternehmer (§ 19 Abs. 1 und 4 UStG Deutschland). Kleinunternehmer-Identifikationsnummer: {nummer}.',
+  // Kasten unter dem Hinweis „registriert“: eigene UID und Steuernummer im fremden Land.
+  'steuer.ausland.kasten': 'UID: {uid}   ·   Steuernummer {land}: {nummer}',
   'pdf.zahlung.titel': 'ZAHLUNGSINFORMATIONEN',
   'pdf.zahlung.empfaenger': 'Empfänger',
   'pdf.zahlung.iban': 'IBAN',
@@ -279,6 +292,8 @@ const EN: Readonly<Record<RechnungTextSchluessel, string>> = {
   'pdf.summe.zwischensumme': 'Subtotal net',
   'pdf.summe.umsatzsteuer': 'VAT {satz}%',
   'pdf.summe.darinUst': 'incl. {satz}% VAT on {netto} net',
+  'pdf.summe.ustLand': 'VAT {land} {satz}%',
+  'pdf.summe.befreitLand': '{land} 0% – exempt, small business',
   'pdf.summe.gesamt.rechnung': 'Total',
   'pdf.summe.gesamt.gutschrift': 'Credit total',
   'steuer.kleinunternehmer': 'No VAT charged pursuant to § 6 (1) no. 27 UStG (small business exemption).',
@@ -304,6 +319,13 @@ const EN: Readonly<Record<RechnungTextSchluessel, string>> = {
   'steuer.domestic.text': 'The recipient owes and accounts for the VAT. The supply is not VAT-exempt.',
   'steuer.outsideScope.titel': 'Outside the scope of Austrian VAT. ',
   'steuer.outsideScope.text': 'The place of supply is the recipient\'s country pursuant to § 3a (6) UStG; no Austrian VAT applies.',
+  'steuer.ausland.DE.passenger_transport.ort': 'German share of the journey: not taxable in Austria (§ 3a (10) UStG 1994).',
+  'steuer.ausland.DE.passenger_transport.registriert':
+    'The German VAT is owed by the supplier (§ 13a (1) no. 1, § 13b (6) no. 2 German UStG).',
+  'steuer.ausland.DE.passenger_transport.oss': 'The German VAT is declared via the One-Stop-Shop (OSS).',
+  'steuer.ausland.DE.passenger_transport.kleinunternehmer':
+    'In Germany the small business exemption applies (§ 19 (1) and (4) German UStG). Small business identification number: {nummer}.',
+  'steuer.ausland.kasten': 'VAT ID: {uid}   ·   Tax number {land}: {nummer}',
   'pdf.zahlung.titel': 'PAYMENT DETAILS',
   'pdf.zahlung.empfaenger': 'Payee',
   'pdf.zahlung.iban': 'IBAN',
