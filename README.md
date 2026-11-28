@@ -896,9 +896,12 @@ await invoices.issueInvoice(request);
 **Without the server.** `@kreiseck/kasseneck-api/rechnung/rechnen` is the pure
 calculation core: no transport, no key, runs in the browser too. It calculates
 with integers (BigInt) instead of floating point and rounds exactly once per
-VAT rate. Prices are in micro-euros (`unitPriceMicros`), quantities in
+(country, VAT rate, exemption). Prices are in micro-euros (`unitPriceMicros`), quantities in
 thousandths (`quantityMilli`), discount and VAT rate in hundredths of a
-percent (`discountBp`, `vatRateBp`):
+percent (`discountBp`, `vatRateBp`). A position may carry `steuerLand` (ISO
+code, default `AT`) and `befreiung` (e.g. `small_business`); entries in `byRate`
+and `lines` carry `land` and `befreiung` only for a country other than AT, so
+Austria-only invoices look exactly as before:
 
 ```ts
 import { rechnungRechnen, positionAusEuro } from '@kreiseck/kasseneck-api/rechnung/rechnen';

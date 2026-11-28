@@ -1,5 +1,5 @@
 {
-  "version": "0.41.1",
+  "version": "0.42.0",
   "aufrufe": [
     "activateCashregister",
     "cancelInvoice",
@@ -424,7 +424,14 @@
       "einvoice_unavailable",
       "amount_too_large",
       "vat_id_invalid",
-      "vat_id_check_pending"
+      "vat_id_check_pending",
+      "vat_country_not_supported",
+      "vat_country_not_registered",
+      "vat_rate_date_not_covered",
+      "vat_exemption_unknown",
+      "foreign_vat_kind_not_supported",
+      "mixed_tax_scheme",
+      "customer_address_required"
     ],
     "invoiceLanguages": [
       "de",
@@ -511,7 +518,8 @@
     ],
     "itemKinds": [
       "goods",
-      "service"
+      "service",
+      "passenger_transport"
     ],
     "priceModes": [
       "net",
@@ -558,8 +566,11 @@
     ],
     "vatRates": [
       0,
+      4.9,
+      7,
       10,
       13,
+      19,
       20
     ]
   }

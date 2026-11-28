@@ -132,3 +132,49 @@ test('Kassenteil und Zahlungsbestaetigung: Beschriftungen de/en ohne Platzhalter
     assert.deepEqual(platzhalter(RECHNUNG_TEXTE.de[key]), [], `${name} hat keine Platzhalter`);
   }
 });
+
+test('Umsatzsteuer anderer Laender: Hinweise und Summenzeilen woertlich (0.42.0)', () => {
+  const erwartet: Record<string, { de: string; en: string }> = {
+    'steuer.ausland.DE.passenger_transport.ort': {
+      de: 'Streckenanteil Deutschland: in Österreich nicht steuerbar (§ 3a Abs. 10 UStG 1994).',
+      en: 'German share of the journey: not taxable in Austria (§ 3a (10) UStG 1994).',
+    },
+    'steuer.ausland.DE.passenger_transport.registriert': {
+      de: 'Die deutsche Umsatzsteuer schuldet der leistende Unternehmer (§ 13a Abs. 1 Nr. 1, § 13b Abs. 6 Nr. 2 UStG Deutschland).',
+      en: 'The German VAT is owed by the supplier (§ 13a (1) no. 1, § 13b (6) no. 2 German UStG).',
+    },
+    'steuer.ausland.DE.passenger_transport.oss': {
+      de: 'Die deutsche Umsatzsteuer wird über den One-Stop-Shop (OSS) erklärt.',
+      en: 'The German VAT is declared via the One-Stop-Shop (OSS).',
+    },
+    'steuer.ausland.DE.passenger_transport.kleinunternehmer': {
+      de: 'In Deutschland gilt die Steuerbefreiung für Kleinunternehmer (§ 19 Abs. 1 und 4 UStG Deutschland). Kleinunternehmer-Identifikationsnummer: {nummer}.',
+      en: 'In Germany the small business exemption applies (§ 19 (1) and (4) German UStG). Small business identification number: {nummer}.',
+    },
+    'steuer.ausland.kasten': {
+      de: 'UID: {uid}   ·   Steuernummer {land}: {nummer}',
+      en: 'VAT ID: {uid}   ·   Tax number {land}: {nummer}',
+    },
+    'pdf.summe.ustLand': { de: 'USt {land} {satz} %', en: 'VAT {land} {satz}%' },
+    'pdf.summe.befreitLand': { de: '{land} 0 % – steuerfrei, Kleinunternehmer', en: '{land} 0% – exempt, small business' },
+  };
+  for (const [name, texte] of Object.entries(erwartet)) {
+    const key = name as RechnungTextSchluessel;
+    assert.equal(RECHNUNG_TEXTE.de[key], texte.de, `de.${name}`);
+    assert.equal(RECHNUNG_TEXTE.en[key], texte.en, `en.${name}`);
+  }
+  assert.equal(rechnungText('de', 'pdf.summe.ustLand', { land: 'DE', satz: '19' }), 'USt DE 19 %');
+  assert.equal(rechnungText('en', 'steuer.ausland.kasten', { uid: 'ATU12345675', land: 'DE', nummer: '143/123/45678' }),
+    'VAT ID: ATU12345675   ·   Tax number DE: 143/123/45678');
+});
+
+test('Umsatzsteuer anderer Laender: jeder Rechtshinweis nennt die Stelle samt Gesetz', () => {
+  const stellen: RechnungTextSchluessel[] = [
+    'steuer.ausland.DE.passenger_transport.ort',
+    'steuer.ausland.DE.passenger_transport.registriert',
+    'steuer.ausland.DE.passenger_transport.kleinunternehmer',
+  ];
+  for (const sprache of INVOICE_LANGUAGES) {
+    for (const s of stellen) assert.match(RECHNUNG_TEXTE[sprache][s], /§ \d+[a-z]? .*UStG/, `${sprache}.${s} ohne Gesetzesstelle`);
+  }
+});
